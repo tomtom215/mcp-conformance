@@ -22,7 +22,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | Milestone | Status |
 |-----------|--------|
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
-| M1 — Registry and validator | **In progress** — engine, 15 checks, corpus, and CLI shipped; registry coverage, fuzzing, and JUnit output remain |
+| M1 — Registry and validator | **In progress** — engine, 15 checks, corpus, CLI, JUnit output, fuzz targets, and state-machine property tests shipped; full registry coverage and the crates.io publish remain |
 | M2 — Everything server | Not started |
 | M3 — Reference host | Not started |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
@@ -62,9 +62,9 @@ The spec as data, and the engine that judges traces against it.
 - [ ] Validator replays the corpus deterministically: 100% pass on known-good traces;
       **every check is killed by at least one injected-violation trace**; byte-identical
       reports across platforms and runs.
-- [ ] Session state machine for `2025-11-25` with every transition and error edge unit- and
+- [x] Session state machine for `2025-11-25` with every transition and error edge unit- and
       property-tested.
-- [ ] Report formats: human, JSON, JUnit; exit codes 0/1/2/3 documented and tested.
+- [x] Report formats: human, JSON, JUnit; exit codes 0/1/2/3 documented and tested.
 - [ ] Zero surviving mutants in `mcp-conformance-core` and `mcp-trace-validator`; fuzz
       targets (trace parse, canonicalization, registry deserialization) clean for the CI
       budget with corpora committed.

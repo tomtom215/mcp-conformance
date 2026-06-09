@@ -50,6 +50,27 @@ jobs:
       - name: Install cargo-mutants
         run: cargo install cargo-mutants --locked
       # The standard (docs/plan/04-engineering-standards.md): zero surviving mutants
-      # in the judgment crates.
-      - name: Full sweep on core and validator
-        run: cargo mutants -p mcp-conformance-core -p mcp-trace-validator --no-shuffle
+      # in every shipped crate (xtask is excluded via .cargo/mutants.toml).
+      - name: Full workspace sweep
+        run: cargo mutants --workspace --no-shuffle
+
+  fuzz:
+    name: Fuzz (trace parse, canonical JSON, registry parse)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install nightly --profile minimal --no-self-update
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: fuzz
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      # Five minutes per target weekly; committed seed corpora keep coverage warm.
+      # The canonical_json target asserts parse(canonical(v)) == v, not mere survival.
+      - name: Fuzz all targets
+        run: |
+          for target in trace_parse canonical_json registry_parse; do
+            cargo +nightly fuzz run "$target" -- -max_total_time=300
+          done

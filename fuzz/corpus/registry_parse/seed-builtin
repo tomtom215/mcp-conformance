@@ -1,0 +1,175 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "BASE-001",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#requests",
+        "quote": "Requests MUST include a string or integer ID."
+      },
+      "checks": ["base.request-id-type"]
+    },
+    {
+      "id": "BASE-002",
+      "level": "MUST NOT",
+      "actor": "both",
+      "source": {
+        "section": "basic#requests",
+        "quote": "Unlike base JSON-RPC, the ID MUST NOT be `null`."
+      },
+      "checks": ["base.request-id-not-null"]
+    },
+    {
+      "id": "BASE-003",
+      "level": "MUST NOT",
+      "actor": "both",
+      "source": {
+        "section": "basic#requests",
+        "quote": "The request ID MUST NOT have been previously used by the requestor within the same session."
+      },
+      "checks": ["base.request-id-unique"]
+    },
+    {
+      "id": "BASE-004",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#result-responses",
+        "quote": "Result responses MUST include the same ID as the request they correspond to."
+      },
+      "checks": ["base.result-id-matches"]
+    },
+    {
+      "id": "BASE-005",
+      "level": "MUST NOT",
+      "actor": "both",
+      "source": {
+        "section": "basic#notifications",
+        "quote": "Notifications MUST NOT include an ID."
+      },
+      "checks": ["base.notification-no-id"]
+    },
+    {
+      "id": "BASE-006",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#error-responses",
+        "quote": "Error responses MUST include an `error` field with a `code` and `message`."
+      },
+      "checks": ["base.error-shape"]
+    },
+    {
+      "id": "BASE-007",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#error-responses",
+        "quote": "Error codes MUST be integers."
+      },
+      "checks": ["base.error-code-integer"]
+    },
+    {
+      "id": "BASE-008",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#messages",
+        "quote": "All messages between MCP clients and servers MUST follow the JSON-RPC 2.0 specification."
+      },
+      "checks": ["base.jsonrpc-version"]
+    },
+    {
+      "id": "BASE-009",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#error-responses",
+        "quote": "Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request)."
+      },
+      "checks": ["base.error-id-matches"]
+    },
+    {
+      "id": "LIFE-001",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The initialization phase MUST be the first interaction between client and server."
+      },
+      "checks": ["lifecycle.first-interaction-initialize"]
+    },
+    {
+      "id": "LIFE-002",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The client MUST initiate this phase by sending an `initialize` request containing: Protocol version supported; Client capabilities; Client implementation information"
+      },
+      "checks": ["lifecycle.initialize-params"]
+    },
+    {
+      "id": "LIFE-003",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "After successful initialization, the client MUST send an `initialized` notification to indicate it is ready to begin normal operations"
+      },
+      "checks": ["lifecycle.initialized-notification"]
+    },
+    {
+      "id": "LIFE-004",
+      "level": "SHOULD NOT",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The client SHOULD NOT send requests other than pings before the server has responded to the `initialize` request."
+      },
+      "checks": ["lifecycle.client-requests-before-init-response"]
+    },
+    {
+      "id": "LIFE-005",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The server SHOULD NOT send requests other than pings and logging before receiving the `initialized` notification."
+      },
+      "checks": ["lifecycle.server-requests-before-initialized"]
+    },
+    {
+      "id": "LIFE-006",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/lifecycle#version-negotiation",
+        "quote": "If the server supports the requested protocol version, it MUST respond with the same version. Otherwise, the server MUST respond with another protocol version it supports."
+      },
+      "checks": ["lifecycle.initialize-result-version"]
+    },
+    {
+      "id": "TRAN-001",
+      "level": "MUST NOT",
+      "actor": "both",
+      "source": {
+        "section": "basic/transports#stdio",
+        "quote": "Messages are delimited by newlines, and MUST NOT contain embedded newlines."
+      },
+      "exclusion": "Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings."
+    },
+    {
+      "id": "TRAN-002",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#security-warning",
+        "quote": "Servers MUST validate the `Origin` header on all incoming connections to prevent DNS rebinding attacks"
+      },
+      "exclusion": "Judging Origin validation requires the server's configured allowlist, which recorded traces do not carry. Enforced instead as default-on policy in mcp-everything-server and exercised by its transport integration tests (roadmap M2)."
+    }
+  ]
+}

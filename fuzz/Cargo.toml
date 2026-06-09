@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+[package]
+name = "mcp-conformance-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = { version = "1", features = ["float_roundtrip"] }
+mcp-conformance-core = { path = "../crates/mcp-conformance-core" }
+mcp-trace-validator = { path = "../crates/mcp-trace-validator", default-features = false }
+
+# Its own workspace root: fuzzing is nightly-only tooling and must not infect the
+# main workspace's MSRV, lints, or lockfile.
+[workspace]
+
+[[bin]]
+name = "trace_parse"
+path = "fuzz_targets/trace_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "canonical_json"
+path = "fuzz_targets/canonical_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "registry_parse"
+path = "fuzz_targets/registry_parse.rs"
+test = false
+doc = false
+bench = false

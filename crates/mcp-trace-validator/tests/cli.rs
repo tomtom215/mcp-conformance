@@ -176,3 +176,22 @@ fn requirements_lists_the_registry_in_both_formats() {
     let registry: serde_json::Value = serde_json::from_str(&stdout(&json)).unwrap();
     assert_eq!(registry["revision"], "2025-11-25");
 }
+
+#[test]
+fn junit_format_emits_xml_for_validate_and_rejects_requirements() {
+    let output = run(&[
+        "validate",
+        corpus("violations/life-001-first-message-not-initialize.jsonl")
+            .to_str()
+            .unwrap(),
+        "--format",
+        "junit",
+    ]);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let xml = stdout(&output);
+    assert!(xml.starts_with("<?xml version=\"1.0\""), "{xml}");
+    assert!(xml.contains("<failure message="), "{xml}");
+
+    let rejected = run(&["requirements", "--format", "junit"]);
+    assert_eq!(rejected.status.code(), Some(2), "{rejected:?}");
+}

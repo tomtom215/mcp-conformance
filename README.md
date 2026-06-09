@@ -17,7 +17,7 @@ runtime.
   canonical JSON with RFC 8785 key ordering.
 - **`mcp-trace-validator`** — a deterministic offline validator: replay a recorded
   trace, get requirement-level findings (spec clause, offending event `seq`,
-  actionable detail) as human text or machine JSON, with documented exit codes for CI.
+  actionable detail) as human text, machine JSON, or JUnit XML, with documented exit codes for CI.
   15 checks, each falsified by a committed violation trace in [`corpus/`](corpus).
 - **`mcp-everything-server`** / **`mcp-reference-host`** — the M2/M3 artifacts, currently
   shipping only their foundations: a default-secure `Host`/`Origin` policy (the

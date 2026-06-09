@@ -53,7 +53,7 @@ Package registries are reachable only at dependency-install time, under lockfile
 | Property | `proptest` | Round-trips for all serialized types (trace events, registry records, reports); state-machine invariants under generated event sequences |
 | Golden corpus | trace fixtures + golden reports | 100% on known-good traces; every check killed by at least one injected-violation trace ([03-conformance-strategy.md](03-conformance-strategy.md)) |
 | Integration | `tests/`, real processes over stdio/HTTP on loopback | Host ↔ everything-server round trips per transport |
-| Mutation | `cargo-mutants` | Zero surviving mutants in `mcp-conformance-core` and `mcp-trace-validator`; diff-scoped gate (`--in-diff`) on PRs, full sweep scheduled |
+| Mutation | `cargo-mutants` | Zero surviving mutants in every shipped crate (xtask excluded); diff-scoped gate (`--in-diff`) on PRs, full workspace sweep scheduled |
 | Fuzz | `cargo-fuzz` | Targets: trace parsing, JSON canonicalization, registry deserialization. Clean for the CI fuzz budget; corpora checked in |
 | Conformance | official runner via `xtask` | Agreement check green; M2 onward: 100% server-scenario pass as a hard gate |
 | Benchmarks | `criterion` | Validator throughput (events/sec), canonicalization, state-machine stepping; CI regression gate with confidence-interval logic (a2a-rust pattern) |

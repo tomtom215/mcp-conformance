@@ -70,6 +70,8 @@ enum Format {
     Human,
     /// Pretty-printed JSON.
     Json,
+    /// `JUnit` XML (validate only), for CI test-report ingestion.
+    Junit,
 }
 
 fn main() -> ExitCode {
@@ -147,6 +149,7 @@ fn run_validate(
                 return EXIT_USAGE;
             }
         },
+        Format::Junit => print!("{}", mcp_trace_validator::junit::render(&report)),
     }
 
     match report.verdict() {
@@ -175,6 +178,10 @@ fn run_requirements(format: Format, registry_path: Option<&std::path::Path>) -> 
         }
     };
     match format {
+        Format::Junit => {
+            eprintln!("error: --format junit applies to validate, not requirements");
+            return EXIT_USAGE;
+        }
         Format::Json => match serde_json::to_string_pretty(&registry) {
             Ok(json) => println!("{json}"),
             Err(error) => {

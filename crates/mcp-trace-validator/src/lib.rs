@@ -39,5 +39,6 @@
 pub mod checks;
 pub mod context;
 pub mod engine;
+pub mod junit;
 pub mod reader;
 pub mod report;

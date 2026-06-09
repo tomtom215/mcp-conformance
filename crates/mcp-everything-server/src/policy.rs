@@ -269,4 +269,33 @@ mod tests {
             prop_assert!(!policy.host_header_allowed(&value));
         }
     }
+
+    #[test]
+    fn origin_userinfo_and_path_bans_hold_even_for_matching_allowlists() {
+        // Defense-in-depth: the '/' and '@' bans must deny independently of the
+        // host comparison, even when a (misguided) custom allowlist would match the
+        // raw authority string.
+        let at_policy = HttpSecurityPolicy::with_allowed_hosts(["user@example"]);
+        assert!(!at_policy.origin_allowed("http://user@example"));
+        let slash_policy = HttpSecurityPolicy::with_allowed_hosts(["example/x"]);
+        assert!(!slash_policy.origin_allowed("http://example/x"));
+        // Same for the whitespace ban in host extraction.
+        let space_policy = HttpSecurityPolicy::with_allowed_hosts(["local host"]);
+        assert!(!space_policy.host_header_allowed("local host"));
+    }
+
+    #[test]
+    fn port_digit_check_is_not_redundant_with_integer_parsing() {
+        // Rust's u32 parsing accepts a leading '+'; without the digits check,
+        // "localhost:+80" would slip through as port 80.
+        let policy = HttpSecurityPolicy::default();
+        assert!(!policy.host_header_allowed("localhost:+80"));
+    }
+
+    #[test]
+    fn port_range_boundary_is_inclusive_at_65535() {
+        let policy = HttpSecurityPolicy::default();
+        assert!(policy.host_header_allowed("localhost:65535"));
+        assert!(!policy.host_header_allowed("localhost:65536"));
+    }
 }

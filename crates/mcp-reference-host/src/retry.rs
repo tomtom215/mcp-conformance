@@ -284,4 +284,52 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn max_retries_accessor_reports_the_configured_budget() {
+        assert_eq!(RetryPolicy::default().max_retries(), 5);
+        let custom = RetryPolicy::new(
+            Duration::from_millis(100),
+            2.0,
+            Duration::from_secs(1),
+            9,
+            0.0,
+        )
+        .unwrap();
+        assert_eq!(custom.max_retries(), 9);
+    }
+
+    #[test]
+    fn retry_after_budget_boundary_is_inclusive_at_max_retries() {
+        let policy = RetryPolicy::default();
+        assert!(
+            policy
+                .delay_honoring_retry_after(5, Duration::from_secs(1))
+                .is_some()
+        );
+        assert!(
+            policy
+                .delay_honoring_retry_after(6, Duration::from_secs(1))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn policy_error_messages_name_the_violated_constraint() {
+        assert!(
+            RetryPolicyError::InvalidMultiplier
+                .to_string()
+                .contains("multiplier")
+        );
+        assert!(
+            RetryPolicyError::InvalidJitterFraction
+                .to_string()
+                .contains("jitter")
+        );
+        assert!(
+            RetryPolicyError::InvalidDelayBounds
+                .to_string()
+                .contains("delay")
+        );
+    }
 }

@@ -272,4 +272,110 @@ mod tests {
         assert_eq!(context.initialize().initialized, None);
         assert_eq!(context.final_phase(), Phase::AfterInitializeSuccess);
     }
+
+    /// Property coverage for the lifecycle state machine: arbitrary interleavings of
+    /// a small message alphabet must never break the machine's invariants.
+    mod state_machine_properties {
+        use super::*;
+        use proptest::prelude::*;
+        use serde_json::json;
+
+        /// The alphabet: plausible and implausible protocol moves, both directions.
+        /// Events are built through serde (`TraceEvent` is `#[non_exhaustive]`), which
+        /// is also how every real trace arrives.
+        fn arbitrary_event(seq: u64, choice: u8, direction_bit: bool) -> TraceEvent {
+            let payload = match choice % 7 {
+                0 => json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}),
+                1 => json!({"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25"}}),
+                2 => json!({"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"x"}}),
+                3 => json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
+                4 => json!({"jsonrpc":"2.0","id":99,"result":{}}),
+                5 => json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
+                _ => json!({"jsonrpc":"2.0","method":"notifications/cancelled"}),
+            };
+            let direction = if direction_bit {
+                "client-to-server"
+            } else {
+                "server-to-client"
+            };
+            serde_json::from_value(json!({
+                "seq": seq,
+                "direction": direction,
+                "transport": "stdio",
+                "kind": "message",
+                "payload": payload,
+            }))
+            .unwrap()
+        }
+
+        /// Allowed transition edges; anything else is a state-machine defect.
+        const fn edge_is_legal(from: Phase, to: Phase) -> bool {
+            matches!(
+                (from, to),
+                (
+                    Phase::BeforeInitialize,
+                    Phase::BeforeInitialize | Phase::AwaitingInitializeResult
+                ) | (
+                    Phase::AwaitingInitializeResult,
+                    Phase::AwaitingInitializeResult
+                        | Phase::AfterInitializeSuccess
+                        | Phase::AfterInitializeError
+                ) | (
+                    Phase::AfterInitializeSuccess,
+                    Phase::AfterInitializeSuccess | Phase::Ready
+                ) | (Phase::AfterInitializeError, Phase::AfterInitializeError)
+                    | (Phase::Ready, Phase::Ready)
+            )
+        }
+
+        proptest! {
+            #[test]
+            fn invariants_hold_for_arbitrary_sequences(
+                moves in proptest::collection::vec((any::<u8>(), any::<bool>()), 0..32)
+            ) {
+                let events: Vec<TraceEvent> = moves
+                    .iter()
+                    .enumerate()
+                    .map(|(index, (choice, direction))| {
+                        arbitrary_event(index as u64, *choice, *direction)
+                    })
+                    .collect();
+                let context = TraceContext::new(&events);
+
+                // Phase-before sequence only walks legal edges, ending at final_phase.
+                let phases: Vec<Phase> =
+                    context.messages().map(|(_, _, phase)| phase).collect();
+                prop_assert_eq!(phases.len(), events.len());
+                for window in phases.windows(2) {
+                    prop_assert!(
+                        edge_is_legal(window[0], window[1]),
+                        "illegal edge {:?} -> {:?}",
+                        window[0],
+                        window[1]
+                    );
+                }
+                if let Some(last) = phases.last() {
+                    prop_assert!(
+                        edge_is_legal(*last, context.final_phase()),
+                        "illegal final edge {:?} -> {:?}",
+                        last,
+                        context.final_phase()
+                    );
+                }
+
+                // Exchange-record implications.
+                let init = context.initialize();
+                if init.result.is_some() || init.initialized.is_some() {
+                    prop_assert!(init.request.is_some());
+                }
+                if init.initialized.is_some() {
+                    prop_assert!(init.result.is_some());
+                    prop_assert_eq!(context.final_phase(), Phase::Ready);
+                }
+                if context.final_phase() == Phase::Ready {
+                    prop_assert!(init.initialized.is_some());
+                }
+            }
+        }
+    }
 }

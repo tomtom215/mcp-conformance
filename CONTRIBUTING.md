@@ -39,8 +39,8 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
 
 Additionally enforced in CI: `cargo deny check` (licenses, advisories, sources),
 `cargo package --workspace` (publishability), and diff-scoped mutation testing
-(`cargo mutants --in-diff`) on PRs. The standard for `mcp-conformance-core` and
-`mcp-trace-validator` is **zero surviving mutants**.
+(`cargo mutants --in-diff`) on PRs. The standard is **zero surviving mutants in
+every shipped crate** (xtask is excluded via `.cargo/mutants.toml`).
 
 ## Working on checks and the corpus
 

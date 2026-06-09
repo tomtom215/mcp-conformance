@@ -22,3 +22,14 @@
 # cargo-mutants output
 mutants.out/
 mutants.out.old/
+
+# cargo-fuzz build/findings output (fuzz/ is its own workspace)
+fuzz/target/
+fuzz/artifacts/
+fuzz/coverage/
+
+# libFuzzer-discovered corpus entries (hash-named) stay local; only curated
+# seed-* files are tracked. Interesting discoveries get promoted to seeds
+# deliberately, not committed wholesale.
+fuzz/corpus/*/*
+!fuzz/corpus/*/seed-*
