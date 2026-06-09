@@ -32,8 +32,10 @@ Every item is anchored to a register row, so the backlog dies gracefully if a fa
 | 2 | RustSec advisory for CVE-2026-42559 (`cargo audit` currently silent on rmcp < 1.4.0) | [4.3](01-ecosystem-context.md) | Coordinate with rmcp maintainers, then PR to rustsec/advisory-db |
 | 3 | MSRV policy for rust-sdk (none declared) | [3.5](01-ecosystem-context.md) | Issue with a concrete proposal: `rust-version` + CI job + bump policy |
 | 4 | Conformance scenarios/fixtures where Rust runs expose suite gaps | [2.3, 3.6](01-ecosystem-context.md) | Small PRs to the conformance repo, SEP-tagged where applicable |
-| 5 | 2026-07-28 stateless-rework readiness (test targets before the two-week Tier-1 window) | [1.3, 2.5](01-ecosystem-context.md) | Draft corpus + validator support published early; findings filed upstream |
+| 5 | 2026-07-28 stateless-rework readiness (test targets before the Tier-1 window — two weeks per SEP text, ~10 weeks observed this cycle) | [1.3, 2.5](01-ecosystem-context.md) | Draft corpus + validator support published early; findings filed upstream |
 | 6 | Spec-vs-suite discrepancies discovered by the agreement check | [03-conformance-strategy.md](03-conformance-strategy.md) | Issues with reproducing traces attached |
+| 7 | SEP-2484 traceability tooling: the registry already stores the `sep-NNNN.yaml` shape, so an emitter plus a completeness checker (every MUST/MUST NOT mapped, exclusions carrying tracking links) is a query over existing data — recurring per-SEP work the gate created with no owning tool | [2.9, 2.11](01-ecosystem-context.md) | Offer upstream as a conformance-repo utility once M1 publishes; design note first |
+| 8 | Suite reliability where it scores tiers: tier-check counting bug and SDK-repo lifecycle boilerplate, both open upstream | [2.13](01-ecosystem-context.md) | Small, obviously-correct PRs to the conformance repo — credibility builders shaped like backlog items 2 and 3 |
 
 Ordering follows credibility economics: small, obviously-correct contributions (2, 3) earn
 the standing that large ones (1) require.
