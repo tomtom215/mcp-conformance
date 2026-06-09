@@ -57,6 +57,35 @@ the numbers cannot drift from the data:
 Revision `2025-11-25`: 71 requirements — 43 judged by 42 distinct trace checks (every check falsified by a committed violation trace), 28 carrying documented exclusions explaining why a recorded trace cannot judge them. Capability-gated requirements report *not-applicable* (never a vacuous pass) for sessions that did not negotiate the capability.
 <!-- coverage:end -->
 
+## The trace format, in one example
+
+A trace is JSON Lines: one event per line, each carrying a capture-assigned `seq`
+(the only ordering authority), a `direction`, a `transport`, and a `kind` —
+`message` events hold the JSON-RPC payload verbatim; `http` events record
+status and conformance-relevant headers; `lifecycle` events mark transport
+open/close. This session reuses a request ID:
+
+```jsonl
+{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"my-host","version":"1.0.0"}}}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"my-server","version":"1.0.0"}}}}
+{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}
+{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}
+```
+
+and the validator answers with the violated clause, verbatim from the spec via the
+registry, addressed to the offending event:
+
+```text
+  FAIL  BASE-003 (MUST NOT)
+        seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
+totals: 37 pass, 1 fail, 0 warn, 28 excluded, 0 unsupported, 5 not applicable
+verdict: fail
+```
+
+The five not-applicable rows are the capability-gated requirements this session
+never negotiated (the resources and prompts clauses) — reported as such, never
+as passes. [`corpus/`](corpus) holds complete annotated sessions for every area.
+
 The complete project plan — charter, verified ecosystem context, architecture,
 conformance strategy, engineering standards, security model, roadmap, and decision
 records — lives in [`docs/plan/`](docs/plan/README.md).

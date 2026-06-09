@@ -36,6 +36,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   table from the registry; CI verifies it never drifts.
 - CI: informational `-Zminimal-versions` job proving the workspace dependency
   floors build and pass tests.
+- Release pipeline (`release.yml`, ADR-0007): tag-triggered, rehearsable via
+  `workflow_dispatch`; full gates + cross-OS tests, SLSA build-provenance
+  attestation with a byte-identity check between attested and published
+  packages, idempotent GitHub Releases, resumable dependency-order publishing,
+  and OIDC trusted publishing after a one-time bootstrapped token release.
 - `mcp-reference-host`: deterministic retry/backoff policy with caller-supplied
   jitter and capped `Retry-After` honoring.
 - Workspace tooling: `cargo xtask ci` (all local gates) and `cargo xtask bless`

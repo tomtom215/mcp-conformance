@@ -13,6 +13,18 @@ mcp-trace-validator validate - --format json < session.jsonl
 mcp-trace-validator requirements
 ```
 
+A trace is JSON Lines — one event per line with a capture-assigned `seq`,
+`direction`, `transport`, and a `kind`-discriminated body (`message` carries the
+JSON-RPC payload verbatim):
+
+```jsonl
+{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"my-host","version":"1.0.0"}}}}
+```
+
+Findings name the requirement, quote-backed by the registry, and the offending
+event: `seq 3: request "tools/list" reuses id 1, already used by the same party
+at seq 0`.
+
 Exit codes: `0` pass (warnings allowed unless `--strict`), `1` violations, `2`
 invocation/registry problem, `3` malformed trace.
 

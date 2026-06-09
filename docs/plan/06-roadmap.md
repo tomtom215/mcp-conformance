@@ -23,7 +23,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | Milestone | Status |
 |-----------|--------|
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
-| M1 — Registry and validator | **In progress** — registry coverage of the `2025-11-25` core surface complete (README coverage table is the generated count), engine, corpus, CLI, JUnit output, fuzz targets, benchmarks, and RFC 8785 number canonicalization shipped; only the crates.io publish (owner trusted-publishing action) remains |
+| M1 — Registry and validator | **In progress** — registry coverage of the `2025-11-25` core surface complete (README coverage table is the generated count), engine, corpus, CLI, JUnit output, fuzz targets, benchmarks, RFC 8785 number canonicalization, and the release pipeline (ADR-0007) shipped; only the bootstrap publish itself (RELEASING.md §Bootstrap — owner action) remains |
 | M2 — Everything server | Not started |
 | M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (July 28, 2026); re-sequenced ahead of M3 on 2026-06-09 |
 | M3 — Reference host | Not started |
