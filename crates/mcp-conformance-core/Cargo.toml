@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+[package]
+name = "mcp-conformance-core"
+description = "Model Context Protocol conformance model: requirement registry, trace schema, message classification, and canonical JSON"
+readme = "README.md"
+keywords = ["mcp", "conformance", "protocol", "specification", "testing"]
+categories = ["development-tools::testing", "data-structures"]
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true

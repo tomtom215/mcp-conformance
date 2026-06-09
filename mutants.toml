@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# cargo-mutants configuration — mutation testing.
+# Gate: zero surviving mutants in mcp-conformance-core and mcp-trace-validator
+# (docs/plan/04-engineering-standards.md). PRs run diff-scoped (--in-diff);
+# the scheduled workflow runs the full sweep.
+#
+# Install:  cargo install cargo-mutants --locked
+# Run:      cargo mutants --workspace
+
+# Generous multiplier so slower CI runners don't misreport slow-killed mutants
+# as timeouts; the base timeout is auto-detected from a clean `cargo test`.
+timeout_multiplier = 3.0
+
+# Floor: no mutant gets less than 30s even when the baseline is very fast
+# (this workspace's unit tests run in milliseconds, which would otherwise
+# produce a hair-trigger timeout).
+minimum_test_timeout = 30
+
+# Hard cap to catch genuine hangs (e.g. a mutated loop condition) without
+# letting one mutant stall the sweep.
+cap_timeout = 300
+
+# xtask is dev-only orchestration glue; mutating it proves nothing about the
+# shipped crates and doubles sweep time.
+exclude_globs = ["xtask/**"]

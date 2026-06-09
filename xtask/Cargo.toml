@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+[package]
+name = "xtask"
+description = "Workspace task runner (cargo xtask); never published"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

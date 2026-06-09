@@ -1,0 +1,288 @@
+// SPDX-License-Identifier: MIT
+// Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+//! Checks for the `2025-11-25` session lifecycle requirements (`LIFE-*`).
+//!
+//! These lean on [`TraceContext`]'s precomputed phases: every check sees the lifecycle
+//! phase *before* each event, which is exactly the state the spec's ordering rules are
+//! written against.
+
+use mcp_conformance_core::message::MessageKind;
+use mcp_conformance_core::revision::ProtocolRevision;
+use mcp_conformance_core::trace::Direction;
+use serde_json::Value;
+
+use super::FindingSink;
+use crate::context::{Phase, TraceContext};
+
+/// `LIFE-001`: "The initialization phase MUST be the first interaction between client
+/// and server." — the first message in the trace must be the client's `initialize`
+/// request. An empty trace passes vacuously.
+pub(super) fn first_interaction_initialize(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    let Some((event, kind, _)) = context.messages().next() else {
+        return;
+    };
+    match (event.direction, kind) {
+        (Direction::ClientToServer, MessageKind::Request { method, .. })
+            if *method == "initialize" => {}
+        (Direction::ClientToServer, MessageKind::Request { method, .. }) => sink.push(
+            Some(event.seq),
+            format!("first message is a {method:?} request, expected \"initialize\""),
+        ),
+        (direction, _) => sink.push(
+            Some(event.seq),
+            format!(
+                "first message is {} ({}), expected the client's \"initialize\" request",
+                describe_kind(kind),
+                direction_name(direction)
+            ),
+        ),
+    }
+}
+
+/// `LIFE-002`: the `initialize` request must carry `protocolVersion`, `capabilities`,
+/// and `clientInfo` params.
+pub(super) fn initialize_params(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    let Some((seq, params)) = context.initialize().request else {
+        return; // No initialize at all: LIFE-001's finding.
+    };
+    let Some(params) = params else {
+        sink.push(
+            Some(seq),
+            "initialize request has no params; protocolVersion, capabilities, and clientInfo are required".to_owned(),
+        );
+        return;
+    };
+    expect_member(
+        sink,
+        seq,
+        params,
+        "protocolVersion",
+        Value::is_string,
+        "a string",
+    );
+    expect_member(
+        sink,
+        seq,
+        params,
+        "capabilities",
+        Value::is_object,
+        "an object",
+    );
+    expect_member(
+        sink,
+        seq,
+        params,
+        "clientInfo",
+        Value::is_object,
+        "an object",
+    );
+}
+
+fn expect_member(
+    sink: &mut FindingSink,
+    seq: u64,
+    params: &Value,
+    member: &str,
+    predicate: fn(&Value) -> bool,
+    expected: &str,
+) {
+    match params.get(member) {
+        None => sink.push(
+            Some(seq),
+            format!("initialize params lack the {member} member"),
+        ),
+        Some(value) if !predicate(value) => sink.push(
+            Some(seq),
+            format!("initialize params member {member} should be {expected}"),
+        ),
+        Some(_) => {}
+    }
+}
+
+/// `LIFE-003`: "After successful initialization, the client MUST send an `initialized`
+/// notification …".
+pub(super) fn initialized_notification(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    let init = context.initialize();
+    if let Some((result_seq, _)) = init.result {
+        if init.initialized.is_none() {
+            sink.push(
+                Some(result_seq),
+                "the server answered initialize here, but no notifications/initialized notification follows in the trace".to_owned(),
+            );
+        }
+    }
+}
+
+/// `LIFE-004`: "The client SHOULD NOT send requests other than pings before the server
+/// has responded to the `initialize` request."
+pub(super) fn client_requests_before_init_response(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    for (event, kind, phase) in context.messages() {
+        if event.direction != Direction::ClientToServer {
+            continue;
+        }
+        if !matches!(
+            phase,
+            Phase::BeforeInitialize | Phase::AwaitingInitializeResult
+        ) {
+            continue;
+        }
+        if let MessageKind::Request { method, .. } = kind {
+            if *method != "initialize" && *method != "ping" {
+                sink.push(
+                    Some(event.seq),
+                    format!(
+                        "client sent a {method:?} request before the server responded to initialize"
+                    ),
+                );
+            }
+        }
+    }
+}
+
+/// `LIFE-005`: "The server SHOULD NOT send requests other than pings and logging before
+/// receiving the `initialized` notification."
+///
+/// In `2025-11-25`, logging travels as `notifications/message` — a notification, which
+/// this requests-only check never flags — so the spec's "and logging" allowance needs
+/// no special case here.
+pub(super) fn server_requests_before_initialized(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    for (event, kind, phase) in context.messages() {
+        if event.direction != Direction::ServerToClient || phase == Phase::Ready {
+            continue;
+        }
+        if let MessageKind::Request { method, .. } = kind {
+            if *method != "ping" {
+                sink.push(
+                    Some(event.seq),
+                    format!(
+                        "server sent a {method:?} request before receiving the initialized notification"
+                    ),
+                );
+            }
+        }
+    }
+}
+
+/// `LIFE-006`: the server's `initialize` result must carry a `protocolVersion` that is
+/// a dated revision identifier. Whether the *negotiation* (same-version-if-supported)
+/// was honored is not judgeable from a single trace; the shape and format are.
+pub(super) fn initialize_result_version(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    let Some((seq, result)) = context.initialize().result else {
+        return;
+    };
+    match result.get("protocolVersion") {
+        None => sink.push(
+            Some(seq),
+            "initialize result lacks the protocolVersion member".to_owned(),
+        ),
+        Some(Value::String(version)) => {
+            if version.parse::<ProtocolRevision>().is_err() {
+                sink.push(
+                    Some(seq),
+                    format!(
+                        "initialize result protocolVersion {version:?} is not a dated revision identifier (YYYY-MM-DD)"
+                    ),
+                );
+            }
+        }
+        Some(other) => sink.push(
+            Some(seq),
+            format!("initialize result protocolVersion is {other}, expected a revision string"),
+        ),
+    }
+}
+
+const fn describe_kind(kind: &MessageKind<'_>) -> &'static str {
+    match kind {
+        MessageKind::Request { .. } => "a request",
+        MessageKind::Notification { .. } => "a notification",
+        MessageKind::Result { .. } => "a result response",
+        MessageKind::Error { .. } => "an error response",
+        MessageKind::Invalid { .. } => "not a valid JSON-RPC message",
+        // MessageKind is #[non_exhaustive]; future shapes still deserve a description.
+        _ => "an unrecognized message kind",
+    }
+}
+
+const fn direction_name(direction: Direction) -> &'static str {
+    match direction {
+        Direction::ClientToServer => "client to server",
+        Direction::ServerToClient => "server to client",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn describe_kind_names_every_shape_exactly() {
+        // These strings appear verbatim in findings; mutating any arm must fail here.
+        let request = json!({"id": 1, "method": "x"});
+        let notification = json!({"method": "x"});
+        let result = json!({"id": 1, "result": {}});
+        let error = json!({"id": 1, "error": {}});
+        let invalid = json!([]);
+        let cases = [
+            (&request, "a request"),
+            (&notification, "a notification"),
+            (&result, "a result response"),
+            (&error, "an error response"),
+            (&invalid, "not a valid JSON-RPC message"),
+        ];
+        for (payload, expected) in cases {
+            let kind = mcp_conformance_core::message::classify(payload);
+            assert_eq!(describe_kind(&kind), expected, "for {payload}");
+        }
+    }
+
+    #[test]
+    fn direction_name_is_exact() {
+        assert_eq!(
+            direction_name(Direction::ClientToServer),
+            "client to server"
+        );
+        assert_eq!(
+            direction_name(Direction::ServerToClient),
+            "server to client"
+        );
+    }
+
+    #[test]
+    fn initialize_params_with_wrong_types_are_flagged() {
+        // Present-but-mistyped members must be findings, not silent passes — this
+        // pins the type-predicate guard in expect_member.
+        use crate::context::TraceContext;
+        use crate::reader::{Limits, parse_trace};
+        let doc = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":123,"capabilities":[],"clientInfo":"nope"}}}"#;
+        let events = parse_trace(doc, &Limits::default()).expect("valid trace");
+        let context = TraceContext::new(&events);
+        let findings = crate::checks::find("lifecycle.initialize-params")
+            .expect("check exists")
+            .run(&context);
+        assert_eq!(findings.len(), 3, "{findings:?}");
+        assert!(
+            findings[0]
+                .detail
+                .contains("protocolVersion should be a string")
+        );
+        assert!(
+            findings[1]
+                .detail
+                .contains("capabilities should be an object")
+        );
+        assert!(
+            findings[2]
+                .detail
+                .contains("clientInfo should be an object")
+        );
+    }
+}

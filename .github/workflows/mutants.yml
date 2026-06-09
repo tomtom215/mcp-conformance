@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# Mutation testing, diff-scoped to the PR (the a2a-rust `--in-diff` pattern): every
+# mutant in changed code must be caught by a test. The full-workspace sweep runs on a
+# schedule in scheduled.yml; this gate keeps PR feedback fast while still enforcing
+# the zero-surviving-mutants standard where it matters most — the code being changed.
+
+name: Mutants
+
+on:
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  incremental:
+    name: Mutants (PR diff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      # Compiled from source with --locked for reproducibility; the rust-cache step
+      # caches the installed binary between runs.
+      - name: Install cargo-mutants
+        run: cargo install cargo-mutants --locked
+      - name: Compute PR diff
+        run: git diff "origin/${{ github.base_ref }}..." > pr.diff
+      - name: Run mutants on changed code
+        run: cargo mutants --workspace --no-shuffle --in-diff pr.diff

@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+[workspace]
+resolver = "3"
+members = [
+    "crates/mcp-conformance-core",
+    "crates/mcp-trace-validator",
+    "crates/mcp-everything-server",
+    "crates/mcp-reference-host",
+    "xtask",
+]
+
+[workspace.package]
+edition = "2024"
+# MSRV policy (docs/plan/decisions/0004-toolchain-and-msrv.md): 1.85 is the
+# Edition 2024 floor and the lowest bound we actually verify in CI. Bumps are
+# minor releases with a changelog entry.
+rust-version = "1.85"
+version = "0.1.0"
+license = "MIT"
+authors = ["Tom F."]
+repository = "https://github.com/tomtom215/mcp-conformance"
+homepage = "https://github.com/tomtom215/mcp-conformance"
+
+[workspace.dependencies]
+# Version ranges carry upper bounds (the a2a-rust convention): floors are the
+# oldest versions we test against; caps prevent silent major-version drift.
+serde = { version = ">=1.0.200, <2", features = ["derive"] }
+# float_roundtrip is required correctness, not an optimization preference: without
+# it serde_json's float *parsing* may be 1 ULP off its own output, which breaks
+# parse(canonical(v)) == v — caught by the canonical-JSON property tests.
+serde_json = { version = ">=1.0.115, <2", features = ["float_roundtrip"] }
+
+# CLI parsing — validator binary only, behind its `cli` feature
+# (docs/plan/decisions/0005-cli-argument-parsing.md).
+clap = { version = ">=4.5, <5", features = ["derive"] }
+
+# Dev/test only.
+proptest = { version = ">=1.4, <2" }
+
+# Workspace-internal crates.
+mcp-conformance-core = { version = "0.1.0", path = "crates/mcp-conformance-core" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+# Group lints at `warn` with reduced priority so the targeted levels below can
+# override individual lints; CI escalates all warnings to errors via RUSTFLAGS.
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+# Not part of pedantic/nursery; test modules may opt out locally and visibly.
+unwrap_used = "warn"
+expect_used = "warn"
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = 3
+codegen-units = 1
+strip = true

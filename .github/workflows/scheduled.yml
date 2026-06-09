@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# Scheduled hygiene: weekly RustSec audit and the full mutation sweep that PR-scoped
+# runs (mutants.yml) deliberately skip. Manually dispatchable for on-demand runs.
+
+name: Scheduled
+
+on:
+  schedule:
+    # Mondays 06:00 UTC — early enough that a red run is seen the same day.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audit:
+    name: cargo-audit (RustSec)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Audit dependencies
+        run: cargo audit
+
+  full-mutants:
+    name: Mutants (full sweep)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Install cargo-mutants
+        run: cargo install cargo-mutants --locked
+      # The standard (docs/plan/04-engineering-standards.md): zero surviving mutants
+      # in the judgment crates.
+      - name: Full sweep on core and validator
+        run: cargo mutants -p mcp-conformance-core -p mcp-trace-validator --no-shuffle

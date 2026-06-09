@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+[alias]
+xtask = "run -p xtask --"

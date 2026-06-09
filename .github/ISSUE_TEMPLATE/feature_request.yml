@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+name: Feature request
+description: Propose a capability, check, or requirement-coverage addition.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can't you do today? For new checks, cite the spec clause (section + quote).
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed shape
+      description: >
+        How it could work. Note: anything generically useful to the official SDK or
+        conformance suite belongs upstream first — see docs/plan/07-ecosystem-engagement.md.
+    validations:
+      required: false

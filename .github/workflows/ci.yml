@@ -1,0 +1,141 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# Continuous integration — every quality gate from docs/plan/04-engineering-standards.md.
+#
+# Jobs: format, clippy (stable + MSRV × 3 OS × 3 feature modes), test (same matrix),
+#       docs (-D warnings), cargo-deny, package validation, nightly (informational).
+#
+# Toolchains are installed with plain `rustup` rather than a third-party action:
+# one fewer supply-chain dependency. Remaining actions are pinned by commit SHA.
+
+name: CI
+
+on:
+  push:
+    branches: ["main", "claude/**"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+# Cancel superseded runs on branches/PRs; never cancel main-branch builds.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: "-D warnings"
+  RUSTDOCFLAGS: "-D warnings"
+
+jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --no-self-update
+          rustup default stable
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy (${{ matrix.rust }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [stable, "1.85"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install ${{ matrix.rust }} --profile minimal --component clippy --no-self-update
+          rustup default ${{ matrix.rust }}
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Clippy (default features)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Clippy (no default features)
+        run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+      - name: Clippy (all features)
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+  test:
+    name: Test (${{ matrix.rust }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [stable, "1.85"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install ${{ matrix.rust }} --profile minimal --no-self-update
+          rustup default ${{ matrix.rust }}
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Test (default features)
+        run: cargo test --workspace
+      - name: Test (no default features)
+        run: cargo test --workspace --no-default-features
+      - name: Test (all features)
+        run: cargo test --workspace --all-features
+
+  doc:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Build docs (zero warnings)
+        run: cargo doc --workspace --no-deps
+
+  deny:
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: EmbarkStudios/cargo-deny-action@82eb9f621fbc699dd0918f3ea06864c14cc84246 # v2
+        with:
+          command: check
+
+  package:
+    name: Package validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      # `--workspace` resolves path+version deps against sibling crates rather than
+      # crates.io, which is what pre-publish validation needs. xtask is publish=false
+      # and skipped automatically.
+      - name: Package all publishable crates
+        run: cargo package --workspace
+
+  nightly:
+    name: Nightly (informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install nightly --profile minimal --no-self-update
+          rustup default nightly
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Test (all features, nightly)
+        run: cargo test --workspace --all-features
