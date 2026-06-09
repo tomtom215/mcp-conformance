@@ -1,0 +1,77 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "LIFE-001",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The initialization phase MUST be the first interaction between client and server."
+      },
+      "checks": [
+        "lifecycle.first-interaction-initialize"
+      ]
+    },
+    {
+      "id": "LIFE-002",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The client MUST initiate this phase by sending an `initialize` request containing: Protocol version supported; Client capabilities; Client implementation information"
+      },
+      "checks": [
+        "lifecycle.initialize-params"
+      ]
+    },
+    {
+      "id": "LIFE-003",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "After successful initialization, the client MUST send an `initialized` notification to indicate it is ready to begin normal operations"
+      },
+      "checks": [
+        "lifecycle.initialized-notification"
+      ]
+    },
+    {
+      "id": "LIFE-004",
+      "level": "SHOULD NOT",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The client SHOULD NOT send requests other than pings before the server has responded to the `initialize` request."
+      },
+      "checks": [
+        "lifecycle.client-requests-before-init-response"
+      ]
+    },
+    {
+      "id": "LIFE-005",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The server SHOULD NOT send requests other than pings and logging before receiving the `initialized` notification."
+      },
+      "checks": [
+        "lifecycle.server-requests-before-initialized"
+      ]
+    },
+    {
+      "id": "LIFE-006",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/lifecycle#version-negotiation",
+        "quote": "If the server supports the requested protocol version, it MUST respond with the same version. Otherwise, the server MUST respond with another protocol version it supports."
+      },
+      "checks": [
+        "lifecycle.initialize-result-version"
+      ]
+    }
+  ]
+}

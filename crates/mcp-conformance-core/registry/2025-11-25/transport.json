@@ -1,0 +1,25 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "TRAN-001",
+      "level": "MUST NOT",
+      "actor": "both",
+      "source": {
+        "section": "basic/transports#stdio",
+        "quote": "Messages are delimited by newlines, and MUST NOT contain embedded newlines."
+      },
+      "exclusion": "Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings."
+    },
+    {
+      "id": "TRAN-002",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#security-warning",
+        "quote": "Servers MUST validate the `Origin` header on all incoming connections to prevent DNS rebinding attacks"
+      },
+      "exclusion": "Judging Origin validation requires the server's configured allowlist, which recorded traces do not carry. Enforced instead as default-on policy in mcp-everything-server and exercised by its transport integration tests (roadmap M2)."
+    }
+  ]
+}
