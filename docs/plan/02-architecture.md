@@ -180,10 +180,11 @@ calibrated against the authority rather than asking anyone to trust it.
 
 - `2025-11-25` is the default revision everywhere.
 - `2026-07-28` support lands behind a `draft-2026-07-28` cargo feature while the RC is in
-  flux; registry entries carry `applies` ranges so the stateless rework is a data change plus
-  a state-machine variant, not a rewrite ([register 1.2–1.3](01-ecosystem-context.md)).
-  The feature gate drops (becomes default) only after the final spec text ships and the
-  official suite's scenarios for it stabilize.
+  flux; registry entries gain `applies` ranges at roadmap M2.5 so the stateless rework is a
+  data change plus a state-machine variant, not a rewrite
+  ([register 1.2–1.5a](01-ecosystem-context.md)). The feature gate drops (becomes default)
+  only after the final spec text ships, M2.5 completes, and the official suite's scenarios
+  for it stabilize.
 - Versioning of our own crates follows SemVer with `#[non_exhaustive]` on protocol-facing
   enums and structs; pre-1.0 minor bumps may break, mirroring the honesty of the spec's own
   RC process.

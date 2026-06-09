@@ -58,7 +58,8 @@ to `<skipped>`; the verdict and exit codes ignore it, exactly as they ignore
 
 The architecture's requirement shape also names an `applies` revision range. With one
 revision in the registry there is nothing for a range to discriminate; it stays
-unimplemented until `2026-07-28` entries land (roadmap M5), and is out of scope here.
+unimplemented until `2026-07-28` entries land (roadmap M2.5 — re-sequenced from M5 on
+2026-06-09; the deferral decision itself is unchanged), and is out of scope here.
 
 ## Consequences
 
