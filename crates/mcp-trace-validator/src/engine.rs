@@ -138,14 +138,37 @@ mod tests {
 
     #[test]
     fn happy_path_passes_every_checked_requirement() {
+        use mcp_conformance_core::requirement::Verification;
         let registry = Registry::builtin_2025_11_25().unwrap();
         let events = parse_trace(HAPPY, &Limits::default()).unwrap();
         let report = validate(&registry, &events);
         assert!(!report.has_errors(), "{}", report.render_human());
         assert!(!report.has_warnings(), "{}", report.render_human());
+        let documented_exclusions = registry
+            .requirements()
+            .iter()
+            .filter(|requirement| matches!(requirement.verification, Verification::Excluded { .. }))
+            .count();
         assert_eq!(
-            report.totals.excluded, 2,
-            "TRAN-001 and TRAN-002 are excluded"
+            usize::try_from(report.totals.excluded).unwrap(),
+            documented_exclusions,
+            "every documented exclusion reports as excluded, regardless of trace"
+        );
+        // This handshake declares no capabilities, so every gated requirement
+        // must surface as not-applicable — never as a vacuous pass.
+        let gated = registry
+            .requirements()
+            .iter()
+            .filter(|requirement| {
+                requirement.capability.is_some()
+                    && matches!(requirement.verification, Verification::Checks { .. })
+            })
+            .count();
+        assert_eq!(
+            usize::try_from(report.totals.not_applicable).unwrap(),
+            gated,
+            "{}",
+            report.render_human()
         );
         assert_eq!(report.totals.unsupported, 0);
         assert_eq!(

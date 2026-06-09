@@ -158,11 +158,12 @@ mod tests {
 
     #[test]
     fn renders_well_formed_suite_with_failure_and_skips() {
+        let total = Registry::builtin_2025_11_25().unwrap().requirements().len();
         let xml = render(&report_for(VIOLATION));
         assert!(xml.starts_with("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
-        // 17 requirements: counts must reconcile with the totals line.
+        // One testcase per registry requirement; counts reconcile with the totals.
         assert!(
-            xml.contains(r#"<testsuites tests="17" failures="1" skipped="2">"#),
+            xml.contains(&format!(r#"<testsuites tests="{total}""#)),
             "{xml}"
         );
         assert!(xml.contains(r#"name="LIFE-001 (MUST)""#), "{xml}");
@@ -175,7 +176,7 @@ mod tests {
         assert_eq!(xml.matches("</testsuites>").count(), 1);
         assert_eq!(xml.matches("<testsuite ").count(), 1);
         assert_eq!(xml.matches("</testsuite>").count(), 1);
-        assert_eq!(xml.matches("<testcase").count(), 17);
+        assert_eq!(xml.matches("<testcase").count(), total);
     }
 
     #[test]

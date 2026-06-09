@@ -1,0 +1,77 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "PROM-001",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "server/prompts#capabilities",
+        "quote": "Servers that support prompts MUST declare the `prompts` capability during initialization:"
+      },
+      "checks": [
+        "prompts.capability-declared"
+      ]
+    },
+    {
+      "id": "PROM-002",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.prompts.listChanged",
+      "source": {
+        "section": "server/prompts#list-changed-notification",
+        "quote": "When the list of available prompts changes, servers that declared the `listChanged` capability SHOULD send a notification:"
+      },
+      "exclusion": "The trigger condition — the prompt list actually changing — is server-internal state a recorded trace cannot evidence."
+    },
+    {
+      "id": "PROM-003",
+      "level": "MUST",
+      "actor": "server",
+      "capability": "server.prompts",
+      "source": {
+        "section": "server/prompts#image-content",
+        "quote": "The image data MUST be base64-encoded and include a valid MIME type."
+      },
+      "checks": [
+        "prompts.image-content-encoding"
+      ]
+    },
+    {
+      "id": "PROM-004",
+      "level": "MUST",
+      "actor": "server",
+      "capability": "server.prompts",
+      "source": {
+        "section": "server/prompts#audio-content",
+        "quote": "The audio data MUST be base64-encoded and include a valid MIME type."
+      },
+      "checks": [
+        "prompts.audio-content-encoding"
+      ]
+    },
+    {
+      "id": "PROM-005",
+      "level": "MUST",
+      "actor": "server",
+      "capability": "server.prompts",
+      "source": {
+        "section": "server/prompts#embedded-resources",
+        "quote": "Resources can contain either text or binary (blob) data and MUST include: A valid resource URI; The appropriate MIME type; Either text content or base64-encoded blob data"
+      },
+      "checks": [
+        "prompts.embedded-resource-shape"
+      ]
+    },
+    {
+      "id": "PROM-006",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "server/prompts#security",
+        "quote": "Implementations MUST carefully validate all prompt inputs and outputs to prevent injection attacks or unauthorized access to resources."
+      },
+      "exclusion": "Validation thoroughness is implementation-internal; a trace shows the prompt traffic, not the vetting applied to it."
+    }
+  ]
+}

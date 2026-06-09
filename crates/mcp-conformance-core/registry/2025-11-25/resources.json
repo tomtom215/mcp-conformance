@@ -1,0 +1,75 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "RES-001",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "server/resources#capabilities",
+        "quote": "Servers that support resources MUST declare the `resources` capability:"
+      },
+      "checks": [
+        "resources.capability-declared"
+      ]
+    },
+    {
+      "id": "RES-002",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.resources.listChanged",
+      "source": {
+        "section": "server/resources#list-changed-notification",
+        "quote": "When the list of available resources changes, servers that declared the `listChanged` capability SHOULD send a notification:"
+      },
+      "exclusion": "The trigger condition — the resource list actually changing — is server-internal state a recorded trace cannot evidence."
+    },
+    {
+      "id": "RES-003",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.resources",
+      "source": {
+        "section": "server/resources#https",
+        "quote": "Servers SHOULD use this scheme only when the client is able to fetch and load the resource directly from the web on its own—that is, it doesn’t need to read the resource via the MCP server."
+      },
+      "exclusion": "Whether the client can fetch a URI on its own is a property of the client's environment, not of the recorded session."
+    },
+    {
+      "id": "RES-004",
+      "level": "MUST",
+      "actor": "server",
+      "capability": "server.resources",
+      "source": {
+        "section": "server/resources#custom-uri-schemes",
+        "quote": "Custom URI schemes MUST be in accordance with RFC3986, taking the above guidance in to account."
+      },
+      "checks": [
+        "resources.uri-scheme-rfc3986"
+      ]
+    },
+    {
+      "id": "RES-005",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "server/resources#security-considerations",
+        "quote": "Servers MUST validate all resource URIs"
+      },
+      "exclusion": "URI validation is server-internal enforcement; a trace shows the URIs exchanged, not whether the server vetted them. Exercised by mcp-everything-server's policy tests (roadmap M2)."
+    },
+    {
+      "id": "RES-006",
+      "level": "MUST",
+      "actor": "server",
+      "capability": "server.resources",
+      "source": {
+        "section": "server/resources#security-considerations",
+        "quote": "Binary data MUST be properly encoded"
+      },
+      "checks": [
+        "resources.blob-base64"
+      ]
+    }
+  ]
+}

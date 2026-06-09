@@ -20,6 +20,198 @@
         "quote": "Servers MUST validate the `Origin` header on all incoming connections to prevent DNS rebinding attacks"
       },
       "exclusion": "Judging Origin validation requires the server's configured allowlist, which recorded traces do not carry. Enforced instead as default-on policy in mcp-everything-server and exercised by its transport integration tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-003",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic/transports",
+        "quote": "JSON-RPC messages MUST be UTF-8 encoded."
+      },
+      "exclusion": "Encoding is enforced at capture time: trace documents are read as UTF-8, so a trace that parses is evidence the rule held; non-UTF-8 bytes surface as capture-time read failures, not trace findings."
+    },
+    {
+      "id": "TRAN-004",
+      "level": "MUST NOT",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#stdio",
+        "quote": "The server MUST NOT write anything to its `stdout` that is not a valid MCP message."
+      },
+      "checks": [
+        "transport.stdio-server-output-valid"
+      ]
+    },
+    {
+      "id": "TRAN-005",
+      "level": "MUST NOT",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#stdio",
+        "quote": "The client MUST NOT write anything to the server's `stdin` that is not a valid MCP message."
+      },
+      "checks": [
+        "transport.stdio-client-input-valid"
+      ]
+    },
+    {
+      "id": "TRAN-006",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#streamable-http",
+        "quote": "The server MUST provide a single HTTP endpoint path (hereafter referred to as the MCP endpoint) that supports both POST and GET methods."
+      },
+      "exclusion": "Recorded HTTP events carry status and conformance-relevant headers, not request lines, so endpoint topology is invisible in a trace. Enforced by mcp-everything-server's transport integration tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-007",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#security-warning",
+        "quote": "If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden."
+      },
+      "exclusion": "Judging whether an Origin value is invalid requires the server's configured allowlist, which recorded traces do not carry (the TRAN-002 rationale). Enforced as default-on policy in mcp-everything-server with 403 tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#security-warning",
+        "quote": "When running locally, servers SHOULD bind only to localhost (127.0.0.1) rather than all network interfaces (0.0.0.0)"
+      },
+      "exclusion": "Socket binding is deployment state with no trace footprint. mcp-everything-server binds loopback by default (HttpSecurityPolicy), verified by its transport tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-009",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#security-warning",
+        "quote": "Servers SHOULD implement proper authentication for all connections"
+      },
+      "exclusion": "Whether authentication is properly implemented is not decidable from one session's headers; authorization flows are their own scenario area (corpus/auth, post-M1) mirroring the official suite's `auth` suite."
+    },
+    {
+      "id": "TRAN-010",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#session-management",
+        "quote": "The session ID SHOULD be globally unique and cryptographically secure (e.g., a securely generated UUID, a JWT, or a cryptographic hash)."
+      },
+      "exclusion": "Global uniqueness and entropy of an identifier cannot be established from the single sample a trace contains."
+    },
+    {
+      "id": "TRAN-011",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#session-management",
+        "quote": "The session ID MUST only contain visible ASCII characters (ranging from 0x21 to 0x7E)."
+      },
+      "checks": [
+        "transport.session-id-visible-ascii"
+      ]
+    },
+    {
+      "id": "TRAN-012",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#session-management",
+        "quote": "The client MUST handle the session ID in a secure manner, see Session Hijacking mitigations for more details."
+      },
+      "exclusion": "Secure handling (storage, exposure, logging discipline) is client-internal behavior with no wire footprint beyond the echo requirement judged under TRAN-013."
+    },
+    {
+      "id": "TRAN-013",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#session-management",
+        "quote": "If an `MCP-Session-Id` is returned by the server during initialization, clients using the Streamable HTTP transport MUST include it in the `MCP-Session-Id` header on all of their subsequent HTTP requests."
+      },
+      "checks": [
+        "transport.session-id-echoed"
+      ]
+    },
+    {
+      "id": "TRAN-014",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#session-management",
+        "quote": "Servers that require a session ID SHOULD respond to requests without an `MCP-Session-Id` header (other than initialization) with HTTP 400 Bad Request."
+      },
+      "exclusion": "Whether a server requires a session ID is server configuration a trace does not carry; without it, a non-400 answer to a session-less request is not evidence either way."
+    },
+    {
+      "id": "TRAN-015",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#session-management",
+        "quote": "The server MAY terminate the session at any time, after which it MUST respond to requests containing that session ID with HTTP 404 Not Found."
+      },
+      "exclusion": "Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden)."
+    },
+    {
+      "id": "TRAN-016",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#session-management",
+        "quote": "When a client receives HTTP 404 in response to a request containing an `MCP-Session-Id`, it MUST start a new session by sending a new `InitializeRequest` without a session ID attached."
+      },
+      "exclusion": "The trace schema records HTTP request and response observations as independent events without request/response correlation, so 'in response to' cannot be established offline. Revisit when host-side capture lands (roadmap M3)."
+    },
+    {
+      "id": "TRAN-017",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#protocol-version-header",
+        "quote": "If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server, allowing the MCP server to respond based on the MCP protocol version."
+      },
+      "checks": [
+        "transport.protocol-version-header"
+      ]
+    },
+    {
+      "id": "TRAN-018",
+      "level": "SHOULD",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#protocol-version-header",
+        "quote": "The protocol version sent by the client SHOULD be the one negotiated during initialization."
+      },
+      "checks": [
+        "transport.protocol-version-negotiated"
+      ]
+    },
+    {
+      "id": "TRAN-019",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#protocol-version-header",
+        "quote": "For backwards compatibility, if the server does not receive an `MCP-Protocol-Version` header, and has no other way to identify the version - for example, by relying on the protocol version negotiated during initialization - the server SHOULD assume protocol version `2025-03-26`."
+      },
+      "exclusion": "Which version a server assumed is internal state; subsequent traffic does not reveal it."
+    },
+    {
+      "id": "TRAN-020",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#protocol-version-header",
+        "quote": "If the server receives a request with an invalid or unsupported `MCP-Protocol-Version`, it MUST respond with `400 Bad Request`."
+      },
+      "exclusion": "The server's supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. Exercised against mcp-everything-server's declared support in its transport tests (roadmap M2)."
     }
   ]
 }

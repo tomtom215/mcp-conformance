@@ -108,6 +108,28 @@
       "checks": [
         "base.error-id-matches"
       ]
+    },
+    {
+      "id": "BASE-010",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#result-responses",
+        "quote": "Result responses MUST include a `result` field."
+      },
+      "checks": [
+        "base.result-field"
+      ]
+    },
+    {
+      "id": "BASE-011",
+      "level": "MUST NOT",
+      "actor": "both",
+      "source": {
+        "section": "basic#notifications",
+        "quote": "The receiver MUST NOT send a response."
+      },
+      "exclusion": "A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009."
     }
   ]
 }

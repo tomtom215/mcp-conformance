@@ -1,0 +1,153 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "TOOL-001",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "server/tools#capabilities",
+        "quote": "Servers that support tools MUST declare the `tools` capability:"
+      },
+      "checks": [
+        "tools.capability-declared"
+      ]
+    },
+    {
+      "id": "TOOL-002",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.tools.listChanged",
+      "source": {
+        "section": "server/tools#list-changed-notification",
+        "quote": "When the list of available tools changes, servers that declared the `listChanged` capability SHOULD send a notification:"
+      },
+      "exclusion": "The trigger condition — the tool list actually changing — is server-internal state a recorded trace cannot evidence, so absence of the notification is never proof of violation."
+    },
+    {
+      "id": "TOOL-003",
+      "level": "MUST",
+      "actor": "server",
+      "capability": "server.tools",
+      "source": {
+        "section": "server/tools#tool",
+        "quote": "`inputSchema`: JSON Schema defining expected parameters; MUST be a valid JSON Schema object (not `null`)"
+      },
+      "checks": [
+        "tools.input-schema-object"
+      ]
+    },
+    {
+      "id": "TOOL-004",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "server/tools#tool",
+        "quote": "For trust & safety and security, clients MUST consider tool annotations to be untrusted unless they come from trusted servers."
+      },
+      "exclusion": "How a client weighs annotations is internal trust policy with no wire footprint."
+    },
+    {
+      "id": "TOOL-005",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.tools",
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "Tool names SHOULD be between 1 and 128 characters in length (inclusive)."
+      },
+      "checks": [
+        "tools.name-length"
+      ]
+    },
+    {
+      "id": "TOOL-006",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.tools",
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "The following SHOULD be the only allowed characters: uppercase and lowercase ASCII letters (A-Z, a-z), digits (0-9), underscore (_), hyphen (-), and dot (.)"
+      },
+      "checks": [
+        "tools.name-charset"
+      ]
+    },
+    {
+      "id": "TOOL-007",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "capability": "server.tools",
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "Tool names SHOULD NOT contain spaces, commas, or other special characters."
+      },
+      "checks": [
+        "tools.name-charset"
+      ]
+    },
+    {
+      "id": "TOOL-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.tools",
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "Tool names SHOULD be unique within a server."
+      },
+      "checks": [
+        "tools.name-unique"
+      ]
+    },
+    {
+      "id": "TOOL-009",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.tools",
+      "source": {
+        "section": "server/tools#embedded-resources",
+        "quote": "Servers that use embedded resources SHOULD implement the `resources` capability:"
+      },
+      "checks": [
+        "tools.embedded-resource-capability"
+      ]
+    },
+    {
+      "id": "TOOL-010",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.tools",
+      "source": {
+        "section": "server/tools#structured-content",
+        "quote": "For backwards compatibility, a tool that returns structured content SHOULD also return the serialized JSON in a TextContent block."
+      },
+      "checks": [
+        "tools.structured-content-text"
+      ]
+    },
+    {
+      "id": "TOOL-011",
+      "level": "MUST",
+      "actor": "server",
+      "capability": "server.tools",
+      "source": {
+        "section": "server/tools#output-schema",
+        "quote": "If an output schema is provided: Servers MUST provide structured results that conform to this schema."
+      },
+      "checks": [
+        "tools.output-schema-structured-result"
+      ]
+    },
+    {
+      "id": "TOOL-012",
+      "level": "MUST",
+      "actor": "server",
+      "capability": "server.tools",
+      "source": {
+        "section": "server/tools#security-considerations",
+        "quote": "Servers MUST: Validate all tool inputs; Implement proper access controls; Rate limit tool invocations; Sanitize tool outputs"
+      },
+      "exclusion": "Input validation, access control, rate limiting, and output sanitization are server-internal enforcement without a deterministic wire signature; exercised by mcp-everything-server's policy tests (roadmap M2)."
+    }
+  ]
+}

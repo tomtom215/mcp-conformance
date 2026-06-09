@@ -1,0 +1,27 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "COMP-001",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "server/utilities/completion#capabilities",
+        "quote": "Servers that support completions MUST declare the `completions` capability:"
+      },
+      "checks": [
+        "completion.capability-declared"
+      ]
+    },
+    {
+      "id": "COMP-002",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "server/utilities/completion#security",
+        "quote": "Implementations MUST: Validate all completion inputs; Implement appropriate rate limiting; Control access to sensitive suggestions; Prevent completion-based information disclosure"
+      },
+      "exclusion": "Input validation, rate limiting, and access control are implementation-internal enforcement without a deterministic wire signature."
+    }
+  ]
+}

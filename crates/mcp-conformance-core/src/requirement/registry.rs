@@ -23,6 +23,12 @@ const AREAS_2025_11_25: &[&str] = &[
     include_str!("../../registry/2025-11-25/base.json"),
     include_str!("../../registry/2025-11-25/lifecycle.json"),
     include_str!("../../registry/2025-11-25/transport.json"),
+    include_str!("../../registry/2025-11-25/tools.json"),
+    include_str!("../../registry/2025-11-25/resources.json"),
+    include_str!("../../registry/2025-11-25/prompts.json"),
+    include_str!("../../registry/2025-11-25/logging.json"),
+    include_str!("../../registry/2025-11-25/completion.json"),
+    include_str!("../../registry/2025-11-25/pagination.json"),
 ];
 
 /// A complete requirement registry for one protocol revision.
@@ -225,7 +231,9 @@ mod tests {
     }
 
     /// Area prefixes in their report order, for the order test above.
-    const AREA_ORDER: &[&str] = &["BASE-", "LIFE-", "TRAN-"];
+    const AREA_ORDER: &[&str] = &[
+        "BASE-", "LIFE-", "TRAN-", "TOOL-", "RES-", "PROM-", "LOG-", "COMP-", "PAGE-",
+    ];
 
     #[test]
     fn rejects_duplicate_ids() {

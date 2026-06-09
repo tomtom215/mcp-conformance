@@ -1,0 +1,37 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "PAGE-001",
+      "level": "MUST NOT",
+      "actor": "client",
+      "source": {
+        "section": "server/utilities/pagination#pagination-model",
+        "quote": "Page size is determined by the server, and clients MUST NOT assume a fixed page size"
+      },
+      "exclusion": "What a client assumes is internal state; the assumption has no wire footprint (MCP pagination requests carry no size parameter to inspect)."
+    },
+    {
+      "id": "PAGE-002",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "server/utilities/pagination#implementation-guidelines",
+        "quote": "Clients MUST treat cursors as opaque tokens: Don't make assumptions about cursor format; Don't attempt to parse or modify cursors; Don't persist cursors across sessions"
+      },
+      "checks": [
+        "pagination.cursor-opacity"
+      ]
+    },
+    {
+      "id": "PAGE-003",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "server/utilities/pagination#error-handling",
+        "quote": "Invalid cursors SHOULD result in an error with code -32602 (Invalid params)."
+      },
+      "exclusion": "Whether a cursor is invalid is server-internal knowledge; a trace cannot distinguish a server accepting a stale-but-valid cursor from one silently tolerating an invalid one."
+    }
+  ]
+}

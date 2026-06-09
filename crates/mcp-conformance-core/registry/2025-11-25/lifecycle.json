@@ -72,6 +72,40 @@
       "checks": [
         "lifecycle.initialize-result-version"
       ]
+    },
+    {
+      "id": "LIFE-007",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#version-negotiation",
+        "quote": "In the `initialize` request, the client MUST send a protocol version it supports."
+      },
+      "checks": [
+        "lifecycle.initialize-protocol-version"
+      ]
+    },
+    {
+      "id": "LIFE-008",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic/lifecycle#operation",
+        "quote": "Both parties MUST: Respect the negotiated protocol version"
+      },
+      "exclusion": "After negotiation, neither stdio nor HTTP message payloads carry a per-message protocol version, so respect is not observable in message traffic. The one wire artifact — the HTTP `MCP-Protocol-Version` header — is judged under TRAN-017 and TRAN-018."
+    },
+    {
+      "id": "LIFE-009",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic/lifecycle#operation",
+        "quote": "Both parties MUST: Only use capabilities that were successfully negotiated"
+      },
+      "checks": [
+        "lifecycle.negotiated-capabilities-only"
+      ]
     }
   ]
 }
