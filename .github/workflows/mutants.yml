@@ -20,6 +20,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # actions/checkout's pinned SHA predates the runner's Node 24 default cutover
+  # (June 16, 2026); opt in now rather than break later.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   CARGO_TERM_COLOR: always
 
 jobs:

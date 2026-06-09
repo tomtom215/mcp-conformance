@@ -125,20 +125,20 @@ fn responses_match_requests(
                     "result",
                 );
             }
-            MessageKind::Error { id, .. } if !want_results => {
-                // "except in error cases where the ID could not be read due a malformed
-                // request" — an absent or null id is the spec's escape hatch, not a
-                // violation this check can judge.
-                if id.is_some_and(|id| !id.is_null()) {
-                    check_response_id(
-                        event.seq,
-                        event.direction,
-                        *id,
-                        &mut outstanding,
-                        sink,
-                        "error",
-                    );
-                }
+            // The null/absent-id condition lives in the guard: "except in error cases
+            // where the ID could not be read due a malformed request" — an absent or
+            // null id is the spec's escape hatch, not a violation this check can judge.
+            MessageKind::Error { id, .. }
+                if !want_results && id.is_some_and(|id| !id.is_null()) =>
+            {
+                check_response_id(
+                    event.seq,
+                    event.direction,
+                    *id,
+                    &mut outstanding,
+                    sink,
+                    "error",
+                );
             }
             _ => {}
         }
