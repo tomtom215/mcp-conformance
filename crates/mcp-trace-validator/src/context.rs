@@ -11,6 +11,10 @@ use mcp_conformance_core::message::{MessageKind, classify};
 use mcp_conformance_core::trace::{Direction, TraceEvent};
 use serde_json::Value;
 
+mod pairing;
+
+pub use pairing::Exchange;
+
 /// The `2025-11-25` session lifecycle phase *before* a given event is processed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
@@ -46,6 +50,7 @@ pub struct TraceContext<'a> {
     events: &'a [TraceEvent],
     kinds: Vec<Option<MessageKind<'a>>>,
     phases: Vec<Phase>,
+    pairs: Vec<Option<usize>>,
     init: InitializeExchange<'a>,
     final_phase: Phase,
 }
@@ -68,10 +73,13 @@ impl<'a> TraceContext<'a> {
             }
         }
 
+        let pairs = pairing::pair_responses(events, &kinds);
+
         Self {
             events,
             kinds,
             phases,
+            pairs,
             init: tracker.init,
             final_phase: tracker.phase,
         }
