@@ -5,7 +5,8 @@
     "fail": 1,
     "warn": 1,
     "excluded": 2,
-    "unsupported": 0
+    "unsupported": 0,
+    "not_applicable": 0
   },
   "requirements": [
     {

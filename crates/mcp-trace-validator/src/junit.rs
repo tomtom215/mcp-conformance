@@ -11,7 +11,7 @@
 //! | `pass` | passing `<testcase>` |
 //! | `fail` | `<failure>` per requirement, findings in the body |
 //! | `warn` | passing `<testcase>` with findings in `<system-out>` — SHOULD-level findings do not fail CI unless promoted by `--strict`, and that promotion is an exit-code concern, not a report concern |
-//! | `excluded` / `unsupported` | `<skipped>` with the reason as its message |
+//! | `excluded` / `unsupported` / `not-applicable` | `<skipped>` with the reason as its message |
 //!
 //! The output is deterministic (registry order, no timestamps, no hostnames) for the
 //! same reason every other report format is: reports are artifacts.
@@ -25,7 +25,7 @@ use crate::report::{Outcome, Report};
 pub fn render(report: &Report) -> String {
     let totals = report.totals;
     let failures = totals.fail;
-    let skipped = totals.excluded + totals.unsupported;
+    let skipped = totals.excluded + totals.unsupported + totals.not_applicable;
     let tests = totals.pass + totals.fail + totals.warn + skipped;
 
     let mut out = String::new();
@@ -90,23 +90,31 @@ fn render_row(out: &mut String, report: &Report, row: &crate::report::Requiremen
             }
             out.push_str("</system-out>\n    </testcase>\n");
         }
-        Outcome::Excluded | Outcome::Unsupported => {
-            let reason = if row.outcome == Outcome::Excluded {
-                row.exclusion
-                    .clone()
-                    .unwrap_or_else(|| "excluded".to_owned())
-            } else {
-                format!(
-                    "registry references checks this build does not implement: {}",
-                    row.missing_checks.join(", ")
-                )
-            };
+        Outcome::Excluded | Outcome::Unsupported | Outcome::NotApplicable => {
             let _ = writeln!(
                 out,
                 r#"    <testcase classname="{classname}" name="{name}"><skipped message="{}"/></testcase>"#,
-                escape(&reason)
+                escape(&skip_reason(row))
             );
         }
+    }
+}
+
+/// The `<skipped>` message for the three non-judged outcomes.
+fn skip_reason(row: &crate::report::RequirementReport) -> String {
+    match row.outcome {
+        Outcome::Excluded => row
+            .exclusion
+            .clone()
+            .unwrap_or_else(|| "excluded".to_owned()),
+        Outcome::NotApplicable => format!(
+            "not applicable: capability {} was not declared in this session",
+            row.capability.as_deref().unwrap_or("(unknown)")
+        ),
+        _ => format!(
+            "registry references checks this build does not implement: {}",
+            row.missing_checks.join(", ")
+        ),
     }
 }
 
@@ -202,15 +210,16 @@ mod tests {
             findings: vec![],
             exclusion: None,
             missing_checks: vec![],
+            capability: None,
         }
     }
 
     #[test]
     fn skip_accounting_and_location_text_are_exact() {
         use crate::report::{Finding, Totals};
-        // Hand-built report with BOTH excluded and unsupported rows: pins the
-        // skipped sum (excluded + unsupported), the per-variant skip messages,
-        // and the failure-body location text.
+        // Hand-built report with excluded, unsupported, AND not-applicable rows:
+        // pins the skipped sum (excluded + unsupported + not_applicable), the
+        // per-variant skip messages, and the failure-body location text.
         let mut failed = bare_row("AAAA-001", Outcome::Fail);
         failed.findings = vec![Finding {
             check: "area.some-check".to_owned(),
@@ -223,6 +232,8 @@ mod tests {
         excluded_b.exclusion = Some("also excluded".to_owned());
         let mut unsupported = bare_row("AAAA-004", Outcome::Unsupported);
         unsupported.missing_checks = vec!["future.check".to_owned()];
+        let mut not_applicable = bare_row("AAAA-005", Outcome::NotApplicable);
+        not_applicable.capability = Some("server.tools".to_owned());
         let report = Report {
             revision: "2025-11-25".to_owned(),
             totals: Totals {
@@ -231,13 +242,20 @@ mod tests {
                 warn: 0,
                 excluded: 2,
                 unsupported: 1,
+                not_applicable: 1,
             },
-            requirements: vec![failed, excluded_a, excluded_b, unsupported],
+            requirements: vec![failed, excluded_a, excluded_b, unsupported, not_applicable],
         };
         let xml = render(&report);
-        // skipped = excluded + unsupported, not any other arithmetic.
+        // skipped = excluded + unsupported + not_applicable, no other arithmetic.
         assert!(
-            xml.contains(r#"<testsuites tests="4" failures="1" skipped="3">"#),
+            xml.contains(r#"<testsuites tests="5" failures="1" skipped="4">"#),
+            "{xml}"
+        );
+        assert!(
+            xml.contains(
+                r#"<skipped message="not applicable: capability server.tools was not declared in this session"/>"#
+            ),
             "{xml}"
         );
         // The two skip variants carry their own distinct messages.

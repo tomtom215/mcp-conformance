@@ -9,6 +9,7 @@
 //! the same evidence violating two clauses is two findings, which is what
 //! requirement-level accounting means.
 
+use mcp_conformance_core::capability::{CapabilityGate, CapabilityParty};
 use mcp_conformance_core::requirement::{Registry, Requirement, Verification};
 use mcp_conformance_core::trace::TraceEvent;
 
@@ -44,6 +45,7 @@ fn build_row(requirement: &Requirement, context: &TraceContext<'_>) -> Requireme
         findings: vec![],
         exclusion: None,
         missing_checks: vec![],
+        capability: None,
     };
     match &requirement.verification {
         Verification::Excluded { exclusion } => {
@@ -51,17 +53,28 @@ fn build_row(requirement: &Requirement, context: &TraceContext<'_>) -> Requireme
             row.exclusion = Some(exclusion.clone());
         }
         Verification::Checks { checks: check_ids } => {
+            // Resolve the inventory before consulting the capability gate:
+            // `unsupported` is a property of (registry, build) and must not vary
+            // with what a particular trace negotiated (ADR-0006 precedence).
+            let mut resolved = Vec::with_capacity(check_ids.len());
             for check_id in check_ids {
                 match checks::find(check_id) {
-                    Some(check) => row.findings.extend(check.run(context)),
+                    Some(check) => resolved.push(check),
                     None => row.missing_checks.push(check_id.clone()),
                 }
             }
-            row.outcome = if row.missing_checks.is_empty() {
-                classify_outcome(requirement.level.is_error(), row.findings.is_empty())
+            if !row.missing_checks.is_empty() {
+                row.outcome = Outcome::Unsupported;
+            } else if let Some(gate) = undeclared_gate(requirement, context) {
+                row.outcome = Outcome::NotApplicable;
+                row.capability = Some(gate.as_str().to_owned());
             } else {
-                Outcome::Unsupported
-            };
+                for check in resolved {
+                    row.findings.extend(check.run(context));
+                }
+                row.outcome =
+                    classify_outcome(requirement.level.is_error(), row.findings.is_empty());
+            }
         }
         // Verification is #[non_exhaustive]; a future arm must be handled
         // deliberately, and the pre-set "unsupported" outcome is the conservative
@@ -69,6 +82,23 @@ fn build_row(requirement: &Requirement, context: &TraceContext<'_>) -> Requireme
         _ => {}
     }
     row
+}
+
+/// The requirement's capability gate, when the session never declared it.
+fn undeclared_gate<'r>(
+    requirement: &'r Requirement,
+    context: &TraceContext<'_>,
+) -> Option<&'r CapabilityGate> {
+    let gate = requirement.capability.as_ref()?;
+    let capabilities = match gate.party() {
+        CapabilityParty::Server => context.server_capabilities(),
+        CapabilityParty::Client => context.client_capabilities(),
+    };
+    if gate.is_declared(capabilities) {
+        None
+    } else {
+        Some(gate)
+    }
 }
 
 /// Exhaustive on purpose (same-crate enum): adding an Outcome variant must force a
@@ -80,6 +110,7 @@ const fn tally(totals: &mut Totals, outcome: Outcome) {
         Outcome::Warn => totals.warn += 1,
         Outcome::Excluded => totals.excluded += 1,
         Outcome::Unsupported => totals.unsupported += 1,
+        Outcome::NotApplicable => totals.not_applicable += 1,
     }
 }
 
@@ -124,11 +155,81 @@ mod tests {
                     + report.totals.warn
                     + report.totals.excluded
                     + report.totals.unsupported
+                    + report.totals.not_applicable
             )
             .unwrap(),
             registry.requirements().len(),
             "every requirement is accounted for exactly once"
         );
+    }
+
+    /// One-requirement registry gated on `server.tools`, with a real check.
+    const GATED_REGISTRY: &str = r#"{
+        "revision": "2025-11-25",
+        "requirements": [
+            {"id": "TOOL-001", "level": "MUST", "actor": "server",
+             "capability": "server.tools",
+             "source": {"section": "server/tools#x", "quote": "MUST t"},
+             "checks": ["base.jsonrpc-version"]}
+        ]
+    }"#;
+
+    fn handshake(server_capabilities: &str) -> String {
+        format!(
+            r#"{{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"protocolVersion":"2025-11-25","capabilities":{{}},"clientInfo":{{"name":"t","version":"0"}}}}}}}}
+{{"seq":2,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{{"jsonrpc":"2.0","id":1,"result":{{"protocolVersion":"2025-11-25","capabilities":{server_capabilities},"serverInfo":{{"name":"s","version":"0"}}}}}}}}
+{{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{{"jsonrpc":"2.0","method":"notifications/initialized"}}}}"#
+        )
+    }
+
+    #[test]
+    fn undeclared_capability_reports_not_applicable_not_pass() {
+        let registry = Registry::from_json(GATED_REGISTRY).unwrap();
+        let trace = handshake(r#"{"prompts":{}}"#);
+        let events = parse_trace(&trace, &Limits::default()).unwrap();
+        let report = validate(&registry, &events);
+        assert_eq!(report.totals.not_applicable, 1);
+        assert_eq!(report.totals.pass, 0);
+        assert_eq!(
+            report.requirements[0].outcome,
+            crate::report::Outcome::NotApplicable
+        );
+        assert_eq!(
+            report.requirements[0].capability.as_deref(),
+            Some("server.tools")
+        );
+        assert_eq!(report.verdict(), crate::report::Verdict::Pass);
+    }
+
+    #[test]
+    fn declared_capability_runs_the_gated_checks() {
+        let registry = Registry::from_json(GATED_REGISTRY).unwrap();
+        let trace = handshake(r#"{"tools":{"listChanged":true}}"#);
+        let events = parse_trace(&trace, &Limits::default()).unwrap();
+        let report = validate(&registry, &events);
+        assert_eq!(report.totals.not_applicable, 0);
+        assert_eq!(report.totals.pass, 1);
+        assert!(report.requirements[0].capability.is_none());
+    }
+
+    #[test]
+    fn missing_checks_outrank_the_capability_gate() {
+        // `unsupported` must be a property of (registry, build), not of what one
+        // trace negotiated — a gated requirement with an unknown check is
+        // unsupported even when the capability was never declared.
+        let registry_json = r#"{
+            "revision": "2025-11-25",
+            "requirements": [
+                {"id": "TOOL-001", "level": "MUST", "actor": "server",
+                 "capability": "server.tools",
+                 "source": {"section": "server/tools#x", "quote": "MUST t"},
+                 "checks": ["future.not-built-yet"]}
+            ]
+        }"#;
+        let registry = Registry::from_json(registry_json).unwrap();
+        let report = validate(&registry, &[]);
+        assert_eq!(report.totals.unsupported, 1);
+        assert_eq!(report.totals.not_applicable, 0);
     }
 
     #[test]

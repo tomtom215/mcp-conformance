@@ -99,6 +99,22 @@ impl<'a> TraceContext<'a> {
         &self.init
     }
 
+    /// The server's declared capabilities, from the `initialize` result.
+    #[must_use]
+    pub fn server_capabilities(&self) -> Option<&'a Value> {
+        self.init
+            .result
+            .and_then(|(_, result)| result.get("capabilities"))
+    }
+
+    /// The client's declared capabilities, from the `initialize` request params.
+    #[must_use]
+    pub fn client_capabilities(&self) -> Option<&'a Value> {
+        self.init
+            .request
+            .and_then(|(_, params)| params?.get("capabilities"))
+    }
+
     /// The lifecycle phase after the entire trace has been processed.
     #[must_use]
     pub const fn final_phase(&self) -> Phase {
@@ -234,6 +250,26 @@ mod tests {
         let context = TraceContext::new(&[]);
         assert!(context.initialize().request.is_none());
         assert_eq!(context.final_phase(), Phase::BeforeInitialize);
+        assert_eq!(context.server_capabilities(), None);
+        assert_eq!(context.client_capabilities(), None);
+    }
+
+    #[test]
+    fn capability_accessors_read_their_declaration_surfaces() {
+        use serde_json::json;
+        let events = happy_path();
+        let context = TraceContext::new(&events);
+        // happy_path declares empty capability sets on both sides.
+        assert_eq!(context.client_capabilities(), Some(&json!({})));
+        assert_eq!(context.server_capabilities(), Some(&json!({})));
+
+        // A params-less initialize and an answered-by-error exchange expose nothing.
+        let doc = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize"}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32603,"message":"x"}}}"#;
+        let events = parse_trace(doc, &Limits::default()).unwrap();
+        let context = TraceContext::new(&events);
+        assert_eq!(context.client_capabilities(), None);
+        assert_eq!(context.server_capabilities(), None);
     }
 
     #[test]

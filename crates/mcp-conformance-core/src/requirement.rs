@@ -15,6 +15,7 @@ use core::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::capability::CapabilityGate;
 use crate::revision::{ProtocolRevision, REVISION_2025_11_25};
 
 /// The embedded seed registry for protocol revision `2025-11-25`.
@@ -189,6 +190,10 @@ pub struct Requirement {
     pub level: Level,
     /// The party the clause binds.
     pub actor: Actor,
+    /// The negotiated capability this clause is gated on, when it binds only after
+    /// declaration (ADR-0006). Ungated clauses apply to every session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capability: Option<CapabilityGate>,
     /// Source location and verbatim quote.
     pub source: SourceRef,
     /// Check coverage or documented exclusion.
