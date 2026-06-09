@@ -194,12 +194,35 @@ mod tests {
         assert!(xml.contains(r#"name="BASE-001 (MUST)"/>"#), "{xml}");
     }
 
+    fn bare_row(id: &str, outcome: Outcome) -> crate::report::RequirementReport {
+        crate::report::RequirementReport {
+            id: id.to_owned(),
+            level: "MUST".to_owned(),
+            outcome,
+            findings: vec![],
+            exclusion: None,
+            missing_checks: vec![],
+        }
+    }
+
     #[test]
     fn skip_accounting_and_location_text_are_exact() {
-        use crate::report::{Finding, RequirementReport, Totals};
+        use crate::report::{Finding, Totals};
         // Hand-built report with BOTH excluded and unsupported rows: pins the
         // skipped sum (excluded + unsupported), the per-variant skip messages,
         // and the failure-body location text.
+        let mut failed = bare_row("AAAA-001", Outcome::Fail);
+        failed.findings = vec![Finding {
+            check: "area.some-check".to_owned(),
+            seq: Some(7),
+            detail: "it went wrong".to_owned(),
+        }];
+        let mut excluded_a = bare_row("AAAA-002", Outcome::Excluded);
+        excluded_a.exclusion = Some("not judgeable from traces".to_owned());
+        let mut excluded_b = bare_row("AAAA-003", Outcome::Excluded);
+        excluded_b.exclusion = Some("also excluded".to_owned());
+        let mut unsupported = bare_row("AAAA-004", Outcome::Unsupported);
+        unsupported.missing_checks = vec!["future.check".to_owned()];
         let report = Report {
             revision: "2025-11-25".to_owned(),
             totals: Totals {
@@ -209,44 +232,7 @@ mod tests {
                 excluded: 2,
                 unsupported: 1,
             },
-            requirements: vec![
-                RequirementReport {
-                    id: "AAAA-001".to_owned(),
-                    level: "MUST".to_owned(),
-                    outcome: Outcome::Fail,
-                    findings: vec![Finding {
-                        check: "area.some-check".to_owned(),
-                        seq: Some(7),
-                        detail: "it went wrong".to_owned(),
-                    }],
-                    exclusion: None,
-                    missing_checks: vec![],
-                },
-                RequirementReport {
-                    id: "AAAA-002".to_owned(),
-                    level: "MUST".to_owned(),
-                    outcome: Outcome::Excluded,
-                    findings: vec![],
-                    exclusion: Some("not judgeable from traces".to_owned()),
-                    missing_checks: vec![],
-                },
-                RequirementReport {
-                    id: "AAAA-003".to_owned(),
-                    level: "MUST".to_owned(),
-                    outcome: Outcome::Excluded,
-                    findings: vec![],
-                    exclusion: Some("also excluded".to_owned()),
-                    missing_checks: vec![],
-                },
-                RequirementReport {
-                    id: "AAAA-004".to_owned(),
-                    level: "MUST".to_owned(),
-                    outcome: Outcome::Unsupported,
-                    findings: vec![],
-                    exclusion: None,
-                    missing_checks: vec!["future.check".to_owned()],
-                },
-            ],
+            requirements: vec![failed, excluded_a, excluded_b, unsupported],
         };
         let xml = render(&report);
         // skipped = excluded + unsupported, not any other arithmetic.
