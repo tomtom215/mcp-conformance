@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# Golden reports and corpus traces are byte-compared artifacts; LF everywhere,
+# on every platform, or Windows checkouts diverge from committed goldens.
+* text=auto eol=lf
+
+# Fuzz inputs are byte-exact artifacts; line-ending conversion would corrupt them.
+fuzz/corpus/** binary

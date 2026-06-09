@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+[package]
+name = "mcp-trace-validator"
+description = "Deterministic offline validator for recorded Model Context Protocol traces: requirement-level findings, machine-readable reports"
+readme = "README.md"
+keywords = ["mcp", "conformance", "validator", "testing", "protocol"]
+categories = ["development-tools::testing", "command-line-utilities"]
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[features]
+# The library engine has no CLI dependencies; the binary needs clap. Library
+# consumers can use `default-features = false` to drop it
+# (docs/plan/decisions/0005-cli-argument-parsing.md).
+default = ["cli"]
+cli = ["dep:clap"]
+
+[dependencies]
+mcp-conformance-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[[bin]]
+name = "mcp-trace-validator"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[lints]
+workspace = true

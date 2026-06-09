@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# cargo-deny configuration — license allowlist, advisory policy, source policy.
+# Run: cargo deny check
+
+[graph]
+all-features = true
+
+# ---------------------------------------------------------------------------
+# Advisories: any RustSec advisory fails the build. The ecosystem lesson is
+# CVE-2026-42559, which shipped without a RustSec entry — we treat the
+# advisory DB as a hard gate precisely because gaps in it are invisible.
+# ---------------------------------------------------------------------------
+[advisories]
+version = 2
+yanked = "deny"
+
+# ---------------------------------------------------------------------------
+# License policy: permissive-only, high detection confidence.
+# ---------------------------------------------------------------------------
+[licenses]
+version = 2
+confidence-threshold = 0.8
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+]
+
+# ---------------------------------------------------------------------------
+# Bans: duplicate major versions are a warning (transitive churn happens);
+# wildcard requirements are an error (they defeat the upper-bound policy).
+# ---------------------------------------------------------------------------
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

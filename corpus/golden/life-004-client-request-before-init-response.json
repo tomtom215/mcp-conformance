@@ -1,0 +1,106 @@
+{
+  "revision": "2025-11-25",
+  "totals": {
+    "pass": 14,
+    "fail": 0,
+    "warn": 1,
+    "excluded": 2,
+    "unsupported": 0
+  },
+  "requirements": [
+    {
+      "id": "BASE-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-002",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-003",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-004",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-005",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-007",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-008",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-009",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-002",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-003",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-004",
+      "level": "SHOULD NOT",
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "lifecycle.client-requests-before-init-response",
+          "seq": 1,
+          "detail": "client sent a \"tools/list\" request before the server responded to initialize"
+        }
+      ]
+    },
+    {
+      "id": "LIFE-005",
+      "level": "SHOULD NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-001",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings."
+    },
+    {
+      "id": "TRAN-002",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Judging Origin validation requires the server's configured allowlist, which recorded traces do not carry. Enforced instead as default-on policy in mcp-everything-server and exercised by its transport integration tests (roadmap M2)."
+    }
+  ]
+}

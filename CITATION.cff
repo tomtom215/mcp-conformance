@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+cff-version: 1.2.0
+title: "mcp-conformance: a Rust-native conformance toolkit for the Model Context Protocol"
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+authors:
+  - name: "Tom F."
+    alias: "tomtom215"
+repository-code: "https://github.com/tomtom215/mcp-conformance"
+license: MIT
+keywords:
+  - mcp
+  - model-context-protocol
+  - conformance
+  - protocol-validation
+  - trace-validation
+  - rust
+abstract: >-
+  A Rust-native conformance toolkit for the Model Context Protocol (MCP): a
+  machine-readable requirement registry with verbatim specification quotes and
+  SEP-2484-shaped traceability, a deterministic offline validator for recorded
+  protocol traces, and reference implementations engineered to a
+  zero-surviving-mutants testing standard.

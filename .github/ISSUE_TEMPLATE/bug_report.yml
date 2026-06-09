@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+name: Bug report
+description: Something behaves incorrectly — including a wrong validation verdict.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: >
+        For verdict disputes, name the requirement ID (e.g. LIFE-001) and explain why
+        the finding (or its absence) is wrong against the spec text.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: >
+        Exact command and, if possible, a minimal trace (JSON Lines). Redact anything
+        sensitive — capture tooling should have done this already, but check.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: "mcp-trace-validator 0.1.0 / abc1234"
+    validations:
+      required: true

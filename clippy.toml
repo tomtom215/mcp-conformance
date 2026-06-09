@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# Clippy configuration — pedantic + nursery levels are set in the workspace
+# manifest ([workspace.lints]); this file holds analyzer thresholds and the
+# MSRV hint so suggestions never exceed what 1.85 can compile.
+
+msrv = "1.85"
+
+# Thresholds carried from a2a-rust; deviations at a call site require a comment.
+too-many-lines-threshold = 60
+too-many-arguments-threshold = 7
+cognitive-complexity-threshold = 25
