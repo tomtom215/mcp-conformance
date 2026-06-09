@@ -104,6 +104,27 @@ fn violation_traces_fail_and_match_goldens() {
 }
 
 #[test]
+fn every_trace_has_a_provenance_ledger_row() {
+    // corpus/README.md is the provenance ledger (it survives history rewrites,
+    // unlike commit messages); a trace without a row is an undocumented fixture.
+    let ledger = fs::read_to_string(corpus_root().join("README.md"))
+        .expect("corpus/README.md exists and is the provenance ledger");
+    for subdir in ["good", "violations"] {
+        for trace_path in trace_files(subdir) {
+            let name = trace_path
+                .file_name()
+                .expect("trace files have names")
+                .to_string_lossy()
+                .into_owned();
+            assert!(
+                ledger.contains(&format!("`{name}`")),
+                "{subdir}/{name} has no row in corpus/README.md's provenance ledger"
+            );
+        }
+    }
+}
+
+#[test]
 fn corpus_falsifies_every_check() {
     // Every implemented check must be killed by at least one violation trace; a check
     // that has never failed anything is untested code wearing a green badge.

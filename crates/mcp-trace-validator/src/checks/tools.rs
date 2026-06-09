@@ -324,6 +324,23 @@ mod tests {
     }
 
     #[test]
+    fn null_and_false_capability_values_are_not_declarations() {
+        // `{"tools": null}` and `{"tools": false}` resolve the path but declare
+        // nothing — the ADR-0006 truthiness rule, pinned here at the check layer.
+        for capabilities in [r#"{"tools":null}"#, r#"{"tools":false}"#] {
+            let trace = session(
+                capabilities,
+                &[
+                    r#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#,
+                    r#"{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}"#,
+                ],
+            );
+            let findings = findings_for("tools.capability-declared", &trace);
+            assert_eq!(findings.len(), 1, "{capabilities}: {findings:?}");
+        }
+    }
+
+    #[test]
     fn capability_check_ignores_error_answers() {
         // A server *rejecting* tools traffic is not evidence it supports tools.
         let trace = session(

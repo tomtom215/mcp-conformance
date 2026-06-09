@@ -15,6 +15,11 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 
+# docs.rs builds with every feature enabled so feature-gated APIs are documented.
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
+
 [dependencies]
 
 [dev-dependencies]

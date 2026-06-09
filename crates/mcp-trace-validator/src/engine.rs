@@ -18,6 +18,19 @@ use crate::context::TraceContext;
 use crate::report::{Outcome, Report, RequirementReport, Totals};
 
 /// Validates a parsed trace against a requirement registry.
+///
+/// ```
+/// use mcp_conformance_core::requirement::Registry;
+/// use mcp_trace_validator::report::Verdict;
+/// use mcp_trace_validator::{engine, reader};
+///
+/// let registry = Registry::builtin_2025_11_25()?;
+/// let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}"#;
+/// let events = reader::parse_trace(trace, &reader::Limits::default())?;
+/// let report = engine::validate(&registry, &events);
+/// assert_eq!(report.verdict(), Verdict::Fail); // tools/list before initialize
+/// # Ok::<(), Box<dyn core::error::Error>>(())
+/// ```
 #[must_use]
 pub fn validate(registry: &Registry, events: &[TraceEvent]) -> Report {
     let context = TraceContext::new(events);

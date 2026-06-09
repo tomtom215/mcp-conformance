@@ -214,4 +214,21 @@ mod tests {
         );
         assert!(findings_for("prompts.embedded-resource-shape", &trace).is_empty());
     }
+
+    #[test]
+    fn blob_only_embedded_resources_hinge_on_base64_validity() {
+        // Valid blob, no text: well-formed, zero findings.
+        let valid = get_prompt_with_content(
+            r#"{"type":"resource","resource":{"uri":"file:///a.png","mimeType":"image/png","blob":"QUJDRA=="}}"#,
+        );
+        assert!(findings_for("prompts.embedded-resource-shape", &valid).is_empty());
+
+        // Invalid blob, no text: exactly the base64 finding.
+        let invalid = get_prompt_with_content(
+            r#"{"type":"resource","resource":{"uri":"file:///a.png","mimeType":"image/png","blob":"not base64!"}}"#,
+        );
+        let findings = findings_for("prompts.embedded-resource-shape", &invalid);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("not valid base64"), "{findings:?}");
+    }
 }

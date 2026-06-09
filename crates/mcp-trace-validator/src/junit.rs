@@ -21,6 +21,16 @@ use core::fmt::Write as _;
 use crate::report::{Outcome, Report};
 
 /// Renders the report as a single-suite `JUnit` XML document.
+///
+/// ```
+/// use mcp_conformance_core::requirement::Registry;
+/// use mcp_trace_validator::{engine, junit};
+///
+/// let registry = Registry::builtin_2025_11_25()?;
+/// let xml = junit::render(&engine::validate(&registry, &[]));
+/// assert!(xml.starts_with(r#"<?xml version="1.0" encoding="UTF-8"?>"#));
+/// # Ok::<(), Box<dyn core::error::Error>>(())
+/// ```
 #[must_use]
 pub fn render(report: &Report) -> String {
     let totals = report.totals;

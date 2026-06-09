@@ -58,7 +58,8 @@ Requirement {
     level:       Must | MustNot | Should | ShouldNot | May
     actor:       Server | Client | Both
     source:      { revision, section anchor, verbatim quote }
-    applies:     revision range (introduced .. removed)   // survives the 2026-07-28 rework
+    applies:     revision range (introduced .. removed)   // survives the 2026-07-28 rework;
+                 // deferred until a second revision lands (ADR-0006) — one-revision data has nothing to range over
     capability:  optional capability key gating the requirement
     checks:      [check ids]  |  exclusion: documented reason
 }
@@ -67,8 +68,8 @@ Requirement {
 The `checks | exclusion` alternative is deliberately the same shape as SEP-2484's
 `sep-NNNN.yaml` traceability files ("mapping each MUST/MUST NOT to a check or a documented
 exclusion" — [register 2.9](01-ecosystem-context.md)), so registry entries and SEP
-traceability are one format, not two. The complete requirement inventory for `2025-11-25` is
-an M1 deliverable extracted from the spec text itself; this document fixes the shape, not the
+traceability are one format, not two. The `2025-11-25` inventory covers the core protocol surface — the README's generated
+coverage table is the authoritative count; this document fixes the shape, not the
 contents.
 
 ### Trace schema
@@ -102,11 +103,11 @@ evaluates every active requirement. Design commitments:
 
 1. **Determinism.** Same trace, same registry version → byte-identical report. All JSON is
    canonicalized before comparison — object-key ordering per RFC 8785 (UTF-16 code-unit
-   order, implemented and edge-tested), scalar serialization delegated to `serde_json`
-   with its `float_roundtrip` feature on (without it, float *parsing* may be 1 ULP off
-   its own output — caught by our property tests); full RFC 8785 scalar test-vector
-   validation is tracked as M1 hardening. Map iteration order never leaks; no clocks,
-   no randomness in the engine.
+   order, implemented and edge-tested) and number serialization in the ECMAScript form
+   RFC 8785 §3.2.2.3 requires, validated against the RFC's own Appendix B vectors;
+   parsing relies on serde_json's `float_roundtrip` feature (without it, float parsing
+   may be 1 ULP off its own output — caught by the canonical fixpoint property tests).
+   Map iteration order never leaks; no clocks, no randomness in the engine.
 2. **Explicit state machines.** `2025-11-25`: `Connecting → Initializing → Initialized →
    Ready → Closing` with error edges. The `2026-07-28` rework removes the handshake states —
    modeled as a second state-machine variant behind a feature gate (below), not as a fork.

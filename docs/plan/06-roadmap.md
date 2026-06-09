@@ -22,7 +22,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | Milestone | Status |
 |-----------|--------|
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
-| M1 — Registry and validator | **In progress** — engine, 15 checks, corpus, CLI, JUnit output, fuzz targets, and state-machine property tests shipped; full registry coverage and the crates.io publish remain |
+| M1 — Registry and validator | **In progress** — registry coverage of the `2025-11-25` core surface complete (README coverage table is the generated count), engine, corpus, CLI, JUnit output, fuzz targets, benchmarks, and RFC 8785 number canonicalization shipped; only the crates.io publish (owner trusted-publishing action) remains |
 | M2 — Everything server | Not started |
 | M3 — Reference host | Not started |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
@@ -55,11 +55,12 @@ The spec as data, and the engine that judges traces against it.
 
 **Definition of done**
 
-- [ ] Requirement registry for `2025-11-25` complete for the core protocol surface
+- [x] Requirement registry for `2025-11-25` complete for the core protocol surface
       (lifecycle, tools, resources, prompts, logging, completion, pagination, transport
       security), each entry carrying level, actor, source quote, applicability, and
-      check-or-exclusion ([02-architecture.md](02-architecture.md)).
-- [ ] Validator replays the corpus deterministically: 100% pass on known-good traces;
+      check-or-exclusion ([02-architecture.md](02-architecture.md)); coverage table
+      generated into the README by `cargo xtask coverage` and verified in CI.
+- [x] Validator replays the corpus deterministically: 100% pass on known-good traces;
       **every check is killed by at least one injected-violation trace**; byte-identical
       reports across platforms and runs.
 - [x] Session state machine for `2025-11-25` with every transition and error edge unit- and

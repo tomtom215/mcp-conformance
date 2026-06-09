@@ -22,6 +22,11 @@ homepage.workspace = true
 default = ["cli"]
 cli = ["dep:clap"]
 
+# docs.rs builds with every feature enabled so feature-gated APIs are documented.
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
+
 [dependencies]
 mcp-conformance-core = { workspace = true }
 serde = { workspace = true }
@@ -30,6 +35,11 @@ clap = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "validate"
+harness = false
 
 [[bin]]
 name = "mcp-trace-validator"

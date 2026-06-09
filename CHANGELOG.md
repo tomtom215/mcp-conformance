@@ -14,19 +14,28 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 ### Added
 
 - `mcp-conformance-core`: requirement registry model (RFC 2119 levels, verbatim
-  spec quotes, SEP-2484-shaped check-or-exclusion traceability) seeded with 17
-  requirements for protocol revision `2025-11-25`; JSON Lines trace event schema;
-  JSON-RPC message classification; canonical JSON serialization with RFC 8785
-  object-key ordering and exact float round-tripping.
-- `mcp-trace-validator`: deterministic validation engine with 15 checks across the
-  base-protocol and lifecycle requirement areas; human/JSON reports with
-  pass/fail/warn/excluded/unsupported accounting; CLI with documented exit codes
-  (0 pass, 1 findings, 2 invocation problem, 3 malformed trace); golden-corpus test
-  harness with falsifiability enforcement (every check killed by a committed
-  violation trace).
+  spec quotes, SEP-2484-shaped check-or-exclusion traceability, ADR-0006
+  capability gates) covering the `2025-11-25` core protocol surface — base
+  protocol, lifecycle, transport security, tools, resources, prompts, logging,
+  completion, and pagination, stored as per-area registry files; JSON Lines trace
+  event schema; JSON-RPC message classification; canonical JSON serialization with
+  RFC 8785 object-key ordering and ECMAScript number formatting validated against
+  the RFC's Appendix B vectors.
+- `mcp-trace-validator`: deterministic validation engine spanning every registry
+  area, with request/response exchange pairing and not-applicable accounting for
+  capability-gated requirements; human/JSON reports with
+  pass/fail/warn/excluded/unsupported/not-applicable accounting; CLI with
+  documented exit codes (0 pass, 1 findings, 2 invocation problem, 3 malformed
+  trace); golden-corpus test harness with falsifiability enforcement (every check
+  killed by a committed violation trace) and a provenance-ledger invariant;
+  criterion benchmarks (unmonitored by CI — see `benches/README.md`).
 - `mcp-everything-server`: default-secure HTTP transport policy — loopback-only
   `Host`/`Origin` allowlisting, fail-closed parsing, explicit
   `dangerously_allow_any_host` opt-out.
+- `cargo xtask coverage`: generates the README's per-area requirement-coverage
+  table from the registry; CI verifies it never drifts.
+- CI: informational `-Zminimal-versions` job proving the workspace dependency
+  floors build and pass tests.
 - `mcp-reference-host`: deterministic retry/backoff policy with caller-supplied
   jitter and capped `Retry-After` honoring.
 - Workspace tooling: `cargo xtask ci` (all local gates) and `cargo xtask bless`
