@@ -20,6 +20,8 @@ or when the reasoning would otherwise live only in someone's head.
 | [0001](0001-plan-documentation-model.md) | Plan Documentation Model | Accepted |
 | [0002](0002-product-scope.md) | Product Scope: Conformance Toolkit, Not Another SDK | Accepted |
 | [0003](0003-crate-naming.md) | Crate Naming and Namespace Strategy | Accepted |
+| [0004](0004-toolchain-and-msrv.md) | Toolchain Policy — Edition 2024, MSRV 1.85, No Third-Party Toolchain Actions | Accepted |
+| [0005](0005-cli-argument-parsing.md) | CLI Argument Parsing — clap, Isolated Behind a `cli` Feature | Accepted |
 
 ## Process
 

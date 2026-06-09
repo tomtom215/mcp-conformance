@@ -101,7 +101,11 @@ The engine replays a trace through a **typed session state machine** per spec re
 evaluates every active requirement. Design commitments:
 
 1. **Determinism.** Same trace, same registry version → byte-identical report. All JSON is
-   canonicalized (RFC 8785 JCS) before comparison; map iteration order never leaks; no clocks,
+   canonicalized before comparison — object-key ordering per RFC 8785 (UTF-16 code-unit
+   order, implemented and edge-tested), scalar serialization delegated to `serde_json`
+   with its `float_roundtrip` feature on (without it, float *parsing* may be 1 ULP off
+   its own output — caught by our property tests); full RFC 8785 scalar test-vector
+   validation is tracked as M1 hardening. Map iteration order never leaks; no clocks,
    no randomness in the engine.
 2. **Explicit state machines.** `2025-11-25`: `Connecting → Initializing → Initialized →
    Ready → Closing` with error edges. The `2026-07-28` rework removes the handshake states —

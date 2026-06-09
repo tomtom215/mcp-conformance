@@ -26,9 +26,11 @@ later never arrives.
 
 ## Lints
 
-- `clippy::pedantic` + `clippy::nursery` at deny level, configured per crate root; documented
-  per-lint overrides live in `clippy.toml` with reasons.
-- `RUSTFLAGS="-D warnings"` and `cargo fmt --check` in CI; no warning ever merges.
+- `clippy::pedantic` + `clippy::nursery` (plus `unwrap_used` / `expect_used`), configured
+  once in `[workspace.lints]` so every crate inherits the policy from one table; analyzer
+  thresholds and the MSRV hint live in `clippy.toml` ([ADR-0004](decisions/0004-toolchain-and-msrv.md)).
+- `RUSTFLAGS="-D warnings"` and `cargo fmt --check` in CI; no warning ever merges. Test
+  modules may `#[allow(clippy::unwrap_used)]` — locally and visibly, never crate-wide.
 - Thresholds carried from a2a-rust: cognitive-complexity 25, function length 60,
   max 7 arguments — deviations require a comment at the override site.
 
