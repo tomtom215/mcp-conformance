@@ -21,8 +21,8 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 
 | Milestone | Status |
 |-----------|--------|
-| M0 — Foundation | Not started |
-| M1 — Registry and validator | Not started |
+| M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
+| M1 — Registry and validator | **In progress** — engine, 15 checks, corpus, and CLI shipped; registry coverage, fuzzing, and JUnit output remain |
 | M2 — Everything server | Not started |
 | M3 — Reference host | Not started |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
@@ -34,18 +34,18 @@ Repository scaffolding at the full standards bar before any feature code.
 
 **Definition of done**
 
-- [ ] Cargo workspace with the four crates + `xtask` skeletons compiling on
+- [x] Cargo workspace with the four crates + `xtask` skeletons compiling on
       {stable, MSRV} × {Linux, macOS, Windows}; MSRV and edition selected and recorded in
       the workspace manifest with rationale.
-- [ ] CI live with every gate from [04-engineering-standards.md](04-engineering-standards.md)
+- [x] CI live with every gate from [04-engineering-standards.md](04-engineering-standards.md)
       §CI (format, clippy matrix, test matrix, docs, deny+audit, package validation), actions
       SHA-pinned, all green.
-- [ ] SPDX headers on every file; `clippy.toml`, `deny.toml`, `mutants.toml` in place with
+- [x] SPDX headers on every file; `clippy.toml`, `deny.toml`, `mutants.toml` in place with
       justified values.
-- [ ] Governance files: `CONTRIBUTING.md`, `SECURITY.md`, `GOVERNANCE.md`, `RELEASING.md`,
+- [x] Governance files: `CONTRIBUTING.md`, `SECURITY.md`, `GOVERNANCE.md`, `RELEASING.md`,
       `CITATION.cff`, issue/PR templates.
-- [ ] Root `README.md` states scope honestly (pre-release, no unearned badges or claims).
-- [ ] Crate names registered on crates.io as minimal-but-real `0.1.0` releases **or** a
+- [x] Root `README.md` states scope honestly (pre-release, no unearned badges or claims).
+- [x] Crate names registered on crates.io as minimal-but-real `0.1.0` releases **or** a
       recorded decision to defer ([ADR-0003](decisions/0003-crate-naming.md) notes the
       squatting trade-off; `mcp-host` went from free to 33 releases in five months).
 
