@@ -193,4 +193,82 @@ mod tests {
         assert!(xml.contains(r#"failures="0""#), "{xml}");
         assert!(xml.contains(r#"name="BASE-001 (MUST)"/>"#), "{xml}");
     }
+
+    #[test]
+    fn skip_accounting_and_location_text_are_exact() {
+        use crate::report::{Finding, RequirementReport, Totals};
+        // Hand-built report with BOTH excluded and unsupported rows: pins the
+        // skipped sum (excluded + unsupported), the per-variant skip messages,
+        // and the failure-body location text.
+        let report = Report {
+            revision: "2025-11-25".to_owned(),
+            totals: Totals {
+                pass: 0,
+                fail: 1,
+                warn: 0,
+                excluded: 2,
+                unsupported: 1,
+            },
+            requirements: vec![
+                RequirementReport {
+                    id: "AAAA-001".to_owned(),
+                    level: "MUST".to_owned(),
+                    outcome: Outcome::Fail,
+                    findings: vec![Finding {
+                        check: "area.some-check".to_owned(),
+                        seq: Some(7),
+                        detail: "it went wrong".to_owned(),
+                    }],
+                    exclusion: None,
+                    missing_checks: vec![],
+                },
+                RequirementReport {
+                    id: "AAAA-002".to_owned(),
+                    level: "MUST".to_owned(),
+                    outcome: Outcome::Excluded,
+                    findings: vec![],
+                    exclusion: Some("not judgeable from traces".to_owned()),
+                    missing_checks: vec![],
+                },
+                RequirementReport {
+                    id: "AAAA-003".to_owned(),
+                    level: "MUST".to_owned(),
+                    outcome: Outcome::Excluded,
+                    findings: vec![],
+                    exclusion: Some("also excluded".to_owned()),
+                    missing_checks: vec![],
+                },
+                RequirementReport {
+                    id: "AAAA-004".to_owned(),
+                    level: "MUST".to_owned(),
+                    outcome: Outcome::Unsupported,
+                    findings: vec![],
+                    exclusion: None,
+                    missing_checks: vec!["future.check".to_owned()],
+                },
+            ],
+        };
+        let xml = render(&report);
+        // skipped = excluded + unsupported, not any other arithmetic.
+        assert!(
+            xml.contains(r#"<testsuites tests="4" failures="1" skipped="3">"#),
+            "{xml}"
+        );
+        // The two skip variants carry their own distinct messages.
+        assert!(
+            xml.contains(r#"<skipped message="not judgeable from traces"/>"#),
+            "{xml}"
+        );
+        assert!(
+            xml.contains(r#"<skipped message="registry references checks this build does not implement: future.check"/>"#),
+            "{xml}"
+        );
+        // Failure bodies carry the check-and-seq location, verbatim.
+        assert!(
+            xml.contains(">[area.some-check] at seq 7</failure>"),
+            "{xml}"
+        );
+        assert_eq!(location(None, "x.y"), "[x.y]");
+        assert_eq!(location(Some(3), "x.y"), "[x.y] at seq 3");
+    }
 }

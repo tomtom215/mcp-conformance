@@ -65,7 +65,7 @@ The spec as data, and the engine that judges traces against it.
 - [x] Session state machine for `2025-11-25` with every transition and error edge unit- and
       property-tested.
 - [x] Report formats: human, JSON, JUnit; exit codes 0/1/2/3 documented and tested.
-- [ ] Zero surviving mutants in `mcp-conformance-core` and `mcp-trace-validator`; fuzz
+- [x] Zero surviving mutants in `mcp-conformance-core` and `mcp-trace-validator`; fuzz
       targets (trace parse, canonicalization, registry deserialization) clean for the CI
       budget with corpora committed.
 - [ ] Published to crates.io via trusted publishing; rustdoc complete; README documents the
