@@ -61,9 +61,13 @@ http-body-util = ">=0.1.2"
 # rmcp 1.7.0 declares tokio-util "0.7" but uses the `tokio_util::bytes`
 # re-export, introduced in 0.7.9 (verified against tokio repo tags).
 tokio-util = ">=0.7.9"
-# rmcp 1.7.0 declares tokio-stream "0.1" but uses `tokio_stream::wrappers`,
-# introduced in 0.1.1 (verified against tokio repo tags).
-tokio-stream = ">=0.1.1"
+# Two floors meet here; the tighter one wins. rmcp 1.7.0 declares
+# tokio-stream "0.1" but uses `tokio_stream::wrappers` (needs 0.1.1), and
+# the tap (feature `tap`) uses `StreamExt::then`, which first appears in
+# 0.1.9 (verified against the published crates: absent in 0.1.8's source,
+# present in 0.1.9's). No longer only a shim for rmcp — this crate depends
+# on tokio-stream directly.
+tokio-stream = ">=0.1.9"
 # rmcp 1.7.0 declares tracing "0.1" but its `#[instrument]` functions use
 # let-else (needs the syn-2 tracing-attributes line) and newer `Value` impls;
 # 0.1.41 is the empirically verified building floor.
