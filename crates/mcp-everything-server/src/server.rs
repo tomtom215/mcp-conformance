@@ -107,9 +107,12 @@ impl ServerHandler for EverythingServer {
         ServerInfo::new(
             ServerCapabilities::builder()
                 .enable_tools()
+                .enable_tool_list_changed()
                 .enable_resources()
                 .enable_resources_subscribe()
+                .enable_resources_list_changed()
                 .enable_prompts()
+                .enable_prompts_list_changed()
                 .enable_logging()
                 .enable_completions()
                 .build(),
@@ -256,6 +259,23 @@ mod tests {
             "subscriptions are implemented"
         );
         assert!(capabilities.prompts.is_some(), "prompts are implemented");
+        for (declared, name) in [
+            (capabilities.tools.as_ref().unwrap().list_changed, "tools"),
+            (
+                capabilities.resources.as_ref().unwrap().list_changed,
+                "resources",
+            ),
+            (
+                capabilities.prompts.as_ref().unwrap().list_changed,
+                "prompts",
+            ),
+        ] {
+            assert_eq!(
+                declared,
+                Some(true),
+                "{name} listChanged is implemented via the test-list-changed tool"
+            );
+        }
         assert!(capabilities.logging.is_some(), "logging is implemented");
         assert!(
             capabilities.completions.is_some(),

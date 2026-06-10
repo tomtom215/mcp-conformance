@@ -106,4 +106,27 @@ impl EverythingServer {
             "Tool with progress executed successfully.",
         )]))
     }
+
+    /// `test-list-changed`: emits the three `notifications/*/list_changed`
+    /// messages, making the declared `listChanged` capabilities exercisable
+    /// on demand (the lists themselves are static between calls; the spec
+    /// only requires the notification to be *sendable* and well-formed).
+    ///
+    /// # Errors
+    ///
+    /// Never fails: notification delivery is best-effort by design.
+    #[tool(
+        description = "Emits tools/resources/prompts list_changed notifications for conformance testing"
+    )]
+    pub async fn test_list_changed(
+        &self,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let _ = context.peer.notify_tool_list_changed().await;
+        let _ = context.peer.notify_resource_list_changed().await;
+        let _ = context.peer.notify_prompt_list_changed().await;
+        Ok(CallToolResult::success(vec![Content::text(
+            "list_changed notifications emitted.",
+        )]))
+    }
 }
