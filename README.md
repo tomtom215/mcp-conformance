@@ -8,7 +8,9 @@ A Rust-native conformance toolkit for the [Model Context Protocol](https://model
 validator, a Rust "everything server" reference implementation, and a reference host
 runtime.
 
-**Status: pre-release (unpublished).** What exists today, with nothing claimed beyond it:
+**Status: `0.1.0` on [crates.io](https://crates.io/crates/mcp-trace-validator)** (`cargo install
+mcp-trace-validator`), released with SLSA build-provenance attestations. What exists
+today, with nothing claimed beyond it:
 
 - **`mcp-conformance-core`** — the spec as data: a requirement registry whose entries
   carry verbatim spec quotes, RFC 2119 levels, capability gates, and SEP-2484-shaped
