@@ -48,6 +48,9 @@ rmcp = { version = ">=1.7, <2", default-features = false, features = [
     "macros",
     "transport-io",
     "transport-streamable-http-server",
+    # Three suite scenarios (tools-call-elicitation, SEP-1034, SEP-1330)
+    # require raw `elicitation/create` requests with exact schemas.
+    "elicitation",
 ] }
 # Async runtime — rmcp's requirement, not a choice this workspace re-litigates.
 # No default features; each crate enables exactly what it uses.

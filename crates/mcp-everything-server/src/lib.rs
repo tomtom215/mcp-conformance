@@ -18,6 +18,8 @@
 //! The binary (`cli` feature, on by default) serves over stdio; streamable
 //! HTTP — behind [`policy`] — is next.
 
+pub mod fixtures;
+pub mod notifying;
 pub mod policy;
 pub mod server;
 pub mod tools;

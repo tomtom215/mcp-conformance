@@ -29,7 +29,7 @@ impl EverythingServer {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            tool_router: Self::tool_router_basic(),
+            tool_router: crate::tools::all_tools(),
         }
     }
 }

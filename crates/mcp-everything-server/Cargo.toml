@@ -20,7 +20,7 @@ homepage.workspace = true
 # needs clap and a runtime. Library consumers can use
 # `default-features = false` (docs/plan/decisions/0005-cli-argument-parsing.md).
 default = ["cli"]
-cli = ["dep:clap", "dep:tokio", "tokio/macros", "tokio/rt-multi-thread"]
+cli = ["dep:clap", "tokio/macros", "tokio/rt-multi-thread"]
 
 # docs.rs builds with every feature enabled so feature-gated APIs are documented.
 [package.metadata.docs.rs]
@@ -33,7 +33,10 @@ schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 clap = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
+# The notification-staging tools sleep between messages ("~50ms" is part of
+# the scenario contract), so the library needs tokio's clock; the runtime
+# itself still comes from the binary or the test harness.
+tokio = { workspace = true, features = ["time"] }
 
 # Minimal-versions floor shims: direct declarations whose only job is to
 # repair under-specified floors in third-party manifests so
