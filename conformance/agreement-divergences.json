@@ -1,0 +1,11 @@
+{
+  "policy": "Explained divergences between the official runner's verdicts and mcp-trace-validator's, over the tapped suite sessions (docs/plan/03-conformance-strategy.md §Calibration). Each entry requires: requirement (registry ID the validator flags), class (our-bug | suite-bug | spec-ambiguity), upstream (issue/PR URL), and optionally trace_contains (substring filter on the trace file name). The agreement gate (cargo xtask conformance) fails on any validator MUST-level failure not listed here, and rejects entries with any other class or without a URL. Keep an entry until its root cause is fixed; remove it in the same change.",
+  "divergences": [
+    {
+      "requirement": "LIFE-003",
+      "class": "suite-bug",
+      "upstream": "https://github.com/tomtom215/mcp-conformance/issues/7",
+      "_note": "The runner's dns-rebinding-protection scenario initializes its legitimate-Host probe session and never sends notifications/initialized (a client MUST). Issue #7 carries the evidence and the ready-to-file upstream text; swap this link for the modelcontextprotocol/conformance issue once filed."
+    }
+  ]
+}

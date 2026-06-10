@@ -15,6 +15,9 @@ homepage.workspace = true
 
 [dependencies]
 mcp-conformance-core.workspace = true
+mcp-trace-validator.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

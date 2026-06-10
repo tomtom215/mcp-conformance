@@ -1,0 +1,47 @@
+{
+  "_generated": "cargo xtask conformance (BLESS=1 to regenerate)",
+  "spec_revision": "2025-11-25",
+  "server_capabilities": {
+    "completions": {},
+    "logging": {},
+    "prompts": {
+      "listChanged": true
+    },
+    "resources": {
+      "listChanged": true,
+      "subscribe": true
+    },
+    "tools": {
+      "listChanged": true
+    }
+  },
+  "capability_gates": {
+    "server.logging": true,
+    "server.prompts": true,
+    "server.prompts.listChanged": true,
+    "server.resources": true,
+    "server.resources.listChanged": true,
+    "server.tools": true,
+    "server.tools.listChanged": true
+  },
+  "methods_observed": [
+    "completion/complete",
+    "elicitation/create",
+    "initialize",
+    "logging/setLevel",
+    "notifications/initialized",
+    "notifications/message",
+    "notifications/progress",
+    "notifications/resources/updated",
+    "ping",
+    "prompts/get",
+    "prompts/list",
+    "resources/list",
+    "resources/read",
+    "resources/subscribe",
+    "resources/unsubscribe",
+    "sampling/createMessage",
+    "tools/call",
+    "tools/list"
+  ]
+}

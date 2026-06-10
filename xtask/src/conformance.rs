@@ -8,15 +8,19 @@
 //! boundary is the reason it lives here and in its own CI job rather than in
 //! any test target. Steps:
 //!
-//! 1. build `mcp-everything-server` (all features);
-//! 2. serve it on an OS-assigned loopback port (`--transport http`);
+//! 1. build `mcp-everything-server` (all features — includes the tap);
+//! 2. serve it on an OS-assigned loopback port (`--transport http`), with
+//!    every session recorded to `target/conformance/tap/`;
 //! 3. run `npx @modelcontextprotocol/conformance@<PIN> server` against it
 //!    with the registry's spec revision and the committed expected-failures
 //!    baseline;
-//! 4. fail unless the runner exits green.
+//! 4. fail unless the runner exits green;
+//! 5. reconcile the runner's verdicts with our validator's over the tapped
+//!    sessions and check the coverage manifest (`agreement.rs`) — the
+//!    agreement check from docs/plan/03-conformance-strategy.md §Calibration.
 //!
-//! Results land in `target/conformance/` (machine-readable, one JSON per
-//! scenario) for the agreement check to consume.
+//! Results land in `target/conformance/` (one JSON per scenario, the tapped
+//! traces, and `agreement.json`).
 
 // `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
 // opposite demands about items in a binary crate's private modules; this follows
@@ -38,6 +42,12 @@ const SPEC_VERSION: &str = "2025-11-25";
 /// every entry must name the upstream issue explaining the divergence.
 const EXPECTED_FAILURES: &str = "conformance/expected-failures.yaml";
 
+/// Where the server tap records each suite session.
+const TAP_DIR: &str = "target/conformance/tap";
+
+/// Where the runner writes per-scenario results and the agreement artifact.
+const RESULTS_DIR: &str = "target/conformance";
+
 pub(crate) fn run() -> ExitCode {
     eprintln!("xtask: conformance — building mcp-everything-server");
     let build = Command::new("cargo")
@@ -47,13 +57,63 @@ pub(crate) fn run() -> ExitCode {
         eprintln!("xtask: conformance — server build failed");
         return ExitCode::FAILURE;
     }
+    // Fresh artifacts every run: stale scenario results or tapped sessions
+    // from a previous invocation must not leak into this reconciliation.
+    if let Err(error) = std::fs::remove_dir_all(RESULTS_DIR)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        eprintln!("xtask: conformance — cannot clear {RESULTS_DIR}: {error}");
+        return ExitCode::FAILURE;
+    }
     let Some((mut server, address)) = start_server() else {
         return ExitCode::FAILURE;
     };
     let outcome = run_suite(&address);
+    if outcome != ExitCode::SUCCESS {
+        let _ = server.kill();
+        let _ = server.wait();
+        return outcome;
+    }
+    // Let the tap's writer drain before the server dies: poll the tap
+    // directory until its total size is stable, then terminate.
+    await_tap_quiescence();
     let _ = server.kill();
     let _ = server.wait();
-    outcome
+    match crate::agreement::run(
+        std::path::Path::new(TAP_DIR),
+        std::path::Path::new(RESULTS_DIR),
+        SUITE_VERSION,
+    ) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(message) => {
+            eprintln!("xtask: agreement — {message}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// Waits until the tap directory's contents stop growing (two consecutive
+/// identical size samples), capped at three seconds. The tap flushes each
+/// event before taking the next, so a stable size means the writer is idle.
+fn await_tap_quiescence() {
+    let total = || -> u64 {
+        std::fs::read_dir(TAP_DIR).map_or(0, |entries| {
+            entries
+                .filter_map(Result::ok)
+                .filter_map(|entry| entry.metadata().ok())
+                .map(|metadata| metadata.len())
+                .sum()
+        })
+    };
+    let mut previous = total();
+    for _ in 0..20 {
+        std::thread::sleep(std::time::Duration::from_millis(150));
+        let current = total();
+        if current == previous {
+            return;
+        }
+        previous = current;
+    }
 }
 
 /// Spawns the freshly built server on an OS-assigned port and returns the
@@ -63,9 +123,16 @@ fn start_server() -> Option<(std::process::Child, String)> {
         "target/debug/mcp-everything-server{}",
         std::env::consts::EXE_SUFFIX
     );
-    eprintln!("xtask: conformance — starting {binary} on 127.0.0.1:0");
+    eprintln!("xtask: conformance — starting {binary} on 127.0.0.1:0 (tap: {TAP_DIR})");
     let Ok(mut server) = Command::new(&binary)
-        .args(["--transport", "http", "--bind", "127.0.0.1:0"])
+        .args([
+            "--transport",
+            "http",
+            "--bind",
+            "127.0.0.1:0",
+            "--tap-dir",
+            TAP_DIR,
+        ])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped())

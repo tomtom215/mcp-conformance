@@ -13,12 +13,15 @@
 //! - `coverage` — regenerate the README's requirement-coverage table from the embedded
 //!   registry; `coverage --check` verifies it instead (ADR-0001: no hand-kept counts).
 //!
-//! - `conformance` — spawn the everything-server over streamable HTTP and drive the
-//!   pinned official runner against it (`conformance.rs` documents the network-use
-//!   boundary: orchestration may dial out, `cargo test` never does).
+//! - `conformance` — spawn the everything-server over streamable HTTP (session tap on)
+//!   and drive the pinned official runner against it, then reconcile the runner's
+//!   verdicts with our validator's over the tapped sessions (`agreement.rs`) and check
+//!   the coverage manifest. `conformance.rs` documents the network-use boundary:
+//!   orchestration may dial out, `cargo test` never does.
 
 use std::process::{Command, ExitCode};
 
+mod agreement;
 mod conformance;
 mod coverage;
 
@@ -53,7 +56,7 @@ fn main() -> ExitCode {
     }
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  conformance        run the pinned official suite against the everything server";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {
