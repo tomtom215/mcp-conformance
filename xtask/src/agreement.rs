@@ -189,23 +189,29 @@ pub(crate) fn run(tap_dir: &Path, results_dir: &Path, suite_version: &str) -> Re
         );
         Ok(())
     } else {
-        let listing = unexplained
-            .iter()
-            .map(|failure| {
-                format!(
-                    "  {} on {}: {}",
-                    failure.requirement, failure.trace, failure.detail
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-        Err(format!(
-            "{} unexplained validator-vs-runner divergence(s):\n{listing}\n\
-             Triage each (our-bug | suite-bug | spec-ambiguity), fix or file \
-             upstream, and record explained ones in {DIVERGENCE_BASELINE}",
-            unexplained.len()
-        ))
+        Err(divergence_error(&unexplained))
     }
+}
+
+/// Renders the gate-failure message: every unexplained divergence plus the
+/// triage instructions.
+fn divergence_error(unexplained: &[ValidatorFailure]) -> String {
+    let listing = unexplained
+        .iter()
+        .map(|failure| {
+            format!(
+                "  {} on {}: {}",
+                failure.requirement, failure.trace, failure.detail
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "{} unexplained validator-vs-runner divergence(s):\n{listing}\n\
+         Triage each (our-bug | suite-bug | spec-ambiguity), fix or file \
+         upstream, and record explained ones in {DIVERGENCE_BASELINE}",
+        unexplained.len()
+    )
 }
 
 /// Validates every session, returning aggregate totals, the MUST-level
@@ -530,6 +536,7 @@ mod tests {
             class: "suite-bug".to_owned(),
             upstream: "https://github.com/example/issues/1".to_owned(),
             trace_contains: Some("003-".to_owned()),
+            note: None,
         };
         assert!(explains(&entry, &failure("003-abc.jsonl", "LIFE-009")));
         assert!(!explains(&entry, &failure("004-abc.jsonl", "LIFE-009")));
