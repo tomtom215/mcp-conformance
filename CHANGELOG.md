@@ -11,6 +11,15 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Added
+
+- `mcp-everything-server`: the M2 build-out begins on rmcp 1.7 — the
+  `EverythingServer` handler (protocol `2025-11-25`, capabilities advertised
+  only once implemented), the tool module (`echo`, `add`, TypeScript
+  everything-server phrasing), and a stdio binary
+  (`mcp-everything-server --transport stdio`). In-process duplex round-trip
+  tests drive a real rmcp client against the server with no sockets.
+
 ### Changed
 
 - **MSRV raised from 1.85 to 1.88** — rmcp's measured compilation floor

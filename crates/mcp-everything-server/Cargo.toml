@@ -15,15 +15,57 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 
+[features]
+# The library (handler, routers, policy) has no CLI dependencies; the binary
+# needs clap and a runtime. Library consumers can use
+# `default-features = false` (docs/plan/decisions/0005-cli-argument-parsing.md).
+default = ["cli"]
+cli = ["dep:clap", "dep:tokio", "tokio/macros", "tokio/rt-multi-thread"]
+
 # docs.rs builds with every feature enabled so feature-gated APIs are documented.
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
 
 [dependencies]
+rmcp = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+
+# Minimal-versions floor shims: direct declarations whose only job is to
+# repair under-specified floors in third-party manifests so
+# `-Zminimal-versions` builds (the CI "Minimal versions" job). Each names the
+# broken requirement; remove when upstream fixes it.
+#
+# sse-stream 0.2.x declares http-body-util "0.1" but imports BodyDataStream,
+# which first appeared in 0.1.2 (verified against docs.rs).
+http-body-util = ">=0.1.2"
+# rmcp 1.7.0 declares tokio-util "0.7" but uses the `tokio_util::bytes`
+# re-export, introduced in 0.7.9 (verified against tokio repo tags).
+tokio-util = ">=0.7.9"
+# rmcp 1.7.0 declares tokio-stream "0.1" but uses `tokio_stream::wrappers`,
+# introduced in 0.1.1 (verified against tokio repo tags).
+tokio-stream = ">=0.1.1"
+# rmcp 1.7.0 declares tracing "0.1" but its `#[instrument]` functions use
+# let-else (needs the syn-2 tracing-attributes line) and newer `Value` impls;
+# 0.1.41 is the empirically verified building floor.
+tracing = ">=0.1.41"
 
 [dev-dependencies]
+# In-process protocol round-trips: a real rmcp client drives the server over
+# `tokio::io::duplex` — full initialize/list/call exchanges, no sockets, no
+# subprocesses (the no-network-in-tests rule stays intact).
+rmcp = { workspace = true, features = ["client"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 proptest = { workspace = true }
+
+[[bin]]
+name = "mcp-everything-server"
+path = "src/main.rs"
+required-features = ["cli"]
 
 [lints]
 workspace = true

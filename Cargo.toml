@@ -32,9 +32,29 @@ serde = { version = ">=1.0.200, <2", features = ["derive"] }
 # parse(canonical(v)) == v — caught by the canonical-JSON property tests.
 serde_json = { version = ">=1.0.115, <2", features = ["float_roundtrip"] }
 
-# CLI parsing — validator binary only, behind its `cli` feature
+# CLI parsing — binaries only, behind each crate's `cli` feature
 # (docs/plan/decisions/0005-cli-argument-parsing.md).
 clap = { version = ">=4.5, <5", features = ["derive"] }
+
+# M2 server stack (per-dependency justification: the table in
+# docs/plan/04-engineering-standards.md §Dependency policy).
+#
+# rmcp is the official Rust SDK the everything-server proves parity against;
+# ADR-0008 raised the workspace MSRV to its measured 1.88 floor. Features are
+# the minimum for "every capability over stdio and streamable HTTP": no
+# client, no auth, no reqwest, no child-process transport.
+rmcp = { version = ">=1.7, <2", default-features = false, features = [
+    "server",
+    "macros",
+    "transport-io",
+    "transport-streamable-http-server",
+] }
+# Async runtime — rmcp's requirement, not a choice this workspace re-litigates.
+# No default features; each crate enables exactly what it uses.
+tokio = { version = ">=1.45, <2", default-features = false }
+# Tool/prompt parameter schemas for rmcp's `#[tool]` macros (rmcp's `server`
+# feature already carries schemars; this direct dependency is for the derive).
+schemars = { version = ">=1.1, <2" }
 
 # Dev/test only.
 proptest = { version = ">=1.4, <2" }

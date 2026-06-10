@@ -84,6 +84,18 @@ superseded pushes (never for `main`); least-privilege workflow permissions.
 - `Cargo.lock` committed (workspace contains binaries and a CLI; reproducible CI outweighs
   library-lockfile purism).
 
+Per-dependency justification (direct runtime dependencies only; dev/bench
+dependencies are justified where they are declared):
+
+| Dependency | Crates | Why it clears the bar |
+|------------|--------|----------------------|
+| `serde`, `serde_json` | all | The protocol is JSON; `float_roundtrip` is correctness (canonical fixpoint) |
+| `clap` | binaries, behind `cli` features | [ADR-0005](decisions/0005-cli-argument-parsing.md): library consumers never pay for it |
+| `rmcp` | everything-server | The point of M2: parity proven *on the official SDK*, not beside it. Feature-minimal (`server`, `macros`, `transport-io`, `transport-streamable-http-server`); MSRV consequence in [ADR-0008](decisions/0008-msrv-1.88.md) |
+| `tokio` | everything-server (`cli`), reference-host (M3) | rmcp's runtime, not re-litigated; no default features, per-crate feature grants |
+| `schemars` | everything-server | Tool/prompt parameter schemas for rmcp's `#[tool]`; already in rmcp's `server` feature tree |
+| `http-body-util`, `tokio-util`, `tokio-stream`, `tracing` | everything-server (floor shims) | Not used directly: documented minimal-versions floor repairs for under-specified third-party requirements (each names its culprit in the manifest; removable when upstream fixes) |
+
 ## Releases
 
 - SemVer 2.0.0. All publishable crates share one version and release together
