@@ -113,6 +113,8 @@ async fn unknown_tool_is_a_protocol_error_not_a_crash() {
 type LogLog = std::sync::Arc<std::sync::Mutex<Vec<(String, String)>>>;
 /// `(progress, total)` pairs captured from `notifications/progress`.
 type ProgressLog = std::sync::Arc<std::sync::Mutex<Vec<(f64, Option<f64>)>>>;
+/// URIs captured from `notifications/resources/updated`.
+type UpdatedLog = std::sync::Arc<std::sync::Mutex<Vec<String>>>;
 
 /// Client handler that records logging and progress notifications, so the
 /// mid-call notification contracts are assertable from a real session.
@@ -120,6 +122,7 @@ type ProgressLog = std::sync::Arc<std::sync::Mutex<Vec<(f64, Option<f64>)>>>;
 struct Recorder {
     logs: LogLog,
     progress: ProgressLog,
+    updated: UpdatedLog,
 }
 
 impl rmcp::ClientHandler for Recorder {
@@ -147,6 +150,14 @@ impl rmcp::ClientHandler for Recorder {
             .lock()
             .unwrap()
             .push((params.progress, params.total));
+    }
+
+    async fn on_resource_updated(
+        &self,
+        params: rmcp::model::ResourceUpdatedNotificationParam,
+        _context: rmcp::service::NotificationContext<rmcp::RoleClient>,
+    ) {
+        self.updated.lock().unwrap().push(params.uri);
     }
 }
 
@@ -351,5 +362,320 @@ async fn rmcp_clients_always_carry_a_progress_token() {
     assert!(result.content[0].as_text().is_some());
     let count = recorder.progress.lock().unwrap().len();
     assert_eq!(count, 3, "auto-token still produces the staged updates");
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn resources_surface_matches_the_scenarios() {
+    let client = connect().await;
+
+    let listed = client.list_resources(None).await.expect("resources/list");
+    let uris: Vec<&str> = listed.resources.iter().map(|r| r.uri.as_str()).collect();
+    assert!(uris.contains(&"test://static-text"), "{uris:?}");
+    assert!(uris.contains(&"test://static-binary"), "{uris:?}");
+    assert!(
+        listed.resources.iter().all(|r| r.description.is_some()),
+        "every listed resource carries a description"
+    );
+
+    let templates = client
+        .list_resource_templates(None)
+        .await
+        .expect("resources/templates/list");
+    assert_eq!(
+        templates.resource_templates[0].uri_template,
+        "test://template/{id}/data"
+    );
+
+    let text = client
+        .read_resource(rmcp::model::ReadResourceRequestParams::new(
+            "test://static-text",
+        ))
+        .await
+        .expect("read text");
+    let text_json = serde_json::to_value(&text).unwrap();
+    assert_eq!(
+        text_json["contents"][0]["text"],
+        "This is the content of the static text resource."
+    );
+
+    let binary = client
+        .read_resource(rmcp::model::ReadResourceRequestParams::new(
+            "test://static-binary",
+        ))
+        .await
+        .expect("read binary");
+    let binary_json = serde_json::to_value(&binary).unwrap();
+    assert_eq!(binary_json["contents"][0]["mimeType"], "image/png");
+    assert!(binary_json["contents"][0]["blob"].is_string());
+
+    let instantiated = client
+        .read_resource(rmcp::model::ReadResourceRequestParams::new(
+            "test://template/123/data",
+        ))
+        .await
+        .expect("read template instantiation");
+    let instantiated_json = serde_json::to_value(&instantiated).unwrap();
+    assert_eq!(
+        instantiated_json["contents"][0]["text"],
+        r#"{"id":"123","templateTest":true,"data":"Data for ID: 123"}"#
+    );
+
+    let missing = client
+        .read_resource(rmcp::model::ReadResourceRequestParams::new(
+            "test://no-such-resource",
+        ))
+        .await;
+    assert!(missing.is_err(), "unknown URIs are protocol errors");
+
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn subscribe_acknowledges_with_an_update_then_unsubscribe_round_trips() {
+    let (client, recorder) = connect_recording().await;
+    client
+        .subscribe(rmcp::model::SubscribeRequestParams::new(
+            "test://watched-resource",
+        ))
+        .await
+        .expect("resources/subscribe");
+    // The server acknowledges new subscriptions with an immediate update
+    // notification — the observable consequence of tracking the URI.
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            if recorder.updated.lock().unwrap().as_slice() == ["test://watched-resource"] {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("update notification arrives");
+    client
+        .unsubscribe(rmcp::model::UnsubscribeRequestParams::new(
+            "test://watched-resource",
+        ))
+        .await
+        .expect("resources/unsubscribe");
+    // Unsubscription is observable through resubscription: only a URI that
+    // was actually dropped is "newly tracked" again, so a second
+    // acknowledgment update must arrive.
+    client
+        .subscribe(rmcp::model::SubscribeRequestParams::new(
+            "test://watched-resource",
+        ))
+        .await
+        .expect("resubscribe");
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            if recorder.updated.lock().unwrap().len() == 2 {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("second update proves the unsubscribe dropped the URI");
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn prompts_list_carries_names_descriptions_and_arguments() {
+    let client = connect().await;
+
+    let listed = client.list_prompts(None).await.expect("prompts/list");
+    let names: Vec<&str> = listed.prompts.iter().map(|p| p.name.as_str()).collect();
+    for required in [
+        "test_simple_prompt",
+        "test_prompt_with_arguments",
+        "test_prompt_with_embedded_resource",
+        "test_prompt_with_image",
+    ] {
+        assert!(names.contains(&required), "{required} missing: {names:?}");
+    }
+    assert!(
+        listed.prompts.iter().all(|p| p.description.is_some()),
+        "every prompt carries a description: {listed:?}"
+    );
+    let with_args = listed
+        .prompts
+        .iter()
+        .find(|p| p.name == "test_prompt_with_arguments")
+        .unwrap();
+    let arg_names: Vec<&str> = with_args
+        .arguments
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .map(|a| a.name.as_str())
+        .collect();
+    assert_eq!(arg_names, ["arg1", "arg2"]);
+
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn prompts_get_returns_the_scenario_message_shapes() {
+    let client = connect().await;
+
+    let simple = client
+        .get_prompt(rmcp::model::GetPromptRequestParams::new(
+            "test_simple_prompt",
+        ))
+        .await
+        .expect("simple prompt");
+    let simple_json = serde_json::to_value(&simple).unwrap();
+    assert_eq!(simple_json["messages"][0]["role"], "user");
+    assert_eq!(
+        simple_json["messages"][0]["content"]["text"],
+        "This is a simple prompt for testing."
+    );
+
+    let mut with_args_params =
+        rmcp::model::GetPromptRequestParams::new("test_prompt_with_arguments");
+    with_args_params.arguments = serde_json::json!({"arg1": "hello", "arg2": "world"})
+        .as_object()
+        .cloned();
+    let formatted = client
+        .get_prompt(with_args_params)
+        .await
+        .expect("prompt with args");
+    let formatted_json = serde_json::to_value(&formatted).unwrap();
+    assert_eq!(
+        formatted_json["messages"][0]["content"]["text"],
+        "Prompt with arguments: arg1='hello', arg2='world'"
+    );
+
+    let mut embedded_params =
+        rmcp::model::GetPromptRequestParams::new("test_prompt_with_embedded_resource");
+    embedded_params.arguments = serde_json::json!({"resourceUri": "test://static-text"})
+        .as_object()
+        .cloned();
+    let embedded = client
+        .get_prompt(embedded_params)
+        .await
+        .expect("prompt with embedded resource");
+    let embedded_json = serde_json::to_value(&embedded).unwrap();
+    assert_eq!(
+        embedded_json["messages"][0]["content"]["type"], "resource",
+        "{embedded_json}"
+    );
+    assert_eq!(
+        embedded_json["messages"][0]["content"]["resource"]["uri"],
+        "test://static-text"
+    );
+    assert_eq!(embedded_json["messages"][1]["content"]["type"], "text");
+
+    let image = client
+        .get_prompt(rmcp::model::GetPromptRequestParams::new(
+            "test_prompt_with_image",
+        ))
+        .await
+        .expect("prompt with image");
+    let image_json = serde_json::to_value(&image).unwrap();
+    assert_eq!(image_json["messages"][0]["content"]["type"], "image");
+    assert_eq!(
+        image_json["messages"][0]["content"]["mimeType"],
+        "image/png"
+    );
+    assert_eq!(image_json["messages"][1]["content"]["type"], "text");
+
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn completion_filters_the_documented_candidates_by_prefix() {
+    let client = connect().await;
+    let mut params = rmcp::model::CompleteRequestParams::new(
+        rmcp::model::Reference::for_prompt("test_prompt_with_arguments"),
+        rmcp::model::ArgumentInfo {
+            name: "arg1".into(),
+            value: "par".into(),
+        },
+    );
+    params.context = None;
+    let result = client.complete(params).await.expect("completion/complete");
+    assert_eq!(result.completion.values, ["paris", "park", "party"]);
+    assert_eq!(result.completion.has_more, Some(false));
+
+    let narrowed = client
+        .complete(rmcp::model::CompleteRequestParams::new(
+            rmcp::model::Reference::for_prompt("test_prompt_with_arguments"),
+            rmcp::model::ArgumentInfo {
+                name: "arg1".into(),
+                value: "pari".into(),
+            },
+        ))
+        .await
+        .expect("narrowed completion");
+    assert_eq!(narrowed.completion.values, ["paris"]);
+
+    let unrelated = client
+        .complete(rmcp::model::CompleteRequestParams::new(
+            rmcp::model::Reference::for_prompt("some_other_prompt"),
+            rmcp::model::ArgumentInfo {
+                name: "arg1".into(),
+                value: "x".into(),
+            },
+        ))
+        .await
+        .expect("unrelated completion");
+    assert!(unrelated.completion.values.is_empty());
+
+    // Right prompt, wrong argument: the guard requires BOTH name matches —
+    // arg2 completes to nothing even with a matching prefix value.
+    let wrong_argument = client
+        .complete(rmcp::model::CompleteRequestParams::new(
+            rmcp::model::Reference::for_prompt("test_prompt_with_arguments"),
+            rmcp::model::ArgumentInfo {
+                name: "arg2".into(),
+                value: "par".into(),
+            },
+        ))
+        .await
+        .expect("wrong-argument completion");
+    assert!(wrong_argument.completion.values.is_empty());
+
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn set_level_filters_subsequent_log_notifications() {
+    let (client, recorder) = connect_recording().await;
+
+    client
+        .set_level(rmcp::model::SetLevelRequestParams::new(
+            rmcp::model::LoggingLevel::Error,
+        ))
+        .await
+        .expect("logging/setLevel");
+
+    let result = client
+        .call_tool(CallToolRequestParams::new("test_tool_with_logging"))
+        .await
+        .expect("logging tool above threshold");
+    assert!(result.content[0].as_text().is_some());
+    assert!(
+        recorder.logs.lock().unwrap().is_empty(),
+        "info messages must be filtered at error threshold"
+    );
+
+    client
+        .set_level(rmcp::model::SetLevelRequestParams::new(
+            rmcp::model::LoggingLevel::Debug,
+        ))
+        .await
+        .expect("loosen level");
+    let _ = client
+        .call_tool(CallToolRequestParams::new("test_tool_with_logging"))
+        .await
+        .expect("logging tool below threshold");
+    assert_eq!(
+        recorder.logs.lock().unwrap().len(),
+        3,
+        "messages flow again once the threshold drops"
+    );
+
     client.cancel().await.expect("clean shutdown");
 }

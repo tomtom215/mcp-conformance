@@ -37,16 +37,22 @@ impl EverythingServer {
         &self,
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, ErrorData> {
+        // logging/setLevel filtering happens at the emission site: a
+        // threshold above info silences these (the scenario's "filter
+        // subsequent log notifications" requirement).
+        let permitted = self.log_permits(LoggingLevel::Info);
         let log = |message: &'static str| {
             let peer = context.peer.clone();
             async move {
-                let _ = peer
-                    .notify_logging_message(LoggingMessageNotificationParam {
-                        level: LoggingLevel::Info,
-                        logger: Some("test_tool_with_logging".into()),
-                        data: serde_json::Value::String(message.into()),
-                    })
-                    .await;
+                if permitted {
+                    let _ = peer
+                        .notify_logging_message(LoggingMessageNotificationParam {
+                            level: LoggingLevel::Info,
+                            logger: Some("test_tool_with_logging".into()),
+                            data: serde_json::Value::String(message.into()),
+                        })
+                        .await;
+                }
             }
         };
         log("Tool execution started").await;

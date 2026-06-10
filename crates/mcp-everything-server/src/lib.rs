@@ -19,8 +19,11 @@
 //! HTTP — behind [`policy`] — is next.
 
 pub mod fixtures;
+pub mod logging;
 pub mod notifying;
 pub mod policy;
+pub mod prompts;
+pub mod resources;
 pub mod server;
 pub mod tools;
 
