@@ -13,10 +13,10 @@ members = [
 
 [workspace.package]
 edition = "2024"
-# MSRV policy (docs/plan/decisions/0004-toolchain-and-msrv.md): 1.85 is the
-# Edition 2024 floor and the lowest bound we actually verify in CI. Bumps are
-# minor releases with a changelog entry.
-rust-version = "1.85"
+# MSRV policy (docs/plan/decisions/0008-msrv-1.88.md): 1.88 is rmcp's measured
+# compilation floor (let-chains; undeclared upstream) and the lowest bound we
+# actually verify in CI. Bumps are minor releases with a changelog entry.
+rust-version = "1.88"
 version = "0.1.0"
 license = "MIT"
 authors = ["Tom F."]

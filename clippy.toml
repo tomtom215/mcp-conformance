@@ -3,9 +3,9 @@
 #
 # Clippy configuration — pedantic + nursery levels are set in the workspace
 # manifest ([workspace.lints]); this file holds analyzer thresholds and the
-# MSRV hint so suggestions never exceed what 1.85 can compile.
+# MSRV hint so suggestions never exceed what 1.88 can compile.
 
-msrv = "1.85"
+msrv = "1.88"
 
 # Thresholds carried from a2a-rust; deviations at a call site require a comment.
 too-many-lines-threshold = 60

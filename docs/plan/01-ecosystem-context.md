@@ -4,7 +4,7 @@
 # Ecosystem Context — Verified Facts Register
 
 **Status:** Active
-**Last reviewed:** 2026-06-09
+**Last reviewed:** 2026-06-10
 
 ---
 
@@ -67,7 +67,7 @@ cited).
 | 3.2 | License: Apache-2.0 (docs CC-BY-4.0; legacy MIT contributions noted during relicensing) | Verified | 2026-06-09 | Workspace `Cargo.toml`, LICENSE | ADR-0003, Standards |
 | 3.3 | rust-sdk **already contains** a `conformance/` workspace package (internally named `mcp-conformance`, `publish = false`) with `conformance-server` and `conformance-client` binaries wired to the official suite | Verified | 2026-06-09 | [conformance/Cargo.toml](https://github.com/modelcontextprotocol/rust-sdk/tree/main/conformance) | Charter, ADR-0003 (name collision), Engagement |
 | 3.4 | rust-sdk has **no everything server** (examples cover counter, memory, elicitation, prompt, task, progress, auth; `everything_stdio.rs` is a *client* example) | Verified | 2026-06-09 | Repo `examples/` tree; issue #769 | Charter, Roadmap M2 |
-| 3.5 | rust-sdk declares **no MSRV** — no `rust-version` in any workspace manifest, none in README | Verified | 2026-06-09 | Workspace `Cargo.toml` | Engagement (contribution backlog) |
+| 3.5 | rust-sdk declares **no MSRV** — no `rust-version` in any manifest or README (checked at tag `rmcp-v1.7.0`) — and the **measured floor is 1.88**: `cargo +1.85 check` fails with E0658 (let-chains, stabilized in Rust 1.88.0) for `=1.7.0`, `=1.6.0`, `=1.5.0`, `=1.4.0`, `=1.2.0`, `=1.0.0`, `=0.17.0`; independently `rmcp-macros 1.7.0` → `darling = "0.23"` → 0.23.0 declares `rust-version: 1.88.0`; `cargo +1.88 check` passes with `server`+`macros`+`transport-io`+`transport-streamable-http-server` | Verified | 2026-06-10 | Local probe builds against crates.io; tag manifests; [Rust 1.88.0 announcement](https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/) | ADR-0008 (MSRV 1.88), Engagement (contribution backlog item 3) |
 | 3.6 | Tier-2 process issues #690–#693 (labeling/triage, stable release, ROADMAP.md, documentation) are closed; #684 "Conformance Testing" remains open | Verified | 2026-06-09 | [Issue #684](https://github.com/modelcontextprotocol/rust-sdk/issues/684) | Engagement |
 | 3.7 | Most active maintainers: 4t145 and jokemanfire; CODEOWNERS is the `@modelcontextprotocol/rust-sdk` team | Verified | 2026-06-09 | Repo CODEOWNERS, commit history | Engagement |
 

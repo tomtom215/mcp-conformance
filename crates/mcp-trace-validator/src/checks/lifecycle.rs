@@ -104,13 +104,13 @@ fn expect_member(
 /// notification …".
 pub(super) fn initialized_notification(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let init = context.initialize();
-    if let Some((result_seq, _)) = init.result {
-        if init.initialized.is_none() {
-            sink.push(
+    if let Some((result_seq, _)) = init.result
+        && init.initialized.is_none()
+    {
+        sink.push(
                 Some(result_seq),
                 "the server answered initialize here, but no notifications/initialized notification follows in the trace".to_owned(),
             );
-        }
     }
 }
 
@@ -130,15 +130,16 @@ pub(super) fn client_requests_before_init_response(
         ) {
             continue;
         }
-        if let MessageKind::Request { method, .. } = kind {
-            if *method != "initialize" && *method != "ping" {
-                sink.push(
-                    Some(event.seq),
-                    format!(
-                        "client sent a {method:?} request before the server responded to initialize"
-                    ),
-                );
-            }
+        if let MessageKind::Request { method, .. } = kind
+            && *method != "initialize"
+            && *method != "ping"
+        {
+            sink.push(
+                Some(event.seq),
+                format!(
+                    "client sent a {method:?} request before the server responded to initialize"
+                ),
+            );
         }
     }
 }
@@ -157,15 +158,15 @@ pub(super) fn server_requests_before_initialized(
         if event.direction != Direction::ServerToClient || phase == Phase::Ready {
             continue;
         }
-        if let MessageKind::Request { method, .. } = kind {
-            if *method != "ping" {
-                sink.push(
-                    Some(event.seq),
-                    format!(
-                        "server sent a {method:?} request before receiving the initialized notification"
-                    ),
-                );
-            }
+        if let MessageKind::Request { method, .. } = kind
+            && *method != "ping"
+        {
+            sink.push(
+                Some(event.seq),
+                format!(
+                    "server sent a {method:?} request before receiving the initialized notification"
+                ),
+            );
         }
     }
 }

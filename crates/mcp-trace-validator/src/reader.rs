@@ -160,14 +160,14 @@ pub fn parse_trace(input: &str, limits: &Limits) -> Result<Vec<TraceEvent>, Trac
                 line: line_number,
                 source,
             })?;
-        if let Some(previous) = previous_seq {
-            if event.seq <= previous {
-                return Err(TraceParseError::NonMonotonicSeq {
-                    line: line_number,
-                    seq: event.seq,
-                    previous,
-                });
-            }
+        if let Some(previous) = previous_seq
+            && event.seq <= previous
+        {
+            return Err(TraceParseError::NonMonotonicSeq {
+                line: line_number,
+                seq: event.seq,
+                previous,
+            });
         }
         previous_seq = Some(event.seq);
         events.push(event);

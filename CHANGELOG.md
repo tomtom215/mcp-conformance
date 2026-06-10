@@ -13,6 +13,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Changed
 
+- **MSRV raised from 1.85 to 1.88** — rmcp's measured compilation floor
+  (let-chains in its library source; undeclared upstream). Per policy
+  (ADR-0004/ADR-0008) this makes the next release **0.2.0**.
 - Release pipeline is OIDC-only: the one-time bootstrap conditional is removed
   from `release.yml` now that all four crates enforce "Trusted Publishing Only"
   and the bootstrap token is deleted and revoked (ADR-0007 §Amendment).

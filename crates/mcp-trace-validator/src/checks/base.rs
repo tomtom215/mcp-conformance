@@ -45,16 +45,16 @@ fn id_is_string_or_integer(id: &Value) -> bool {
 /// `BASE-001`: "Requests MUST include a string or integer ID."
 pub(super) fn request_id_type(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Request { method, id } = kind {
-            if !id_is_string_or_integer(id) {
-                sink.push(
+        if let MessageKind::Request { method, id } = kind
+            && !id_is_string_or_integer(id)
+        {
+            sink.push(
                     Some(event.seq),
                     format!(
                         "request {method:?} carries {} as its id; the ID must be a string or an integer",
                         type_name(id)
                     ),
                 );
-            }
         }
     }
 }
@@ -62,13 +62,13 @@ pub(super) fn request_id_type(context: &TraceContext<'_>, sink: &mut FindingSink
 /// `BASE-002`: "Unlike base JSON-RPC, the ID MUST NOT be `null`."
 pub(super) fn request_id_not_null(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Request { method, id } = kind {
-            if id.is_null() {
-                sink.push(
-                    Some(event.seq),
-                    format!("request {method:?} carries a null id, which MCP forbids"),
-                );
-            }
+        if let MessageKind::Request { method, id } = kind
+            && id.is_null()
+        {
+            sink.push(
+                Some(event.seq),
+                format!("request {method:?} carries a null id, which MCP forbids"),
+            );
         }
     }
 }
@@ -199,15 +199,15 @@ pub(super) fn error_id_matches(context: &TraceContext<'_>, sink: &mut FindingSin
 /// classifies structurally as a request; this check is what catches it.
 pub(super) fn notification_no_id(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Request { method, .. } = kind {
-            if is_notification_method(method) {
-                sink.push(
+        if let MessageKind::Request { method, .. } = kind
+            && is_notification_method(method)
+        {
+            sink.push(
                     Some(event.seq),
                     format!(
                         "{method:?} is a notification method but the message carries an id; notifications must not include one"
                     ),
                 );
-            }
         }
     }
 }
@@ -251,15 +251,15 @@ pub(super) fn error_shape(context: &TraceContext<'_>, sink: &mut FindingSink) {
 /// `BASE-007`: "Error codes MUST be integers."
 pub(super) fn error_code_integer(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Error { error, .. } = kind {
-            if let Some(code) = error.get("code") {
-                if !code.is_i64() && !code.is_u64() {
-                    sink.push(
-                        Some(event.seq),
-                        format!("error code is {}, expected an integer", type_name(code)),
-                    );
-                }
-            }
+        if let MessageKind::Error { error, .. } = kind
+            && let Some(code) = error.get("code")
+            && !code.is_i64()
+            && !code.is_u64()
+        {
+            sink.push(
+                Some(event.seq),
+                format!("error code is {}, expected an integer", type_name(code)),
+            );
         }
     }
 }

@@ -36,8 +36,9 @@ later never arrives.
 
 ## Toolchain policy
 
-- **MSRV pinned** in `[workspace.package] rust-version`, selected at M0 (constraint: rmcp's
-  actual requirements, since rmcp declares no MSRV — [register 3.5](01-ecosystem-context.md)),
+- **MSRV pinned** in `[workspace.package] rust-version`: 1.85 at M0, raised to **1.88** at
+  M2 when rmcp's measured floor forced it ([ADR-0008](decisions/0008-msrv-1.88.md),
+  [register 3.5](01-ecosystem-context.md)),
   tested in CI on every platform, bumped only in minor releases with a changelog entry.
 - **Edition:** latest stable edition compatible with the chosen MSRV, fixed at M0.
 - Stable toolchain for all gates; nightly runs as a non-blocking informational job.
