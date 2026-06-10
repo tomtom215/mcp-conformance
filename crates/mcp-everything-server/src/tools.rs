@@ -215,6 +215,8 @@ pub(crate) fn json_schema_2020_12_route() -> ToolRoute<EverythingServer> {
 /// Combines every tool router the server exposes; [`EverythingServer::new`]
 /// is the single caller, so the tool inventory has one assembly point.
 pub(crate) fn all_tools() -> ToolRouter<EverythingServer> {
-    let routed = EverythingServer::tool_router_basic() + EverythingServer::tool_router_notifying();
+    let routed = EverythingServer::tool_router_basic()
+        + EverythingServer::tool_router_notifying()
+        + EverythingServer::tool_router_interactive();
     routed.with_route(json_schema_2020_12_route())
 }

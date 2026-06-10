@@ -679,3 +679,240 @@ async fn set_level_filters_subsequent_log_notifications() {
 
     client.cancel().await.expect("clean shutdown");
 }
+
+/// Captured `elicitation/create` request parameters, as raw JSON.
+type ElicitationCaptures = std::sync::Arc<std::sync::Mutex<Vec<serde_json::Value>>>;
+
+/// Client scripted to answer sampling and elicitation requests, capturing
+/// the elicitation schemas so their wire shapes are assertable.
+#[derive(Debug, Clone, Default)]
+struct InteractiveClient {
+    elicitations: ElicitationCaptures,
+}
+
+impl rmcp::ClientHandler for InteractiveClient {
+    fn get_info(&self) -> rmcp::model::ClientInfo {
+        let mut info = rmcp::model::ClientInfo::default();
+        info.capabilities = rmcp::model::ClientCapabilities::builder()
+            .enable_sampling()
+            .enable_elicitation()
+            .build();
+        info
+    }
+
+    async fn create_message(
+        &self,
+        _params: rmcp::model::CreateMessageRequestParams,
+        _context: rmcp::service::RequestContext<rmcp::RoleClient>,
+    ) -> Result<rmcp::model::CreateMessageResult, rmcp::ErrorData> {
+        Ok(rmcp::model::CreateMessageResult::new(
+            rmcp::model::SamplingMessage::assistant_text("Scripted response"),
+            "test-model".to_owned(),
+        ))
+    }
+
+    async fn create_elicitation(
+        &self,
+        params: rmcp::model::CreateElicitationRequestParams,
+        _context: rmcp::service::RequestContext<rmcp::RoleClient>,
+    ) -> Result<rmcp::model::CreateElicitationResult, rmcp::ErrorData> {
+        self.elicitations
+            .lock()
+            .unwrap()
+            .push(serde_json::to_value(&params).unwrap());
+        let mut result =
+            rmcp::model::CreateElicitationResult::new(rmcp::model::ElicitationAction::Accept);
+        result.content = Some(serde_json::json!({"username": "tester", "email": "t@example.com"}));
+        Ok(result)
+    }
+}
+
+async fn connect_interactive() -> (
+    RunningService<RoleClient, InteractiveClient>,
+    InteractiveClient,
+) {
+    let (server_io, client_io) = tokio::io::duplex(4096);
+    tokio::spawn(async move {
+        if let Ok(server) = EverythingServer::new().serve(server_io).await {
+            let _ = server.waiting().await;
+        }
+    });
+    let handler = InteractiveClient::default();
+    let client = handler
+        .clone()
+        .serve(client_io)
+        .await
+        .expect("client initialize");
+    (client, handler)
+}
+
+#[tokio::test]
+async fn sampling_tool_round_trips_through_the_client() {
+    let (client, _) = connect_interactive().await;
+    let result = client
+        .call_tool(
+            CallToolRequestParams::new("test_sampling").with_arguments(
+                serde_json::json!({"prompt": "Say hello"})
+                    .as_object()
+                    .cloned()
+                    .unwrap(),
+            ),
+        )
+        .await
+        .expect("test_sampling");
+    assert_eq!(
+        result.content[0].as_text().map(|t| t.text.as_str()),
+        Some("LLM response: Scripted response")
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn sampling_tool_errors_when_the_client_lacks_the_capability() {
+    // The trivial `()` client advertises no sampling capability.
+    let client = connect().await;
+    let outcome = client
+        .call_tool(
+            CallToolRequestParams::new("test_sampling").with_arguments(
+                serde_json::json!({"prompt": "Say hello"})
+                    .as_object()
+                    .cloned()
+                    .unwrap(),
+            ),
+        )
+        .await;
+    assert!(outcome.is_err(), "must error without sampling capability");
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn elicitation_tool_sends_the_contract_schema_and_formats_the_reply() {
+    let (client, handler) = connect_interactive().await;
+    let result = client
+        .call_tool(
+            CallToolRequestParams::new("test_elicitation").with_arguments(
+                serde_json::json!({"message": "Please provide your details"})
+                    .as_object()
+                    .cloned()
+                    .unwrap(),
+            ),
+        )
+        .await
+        .expect("test_elicitation");
+    let text = result.content[0]
+        .as_text()
+        .map(|t| t.text.as_str())
+        .unwrap();
+    assert!(
+        text.starts_with("User response: action=accept, content="),
+        "scenario phrasing: {text}"
+    );
+    assert!(text.contains("tester"), "scripted content echoed: {text}");
+
+    let captured = handler.elicitations.lock().unwrap().clone();
+    assert_eq!(captured.len(), 1);
+    let request = &captured[0];
+    assert_eq!(request["mode"], "form");
+    assert_eq!(request["message"], "Please provide your details");
+    let schema = &request["requestedSchema"];
+    assert_eq!(schema["type"], "object");
+    assert_eq!(
+        schema["properties"]["username"]["description"],
+        "User's response"
+    );
+    assert_eq!(
+        schema["properties"]["email"]["description"],
+        "User's email address"
+    );
+    let required: Vec<&str> = schema["required"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    assert!(required.contains(&"username") && required.contains(&"email"));
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn sep1034_defaults_reach_the_wire_for_every_primitive() {
+    let (client, handler) = connect_interactive().await;
+    let result = client
+        .call_tool(CallToolRequestParams::new(
+            "test_elicitation_sep1034_defaults",
+        ))
+        .await
+        .expect("sep1034 tool");
+    let text = result.content[0]
+        .as_text()
+        .map(|t| t.text.as_str())
+        .unwrap();
+    assert!(text.starts_with("Elicitation completed: action=accept"));
+
+    let captured = handler.elicitations.lock().unwrap().clone();
+    let schema = &captured[0]["requestedSchema"]["properties"];
+    assert_eq!(schema["name"]["default"], "John Doe");
+    assert_eq!(schema["age"]["default"], 30);
+    assert_eq!(schema["score"]["default"], 95.5);
+    assert_eq!(schema["status"]["default"], "active");
+    assert_eq!(
+        schema["status"]["enum"],
+        serde_json::json!(["active", "inactive", "pending"])
+    );
+    assert_eq!(schema["verified"]["default"], true);
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn sep1330_sends_all_five_enum_variants() {
+    let (client, handler) = connect_interactive().await;
+    let _ = client
+        .call_tool(CallToolRequestParams::new("test_elicitation_sep1330_enums"))
+        .await
+        .expect("sep1330 tool");
+
+    let captured = handler.elicitations.lock().unwrap().clone();
+    let props = &captured[0]["requestedSchema"]["properties"];
+
+    // 1. Untitled single-select: type string + enum.
+    assert_eq!(props["untitled_single"]["type"], "string");
+    assert_eq!(
+        props["untitled_single"]["enum"],
+        serde_json::json!(["option1", "option2", "option3"])
+    );
+    // 2. Titled single-select: oneOf const/title.
+    assert_eq!(
+        props["titled_single"]["oneOf"][0],
+        serde_json::json!({"const": "value1", "title": "First Option"})
+    );
+    // 3. Legacy: the enum values survive the round-trip; `enumNames` does
+    // NOT — rmcp's client-side untagged EnumSchema deserialization matches
+    // the legacy form as Untitled first and drops the field. The true wire
+    // shape (enumNames included) is pinned at serialization in
+    // interactive.rs's unit tests; this assertion documents the loss so an
+    // upstream fix is immediately visible.
+    assert_eq!(
+        props["legacy_titled"]["enum"],
+        serde_json::json!(["opt1", "opt2", "opt3"])
+    );
+    assert_eq!(
+        props["legacy_titled"]["enumNames"],
+        serde_json::Value::Null,
+        "rmcp round-trip currently drops enumNames; a value here means \
+         upstream fixed their untagged ordering — update this test and the \
+         register row"
+    );
+    // 4. Untitled multi-select: array of enum items.
+    assert_eq!(props["untitled_multi"]["type"], "array");
+    assert_eq!(
+        props["untitled_multi"]["items"]["enum"],
+        serde_json::json!(["option1", "option2", "option3"])
+    );
+    // 5. Titled multi-select: array of anyOf const/title.
+    assert_eq!(props["titled_multi"]["type"], "array");
+    assert_eq!(
+        props["titled_multi"]["items"]["anyOf"][0],
+        serde_json::json!({"const": "value1", "title": "First Choice"})
+    );
+    client.cancel().await.expect("clean shutdown");
+}
