@@ -96,6 +96,15 @@ upstream), spec ambiguity (file upstream) — and the triage outcome is recorded
 corpus provenance note. This is the project's standing answer to "why should anyone trust a
 second opinion?": because it is continuously reconciled with the first one.
 
+Mechanics as of 2026-06-10 (M2 in progress): `cargo xtask conformance` runs the pinned
+runner against the everything server and writes its per-scenario verdicts to
+`target/conformance/*/checks.json`; runner-level divergence is gated by the committed
+`conformance/expected-failures.yaml`, whose header requires every entry to carry one of
+the three triage classes plus an upstream link (the machine-readable triage artifact).
+Currently empty — 40/40 checks pass. The validator side of the diff arrives with the
+server's trace tap: tap the same sessions, validate the JSONL, and reconcile
+requirement-level findings against the runner's scenario verdicts.
+
 ## Official-suite version policy
 
 - **Pin** the stable line (`0.1.16` as of 2026-06-09 — [register 2.4](01-ecosystem-context.md))
