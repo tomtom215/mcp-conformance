@@ -28,6 +28,8 @@ pub mod policy;
 pub mod prompts;
 pub mod resources;
 pub mod server;
+#[cfg(feature = "tap")]
+pub mod tap;
 pub mod tools;
 
 pub use server::EverythingServer;

@@ -922,6 +922,7 @@ dependencies = [
  "axum",
  "clap",
  "http-body-util",
+ "mcp-conformance-core",
  "proptest",
  "rmcp",
  "schemars",
@@ -1988,6 +1989,9 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "mcp-conformance-core",
+ "mcp-trace-validator",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -108,6 +108,25 @@ pub struct TraceEvent {
 }
 
 impl TraceEvent {
+    /// Builds an event with no timestamp — the constructor capture tooling
+    /// uses (the struct is `#[non_exhaustive]`, so literals only work inside
+    /// this crate). `ts` stays settable afterwards; checks never read it.
+    #[must_use]
+    pub const fn new(
+        seq: u64,
+        direction: Direction,
+        transport: TransportKind,
+        body: EventBody,
+    ) -> Self {
+        Self {
+            seq,
+            direction,
+            transport,
+            body,
+            ts: None,
+        }
+    }
+
     /// The JSON-RPC payload, when this event is a message.
     #[must_use]
     pub const fn message_payload(&self) -> Option<&Value> {

@@ -39,6 +39,11 @@ struct Cli {
     /// reverse proxy that already enforces host policy.
     #[arg(long)]
     dangerously_allow_any_host: bool,
+    /// Record each HTTP session as a validator-ready JSON Lines trace in
+    /// this directory (one file per session). HTTP transport only.
+    #[cfg(feature = "tap")]
+    #[arg(long, value_name = "DIR")]
+    tap_dir: Option<std::path::PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -59,10 +64,39 @@ async fn main() -> ExitCode {
     } else {
         HttpSecurityPolicy::with_allowed_hosts(cli.allowed_hosts.clone())
     };
+    #[cfg(feature = "tap")]
+    if cli.tap_dir.is_some() && matches!(cli.transport, Transport::Stdio) {
+        eprintln!("mcp-everything-server: --tap-dir requires --transport http");
+        return ExitCode::from(2);
+    }
     match cli.transport {
         Transport::Stdio => serve_stdio().await,
-        Transport::Http => serve_http(cli.bind, policy).await,
+        Transport::Http => {
+            #[cfg(feature = "tap")]
+            if let Some(dir) = cli.tap_dir {
+                return serve_http_tapped(cli.bind, policy, dir).await;
+            }
+            serve_http(cli.bind, policy).await
+        }
     }
+}
+
+/// [`serve_http`] with the session trace tap installed.
+#[cfg(feature = "tap")]
+async fn serve_http_tapped(
+    bind: SocketAddr,
+    policy: HttpSecurityPolicy,
+    dir: std::path::PathBuf,
+) -> ExitCode {
+    let tap = match mcp_everything_server::tap::Tap::new(dir) {
+        Ok(tap) => tap,
+        Err(error) => {
+            eprintln!("mcp-everything-server: cannot create tap directory: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let app = mcp_everything_server::http::router_tapped(policy, tap);
+    serve_app(bind, app).await
 }
 
 async fn serve_stdio() -> ExitCode {
@@ -84,6 +118,11 @@ async fn serve_stdio() -> ExitCode {
 
 async fn serve_http(bind: SocketAddr, policy: HttpSecurityPolicy) -> ExitCode {
     let app = mcp_everything_server::http::router(policy);
+    serve_app(bind, app).await
+}
+
+/// Binds, prints the readiness line, and serves `app` until ctrl-c.
+async fn serve_app(bind: SocketAddr, app: axum::Router) -> ExitCode {
     let listener = match tokio::net::TcpListener::bind(bind).await {
         Ok(listener) => listener,
         Err(error) => {

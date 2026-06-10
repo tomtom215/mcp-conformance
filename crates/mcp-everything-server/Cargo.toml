@@ -24,6 +24,13 @@ cli = ["dep:clap", "http", "tokio/macros", "tokio/rt-multi-thread", "tokio/signa
 # Streamable HTTP serving (axum app + policy middleware). Off → stdio-only
 # library/binary without the HTTP dependency tree.
 http = ["dep:axum", "tokio/net"]
+# Session trace tap for the agreement check
+# (docs/plan/03-conformance-strategy.md §Calibration): records admitted HTTP
+# sessions as validator-ready JSON Lines traces. Off the default set so the
+# server offered upstream carries no conformance-toolkit dependency unless
+# asked to. (tokio-stream is already an unconditional floor-shim dependency
+# below; the tap simply uses it.)
+tap = ["http", "dep:mcp-conformance-core", "tokio/fs", "tokio/io-util"]
 
 # docs.rs builds with every feature enabled so feature-gated APIs are documented.
 [package.metadata.docs.rs]
@@ -37,6 +44,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 clap = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
+mcp-conformance-core = { workspace = true, optional = true }
 # The notification-staging tools sleep between messages ("~50ms" is part of
 # the scenario contract), so the library needs tokio's clock; the runtime
 # itself still comes from the binary or the test harness.

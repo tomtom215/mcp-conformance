@@ -31,6 +31,28 @@ pub const MCP_PATH: &str = "/mcp";
 /// Builds the complete HTTP application: policy middleware wrapping the
 /// streamable HTTP MCP service at [`MCP_PATH`].
 pub fn router(policy: HttpSecurityPolicy) -> Router {
+    mcp_router(&policy).layer(middleware::from_fn_with_state(
+        Arc::new(policy),
+        enforce_policy,
+    ))
+}
+
+/// [`router`], with the session trace tap installed inside the policy layer:
+/// only policy-admitted traffic can form sessions, so only sessions are
+/// recorded (the tap module documents this boundary).
+#[cfg(feature = "tap")]
+pub fn router_tapped(policy: HttpSecurityPolicy, tap: Arc<crate::tap::Tap>) -> Router {
+    mcp_router(&policy)
+        .layer(middleware::from_fn_with_state(tap, crate::tap::tap_layer))
+        .layer(middleware::from_fn_with_state(
+            Arc::new(policy),
+            enforce_policy,
+        ))
+}
+
+/// The MCP service mounted at [`MCP_PATH`], with rmcp's transport-level host
+/// check mirrored from `policy`.
+fn mcp_router(policy: &HttpSecurityPolicy) -> Router {
     // Mirror the policy into rmcp's transport-level host check so the two
     // layers cannot disagree: an empty list is rmcp's "allow all", matching
     // the policy's explicit dangerous opt-out. (Field assignment because the
@@ -46,10 +68,7 @@ pub fn router(policy: HttpSecurityPolicy) -> Router {
         Arc::new(LocalSessionManager::default()),
         config,
     );
-    let policy = Arc::new(policy);
-    Router::new()
-        .nest_service(MCP_PATH, service)
-        .layer(middleware::from_fn_with_state(policy, enforce_policy))
+    Router::new().nest_service(MCP_PATH, service)
 }
 
 /// The 403 gate: `Host` must be present and allowed; `Origin`, when present,
