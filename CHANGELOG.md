@@ -11,6 +11,13 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-06-10
+
+First release: the `2025-11-25` requirement registry and the offline trace
+validator, at the gates documented in [docs/plan/04-engineering-standards.md](docs/plan/04-engineering-standards.md).
+
 ### Added
 
 - `mcp-conformance-core`: requirement registry model (RFC 2119 levels, verbatim

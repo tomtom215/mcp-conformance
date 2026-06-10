@@ -12,12 +12,12 @@ configuration. The project's threat model lives in
 
 ## Supported versions
 
-Pre-release (no published versions yet). Until 1.0, fixes land on the latest 0.x
-minor only. This table is updated at every release.
+Until 1.0, fixes land on the latest 0.x minor only. This table is updated at
+every release.
 
 | Version | Supported |
 | ------- | --------- |
-| none published | n/a |
+| 0.1.x   | yes       |
 
 ## Reporting a vulnerability
 
