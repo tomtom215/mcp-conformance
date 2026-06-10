@@ -126,6 +126,15 @@ impl core::error::Error for TraceParseError {
 /// Returns the first [`TraceParseError`] encountered, addressed by 1-based line
 /// number. An empty document yields an empty event list (validating an empty trace is
 /// the engine's question, not the parser's).
+///
+/// ```
+/// use mcp_trace_validator::reader::{Limits, parse_trace};
+///
+/// let line = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"lifecycle","event":"transport-open"}"#;
+/// assert_eq!(parse_trace(line, &Limits::default())?.len(), 1);
+/// assert!(parse_trace("not json", &Limits::default()).is_err());
+/// # Ok::<(), mcp_trace_validator::reader::TraceParseError>(())
+/// ```
 pub fn parse_trace(input: &str, limits: &Limits) -> Result<Vec<TraceEvent>, TraceParseError> {
     let mut events = Vec::new();
     let mut previous_seq: Option<u64> = None;

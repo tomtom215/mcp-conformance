@@ -14,7 +14,8 @@ where stated; standing workstreams run across milestones. Status lives here and 
 other documents describe intent, this one tracks reality.
 
 External anchors (context, not commitments): the `2026-07-28` spec release
-([register 1.2](01-ecosystem-context.md)) and the official suite's `0.2.0` line
+([register 1.2](01-ecosystem-context.md), change inventory in
+[1.5a](01-ecosystem-context.md)) and the official suite's `0.2.0` line
 ([register 2.4](01-ecosystem-context.md)).
 
 ## Milestone status
@@ -22,8 +23,9 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | Milestone | Status |
 |-----------|--------|
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
-| M1 — Registry and validator | **In progress** — engine, 15 checks, corpus, CLI, JUnit output, fuzz targets, and state-machine property tests shipped; full registry coverage and the crates.io publish remain |
+| M1 — Registry and validator | **In progress** — registry coverage of the `2025-11-25` core surface complete (README coverage table is the generated count), engine, corpus, CLI, JUnit output, fuzz targets, benchmarks, RFC 8785 number canonicalization, and the release pipeline (ADR-0007) shipped; only the bootstrap publish itself (RELEASING.md §Bootstrap — owner action) remains |
 | M2 — Everything server | Not started |
+| M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (July 28, 2026); re-sequenced ahead of M3 on 2026-06-09 |
 | M3 — Reference host | Not started |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
 | M5 — Stewardship artifacts | Not started |
@@ -55,11 +57,12 @@ The spec as data, and the engine that judges traces against it.
 
 **Definition of done**
 
-- [ ] Requirement registry for `2025-11-25` complete for the core protocol surface
+- [x] Requirement registry for `2025-11-25` complete for the core protocol surface
       (lifecycle, tools, resources, prompts, logging, completion, pagination, transport
       security), each entry carrying level, actor, source quote, applicability, and
-      check-or-exclusion ([02-architecture.md](02-architecture.md)).
-- [ ] Validator replays the corpus deterministically: 100% pass on known-good traces;
+      check-or-exclusion ([02-architecture.md](02-architecture.md)); coverage table
+      generated into the README by `cargo xtask coverage` and verified in CI.
+- [x] Validator replays the corpus deterministically: 100% pass on known-good traces;
       **every check is killed by at least one injected-violation trace**; byte-identical
       reports across platforms and runs.
 - [x] Session state machine for `2025-11-25` with every transition and error edge unit- and
@@ -88,6 +91,32 @@ The spec as data, and the engine that judges traces against it.
 - [ ] Upstream conversation opened: everything-server offered to
       `modelcontextprotocol/rust-sdk` (issue or draft PR), linked from the README whatever
       the outcome.
+
+## M2.5 — `2026-07-28` migration readiness (time-boxed)
+
+Re-sequenced ahead of M3 (2026-06-09): multi-revision trace validation is the
+deliverable whose value peaks across the migration window and SEP-2596's ≥ 12-month
+dual-revision tail ([register 1.5a](01-ecosystem-context.md)), and its registry work
+cannot start in earnest before the final text ships. The standing RC-tracking
+workstream feeds this milestone until then.
+
+**Definition of done**
+
+- [ ] `applies` revision ranges in the registry format — the slot ADR-0006 deferred —
+      with the embedded loader able to serve more than one revision.
+- [ ] `2026-07-28` registry entries extracted from the **final** spec text by the same
+      per-requirement method (live fetch → verbatim quote → check or documented
+      exclusion), behind the `draft-2026-07-28` feature until the official scenarios
+      stabilize; the change inventory in [register 1.5a](01-ecosystem-context.md) is
+      the extraction checklist (SEP-2575 handshake removal, SEP-2567 session removal,
+      SEP-2243 routing headers, SEP-2106 JSON Schema 2020-12, SEP-2164 error-code
+      change, SEP-2549 caching metadata, SEP-414 trace context).
+- [ ] Stateless state-machine variant alongside — not replacing — the `2025-11-25`
+      machine, every transition and error edge unit- and property-tested.
+- [ ] Multi-revision judgment: the same trace validated against both revisions in one
+      invocation, applicability differences per clause visible in the report.
+- [ ] `corpus/draft/` good and violation pairs green against the final text, with
+      provenance-ledger rows.
 
 ## M3 — Reference host
 
@@ -129,15 +158,15 @@ Backlog opens at M0; the milestone closes only on merged outcomes.
 - [ ] Optionally the same report for one community SDK (e.g. `pmcp`) to prove generality.
 - [ ] mdBook live (architecture, trace format, corpus guide, conformance results page);
       docs.rs complete for all crates.
-- [ ] `2026-07-28` support: registry entries, state-machine variant, and draft corpus green
-      against the final spec text — feature gate dropped only after the official scenarios
-      stabilize.
+- [ ] The `draft-2026-07-28` feature gate dropped (revision becomes default) — only after
+      the final text has shipped, M2.5 is complete, and the official scenarios for the
+      revision stabilize.
 
 ## Standing workstreams
 
 | Workstream | Cadence | Content |
 |------------|---------|---------|
-| RC tracking | Each upstream RC change | Reconcile `draft-2026-07-28` registry entries and state machine against the latest text; re-scope at the M2/M3 boundary if the rework shifts materially ([08-risk-register.md](08-risk-register.md)) |
+| RC tracking | Each upstream RC change | Reconcile draft-revision expectations against the latest text; feeds M2.5, which re-scopes if the rework shifts materially ([08-risk-register.md](08-risk-register.md)) |
 | Suite tracking | Scheduled CI | Pinned-stable upgrades as deliberate PRs; `0.2.0-alpha` watched non-blocking |
 | Register upkeep | 90-day sweep | Re-verify [01-ecosystem-context.md](01-ecosystem-context.md) rows before external use |
 | Upstream presence | Continuous | Issue triage participation and small fixes in rust-sdk/conformance — the relationship M4 depends on is built before it is needed |
@@ -146,7 +175,9 @@ Backlog opens at M0; the milestone closes only on merged outcomes.
 
 1. M0 strictly precedes everything; no feature code on an unscaffolded repo.
 2. M1 strictly precedes M2 (the agreement check needs the validator).
-3. M2 and M3 may overlap after M2's server passes `core` scenarios.
-4. M4 has no ordering constraint — earliest credible moment wins; M5 closes last.
-5. Any risk trigger in [08-risk-register.md](08-risk-register.md) firing forces a roadmap
+3. M2.5 opens when the `2026-07-28` final text ships and takes precedence over M3
+   wherever the two contend for effort; M3 may proceed in parallel where they do not.
+4. M2 and M3 may overlap after M2's server passes `core` scenarios.
+5. M4 has no ordering constraint — earliest credible moment wins; M5 closes last.
+6. Any risk trigger in [08-risk-register.md](08-risk-register.md) firing forces a roadmap
    review before the next milestone proceeds.

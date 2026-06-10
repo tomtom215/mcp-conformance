@@ -53,6 +53,14 @@ pub enum MessageKind<'a> {
 ///
 /// The `jsonrpc` version member is *not* inspected here — its value is a conformance
 /// question (see requirement `BASE-008`), not a classification question.
+///
+/// ```
+/// use mcp_conformance_core::message::{MessageKind, classify};
+/// use serde_json::json;
+///
+/// let message = json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"});
+/// assert!(matches!(classify(&message), MessageKind::Request { method: "tools/list", .. }));
+/// ```
 #[must_use]
 pub fn classify(payload: &Value) -> MessageKind<'_> {
     let Some(object) = payload.as_object() else {

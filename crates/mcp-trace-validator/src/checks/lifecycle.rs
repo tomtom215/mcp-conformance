@@ -170,6 +170,26 @@ pub(super) fn server_requests_before_initialized(
     }
 }
 
+/// `LIFE-007`: "In the `initialize` request, the client MUST send a protocol version
+/// it supports." — presence and string-ness of the version is the wire-observable
+/// core; whether the client truly *supports* the version it sent is not in the trace.
+pub(super) fn initialize_protocol_version(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    let Some((seq, params)) = context.initialize().request else {
+        return; // No initialize at all: LIFE-001's finding.
+    };
+    match params.and_then(|params| params.get("protocolVersion")) {
+        None => sink.push(
+            Some(seq),
+            "initialize request sends no protocolVersion".to_owned(),
+        ),
+        Some(Value::String(_)) => {}
+        Some(other) => sink.push(
+            Some(seq),
+            format!("initialize request protocolVersion is {other}, expected a version string"),
+        ),
+    }
+}
+
 /// `LIFE-006`: the server's `initialize` result must carry a `protocolVersion` that is
 /// a dated revision identifier. Whether the *negotiation* (same-version-if-supported)
 /// was honored is not judgeable from a single trace; the shape and format are.

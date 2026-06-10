@@ -1,0 +1,28 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "LOG-001",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "server/utilities/logging#capabilities",
+        "quote": "Servers that emit log message notifications MUST declare the `logging` capability:"
+      },
+      "checks": [
+        "logging.capability-declared"
+      ]
+    },
+    {
+      "id": "LOG-002",
+      "level": "MUST NOT",
+      "actor": "server",
+      "capability": "server.logging",
+      "source": {
+        "section": "server/utilities/logging#security",
+        "quote": "Log messages MUST NOT contain: Credentials or secrets; Personal identifying information; Internal system details that could aid attacks"
+      },
+      "exclusion": "Deciding whether free-form log data contains secrets or PII is semantic content analysis, not structural validation; offline heuristics would produce non-deterministic, unfalsifiable verdicts."
+    }
+  ]
+}

@@ -264,6 +264,32 @@ pub(super) fn error_code_integer(context: &TraceContext<'_>, sink: &mut FindingS
     }
 }
 
+/// `BASE-010`: "Result responses MUST include a `result` field." A message carrying
+/// an `id` and no `method` is response-shaped; if it then carries neither `result`
+/// nor `error`, it is a result response missing its `result` member (an error
+/// response would carry `error` instead).
+pub(super) fn result_field(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    for (event, kind, _) in context.messages() {
+        if !matches!(kind, MessageKind::Invalid { .. }) {
+            continue;
+        }
+        let Some(object) = event.message_payload().and_then(Value::as_object) else {
+            continue;
+        };
+        if object.contains_key("id")
+            && !object.contains_key("method")
+            && !object.contains_key("result")
+            && !object.contains_key("error")
+        {
+            sink.push(
+                Some(event.seq),
+                "response-shaped message (id present, no method) carries no result field"
+                    .to_owned(),
+            );
+        }
+    }
+}
+
 /// `BASE-008`: "All messages between MCP clients and servers MUST follow the JSON-RPC
 /// 2.0 specification." — verified here as: the message classifies as a JSON-RPC shape
 /// and carries `"jsonrpc": "2.0"`.

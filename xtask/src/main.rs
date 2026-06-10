@@ -10,6 +10,8 @@
 //!   "run the gates" cannot drift from what CI runs.
 //! - `bless` — regenerate the golden corpus reports (`BLESS=1` golden test run); review
 //!   the diff like any other code change.
+//! - `coverage` — regenerate the README's requirement-coverage table from the embedded
+//!   registry; `coverage --check` verifies it instead (ADR-0001: no hand-kept counts).
 //!
 //! At roadmap M2 this grows the `conformance` task: spawn the everything-server, drive
 //! the pinned official runner against it, and diff its verdicts against the trace
@@ -17,12 +19,27 @@
 
 use std::process::{Command, ExitCode};
 
+mod coverage;
+
 fn main() -> ExitCode {
     let mut args = std::env::args().skip(1);
     let task = args.next();
     match task.as_deref() {
-        Some("ci") => run_all(&ci_steps()),
-        Some("bless") => run_all(&bless_steps()),
+        Some("ci") => {
+            if !run_all(&ci_steps()) {
+                return ExitCode::FAILURE;
+            }
+            eprintln!("xtask: coverage table in sync — cargo xtask coverage --check");
+            coverage::run(true)
+        }
+        Some("bless") => {
+            if run_all(&bless_steps()) {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        Some("coverage") => coverage::run(args.next().as_deref() == Some("--check")),
         Some(other) => {
             eprintln!("unknown task {other:?}\n{USAGE}");
             ExitCode::FAILURE
@@ -34,7 +51,7 @@ fn main() -> ExitCode {
     }
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci      run all local quality gates\n  bless   regenerate golden corpus reports";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {
@@ -91,7 +108,8 @@ fn bless_steps() -> Vec<Step> {
     }]
 }
 
-fn run_all(steps: &[Step]) -> ExitCode {
+/// Runs the steps in order; `true` when every one succeeded.
+fn run_all(steps: &[Step]) -> bool {
     for step in steps {
         eprintln!("xtask: {} — cargo {}", step.name, step.args.join(" "));
         let mut command = Command::new("cargo");
@@ -103,14 +121,14 @@ fn run_all(steps: &[Step]) -> ExitCode {
             Ok(status) if status.success() => {}
             Ok(status) => {
                 eprintln!("xtask: {} failed with {status}", step.name);
-                return ExitCode::FAILURE;
+                return false;
             }
             Err(error) => {
                 eprintln!("xtask: cannot run cargo: {error}");
-                return ExitCode::FAILURE;
+                return false;
             }
         }
     }
     eprintln!("xtask: all steps passed");
-    ExitCode::SUCCESS
+    true
 }

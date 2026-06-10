@@ -52,12 +52,14 @@ The validator's credibility rests on two invariants — both enforced by tests:
    `corpus/violations/`. A new check ships with a passing trace, a violating trace,
    and their golden reports.
 
-Workflow: add the requirement to
-`crates/mcp-conformance-core/registry/2025-11-25.json` (verbatim spec quote — the
-tests check the RFC 2119 keyword is present), implement the check, add corpus traces,
-then `cargo xtask bless` and **review the golden diff like code**. Every corpus trace
-needs a provenance note in its commit message: what produced it, against which
-revision.
+Workflow: add the requirement to its area file under
+`crates/mcp-conformance-core/registry/2025-11-25/` (verbatim spec quote — the tests
+check the RFC 2119 keyword is present; gate it with a `capability` path when the
+clause binds only after negotiation), implement the check, add corpus traces, then
+`cargo xtask bless` and **review the golden diff like code**. Every corpus trace
+needs a row in the provenance ledger, [`corpus/README.md`](corpus/README.md) — what
+produced it, against which revision (an invariant test fails without one). Update
+the README coverage table with `cargo xtask coverage`.
 
 ## Commits
 

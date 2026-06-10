@@ -1,0 +1,415 @@
+{
+  "revision": "2025-11-25",
+  "totals": {
+    "pass": 36,
+    "fail": 0,
+    "warn": 2,
+    "excluded": 28,
+    "unsupported": 0,
+    "not_applicable": 5
+  },
+  "requirements": [
+    {
+      "id": "BASE-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-002",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-003",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-004",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-005",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-007",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-008",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-009",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-010",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-011",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009."
+    },
+    {
+      "id": "LIFE-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-002",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-003",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-004",
+      "level": "SHOULD NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-005",
+      "level": "SHOULD NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-007",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-008",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "After negotiation, neither stdio nor HTTP message payloads carry a per-message protocol version, so respect is not observable in message traffic. The one wire artifact — the HTTP `MCP-Protocol-Version` header — is judged under TRAN-017 and TRAN-018."
+    },
+    {
+      "id": "LIFE-009",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-001",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings."
+    },
+    {
+      "id": "TRAN-002",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Judging Origin validation requires the server's configured allowlist, which recorded traces do not carry. Enforced instead as default-on policy in mcp-everything-server and exercised by its transport integration tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-003",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Encoding is enforced at capture time: trace documents are read as UTF-8, so a trace that parses is evidence the rule held; non-UTF-8 bytes surface as capture-time read failures, not trace findings."
+    },
+    {
+      "id": "TRAN-004",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-005",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-006",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Recorded HTTP events carry status and conformance-relevant headers, not request lines, so endpoint topology is invisible in a trace. Enforced by mcp-everything-server's transport integration tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-007",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Judging whether an Origin value is invalid requires the server's configured allowlist, which recorded traces do not carry (the TRAN-002 rationale). Enforced as default-on policy in mcp-everything-server with 403 tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-008",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Socket binding is deployment state with no trace footprint. mcp-everything-server binds loopback by default (HttpSecurityPolicy), verified by its transport tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether authentication is properly implemented is not decidable from one session's headers; authorization flows are their own scenario area (corpus/auth, post-M1) mirroring the official suite's `auth` suite."
+    },
+    {
+      "id": "TRAN-010",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Global uniqueness and entropy of an identifier cannot be established from the single sample a trace contains."
+    },
+    {
+      "id": "TRAN-011",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-012",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Secure handling (storage, exposure, logging discipline) is client-internal behavior with no wire footprint beyond the echo requirement judged under TRAN-013."
+    },
+    {
+      "id": "TRAN-013",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-014",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether a server requires a session ID is server configuration a trace does not carry; without it, a non-400 answer to a session-less request is not evidence either way."
+    },
+    {
+      "id": "TRAN-015",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden)."
+    },
+    {
+      "id": "TRAN-016",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The trace schema records HTTP request and response observations as independent events without request/response correlation, so 'in response to' cannot be established offline. Revisit when host-side capture lands (roadmap M3)."
+    },
+    {
+      "id": "TRAN-017",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-018",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-019",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Which version a server assumed is internal state; subsequent traffic does not reveal it."
+    },
+    {
+      "id": "TRAN-020",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The server's supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. Exercised against mcp-everything-server's declared support in its transport tests (roadmap M2)."
+    },
+    {
+      "id": "TOOL-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-002",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The trigger condition — the tool list actually changing — is server-internal state a recorded trace cannot evidence, so absence of the notification is never proof of violation."
+    },
+    {
+      "id": "TOOL-003",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-004",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "How a client weighs annotations is internal trust policy with no wire footprint."
+    },
+    {
+      "id": "TOOL-005",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-006",
+      "level": "SHOULD",
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "tools.name-charset",
+          "seq": 4,
+          "detail": "tool name \"weather lookup,v2!\" contains characters outside A-Z, a-z, 0-9, underscore, hyphen, and dot: \" ,!\""
+        }
+      ]
+    },
+    {
+      "id": "TOOL-007",
+      "level": "SHOULD NOT",
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "tools.name-charset",
+          "seq": 4,
+          "detail": "tool name \"weather lookup,v2!\" contains characters outside A-Z, a-z, 0-9, underscore, hyphen, and dot: \" ,!\""
+        }
+      ]
+    },
+    {
+      "id": "TOOL-008",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-009",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-010",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-011",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-012",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Input validation, access control, rate limiting, and output sanitization are server-internal enforcement without a deterministic wire signature; exercised by mcp-everything-server's policy tests (roadmap M2)."
+    },
+    {
+      "id": "RES-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "RES-002",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The trigger condition — the resource list actually changing — is server-internal state a recorded trace cannot evidence."
+    },
+    {
+      "id": "RES-003",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether the client can fetch a URI on its own is a property of the client's environment, not of the recorded session."
+    },
+    {
+      "id": "RES-004",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.resources"
+    },
+    {
+      "id": "RES-005",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "URI validation is server-internal enforcement; a trace shows the URIs exchanged, not whether the server vetted them. Exercised by mcp-everything-server's policy tests (roadmap M2)."
+    },
+    {
+      "id": "RES-006",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.resources"
+    },
+    {
+      "id": "PROM-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-002",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The trigger condition — the prompt list actually changing — is server-internal state a recorded trace cannot evidence."
+    },
+    {
+      "id": "PROM-003",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-004",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-005",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-006",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Validation thoroughness is implementation-internal; a trace shows the prompt traffic, not the vetting applied to it."
+    },
+    {
+      "id": "LOG-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LOG-002",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Deciding whether free-form log data contains secrets or PII is semantic content analysis, not structural validation; offline heuristics would produce non-deterministic, unfalsifiable verdicts."
+    },
+    {
+      "id": "COMP-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "COMP-002",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Input validation, rate limiting, and access control are implementation-internal enforcement without a deterministic wire signature."
+    },
+    {
+      "id": "PAGE-001",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "What a client assumes is internal state; the assumption has no wire footprint (MCP pagination requests carry no size parameter to inspect)."
+    },
+    {
+      "id": "PAGE-002",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PAGE-003",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether a cursor is invalid is server-internal knowledge; a trace cannot distinguish a server accepting a stale-but-valid cursor from one silently tolerating an invalid one."
+    }
+  ]
+}

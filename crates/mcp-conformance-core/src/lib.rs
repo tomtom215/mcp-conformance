@@ -16,6 +16,8 @@
 //!   SHOULD / SHOULD NOT / MAY) as records carrying stable IDs, verbatim source quotes,
 //!   and a check-or-documented-exclusion verification mapping. The mapping shape follows
 //!   SEP-2484's traceability format.
+//! - [`capability`] — capability gates: the negotiated-capability paths that decide
+//!   whether a gated requirement applies to a given session (ADR-0006).
 //! - [`message`] — structural classification of JSON-RPC 2.0 messages (request /
 //!   notification / response) as MCP constrains them.
 //! - [`trace`] — the recorded-trace event schema (JSON Lines of [`trace::TraceEvent`])
@@ -42,6 +44,7 @@
 //! ```
 
 pub mod canonical;
+pub mod capability;
 pub mod message;
 pub mod requirement;
 pub mod revision;

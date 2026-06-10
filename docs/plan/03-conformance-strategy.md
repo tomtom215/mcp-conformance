@@ -38,6 +38,21 @@ We adopt that exact shape as the storage format of our requirement registry
 - The registry can never drift into a private dialect — its format is pinned to an upstream
   process document.
 
+### What enters the registry
+
+Quote-driven, from the published spec text only (RFC 8174: only UPPERCASE keyword
+instances are normative):
+
+1. **Every MUST / MUST NOT** on an in-scope page enters — with checks when a recorded
+   trace can judge it, with a documented exclusion naming where it *is* enforced when
+   it cannot. No exceptions: that is the SEP-2484 floor.
+2. **SHOULD / SHOULD NOT / MAY** enter when the clause constrains observable wire
+   behavior (messages, headers, capability declarations). Guidance about UI, internal
+   policy, or model interaction stays out of the registry.
+3. Constraints stated only in schema field documentation without RFC 2119 keywords
+   (e.g. completion's 100-value cap) are not registry entries; the agreement check
+   (M2) covers any divergence that matters in practice.
+
 ### Check semantics
 
 | Registry level | Finding on violation | Report effect |

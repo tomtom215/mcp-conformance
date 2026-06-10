@@ -103,6 +103,8 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Build docs (zero warnings)
         run: cargo doc --workspace --no-deps
+      - name: README coverage table in sync with the registry
+        run: cargo xtask coverage --check
 
   deny:
     name: cargo-deny
@@ -142,3 +144,24 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Test (all features, nightly)
         run: cargo test --workspace --all-features
+
+  # Proves the `>=` floors in workspace dependency ranges are real: resolve every
+  # dependency to its minimum allowed version (nightly resolver flag), then build and
+  # test on stable against that lockfile. Informational like the nightly job — a red
+  # run means a floor needs raising, not that the tree is broken.
+  minimal-versions:
+    name: Minimal versions (informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchains
+        run: |
+          rustup toolchain install nightly --profile minimal --no-self-update
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Resolve minimal versions
+        run: cargo +nightly generate-lockfile -Zminimal-versions
+      - name: Test against minimum dependency versions
+        run: cargo test --workspace --all-features --locked

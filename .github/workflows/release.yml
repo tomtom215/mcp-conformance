@@ -1,0 +1,319 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# Release pipeline (RELEASING.md is the specification this implements; the job
+# shape follows a2a-rust's proven release.yml, hardened per ADR-0007):
+#
+#   verify ──┬──► package (attest + SHA256SUMS) ──► github-release ──► publish
+#   tests ───┘                                                         (release env,
+#                                                                       OIDC)
+#
+# Raised bars relative to the a2a-rust baseline it derives from:
+#   - no third-party toolchain action (plain rustup, like ci.yml) — nothing
+#     unpinned runs in the publish privilege context;
+#   - OIDC trusted publishing; the registry token exists only for the one-time
+#     bootstrap publish and is deleted afterward (ADR-0007, register 2.14);
+#   - `--locked` packaging WITH verification builds (no `--no-verify`);
+#   - packaging determinism proven, not assumed: the publish job re-packages
+#     and byte-compares against the attested SHA256SUMS before uploading;
+#   - `workflow_dispatch` rehearses every gate without publishing anything.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+" # stable:      v0.1.0
+      - "v[0-9]+.[0-9]+.[0-9]+-*" # pre-release: v0.2.0-rc.1
+  workflow_dispatch: # rehearsal from a release/vX.Y.Z branch; never publishes
+
+# Default-deny; each job requests exactly what it needs.
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  # Never cancel a release mid-publish: a half-published dependency chain is
+  # worse than a queued duplicate (verify fails fast on a stale re-run).
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── Gate 1: tag ↔ version ↔ changelog agreement, full local gate set ───────
+  verify:
+    name: Verify release readiness
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchains (stable + MSRV)
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy,rustfmt --no-self-update
+          rustup toolchain install 1.85 --profile minimal --component clippy --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Tag, workspace version, and changelog agree
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')"
+          DISTINCT="$(cargo metadata --no-deps --format-version 1 | jq -r '[.packages[].version] | unique | length')"
+          if [[ "$DISTINCT" != "1" ]]; then
+            echo "::error::workspace crate versions diverge; [workspace.package] is the single source"
+            exit 1
+          fi
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            if [[ "${GITHUB_REF_NAME}" != "v${VERSION}" ]]; then
+              echo "::error::tag ${GITHUB_REF_NAME} does not match workspace version ${VERSION}"
+              exit 1
+            fi
+          else
+            echo "::notice::rehearsal run — tag check skipped; verifying readiness for v${VERSION}"
+          fi
+          if [[ "$VERSION" =~ - ]]; then IS_PRE=true; else IS_PRE=false; fi
+          if ! grep -qE "^## \[${VERSION}\]" CHANGELOG.md; then
+            echo "::error file=CHANGELOG.md::no '## [${VERSION}]' section — move [Unreleased] before tagging"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=${IS_PRE}" >> "$GITHUB_OUTPUT"
+      - name: Full local gate set (fmt, clippy, tests, docs, coverage sync)
+        run: cargo xtask ci
+      - name: MSRV gates (clippy + tests on 1.85)
+        run: |
+          cargo +1.85 clippy --workspace --all-targets --all-features -- -D warnings
+          cargo +1.85 test --workspace --all-features
+      - name: cargo-deny (advisories, bans, licenses, sources)
+        # Compiled from source with --locked rather than the Docker-image action:
+        # immune to registry-pull flakes at the moment that matters most.
+        run: |
+          cargo install cargo-deny --locked
+          cargo deny check
+
+  # ── Gate 2: cross-platform tests, mirroring the ci.yml matrix ──────────────
+  tests:
+    name: Test (${{ matrix.os }})
+    needs: verify
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Test (all features)
+        run: cargo test --workspace --all-features
+
+  # ── Package once, checksum, attest, share the exact bytes ──────────────────
+  package:
+    name: Package and attest
+    needs: [verify, tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC identity for SLSA provenance signing
+      attestations: write # store the attestation in the repository
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Package all publishable crates (verification builds included)
+        # The workspace-wide dry-run: per-crate `publish --dry-run` cannot
+        # resolve unpublished sibling dependencies on a first release, while
+        # `cargo package` resolves them locally. xtask is publish = false and
+        # excluded automatically.
+        run: cargo package --workspace --locked
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          cd target/package
+          sha256sum ./*.crate | tee SHA256SUMS
+      - name: Attest build provenance (SLSA)
+        if: github.ref_type == 'tag'
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: target/package/*.crate
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-artifacts
+          path: |
+            target/package/*.crate
+            target/package/SHA256SUMS
+          retention-days: 90
+          if-no-files-found: error
+
+  # ── GitHub Release before crates.io (RELEASING.md order; idempotent) ────────
+  github-release:
+    name: Create GitHub release
+    needs: [verify, package]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release and upload assets
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Download release artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: release-artifacts
+          path: release-artifacts/
+      - name: Extract changelog section
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.verify.outputs.version }}"
+          awk -v ver="${VERSION}" '
+            $0 ~ "^## \\[" ver "\\]" { flag = 1; next }
+            /^## \[/ { flag = 0 }
+            flag' CHANGELOG.md > release-notes.md
+          if [[ ! -s release-notes.md ]]; then
+            echo "::error::empty changelog excerpt for ${VERSION}"
+            exit 1
+          fi
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          PRE_FLAG=""
+          [[ "${{ needs.verify.outputs.is_prerelease }}" == "true" ]] && PRE_FLAG="--prerelease"
+          # Idempotent: a re-run (or a release created via the web UI alongside
+          # the tag) updates in place instead of failing.
+          if gh release view "$TAG" &>/dev/null; then
+            echo "::warning::release ${TAG} already exists — updating in place"
+            gh release edit "$TAG" $PRE_FLAG --title "$TAG" --notes-file release-notes.md
+            gh release upload "$TAG" --clobber release-artifacts/*.crate release-artifacts/SHA256SUMS
+          else
+            gh release create "$TAG" \
+              --verify-tag \
+              $PRE_FLAG \
+              --title "$TAG" \
+              --notes-file release-notes.md \
+              release-artifacts/*.crate release-artifacts/SHA256SUMS
+          fi
+
+  # ── Publish to crates.io (protected environment; OIDC after bootstrap) ─────
+  publish:
+    name: Publish to crates.io
+    needs: [verify, github-release]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    # Settings → Environments → release: required reviewer + tag-only rule.
+    environment:
+      name: release
+      url: https://crates.io/crates/mcp-conformance-core/${{ needs.verify.outputs.version }}
+    permissions:
+      contents: read
+      id-token: write # OIDC exchange with crates.io (trusted publishing)
+    env:
+      # Bootstrap-only secret for the first-ever publish of each crate
+      # (crates.io cannot configure trusted publishing on a crate that does
+      # not exist yet — register 2.14). Once the secret is deleted, this is
+      # empty and the OIDC step below takes over with no workflow change.
+      BOOTSTRAP_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Download attested artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: release-artifacts
+          path: attested/
+      - name: Prove packaging determinism against the attested checksums
+        # `cargo publish` re-packages from source, so what reaches crates.io is
+        # this job's build. Byte-comparing it against the attested SHA256SUMS
+        # makes "the attestation covers what was published" a checked fact
+        # rather than an assumption.
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo package --workspace --locked
+          cd target/package
+          sha256sum --check ../../attested/SHA256SUMS
+      - name: Authenticate with crates.io (OIDC trusted publishing)
+        id: oidc
+        if: env.BOOTSTRAP_TOKEN == ''
+        uses: rust-lang/crates-io-auth-action@bbd81622f20ce9e2dd9622e3218b975523e45bbe # v1.0.4
+      - name: Publish in dependency order (idempotent, resumable)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ env.BOOTSTRAP_TOKEN || steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.verify.outputs.version }}"
+
+          # Resumable fix-forward (a2a-rust pattern, minus yank recovery — this
+          # project never yanks to repair a release): "already uploaded" is
+          # success, so re-running a partially published tag skips completed
+          # crates and continues the chain; transient failures retry with
+          # backoff. cargo itself (>= 1.66) blocks after each publish until the
+          # crate is visible in the index, so dependents always resolve.
+          publish_crate() {
+            local crate="$1" max_attempts=5 attempt=1
+            echo "::group::cargo publish — ${crate} v${VERSION}"
+            while (( attempt <= max_attempts )); do
+              if cargo publish -p "$crate" --locked 2>&1 | tee "/tmp/publish-${crate}.log"; then
+                echo "::endgroup::"
+                return 0
+              fi
+              if grep -q "already uploaded" "/tmp/publish-${crate}.log"; then
+                echo "::warning::${crate} v${VERSION} already on crates.io — resuming with the next crate"
+                echo "::endgroup::"
+                return 0
+              fi
+              if (( attempt < max_attempts )); then
+                local wait=$(( 2 ** attempt ))
+                echo "::warning::publish failed — retrying in ${wait}s (attempt ${attempt}/${max_attempts})"
+                sleep "$wait"
+                attempt=$(( attempt + 1 ))
+              else
+                echo "::error::cargo publish -p ${crate} failed after ${max_attempts} attempts"
+                echo "::endgroup::"
+                return 1
+              fi
+            done
+          }
+
+          # Dependency order: core has no internal deps; everything else
+          # depends only on core.
+          publish_crate mcp-conformance-core
+          publish_crate mcp-trace-validator
+          publish_crate mcp-everything-server
+          publish_crate mcp-reference-host
+
+          {
+            echo "## Published v${VERSION} to crates.io"
+            echo ""
+            echo "| Crate | Link |"
+            echo "|-------|------|"
+            for crate in mcp-conformance-core mcp-trace-validator mcp-everything-server mcp-reference-host; do
+              echo "| ${crate} | [crates.io](https://crates.io/crates/${crate}/${VERSION}) |"
+            done
+            echo ""
+            echo "> docs.rs builds follow within minutes. After the bootstrap release:"
+            echo "> configure Trusted Publishing + enable 'Trusted Publishing Only' on"
+            echo "> each crate, then delete the CARGO_REGISTRY_TOKEN secret (ADR-0007)."
+          } >> "$GITHUB_STEP_SUMMARY"

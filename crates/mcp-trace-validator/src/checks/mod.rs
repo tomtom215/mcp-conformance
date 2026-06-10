@@ -14,6 +14,13 @@
 
 mod base;
 mod lifecycle;
+mod negotiation;
+mod prompts;
+mod resources;
+mod support;
+mod tools;
+mod transport;
+mod utilities;
 
 use crate::context::TraceContext;
 use crate::report::Finding;
@@ -122,6 +129,114 @@ pub static ALL: &[Check] = &[
     Check {
         id: "lifecycle.initialize-result-version",
         run: lifecycle::initialize_result_version,
+    },
+    Check {
+        id: "base.result-field",
+        run: base::result_field,
+    },
+    Check {
+        id: "lifecycle.initialize-protocol-version",
+        run: lifecycle::initialize_protocol_version,
+    },
+    Check {
+        id: "lifecycle.negotiated-capabilities-only",
+        run: negotiation::negotiated_capabilities_only,
+    },
+    Check {
+        id: "transport.stdio-server-output-valid",
+        run: transport::stdio_server_output_valid,
+    },
+    Check {
+        id: "transport.stdio-client-input-valid",
+        run: transport::stdio_client_input_valid,
+    },
+    Check {
+        id: "transport.session-id-visible-ascii",
+        run: transport::session_id_visible_ascii,
+    },
+    Check {
+        id: "transport.session-id-echoed",
+        run: transport::session_id_echoed,
+    },
+    Check {
+        id: "transport.protocol-version-header",
+        run: transport::protocol_version_header,
+    },
+    Check {
+        id: "transport.protocol-version-negotiated",
+        run: transport::protocol_version_negotiated,
+    },
+    Check {
+        id: "tools.capability-declared",
+        run: tools::capability_declared,
+    },
+    Check {
+        id: "tools.input-schema-object",
+        run: tools::input_schema_object,
+    },
+    Check {
+        id: "tools.name-length",
+        run: tools::name_length,
+    },
+    Check {
+        id: "tools.name-charset",
+        run: tools::name_charset,
+    },
+    Check {
+        id: "tools.name-unique",
+        run: tools::name_unique,
+    },
+    Check {
+        id: "tools.embedded-resource-capability",
+        run: tools::embedded_resource_capability,
+    },
+    Check {
+        id: "tools.structured-content-text",
+        run: tools::structured_content_text,
+    },
+    Check {
+        id: "tools.output-schema-structured-result",
+        run: tools::output_schema_structured_result,
+    },
+    Check {
+        id: "resources.capability-declared",
+        run: resources::capability_declared,
+    },
+    Check {
+        id: "resources.uri-scheme-rfc3986",
+        run: resources::uri_scheme_rfc3986,
+    },
+    Check {
+        id: "resources.blob-base64",
+        run: resources::blob_base64,
+    },
+    Check {
+        id: "prompts.capability-declared",
+        run: prompts::capability_declared,
+    },
+    Check {
+        id: "prompts.image-content-encoding",
+        run: prompts::image_content_encoding,
+    },
+    Check {
+        id: "prompts.audio-content-encoding",
+        run: prompts::audio_content_encoding,
+    },
+    Check {
+        id: "prompts.embedded-resource-shape",
+        run: prompts::embedded_resource_shape,
+    },
+    Check {
+        id: "logging.capability-declared",
+        run: utilities::logging_capability_declared,
+    },
+    Check {
+        id: "completion.capability-declared",
+        run: utilities::completion_capability_declared,
+    },
+    Check {
+        id: "pagination.cursor-opacity",
+        run: utilities::cursor_opacity,
     },
 ];
 

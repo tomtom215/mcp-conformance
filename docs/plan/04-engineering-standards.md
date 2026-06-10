@@ -56,7 +56,7 @@ Package registries are reachable only at dependency-install time, under lockfile
 | Mutation | `cargo-mutants` | Zero surviving mutants in every shipped crate (xtask excluded); diff-scoped gate (`--in-diff`) on PRs, full workspace sweep scheduled |
 | Fuzz | `cargo-fuzz` | Targets: trace parsing, JSON canonicalization, registry deserialization. Clean for the CI fuzz budget; corpora checked in |
 | Conformance | official runner via `xtask` | Agreement check green; M2 onward: 100% server-scenario pass as a hard gate |
-| Benchmarks | `criterion` | Validator throughput (events/sec), canonicalization, state-machine stepping; CI regression gate with confidence-interval logic (a2a-rust pattern) |
+| Benchmarks | `criterion` | Validator throughput (events/sec), canonicalization, state-machine stepping — measured, not gated: no baseline history exists yet, and an invented threshold would be folklore (decision recorded in `crates/mcp-trace-validator/benches/README.md`; revisit with M2's production-shaped workload) |
 
 ## CI gates (every PR, in order of cost)
 

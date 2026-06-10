@@ -41,6 +41,9 @@ pub enum Outcome {
     Excluded,
     /// The registry references a check this validator build does not implement.
     Unsupported,
+    /// The requirement is gated on a capability this session never declared
+    /// (ADR-0006); its checks were not run.
+    NotApplicable,
 }
 
 /// Aggregate counts, in report order. `excluded` and `unsupported` are first-class:
@@ -58,6 +61,8 @@ pub struct Totals {
     pub excluded: u32,
     /// Requirements with outcome [`Outcome::Unsupported`].
     pub unsupported: u32,
+    /// Requirements with outcome [`Outcome::NotApplicable`].
+    pub not_applicable: u32,
 }
 
 /// One requirement's row in the report.
@@ -79,6 +84,9 @@ pub struct RequirementReport {
     /// Check IDs the build lacks, when `outcome` is `unsupported`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub missing_checks: Vec<String>,
+    /// The undeclared capability gate, when `outcome` is `not-applicable`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capability: Option<String>,
 }
 
 /// A complete validation report for one trace against one registry.
@@ -124,6 +132,7 @@ impl Report {
                 Outcome::Warn => "WARN",
                 Outcome::Excluded => "EXCL",
                 Outcome::Unsupported => "UNSUP",
+                Outcome::NotApplicable => "N/A",
             };
             let _ = writeln!(out, "  {marker:<5} {} ({})", row.id, row.level);
             for finding in &row.findings {
@@ -142,12 +151,23 @@ impl Report {
             for check in &row.missing_checks {
                 let _ = writeln!(out, "        unsupported check: {check}");
             }
+            if let Some(capability) = &row.capability {
+                let _ = writeln!(
+                    out,
+                    "        not applicable: capability {capability} was not declared in this session"
+                );
+            }
         }
         let totals = self.totals;
         let _ = writeln!(
             out,
-            "totals: {} pass, {} fail, {} warn, {} excluded, {} unsupported",
-            totals.pass, totals.fail, totals.warn, totals.excluded, totals.unsupported
+            "totals: {} pass, {} fail, {} warn, {} excluded, {} unsupported, {} not applicable",
+            totals.pass,
+            totals.fail,
+            totals.warn,
+            totals.excluded,
+            totals.unsupported,
+            totals.not_applicable
         );
         let _ = writeln!(out, "verdict: {}", self.verdict());
         out
@@ -209,6 +229,7 @@ mod tests {
                 warn: 0,
                 excluded: 1,
                 unsupported: 0,
+                not_applicable: 1,
             },
             requirements: vec![
                 RequirementReport {
@@ -218,6 +239,7 @@ mod tests {
                     findings: vec![],
                     exclusion: None,
                     missing_checks: vec![],
+                    capability: None,
                 },
                 RequirementReport {
                     id: "LIFE-001".to_owned(),
@@ -231,6 +253,7 @@ mod tests {
                     }],
                     exclusion: None,
                     missing_checks: vec![],
+                    capability: None,
                 },
                 RequirementReport {
                     id: "TRAN-001".to_owned(),
@@ -239,6 +262,16 @@ mod tests {
                     findings: vec![],
                     exclusion: Some("enforced at capture time".to_owned()),
                     missing_checks: vec![],
+                    capability: None,
+                },
+                RequirementReport {
+                    id: "TOOL-001".to_owned(),
+                    level: "MUST".to_owned(),
+                    outcome: Outcome::NotApplicable,
+                    findings: vec![],
+                    exclusion: None,
+                    missing_checks: vec![],
+                    capability: Some("server.tools".to_owned()),
                 },
             ],
         }
@@ -267,7 +300,19 @@ mod tests {
             text.contains("excluded: enforced at capture time"),
             "{text}"
         );
-        assert!(text.contains("totals: 1 pass, 1 fail"), "{text}");
+        assert!(text.contains("N/A   TOOL-001 (MUST)"), "{text}");
+        assert!(
+            text.contains(
+                "not applicable: capability server.tools was not declared in this session"
+            ),
+            "{text}"
+        );
+        assert!(
+            text.contains(
+                "totals: 1 pass, 1 fail, 0 warn, 1 excluded, 0 unsupported, 1 not applicable"
+            ),
+            "{text}"
+        );
         assert!(text.contains("verdict: fail"), "{text}");
     }
 

@@ -1,0 +1,135 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "BASE-001",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#requests",
+        "quote": "Requests MUST include a string or integer ID."
+      },
+      "checks": [
+        "base.request-id-type"
+      ]
+    },
+    {
+      "id": "BASE-002",
+      "level": "MUST NOT",
+      "actor": "both",
+      "source": {
+        "section": "basic#requests",
+        "quote": "Unlike base JSON-RPC, the ID MUST NOT be `null`."
+      },
+      "checks": [
+        "base.request-id-not-null"
+      ]
+    },
+    {
+      "id": "BASE-003",
+      "level": "MUST NOT",
+      "actor": "both",
+      "source": {
+        "section": "basic#requests",
+        "quote": "The request ID MUST NOT have been previously used by the requestor within the same session."
+      },
+      "checks": [
+        "base.request-id-unique"
+      ]
+    },
+    {
+      "id": "BASE-004",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#result-responses",
+        "quote": "Result responses MUST include the same ID as the request they correspond to."
+      },
+      "checks": [
+        "base.result-id-matches"
+      ]
+    },
+    {
+      "id": "BASE-005",
+      "level": "MUST NOT",
+      "actor": "both",
+      "source": {
+        "section": "basic#notifications",
+        "quote": "Notifications MUST NOT include an ID."
+      },
+      "checks": [
+        "base.notification-no-id"
+      ]
+    },
+    {
+      "id": "BASE-006",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#error-responses",
+        "quote": "Error responses MUST include an `error` field with a `code` and `message`."
+      },
+      "checks": [
+        "base.error-shape"
+      ]
+    },
+    {
+      "id": "BASE-007",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#error-responses",
+        "quote": "Error codes MUST be integers."
+      },
+      "checks": [
+        "base.error-code-integer"
+      ]
+    },
+    {
+      "id": "BASE-008",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#messages",
+        "quote": "All messages between MCP clients and servers MUST follow the JSON-RPC 2.0 specification."
+      },
+      "checks": [
+        "base.jsonrpc-version"
+      ]
+    },
+    {
+      "id": "BASE-009",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#error-responses",
+        "quote": "Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request)."
+      },
+      "checks": [
+        "base.error-id-matches"
+      ]
+    },
+    {
+      "id": "BASE-010",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#result-responses",
+        "quote": "Result responses MUST include a `result` field."
+      },
+      "checks": [
+        "base.result-field"
+      ]
+    },
+    {
+      "id": "BASE-011",
+      "level": "MUST NOT",
+      "actor": "both",
+      "source": {
+        "section": "basic#notifications",
+        "quote": "The receiver MUST NOT send a response."
+      },
+      "exclusion": "A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009."
+    }
+  ]
+}
