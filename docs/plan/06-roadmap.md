@@ -23,7 +23,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | Milestone | Status |
 |-----------|--------|
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
-| M1 — Registry and validator | **In progress** — registry coverage of the `2025-11-25` core surface complete (README coverage table is the generated count), engine, corpus, CLI, JUnit output, fuzz targets, benchmarks, RFC 8785 number canonicalization, and the release pipeline (ADR-0007) shipped; only the bootstrap publish itself (RELEASING.md §Bootstrap — owner action) remains |
+| M1 — Registry and validator | **Complete** — v0.1.0 published to crates.io via [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142) (attested, byte-verified); every DoD line below carries its evidence |
 | M2 — Everything server | Not started |
 | M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (July 28, 2026); re-sequenced ahead of M3 on 2026-06-09 |
 | M3 — Reference host | Not started |
@@ -71,8 +71,11 @@ The spec as data, and the engine that judges traces against it.
 - [x] Zero surviving mutants in `mcp-conformance-core` and `mcp-trace-validator`; fuzz
       targets (trace parse, canonicalization, registry deserialization) clean for the CI
       budget with corpora committed.
-- [ ] Published to crates.io via trusted publishing; rustdoc complete; README documents the
-      trace format with a worked example.
+- [x] Published to crates.io ([v0.1.0](https://github.com/tomtom215/mcp-conformance/releases/tag/v0.1.0),
+      [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142)) —
+      bootstrapped per ADR-0007, OIDC trusted publishing from the next release; rustdoc
+      complete (docs.rs all-features); README documents the trace format with a worked
+      example.
 
 ## M2 — Everything server at the Tier-1 bar
 

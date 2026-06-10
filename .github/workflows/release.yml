@@ -136,9 +136,10 @@ jobs:
       - name: Package all publishable crates (verification builds included)
         # The workspace-wide dry-run: per-crate `publish --dry-run` cannot
         # resolve unpublished sibling dependencies on a first release, while
-        # `cargo package` resolves them locally. xtask is publish = false and
-        # excluded automatically.
-        run: cargo package --workspace --locked
+        # `cargo package` resolves them locally. xtask is publish = false yet
+        # `cargo package --workspace` still packages it (observed in v0.1.0,
+        # whose release carries a stray xtask crate file) — exclude it.
+        run: cargo package --workspace --exclude xtask --locked
       - name: Generate SHA-256 checksums
         shell: bash
         run: |
@@ -250,7 +251,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo package --workspace --locked
+          cargo package --workspace --exclude xtask --locked
           cd target/package
           sha256sum --check ../../attested/SHA256SUMS
       - name: Authenticate with crates.io (OIDC trusted publishing)

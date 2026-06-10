@@ -11,7 +11,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- Release packaging excludes `xtask` (`publish = false`, but
+  `cargo package --workspace` still packaged it; v0.1.0's GitHub Release
+  carries the stray — harmless — crate file).
 
 ## [0.1.0] - 2026-06-10
 
