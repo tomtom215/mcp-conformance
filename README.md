@@ -21,10 +21,16 @@ today, with nothing claimed beyond it:
   trace, get requirement-level findings (spec clause, offending event `seq`,
   actionable detail) as human text, machine JSON, or JUnit XML, with documented exit codes for CI.
   Every check is falsified by a committed violation trace in [`corpus/`](corpus).
-- **`mcp-everything-server`** / **`mcp-reference-host`** — the M2/M3 artifacts, currently
-  shipping only their foundations: a default-secure `Host`/`Origin` policy (the
-  CVE-2026-42559 DNS-rebinding class, closed by construction) and a deterministic
-  retry/backoff policy.
+- **`mcp-everything-server`** — the M2 reference server on rmcp (the official Rust
+  SDK): the official suite's full server surface over stdio and policy-gated
+  streamable HTTP — every suite-defined tool (sampling and elicitation included),
+  resource, template, prompt, completion, and logging-level filtering, with the
+  default-secure `Host`/`Origin` policy (the CVE-2026-42559 DNS-rebinding class,
+  closed by construction) rejecting bad requests with 403 before any MCP
+  processing. `cargo xtask conformance` drives the pinned official suite against
+  it: 40/40 checks on the `2025-11-25` server scenarios.
+- **`mcp-reference-host`** — the M3 artifact, currently shipping only its
+  foundation: a deterministic retry/backoff policy.
 
 ```text
 $ cargo run -p mcp-trace-validator -- validate session.jsonl

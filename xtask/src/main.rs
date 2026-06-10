@@ -13,12 +13,13 @@
 //! - `coverage` — regenerate the README's requirement-coverage table from the embedded
 //!   registry; `coverage --check` verifies it instead (ADR-0001: no hand-kept counts).
 //!
-//! At roadmap M2 this grows the `conformance` task: spawn the everything-server, drive
-//! the pinned official runner against it, and diff its verdicts against the trace
-//! validator's (the agreement check).
+//! - `conformance` — spawn the everything-server over streamable HTTP and drive the
+//!   pinned official runner against it (`conformance.rs` documents the network-use
+//!   boundary: orchestration may dial out, `cargo test` never does).
 
 use std::process::{Command, ExitCode};
 
+mod conformance;
 mod coverage;
 
 fn main() -> ExitCode {
@@ -40,6 +41,7 @@ fn main() -> ExitCode {
             }
         }
         Some("coverage") => coverage::run(args.next().as_deref() == Some("--check")),
+        Some("conformance") => conformance::run(),
         Some(other) => {
             eprintln!("unknown task {other:?}\n{USAGE}");
             ExitCode::FAILURE
@@ -51,7 +53,7 @@ fn main() -> ExitCode {
     }
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  conformance        run the pinned official suite against the everything server";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {

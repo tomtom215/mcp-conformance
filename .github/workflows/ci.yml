@@ -165,3 +165,32 @@ jobs:
         run: cargo +nightly generate-lockfile -Zminimal-versions
       - name: Test against minimum dependency versions
         run: cargo test --workspace --all-features --locked
+
+  # The M2 hard gate: the pinned official suite's server scenarios against the
+  # everything server over streamable HTTP (cargo xtask conformance documents
+  # the steps and the version pin). This job is the one deliberate exception
+  # to "no network beyond the package registries": npx fetches the pinned
+  # runner from npm, and the runner dials the server over loopback. Tests
+  # (`cargo test` anywhere in the workspace) still never touch a network.
+  conformance:
+    name: Conformance (official suite, server scenarios)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Runner prerequisites (Node is preinstalled on the runner image)
+        run: node --version && npx --version
+      - name: Official suite vs everything-server
+        run: cargo xtask conformance
+      - name: Upload scenario verdicts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: conformance-verdicts
+          path: target/conformance/
+          if-no-files-found: warn
+          retention-days: 30

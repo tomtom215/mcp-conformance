@@ -24,7 +24,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 |-----------|--------|
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
 | M1 — Registry and validator | **Complete** — v0.1.0 published to crates.io via [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142) (attested, byte-verified); every DoD line below carries its evidence |
-| M2 — Everything server | Not started |
+| M2 — Everything server | **In progress** (2026-06-10): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite locally and via `cargo xtask conformance`; CI gate added this series — remaining: agreement-check artifact, trace tap, coverage manifest, upstream offer |
 | M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (July 28, 2026); re-sequenced ahead of M3 on 2026-06-09 |
 | M3 — Reference host | Not started |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
@@ -84,13 +84,18 @@ The spec as data, and the engine that judges traces against it.
 - [ ] `mcp-everything-server` exercises every capability in scope for `2025-11-25`
       (coverage manifest generated from the registry; parity with the TypeScript everything
       server's surface — [register 2.10](01-ecosystem-context.md)) over stdio and
-      streamable HTTP.
+      streamable HTTP. *(2026-06-10: every suite-defined tool/resource/prompt implemented
+      — [register 2.15](01-ecosystem-context.md); coverage manifest still to come.)*
 - [ ] **100% pass on the official suite's server scenarios** (pinned version) in CI via
-      `cargo xtask conformance` — the hard gate from here forward.
+      `cargo xtask conformance` — the hard gate from here forward. *(2026-06-10: 40/40
+      locally and via the xtask; the CI job lands this series — the box checks when its
+      first run is green.)*
 - [ ] Agreement check live: official-runner verdicts vs validator verdicts diffed in CI;
       zero unexplained divergence (explained ones filed upstream and linked).
-- [ ] `Host`/`Origin` validation on by default with tests proving 403 behavior
-      ([05-security-model.md](05-security-model.md)).
+- [x] `Host`/`Origin` validation on by default with tests proving 403 behavior
+      ([05-security-model.md](05-security-model.md)) — middleware + rmcp transport check
+      kept in sync from one policy; in-process 403 matrix, real-process loopback test,
+      and the suite's `dns-rebinding-protection` scenario all green (2026-06-10).
 - [ ] Upstream conversation opened: everything-server offered to
       `modelcontextprotocol/rust-sdk` (issue or draft PR), linked from the README whatever
       the outcome.
