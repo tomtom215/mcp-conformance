@@ -96,14 +96,22 @@ upstream), spec ambiguity (file upstream) — and the triage outcome is recorded
 corpus provenance note. This is the project's standing answer to "why should anyone trust a
 second opinion?": because it is continuously reconciled with the first one.
 
-Mechanics as of 2026-06-10 (M2 in progress): `cargo xtask conformance` runs the pinned
-runner against the everything server and writes its per-scenario verdicts to
-`target/conformance/*/checks.json`; runner-level divergence is gated by the committed
-`conformance/expected-failures.yaml`, whose header requires every entry to carry one of
-the three triage classes plus an upstream link (the machine-readable triage artifact).
-Currently empty — 40/40 checks pass. The validator side of the diff arrives with the
-server's trace tap: tap the same sessions, validate the JSONL, and reconcile
-requirement-level findings against the runner's scenario verdicts.
+Mechanics as of 2026-06-10 (both sides live): `cargo xtask conformance` runs the pinned
+runner against the everything server (its per-scenario verdicts land in
+`target/conformance/*/checks.json`, gated by the committed
+`conformance/expected-failures.yaml` — empty; 40/40 pass) **and** replays the same
+sessions through our validator: the server's tap (feature `tap`, `--tap-dir`) records
+every admitted session as a validator-ready JSON Lines trace, and the agreement step
+fails on any MUST-level validator finding not explained in
+`conformance/agreement-divergences.json` (every entry requires a triage class and an
+upstream link; unknown fields are rejected). The reconciliation is written to
+`target/conformance/agreement.json` with full pass/fail/warn/excluded/not-applicable
+accounting. The same tapped sessions generate the committed
+`conformance/coverage-manifest.json` (server capabilities, registry capability gates,
+methods observed); drift or an undeclared server-party gate fails the run. The check
+earned its keep immediately: its first run surfaced one MUST divergence (triaged
+suite-bug, [#7](https://github.com/tomtom215/mcp-conformance/issues/7)) and one
+informational SHOULD warning on the suite's version-compat probe.
 
 ## Official-suite version policy
 
