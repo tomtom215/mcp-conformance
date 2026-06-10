@@ -86,10 +86,11 @@ The spec as data, and the engine that judges traces against it.
       server's surface — [register 2.10](01-ecosystem-context.md)) over stdio and
       streamable HTTP. *(2026-06-10: every suite-defined tool/resource/prompt implemented
       — [register 2.15](01-ecosystem-context.md); coverage manifest still to come.)*
-- [ ] **100% pass on the official suite's server scenarios** (pinned version) in CI via
-      `cargo xtask conformance` — the hard gate from here forward. *(2026-06-10: 40/40
-      locally and via the xtask; the CI job lands this series — the box checks when its
-      first run is green.)*
+- [x] **100% pass on the official suite's server scenarios** (pinned version) in CI via
+      `cargo xtask conformance` — the hard gate from here forward. 40/40 checks, suite
+      0.1.16, spec `2025-11-25`:
+      [CI run #27266174013](https://github.com/tomtom215/mcp-conformance/actions/runs/27266174013)
+      ("Conformance (official suite, server scenarios)" job, 2026-06-10).
 - [ ] Agreement check live: official-runner verdicts vs validator verdicts diffed in CI;
       zero unexplained divergence (explained ones filed upstream and linked).
 - [x] `Host`/`Origin` validation on by default with tests proving 403 behavior
