@@ -58,6 +58,13 @@ tokio = { version = ">=1.45, <2", default-features = false }
 # Tool/prompt parameter schemas for rmcp's `#[tool]` macros (rmcp's `server`
 # feature already carries schemars; this direct dependency is for the derive).
 schemars = { version = ">=1.1, <2" }
+# HTTP serving for the streamable transport — the idiom rmcp's own examples
+# use (Router::nest_service + axum::serve). Feature-minimal: no JSON
+# extractors, no macros; the MCP service does its own body handling.
+axum = { version = ">=0.8, <0.9", default-features = false, features = ["http1", "tokio"] }
+# Dev-only: tower's ServiceExt::oneshot drives the axum app in-process, so
+# the 403 integration tests never open a socket.
+tower = { version = ">=0.5, <0.6", default-features = false, features = ["util"] }
 
 # Dev/test only.
 proptest = { version = ">=1.4, <2" }

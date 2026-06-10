@@ -205,7 +205,7 @@ fn single_select_variants() -> BTreeMap<String, PrimitiveSchema> {
     {
         let mut properties = BTreeMap::new();
         properties.insert(
-            "untitled_single".to_owned(),
+            "untitledSingle".to_owned(),
             PrimitiveSchema::Enum(
                 EnumSchema::builder(vec![
                     "option1".to_owned(),
@@ -216,7 +216,7 @@ fn single_select_variants() -> BTreeMap<String, PrimitiveSchema> {
             ),
         );
         properties.insert(
-            "titled_single".to_owned(),
+            "titledSingle".to_owned(),
             PrimitiveSchema::Enum(EnumSchema::Single(SingleSelectEnumSchema::Titled(
                 TitledSingleSelectEnumSchema::new(vec![
                     ConstTitle::new("value1", "First Option"),
@@ -226,7 +226,7 @@ fn single_select_variants() -> BTreeMap<String, PrimitiveSchema> {
             ))),
         );
         properties.insert(
-            "legacy_titled".to_owned(),
+            "legacyEnum".to_owned(),
             PrimitiveSchema::Enum(EnumSchema::Legacy(LegacyEnumSchema {
                 type_: StringTypeConst,
                 title: None,
@@ -248,7 +248,7 @@ fn multi_select_variants() -> BTreeMap<String, PrimitiveSchema> {
     {
         let mut properties = BTreeMap::new();
         properties.insert(
-            "untitled_multi".to_owned(),
+            "untitledMulti".to_owned(),
             PrimitiveSchema::Enum(
                 EnumSchema::builder(vec![
                     "option1".to_owned(),
@@ -260,7 +260,7 @@ fn multi_select_variants() -> BTreeMap<String, PrimitiveSchema> {
             ),
         );
         properties.insert(
-            "titled_multi".to_owned(),
+            "titledMulti".to_owned(),
             PrimitiveSchema::Enum(EnumSchema::Multi(MultiSelectEnumSchema::Titled(
                 TitledMultiSelectEnumSchema::new(TitledItems::new(vec![
                     ConstTitle::new("value1", "First Choice"),
@@ -346,31 +346,31 @@ mod tests {
     fn sep1330_serializes_all_five_variants_to_the_wire() {
         let schema = serde_json::to_value(sep1330_schema()).unwrap();
         let props = &schema["properties"];
-        assert_eq!(props["untitled_single"]["type"], "string");
+        assert_eq!(props["untitledSingle"]["type"], "string");
         assert_eq!(
-            props["untitled_single"]["enum"],
+            props["untitledSingle"]["enum"],
             serde_json::json!(["option1", "option2", "option3"])
         );
         assert_eq!(
-            props["titled_single"]["oneOf"][0],
+            props["titledSingle"]["oneOf"][0],
             serde_json::json!({"const": "value1", "title": "First Option"})
         );
         assert_eq!(
-            props["legacy_titled"]["enum"],
+            props["legacyEnum"]["enum"],
             serde_json::json!(["opt1", "opt2", "opt3"])
         );
         assert_eq!(
-            props["legacy_titled"]["enumNames"],
+            props["legacyEnum"]["enumNames"],
             serde_json::json!(["Option One", "Option Two", "Option Three"])
         );
-        assert_eq!(props["untitled_multi"]["type"], "array");
+        assert_eq!(props["untitledMulti"]["type"], "array");
         assert_eq!(
-            props["untitled_multi"]["items"]["enum"],
+            props["untitledMulti"]["items"]["enum"],
             serde_json::json!(["option1", "option2", "option3"])
         );
-        assert_eq!(props["titled_multi"]["type"], "array");
+        assert_eq!(props["titledMulti"]["type"], "array");
         assert_eq!(
-            props["titled_multi"]["items"]["anyOf"][0],
+            props["titledMulti"]["items"]["anyOf"][0],
             serde_json::json!({"const": "value1", "title": "First Choice"})
         );
     }

@@ -19,8 +19,11 @@ homepage.workspace = true
 # The library (handler, routers, policy) has no CLI dependencies; the binary
 # needs clap and a runtime. Library consumers can use
 # `default-features = false` (docs/plan/decisions/0005-cli-argument-parsing.md).
-default = ["cli"]
-cli = ["dep:clap", "tokio/macros", "tokio/rt-multi-thread"]
+default = ["cli", "http"]
+cli = ["dep:clap", "http", "tokio/macros", "tokio/rt-multi-thread", "tokio/signal"]
+# Streamable HTTP serving (axum app + policy middleware). Off → stdio-only
+# library/binary without the HTTP dependency tree.
+http = ["dep:axum", "tokio/net"]
 
 # docs.rs builds with every feature enabled so feature-gated APIs are documented.
 [package.metadata.docs.rs]
@@ -33,6 +36,7 @@ schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 clap = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
 # The notification-staging tools sleep between messages ("~50ms" is part of
 # the scenario contract), so the library needs tokio's clock; the runtime
 # itself still comes from the binary or the test harness.
@@ -63,6 +67,7 @@ tracing = ">=0.1.41"
 # subprocesses (the no-network-in-tests rule stays intact).
 rmcp = { workspace = true, features = ["client"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tower = { workspace = true }
 proptest = { workspace = true }
 
 [[bin]]

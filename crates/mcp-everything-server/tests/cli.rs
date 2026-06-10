@@ -74,3 +74,39 @@ fn unknown_flags_exit_with_the_clap_usage_code() {
         .expect("binary runs");
     assert_eq!(output.status.code(), Some(2), "clap usage-error convention");
 }
+
+#[test]
+fn http_transport_binds_and_enforces_the_403_policy() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+        .args(["--transport", "http", "--bind", "127.0.0.1:0"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("binary spawns");
+
+    let stderr = child.stderr.take().unwrap();
+    let mut reader = BufReader::new(stderr);
+    let mut line = String::new();
+    reader.read_line(&mut line).expect("readiness line");
+    let addr = line
+        .trim()
+        .strip_prefix("listening on ")
+        .unwrap_or_else(|| panic!("unexpected readiness line: {line:?}"))
+        .to_owned();
+
+    // Loopback socket to our own subprocess: the binary's HTTP contract is
+    // pinned the same way the stdio contract is — against the real process.
+    let mut stream = std::net::TcpStream::connect(&addr).expect("connect");
+    let request = "POST /mcp HTTP/1.1\r\nHost: evil.example\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}";
+    std::io::Write::write_all(&mut stream, request.as_bytes()).expect("send");
+    let mut response = String::new();
+    std::io::Read::read_to_string(&mut stream, &mut response).expect("read");
+    assert!(
+        response.starts_with("HTTP/1.1 403"),
+        "rebinding Host must 403: {response:?}"
+    );
+
+    child.kill().expect("stop server");
+    let _ = child.wait();
+}

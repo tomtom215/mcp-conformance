@@ -13,6 +13,15 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- `mcp-everything-server`: streamable HTTP serving (`--transport http`)
+  behind the default-secure `Host`/`Origin` policy — 403 before any MCP
+  processing, loopback-only by default, `--allowed-host` /
+  `--dangerously-allow-any-host` to widen. The full official-suite server
+  surface is implemented (suite-defined `test_*` tools incl. sampling and
+  the three elicitation scenarios, resources + template + subscriptions,
+  four prompts, completion, logging level filtering): **100% pass on
+  @modelcontextprotocol/conformance 0.1.16's active `2025-11-25` server
+  scenarios** (40 checks), verified against the real runner.
 - `mcp-everything-server`: the M2 build-out begins on rmcp 1.7 — the
   `EverythingServer` handler (protocol `2025-11-25`, capabilities advertised
   only once implemented), the tool module (`echo`, `add`, TypeScript

@@ -108,6 +108,20 @@ impl HttpSecurityPolicy {
         extract_host(authority).is_some_and(|host| self.host_allowed(&host))
     }
 
+    /// The configured allowlist (lowercased hostnames / unbracketed IPs);
+    /// used to keep rmcp's transport-level host check in sync.
+    #[must_use]
+    pub fn allowed_hosts(&self) -> &[String] {
+        &self.allowed_hosts
+    }
+
+    /// Whether validation is disabled via
+    /// [`HttpSecurityPolicy::dangerously_allow_any_host`].
+    #[must_use]
+    pub const fn allows_any_host(&self) -> bool {
+        self.allow_any_host
+    }
+
     fn host_allowed(&self, host: &str) -> bool {
         self.allowed_hosts.iter().any(|allowed| allowed == host)
     }
@@ -233,6 +247,18 @@ mod tests {
         assert!(!policy.host_header_allowed("localhost"));
         assert!(policy.origin_allowed("https://mcp.internal.example"));
         assert!(!policy.origin_allowed("https://localhost"));
+    }
+
+    #[test]
+    fn accessors_report_the_configured_state() {
+        let policy = HttpSecurityPolicy::with_allowed_hosts(["A.example", "b.example"]);
+        assert_eq!(policy.allowed_hosts(), ["a.example", "b.example"]);
+        assert!(!policy.allows_any_host());
+        assert!(
+            HttpSecurityPolicy::default()
+                .dangerously_allow_any_host()
+                .allows_any_host()
+        );
     }
 
     #[test]

@@ -19,6 +19,8 @@
 //! HTTP — behind [`policy`] — is next.
 
 pub mod fixtures;
+#[cfg(feature = "http")]
+pub mod http;
 pub mod interactive;
 pub mod logging;
 pub mod notifying;

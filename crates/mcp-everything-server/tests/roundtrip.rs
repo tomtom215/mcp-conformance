@@ -875,14 +875,14 @@ async fn sep1330_sends_all_five_enum_variants() {
     let props = &captured[0]["requestedSchema"]["properties"];
 
     // 1. Untitled single-select: type string + enum.
-    assert_eq!(props["untitled_single"]["type"], "string");
+    assert_eq!(props["untitledSingle"]["type"], "string");
     assert_eq!(
-        props["untitled_single"]["enum"],
+        props["untitledSingle"]["enum"],
         serde_json::json!(["option1", "option2", "option3"])
     );
     // 2. Titled single-select: oneOf const/title.
     assert_eq!(
-        props["titled_single"]["oneOf"][0],
+        props["titledSingle"]["oneOf"][0],
         serde_json::json!({"const": "value1", "title": "First Option"})
     );
     // 3. Legacy: the enum values survive the round-trip; `enumNames` does
@@ -892,26 +892,26 @@ async fn sep1330_sends_all_five_enum_variants() {
     // interactive.rs's unit tests; this assertion documents the loss so an
     // upstream fix is immediately visible.
     assert_eq!(
-        props["legacy_titled"]["enum"],
+        props["legacyEnum"]["enum"],
         serde_json::json!(["opt1", "opt2", "opt3"])
     );
     assert_eq!(
-        props["legacy_titled"]["enumNames"],
+        props["legacyEnum"]["enumNames"],
         serde_json::Value::Null,
         "rmcp round-trip currently drops enumNames; a value here means \
          upstream fixed their untagged ordering — update this test and the \
          register row"
     );
     // 4. Untitled multi-select: array of enum items.
-    assert_eq!(props["untitled_multi"]["type"], "array");
+    assert_eq!(props["untitledMulti"]["type"], "array");
     assert_eq!(
-        props["untitled_multi"]["items"]["enum"],
+        props["untitledMulti"]["items"]["enum"],
         serde_json::json!(["option1", "option2", "option3"])
     );
     // 5. Titled multi-select: array of anyOf const/title.
-    assert_eq!(props["titled_multi"]["type"], "array");
+    assert_eq!(props["titledMulti"]["type"], "array");
     assert_eq!(
-        props["titled_multi"]["items"]["anyOf"][0],
+        props["titledMulti"]["items"]["anyOf"][0],
         serde_json::json!({"const": "value1", "title": "First Choice"})
     );
     client.cancel().await.expect("clean shutdown");
