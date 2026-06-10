@@ -3,9 +3,9 @@
 
 # Releasing
 
-> **Status:** no version has been published yet. The tag-triggered automation
-> (`.github/workflows/release.yml`, ADR-0007) is in place; the first release follows
-> the bootstrap procedure below, after which the pipeline is token-less for good.
+> **Status:** v0.1.0 is published; the bootstrap (below) is complete. The pipeline
+> (`.github/workflows/release.yml`, ADR-0007) is token-less for good: every crate
+> enforces "Trusted Publishing Only" and the publish job authenticates via OIDC.
 
 ## Principles
 
@@ -15,11 +15,11 @@
 - [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html). Pre-1.0, minor releases may
   break APIs; the changelog says so explicitly when they do.
 - **Trusted publishing (OIDC)** to crates.io — no long-lived registry tokens exist
-  anywhere in this project's configuration. One scoped exception, dead on arrival:
+  anywhere in this project's configuration. The one scoped exception is spent:
   crates.io cannot configure trusted publishing for a never-published crate
-  ([register 2.14](docs/plan/01-ecosystem-context.md)), so the **bootstrap release
-  only** uses a crate-scoped, short-expiry token in the `release` environment, deleted
-  immediately after (procedure below; decision in
+  ([register 2.14](docs/plan/01-ecosystem-context.md)), so the **v0.1.0 bootstrap**
+  used a crate-scoped, short-expiry token in the `release` environment — deleted and
+  revoked immediately after (procedure record below; decision in
   [ADR-0007](docs/plan/decisions/0007-release-pipeline-and-trusted-publishing.md)).
 
 ## Publish order
@@ -63,7 +63,11 @@ chain resumes. If the failure is in the code itself, fix forward: bump the patch
 version for all crates, update the changelog, re-tag. Versions are never re-published
 and tags are never moved.
 
-## Bootstrap (first release only)
+## Bootstrap (first release only — completed 2026-06-10 with v0.1.0)
+
+> Historical: every step below was executed for v0.1.0; all four crates now enforce
+> "Trusted Publishing Only" (ADR-0007 §Amendment). Kept as the procedure record for
+> any future first-publish of a new crate name.
 
 1. On crates.io: Account Settings → API Tokens → **New Token** — name it
    `mcp-conformance bootstrap`, expiry **7 days**, scopes **publish-new** +

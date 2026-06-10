@@ -11,6 +11,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Changed
+
+- Release pipeline is OIDC-only: the one-time bootstrap conditional is removed
+  from `release.yml` now that all four crates enforce "Trusted Publishing Only"
+  and the bootstrap token is deleted and revoked (ADR-0007 §Amendment).
+
 ### Fixed
 
 - Release packaging excludes `xtask` (`publish = false`, but

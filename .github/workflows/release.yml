@@ -11,8 +11,8 @@
 # Raised bars relative to the a2a-rust baseline it derives from:
 #   - no third-party toolchain action (plain rustup, like ci.yml) — nothing
 #     unpinned runs in the publish privilege context;
-#   - OIDC trusted publishing; the registry token exists only for the one-time
-#     bootstrap publish and is deleted afterward (ADR-0007, register 2.14);
+#   - OIDC trusted publishing, "Trusted Publishing Only" enforced registry-side;
+#     the one-time bootstrap token is deleted and revoked (ADR-0007 §Amendment);
 #   - `--locked` packaging WITH verification builds (no `--no-verify`);
 #   - packaging determinism proven, not assumed: the publish job re-packages
 #     and byte-compares against the attested SHA256SUMS before uploading;
@@ -212,7 +212,7 @@ jobs:
               release-artifacts/*.crate release-artifacts/SHA256SUMS
           fi
 
-  # ── Publish to crates.io (protected environment; OIDC after bootstrap) ─────
+  # ── Publish to crates.io (protected environment; OIDC-only) ────────────────
   publish:
     name: Publish to crates.io
     needs: [verify, github-release]
@@ -225,12 +225,6 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC exchange with crates.io (trusted publishing)
-    env:
-      # Bootstrap-only secret for the first-ever publish of each crate
-      # (crates.io cannot configure trusted publishing on a crate that does
-      # not exist yet — register 2.14). Once the secret is deleted, this is
-      # empty and the OIDC step below takes over with no workflow change.
-      BOOTSTRAP_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Install toolchain
@@ -255,12 +249,13 @@ jobs:
           cd target/package
           sha256sum --check ../../attested/SHA256SUMS
       - name: Authenticate with crates.io (OIDC trusted publishing)
+        # All four crates enforce "Trusted Publishing Only" (ADR-0007 §Amendment):
+        # this 30-minute OIDC-minted token is the only credential that can publish.
         id: oidc
-        if: env.BOOTSTRAP_TOKEN == ''
         uses: rust-lang/crates-io-auth-action@bbd81622f20ce9e2dd9622e3218b975523e45bbe # v1.0.4
       - name: Publish in dependency order (idempotent, resumable)
         env:
-          CARGO_REGISTRY_TOKEN: ${{ env.BOOTSTRAP_TOKEN || steps.oidc.outputs.token }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.oidc.outputs.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -314,7 +309,6 @@ jobs:
               echo "| ${crate} | [crates.io](https://crates.io/crates/${crate}/${VERSION}) |"
             done
             echo ""
-            echo "> docs.rs builds follow within minutes. After the bootstrap release:"
-            echo "> configure Trusted Publishing + enable 'Trusted Publishing Only' on"
-            echo "> each crate, then delete the CARGO_REGISTRY_TOKEN secret (ADR-0007)."
+            echo "> docs.rs builds follow within minutes. Published via OIDC trusted"
+            echo "> publishing; 'Trusted Publishing Only' is enforced on every crate."
           } >> "$GITHUB_STEP_SUMMARY"
