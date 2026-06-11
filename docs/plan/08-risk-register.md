@@ -4,7 +4,7 @@
 # Risk Register
 
 **Status:** Active
-**Last reviewed:** 2026-06-09
+**Last reviewed:** 2026-06-11
 
 ---
 
@@ -14,7 +14,7 @@ risk names its **trigger** — the observable event that converts it from "monit
 
 | # | Risk | Likelihood | Impact | Mitigation (standing) | Trigger → response |
 |---|------|-----------|--------|----------------------|--------------------|
-| R1 | The 2026-07-28 stateless rework lands materially differently than the RC ([register 1.3](01-ecosystem-context.md)) | Medium | High — state machines and registry entries churn | `draft-2026-07-28` feature gate; `applies` ranges localize changes to data + one state-machine variant ([02-architecture.md](02-architecture.md)) | Final spec text diverges from RC on lifecycle/session semantics → freeze the draft corpus, re-derive registry entries from final text before M2.5 closes; never stabilize 0.x → 1.0 before this settles |
+| R1 | The 2026-07-28 stateless rework lands materially differently than the RC ([register 1.3, 1.5a–1.5b](01-ecosystem-context.md)). Already observed mid-window (2026-06-11 reconciliation): the announcement under-enumerated the rework (`server/discover`, `subscriptions/listen`, tasks extension, MRTR), and the changelog gained authorization entries plus a DCR deprecation after the RC shipped (PR #2862, 2026-06-05) | Medium | High — state machines and registry entries churn | `draft-2026-07-28` feature gate; `applies` ranges localize changes to data + one state-machine variant ([02-architecture.md](02-architecture.md)) | Final spec text diverges from RC on lifecycle/session semantics → freeze the draft corpus, re-derive registry entries from final text before M2.5 closes; never stabilize 0.x → 1.0 before this settles |
 | R2 | The official suite absorbs trace validation or ships its own offline mode | Low–Medium | High — core differentiator overlaps the authority | Upstream-first posture means we'd rather merge than compete; agreement check keeps our engine calibrated and therefore mergeable; trace validation is the maintainers' *stated* long-term method ([register 2.11–2.12](01-ecosystem-context.md)), so convergence is the expected ending, not a surprise | Watch signals: SEP-1627 leaving Draft, the `0.2.0` line shipping trace replay, or a conformance-repo issue naming offline validation → offer the engine/corpus upstream immediately; this repo refocuses on Rust reference implementations |
 | R3 | rust-sdk maintainers build an in-tree everything server before M2 lands | Medium | Medium — backlog item 1 evaporates | Engage early (M0 standing workstream: issue participation); build rmcp-idiomatic so converging is cheap | Upstream issue/PR for an everything server appears → pivot from "contribute ours" to "contribute tests, fixtures, and review to theirs"; M2's DoD re-targets our server as an independent cross-check |
 | R4 | Official suite 0.2.0 line breaks scenario compatibility ([register 2.4](01-ecosystem-context.md)) | High (it is an alpha line) | Medium | Exact-version pinning; scheduled non-blocking alpha tracking job | Alpha-tracking job red for two consecutive scheduled runs → upgrade spike: adapter or pin-bump PR with scenario diff, before any milestone gate |

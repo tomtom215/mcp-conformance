@@ -28,7 +28,10 @@ today, with nothing claimed beyond it:
   default-secure `Host`/`Origin` policy (the CVE-2026-42559 DNS-rebinding class,
   closed by construction) rejecting bad requests with 403 before any MCP
   processing. `cargo xtask conformance` drives the pinned official suite against
-  it: 40/40 checks on the `2025-11-25` server scenarios.
+  it: 40/40 checks on the `2025-11-25` server scenarios. Offered upstream per
+  SEP-1730's appendix ask:
+  [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902)
+  (2026-06-11, conversation open).
 - **`mcp-reference-host`** — the M3 artifact, currently shipping only its
   foundation: a deterministic retry/backoff policy.
 

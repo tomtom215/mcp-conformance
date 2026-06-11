@@ -4,7 +4,7 @@
 # Architecture
 
 **Status:** Active
-**Last reviewed:** 2026-06-09
+**Last reviewed:** 2026-06-11
 
 ---
 
@@ -182,7 +182,7 @@ calibrated against the authority rather than asking anyone to trust it.
 - `2026-07-28` support lands behind a `draft-2026-07-28` cargo feature while the RC is in
   flux; registry entries gain `applies` ranges at roadmap M2.5 so the stateless rework is a
   data change plus a state-machine variant, not a rewrite
-  ([register 1.2–1.5a](01-ecosystem-context.md)). The feature gate drops (becomes default)
+  ([register 1.2–1.5b](01-ecosystem-context.md)). The feature gate drops (becomes default)
   only after the final spec text ships, M2.5 completes, and the official suite's scenarios
   for it stabilize.
 - Versioning of our own crates follows SemVer with `#[non_exhaustive]` on protocol-facing
