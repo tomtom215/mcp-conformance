@@ -118,7 +118,8 @@ async fn unknown_tool_is_a_protocol_error_not_a_crash() {
         "unknown tool is the spec's -32602 protocol error: {error:?}"
     );
     assert!(
-        error.message.contains("no-such-tool") || error.message.to_lowercase().contains("not found"),
+        error.message.contains("no-such-tool")
+            || error.message.to_lowercase().contains("not found"),
         "the error names the problem: {error:?}"
     );
     // The session must survive the error: the next request still works.

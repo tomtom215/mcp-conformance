@@ -108,7 +108,11 @@ fn violation_traces_fail_and_match_goldens() {
         // while another trace happens to keep the orphaned check covered —
         // would otherwise re-bless cleanly and be visible only to a human
         // reading the golden diff.
-        let stem = trace_path.file_stem().unwrap().to_string_lossy().into_owned();
+        let stem = trace_path
+            .file_stem()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
         let id = stem
             .split('-')
             .take(2)

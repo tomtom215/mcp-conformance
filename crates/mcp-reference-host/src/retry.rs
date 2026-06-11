@@ -260,17 +260,21 @@ mod tests {
             let policy = RetryPolicy::default();
             let this = policy.delay_for_retry(retry, 0.0);
             let next = policy.delay_for_retry(retry.saturating_add(1), 0.0);
-            if retry < policy.max_retries() {
-                let (Some(a), Some(b)) = (this, next) else {
-                    return Err(proptest::test_runner::TestCaseError::fail(
-                        format!("retries {retry} and {} are within budget and must schedule", retry + 1),
-                    ));
-                };
-                prop_assert!(b >= a);
-            } else if retry == policy.max_retries() {
-                prop_assert!(this.is_some() && next.is_none());
-            } else {
-                prop_assert!(this.is_none() && next.is_none());
+            match retry.cmp(&policy.max_retries()) {
+                core::cmp::Ordering::Less => {
+                    let (Some(a), Some(b)) = (this, next) else {
+                        return Err(proptest::test_runner::TestCaseError::fail(
+                            format!("retries {retry} and {} are within budget and must schedule", retry + 1),
+                        ));
+                    };
+                    prop_assert!(b >= a);
+                }
+                core::cmp::Ordering::Equal => {
+                    prop_assert!(this.is_some() && next.is_none());
+                }
+                core::cmp::Ordering::Greater => {
+                    prop_assert!(this.is_none() && next.is_none());
+                }
             }
         }
 
