@@ -45,4 +45,8 @@ jobs:
       - name: Compute PR diff
         run: git diff "origin/${{ github.base_ref }}..." > pr.diff
       - name: Run mutants on changed code
-        run: cargo mutants --workspace --no-shuffle --in-diff pr.diff
+        # `-- --all-features` is load-bearing: without it, feature-gated code
+        # (the everything-server's `tap`) is never compiled into the mutated
+        # build, so its mutants "pass" in zero seconds without a single test
+        # running — 45 such phantom misses on PR #8 exposed this.
+        run: cargo mutants --workspace --no-shuffle --in-diff pr.diff -- --all-features

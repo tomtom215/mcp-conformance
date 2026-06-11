@@ -52,7 +52,9 @@ jobs:
       # The standard (docs/plan/04-engineering-standards.md): zero surviving mutants
       # in every shipped crate (xtask is excluded via .cargo/mutants.toml).
       - name: Full workspace sweep
-        run: cargo mutants --workspace --no-shuffle
+        # `-- --all-features` for the same reason as the PR gate: mutation
+        # coverage must include feature-gated code (see mutants.yml).
+        run: cargo mutants --workspace --no-shuffle -- --all-features
 
   fuzz:
     name: Fuzz (trace parse, canonical JSON, registry parse)
