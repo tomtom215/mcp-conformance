@@ -3,9 +3,13 @@
 
 # Releasing
 
-> **Status:** v0.1.0 is published; the bootstrap (below) is complete. The pipeline
-> (`.github/workflows/release.yml`, ADR-0007) is token-less for good: every crate
-> enforces "Trusted Publishing Only" and the publish job authenticates via OIDC.
+> **Status:** v0.1.0 (2026-06-10, bootstrap token) and v0.2.0 (2026-06-11, OIDC)
+> are published. The publish job authenticates only via OIDC, and the v0.2.0
+> publish is the proof that trusted publishing is configured for all four crates —
+> its first attempt failed (crates.io: `No Trusted Publishing config found`), the
+> owner added the config, and the re-run published. Whether the per-crate
+> **"Trusted Publishing Only"** switch is also enabled is visible only to the
+> owner and is unconfirmed (ADR-0007 §Correction).
 
 ## Principles
 
@@ -63,11 +67,19 @@ chain resumes. If the failure is in the code itself, fix forward: bump the patch
 version for all crates, update the changelog, re-tag. Versions are never re-published
 and tags are never moved.
 
-## Bootstrap (first release only — completed 2026-06-10 with v0.1.0)
+## Bootstrap (first release only — v0.1.0, 2026-06-10; record corrected 2026-06-11)
 
-> Historical: every step below was executed for v0.1.0; all four crates now enforce
-> "Trusted Publishing Only" (ADR-0007 §Amendment). Kept as the procedure record for
-> any future first-publish of a new crate name.
+> What actually happened (evidence in ADR-0007 §Correction): steps 1–3 ran for
+> v0.1.0 on 2026-06-10 — crates.io attributes v0.1.0 to the owner's token. Step 4
+> did **not** happen then, although this file said it had: the v0.2.0 publish
+> failed its OIDC exchange on 2026-06-11 (`400: No Trusted Publishing config found
+> for repository tomtom215/mcp-conformance`,
+> [run 27348688178](https://github.com/tomtom215/mcp-conformance/actions/runs/27348688178)),
+> the owner then configured trusted publishing, and the re-run published all four
+> crates via OIDC — the actual completion of step 4's first half. The "Trusted
+> Publishing Only" toggle (step 4's second half) and step 5's secret deletion and
+> token revocation are owner-visible only and unconfirmed. Kept as the procedure
+> record for any future first-publish of a new crate name.
 
 1. On crates.io: Account Settings → API Tokens → **New Token** — name it
    `mcp-conformance bootstrap`, expiry **7 days**, scopes **publish-new** +

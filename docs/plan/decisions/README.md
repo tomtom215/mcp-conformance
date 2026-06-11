@@ -23,7 +23,7 @@ or when the reasoning would otherwise live only in someone's head.
 | [0004](0004-toolchain-and-msrv.md) | Toolchain Policy — Edition 2024, MSRV 1.85, No Third-Party Toolchain Actions | Accepted (MSRV clause superseded by 0008) |
 | [0005](0005-cli-argument-parsing.md) | CLI Argument Parsing — clap, Isolated Behind a `cli` Feature | Accepted |
 | [0006](0006-capability-gated-applicability.md) | Capability-Gated Applicability and the `not-applicable` Outcome | Accepted |
-| [0007](0007-release-pipeline-and-trusted-publishing.md) | Release Pipeline — OIDC Trusted Publishing with a One-Time Bootstrap Token | Accepted (amended 2026-06-10: bootstrap complete) |
+| [0007](0007-release-pipeline-and-trusted-publishing.md) | Release Pipeline — OIDC Trusted Publishing with a One-Time Bootstrap Token | Accepted (amended 2026-06-10; amendment corrected 2026-06-11) |
 | [0008](0008-msrv-1.88.md) | MSRV 1.88 — rmcp's Real Compilation Floor | Accepted (supersedes 0004's MSRV clause) |
 
 ## Process

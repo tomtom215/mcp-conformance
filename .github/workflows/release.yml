@@ -11,8 +11,8 @@
 # Raised bars relative to the a2a-rust baseline it derives from:
 #   - no third-party toolchain action (plain rustup, like ci.yml) — nothing
 #     unpinned runs in the publish privilege context;
-#   - OIDC trusted publishing, "Trusted Publishing Only" enforced registry-side;
-#     the one-time bootstrap token is deleted and revoked (ADR-0007 §Amendment);
+#   - OIDC trusted publishing — config proven live by the v0.2.0 publish; this
+#     job has no token fallback (ADR-0007 §Correction);
 #   - `--locked` packaging WITH verification builds (no `--no-verify`);
 #   - packaging determinism proven, not assumed: the publish job re-packages
 #     and byte-compares against the attested SHA256SUMS before uploading;
@@ -253,8 +253,8 @@ jobs:
           cd target/package
           sha256sum --check ../../attested/SHA256SUMS
       - name: Authenticate with crates.io (OIDC trusted publishing)
-        # All four crates enforce "Trusted Publishing Only" (ADR-0007 §Amendment):
-        # this 30-minute OIDC-minted token is the only credential that can publish.
+        # This 30-minute OIDC-minted token is the only credential this workflow
+        # can publish with — there is no token fallback (ADR-0007 §Correction).
         id: oidc
         uses: rust-lang/crates-io-auth-action@bbd81622f20ce9e2dd9622e3218b975523e45bbe # v1.0.4
       - name: Publish in dependency order (idempotent, resumable)
@@ -314,5 +314,5 @@ jobs:
             done
             echo ""
             echo "> docs.rs builds follow within minutes. Published via OIDC trusted"
-            echo "> publishing; 'Trusted Publishing Only' is enforced on every crate."
+            echo "> publishing."
           } >> "$GITHUB_STEP_SUMMARY"

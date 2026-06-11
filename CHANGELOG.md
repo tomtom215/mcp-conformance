@@ -11,6 +11,19 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Fixed
+
+- The trusted-publishing record was false everywhere it appeared: RELEASING.md,
+  ADR-0007's amendment, `release.yml`'s comments and run summary, and the
+  v0.2.0 changelog entry all asserted "Trusted Publishing Only" enforced on all
+  four crates as of 2026-06-10 — disproven by the v0.2.0 publish itself, whose
+  first attempt failed with crates.io's `400: No Trusted Publishing config
+  found for repository tomtom215/mcp-conformance`. Every site now states
+  exactly what the evidence supports: the config was added 2026-06-11 and is
+  proven by the OIDC publish of all four crates; the "Trusted Publishing Only"
+  toggle, the bootstrap secret's deletion, and the token's revocation are
+  owner-visible only and stand unconfirmed (ADR-0007 §Correction).
+
 ## [0.2.0] - 2026-06-11
 
 ### Added
@@ -87,8 +100,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   (let-chains in its library source; undeclared upstream). Per policy
   (ADR-0004/ADR-0008) this makes the next release **0.2.0**.
 - Release pipeline is OIDC-only: the one-time bootstrap conditional is removed
-  from `release.yml` now that all four crates enforce "Trusted Publishing Only"
-  and the bootstrap token is deleted and revoked (ADR-0007 §Amendment).
+  from `release.yml`; the publish job authenticates exclusively via trusted
+  publishing (ADR-0007). *(Corrected 2026-06-11: this entry originally asserted
+  "Trusted Publishing Only" enforcement and token revocation as fact — neither
+  was verifiable from this repository, and the enforcement claim was false when
+  written; see ADR-0007 §Correction. The v0.2.0 GitHub Release body carries the
+  original wording.)*
 
 ### Fixed
 
