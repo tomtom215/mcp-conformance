@@ -6,13 +6,19 @@
 //! Tasks:
 //!
 //! - `ci` — run the local quality gates in CI order (format, clippy across feature
-//!   combinations, tests, docs). The same commands CONTRIBUTING.md lists, as code, so
-//!   "run the gates" cannot drift from what CI runs.
+//!   combinations, tests, docs across feature modes, the file-size cap, cargo-deny
+//!   when installed, documentation links, coverage-table sync). The same commands
+//!   CONTRIBUTING.md lists, as code, so "run the gates" cannot drift from what CI
+//!   runs.
 //! - `bless` — regenerate the golden corpus reports (`BLESS=1` golden test run); review
 //!   the diff like any other code change.
 //! - `coverage` — regenerate the README's requirement-coverage table from the embedded
 //!   registry; `coverage --check` verifies it instead (ADR-0001: no hand-kept counts).
-//!
+//! - `file-sizes` — verify the ≤ 500-line cap on source and registry files.
+//! - `deny` — run `cargo deny --all-features check`, skipping loudly when
+//!   cargo-deny is not installed.
+//! - `docs-links` — verify every relative link in tracked Markdown resolves
+//!   (`docs_links.rs`).
 //! - `conformance` — spawn the everything-server over streamable HTTP (session tap on)
 //!   and drive the pinned official runner against it, then reconcile the runner's
 //!   verdicts with our validator's over the tapped sessions (`agreement.rs`) and check
@@ -25,6 +31,7 @@ use std::process::{Command, ExitCode};
 mod agreement;
 mod conformance;
 mod coverage;
+mod docs_links;
 
 /// The workspace root: the parent of this crate's manifest directory.
 ///
@@ -52,6 +59,9 @@ fn main() -> ExitCode {
             if !deny_gate() {
                 return ExitCode::FAILURE;
             }
+            if !docs_links::run() {
+                return ExitCode::FAILURE;
+            }
             eprintln!("xtask: coverage table in sync — cargo xtask coverage --check");
             coverage::run(true)
         }
@@ -77,6 +87,13 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         }
+        Some("docs-links") => {
+            if docs_links::run() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
         Some("conformance") => conformance::run(),
         Some(other) => {
             eprintln!("unknown task {other:?}\n{USAGE}");
@@ -89,7 +106,7 @@ fn main() -> ExitCode {
     }
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  docs-links         verify every relative link in tracked Markdown resolves\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
 
 /// Runs `cargo deny check` when cargo-deny is installed; skips LOUDLY when it
 /// is not. The CI `deny` job is the enforcement of record, but a versionless

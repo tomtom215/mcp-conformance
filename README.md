@@ -42,7 +42,7 @@ MCP trace validation — revision 2025-11-25
   ...
   FAIL  LIFE-001 (MUST)
         seq 0: first message is a "tools/list" request, expected "initialize"
-totals: 28 pass, 1 fail, 1 warn, 28 excluded, 0 unsupported, 13 not applicable
+totals: 35 pass, 1 fail, 1 warn, 89 excluded, 0 unsupported, 13 not applicable
 verdict: fail
 ```
 
@@ -89,7 +89,7 @@ registry, addressed to the offending event:
 ```text
   FAIL  BASE-003 (MUST NOT)
         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
-totals: 37 pass, 1 fail, 0 warn, 28 excluded, 0 unsupported, 5 not applicable
+totals: 44 pass, 1 fail, 0 warn, 89 excluded, 0 unsupported, 5 not applicable
 verdict: fail
 ```
 

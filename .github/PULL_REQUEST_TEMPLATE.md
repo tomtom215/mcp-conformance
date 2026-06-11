@@ -7,7 +7,7 @@
 
 ## Checklist
 
-- [ ] `cargo xtask ci` passes locally (format, clippy × feature modes, tests, docs × feature modes, file sizes, cargo-deny when installed, coverage table)
+- [ ] `cargo xtask ci` passes locally (format, clippy × feature modes, tests, docs × feature modes, file sizes, cargo-deny when installed, docs links, coverage table)
 - [ ] SPDX header on every new file
 - [ ] No source or registry file exceeds 500 lines (`cargo xtask file-sizes`; tests and benches exempt)
 - [ ] New public items have rustdoc (with runnable examples on entry points)

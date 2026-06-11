@@ -112,6 +112,8 @@ jobs:
         run: cargo xtask coverage --check
       - name: File-size cap on source and registry files
         run: cargo xtask file-sizes
+      - name: Documentation links resolve
+        run: cargo xtask docs-links
 
   deny:
     name: cargo-deny

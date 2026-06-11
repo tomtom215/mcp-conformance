@@ -41,7 +41,8 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
 6. `cargo deny --all-features check` when cargo-deny is installed — skipped
    **loudly** otherwise (`cargo install cargo-deny --locked` to run it locally;
    CI runs it regardless, so a dependency-policy violation will fail there)
-7. The README coverage table in sync with the registry (`cargo xtask coverage --check`)
+7. Every relative documentation link resolving (`cargo xtask docs-links`)
+8. The README coverage table in sync with the registry (`cargo xtask coverage --check`)
 
 Additionally enforced in CI: `cargo package --workspace --exclude xtask`
 (publishability) and diff-scoped mutation testing (`cargo mutants --in-diff`)
