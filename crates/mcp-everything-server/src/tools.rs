@@ -13,7 +13,7 @@
 use std::sync::Arc;
 
 use rmcp::handler::server::router::tool::{ToolRoute, ToolRouter};
-use rmcp::handler::server::wrapper::Parameters;
+use rmcp::handler::server::wrapper::{Json, Parameters};
 use rmcp::model::{
     AnnotateAble as _, CallToolResult, Content, RawAudioContent, RawContent, ResourceContents, Tool,
 };
@@ -31,6 +31,41 @@ pub const JSON_SCHEMA_TOOL_NAME: &str = "json_schema_2020_12_tool";
 pub struct EchoArgs {
     /// Message to echo back unchanged.
     pub message: String,
+}
+
+/// Arguments for [`EverythingServer::get_structured_content`].
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct StructuredContentArgs {
+    /// Choose city.
+    pub location: Location,
+}
+
+/// The cities the TypeScript everything server's weather fixture knows; the
+/// wire values are its exact zod enum (`"New York"`, `"Chicago"`,
+/// `"Los Angeles"`).
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub enum Location {
+    /// Fixture: 33 °C, cloudy, 82 %.
+    #[serde(rename = "New York")]
+    NewYork,
+    /// Fixture: 36 °C, light rain, 82 %.
+    Chicago,
+    /// Fixture: 73 °C, sunny, 48 %.
+    #[serde(rename = "Los Angeles")]
+    LosAngeles,
+}
+
+/// Structured weather report returned by
+/// [`EverythingServer::get_structured_content`]; its derived schema is the
+/// tool's `outputSchema`.
+#[derive(Debug, serde::Serialize, schemars::JsonSchema)]
+pub struct WeatherOutput {
+    /// Temperature in celsius.
+    pub temperature: f64,
+    /// Weather conditions description.
+    pub conditions: String,
+    /// Humidity percentage.
+    pub humidity: f64,
 }
 
 /// Arguments for [`EverythingServer::add`].
@@ -75,6 +110,35 @@ impl EverythingServer {
             "The sum of {a} and {b} is {sum}.",
             sum = a + b
         ))]))
+    }
+
+    /// `get-structured-content` — the TypeScript everything server's
+    /// structured-output tool (register 2.10 parity): a fixed weather fixture
+    /// returned as `structuredContent` under a derived `outputSchema`, plus
+    /// the backward-compatible JSON text block — the exact pairing TOOL-010
+    /// and TOOL-011 require of any server that declares an output schema.
+    ///
+    /// # Errors
+    ///
+    /// Never fails; the `Result` is the `#[tool]` calling convention.
+    #[tool(
+        name = "get-structured-content",
+        description = "Returns structured content along with an output schema for client data validation"
+    )]
+    pub fn get_structured_content(
+        &self,
+        Parameters(StructuredContentArgs { location }): Parameters<StructuredContentArgs>,
+    ) -> Result<Json<WeatherOutput>, ErrorData> {
+        let (temperature, conditions, humidity) = match location {
+            Location::NewYork => (33.0, "Cloudy", 82.0),
+            Location::Chicago => (36.0, "Light rain / drizzle", 82.0),
+            Location::LosAngeles => (73.0, "Sunny / Clear", 48.0),
+        };
+        Ok(Json(WeatherOutput {
+            temperature,
+            conditions: conditions.to_owned(),
+            humidity,
+        }))
     }
 
     /// `tools-call-simple-text`: exact text the scenario checks for.

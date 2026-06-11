@@ -35,6 +35,22 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- `mcp-everything-server`: `get-structured-content` — the TypeScript
+  everything server's structured-output tool, mirrored exactly (the zod city
+  enum, the weather fixtures, derived `outputSchema`, `structuredContent`
+  plus the backward-compatible JSON text block). The M2 line claimed "parity
+  with the TypeScript everything server's surface" while the server had no
+  `outputSchema` tool at all — the suite never exercises one, so nothing
+  noticed. The roundtrip test pins the TOOL-010/TOOL-011 pairing the spec
+  requires of any server declaring an output schema. The two remaining
+  TypeScript-surface deltas (URL-mode elicitation, async sampling) are now
+  documented decisions with reasons in the crate README, not silences.
+- `mcp-trace-validator`: pathological-input boundedness tests — 100k-event
+  sessions validate with correct verdicts, 20k-fold request-id reuse stays
+  linear and is flagged, and hostile deep nesting is rejected at parse with
+  the offending line named (never a stack overflow, never judged anyway).
+  benches/README.md records the re-affirmed no-timing-gate decision: still
+  no measurement history, but complexity is now gated by these tests.
 - Concurrency and crash-durability proofs for the session tap, replacing
   reasoning with evidence: 16 sessions recording through one writer at real
   parallelism (per-file `seq` contiguous from 0, every file parses through

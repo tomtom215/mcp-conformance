@@ -19,7 +19,16 @@ server scenarios (pinned suite 0.1.16, enforced in CI via
   `2025-11-25`, implementing the suite's full server surface: every
   suite-defined tool (sampling and elicitation included), resources with
   templates and subscriptions (capped per session), prompts, completions, and
-  logging-level filtering.
+  logging-level filtering — plus `get-structured-content`, the TypeScript
+  everything server's structured-output tool (`outputSchema` +
+  `structuredContent`), which the suite does not exercise but the spec
+  defines.
+
+  Two TypeScript-server features are deliberate deltas at this revision, not
+  omissions: **URL-mode elicitation** (needs a URL-capable client; lands with
+  the reference host, roadmap M3) and **async sampling** (the tasks pattern,
+  which `2025-11-25` does not define — SEP-2663 moves tasks to an extension
+  in `2026-07-28`).
 - A binary serving both transports: `mcp-everything-server --transport stdio`
   or `--transport http` (`--bind` for the address; policy overrides via
   `--allowed-host` / `--dangerously-allow-any-host`).

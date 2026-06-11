@@ -106,6 +106,16 @@ The spec as data, and the engine that judges traces against it.
       registry capability gates declared and active — the manifest gate caught the
       missing `listChanged` declarations, closed by the `test-list-changed` tool — and
       18 distinct wire methods observed. `BLESS=1` regenerates; drift fails the gate.)*
+      *(Second audit, 2026-06-11: the "parity with register 2.10" phrase overclaimed —
+      2.10's TypeScript surface includes structured output, URL-mode elicitation, and
+      async sampling, none of which the suite exercises and one of which the server
+      lacked. Structured output is now real: `get-structured-content` mirrors the
+      TypeScript tool exactly (derived `outputSchema`, `structuredContent`, the
+      backward-compatible text block), pinned by a roundtrip test. URL-mode
+      elicitation and async sampling remain deliberate deltas, documented in the
+      crate README: URL mode needs a URL-capable client and lands with M3's host;
+      async sampling is the tasks pattern, which `2025-11-25` does not define
+      (SEP-2663 moves tasks to an extension in `2026-07-28` — register 1.5a).)*
 - [x] **100% pass on the official suite's server scenarios** (pinned version) in CI via
       `cargo xtask conformance` — the hard gate from here forward. 40/40 checks, suite
       0.1.16, spec `2025-11-25`:

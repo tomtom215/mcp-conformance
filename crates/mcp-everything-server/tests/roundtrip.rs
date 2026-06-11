@@ -1142,3 +1142,56 @@ async fn sep1330_sends_all_five_enum_variants() {
     );
     client.cancel().await.expect("clean shutdown");
 }
+
+#[tokio::test]
+async fn structured_content_tool_pairs_schema_structured_and_text() {
+    // TOOL-011: a declared outputSchema obligates structuredContent;
+    // TOOL-010: structuredContent obligates the backward-compatible text
+    // block. This tool is the server's only outputSchema declaration, so
+    // this test is what keeps "exercises structured output" true.
+    let client = connect().await;
+    let tools = client.list_tools(None).await.expect("tools/list");
+    let tool = tools
+        .tools
+        .iter()
+        .find(|tool| tool.name == "get-structured-content")
+        .expect("get-structured-content is listed");
+    let schema =
+        serde_json::to_value(tool.output_schema.as_ref().expect("outputSchema declared")).unwrap();
+    for property in ["temperature", "conditions", "humidity"] {
+        assert!(
+            schema["properties"][property].is_object(),
+            "outputSchema describes {property}: {schema}"
+        );
+    }
+
+    let result = client
+        .call_tool(call_with_args(
+            "get-structured-content",
+            &serde_json::json!({"location": "Chicago"}),
+        ))
+        .await
+        .expect("structured tool call");
+    let structured = result
+        .structured_content
+        .as_ref()
+        .expect("structuredContent present");
+    assert_eq!(structured["temperature"], 36.0);
+    assert_eq!(structured["conditions"], "Light rain / drizzle");
+    assert_eq!(structured["humidity"], 82.0);
+    // The backward-compatible text block carries the same JSON document.
+    let text = result.content[0].as_text().expect("text block present");
+    let parsed: serde_json::Value = serde_json::from_str(&text.text).expect("text is JSON");
+    assert_eq!(&parsed, structured);
+
+    // An unknown city is rejected at the parameter boundary like every
+    // other schema violation.
+    let bad = client
+        .call_tool(call_with_args(
+            "get-structured-content",
+            &serde_json::json!({"location": "Atlantis"}),
+        ))
+        .await;
+    assert_eq!(mcp_error(bad).code, ErrorCode::INVALID_PARAMS);
+    client.cancel().await.expect("clean shutdown");
+}
