@@ -105,6 +105,8 @@ jobs:
         run: cargo doc --workspace --no-deps
       - name: README coverage table in sync with the registry
         run: cargo xtask coverage --check
+      - name: File-size cap on source and registry files
+        run: cargo xtask file-sizes
 
   deny:
     name: cargo-deny

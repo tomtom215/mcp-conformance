@@ -46,6 +46,9 @@ fn main() -> ExitCode {
             if !run_all(&ci_steps()) {
                 return ExitCode::FAILURE;
             }
+            if !file_size_gate() {
+                return ExitCode::FAILURE;
+            }
             eprintln!("xtask: coverage table in sync — cargo xtask coverage --check");
             coverage::run(true)
         }
@@ -57,6 +60,13 @@ fn main() -> ExitCode {
             }
         }
         Some("coverage") => coverage::run(args.next().as_deref() == Some("--check")),
+        Some("file-sizes") => {
+            if file_size_gate() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
         Some("conformance") => conformance::run(),
         Some(other) => {
             eprintln!("unknown task {other:?}\n{USAGE}");
@@ -69,7 +79,58 @@ fn main() -> ExitCode {
     }
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+
+/// The ≤ 500-line cap from 04-engineering-standards §Source standards,
+/// enforced over non-test source (crate and xtask `src/` trees) and the
+/// embedded registry documents (whose loader promises per-file
+/// reviewability). Integration tests and benches live outside `src/` and
+/// are exempt by construction.
+fn file_size_gate() -> bool {
+    const CAP: usize = 500;
+    let root = workspace_root();
+    let mut roots: Vec<PathBuf> = vec![root.join("xtask/src")];
+    if let Ok(crates) = std::fs::read_dir(root.join("crates")) {
+        for krate in crates.filter_map(Result::ok) {
+            roots.push(krate.path().join("src"));
+            roots.push(krate.path().join("registry"));
+        }
+    }
+    let mut offenders = Vec::new();
+    while let Some(dir) = roots.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.filter_map(Result::ok) {
+            let path = entry.path();
+            if path.is_dir() {
+                roots.push(path);
+            } else if path
+                .extension()
+                .is_some_and(|ext| ext == "rs" || ext == "json")
+                && let Ok(text) = std::fs::read_to_string(&path)
+            {
+                let lines = text.lines().count();
+                if lines > CAP {
+                    offenders.push((path, lines));
+                }
+            }
+        }
+    }
+    if offenders.is_empty() {
+        eprintln!("xtask: file sizes — every source and registry file is within {CAP} lines");
+        true
+    } else {
+        for (path, lines) in &offenders {
+            eprintln!(
+                "xtask: file sizes — {} is {lines} lines (cap {CAP}); split it at a \
+                 reviewable seam",
+                path.display()
+            );
+        }
+        false
+    }
+}
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {

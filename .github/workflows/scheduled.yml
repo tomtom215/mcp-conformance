@@ -92,7 +92,8 @@ jobs:
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
       # Five minutes per target weekly; committed seed corpora keep coverage warm.
-      # The canonical_json target asserts parse(canonical(v)) == v, not mere survival.
+      # The canonical_json target asserts parse(canonical(v)) == v, not mere survival,
+      # and trace_parse runs every parseable input through the full validation engine.
       - name: Fuzz all targets
         run: |
           for target in trace_parse canonical_json registry_parse; do

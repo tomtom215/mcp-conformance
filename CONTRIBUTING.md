@@ -75,7 +75,7 @@ ci(mutants): scope the PR gate to the diff
 ## Pull requests
 
 The PR template checklist is the contract; the short version: SPDX header on every new
-file, ≤ 500 lines per file, rustdoc on new public items, tests for new code, ADR for
+file, ≤ 500 lines per source file (`cargo xtask file-sizes`), rustdoc on new public items, tests for new code, ADR for
 architectural decisions ([docs/plan/decisions/](docs/plan/decisions/README.md)), plan
 documents updated when scope or status changed. No PR merges red — including docs-only
 PRs, because docs build with `-D warnings` too.

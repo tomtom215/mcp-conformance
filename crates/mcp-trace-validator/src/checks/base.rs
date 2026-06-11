@@ -16,6 +16,10 @@ use serde_json::Value;
 use super::FindingSink;
 use crate::context::TraceContext;
 
+mod meta;
+
+pub(super) use meta::meta_key_format;
+
 /// Human name of a JSON value's type, for finding details.
 fn type_name(value: &Value) -> &'static str {
     match value {
@@ -320,86 +324,6 @@ pub(super) fn jsonrpc_version(context: &TraceContext<'_>, sink: &mut FindingSink
     }
 }
 
-/// `BASE-019`/`BASE-020`: `_meta` key grammar — an optional dotted-label
-/// prefix ending in `/`, then a name that begins and ends alphanumeric.
-///
-/// Scope: the `params._meta` and `result._meta` objects — the
-/// "property/parameter" positions the clauses name on the message envelope.
-/// `_meta` objects nested deeper (content items, tool definitions) share the
-/// grammar but collide with user-defined data (a tool's `arguments` may
-/// legitimately contain a member spelled `_meta`), so the envelope positions
-/// are the sound, false-positive-free scope.
-pub(super) fn meta_key_format(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    for (event, _, _) in context.messages() {
-        let Some(payload) = event.message_payload() else {
-            continue;
-        };
-        for envelope in ["params", "result"] {
-            let meta = payload
-                .get(envelope)
-                .and_then(|member| member.get("_meta"))
-                .and_then(Value::as_object);
-            let Some(meta) = meta else { continue };
-            for key in meta.keys() {
-                if let Err(reason) = validate_meta_key(key) {
-                    sink.push(
-                        Some(event.seq),
-                        format!("{envelope}._meta key {key:?} {reason}"),
-                    );
-                }
-            }
-        }
-    }
-}
-
-/// Validates one `_meta` key against the `2025-11-25` grammar: an optional
-/// `label(.label)*/` prefix (labels start with a letter, end with a letter or
-/// digit, interior letters/digits/hyphens) and a name that, unless empty,
-/// begins and ends alphanumeric with `-`/`_`/`.`/alphanumerics between.
-fn validate_meta_key(key: &str) -> Result<(), String> {
-    let (prefix, name) = match key.split_once('/') {
-        Some((prefix, name)) => (Some(prefix), name),
-        None => (None, key),
-    };
-    if let Some(prefix) = prefix {
-        for label in prefix.split('.') {
-            let bytes = label.as_bytes();
-            let shape_ok = bytes.first().is_some_and(u8::is_ascii_alphabetic)
-                && bytes.last().is_some_and(u8::is_ascii_alphanumeric)
-                && bytes
-                    .iter()
-                    .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'-');
-            if !shape_ok {
-                return Err(format!(
-                    "has prefix label {label:?}; labels must start with a letter, end with \
-                     a letter or digit, and contain only letters, digits, or hyphens"
-                ));
-            }
-        }
-    }
-    if !name.is_empty() {
-        let bytes = name.as_bytes();
-        if !bytes.first().is_some_and(u8::is_ascii_alphanumeric)
-            || !bytes.last().is_some_and(u8::is_ascii_alphanumeric)
-        {
-            return Err(
-                "has a name that does not begin and end with an alphanumeric character".to_owned(),
-            );
-        }
-        if !bytes
-            .iter()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
-        {
-            return Err(
-                "has a name with characters outside alphanumerics, hyphens, underscores, \
-                 and dots"
-                    .to_owned(),
-            );
-        }
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -460,63 +384,5 @@ mod tests {
             r#"{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":18446744073709551615,"method":"tools/list"}}"#
         );
         assert!(run_check("base.request-id-type", &trace).is_empty());
-    }
-
-    #[test]
-    fn meta_key_grammar_table() {
-        use super::validate_meta_key;
-        for valid in [
-            "progressToken",
-            "x",
-            "n.a-me_0",
-            "com.example/key",
-            "com.example/",
-            "a/b",
-            "a1-b/n",
-            "io.modelcontextprotocol/x",
-        ] {
-            assert!(
-                validate_meta_key(valid).is_ok(),
-                "{valid:?} should be valid"
-            );
-        }
-        for invalid in [
-            "1bad/x", // label starts with a digit
-            "bad-/x", // label ends with a hyphen
-            "a..b/x", // empty interior label
-            "/x",     // empty prefix label
-            "a_b/x",  // underscore not allowed in labels
-            "a/-x",   // name starts with a hyphen
-            "a/x.",   // name ends with a dot
-            "a/x y",  // space in name
-            "a/b/c",  // slash in name
-            "",       // empty bare name… is an empty name, which is allowed
-        ] {
-            if invalid.is_empty() {
-                // Documented edge: an empty name is allowed ("Unless empty…"),
-                // and a bare empty key has no prefix either.
-                assert!(validate_meta_key(invalid).is_ok());
-            } else {
-                assert!(
-                    validate_meta_key(invalid).is_err(),
-                    "{invalid:?} should be invalid"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn meta_key_format_scopes_to_envelope_meta_only() {
-        // params._meta violations are findings; identical spellings inside
-        // user data (tool arguments) are not.
-        let trace = format!(
-            "{INIT}\n{}\n{}",
-            r#"{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"ping","params":{"_meta":{"1bad./t":1}}}}"#,
-            r#"{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{"_meta":{"1bad./t":1}}}}}"#
-        );
-        let findings = run_check("base.meta-key-format", &trace);
-        assert_eq!(findings.len(), 1, "{findings:?}");
-        assert!(findings[0].detail.contains("params._meta"), "{findings:?}");
-        assert_eq!(findings[0].seq, Some(1));
     }
 }

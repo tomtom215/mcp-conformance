@@ -4,7 +4,7 @@
 # Engineering Standards
 
 **Status:** Active
-**Last reviewed:** 2026-06-09
+**Last reviewed:** 2026-06-11
 
 ---
 
@@ -17,9 +17,9 @@ later never arrives.
 
 | Standard | Rule |
 |----------|------|
-| License headers | SPDX header (`MIT`) + copyright line on **every** file: Rust, TOML, YAML, Markdown, shell. |
+| License headers | SPDX header (`MIT`) + copyright line on **every** file whose format carries comments: Rust, TOML, YAML, Markdown, shell, proptest regressions. Comment-incapable formats (JSON, lockfiles, `.cff`, binary fuzz seeds) are exempt — they cannot carry one. Third-party texts keep their own license header (`CODE_OF_CONDUCT.md` is CC-BY-4.0 Contributor Covenant). |
 | Unsafe code | `#![forbid(unsafe_code)]` at every library crate root — a compile-time guarantee, not a lint. |
-| File size | ≤ 500 lines per file. Thin `mod.rs` files (re-exports and docs only). |
+| File size | ≤ 500 lines per non-test source file (`src/` trees) and per embedded registry document, enforced by `cargo xtask file-sizes` in CI. Integration tests and benches are exempt (they live outside `src/`) but should stay navigable. Thin `mod.rs` files (re-exports and docs only). |
 | Panics | No `unwrap()`/`expect()`/`panic!()` reachable from untrusted input. Malformed traces, hostile JSON, and broken transports produce typed errors and documented exit codes. |
 | Public API docs | rustdoc on every public item, with runnable examples on entry points. `RUSTDOCFLAGS="-D warnings"`. |
 | Comments | Explain *why* and constraints — never narrate the next line. Config values carry their justification (the a2a-rust `mutants.toml` discipline). |
@@ -80,7 +80,9 @@ superseded pushes (never for `main`); least-privilege workflow permissions.
 - Every dependency is a liability; the burden of proof is on adding it.
   `mcp-conformance-core` carries serde-family only ([02-architecture.md](02-architecture.md)).
 - Workspace-level version ranges with upper bounds (`>=x.y, <next-major`), the a2a-rust
-  convention; `deny.toml` enforces the license allowlist and bans duplicate-major drift.
+  convention; `deny.toml` enforces the license allowlist, denies wildcards, and warns on
+  duplicate-major drift (warn, not deny: transitive churn happens — the config carries
+  the justification).
 - `Cargo.lock` committed (workspace contains binaries and a CLI; reproducible CI outweighs
   library-lockfile purism).
 

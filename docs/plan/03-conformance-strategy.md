@@ -104,7 +104,12 @@ sessions through our validator: the server's tap (feature `tap`, `--tap-dir`) re
 every admitted session as a validator-ready JSON Lines trace, and the agreement step
 fails on any MUST-level validator finding not explained in
 `conformance/agreement-divergences.json` (every entry requires a triage class and an
-upstream link; unknown fields are rejected). The reconciliation is written to
+upstream link; unknown fields are rejected). The baseline gates in both directions
+(2026-06-11): an entry that explains nothing in the current run is *stale* — the
+divergence it described no longer occurs — and fails the run until removed, so an
+explanation leaves the baseline in the same change that resolves it (typically the
+suite pin bump), and a lingering pattern can never silently absorb the next
+same-requirement failure. The reconciliation is written to
 `target/conformance/agreement.json` with full pass/fail/warn/excluded/not-applicable
 accounting. The same tapped sessions generate the committed
 `conformance/coverage-manifest.json` (server capabilities, registry capability gates,
