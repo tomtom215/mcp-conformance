@@ -381,3 +381,78 @@ fn tap_survives_sigkill_with_a_parseable_prefix() {
     assert_valid_trace_prefix(&entries[0].path());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// The tap's "recorded an exchange without its request message" stderr note
+/// fires exactly when it should: once for one session-scoped non-JSON body,
+/// never for clean traffic. The note is the only observable of its guard
+/// condition, so this is the test that kills mutations of that guard
+/// (`&&`→`||` would note every clean exchange; dropping the `!` would note
+/// none of the bad ones).
+#[cfg(feature = "tap")]
+#[test]
+fn tap_notes_unrecordable_request_bodies_exactly_once() {
+    let dir = std::env::temp_dir().join(format!("cli-tap-note-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+        .args(["--transport", "http", "--bind", "127.0.0.1:0", "--tap-dir"])
+        .arg(&dir)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("binary spawns");
+    let stderr = child.stderr.take().unwrap();
+    let mut reader = BufReader::new(stderr);
+    let mut line = String::new();
+    reader.read_line(&mut line).expect("readiness line");
+    let addr = line
+        .trim()
+        .strip_prefix("listening on ")
+        .unwrap_or_else(|| panic!("unexpected readiness line: {line:?}"))
+        .to_owned();
+
+    let init = raw_post(
+        &addr,
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"note-test","version":"0.0.0"}}}"#,
+        None,
+    );
+    assert!(init.starts_with("HTTP/1.1 200"), "{init:?}");
+    let session_id = init
+        .lines()
+        .find_map(|l| {
+            l.to_lowercase()
+                .strip_prefix("mcp-session-id:")
+                .map(str::trim)
+                .map(ToOwned::to_owned)
+        })
+        .expect("session id header");
+    let _ = raw_post(
+        &addr,
+        r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+        Some(&session_id),
+    );
+    let _ = raw_post(
+        &addr,
+        r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"message":"clean"}}}"#,
+        Some(&session_id),
+    );
+    // One session-scoped POST whose body is not JSON: the only exchange that
+    // may produce the note.
+    let _ = raw_post(&addr, "definitely not json", Some(&session_id));
+
+    // Collect everything the server said before dying; the note (when the
+    // guard is correct) is already flushed before the bad POST's response.
+    child.kill().expect("stop server");
+    let _ = child.wait();
+    let mut rest = String::new();
+    std::io::Read::read_to_string(&mut reader, &mut rest).expect("drain stderr");
+    let notes = rest
+        .lines()
+        .filter(|l| l.contains("without its request message"))
+        .count();
+    assert_eq!(
+        notes, 1,
+        "exactly the one bad body is noted; clean traffic is not:\n{rest}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
