@@ -111,6 +111,37 @@ fn http_transport_binds_and_enforces_the_403_policy() {
     let _ = child.wait();
 }
 
+/// TRAN-008: "servers SHOULD bind only to localhost" — the binary's default,
+/// with no `--bind` given, must be a loopback listener. The registry's
+/// TRAN-008 exclusion names this test as the enforcement; every other test
+/// passes `--bind` explicitly and would never notice a widened default.
+#[test]
+fn default_bind_is_loopback() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+        .args(["--transport", "http"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("binary spawns");
+
+    let stderr = child.stderr.take().unwrap();
+    let mut reader = BufReader::new(stderr);
+    let mut line = String::new();
+    reader.read_line(&mut line).expect("readiness line");
+    child.kill().expect("stop server");
+    let _ = child.wait();
+
+    let addr = line
+        .trim()
+        .strip_prefix("listening on ")
+        .unwrap_or_else(|| panic!("unexpected readiness line: {line:?}"));
+    assert!(
+        addr.starts_with("127.0.0.1:"),
+        "default bind must be loopback, got {addr:?}"
+    );
+}
+
 /// `--tap-dir` is an HTTP-transport feature; combining it with stdio must
 /// fail fast (exit 2, the invocation-error convention) before any serving.
 #[cfg(feature = "tap")]

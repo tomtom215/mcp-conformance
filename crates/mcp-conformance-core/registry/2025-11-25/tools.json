@@ -147,7 +147,7 @@
         "section": "server/tools#security-considerations",
         "quote": "Servers MUST: Validate all tool inputs; Implement proper access controls; Rate limit tool invocations; Sanitize tool outputs"
       },
-      "exclusion": "Input validation, access control, rate limiting, and output sanitization are server-internal enforcement without a deterministic wire signature; exercised by mcp-everything-server's policy tests (roadmap M2)."
+      "exclusion": "Input validation, access control, rate limiting, and output sanitization are server-internal enforcement without a deterministic wire signature. Of the four duties, mcp-everything-server implements and tests input validation (tests/roundtrip.rs: tool_call_with_missing_required_argument_is_a_protocol_error and neighbors); access control beyond the transport-layer Host/Origin gate, rate limiting, and output sanitization are not in its scope — it serves fixed synthetic fixtures to a loopback-only harness."
     },
     {
       "id": "TOOL-013",

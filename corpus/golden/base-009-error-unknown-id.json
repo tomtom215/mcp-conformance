@@ -1,7 +1,7 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 36,
+    "pass": 37,
     "fail": 1,
     "warn": 0,
     "excluded": 89,
@@ -257,7 +257,7 @@
       "id": "TRAN-003",
       "level": "MUST",
       "outcome": "excluded",
-      "exclusion": "Encoding is enforced at capture time: trace documents are read as UTF-8, so a trace that parses is evidence the rule held; non-UTF-8 bytes surface as capture-time read failures, not trace findings."
+      "exclusion": "A violation cannot be judged from a trace: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded among what was recorded — and absence is not evidence, because capture tooling may drop undecodable bytes (mcp-everything-server's tap skips non-UTF-8 SSE chunks and unparseable POST bodies). No offline check is sound."
     },
     {
       "id": "TRAN-004",
@@ -285,7 +285,7 @@
       "id": "TRAN-008",
       "level": "SHOULD",
       "outcome": "excluded",
-      "exclusion": "Socket binding is deployment state with no trace footprint. mcp-everything-server binds loopback by default (HttpSecurityPolicy), verified by its transport tests (roadmap M2)."
+      "exclusion": "Socket binding is deployment state with no trace footprint. mcp-everything-server defaults to a loopback bind (the --bind clap default in src/main.rs), asserted by default_bind_is_loopback in tests/cli.rs."
     },
     {
       "id": "TRAN-009",
@@ -353,7 +353,7 @@
       "id": "TRAN-020",
       "level": "MUST",
       "outcome": "excluded",
-      "exclusion": "The server's supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. Exercised against mcp-everything-server's declared support in its transport tests (roadmap M2)."
+      "exclusion": "The server's supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. mcp-everything-server answers an in-session request bearing an unsupported MCP-Protocol-Version with 400 (rmcp's streamable HTTP tower layer; the initialize exchange itself negotiates in-band and does not consult the header), asserted by unsupported_protocol_version_is_rejected_with_400 in tests/http_policy.rs."
     },
     {
       "id": "TRAN-021",
@@ -387,8 +387,7 @@
     {
       "id": "TRAN-026",
       "level": "MUST",
-      "outcome": "excluded",
-      "exclusion": "The capture format records messages individually: a multi-message body cannot be represented in a trace, so a trace that parses is itself the evidence (the TRAN-001/TRAN-003 capture-time argument)."
+      "outcome": "pass"
     },
     {
       "id": "TRAN-027",
@@ -520,6 +519,12 @@
       "exclusion": "Conditional on client intent (no longer needing the session), and the request method is not captured."
     },
     {
+      "id": "TRAN-049",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Restates TRAN-024's obligation as the section's first numbered step (two normative sentences, one constraint). Recorded HTTP events carry status and conformance-relevant headers, not request methods or targets, so the clause's subject is invisible in a trace."
+    },
+    {
       "id": "TOOL-001",
       "level": "MUST",
       "outcome": "pass"
@@ -588,7 +593,7 @@
       "id": "TOOL-012",
       "level": "MUST",
       "outcome": "excluded",
-      "exclusion": "Input validation, access control, rate limiting, and output sanitization are server-internal enforcement without a deterministic wire signature; exercised by mcp-everything-server's policy tests (roadmap M2)."
+      "exclusion": "Input validation, access control, rate limiting, and output sanitization are server-internal enforcement without a deterministic wire signature. Of the four duties, mcp-everything-server implements and tests input validation (tests/roundtrip.rs: tool_call_with_missing_required_argument_is_a_protocol_error and neighbors); access control beyond the transport-layer Host/Origin gate, rate limiting, and output sanitization are not in its scope — it serves fixed synthetic fixtures to a loopback-only harness."
     },
     {
       "id": "TOOL-013",
@@ -635,7 +640,7 @@
       "id": "RES-005",
       "level": "MUST",
       "outcome": "excluded",
-      "exclusion": "URI validation is server-internal enforcement; a trace shows the URIs exchanged, not whether the server vetted them. Exercised by mcp-everything-server's policy tests (roadmap M2)."
+      "exclusion": "URI validation is server-internal enforcement; a trace shows the URIs exchanged, not whether the server vetted them. mcp-everything-server's read path is fail-closed — unknown or malformed URIs resolve to None — asserted by template_rejects_malformed_instantiations (src/resources.rs) and the unknown-URI protocol-error assertion in resources_surface_matches_the_scenarios (tests/roundtrip.rs)."
     },
     {
       "id": "RES-006",
@@ -735,7 +740,7 @@
       "id": "LOG-002",
       "level": "MUST NOT",
       "outcome": "excluded",
-      "exclusion": "Deciding whether free-form log data contains secrets or PII is semantic content analysis, not structural validation; offline heuristics would produce non-deterministic, unfalsifiable verdicts."
+      "exclusion": "Deciding whether free-form log data contains secrets or PII is semantic content analysis, not structural validation; offline heuristics would produce unsound, unfalsifiable verdicts — a fixed pattern list is deterministic but proves nothing about what it misses."
     },
     {
       "id": "LOG-003",

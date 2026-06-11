@@ -31,7 +31,9 @@
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "The body of the POST request MUST be a single JSON-RPC request, notification, or response."
       },
-      "exclusion": "The capture format records messages individually: a multi-message body cannot be represented in a trace, so a trace that parses is itself the evidence (the TRAN-001/TRAN-003 capture-time argument)."
+      "checks": [
+        "transport.http-post-single-message"
+      ]
     },
     {
       "id": "TRAN-027",
@@ -258,6 +260,16 @@
         "quote": "Clients that no longer need a particular session (e.g., because the user is leaving the client application) SHOULD send an HTTP DELETE to the MCP endpoint with the `MCP-Session-Id` header, to explicitly terminate the session."
       },
       "exclusion": "Conditional on client intent (no longer needing the session), and the request method is not captured."
+    },
+    {
+      "id": "TRAN-049",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "The client MUST use HTTP POST to send JSON-RPC messages to the MCP endpoint."
+      },
+      "exclusion": "Restates TRAN-024's obligation as the section's first numbered step (two normative sentences, one constraint). Recorded HTTP events carry status and conformance-relevant headers, not request methods or targets, so the clause's subject is invisible in a trace."
     }
   ]
 }

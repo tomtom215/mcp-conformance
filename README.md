@@ -42,7 +42,7 @@ MCP trace validation — revision 2025-11-25
   ...
   FAIL  LIFE-001 (MUST)
         seq 0: first message is a "tools/list" request, expected "initialize"
-totals: 35 pass, 1 fail, 1 warn, 89 excluded, 0 unsupported, 13 not applicable
+totals: 36 pass, 1 fail, 1 warn, 89 excluded, 0 unsupported, 13 not applicable
 verdict: fail
 ```
 
@@ -56,16 +56,16 @@ the numbers cannot drift from the data:
 |------|-------------:|--------:|---------:|-----------------:|
 | BASE | 24 | 12 | 12 | 0 |
 | LIFE | 17 | 9 | 8 | 0 |
-| TRAN | 48 | 10 | 38 | 0 |
+| TRAN | 49 | 11 | 38 | 0 |
 | TOOL | 15 | 9 | 6 | 13 |
 | RES | 10 | 3 | 7 | 6 |
 | PROM | 10 | 4 | 6 | 7 |
 | LOG | 5 | 1 | 4 | 4 |
 | COMP | 5 | 1 | 4 | 3 |
 | PAGE | 5 | 1 | 4 | 0 |
-| **Total** | **139** | **50** | **89** | **33** |
+| **Total** | **140** | **51** | **89** | **33** |
 
-Revision `2025-11-25`: 139 requirements — 50 judged by 46 distinct trace checks (every check falsified by a committed violation trace), 89 carrying documented exclusions explaining why a recorded trace cannot judge them. Capability-gated requirements report *not-applicable* (never a vacuous pass) for sessions that did not negotiate the capability.
+Revision `2025-11-25`: 140 requirements — 51 judged by 47 distinct trace checks (every check falsified by a committed violation trace), 89 carrying documented exclusions explaining why a recorded trace cannot judge them. Capability-gated requirements report *not-applicable* (never a vacuous pass) for sessions that did not negotiate the capability.
 <!-- coverage:end -->
 
 ## The trace format, in one example
@@ -89,7 +89,7 @@ registry, addressed to the offending event:
 ```text
   FAIL  BASE-003 (MUST NOT)
         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
-totals: 44 pass, 1 fail, 0 warn, 89 excluded, 0 unsupported, 5 not applicable
+totals: 45 pass, 1 fail, 0 warn, 89 excluded, 0 unsupported, 5 not applicable
 verdict: fail
 ```
 

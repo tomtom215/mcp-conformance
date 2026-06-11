@@ -71,6 +71,12 @@ The spec as data, and the engine that judges traces against it.
       verbatim against the published text in the same audit, and the agreement check
       over the suite's 30 tapped sessions stayed at zero unexplained divergence with
       the new checks active.)*
+      *(Second adversarial audit, 2026-06-11, post-v0.2.0: one further clause — transports' numbered restatement
+      of the POST obligation, now TRAN-049 — and TRAN-026 converted from a falsely
+      excluded entry ("a multi-message body cannot be represented in a trace" — untrue:
+      the payload is an arbitrary JSON value) to a judged one with a killer trace.
+      140 entries, 51 judged by 47 checks, 89 exclusions, each exclusion's
+      enforcement-pointer now verified against a named test.)*
 - [x] Validator replays the corpus deterministically: 100% pass on known-good traces;
       **every check is killed by at least one injected-violation trace**; byte-identical
       reports across platforms and runs.

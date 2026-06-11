@@ -175,6 +175,10 @@ pub static ALL: &[Check] = &[
         run: transport::protocol_version_negotiated,
     },
     Check {
+        id: "transport.http-post-single-message",
+        run: transport::http_post_single_message,
+    },
+    Check {
         id: "transport.client-accept-header",
         run: transport::client_accept_header,
     },

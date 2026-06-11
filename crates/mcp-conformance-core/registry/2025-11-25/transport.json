@@ -29,7 +29,7 @@
         "section": "basic/transports",
         "quote": "JSON-RPC messages MUST be UTF-8 encoded."
       },
-      "exclusion": "Encoding is enforced at capture time: trace documents are read as UTF-8, so a trace that parses is evidence the rule held; non-UTF-8 bytes surface as capture-time read failures, not trace findings."
+      "exclusion": "A violation cannot be judged from a trace: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded among what was recorded — and absence is not evidence, because capture tooling may drop undecodable bytes (mcp-everything-server's tap skips non-UTF-8 SSE chunks and unparseable POST bodies). No offline check is sound."
     },
     {
       "id": "TRAN-004",
@@ -83,7 +83,7 @@
         "section": "basic/transports#security-warning",
         "quote": "When running locally, servers SHOULD bind only to localhost (127.0.0.1) rather than all network interfaces (0.0.0.0)"
       },
-      "exclusion": "Socket binding is deployment state with no trace footprint. mcp-everything-server binds loopback by default (HttpSecurityPolicy), verified by its transport tests (roadmap M2)."
+      "exclusion": "Socket binding is deployment state with no trace footprint. mcp-everything-server defaults to a loopback bind (the --bind clap default in src/main.rs), asserted by default_bind_is_loopback in tests/cli.rs."
     },
     {
       "id": "TRAN-009",
@@ -211,7 +211,7 @@
         "section": "basic/transports#protocol-version-header",
         "quote": "If the server receives a request with an invalid or unsupported `MCP-Protocol-Version`, it MUST respond with `400 Bad Request`."
       },
-      "exclusion": "The server's supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. Exercised against mcp-everything-server's declared support in its transport tests (roadmap M2)."
+      "exclusion": "The server's supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. mcp-everything-server answers an in-session request bearing an unsupported MCP-Protocol-Version with 400 (rmcp's streamable HTTP tower layer; the initialize exchange itself negotiates in-band and does not consult the header), asserted by unsupported_protocol_version_is_rejected_with_400 in tests/http_policy.rs."
     },
     {
       "id": "TRAN-021",

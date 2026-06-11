@@ -11,7 +11,39 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Added
+
+- `mcp-trace-validator`: `transport.http-post-single-message` — TRAN-026
+  ("The body of the POST request MUST be a single JSON-RPC request,
+  notification, or response.") is now judged, with a killer trace
+  (`tran-026-http-post-batch.jsonl`). Its previous exclusion claimed a
+  multi-message body "cannot be represented in a trace" — untrue (the payload
+  is an arbitrary JSON value, and a batch was only caught generically under
+  BASE-008, never attributed to TRAN-026). Registry: 140 entries, 51 judged
+  by 47 checks, 89 documented exclusions.
+- Registry `TRAN-049`: the transports page states the client POST obligation
+  twice (an intro sentence and a numbered step three lines apart); only one
+  sentence was an entry. "Every MUST on an in-scope page enters — no
+  exceptions" now holds for both, the restatement excluded with prose naming
+  its twin.
+- `mcp-everything-server`: two tests the registry's exclusions claimed
+  existed but did not — `unsupported_protocol_version_is_rejected_with_400`
+  (TRAN-020: pins rmcp 1.7's in-session 400; the initialize exchange itself
+  never consults the header, measured) and `default_bind_is_loopback`
+  (TRAN-008: every other test passes `--bind` explicitly and would never
+  notice a widened default).
+
 ### Fixed
+
+- Five registry exclusions said things the code disproves, found by tracing
+  every "enforced instead" pointer to its target: TOOL-012 cited "policy
+  tests" for four duties of which two (rate limiting, output sanitization)
+  are implemented nowhere; RES-005 cited the wrong test file; TRAN-003
+  claimed non-UTF-8 bytes "surface as capture-time read failures" while the
+  tap silently skips them; TRAN-008 named the wrong enforcement site;
+  LOG-002 called heuristic verdicts "non-deterministic" when the defect is
+  unsoundness. Each now states what is actually enforced, where, and by
+  which named test.
 
 - The trusted-publishing record was false everywhere it appeared: RELEASING.md,
   ADR-0007's amendment, `release.yml`'s comments and run summary, and the

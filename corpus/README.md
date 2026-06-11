@@ -86,4 +86,5 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 | `tran-017-protocol-version-header-missing.jsonl` | TRAN-017 |
 | `tran-018-protocol-version-mismatched.jsonl` | TRAN-018 |
 | `tran-025-accept-header-missing.jsonl` | TRAN-025, TRAN-039 (shared `transport.client-accept-header` check) |
+| `tran-026-http-post-batch.jsonl` | TRAN-026 (a batch array POSTed after a clean handshake) |
 | `tran-029-content-type-unexpected.jsonl` | TRAN-029, TRAN-040 (shared `transport.success-content-type` check) |
