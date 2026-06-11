@@ -60,6 +60,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 - `mcp-conformance-core`: `TraceEvent::new` — the constructor capture
   tooling needs (`TraceEvent` is `#[non_exhaustive]`, so out-of-crate
   literals don't compile).
+- `mcp-everything-server`: `tap::RECORDED_HEADERS` is now public — the
+  recording allowlist is worth inspecting, and the doc gate (now run with
+  `--all-features`) caught a private-intra-doc link that made it so.
 - `mcp-everything-server`: streamable HTTP serving (`--transport http`)
   behind the default-secure `Host`/`Origin` policy — 403 before any MCP
   processing, loopback-only by default, `--allowed-host` /
@@ -85,13 +88,40 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   from `release.yml` now that all four crates enforce "Trusted Publishing Only"
   and the bootstrap token is deleted and revoked (ADR-0007 §Amendment).
 
+### Security
+
+- `mcp-everything-server`: the `Host`/`Origin` 403 gate now fails closed on
+  duplicate `Host` or `Origin` headers (a smuggling shape — it previously
+  judged only the first value while a downstream consumer could key off a
+  later one). A well-formed request carries exactly one of each.
+- `mcp-everything-server`: the per-session `resources/subscribe` set is
+  capped, so a hostile client cannot grow its bookkeeping without bound.
+
 ### Fixed
 
+- `mcp-conformance-core`: `to_canonical_string` walks nesting with an explicit
+  heap work-stack instead of recursion — a deeply nested hostile value can no
+  longer overflow the call stack (an uncatchable abort). Output is
+  byte-identical.
+- `mcp-conformance-core`: `EventBody::Http` normalizes header field names to
+  lowercase on deserialization (HTTP names are case-insensitive, RFC 9110
+  §5.1). Previously a trace recording on-the-wire casing (`Mcp-Session-Id`,
+  `Mcp-Protocol-Version`) slipped past the case-sensitive transport checks,
+  hiding a bad session id or protocol version behind its capitalization.
+- `mcp-trace-validator`: BASE-004/BASE-009 now flag a request answered by
+  *both* a result and an error (each check formerly tracked only its own
+  response flavor and saw a clean one-to-one).
+- `mcp-trace-validator`: JUnit XML escaping substitutes the C0 control
+  characters XML 1.0 forbids entirely (other than tab/LF/CR), so a report can
+  never be an ill-formed document a strict CI parser rejects.
 - `mcp-everything-server`: the session tap's SSE splitter now stops
   recording a stream whose un-delimited frame outgrows the recording budget
   (the same 4 MiB bound the JSON path already had) instead of buffering it
   without limit — recording is diagnostics and must never be what takes the
   server down. The stream itself still flows to the client untouched.
+- `mcp-everything-server`: the tap records repeated HTTP header field lines as
+  their comma-joined value (RFC 9110 §5.3), so a split `Accept` header is
+  captured faithfully rather than truncated to its first line.
 - Release packaging excludes `xtask` (`publish = false`, but
   `cargo package --workspace` still packaged it; v0.1.0's GitHub Release
   carries the stray — harmless — crate file).
