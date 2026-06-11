@@ -135,7 +135,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   exactly what the evidence supports: the config was added 2026-06-11 and is
   proven by the OIDC publish of all four crates; the "Trusted Publishing Only"
   toggle, the bootstrap secret's deletion, and the token's revocation are
-  owner-visible only and stand unconfirmed (ADR-0007 §Correction).
+  owner-visible only — the owner confirmed on 2026-06-11, after the
+  correction landed, that trusted publishing is working as intended
+  (ADR-0007 §Correction records the confirmation and its weight).
 
 ## [0.2.0] - 2026-06-11
 

@@ -7,9 +7,11 @@
 > are published. The publish job authenticates only via OIDC, and the v0.2.0
 > publish is the proof that trusted publishing is configured for all four crates —
 > its first attempt failed (crates.io: `No Trusted Publishing config found`), the
-> owner added the config, and the re-run published. Whether the per-crate
-> **"Trusted Publishing Only"** switch is also enabled is visible only to the
-> owner and is unconfirmed (ADR-0007 §Correction).
+> owner added the config, and the re-run published. The owner confirmed on
+> 2026-06-11, after that correction, that trusted publishing is working as
+> intended — the per-crate **"Trusted Publishing Only"** switch and the bootstrap
+> token's revocation rest on that statement, since the registry exposes no
+> external check (ADR-0007 §Correction).
 
 ## Principles
 
@@ -78,8 +80,10 @@ and tags are never moved.
 > the owner then configured trusted publishing, and the re-run published all four
 > crates via OIDC — the actual completion of step 4's first half. The "Trusted
 > Publishing Only" toggle (step 4's second half) and step 5's secret deletion and
-> token revocation are owner-visible only and unconfirmed. Kept as the procedure
-> record for any future first-publish of a new crate name.
+> token revocation are owner-visible only; the owner confirmed on 2026-06-11,
+> after the record correction, that trusted publishing is working as intended
+> (ADR-0007 §Correction records the confirmation and its evidentiary weight).
+> Kept as the procedure record for any future first-publish of a new crate name.
 
 1. On crates.io: Account Settings → API Tokens → **New Token** — name it
    `mcp-conformance bootstrap`, expiry **7 days**, scopes **publish-new** +

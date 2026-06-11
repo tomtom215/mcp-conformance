@@ -106,13 +106,16 @@ What is verified now, and how:
 - **The publish job is OIDC-only**: `release.yml` contains no token fallback; the
   only `CARGO_REGISTRY_TOKEN` it sets is the OIDC step's 30-minute output
   (verifiable in-repo).
-- **Unconfirmed** (owner-visible only; asserted nowhere in this repository as
-  fact): the per-crate "Trusted Publishing Only" toggle, the deletion of the
-  bootstrap `CARGO_REGISTRY_TOKEN` environment secret, and the bootstrap token's
-  revocation. Until the toggle is confirmed, registry-side rejection of token
-  publishes — the property this ADR's steady state was defined by — is not
-  established; and if the bootstrap token survives unrevoked, the standing risk
-  this ADR set out to remove (a stealable publish credential) still stands.
+- **Owner-stated** (owner-visible only; no external check exists): the per-crate
+  "Trusted Publishing Only" toggle, the deletion of the bootstrap
+  `CARGO_REGISTRY_TOKEN` environment secret, and the bootstrap token's
+  revocation. After this correction landed, the owner confirmed on 2026-06-11
+  that trusted publishing is working as intended; these three items rest on that
+  dated statement — unlike the configuration and OIDC-only facts above, which
+  are mechanically evidenced. The difference from the retracted 2026-06-10
+  "owner-confirmed": this confirmation is a recorded event with a date,
+  responding to a correction that had laid out exactly what was and was not
+  known, rather than a label attached to an unverified checklist.
 
 ## Alternatives Considered
 
