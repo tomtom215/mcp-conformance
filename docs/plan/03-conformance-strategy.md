@@ -4,7 +4,7 @@
 # Conformance Strategy
 
 **Status:** Active
-**Last reviewed:** 2026-06-09
+**Last reviewed:** 2026-06-11
 
 ---
 
@@ -110,7 +110,9 @@ accounting. The same tapped sessions generate the committed
 `conformance/coverage-manifest.json` (server capabilities, registry capability gates,
 methods observed); drift or an undeclared server-party gate fails the run. The check
 earned its keep immediately: its first run surfaced one MUST divergence (triaged
-suite-bug, [#7](https://github.com/tomtom215/mcp-conformance/issues/7)) and one
+suite-bug, [#7](https://github.com/tomtom215/mcp-conformance/issues/7); filed upstream
+as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338),
+2026-06-11) and one
 informational SHOULD warning on the suite's version-compat probe.
 
 ## Official-suite version policy
