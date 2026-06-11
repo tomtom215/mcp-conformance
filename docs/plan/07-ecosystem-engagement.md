@@ -28,7 +28,7 @@ Every item is anchored to a register row, so the backlog dies gracefully if a fa
 
 | # | Contribution | Anchor | Shape |
 |---|--------------|--------|-------|
-| 1 | Everything server into rust-sdk (SEP-1730 appendix asks for one in-repo; none exists) | [2.6, 3.4](01-ecosystem-context.md) | Issue → design alignment → PR or fixture adoption from M2 |
+| 1 | Everything server into rust-sdk (SEP-1730 appendix asks for one in-repo; none exists) | [2.6, 3.4, 3.10](01-ecosystem-context.md) | Issue → design alignment → PR or fixture adoption from M2 — pre-flight record and ready-to-post text in [#9](https://github.com/tomtom215/mcp-conformance/issues/9) (2026-06-11) |
 | 2 | RustSec advisory for CVE-2026-42559 (`cargo audit` currently silent on rmcp < 1.4.0) | [4.3](01-ecosystem-context.md) | Coordinate with rmcp maintainers, then PR to rustsec/advisory-db |
 | 3 | MSRV policy for rust-sdk (none declared; measured floor **1.88** — let-chains — invisible to cargo's MSRV-aware resolver) | [3.5](01-ecosystem-context.md) | Issue with a concrete proposal: `rust-version = "1.88"` + CI job + bump policy; our ADR-0008 probes are the evidence |
 | 4 | Conformance scenarios/fixtures where Rust runs expose suite gaps | [2.3, 3.6](01-ecosystem-context.md) | Small PRs to the conformance repo, SEP-tagged where applicable |
@@ -36,7 +36,7 @@ Every item is anchored to a register row, so the backlog dies gracefully if a fa
 | 6 | Spec-vs-suite discrepancies discovered by the agreement check | [03-conformance-strategy.md](03-conformance-strategy.md) | Issues with reproducing traces attached |
 | 7 | SEP-2484 traceability tooling: the registry already stores the `sep-NNNN.yaml` shape, so an emitter plus a completeness checker (every MUST/MUST NOT mapped, exclusions carrying tracking links) is a query over existing data — recurring per-SEP work the gate created with no owning tool | [2.9, 2.11](01-ecosystem-context.md) | Offer upstream as a conformance-repo utility once M1 publishes; design note first |
 | 8 | Suite reliability where it scores tiers: tier-check counting bug and SDK-repo lifecycle boilerplate, both open upstream | [2.13](01-ecosystem-context.md) | Small, obviously-correct PRs to the conformance repo — credibility builders shaped like backlog items 2 and 3 |
-| 9 | rmcp correctness/hygiene findings from the M2 build-out: client-side `enumNames` round-trip loss (untagged ordering), under-specified dependency floors (four named, with introduction-point evidence), `Implementation::from_build_env()` self-reporting | [3.8, 3.9](01-ecosystem-context.md) | Bug report with failing-test reproduction; floors PR; one-line docs fix |
+| 9 | rmcp correctness/hygiene findings from the M2 build-out: `enumNames` round-trip loss (untagged ordering — mechanism verified, repro in hand), under-specified dependency floors (four named, with introduction-point evidence), `Implementation::from_build_env()` self-reporting | [3.8, 3.9](01-ecosystem-context.md) | Bug report with failing-test reproduction — ready to file in [#10](https://github.com/tomtom215/mcp-conformance/issues/10) (2026-06-11); floors PR; one-line docs fix |
 
 Ordering follows credibility economics: small, obviously-correct contributions (2, 3) earn
 the standing that large ones (1) require.
