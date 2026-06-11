@@ -87,6 +87,13 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- The full `--all-features` mutation sweep (748 mutants, 31 minutes) ran as
+  the audit's closing verification: 641 caught, 105 unviable, 0 timeouts,
+  and exactly 2 missed — both in the tap's non-JSON-body note, code this
+  same audit had added hours earlier (its guard had no observer). The note
+  is now session-scoped (it can never claim a recording that did not
+  happen) and counted against the real binary's stderr; both mutants were
+  re-applied by hand and die against the counting test.
 - Error-path tests now pin *which* error, not just that one occurred —
   six sites asserted only `is_err()`, and one of them proved able to hide a
   deleted security gate: with the sampling capability gate removed, the old
