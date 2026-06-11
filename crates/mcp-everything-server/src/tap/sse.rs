@@ -8,21 +8,30 @@
 #[derive(Default)]
 pub(super) struct SseSplitter {
     buffer: String,
-    /// Set once an un-delimited frame outgrows the recording budget: the
-    /// stream keeps flowing to the client, but this tap stops parsing it.
-    overflowed: bool,
+    /// Set once this stream can no longer be recorded faithfully — an
+    /// un-delimited frame outgrew the recording budget, or a non-UTF-8 chunk
+    /// arrived (recording after either would desynchronize frame boundaries
+    /// and capture garbage). The stream keeps flowing to the client; the tap
+    /// stops parsing it, loudly.
+    stopped: bool,
 }
 
 impl SseSplitter {
     /// Consumes one chunk and returns the payloads of every frame it
-    /// completed. Non-UTF-8 chunks abort recording for this stream (the
-    /// bytes still flow to the client untouched).
+    /// completed. Non-UTF-8 chunks stop recording for this stream — resuming
+    /// at the next chunk could mis-frame everything after the gap — and the
+    /// bytes still flow to the client untouched.
     pub(super) fn push(&mut self, chunk: &[u8]) -> Vec<serde_json::Value> {
-        if self.overflowed {
+        if self.stopped {
             return Vec::new();
         }
         let Ok(text) = std::str::from_utf8(chunk) else {
-            self.buffer.clear();
+            self.stopped = true;
+            self.buffer = String::new();
+            eprintln!(
+                "mcp-everything-server: tap stopped recording an SSE stream after \
+                 a non-UTF-8 chunk (the stream itself flows on)"
+            );
             return Vec::new();
         };
         self.buffer.push_str(text);
@@ -60,7 +69,7 @@ impl SseSplitter {
         // up to the budget itself still records; the buffer can transiently
         // hold residual-plus-one-chunk, which network reads keep small.
         if self.buffer.len() > super::MAX_RECORDED_BODY {
-            self.overflowed = true;
+            self.stopped = true;
             self.buffer = String::new();
             eprintln!(
                 "mcp-everything-server: tap stopped recording an SSE stream whose \
@@ -163,6 +172,23 @@ mod tests {
     }
 
     #[test]
+    fn splitter_stops_recording_after_a_non_utf8_chunk() {
+        // Recording must stop, not resync: a chunk dropped from the middle
+        // of a stream means later frame boundaries cannot be trusted, and a
+        // recorder that guesses records garbage as if it were wire truth.
+        let mut splitter = SseSplitter::default();
+        assert!(splitter.push(b"data: {\"a\":").is_empty());
+        assert!(splitter.push(&[0xFF, 0xFE]).is_empty());
+        assert!(splitter.stopped);
+        assert_eq!(splitter.buffer.capacity(), 0, "partial frame is freed");
+        let frame = b"data: {\"jsonrpc\":\"2.0\",\"method\":\"x\"}\n\n";
+        assert!(
+            splitter.push(frame).is_empty(),
+            "no frame after the gap is recorded"
+        );
+    }
+
+    #[test]
     fn splitter_stops_recording_when_a_frame_outgrows_the_budget() {
         let mut splitter = SseSplitter::default();
         // One giant chunk with no frame boundary anywhere.
@@ -170,7 +196,7 @@ mod tests {
         assert!(splitter.push(oversized.as_bytes()).is_empty());
         // The buffer is freed, not merely cleared-but-capacity-retained.
         assert_eq!(splitter.buffer.capacity(), 0);
-        assert!(splitter.overflowed);
+        assert!(splitter.stopped);
         // The stream is poisoned for recording: even well-formed frames that
         // follow are not parsed (the client still received every byte).
         let frame = b"data: {\"jsonrpc\":\"2.0\",\"method\":\"x\"}\n\n";
@@ -186,7 +212,7 @@ mod tests {
         let at_budget = format!("data: \"{body}\"");
         assert_eq!(at_budget.len(), super::super::MAX_RECORDED_BODY);
         assert!(splitter.push(at_budget.as_bytes()).is_empty());
-        assert!(!splitter.overflowed, "exactly-at-budget must not overflow");
+        assert!(!splitter.stopped, "exactly-at-budget must not overflow");
         assert_eq!(splitter.push(b"\n\n"), vec![json!(body)]);
     }
 }

@@ -20,12 +20,17 @@
 //!   policy rejections (403s) never reach it — they never form sessions and
 //!   are the runner's and the corpus's concern, not the tap's.
 //! - **Write-behind, in order.** Events flow over a bounded channel to one
-//!   writer task that appends each line and flushes before taking the next,
-//!   so a completed exchange is durable even if the process is killed before
-//!   orderly shutdown. The writer assigns `seq` per file in arrival order,
-//!   making the schema's strictly-increasing-seq rule hold by construction
-//!   even when a session's POST exchanges and SSE streams record
-//!   concurrently.
+//!   writer task that appends each line and flushes before taking the next.
+//!   Durability is per *written* record: everything the writer has flushed
+//!   survives a kill; records still queued die with the process, and a kill
+//!   mid-append can leave one torn final line (consumers treat an
+//!   unparseable final line as in-progress, not corruption — pinned by
+//!   `tap_survives_sigkill_with_a_parseable_prefix` in tests/cli.rs). The
+//!   writer assigns `seq` per file in arrival order, making the schema's
+//!   strictly-increasing-seq rule hold by construction even when a session's
+//!   POST exchanges and SSE streams record concurrently; `xtask conformance`
+//!   waits for tap quiescence before stopping the server, so gate runs read
+//!   complete traces.
 //! - **Sessions are trusted to be distinct.** Files are keyed by the
 //!   server-assigned `Mcp-Session-Id`; a client that fabricates another
 //!   session's ID would interleave into that session's file. The tap is
@@ -196,6 +201,15 @@ pub async fn tap_layer(
         return next.run(Request::from_parts(parts, Body::empty())).await;
     };
     let request_payload: Option<serde_json::Value> = serde_json::from_slice(&bytes).ok();
+    if request_payload.is_none() && !bytes.is_empty() {
+        // GET and DELETE bodies are legitimately empty; a non-empty body that
+        // is not JSON cannot be recorded as a message. Say so rather than
+        // leaving a silent hole a trace reader would misread as "no body".
+        eprintln!(
+            "mcp-everything-server: tap recorded an exchange without its request \
+             message (body is not JSON)"
+        );
+    }
     let response = next
         .run(Request::from_parts(parts, Body::from(bytes.clone())))
         .await;

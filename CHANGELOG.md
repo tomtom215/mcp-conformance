@@ -33,6 +33,31 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   (TRAN-008: every other test passes `--bind` explicitly and would never
   notice a widened default).
 
+### Added
+
+- Concurrency and crash-durability proofs for the session tap, replacing
+  reasoning with evidence: 16 sessions recording through one writer at real
+  parallelism (per-file `seq` contiguous from 0, every file parses through
+  the real reader, zero cross-session bleed), and a SIGKILL mid-burst
+  integration test pinning the documented durability shape — every persisted
+  line parses, at most the final line may be torn.
+- `TraceContext::new` (and so `engine::validate`) now *enforces* the
+  strictly-increasing-`seq` contract with a documented panic instead of
+  judging a contract-violating hand-built slice silently wrong; the
+  session-id mutants exclusion's "one event owns one seq" justification now
+  names this enforcement rather than assuming the reader is the only path.
+
+### Changed
+
+- The tap tells the truth about its failure modes, loudly: a non-UTF-8 SSE
+  chunk now stops recording that stream (the doc always said "abort"; the
+  code cleared the buffer and kept parsing — resuming after a dropped chunk
+  can mis-frame everything that follows), and a non-empty request body that
+  is not JSON is reported to stderr instead of leaving a silent hole a trace
+  reader would misread as "no body". Module docs now state the real
+  durability contract: flushed records survive a kill, queued records die
+  with the process, the final line may tear.
+
 ### Fixed
 
 - Error-path tests now pin *which* error, not just that one occurred —

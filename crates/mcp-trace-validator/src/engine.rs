@@ -31,6 +31,13 @@ use crate::report::{Outcome, Report, RequirementReport, Totals};
 /// assert_eq!(report.verdict(), Verdict::Fail); // tools/list before initialize
 /// # Ok::<(), Box<dyn core::error::Error>>(())
 /// ```
+///
+/// # Panics
+///
+/// When `events` is not in strictly increasing `seq` order — a contract
+/// violation only a hand-built slice can commit, since
+/// [`reader::parse_trace`](crate::reader::parse_trace) rejects such
+/// documents ([`TraceContext::new`] documents the reasoning).
 #[must_use]
 pub fn validate(registry: &Registry, events: &[TraceEvent]) -> Report {
     let context = TraceContext::new(events);
