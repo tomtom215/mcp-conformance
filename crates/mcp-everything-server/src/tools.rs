@@ -6,9 +6,10 @@
 //! Two sources define it. The official suite's server scenarios name exact
 //! tools (`test_simple_text`, `test_image_content`, …) with exact response
 //! shapes — those are implemented verbatim, each documenting the scenario it
-//! satisfies. The TypeScript everything server contributes the general-purpose
-//! pair (`echo`, `add`; register 2.10 parity). Divergence from either source
-//! is a reviewable decision, never an accident.
+//! satisfies. The TypeScript everything server contributes `echo`, `add`, and
+//! `get-structured-content` (register 2.10 parity; the suite exercises none
+//! of the three). Divergence from either source is a reviewable decision,
+//! never an accident.
 
 use std::sync::Arc;
 

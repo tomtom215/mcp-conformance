@@ -304,7 +304,7 @@
       "id": "TRAN-010",
       "level": "SHOULD",
       "outcome": "excluded",
-      "exclusion": "Global uniqueness and entropy of an identifier cannot be established from the single sample a trace contains."
+      "exclusion": "Global uniqueness and entropy of an identifier cannot be established from the single sample a trace contains. mcp-everything-server's ids are pinned to the v4-UUID shape (OS RNG) and distinctness by session_ids_are_version_4_uuids_and_distinct in tests/http_policy.rs."
     },
     {
       "id": "TRAN-011",

@@ -18,7 +18,12 @@
 //!   the suite's full server surface: every suite-defined tool ([`tools`],
 //!   with sampling and elicitation in [`interactive`]), resources with
 //!   templates and per-session-capped subscriptions ([`resources`]), prompts
-//!   ([`prompts`]), completions, and logging-level filtering ([`logging`]).
+//!   ([`prompts`]), completions, and logging-level filtering ([`logging`]) —
+//!   plus `get-structured-content`, the TypeScript everything server's
+//!   structured-output tool (`outputSchema` + `structuredContent`), which
+//!   the suite does not exercise but the spec defines. The crate README
+//!   records the two deliberate TypeScript-surface deltas (URL-mode
+//!   elicitation, async sampling) and why.
 //! - The session trace tap (module `tap`, feature `tap`): each admitted HTTP
 //!   session recorded as a validator-ready JSON Lines trace, capturing only
 //!   the headers in its public `RECORDED_HEADERS` allowlist.

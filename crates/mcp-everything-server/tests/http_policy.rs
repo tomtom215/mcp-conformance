@@ -172,3 +172,44 @@ async fn non_mcp_paths_are_policy_gated_too() {
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
+
+#[tokio::test]
+async fn session_ids_are_version_4_uuids_and_distinct() {
+    // TRAN-010 (session ids "SHOULD be generated using a secure random
+    // number generator") is excluded from trace judgment — one sample
+    // proves nothing about entropy — so the source is pinned here instead:
+    // rmcp's ids are Uuid::new_v4 (OS RNG). A regression to anything
+    // sequential or constant breaks the version/variant nibbles or the
+    // distinctness check.
+    let app = router(HttpSecurityPolicy::default());
+    let mut seen = std::collections::HashSet::new();
+    for _ in 0..3 {
+        let response = app
+            .clone()
+            .oneshot(mcp_post(Some("localhost:8080"), None))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let id = response
+            .headers()
+            .get("mcp-session-id")
+            .expect("session id assigned")
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let bytes = id.as_bytes();
+        assert_eq!(bytes.len(), 36, "RFC 9562 textual form: {id}");
+        for (index, byte) in bytes.iter().enumerate() {
+            match index {
+                8 | 13 | 18 | 23 => assert_eq!(*byte, b'-', "{id}"),
+                _ => assert!(byte.is_ascii_hexdigit(), "{id}"),
+            }
+        }
+        assert_eq!(bytes[14], b'4', "version nibble says v4 (random): {id}");
+        assert!(
+            matches!(bytes[19], b'8' | b'9' | b'a' | b'b' | b'A' | b'B'),
+            "variant nibble is RFC 9562: {id}"
+        );
+        assert!(seen.insert(id), "session ids must be distinct");
+    }
+}

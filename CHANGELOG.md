@@ -65,6 +65,17 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Changed
 
+- Two gates can no longer be fooled the way this audit's own tooling was:
+  `docs-links` now also checks reference-style definitions (`[label]:
+  target` — previously the gate's one false-negative path; today's are all
+  external, but a relative one would have passed unchecked), and
+  `file-sizes` fails when its scan finds implausibly few files instead of
+  reporting a vacuous green over an empty walk.
+- `mcp-everything-server`: session-id entropy is pinned, not assumed —
+  `session_ids_are_version_4_uuids_and_distinct` asserts the v4-UUID
+  version/variant nibbles and distinctness on real initialize responses,
+  and TRAN-010's exclusion now cites it (TRAN-011's visible-ASCII check
+  would never notice a regression to sequential ids).
 - The tap tells the truth about its failure modes, loudly: a non-UTF-8 SSE
   chunk now stops recording that stream (the doc always said "abort"; the
   code cleared the buffer and kept parsing — resuming after a dropped chunk

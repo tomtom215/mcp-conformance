@@ -163,6 +163,7 @@ fn file_size_gate() -> bool {
         }
     }
     let mut offenders = Vec::new();
+    let mut scanned = 0usize;
     while let Some(dir) = roots.pop() {
         let Ok(entries) = std::fs::read_dir(&dir) else {
             continue;
@@ -176,6 +177,7 @@ fn file_size_gate() -> bool {
                 .is_some_and(|ext| ext == "rs" || ext == "json")
                 && let Ok(text) = std::fs::read_to_string(&path)
             {
+                scanned += 1;
                 let lines = text.lines().count();
                 if lines > CAP {
                     offenders.push((path, lines));
@@ -183,8 +185,17 @@ fn file_size_gate() -> bool {
             }
         }
     }
+    // A gate that scanned nothing proves nothing: the workspace has dozens
+    // of source files, so an empty walk means the roots are wrong, and a
+    // green verdict from it would be vacuous.
+    if scanned < 10 {
+        eprintln!("xtask: file sizes — only {scanned} files found; the scan roots are wrong");
+        return false;
+    }
     if offenders.is_empty() {
-        eprintln!("xtask: file sizes — every source and registry file is within {CAP} lines");
+        eprintln!(
+            "xtask: file sizes — every source and registry file ({scanned}) is within {CAP} lines"
+        );
         true
     } else {
         for (path, lines) in &offenders {
