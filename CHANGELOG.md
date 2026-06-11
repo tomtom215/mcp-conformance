@@ -11,6 +11,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-11
+
 ### Added
 
 - **Registry completeness audit (2026-06-11)**: clause-by-clause re-extraction
@@ -169,5 +171,6 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.2.0
 [0.1.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.1.0

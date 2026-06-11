@@ -88,7 +88,7 @@ proptest = { workspace = true }
 # No dependency cycle: the validator never depends on this crate. The version
 # accompanies the path per workspace convention — deny.toml's wildcard ban
 # treats a versionless path dependency as a wildcard.
-mcp-trace-validator = { version = "0.1.0", path = "../mcp-trace-validator" }
+mcp-trace-validator = { version = "0.2.0", path = "../mcp-trace-validator" }
 
 [[bin]]
 name = "mcp-everything-server"
