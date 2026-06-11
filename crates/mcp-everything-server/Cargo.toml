@@ -3,7 +3,7 @@
 
 [package]
 name = "mcp-everything-server"
-description = "Reference MCP server exercising every protocol capability (in progress); ships the default-secure HTTP transport policy first"
+description = "Reference MCP server exercising every 2025-11-25 protocol capability on rmcp, behind a default-secure HTTP transport policy, with a session trace tap"
 readme = "README.md"
 keywords = ["mcp", "conformance", "server", "reference", "testing"]
 categories = ["development-tools::testing"]

@@ -19,9 +19,9 @@ These benchmarks measure and print; CI does not compare them against thresholds 
 history. Gating needs a baseline corpus of measurements from pinned hardware, and
 this project has neither accumulated history nor a dedicated runner — a threshold
 invented today would be folklore, and folklore gates rot into `continue-on-error`.
-The decision gets revisited when there is real history to gate against (tracked
-with the M2 work, where the everything-server gives the validator a production-shaped
-workload).
+The decision gets revisited when there is real history to gate against (M2 is
+complete: the everything-server's tapped suite sessions now supply that
+production-shaped workload, so history can start accumulating).
 
 Criterion runs with default features off: no rayon, no HTML/plotters reports —
 console output only.
