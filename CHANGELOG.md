@@ -87,6 +87,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- `mcp-everything-server`: the session tap's SSE splitter now stops
+  recording a stream whose un-delimited frame outgrows the recording budget
+  (the same 4 MiB bound the JSON path already had) instead of buffering it
+  without limit — recording is diagnostics and must never be what takes the
+  server down. The stream itself still flows to the client untouched.
 - Release packaging excludes `xtask` (`publish = false`, but
   `cargo package --workspace` still packaged it; v0.1.0's GitHub Release
   carries the stray — harmless — crate file).

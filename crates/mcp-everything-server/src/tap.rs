@@ -26,6 +26,12 @@
 //!   making the schema's strictly-increasing-seq rule hold by construction
 //!   even when a session's POST exchanges and SSE streams record
 //!   concurrently.
+//! - **Sessions are trusted to be distinct.** Files are keyed by the
+//!   server-assigned `Mcp-Session-Id`; a client that fabricates another
+//!   session's ID would interleave into that session's file. The tap is
+//!   diagnostics for runs this repository drives (the official runner over
+//!   loopback), not a forensic recorder against adversarial clients — the
+//!   security boundary lives in the policy layer in front of it.
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;

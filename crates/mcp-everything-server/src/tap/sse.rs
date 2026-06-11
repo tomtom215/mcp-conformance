@@ -26,19 +26,6 @@ impl SseSplitter {
             return Vec::new();
         };
         self.buffer.push_str(text);
-        // The JSON path bounds recorded bodies (MAX_RECORDED_BODY); without
-        // the same bound here, one frame-boundary-free stream would grow
-        // this buffer until the process dies. Recording is diagnostics — it
-        // must never be the thing that takes the server down.
-        if self.buffer.len() > super::MAX_RECORDED_BODY {
-            self.overflowed = true;
-            self.buffer = String::new();
-            eprintln!(
-                "mcp-everything-server: tap stopped recording an SSE stream whose \
-                 frame exceeded the recording budget"
-            );
-            return Vec::new();
-        }
         let mut payloads = Vec::new();
         // SSE events end at a blank line; tolerate both LF and CRLF framing.
         // The iteration bound is a real invariant, not decoration: every
@@ -64,6 +51,21 @@ impl SseSplitter {
                 payloads.push(payload);
             }
             self.buffer = rest;
+        }
+        // The JSON path bounds recorded bodies (MAX_RECORDED_BODY); without
+        // the same bound here, one frame-boundary-free stream would grow
+        // this buffer until the process dies. Recording is diagnostics — it
+        // must never be the thing that takes the server down. The bound is
+        // checked on the *residual* (after frame extraction), so any frame
+        // up to the budget itself still records; the buffer can transiently
+        // hold residual-plus-one-chunk, which network reads keep small.
+        if self.buffer.len() > super::MAX_RECORDED_BODY {
+            self.overflowed = true;
+            self.buffer = String::new();
+            eprintln!(
+                "mcp-everything-server: tap stopped recording an SSE stream whose \
+                 frame exceeded the recording budget"
+            );
         }
         payloads
     }
@@ -173,5 +175,18 @@ mod tests {
         // follow are not parsed (the client still received every byte).
         let frame = b"data: {\"jsonrpc\":\"2.0\",\"method\":\"x\"}\n\n";
         assert!(splitter.push(frame).is_empty());
+    }
+
+    #[test]
+    fn splitter_budget_boundary_is_exclusive() {
+        // Boundary pinning: a buffered frame of exactly the budget is within
+        // it (> overflows, >= must not). The payload completes and records.
+        let mut splitter = SseSplitter::default();
+        let body = "x".repeat(super::super::MAX_RECORDED_BODY - 8);
+        let at_budget = format!("data: \"{body}\"");
+        assert_eq!(at_budget.len(), super::super::MAX_RECORDED_BODY);
+        assert!(splitter.push(at_budget.as_bytes()).is_empty());
+        assert!(!splitter.overflowed, "exactly-at-budget must not overflow");
+        assert_eq!(splitter.push(b"\n\n"), vec![json!(body)]);
     }
 }
