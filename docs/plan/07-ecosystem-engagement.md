@@ -28,7 +28,7 @@ Every item is anchored to a register row, so the backlog dies gracefully if a fa
 
 | # | Contribution | Anchor | Shape |
 |---|--------------|--------|-------|
-| 1 | Everything server into rust-sdk (SEP-1730 appendix asks for one in-repo; none exists) | [2.6, 3.4, 3.10](01-ecosystem-context.md) | Issue → design alignment → PR or fixture adoption from M2 — pre-flight record and ready-to-post text in [#9](https://github.com/tomtom215/mcp-conformance/issues/9) (2026-06-11) |
+| 1 | Everything server into rust-sdk (SEP-1730 appendix asks for one in-repo; none exists) | [2.6, 3.4, 3.10](01-ecosystem-context.md) | Issue → design alignment → PR or fixture adoption from M2 — **offered as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902)** (2026-06-11; pre-flight in [#9](https://github.com/tomtom215/mcp-conformance/issues/9)); outcome pending, R9 60-day clock running |
 | 2 | RustSec advisory for CVE-2026-42559 (`cargo audit` currently silent on rmcp < 1.4.0) | [4.3](01-ecosystem-context.md) | Coordinate with rmcp maintainers, then PR to rustsec/advisory-db |
 | 3 | MSRV policy for rust-sdk (none declared; measured floor **1.88** — let-chains — invisible to cargo's MSRV-aware resolver) | [3.5](01-ecosystem-context.md) | Issue with a concrete proposal: `rust-version = "1.88"` + CI job + bump policy; our ADR-0008 probes are the evidence |
 | 4 | Conformance scenarios/fixtures where Rust runs expose suite gaps | [2.3, 3.6](01-ecosystem-context.md) | Small PRs to the conformance repo, SEP-tagged where applicable |

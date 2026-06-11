@@ -24,7 +24,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 |-----------|--------|
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
 | M1 — Registry and validator | **Complete** — v0.1.0 published to crates.io via [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142) (attested, byte-verified); every DoD line below carries its evidence |
-| M2 — Everything server | **In progress** (2026-06-10): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite in CI; trace tap, agreement check, and coverage manifest live this series (zero unexplained divergence; first divergence triaged as suite-bug — [#7](https://github.com/tomtom215/mcp-conformance/issues/7)) — remaining: upstream offer (maintainer action; pre-flight record and ready-to-post text in [#9](https://github.com/tomtom215/mcp-conformance/issues/9), 2026-06-11) |
+| M2 — Everything server | **Complete** (2026-06-11): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite in CI ([run #27266174013](https://github.com/tomtom215/mcp-conformance/actions/runs/27266174013)); trace tap, agreement check, and coverage manifest live (zero unexplained divergence; first divergence triaged suite-bug, filed upstream as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338)); everything-server offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) (pre-flight in [#9](https://github.com/tomtom215/mcp-conformance/issues/9)), README-linked — every DoD line below carries its evidence |
 | M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (July 28, 2026); re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
 | M3 — Reference host | Not started |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
@@ -115,9 +115,14 @@ The spec as data, and the engine that judges traces against it.
       ([05-security-model.md](05-security-model.md)) — middleware + rmcp transport check
       kept in sync from one policy; in-process 403 matrix, real-process loopback test,
       and the suite's `dns-rebinding-protection` scenario all green (2026-06-10).
-- [ ] Upstream conversation opened: everything-server offered to
+- [x] Upstream conversation opened: everything-server offered to
       `modelcontextprotocol/rust-sdk` (issue or draft PR), linked from the README whatever
-      the outcome.
+      the outcome. *(2026-06-11: offered as
+      [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) —
+      pre-flight record and posted text in
+      [#9](https://github.com/tomtom215/mcp-conformance/issues/9); README links the
+      conversation from the everything-server section. Outcome (adopt / fixtures /
+      external) tracked in #9; risk R9's 60-day offer clock runs from today.)*
 
 ## M2.5 — `2026-07-28` migration readiness (time-boxed)
 
