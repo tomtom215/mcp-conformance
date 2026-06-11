@@ -104,14 +104,13 @@ fn write_scalar(out: &mut String, value: &Value) {
     // integer-armed numbers, strings, booleans, and null delegate to serde_json's
     // compact serializer, which cannot fail for these variants — the defensive
     // fallback keeps the function total without a reachable panic.
-    if let Value::Number(number) = value {
-        if let Some(float) = number
+    if let Value::Number(number) = value
+        && let Some(float) = number
             .as_f64()
             .filter(|_| !number.is_i64() && !number.is_u64())
-        {
-            out.push_str(&es6_number(float));
-            return;
-        }
+    {
+        out.push_str(&es6_number(float));
+        return;
     }
     match serde_json::to_string(value) {
         Ok(text) => out.push_str(&text),

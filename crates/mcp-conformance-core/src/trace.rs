@@ -108,6 +108,25 @@ pub struct TraceEvent {
 }
 
 impl TraceEvent {
+    /// Builds an event with no timestamp — the constructor capture tooling
+    /// uses (the struct is `#[non_exhaustive]`, so literals only work inside
+    /// this crate). `ts` stays settable afterwards; checks never read it.
+    #[must_use]
+    pub const fn new(
+        seq: u64,
+        direction: Direction,
+        transport: TransportKind,
+        body: EventBody,
+    ) -> Self {
+        Self {
+            seq,
+            direction,
+            transport,
+            body,
+            ts: None,
+        }
+    }
+
     /// The JSON-RPC payload, when this event is a message.
     #[must_use]
     pub const fn message_payload(&self) -> Option<&Value> {
@@ -123,6 +142,28 @@ impl TraceEvent {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn new_builds_the_exact_event_with_no_timestamp() {
+        let event = TraceEvent::new(
+            7,
+            Direction::ServerToClient,
+            TransportKind::StreamableHttp,
+            EventBody::Lifecycle {
+                event: LifecycleEvent::TransportClose,
+            },
+        );
+        assert_eq!(event.seq, 7);
+        assert_eq!(event.direction, Direction::ServerToClient);
+        assert_eq!(event.transport, TransportKind::StreamableHttp);
+        assert_eq!(
+            event.body,
+            EventBody::Lifecycle {
+                event: LifecycleEvent::TransportClose
+            }
+        );
+        assert_eq!(event.ts, None, "checks never read ts; new() never sets it");
+    }
 
     #[test]
     fn message_event_round_trips() {

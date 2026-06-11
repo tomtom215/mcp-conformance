@@ -68,16 +68,16 @@ pub(super) fn capability_declared(context: &TraceContext<'_>, sink: &mut Finding
 /// shape lists the member; this clause constrains its type).
 pub(super) fn input_schema_object(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (seq, tool) in listed_tools(context) {
-        if let Some(schema) = tool.get("inputSchema") {
-            if !schema.is_object() {
-                sink.push(
-                    Some(seq),
-                    format!(
-                        "tool {} has an inputSchema that is not a JSON Schema object: {schema}",
-                        tool_label(tool)
-                    ),
-                );
-            }
+        if let Some(schema) = tool.get("inputSchema")
+            && !schema.is_object()
+        {
+            sink.push(
+                Some(seq),
+                format!(
+                    "tool {} has an inputSchema that is not a JSON Schema object: {schema}",
+                    tool_label(tool)
+                ),
+            );
         }
     }
 }
@@ -133,15 +133,13 @@ pub(super) fn name_unique(context: &TraceContext<'_>, sink: &mut FindingSink) {
         };
         let mut seen = std::collections::BTreeSet::new();
         for tool in tools {
-            if let Some(name) = tool.get("name").and_then(Value::as_str) {
-                if !seen.insert(name) {
-                    sink.push(
-                        Some(exchange.response.seq),
-                        format!(
-                            "tool name {name:?} appears more than once in this tools/list result"
-                        ),
-                    );
-                }
+            if let Some(name) = tool.get("name").and_then(Value::as_str)
+                && !seen.insert(name)
+            {
+                sink.push(
+                    Some(exchange.response.seq),
+                    format!("tool name {name:?} appears more than once in this tools/list result"),
+                );
             }
         }
     }

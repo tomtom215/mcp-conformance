@@ -65,15 +65,15 @@ fn http_headers<'a>(
 /// `TRAN-011`: session IDs must contain only visible ASCII (0x21–0x7E).
 pub(super) fn session_id_visible_ascii(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (seq, headers) in http_headers(context, Direction::ServerToClient) {
-        if let Some(session_id) = headers.get("mcp-session-id") {
-            if !session_id.bytes().all(|byte| (0x21..=0x7E).contains(&byte)) {
-                sink.push(
+        if let Some(session_id) = headers.get("mcp-session-id")
+            && !session_id.bytes().all(|byte| (0x21..=0x7E).contains(&byte))
+        {
+            sink.push(
                     Some(seq),
                     format!(
                         "session ID {session_id:?} contains characters outside visible ASCII (0x21-0x7E)"
                     ),
                 );
-            }
         }
     }
 }
@@ -144,15 +144,15 @@ pub(super) fn protocol_version_negotiated(context: &TraceContext<'_>, sink: &mut
         if seq <= negotiated_seq {
             continue;
         }
-        if let Some(sent) = headers.get("mcp-protocol-version") {
-            if sent != negotiated {
-                sink.push(
+        if let Some(sent) = headers.get("mcp-protocol-version")
+            && sent != negotiated
+        {
+            sink.push(
                     Some(seq),
                     format!(
                         "client sent MCP-Protocol-Version {sent:?}, but {negotiated:?} was negotiated at seq {negotiated_seq}"
                     ),
                 );
-            }
         }
     }
 }

@@ -4,7 +4,7 @@
 # ADR 0007: Release Pipeline — OIDC Trusted Publishing with a One-Time Bootstrap Token
 
 **Date:** 2026-06-09
-**Status:** Accepted
+**Status:** Accepted (amended 2026-06-10 — bootstrap complete, conditional removed)
 **Author:** Tom F.
 
 ---
@@ -70,6 +70,11 @@ publish), with these commitments:
 - One conditional (`BOOTSTRAP_TOKEN` presence) lives in the workflow until the
   bootstrap completes; it is documented inline and in RELEASING.md with its removal
   condition (the secret's deletion makes it dead code that never runs).
+  *Amendment (2026-06-10): the v0.1.0 bootstrap completed — Trusted Publishing is
+  configured with "Trusted Publishing Only" enforced on all four crates, the
+  `CARGO_REGISTRY_TOKEN` environment secret is deleted, and the token revoked
+  (owner-confirmed). The conditional is removed from `release.yml`; the publish job
+  is OIDC-only and this negative no longer applies.*
 - The determinism check makes releases fail loudly if `cargo package` output is not
   reproducible across two jobs on the same runner image — a deliberate tripwire:
   silent non-determinism would invalidate the attestation's meaning.

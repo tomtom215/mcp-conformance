@@ -48,7 +48,7 @@ fn capability_in(
 /// multiple of four, padding only at the end). Validation only — nothing is decoded.
 pub(super) fn is_base64(text: &str) -> bool {
     let bytes = text.as_bytes();
-    if bytes.len() % 4 != 0 {
+    if !bytes.len().is_multiple_of(4) {
         return false;
     }
     let padding = bytes.iter().rev().take_while(|&&b| b == b'=').count();

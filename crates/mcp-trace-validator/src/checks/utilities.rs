@@ -76,10 +76,9 @@ pub(super) fn cursor_opacity(context: &TraceContext<'_>, sink: &mut FindingSink)
     for (event, kind, _) in context.messages() {
         if let (Direction::ClientToServer, MessageKind::Request { method, .. }) =
             (event.direction, kind)
+            && PAGINATED_METHODS.contains(method)
         {
-            if PAGINATED_METHODS.contains(method) {
-                check_cursor_provenance(event, method, &issued, sink);
-            }
+            check_cursor_provenance(event, method, &issued, sink);
         }
         // Issuances take effect after their event, in trace order.
         if let Some(issuance) = issuances.get(&event.seq) {

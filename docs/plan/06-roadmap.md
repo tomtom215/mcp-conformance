@@ -24,7 +24,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 |-----------|--------|
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
 | M1 — Registry and validator | **Complete** — v0.1.0 published to crates.io via [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142) (attested, byte-verified); every DoD line below carries its evidence |
-| M2 — Everything server | Not started |
+| M2 — Everything server | **In progress** (2026-06-10): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite in CI; trace tap, agreement check, and coverage manifest live this series (zero unexplained divergence; first divergence triaged as suite-bug — [#7](https://github.com/tomtom215/mcp-conformance/issues/7)) — remaining: upstream offer (maintainer action) |
 | M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (July 28, 2026); re-sequenced ahead of M3 on 2026-06-09 |
 | M3 — Reference host | Not started |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
@@ -81,16 +81,38 @@ The spec as data, and the engine that judges traces against it.
 
 **Definition of done**
 
-- [ ] `mcp-everything-server` exercises every capability in scope for `2025-11-25`
+- [x] `mcp-everything-server` exercises every capability in scope for `2025-11-25`
       (coverage manifest generated from the registry; parity with the TypeScript everything
       server's surface — [register 2.10](01-ecosystem-context.md)) over stdio and
-      streamable HTTP.
-- [ ] **100% pass on the official suite's server scenarios** (pinned version) in CI via
-      `cargo xtask conformance` — the hard gate from here forward.
-- [ ] Agreement check live: official-runner verdicts vs validator verdicts diffed in CI;
+      streamable HTTP. *(2026-06-10: every suite-defined tool/resource/prompt implemented
+      — [register 2.15](01-ecosystem-context.md). The committed
+      `conformance/coverage-manifest.json` is generated from the tapped suite sessions
+      and checked on every `cargo xtask conformance` run: all seven server-party
+      registry capability gates declared and active — the manifest gate caught the
+      missing `listChanged` declarations, closed by the `test-list-changed` tool — and
+      18 distinct wire methods observed. `BLESS=1` regenerates; drift fails the gate.)*
+- [x] **100% pass on the official suite's server scenarios** (pinned version) in CI via
+      `cargo xtask conformance` — the hard gate from here forward. 40/40 checks, suite
+      0.1.16, spec `2025-11-25`:
+      [CI run #27266174013](https://github.com/tomtom215/mcp-conformance/actions/runs/27266174013)
+      ("Conformance (official suite, server scenarios)" job, 2026-06-10).
+- [x] Agreement check live: official-runner verdicts vs validator verdicts diffed in CI;
       zero unexplained divergence (explained ones filed upstream and linked).
-- [ ] `Host`/`Origin` validation on by default with tests proving 403 behavior
-      ([05-security-model.md](05-security-model.md)).
+      *(2026-06-10: the everything-server's session tap (`--tap-dir`, feature `tap`)
+      records every suite session as a validator-ready trace; `cargo xtask conformance`
+      replays all of them through `mcp-trace-validator` and enforces the policy against
+      `conformance/agreement-divergences.json` (triage class + upstream link required,
+      unknown fields rejected). First run: 30 sessions, 1,288 pass / 840 excluded /
+      0 not-applicable, one MUST divergence triaged suite-bug
+      ([#7](https://github.com/tomtom215/mcp-conformance/issues/7) — the runner's
+      dns-rebinding client skips `notifications/initialized`) and one SHOULD warn
+      (TRAN-018: the suite's version-compat probe sends a 2025-03-26 header after
+      negotiating 2025-11-25 — informational by design). Reconciliation artifact:
+      `target/conformance/agreement.json`.)*
+- [x] `Host`/`Origin` validation on by default with tests proving 403 behavior
+      ([05-security-model.md](05-security-model.md)) — middleware + rmcp transport check
+      kept in sync from one policy; in-process 403 matrix, real-process loopback test,
+      and the suite's `dns-rebinding-protection` scenario all green (2026-06-10).
 - [ ] Upstream conversation opened: everything-server offered to
       `modelcontextprotocol/rust-sdk` (issue or draft PR), linked from the README whatever
       the outcome.

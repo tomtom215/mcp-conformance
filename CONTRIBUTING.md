@@ -18,7 +18,7 @@ open an issue describing your approach before writing a large PR.
 
 ## Setup
 
-Stable Rust via [rustup](https://rustup.rs). The workspace pins MSRV 1.85; CI tests
+Stable Rust via [rustup](https://rustup.rs). The workspace pins MSRV 1.88; CI tests
 both stable and MSRV, so code must satisfy both.
 
 ```bash

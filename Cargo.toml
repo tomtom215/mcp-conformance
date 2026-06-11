@@ -13,10 +13,10 @@ members = [
 
 [workspace.package]
 edition = "2024"
-# MSRV policy (docs/plan/decisions/0004-toolchain-and-msrv.md): 1.85 is the
-# Edition 2024 floor and the lowest bound we actually verify in CI. Bumps are
-# minor releases with a changelog entry.
-rust-version = "1.85"
+# MSRV policy (docs/plan/decisions/0008-msrv-1.88.md): 1.88 is rmcp's measured
+# compilation floor (let-chains; undeclared upstream) and the lowest bound we
+# actually verify in CI. Bumps are minor releases with a changelog entry.
+rust-version = "1.88"
 version = "0.1.0"
 license = "MIT"
 authors = ["Tom F."]
@@ -32,9 +32,39 @@ serde = { version = ">=1.0.200, <2", features = ["derive"] }
 # parse(canonical(v)) == v — caught by the canonical-JSON property tests.
 serde_json = { version = ">=1.0.115, <2", features = ["float_roundtrip"] }
 
-# CLI parsing — validator binary only, behind its `cli` feature
+# CLI parsing — binaries only, behind each crate's `cli` feature
 # (docs/plan/decisions/0005-cli-argument-parsing.md).
 clap = { version = ">=4.5, <5", features = ["derive"] }
+
+# M2 server stack (per-dependency justification: the table in
+# docs/plan/04-engineering-standards.md §Dependency policy).
+#
+# rmcp is the official Rust SDK the everything-server proves parity against;
+# ADR-0008 raised the workspace MSRV to its measured 1.88 floor. Features are
+# the minimum for "every capability over stdio and streamable HTTP": no
+# client, no auth, no reqwest, no child-process transport.
+rmcp = { version = ">=1.7, <2", default-features = false, features = [
+    "server",
+    "macros",
+    "transport-io",
+    "transport-streamable-http-server",
+    # Three suite scenarios (tools-call-elicitation, SEP-1034, SEP-1330)
+    # require raw `elicitation/create` requests with exact schemas.
+    "elicitation",
+] }
+# Async runtime — rmcp's requirement, not a choice this workspace re-litigates.
+# No default features; each crate enables exactly what it uses.
+tokio = { version = ">=1.45, <2", default-features = false }
+# Tool/prompt parameter schemas for rmcp's `#[tool]` macros (rmcp's `server`
+# feature already carries schemars; this direct dependency is for the derive).
+schemars = { version = ">=1.1, <2" }
+# HTTP serving for the streamable transport — the idiom rmcp's own examples
+# use (Router::nest_service + axum::serve). Feature-minimal: no JSON
+# extractors, no macros; the MCP service does its own body handling.
+axum = { version = ">=0.8, <0.9", default-features = false, features = ["http1", "tokio"] }
+# Dev-only: tower's ServiceExt::oneshot drives the axum app in-process, so
+# the 403 integration tests never open a socket.
+tower = { version = ">=0.5, <0.6", default-features = false, features = ["util"] }
 
 # Dev/test only.
 proptest = { version = ">=1.4, <2" }
@@ -45,6 +75,7 @@ criterion = { version = ">=0.7, <0.8", default-features = false, features = ["ca
 
 # Workspace-internal crates.
 mcp-conformance-core = { version = "0.1.0", path = "crates/mcp-conformance-core" }
+mcp-trace-validator = { version = "0.1.0", path = "crates/mcp-trace-validator" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

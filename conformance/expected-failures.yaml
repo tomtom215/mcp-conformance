@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# Explained divergences from the pinned official suite
+# (@modelcontextprotocol/conformance, version pinned in
+# xtask/src/conformance.rs). The agreement-check policy (docs/plan/
+# 03-conformance-strategy.md): an entry here requires a triage class
+# (our-bug | suite-bug | spec-ambiguity) and an upstream link.
+#
+# Empty: 40/40 checks pass against 0.1.16 (2026-06-10).
+failures: []

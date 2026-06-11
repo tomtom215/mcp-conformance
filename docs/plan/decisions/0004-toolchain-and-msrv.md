@@ -4,7 +4,9 @@
 # ADR 0004: Toolchain Policy — Edition 2024, MSRV 1.85, No Third-Party Toolchain Actions
 
 **Date:** 2026-06-09
-**Status:** Accepted
+**Status:** Accepted — MSRV clause superseded by [ADR-0008](0008-msrv-1.88.md)
+(2026-06-10: rmcp's measured floor forced the bump this ADR anticipated); edition,
+toolchain-action, and lint policy remain in force
 **Author:** Tom F.
 
 ---

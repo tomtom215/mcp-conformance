@@ -32,4 +32,12 @@ exclude_globs = ["xtask/**/*.rs"]
 # and the assignment event is the server's — a client request can never carry
 # `seq == assigned_seq`, so `<` and `<=` are observably identical and no test
 # can separate them.
-exclude_re = ["replace < with <= in session_id_echoed"]
+exclude_re = [
+    "replace < with <= in session_id_echoed",
+    # Equivalent mutant: in split_frame, `ci < li` compares the byte offsets
+    # of an LF ("\n\n") match and a CRLF ("\r\n\r\n") match. Equality would
+    # require the same byte to begin both boundaries — to be '\n' and '\r'
+    # at once — so `<` and `<=` are observably identical and no test can
+    # separate them.
+    "replace < with <= in split_frame",
+]
