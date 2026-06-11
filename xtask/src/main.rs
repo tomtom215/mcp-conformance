@@ -49,6 +49,9 @@ fn main() -> ExitCode {
             if !file_size_gate() {
                 return ExitCode::FAILURE;
             }
+            if !deny_gate() {
+                return ExitCode::FAILURE;
+            }
             eprintln!("xtask: coverage table in sync — cargo xtask coverage --check");
             coverage::run(true)
         }
@@ -67,6 +70,13 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         }
+        Some("deny") => {
+            if deny_gate() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
         Some("conformance") => conformance::run(),
         Some(other) => {
             eprintln!("unknown task {other:?}\n{USAGE}");
@@ -79,7 +89,46 @@ fn main() -> ExitCode {
     }
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+
+/// Runs `cargo deny check` when cargo-deny is installed; skips LOUDLY when it
+/// is not. The CI `deny` job is the enforcement of record, but a versionless
+/// path dependency once sailed through a green `cargo xtask ci` and failed
+/// only in CI — the local gate set must run the same check when it can, and
+/// must never skip it silently when it cannot.
+fn deny_gate() -> bool {
+    let root = workspace_root();
+    let available = Command::new("cargo")
+        .args(["deny", "--version"])
+        .current_dir(&root)
+        .output()
+        .is_ok_and(|output| output.status.success());
+    if !available {
+        eprintln!(
+            "xtask: cargo-deny — SKIPPED (not installed; `cargo install cargo-deny --locked`). \
+             CI runs this gate regardless: a dependency-policy violation will fail there."
+        );
+        return true;
+    }
+    // Global options precede the subcommand in cargo-deny's CLI; this mirrors
+    // the CI action's invocation (`--all-features check`) exactly.
+    eprintln!("xtask: cargo-deny — cargo deny --all-features check");
+    match Command::new("cargo")
+        .args(["deny", "--all-features", "check"])
+        .current_dir(&root)
+        .status()
+    {
+        Ok(status) if status.success() => true,
+        Ok(status) => {
+            eprintln!("xtask: cargo-deny failed with {status}");
+            false
+        }
+        Err(error) => {
+            eprintln!("xtask: cannot run cargo deny: {error}");
+            false
+        }
+    }
+}
 
 /// The ≤ 500-line cap from 04-engineering-standards §Source standards,
 /// enforced over non-test source (crate and xtask `src/` trees) and the
