@@ -49,6 +49,7 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 | `base-008-jsonrpc-version.jsonl` | BASE-008 |
 | `base-009-error-unknown-id.jsonl` | BASE-009 |
 | `base-010-response-without-result.jsonl` | BASE-010 |
+| `base-004-request-answered-twice-cross-flavor.jsonl` | BASE-004 (the second of an error+result double-answer) |
 | `base-019-meta-key-bad-prefix.jsonl` | BASE-019, BASE-020 (shared `base.meta-key-format` check) |
 | `comp-001-capability-undeclared.jsonl` | COMP-001 |
 | `life-001-first-message-not-initialize.jsonl` | LIFE-001 |

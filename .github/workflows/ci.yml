@@ -103,6 +103,11 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Build docs (zero warnings)
         run: cargo doc --workspace --no-deps
+      # Feature-gated modules (the everything-server's `tap`) carry rustdoc the
+      # default-feature build never sees; a broken intra-doc link there is only
+      # caught with --all-features.
+      - name: Build docs with all features (zero warnings)
+        run: cargo doc --workspace --no-deps --all-features
       - name: README coverage table in sync with the registry
         run: cargo xtask coverage --check
       - name: File-size cap on source and registry files

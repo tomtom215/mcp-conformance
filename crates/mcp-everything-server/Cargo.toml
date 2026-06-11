@@ -81,6 +81,12 @@ rmcp = { workspace = true, features = ["client"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tower = { workspace = true }
 proptest = { workspace = true }
+# Closes the tap→validator serialization contract with a fast, network-free
+# test: the tap's actual output bytes must parse and validate through the
+# real reader (the agreement check proves this end to end, but only in the
+# npx-gated conformance job; this runs it on every platform in the matrix).
+# No dependency cycle: the validator never depends on this crate.
+mcp-trace-validator = { path = "../mcp-trace-validator" }
 
 [[bin]]
 name = "mcp-everything-server"

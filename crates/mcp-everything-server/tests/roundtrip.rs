@@ -109,6 +109,124 @@ async fn unknown_tool_is_a_protocol_error_not_a_crash() {
     client.cancel().await.expect("clean shutdown");
 }
 
+/// Builds a `tools/call` with an explicit arguments object (which may be
+/// deliberately malformed — the arguments map is untyped JSON, so wrong types
+/// and missing members reach the server exactly as a hostile client would
+/// send them).
+fn call_with_args(tool: &str, args: &serde_json::Value) -> CallToolRequestParams {
+    CallToolRequestParams::new(tool.to_owned())
+        .with_arguments(args.as_object().cloned().unwrap_or_default())
+}
+
+#[tokio::test]
+async fn tool_call_with_missing_required_argument_is_a_protocol_error() {
+    let client = connect().await;
+    // `add` requires both a and b; omitting b must be rejected at the
+    // parameter boundary (-32602), never reach the handler, never crash.
+    let outcome = client
+        .call_tool(call_with_args("add", &serde_json::json!({"a": 1})))
+        .await;
+    assert!(
+        outcome.is_err(),
+        "missing required arg must error: {outcome:?}"
+    );
+    // The session survives: the next request still works.
+    assert!(
+        !client
+            .list_tools(None)
+            .await
+            .expect("list after error")
+            .tools
+            .is_empty()
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn tool_call_with_wrong_typed_arguments_is_a_protocol_error() {
+    let client = connect().await;
+    // `add` wants numbers; a string must be rejected, not coerced or panicked.
+    let bad_add = client
+        .call_tool(call_with_args(
+            "add",
+            &serde_json::json!({"a": "x", "b": 2}),
+        ))
+        .await;
+    assert!(
+        bad_add.is_err(),
+        "wrong-typed add arg must error: {bad_add:?}"
+    );
+    // `echo` wants a string message; a number must be rejected.
+    let bad_echo = client
+        .call_tool(call_with_args("echo", &serde_json::json!({"message": 123})))
+        .await;
+    assert!(
+        bad_echo.is_err(),
+        "wrong-typed echo arg must error: {bad_echo:?}"
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn add_with_overflowing_finite_inputs_saturates_without_crashing() {
+    let client = connect().await;
+    // Two near-f64::MAX inputs sum to IEEE infinity. The contract is a
+    // successful result (saturation), not an error and not a panic — pinning
+    // the arithmetic's documented total behavior.
+    let result = client
+        .call_tool(call_with_args(
+            "add",
+            &serde_json::json!({"a": 1.0e308, "b": 1.0e308}),
+        ))
+        .await
+        .expect("overflowing add still returns a result");
+    let text = result.content.first().and_then(|content| content.as_text());
+    assert!(
+        text.is_some_and(|t| t.text.contains("inf")),
+        "overflow saturates to inf: {text:?}"
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn prompt_get_with_missing_required_argument_is_a_protocol_error() {
+    let client = connect().await;
+    // test_prompt_with_arguments requires arg1 and arg2; omitting arg2 must
+    // be rejected (-32602) before the handler formats anything.
+    let mut params = rmcp::model::GetPromptRequestParams::new("test_prompt_with_arguments");
+    params.arguments = serde_json::json!({"arg1": "only"}).as_object().cloned();
+    let outcome = client.get_prompt(params).await;
+    assert!(
+        outcome.is_err(),
+        "missing prompt arg must error: {outcome:?}"
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn completion_over_a_resource_reference_returns_no_candidates() {
+    let client = connect().await;
+    // The Resource arm of complete() is conformant minimal support: it
+    // completes to nothing. Without this test the mutation gate cannot kill a
+    // mutant that, say, returned the prompt candidates for a resource ref.
+    let result = client
+        .complete(rmcp::model::CompleteRequestParams::new(
+            rmcp::model::Reference::for_resource("test://static-text"),
+            rmcp::model::ArgumentInfo {
+                name: "anything".into(),
+                value: "pa".into(),
+            },
+        ))
+        .await
+        .expect("completion over a resource ref");
+    assert!(
+        result.completion.values.is_empty(),
+        "resource-ref completion must yield no candidates: {:?}",
+        result.completion.values
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
 /// `(level, message)` pairs captured from `notifications/message`.
 type LogLog = std::sync::Arc<std::sync::Mutex<Vec<(String, String)>>>;
 /// `(progress, total)` pairs captured from `notifications/progress`.

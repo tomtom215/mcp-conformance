@@ -171,9 +171,19 @@ fn ci_steps() -> Vec<Step> {
             env: &[],
         });
     }
+    // Docs build twice: default features, then all features. Feature-gated
+    // modules (the everything-server's `tap`) carry their own rustdoc, and a
+    // broken intra-doc link there is invisible to a default-feature doc build
+    // — the gap that let a private-item link survive until the 2026-06-11
+    // audit. `-D warnings` makes either build fail on the first warning.
     steps.push(Step {
-        name: "docs (deny warnings)".to_owned(),
+        name: "docs (default features, deny warnings)".to_owned(),
         args: vec!["doc", "--workspace", "--no-deps"],
+        env: &[("RUSTDOCFLAGS", "-D warnings")],
+    });
+    steps.push(Step {
+        name: "docs (all features, deny warnings)".to_owned(),
+        args: vec!["doc", "--workspace", "--no-deps", "--all-features"],
         env: &[("RUSTDOCFLAGS", "-D warnings")],
     });
     steps

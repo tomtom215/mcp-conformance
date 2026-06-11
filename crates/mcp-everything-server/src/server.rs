@@ -28,6 +28,12 @@ use rmcp::{RoleServer, ServerHandler, prompt_handler, tool_handler};
 
 use crate::{logging, resources};
 
+/// Upper bound on tracked subscriptions per session. Far above any legitimate
+/// use (the suite exercises a handful) and low enough that an adversarial
+/// client subscribing to endless distinct URIs cannot grow this server's
+/// bookkeeping without bound.
+const MAX_SUBSCRIPTIONS: usize = 1024;
+
 /// Reference MCP server exercising the `2025-11-25` protocol surface.
 ///
 /// Construct with [`EverythingServer::new`], then serve over any rmcp
@@ -78,10 +84,21 @@ impl EverythingServer {
     }
 
     /// Records a subscription; returns whether the URI was newly tracked.
+    ///
+    /// The set is capped at [`MAX_SUBSCRIPTIONS`]: a client cannot grow this
+    /// server's per-session bookkeeping without bound by subscribing to an
+    /// endless stream of distinct URIs. At the cap, a new URI is refused (not
+    /// tracked, no acknowledgement) while already-tracked URIs still re-confirm.
     pub(crate) fn track_subscription(&self, uri: String) -> bool {
-        self.subscriptions
-            .lock()
-            .is_ok_and(|mut subscriptions| subscriptions.insert(uri))
+        self.subscriptions.lock().is_ok_and(|mut subscriptions| {
+            if subscriptions.contains(&uri) {
+                return false;
+            }
+            if subscriptions.len() >= MAX_SUBSCRIPTIONS {
+                return false;
+            }
+            subscriptions.insert(uri)
+        })
     }
 
     /// Drops a subscription; returns whether the URI had been tracked.
@@ -312,6 +329,30 @@ mod tests {
             "second drop is a no-op"
         );
         assert_eq!(server.subscribed_uris(), ["test://b"]);
+    }
+
+    #[test]
+    fn subscription_set_is_capped_against_unbounded_growth() {
+        let server = EverythingServer::new();
+        for index in 0..MAX_SUBSCRIPTIONS {
+            assert!(
+                server.track_subscription(format!("test://uri/{index}")),
+                "URI {index} within the cap is tracked"
+            );
+        }
+        // At the cap, a new distinct URI is refused — the set cannot grow.
+        assert!(
+            !server.track_subscription("test://one-too-many".into()),
+            "a new URI past the cap must be refused"
+        );
+        assert_eq!(server.subscribed_uris().len(), MAX_SUBSCRIPTIONS);
+        // An already-tracked URI at the cap still reports "not newly tracked"
+        // (idempotent), never an error.
+        assert!(!server.track_subscription("test://uri/0".into()));
+        assert_eq!(server.subscribed_uris().len(), MAX_SUBSCRIPTIONS);
+        // Dropping one frees a slot again.
+        assert!(server.untrack_subscription("test://uri/0"));
+        assert!(server.track_subscription("test://after-eviction".into()));
     }
 
     #[test]

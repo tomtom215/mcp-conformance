@@ -46,6 +46,14 @@ fn capability_in(
 
 /// `true` when `text` is standard base64 (RFC 4648 §4 alphabet, `=` padding to a
 /// multiple of four, padding only at the end). Validation only — nothing is decoded.
+///
+/// The empty string validates: it is the base64 encoding of zero bytes. The
+/// image/audio/blob content checks therefore accept an empty `data`/`blob` as
+/// "properly encoded" — a deliberate decision, because the rule the registry
+/// quotes is about *encoding*, and flagging empty content would be a
+/// content-completeness judgment the spec does not make here (and one the
+/// official suite does not make, which the agreement check would surface as a
+/// divergence). Empty-but-present content is thus a pass at this layer.
 pub(super) fn is_base64(text: &str) -> bool {
     let bytes = text.as_bytes();
     if !bytes.len().is_multiple_of(4) {

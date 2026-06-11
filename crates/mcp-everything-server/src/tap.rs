@@ -46,19 +46,22 @@ use axum::extract::State;
 use axum::http::{HeaderMap, Method, Request};
 use axum::middleware::Next;
 use axum::response::Response;
-use mcp_conformance_core::trace::{
-    Direction, EventBody, LifecycleEvent, TraceEvent, TransportKind,
-};
-use tokio::io::AsyncWriteExt as _;
+use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent};
 use tokio_stream::StreamExt as _;
 
-/// Headers recorded into traces (lowercase). Everything absent from this
-/// allowlist — notably `authorization` and `cookie` — is never captured.
 mod sse;
 
 use sse::SseSplitter;
 
-const RECORDED_HEADERS: [&str; 7] = [
+/// The exact set of HTTP header names (lowercase) the tap records into traces.
+///
+/// This is the recording allowlist, public so a consumer can verify precisely
+/// what the tap captures: everything absent from it — notably `authorization`
+/// and `cookie` — is never written to a trace ([05-security-model.md]'s
+/// redaction-by-construction posture).
+///
+/// [05-security-model.md]: https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/05-security-model.md
+pub const RECORDED_HEADERS: [&str; 7] = [
     "host",
     "origin",
     "accept",
@@ -169,64 +172,9 @@ impl Tap {
 }
 
 /// Per-file writer state: the open handle and the next sequence number.
-struct FileState {
-    file: tokio::fs::File,
-    next_seq: u64,
-}
+mod writer;
 
-/// The writer task: sequences each record per file (the schema's
-/// strictly-increasing rule holds by construction), appends it as one JSON
-/// line, and flushes before accepting the next — everything enqueued before
-/// a kill is durable.
-async fn write_loop(mut receiver: tokio::sync::mpsc::Receiver<Record>) {
-    let mut files: HashMap<PathBuf, FileState> = HashMap::new();
-    while let Some(record) = receiver.recv().await {
-        let path = &record.file.path;
-        if !files.contains_key(path) {
-            match tokio::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(path)
-                .await
-            {
-                Ok(file) => {
-                    files.insert(path.clone(), FileState { file, next_seq: 0 });
-                }
-                Err(error) => {
-                    eprintln!(
-                        "mcp-everything-server: tap cannot open {}: {error}",
-                        path.display()
-                    );
-                    continue;
-                }
-            }
-        }
-        if let Some(state) = files.get_mut(path) {
-            let event = TraceEvent::new(
-                state.next_seq,
-                record.direction,
-                TransportKind::StreamableHttp,
-                record.body,
-            );
-            let Ok(line) = serde_json::to_string(&event) else {
-                eprintln!("mcp-everything-server: tap event unserializable; skipped");
-                continue;
-            };
-            state.next_seq += 1;
-            let write = async {
-                state.file.write_all(line.as_bytes()).await?;
-                state.file.write_all(b"\n").await?;
-                state.file.flush().await
-            };
-            if let Err(error) = write.await {
-                eprintln!(
-                    "mcp-everything-server: tap write to {} failed: {error}",
-                    path.display()
-                );
-            }
-        }
-    }
-}
+use writer::write_loop;
 
 /// The middleware: records the request exchange and, for SSE responses,
 /// every streamed frame, attributing everything to the exchange's session.
@@ -384,12 +332,28 @@ fn recorded_headers(headers: &HeaderMap) -> BTreeMap<String, String> {
         .collect()
 }
 
-/// A header's value as UTF-8, when present and decodable.
+/// A header's value as UTF-8, combining repeated field lines.
+///
+/// HTTP permits a field to appear on multiple lines, semantically equivalent
+/// to one comma-joined value (RFC 9110 §5.3). Recording only the first line
+/// (`HeaderMap::get`) would misrepresent, e.g., an `Accept` split across two
+/// lines — and the validator's `transport.client-accept-header` check reads
+/// exactly this recorded value, so a lossy capture would manufacture a false
+/// finding. We record the faithful combination instead. Returns `None` when
+/// the field is absent or any line is non-UTF-8 (the latter never recorded
+/// rather than recorded partially).
 fn header_value(headers: &HeaderMap, name: &str) -> Option<String> {
-    headers
-        .get(name)
-        .and_then(|value| value.to_str().ok())
-        .map(ToOwned::to_owned)
+    let mut lines = headers.get_all(name).iter().peekable();
+    lines.peek()?;
+    let mut combined = String::new();
+    for value in lines {
+        let text = value.to_str().ok()?;
+        if !combined.is_empty() {
+            combined.push_str(", ");
+        }
+        combined.push_str(text);
+    }
+    Some(combined)
 }
 
 #[cfg(test)]
@@ -468,5 +432,29 @@ mod tests {
         assert_eq!(recorded["host"], "localhost:1234");
         assert_eq!(recorded["mcp-session-id"], "abc");
         assert!(!recorded.contains_key("authorization"));
+    }
+
+    #[test]
+    fn header_value_combines_repeated_field_lines() {
+        // An Accept split across two lines must record as the comma-joined
+        // value, exactly as HTTP semantics combine them — otherwise the
+        // validator's accept-header check would see only the first line and
+        // manufacture a false finding on a perfectly legal request.
+        let mut headers = HeaderMap::new();
+        headers.append("accept", "application/json".parse().unwrap());
+        headers.append("accept", "text/event-stream".parse().unwrap());
+        assert_eq!(
+            header_value(&headers, "accept").as_deref(),
+            Some("application/json, text/event-stream")
+        );
+        // And through the allowlist path, so recording is faithful end to end.
+        let recorded = recorded_headers(&headers);
+        assert_eq!(recorded["accept"], "application/json, text/event-stream");
+    }
+
+    #[test]
+    fn header_value_is_none_for_absent_fields() {
+        let headers = HeaderMap::new();
+        assert_eq!(header_value(&headers, "accept"), None);
     }
 }

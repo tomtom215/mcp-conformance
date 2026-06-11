@@ -39,6 +39,11 @@ use serde_json::Value;
 /// Serializes a JSON value to its canonical string form.
 ///
 /// Canonicalization never fails: every `serde_json::Value` is representable.
+/// Nesting is walked with an explicit heap work-stack rather than recursion,
+/// so an arbitrarily deep value (e.g. a hostile trace's hundred-thousand-deep
+/// array) is bounded by available memory and can never overflow the call
+/// stack — a property the determinism foundation must hold on its own, not
+/// lean on a caller's parse-depth limit.
 ///
 /// ```
 /// use mcp_conformance_core::canonical::to_canonical_string;
@@ -61,132 +66,123 @@ pub fn cmp_utf16(a: &str, b: &str) -> Ordering {
     a.encode_utf16().cmp(b.encode_utf16())
 }
 
-fn write_value(out: &mut String, value: &Value) {
-    match value {
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
-            write_scalar(out, value);
-        }
-        Value::Array(items) => {
-            out.push('[');
-            let mut first = true;
-            for item in items {
-                if !first {
-                    out.push(',');
+/// One unit of canonicalization work, processed LIFO. Composites push their
+/// pieces in reverse so they emit left to right; the leaf arms write directly.
+enum Step<'a> {
+    /// Emit a value (a leaf writes itself; a composite expands into more steps).
+    Value(&'a Value),
+    /// Emit a fixed delimiter (`[`, `]`, `{`, `}`, `,`).
+    Delim(&'static str),
+    /// Emit an already-rendered `"key":` (escaped member name plus colon).
+    Key(String),
+}
+
+fn write_value(out: &mut String, root: &Value) {
+    let mut stack = vec![Step::Value(root)];
+    while let Some(step) = stack.pop() {
+        match step {
+            Step::Delim(text) => out.push_str(text),
+            Step::Key(rendered) => out.push_str(&rendered),
+            Step::Value(Value::Array(items)) => {
+                // Push in reverse so items emit in order: `]`, then each item
+                // (comma-prefixed except the first), then `[` on top.
+                stack.push(Step::Delim("]"));
+                for (index, item) in items.iter().enumerate().rev() {
+                    stack.push(Step::Value(item));
+                    if index != 0 {
+                        stack.push(Step::Delim(","));
+                    }
                 }
-                first = false;
-                write_value(out, item);
+                stack.push(Step::Delim("["));
             }
-            out.push(']');
-        }
-        Value::Object(members) => {
-            let mut keys: Vec<&String> = members.keys().collect();
-            keys.sort_by(|a, b| cmp_utf16(a, b));
-            out.push('{');
-            let mut first = true;
-            for key in keys {
-                if !first {
-                    out.push(',');
+            Step::Value(Value::Object(members)) => {
+                let mut keys: Vec<&String> = members.keys().collect();
+                keys.sort_by(|a, b| cmp_utf16(a, b));
+                stack.push(Step::Delim("}"));
+                for (index, key) in keys.iter().enumerate().rev() {
+                    // `members.get` is infallible here — every key came from
+                    // `members.keys()` and the map is not mutated — but staying
+                    // on the `Option` path keeps the function panic-free by
+                    // construction rather than by argument.
+                    if let Some(member) = members.get(key.as_str()) {
+                        stack.push(Step::Value(member));
+                        stack.push(Step::Key(render_key(key)));
+                        if index != 0 {
+                            stack.push(Step::Delim(","));
+                        }
+                    }
                 }
-                first = false;
-                write_scalar(out, &Value::String(key.clone()));
-                out.push(':');
-                if let Some(member) = members.get(key) {
-                    write_value(out, member);
-                }
+                stack.push(Step::Delim("{"));
             }
-            out.push('}');
+            Step::Value(scalar) => write_scalar(out, scalar),
         }
     }
 }
 
-fn write_scalar(out: &mut String, value: &Value) {
-    // Float-armed numbers take the ECMAScript path RFC 8785 §3.2.2.3 requires;
-    // integer-armed numbers, strings, booleans, and null delegate to serde_json's
-    // compact serializer, which cannot fail for these variants — the defensive
-    // fallback keeps the function total without a reachable panic.
-    if let Value::Number(number) = value
-        && let Some(float) = number
-            .as_f64()
-            .filter(|_| !number.is_i64() && !number.is_u64())
-    {
-        out.push_str(&es6_number(float));
-        return;
-    }
-    match serde_json::to_string(value) {
-        Ok(text) => out.push_str(&text),
-        Err(_) => out.push_str("null"),
-    }
+/// Renders an object member name as its canonical `"key":` prefix — the same
+/// string escaping the scalar path uses, so keys and string values escape
+/// identically.
+fn render_key(key: &str) -> String {
+    let mut rendered = String::new();
+    write_scalar(&mut rendered, &Value::String(key.to_owned()));
+    rendered.push(':');
+    rendered
 }
 
-/// Serializes a finite `f64` exactly as ECMAScript `Number::toString` does — the RFC
-/// 8785 §3.2.2.3 requirement, validated against the RFC's Appendix B sample table.
-///
-/// `serde_json` (via Ryu) already produces the shortest round-trip digit sequence, the
-/// hard part both algorithms share; this function re-notates those digits per the
-/// ECMAScript rules: plain decimal only when the decimal-point position `n` satisfies
-/// `-6 < n ≤ 21`, exponential with an explicit sign otherwise, and `0` for both zeros.
-fn es6_number(value: f64) -> String {
-    if value == 0.0 {
-        return "0".to_owned(); // Covers -0.0: JCS serializes both zeros as `0`.
-    }
-    let shortest = serde_json::to_string(&value).unwrap_or_else(|_| "null".to_owned());
-    let (sign, magnitude) = shortest
-        .strip_prefix('-')
-        .map_or(("", shortest.as_str()), |rest| ("-", rest));
+mod scalar;
 
-    // Split mantissa and decimal exponent, then reduce to (digits, n) where the value
-    // is 0.<digits> × 10^n with no leading or trailing zero digits.
-    let (mantissa, exponent) = magnitude
-        .split_once(['e', 'E'])
-        .map_or((magnitude, 0_i32), |(mantissa, exponent)| {
-            (mantissa, exponent.parse().unwrap_or(0))
-        });
-    let (int_part, frac_part) = mantissa
-        .split_once('.')
-        .map_or((mantissa, ""), |(int_part, frac_part)| {
-            (int_part, frac_part)
-        });
-    let digits: String = int_part.chars().chain(frac_part.chars()).collect();
-    let leading_zeros = digits.len() - digits.trim_start_matches('0').len();
-    // Digit counts of a shortest f64 representation are tiny; the fallbacks are
-    // unreachable and exist only to keep the casts total.
-    let mut n = i32::try_from(int_part.len()).unwrap_or(0) + exponent;
-    n -= i32::try_from(leading_zeros).unwrap_or(0);
-    let digits = digits.trim_matches('0');
-
-    let k = i32::try_from(digits.len()).unwrap_or(0);
-    let rendered = if k <= n && n <= 21 {
-        // All digits before the decimal point, zero-padded: 999999999999999900000.
-        let zeros = usize::try_from(n - k).unwrap_or(0);
-        format!("{digits}{}", "0".repeat(zeros))
-    } else if 0 < n && n <= 21 {
-        // Decimal point inside the digits: 333333333.3333333.
-        let split = usize::try_from(n).unwrap_or(0);
-        format!("{}.{}", &digits[..split], &digits[split..])
-    } else if -6 < n && n <= 0 {
-        // Leading zeros after the point: 0.000001.
-        let zeros = usize::try_from(-n).unwrap_or(0);
-        format!("0.{}{digits}", "0".repeat(zeros))
-    } else {
-        // Exponential with a mandatory sign: 1e+21, 9.999999999999997e-7.
-        let exponent = n - 1;
-        let mantissa = if digits.len() == 1 {
-            digits.to_owned()
-        } else {
-            format!("{}.{}", &digits[..1], &digits[1..])
-        };
-        let exponent_sign = if exponent.is_negative() { "-" } else { "+" };
-        format!("{mantissa}e{exponent_sign}{}", exponent.abs())
-    };
-    format!("{sign}{rendered}")
-}
+use scalar::write_scalar;
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use proptest::prelude::*;
     use serde_json::json;
+
+    #[test]
+    fn deeply_nested_value_canonicalizes_on_a_small_stack() {
+        // The determinism foundation must not abort the process on a hostile
+        // trace. A recursive walker overflows the call stack on a deep value
+        // (an uncatchable SIGABRT, not a panic); the iterative walker bounds
+        // depth by heap. Proof: canonicalize a 50k-deep array on a 256 KiB
+        // stack — a recursive walker overflows that ~25x over, the iterative
+        // one cannot. The deep value is built and dropped on a large-stack
+        // thread (serde_json::Value's *drop* is itself recursive), and moved
+        // back out of the small-stack closure so it never drops there.
+        const DEPTH: usize = 50_000;
+        let outcome = std::thread::Builder::new()
+            .stack_size(16 * 1024 * 1024)
+            .spawn(|| {
+                let mut value = Value::Array(vec![]);
+                for _ in 0..DEPTH {
+                    value = Value::Array(vec![value]);
+                }
+                let (summary, value) = std::thread::Builder::new()
+                    .stack_size(256 * 1024)
+                    .spawn(move || {
+                        let canonical = to_canonical_string(&value);
+                        let summary = (
+                            canonical.matches('[').count(),
+                            canonical.matches(']').count(),
+                            canonical.starts_with("[[") && canonical.ends_with("]]"),
+                        );
+                        // Move the deep value back out so it is dropped on the
+                        // big-stack parent, never on this 256 KiB stack.
+                        (summary, value)
+                    })
+                    .expect("spawn small-stack canonicalize thread")
+                    .join()
+                    .expect("small-stack thread did not abort");
+                drop(value);
+                summary
+            })
+            .expect("spawn big-stack thread")
+            .join()
+            .expect("big-stack thread");
+        // DEPTH wraps plus the innermost empty array's own brackets.
+        assert_eq!(outcome, (DEPTH + 1, DEPTH + 1, true));
+    }
 
     #[test]
     fn sorts_object_keys() {
@@ -216,6 +212,54 @@ mod tests {
         let supplementary_at = canonical.find(supplementary).unwrap();
         let private_use_at = canonical.find(private_use).unwrap();
         assert!(supplementary_at < private_use_at, "canonical: {canonical}");
+    }
+
+    #[test]
+    fn object_key_order_straddles_the_bmp_boundary_in_utf16() {
+        // Four keys whose leading UTF-16 units interleave across U+FFFF: two
+        // supplementary (lead surrogates D800, DBFF) and two BMP private-use
+        // (E000, F8FF). UTF-16 order — D800 < DBFF < E000 < F8FF — puts BOTH
+        // supplementary keys first; code-point order would put the BMP keys
+        // first. The emitted order must be the UTF-16 one, and this is what a
+        // mutation of the sort back to `str::cmp` would break.
+        let keys = ["\u{10000}", "\u{10FFFF}", "\u{E000}", "\u{F8FF}"];
+        let value = json!({
+            keys[2]: 1, keys[0]: 2, keys[3]: 3, keys[1]: 4,
+        });
+        let canonical = to_canonical_string(&value);
+        let positions: Vec<usize> = keys.iter().map(|k| canonical.find(k).unwrap()).collect();
+        assert!(
+            positions[0] < positions[1]
+                && positions[1] < positions[2]
+                && positions[2] < positions[3],
+            "emitted key order is not UTF-16: {canonical}"
+        );
+    }
+
+    #[test]
+    fn string_escaping_follows_rfc8785_section_3_2_2_2() {
+        // String escaping is delegated to serde_json; pin the RFC 8785 rules so
+        // a future serde_json change (or a hand-rolled escaper) cannot silently
+        // diverge. Two-char escapes where defined, \uXXXX for other C0 control
+        // characters, and — the easily-missed rules — DEL (U+007F) and the
+        // solidus (/) emitted LITERALLY, supplementary characters as raw UTF-8.
+        for (value, expected) in [
+            (
+                json!("\u{0008}\u{0009}\u{000A}\u{000C}\u{000D}"),
+                r#""\b\t\n\f\r""#,
+            ),
+            // Other C0 controls take lowercase \u00XX (no short escape defined).
+            (json!("\u{0000}\u{0001}\u{001F}"), r#""\u0000\u0001\u001f""#),
+            (json!("a/b"), r#""a/b""#),            // solidus NOT escaped
+            (json!("\u{007F}"), "\"\u{007F}\""),   // DEL emitted literally
+            (json!("\u{1F600}"), "\"\u{1F600}\""), // emoji as raw 4-byte UTF-8
+        ] {
+            let canonical = to_canonical_string(&value);
+            assert_eq!(canonical, expected, "input {value}");
+        }
+        // DEL really is byte 0x7F in the output, not an escape sequence.
+        let del = to_canonical_string(&json!("\u{007F}"));
+        assert_eq!(del.as_bytes(), [0x22, 0x7F, 0x22]);
     }
 
     #[test]
@@ -331,15 +375,35 @@ mod tests {
             prop_assert_eq!(to_canonical_string(&reparsed), canonical);
         }
 
-        /// Numeric value survives canonicalization exactly (compared as f64,
-        /// the JCS number model).
+        /// Numeric value survives canonicalization exactly over EVERY finite
+        /// float — normals, subnormals, and the ECMAScript notation boundaries
+        /// — not just the normal range. Negative zero is the one exclusion: JCS
+        /// folds it to `0` by design (covered by the example tests), so it has
+        /// no bit-exact round trip.
         #[test]
-        fn canonical_numbers_preserve_value(float in proptest::num::f64::NORMAL) {
+        fn canonical_numbers_preserve_value(
+            float in any::<f64>()
+                .prop_filter("finite, excluding negative zero", |f| {
+                    f.is_finite() && f.to_bits() != 0x8000_0000_0000_0000
+                })
+        ) {
             let canonical = to_canonical_string(&Value::from(float));
             let reparsed: f64 = canonical.parse().unwrap();
-            // Bit-exact: NORMAL floats have one representation, so this is the
-            // strictest form of value preservation (and sidesteps float_cmp).
+            // Bit-exact: every non-negative-zero finite float has one
+            // representation, so this is the strictest value preservation (and
+            // sidesteps float_cmp). Subnormals and boundaries are now in scope.
             prop_assert_eq!(reparsed.to_bits(), float.to_bits(), "canonical: {}", canonical);
+        }
+
+        /// Subnormals specifically: the smallest representable magnitudes, the
+        /// values an es6-notation edit is most likely to mishandle.
+        #[test]
+        fn canonical_preserves_subnormal_floats(mantissa in 1u64..=0x000F_FFFF_FFFF_FFFF) {
+            let subnormal = f64::from_bits(mantissa);
+            prop_assert!(subnormal.is_finite() && subnormal != 0.0 && !subnormal.is_normal());
+            let canonical = to_canonical_string(&Value::from(subnormal));
+            let reparsed: f64 = canonical.parse().unwrap();
+            prop_assert_eq!(reparsed.to_bits(), subnormal.to_bits(), "canonical: {}", canonical);
         }
 
         #[test]
@@ -348,6 +412,19 @@ mod tests {
             if cmp_utf16(&a, &b) == Ordering::Equal {
                 prop_assert_eq!(&a, &b);
             }
+        }
+
+        /// `cmp_utf16` really sorts by UTF-16 code units, checked against an
+        /// independent reference. Antisymmetry alone (above) holds for
+        /// code-point order too; this is what catches a regression of the sort
+        /// to `str::cmp`, the classic JCS bug.
+        #[test]
+        fn cmp_utf16_matches_a_utf16_code_unit_reference(a in ".*", b in ".*") {
+            let reference = a
+                .encode_utf16()
+                .collect::<Vec<u16>>()
+                .cmp(&b.encode_utf16().collect::<Vec<u16>>());
+            prop_assert_eq!(cmp_utf16(&a, &b), reference);
         }
     }
 }

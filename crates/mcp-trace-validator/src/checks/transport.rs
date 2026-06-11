@@ -293,6 +293,28 @@ mod tests {
     }
 
     #[test]
+    fn capitalized_header_names_are_still_judged() {
+        // On-the-wire casing must not let a bad header slip past: a session ID
+        // with an illegal space, recorded under the capitalized `Mcp-Session-Id`,
+        // is still caught because trace deserialization lowercases header keys.
+        let bad = http_session(r#"{"Mcp-Session-Id":"has space"}"#, "{}");
+        assert_eq!(
+            findings_for("transport.session-id-visible-ascii", &bad).len(),
+            1,
+            "capitalized header name evaded the visible-ASCII check"
+        );
+        // And a wrong protocol version under `Mcp-Protocol-Version` is flagged
+        // by TRAN-018 rather than silently passing.
+        let wrong_version = http_session(
+            r#"{"mcp-session-id":"abc"}"#,
+            r#"{"mcp-session-id":"abc","Mcp-Protocol-Version":"2024-11-05"}"#,
+        );
+        let findings = findings_for("transport.protocol-version-negotiated", &wrong_version);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("2024-11-05"), "{findings:?}");
+    }
+
+    #[test]
     fn session_id_ascii_boundaries_are_exact() {
         // 0x20 (space) and non-ASCII are out; 0x21 and 0x7E are in.
         let bad = http_session(r#"{"mcp-session-id":"has space"}"#, "{}");
