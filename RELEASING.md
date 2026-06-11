@@ -36,14 +36,14 @@ Dependency order, with index-propagation waits between steps:
    - Bump `version` in `[workspace.package]` (one place; all crates inherit).
    - Move `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD` in `CHANGELOG.md`; add a fresh
      `[Unreleased]` section.
-   - `cargo xtask ci` green; `cargo deny check` green; `cargo package --workspace`
+   - `cargo xtask ci` green; `cargo deny check` green; `cargo package --workspace --exclude xtask --locked`
      green.
    - Update the supported-versions table in `SECURITY.md`.
 2. **Merge** via PR (CI must be green; no exceptions for release PRs).
 3. **Tag**: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` on `main`; push the tag.
 4. **Automation** (`release.yml`): validates tag ↔ version ↔ changelog agreement,
    re-runs the full gate set (including MSRV clippy/tests and cross-OS tests), packages
-   all crates with verification builds (`cargo package --workspace --locked` — the
+   all publishable crates with verification builds (`cargo package --workspace --exclude xtask --locked` — the
    workspace-wide dry run; per-crate `--dry-run` cannot resolve unpublished sibling
    dependencies), attests SLSA build provenance over the `.crate` files, creates the
    GitHub Release with the changelog excerpt and checksummed artifacts, then — behind

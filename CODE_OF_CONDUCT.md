@@ -1,7 +1,6 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 <!-- Contributor Covenant v2.1 — https://www.contributor-covenant.org -->
 
-
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge

@@ -112,7 +112,7 @@ missing half — upstream-first, calibrated against the official suite, engineer
 the standard set by [a2a-rust](https://github.com/tomtom215/a2a-rust) and held by CI:
 clippy pedantic+nursery at `-D warnings` on stable and MSRV across three platforms,
 property tests, golden-corpus tests, diff-scoped mutation gates with a
-zero-surviving-mutants standard on the judgment crates, and `cargo deny` on every push.
+zero-surviving-mutants standard on every shipped crate, and `cargo deny` on every push.
 
 The reasoning, with every claim verified and dated:
 [docs/plan/00-charter.md](docs/plan/00-charter.md).

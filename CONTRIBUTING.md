@@ -44,7 +44,7 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
 7. Every relative documentation link resolving (`cargo xtask docs-links`)
 8. The README coverage table in sync with the registry (`cargo xtask coverage --check`)
 
-Additionally enforced in CI: `cargo package --workspace --exclude xtask`
+Additionally enforced in CI: `cargo package --workspace --exclude xtask --locked`
 (publishability) and diff-scoped mutation testing (`cargo mutants --in-diff`)
 on PRs. The standard is **zero surviving mutants in every shipped crate**
 (xtask is excluded via `.cargo/mutants.toml`).

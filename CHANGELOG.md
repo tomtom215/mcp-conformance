@@ -49,7 +49,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   suite's deliberate version-compat probe (TRAN-018).
 - **Coverage manifest** (`conformance/coverage-manifest.json`): generated
   from the tapped sessions and checked on every conformance run (`BLESS=1`
-  regenerates) — the server's declared capabilities, all seven server-party
+  regenerates) — the server's declared capabilities, all eight server-party
   registry capability gates (each must be declared: the gate caught the
   missing `listChanged` declarations on first run), and the 18 wire methods
   the suite exercises.
@@ -88,15 +88,6 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   from `release.yml` now that all four crates enforce "Trusted Publishing Only"
   and the bootstrap token is deleted and revoked (ADR-0007 §Amendment).
 
-### Security
-
-- `mcp-everything-server`: the `Host`/`Origin` 403 gate now fails closed on
-  duplicate `Host` or `Origin` headers (a smuggling shape — it previously
-  judged only the first value while a downstream consumer could key off a
-  later one). A well-formed request carries exactly one of each.
-- `mcp-everything-server`: the per-session `resources/subscribe` set is
-  capped, so a hostile client cannot grow its bookkeeping without bound.
-
 ### Fixed
 
 - `mcp-conformance-core`: `to_canonical_string` walks nesting with an explicit
@@ -125,6 +116,15 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 - Release packaging excludes `xtask` (`publish = false`, but
   `cargo package --workspace` still packaged it; v0.1.0's GitHub Release
   carries the stray — harmless — crate file).
+
+### Security
+
+- `mcp-everything-server`: the `Host`/`Origin` 403 gate now fails closed on
+  duplicate `Host` or `Origin` headers (a smuggling shape — it previously
+  judged only the first value while a downstream consumer could key off a
+  later one). A well-formed request carries exactly one of each.
+- `mcp-everything-server`: the per-session `resources/subscribe` set is
+  capped, so a hostile client cannot grow its bookkeeping without bound.
 
 ## [0.1.0] - 2026-06-10
 
@@ -168,3 +168,6 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   Linux/macOS/Windows × three feature modes), docs, `cargo-deny`, package
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
+
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.1.0
