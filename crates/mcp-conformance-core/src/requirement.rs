@@ -164,7 +164,12 @@ pub struct SourceRef {
     /// Path-with-anchor under the specification site for the quoted clause, e.g.
     /// `basic/lifecycle#initialization`.
     pub section: String,
-    /// The normative sentence, verbatim from the published specification text.
+    /// The normative sentence, verbatim from the published (rendered)
+    /// specification text, with one declared exception: clauses whose
+    /// normative content is a bullet or numbered list are flattened onto one
+    /// line, list items joined with `; ` after the introducing `:` — every
+    /// fragment between those separators remains verbatim. Inline code spans
+    /// keep their backticks.
     pub quote: String,
 }
 

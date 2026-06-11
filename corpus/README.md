@@ -49,6 +49,7 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 | `base-008-jsonrpc-version.jsonl` | BASE-008 |
 | `base-009-error-unknown-id.jsonl` | BASE-009 |
 | `base-010-response-without-result.jsonl` | BASE-010 |
+| `base-019-meta-key-bad-prefix.jsonl` | BASE-019, BASE-020 (shared `base.meta-key-format` check) |
 | `comp-001-capability-undeclared.jsonl` | COMP-001 |
 | `life-001-first-message-not-initialize.jsonl` | LIFE-001 |
 | `life-002-initialize-missing-protocolversion.jsonl` | LIFE-002 |
@@ -58,6 +59,7 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 | `life-006-result-version-invalid.jsonl` | LIFE-006 |
 | `life-007-initialize-protocolversion-not-string.jsonl` | LIFE-007 |
 | `life-009-undeclared-capability-use.jsonl` | LIFE-009 |
+| `life-010-initialize-result-missing-capabilities.jsonl` | LIFE-010 |
 | `log-001-capability-undeclared.jsonl` | LOG-001 |
 | `page-002-cursor-never-issued.jsonl` | PAGE-002 |
 | `prom-001-capability-undeclared.jsonl` | PROM-001 |
@@ -81,3 +83,5 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 | `tran-013-session-id-not-echoed.jsonl` | TRAN-013 |
 | `tran-017-protocol-version-header-missing.jsonl` | TRAN-017 |
 | `tran-018-protocol-version-mismatched.jsonl` | TRAN-018 |
+| `tran-025-accept-header-missing.jsonl` | TRAN-025, TRAN-039 (shared `transport.client-accept-header` check) |
+| `tran-029-content-type-unexpected.jsonl` | TRAN-029, TRAN-040 (shared `transport.success-content-type` check) |

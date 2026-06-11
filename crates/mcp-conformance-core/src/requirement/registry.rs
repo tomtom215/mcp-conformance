@@ -23,6 +23,7 @@ const AREAS_2025_11_25: &[&str] = &[
     include_str!("../../registry/2025-11-25/base.json"),
     include_str!("../../registry/2025-11-25/lifecycle.json"),
     include_str!("../../registry/2025-11-25/transport.json"),
+    include_str!("../../registry/2025-11-25/transport-streamable-http.json"),
     include_str!("../../registry/2025-11-25/tools.json"),
     include_str!("../../registry/2025-11-25/resources.json"),
     include_str!("../../registry/2025-11-25/prompts.json"),

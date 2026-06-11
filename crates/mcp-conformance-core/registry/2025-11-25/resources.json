@@ -70,6 +70,48 @@
       "checks": [
         "resources.blob-base64"
       ]
+    },
+    {
+      "id": "RES-007",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.resources",
+      "source": {
+        "section": "server/resources#https",
+        "quote": "For other use cases, servers SHOULD prefer to use another URI scheme, or define a custom one, even if the server will itself be downloading resource contents over the internet."
+      },
+      "exclusion": "The premise — whether the client could fetch the URI directly — is a property of the client's environment, not of the session (the RES-003 argument)."
+    },
+    {
+      "id": "RES-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.resources",
+      "source": {
+        "section": "server/resources#error-handling",
+        "quote": "Servers SHOULD return standard JSON-RPC errors for common failure cases: Resource not found: `-32002`; Internal errors: `-32603`"
+      },
+      "exclusion": "Whether a failure case actually occurred (the resource was absent, an internal fault happened) is server-side ground truth a trace does not carry."
+    },
+    {
+      "id": "RES-009",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "server/resources#security-considerations",
+        "quote": "Access controls SHOULD be implemented for sensitive resources"
+      },
+      "exclusion": "Which resources are sensitive and what controls guard them is deployment policy with no per-session observable."
+    },
+    {
+      "id": "RES-010",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "server/resources#security-considerations",
+        "quote": "Resource permissions SHOULD be checked before operations"
+      },
+      "exclusion": "Permission checks are server-internal enforcement; a trace shows the operations served, not the checks that admitted them."
     }
   ]
 }

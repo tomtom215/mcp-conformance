@@ -13,6 +13,23 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **Registry completeness audit (2026-06-11)**: clause-by-clause re-extraction
+  of the `2025-11-25` spec found 68 in-scope normative clauses missing from
+  the registry; all are now entries (71 → 139), every quote verified verbatim
+  against the published text. Four are mechanically checkable and gained
+  checks plus killer traces: `lifecycle.initialize-result-shape` (LIFE-010 —
+  the initialize result must carry `capabilities` and `serverInfo`),
+  `transport.client-accept-header` (TRAN-025/TRAN-039 — every client request
+  must list `text/event-stream` in `Accept`), `transport.success-content-type`
+  (TRAN-029/TRAN-040 — HTTP 200s must answer `application/json` or
+  `text/event-stream`), and `base.meta-key-format` (BASE-019/BASE-020 — the
+  `_meta` key prefix/name grammar, scoped to the `params`/`result` envelope
+  positions where user data cannot collide). The other 61 carry documented
+  exclusions naming exactly why a recorded trace cannot judge them (stream
+  identity, request methods, timing, and server-internal ground truth are
+  not in the capture vocabulary). The agreement check over the suite's 30
+  tapped sessions runs the new checks at zero unexplained divergence.
+
 - **The agreement check is live** (docs/plan/03-conformance-strategy.md
   §Calibration): `mcp-everything-server` gains a session trace tap (feature
   `tap`, `--tap-dir`, HTTP transport) recording every admitted suite session

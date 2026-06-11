@@ -1,8 +1,8 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 36,
-    "fail": 1,
+    "pass": 35,
+    "fail": 2,
     "warn": 0,
     "excluded": 89,
     "unsupported": 0,
@@ -37,14 +37,7 @@
     {
       "id": "BASE-006",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "base.error-shape",
-          "seq": 1,
-          "detail": "error object lacks a message member"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-007",
@@ -117,12 +110,26 @@
     {
       "id": "BASE-019",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "base.meta-key-format",
+          "seq": 3,
+          "detail": "params._meta key \"1bad./token\" has prefix label \"1bad\"; labels must start with a letter, end with a letter or digit, and contain only letters, digits, or hyphens"
+        }
+      ]
     },
     {
       "id": "BASE-020",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "base.meta-key-format",
+          "seq": 3,
+          "detail": "params._meta key \"1bad./token\" has prefix label \"1bad\"; labels must start with a letter, end with a letter or digit, and contain only letters, digits, or hyphens"
+        }
+      ]
     },
     {
       "id": "BASE-021",

@@ -220,6 +220,33 @@ pub(super) fn initialize_result_version(context: &TraceContext<'_>, sink: &mut F
     }
 }
 
+/// `LIFE-010`: the initialize result must carry the server's capabilities and
+/// implementation information (`capabilities` and `serverInfo` objects).
+///
+/// A missing or error-answered initialize exchange is owned by the handshake
+/// checks (LIFE-001/003/006); this one judges only a result that exists.
+pub(super) fn initialize_result_shape(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    let Some((seq, result)) = context.initialize().result else {
+        return;
+    };
+    for (member, label) in [
+        ("capabilities", "its capabilities"),
+        ("serverInfo", "its implementation information (serverInfo)"),
+    ] {
+        match result.get(member) {
+            None => sink.push(
+                Some(seq),
+                format!("initialize result lacks {label}: no {member} member"),
+            ),
+            Some(value) if !value.is_object() => sink.push(
+                Some(seq),
+                format!("initialize result {member} is {value}, expected an object"),
+            ),
+            Some(_) => {}
+        }
+    }
+}
+
 const fn describe_kind(kind: &MessageKind<'_>) -> &'static str {
     match kind {
         MessageKind::Request { .. } => "a request",
@@ -305,6 +332,52 @@ mod tests {
             findings[2]
                 .detail
                 .contains("clientInfo should be an object")
+        );
+    }
+
+    #[test]
+    fn initialize_result_shape_demands_capability_and_serverinfo_objects() {
+        fn handshake_with_result(result: &str) -> String {
+            let request = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}"#;
+            format!(
+                "{request}\n{{\"seq\":1,\"direction\":\"server-to-client\",\"transport\":\"stdio\",\"kind\":\"message\",\"payload\":{{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{result}}}}}"
+            )
+        }
+        let run = |result: &str| {
+            let trace = handshake_with_result(result);
+            let events = crate::reader::parse_trace(&trace, &crate::reader::Limits::default())
+                .expect("trace parses");
+            let context = TraceContext::new(&events);
+            crate::checks::find("lifecycle.initialize-result-shape")
+                .expect("check registered")
+                .run(&context)
+        };
+
+        // Complete shape: no findings.
+        assert!(
+            run(r#"{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}"#)
+                .is_empty()
+        );
+        // Missing capabilities only.
+        let missing_caps =
+            run(r#"{"protocolVersion":"2025-11-25","serverInfo":{"name":"s","version":"0"}}"#);
+        assert_eq!(missing_caps.len(), 1, "{missing_caps:?}");
+        assert!(missing_caps[0].detail.contains("capabilities"));
+        // Missing serverInfo only.
+        let missing_info = run(r#"{"protocolVersion":"2025-11-25","capabilities":{}}"#);
+        assert_eq!(missing_info.len(), 1, "{missing_info:?}");
+        assert!(missing_info[0].detail.contains("serverInfo"));
+        // Wrong types are findings too, one per member.
+        let wrong = run(r#"{"capabilities":7,"serverInfo":"s"}"#);
+        assert_eq!(wrong.len(), 2, "{wrong:?}");
+        // No initialize result at all: the handshake checks own that case.
+        let events = crate::reader::parse_trace("", &crate::reader::Limits::default()).unwrap();
+        let context = TraceContext::new(&events);
+        assert!(
+            crate::checks::find("lifecycle.initialize-result-shape")
+                .unwrap()
+                .run(&context)
+                .is_empty()
         );
     }
 }

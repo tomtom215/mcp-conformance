@@ -1,8 +1,8 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 36,
-    "fail": 1,
+    "pass": 35,
+    "fail": 2,
     "warn": 0,
     "excluded": 89,
     "unsupported": 0,
@@ -37,14 +37,7 @@
     {
       "id": "BASE-006",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "base.error-shape",
-          "seq": 1,
-          "detail": "error object lacks a message member"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-007",
@@ -382,7 +375,14 @@
     {
       "id": "TRAN-025",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.client-accept-header",
+          "seq": 4,
+          "detail": "client HTTP request has no Accept header; every request to the MCP endpoint must list text/event-stream (and POST requests application/json)"
+        }
+      ]
     },
     {
       "id": "TRAN-026",
@@ -464,7 +464,14 @@
     {
       "id": "TRAN-039",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.client-accept-header",
+          "seq": 4,
+          "detail": "client HTTP request has no Accept header; every request to the MCP endpoint must list text/event-stream (and POST requests application/json)"
+        }
+      ]
     },
     {
       "id": "TRAN-040",

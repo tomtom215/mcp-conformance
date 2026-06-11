@@ -62,6 +62,15 @@ The spec as data, and the engine that judges traces against it.
       security), each entry carrying level, actor, source quote, applicability, and
       check-or-exclusion ([02-architecture.md](02-architecture.md)); coverage table
       generated into the README by `cargo xtask coverage` and verified in CI.
+      *(Erratum, found and closed by the 2026-06-11 repo audit: this line was not true
+      as originally closed — a clause-by-clause re-extraction against the live spec
+      text found 68 in-scope normative clauses with no entry, among them lifecycle's
+      "The server MUST respond with its own capabilities and information" and twelve
+      streamable-HTTP MUSTs. All 68 are now in the registry (71 → 139 entries: 7 entries
+      judged by 4 new checks with killer traces, 61 documented exclusions), every quote re-verified
+      verbatim against the published text in the same audit, and the agreement check
+      over the suite's 30 tapped sessions stayed at zero unexplained divergence with
+      the new checks active.)*
 - [x] Validator replays the corpus deterministically: 100% pass on known-good traces;
       **every check is killed by at least one injected-violation trace**; byte-identical
       reports across platforms and runs.

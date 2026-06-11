@@ -37,14 +37,7 @@
     {
       "id": "BASE-006",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "base.error-shape",
-          "seq": 1,
-          "detail": "error object lacks a message member"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-007",
@@ -197,7 +190,14 @@
     {
       "id": "LIFE-010",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "lifecycle.initialize-result-shape",
+          "seq": 1,
+          "detail": "initialize result lacks its capabilities: no capabilities member"
+        }
+      ]
     },
     {
       "id": "LIFE-011",

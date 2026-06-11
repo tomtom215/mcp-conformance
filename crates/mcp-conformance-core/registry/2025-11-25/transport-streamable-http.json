@@ -1,0 +1,263 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "TRAN-024",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "Every JSON-RPC message sent from the client MUST be a new HTTP POST request to the MCP endpoint."
+      },
+      "exclusion": "Recorded HTTP events carry status and conformance-relevant headers, not request methods or targets, so this clause's subject is invisible in a trace."
+    },
+    {
+      "id": "TRAN-025",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "The client MUST include an `Accept` header, listing both `application/json` and `text/event-stream` as supported content types."
+      },
+      "checks": [
+        "transport.client-accept-header"
+      ]
+    },
+    {
+      "id": "TRAN-026",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "The body of the POST request MUST be a single JSON-RPC request, notification, or response."
+      },
+      "exclusion": "The capture format records messages individually: a multi-message body cannot be represented in a trace, so a trace that parses is itself the evidence (the TRAN-001/TRAN-003 capture-time argument)."
+    },
+    {
+      "id": "TRAN-027",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "If the server accepts the input, the server MUST return HTTP status code 202 Accepted with no body."
+      },
+      "exclusion": "The trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it."
+    },
+    {
+      "id": "TRAN-028",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "If the server cannot accept the input, it MUST return an HTTP error status code (e.g., 400 Bad Request)."
+      },
+      "exclusion": "Whether input was acceptable is server-internal judgment, and the trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it."
+    },
+    {
+      "id": "TRAN-029",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "If the input is a JSON-RPC request, the server MUST either return `Content-Type: text/event-stream`, to initiate an SSE stream, or `Content-Type: application/json`, to return one JSON object."
+      },
+      "checks": [
+        "transport.success-content-type"
+      ]
+    },
+    {
+      "id": "TRAN-030",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "The client MUST support both these cases."
+      },
+      "exclusion": "What a client could have handled is client-internal capability; a trace shows the case that occurred, not the cases supported."
+    },
+    {
+      "id": "TRAN-031",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "The server SHOULD immediately send an SSE event consisting of an event ID and an empty `data` field in order to prime the client to reconnect (using that event ID as `Last-Event-ID`)."
+      },
+      "exclusion": "SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace."
+    },
+    {
+      "id": "TRAN-032",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "If the server does close the connection prior to terminating the SSE stream, it SHOULD send an SSE event with a standard `retry` field before closing the connection."
+      },
+      "exclusion": "SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace."
+    },
+    {
+      "id": "TRAN-033",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "The client MUST respect the `retry` field, waiting the given number of milliseconds before attempting to reconnect."
+      },
+      "exclusion": "Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged."
+    },
+    {
+      "id": "TRAN-034",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "The SSE stream SHOULD eventually include a JSON-RPC response for the JSON-RPC request sent in the POST body."
+      },
+      "exclusion": "Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-035",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "These messages SHOULD relate to the originating client request."
+      },
+      "exclusion": "Relatedness is a semantic judgment over message content, and which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-036",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "After the JSON-RPC response has been sent, the server SHOULD terminate the SSE stream."
+      },
+      "exclusion": "Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-037",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "Disconnection SHOULD NOT be interpreted as the client cancelling its request."
+      },
+      "exclusion": "How the server interpreted a disconnect is internal state; only conduct that follows from a misinterpretation could surface, and attributing it requires the interpretation."
+    },
+    {
+      "id": "TRAN-038",
+      "level": "SHOULD",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "To cancel, the client SHOULD explicitly send an MCP `CancelledNotification`."
+      },
+      "exclusion": "A wish to cancel is client intent with no observable of its own; a session without a cancellation is not evidence one was wanted."
+    },
+    {
+      "id": "TRAN-039",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#listening-for-messages-from-the-server",
+        "quote": "The client MUST include an `Accept` header, listing `text/event-stream` as a supported content type."
+      },
+      "checks": [
+        "transport.client-accept-header"
+      ]
+    },
+    {
+      "id": "TRAN-040",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#listening-for-messages-from-the-server",
+        "quote": "The server MUST either return `Content-Type: text/event-stream` in response to this HTTP GET, or else return HTTP 405 Method Not Allowed, indicating that the server does not offer an SSE stream at this endpoint."
+      },
+      "checks": [
+        "transport.success-content-type"
+      ]
+    },
+    {
+      "id": "TRAN-041",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#listening-for-messages-from-the-server",
+        "quote": "These messages SHOULD be unrelated to any concurrently-running JSON-RPC request from the client."
+      },
+      "exclusion": "Unrelatedness is a semantic judgment over message content, and which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-042",
+      "level": "MUST NOT",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#listening-for-messages-from-the-server",
+        "quote": "The server MUST NOT send a JSON-RPC response on the stream unless resuming a stream associated with a previous client request."
+      },
+      "exclusion": "Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-043",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#multiple-connections",
+        "quote": "The server MUST send each of its JSON-RPC messages on only one of the connected streams; that is, it MUST NOT broadcast the same message across multiple streams."
+      },
+      "exclusion": "Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace. A duplicated message in the capture order is also indistinguishable from a legitimately repeated notification."
+    },
+    {
+      "id": "TRAN-044",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#resumability-and-redelivery",
+        "quote": "If present, the ID MUST be globally unique across all streams within that session—or all streams with that specific client, if session management is not in use."
+      },
+      "exclusion": "SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace."
+    },
+    {
+      "id": "TRAN-045",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#resumability-and-redelivery",
+        "quote": "Event IDs SHOULD encode sufficient information to identify the originating stream, enabling the server to correlate a `Last-Event-ID` to the correct stream."
+      },
+      "exclusion": "SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace."
+    },
+    {
+      "id": "TRAN-046",
+      "level": "SHOULD",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#resumability-and-redelivery",
+        "quote": "If the client wishes to resume after a disconnection (whether due to network failure or server-initiated closure), it SHOULD issue an HTTP GET to the MCP endpoint, and include the `Last-Event-ID` header to indicate the last event ID it received."
+      },
+      "exclusion": "Conditional on client intent (the wish to resume), and the request method is not captured; when a resumption does occur its `last-event-id` header is recorded, but absence proves nothing."
+    },
+    {
+      "id": "TRAN-047",
+      "level": "MUST NOT",
+      "actor": "server",
+      "source": {
+        "section": "basic/transports#resumability-and-redelivery",
+        "quote": "The server MUST NOT replay messages that would have been delivered on a different stream."
+      },
+      "exclusion": "Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-048",
+      "level": "SHOULD",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#session-management",
+        "quote": "Clients that no longer need a particular session (e.g., because the user is leaving the client application) SHOULD send an HTTP DELETE to the MCP endpoint with the `MCP-Session-Id` header, to explicitly terminate the session."
+      },
+      "exclusion": "Conditional on client intent (no longer needing the session), and the request method is not captured."
+    }
+  ]
+}

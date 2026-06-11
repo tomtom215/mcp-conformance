@@ -16,6 +16,7 @@
     }
   },
   "capability_gates": {
+    "server.completions": true,
     "server.logging": true,
     "server.prompts": true,
     "server.prompts.listChanged": true,

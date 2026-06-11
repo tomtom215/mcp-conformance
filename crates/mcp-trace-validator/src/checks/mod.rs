@@ -131,6 +131,14 @@ pub static ALL: &[Check] = &[
         run: lifecycle::initialize_result_version,
     },
     Check {
+        id: "lifecycle.initialize-result-shape",
+        run: lifecycle::initialize_result_shape,
+    },
+    Check {
+        id: "base.meta-key-format",
+        run: base::meta_key_format,
+    },
+    Check {
         id: "base.result-field",
         run: base::result_field,
     },
@@ -165,6 +173,14 @@ pub static ALL: &[Check] = &[
     Check {
         id: "transport.protocol-version-negotiated",
         run: transport::protocol_version_negotiated,
+    },
+    Check {
+        id: "transport.client-accept-header",
+        run: transport::client_accept_header,
+    },
+    Check {
+        id: "transport.success-content-type",
+        run: transport::success_content_type,
     },
     Check {
         id: "tools.capability-declared",

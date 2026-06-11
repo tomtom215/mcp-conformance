@@ -106,6 +106,88 @@
       "checks": [
         "lifecycle.negotiated-capabilities-only"
       ]
+    },
+    {
+      "id": "LIFE-010",
+      "level": "MUST",
+      "actor": "server",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The server MUST respond with its own capabilities and information:"
+      },
+      "checks": [
+        "lifecycle.initialize-result-shape"
+      ]
+    },
+    {
+      "id": "LIFE-011",
+      "level": "SHOULD",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#version-negotiation",
+        "quote": "This SHOULD be the latest version supported by the client."
+      },
+      "exclusion": "The client's supported-version set is internal state with no wire footprint; the trace shows the version sent, not the versions available."
+    },
+    {
+      "id": "LIFE-012",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "basic/lifecycle#version-negotiation",
+        "quote": "This SHOULD be the latest version supported by the server."
+      },
+      "exclusion": "The server's supported-version set is internal state with no wire footprint; the trace shows the version answered, not the versions available."
+    },
+    {
+      "id": "LIFE-013",
+      "level": "SHOULD",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#version-negotiation",
+        "quote": "If the client does not support the version in the server's response, it SHOULD disconnect."
+      },
+      "exclusion": "Whether the client supports the answered version is client-internal; a continued session is only evidence of support if the premise is known. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header)."
+    },
+    {
+      "id": "LIFE-014",
+      "level": "SHOULD",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#shutdown",
+        "quote": "For the stdio transport, the client SHOULD initiate shutdown by: First, closing the input stream to the child process (the server); Waiting for the server to exit, or sending `SIGTERM` if the server does not exit within a reasonable time; Sending `SIGKILL` if the server does not exit within a reasonable time after `SIGTERM`"
+      },
+      "exclusion": "Stdin closure, signals, and process exit are host-OS actions outside the trace event vocabulary (transport-open/close/abort record that a transport ended, not who ended it or how)."
+    },
+    {
+      "id": "LIFE-015",
+      "level": "SHOULD",
+      "actor": "both",
+      "source": {
+        "section": "basic/lifecycle#timeouts",
+        "quote": "Implementations SHOULD establish timeouts for all sent requests, to prevent hung connections and resource exhaustion."
+      },
+      "exclusion": "Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged."
+    },
+    {
+      "id": "LIFE-016",
+      "level": "SHOULD",
+      "actor": "both",
+      "source": {
+        "section": "basic/lifecycle#timeouts",
+        "quote": "When the request has not received a success or error response within the timeout period, the sender SHOULD issue a cancellation notification for that request and stop waiting for a response."
+      },
+      "exclusion": "Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged."
+    },
+    {
+      "id": "LIFE-017",
+      "level": "SHOULD",
+      "actor": "both",
+      "source": {
+        "section": "basic/lifecycle#timeouts",
+        "quote": "However, implementations SHOULD always enforce a maximum timeout, regardless of progress notifications, to limit the impact of a misbehaving client or server."
+      },
+      "exclusion": "Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged."
     }
   ]
 }
