@@ -201,15 +201,6 @@ pub async fn tap_layer(
         return next.run(Request::from_parts(parts, Body::empty())).await;
     };
     let request_payload: Option<serde_json::Value> = serde_json::from_slice(&bytes).ok();
-    if request_payload.is_none() && !bytes.is_empty() {
-        // GET and DELETE bodies are legitimately empty; a non-empty body that
-        // is not JSON cannot be recorded as a message. Say so rather than
-        // leaving a silent hole a trace reader would misread as "no body".
-        eprintln!(
-            "mcp-everything-server: tap recorded an exchange without its request \
-             message (body is not JSON)"
-        );
-    }
     let response = next
         .run(Request::from_parts(parts, Body::from(bytes.clone())))
         .await;
@@ -220,6 +211,20 @@ pub async fn tap_layer(
     let Some(session_id) = response_session.or(request_session) else {
         return response; // Sessionless exchange (e.g. rejected init): out of tap scope.
     };
+
+    if request_payload.is_none() && !bytes.is_empty() {
+        // GET and DELETE bodies are legitimately empty; a non-empty body that
+        // is not JSON cannot be recorded as a message. Say so rather than
+        // leaving a silent hole a trace reader would misread as "no body" —
+        // and say it only past the session gate, so the note never claims a
+        // recording that did not happen. tests/cli.rs counts these notes
+        // against the real binary's stderr: exactly one for one bad body,
+        // none for clean traffic.
+        eprintln!(
+            "mcp-everything-server: tap recorded an exchange without its request \
+             message (body is not JSON)"
+        );
+    }
 
     tap.record(
         &session_id,
