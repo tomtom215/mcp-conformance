@@ -144,6 +144,28 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn new_builds_the_exact_event_with_no_timestamp() {
+        let event = TraceEvent::new(
+            7,
+            Direction::ServerToClient,
+            TransportKind::StreamableHttp,
+            EventBody::Lifecycle {
+                event: LifecycleEvent::TransportClose,
+            },
+        );
+        assert_eq!(event.seq, 7);
+        assert_eq!(event.direction, Direction::ServerToClient);
+        assert_eq!(event.transport, TransportKind::StreamableHttp);
+        assert_eq!(
+            event.body,
+            EventBody::Lifecycle {
+                event: LifecycleEvent::TransportClose
+            }
+        );
+        assert_eq!(event.ts, None, "checks never read ts; new() never sets it");
+    }
+
+    #[test]
     fn message_event_round_trips() {
         let line = r#"{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize"}}"#;
         let event: TraceEvent = serde_json::from_str(line).unwrap();

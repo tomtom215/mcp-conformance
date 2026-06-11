@@ -401,7 +401,15 @@ impl SseSplitter {
         self.buffer.push_str(text);
         let mut payloads = Vec::new();
         // SSE events end at a blank line; tolerate both LF and CRLF framing.
-        while let Some((frame, rest)) = split_frame(&self.buffer) {
+        // The iteration bound is a real invariant, not decoration: every
+        // completed frame consumes at least its boundary bytes, so an n-byte
+        // buffer holds at most n frames. Bounding the loop makes an infinite
+        // spin impossible even if frame-splitting were to stop consuming
+        // input — a recording bug must never wedge the serving path.
+        for _ in 0..=self.buffer.len() {
+            let Some((frame, rest)) = split_frame(&self.buffer) else {
+                break;
+            };
             let data = frame
                 .lines()
                 .filter_map(|line| {
@@ -444,7 +452,7 @@ fn split_frame(buffer: &str) -> Option<(String, String)> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use serde_json::json;
@@ -471,6 +479,61 @@ mod tests {
         assert!(splitter.push(b": keep-alive\n\n").is_empty());
         assert!(splitter.push(b"data: not json\n\n").is_empty());
         assert_eq!(splitter.push(b"data: 7\n\n"), vec![json!(7)]);
+    }
+
+    #[test]
+    fn split_frame_returns_exact_frame_and_remainder() {
+        assert_eq!(split_frame("no boundary yet"), None);
+        assert_eq!(
+            split_frame("data: 1\n\nrest"),
+            Some(("data: 1".to_owned(), "rest".to_owned()))
+        );
+        assert_eq!(
+            split_frame("data: 1\r\n\r\nrest"),
+            Some(("data: 1".to_owned(), "rest".to_owned()))
+        );
+        // An empty frame is still a frame: the boundary alone splits.
+        assert_eq!(
+            split_frame("\n\ntail"),
+            Some((String::new(), "tail".to_owned()))
+        );
+    }
+
+    #[test]
+    fn split_frame_takes_the_earlier_boundary_when_both_framings_appear() {
+        // CRLF boundary first: it must win even though an LF boundary follows.
+        assert_eq!(
+            split_frame("a\r\n\r\nb\n\nc"),
+            Some(("a".to_owned(), "b\n\nc".to_owned()))
+        );
+        // LF boundary first: it must win even though a CRLF boundary follows.
+        assert_eq!(
+            split_frame("a\n\nb\r\n\r\nc"),
+            Some(("a".to_owned(), "b\r\n\r\nc".to_owned()))
+        );
+        // A CRLF boundary consumes all four bytes: the frame carries no
+        // trailing carriage return and the remainder starts after the
+        // boundary, even at end of input.
+        assert_eq!(
+            split_frame("x\r\n\r\n"),
+            Some(("x".to_owned(), String::new()))
+        );
+    }
+
+    #[tokio::test]
+    async fn debug_names_the_trace_directory_without_dumping_internals() {
+        let dir = std::env::temp_dir().join(format!("tap-debug-{}", std::process::id()));
+        let tap = Tap::new(dir.clone()).expect("tap directory");
+        let rendered = format!("{tap:?}");
+        assert!(
+            rendered.contains("Tap") && rendered.contains("tap-debug"),
+            "Debug names the type and its directory: {rendered}"
+        );
+        assert!(
+            rendered.contains(".."),
+            "the non-exhaustive marker shows fields are elided: {rendered}"
+        );
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

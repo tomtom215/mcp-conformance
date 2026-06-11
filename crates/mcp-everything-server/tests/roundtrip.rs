@@ -115,6 +115,8 @@ type LogLog = std::sync::Arc<std::sync::Mutex<Vec<(String, String)>>>;
 type ProgressLog = std::sync::Arc<std::sync::Mutex<Vec<(f64, Option<f64>)>>>;
 /// URIs captured from `notifications/resources/updated`.
 type UpdatedLog = std::sync::Arc<std::sync::Mutex<Vec<String>>>;
+/// Which `notifications/*/list_changed` messages arrived, in arrival order.
+type ListChangedLog = std::sync::Arc<std::sync::Mutex<Vec<&'static str>>>;
 
 /// Client handler that records logging and progress notifications, so the
 /// mid-call notification contracts are assertable from a real session.
@@ -123,6 +125,7 @@ struct Recorder {
     logs: LogLog,
     progress: ProgressLog,
     updated: UpdatedLog,
+    list_changed: ListChangedLog,
 }
 
 impl rmcp::ClientHandler for Recorder {
@@ -158,6 +161,27 @@ impl rmcp::ClientHandler for Recorder {
         _context: rmcp::service::NotificationContext<rmcp::RoleClient>,
     ) {
         self.updated.lock().unwrap().push(params.uri);
+    }
+
+    async fn on_tool_list_changed(
+        &self,
+        _context: rmcp::service::NotificationContext<rmcp::RoleClient>,
+    ) {
+        self.list_changed.lock().unwrap().push("tools");
+    }
+
+    async fn on_resource_list_changed(
+        &self,
+        _context: rmcp::service::NotificationContext<rmcp::RoleClient>,
+    ) {
+        self.list_changed.lock().unwrap().push("resources");
+    }
+
+    async fn on_prompt_list_changed(
+        &self,
+        _context: rmcp::service::NotificationContext<rmcp::RoleClient>,
+    ) {
+        self.list_changed.lock().unwrap().push("prompts");
     }
 }
 
@@ -321,6 +345,28 @@ async fn logging_tool_emits_three_staged_info_messages() {
     assert!(
         logs.iter().all(|(level, _)| level == "Info"),
         "all info level: {logs:?}"
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn list_changed_tool_emits_all_three_notifications() {
+    let (client, recorder) = connect_recording().await;
+    let result = client
+        .call_tool(CallToolRequestParams::new("test_list_changed"))
+        .await
+        .expect("list-changed tool");
+    assert!(
+        result.content[0]
+            .as_text()
+            .is_some_and(|text| text.text.contains("emitted")),
+        "the confirming result text: {result:?}"
+    );
+    let seen = recorder.list_changed.lock().unwrap().clone();
+    assert_eq!(
+        seen,
+        vec!["tools", "resources", "prompts"],
+        "all three list_changed notifications, in emission order"
     );
     client.cancel().await.expect("clean shutdown");
 }
