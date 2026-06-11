@@ -14,7 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use mcp_conformance_core::requirement::Registry;
-use mcp_trace_validator::report::{Report, Verdict};
+use mcp_trace_validator::report::{Outcome, Report, Verdict};
 use mcp_trace_validator::{engine, reader};
 
 fn corpus_root() -> PathBuf {
@@ -51,7 +51,10 @@ fn check_golden(trace_path: &Path, report: &Report) {
     let mut rendered = serde_json::to_string_pretty(report).unwrap();
     rendered.push('\n');
 
-    if std::env::var_os("BLESS").is_some() {
+    // Same convention as the coverage manifest's regeneration switch: only
+    // the exact value "1" blesses, so `BLESS=0 cargo test` does not silently
+    // overwrite goldens.
+    if std::env::var("BLESS").is_ok_and(|value| value == "1") {
         fs::write(&golden_path, &rendered)
             .unwrap_or_else(|error| panic!("cannot write {}: {error}", golden_path.display()));
         return;
@@ -99,8 +102,53 @@ fn violation_traces_fail_and_match_goldens() {
             "{} is in violations/ but produced no findings",
             trace_path.display()
         );
+        // Attribution, not just failure: the trace `area-nnn-…` exists to
+        // falsify requirement AREA-NNN and must keep doing so by name. A
+        // refactor that re-routes the defect to some other requirement —
+        // while another trace happens to keep the orphaned check covered —
+        // would otherwise re-bless cleanly and be visible only to a human
+        // reading the golden diff.
+        let stem = trace_path.file_stem().unwrap().to_string_lossy().into_owned();
+        let id = stem
+            .split('-')
+            .take(2)
+            .collect::<Vec<_>>()
+            .join("-")
+            .to_uppercase();
+        let row = report
+            .requirements
+            .iter()
+            .find(|row| row.id == id)
+            .unwrap_or_else(|| panic!("{stem}: no report row for {id}"));
+        assert!(
+            matches!(row.outcome, Outcome::Fail | Outcome::Warn) && !row.findings.is_empty(),
+            "{stem} must falsify {id} by name; got outcome {:?} with {} finding(s)",
+            row.outcome,
+            row.findings.len()
+        );
         check_golden(&trace_path, &report);
     }
+}
+
+#[test]
+fn every_golden_belongs_to_a_living_trace() {
+    // Goldens are written per trace; deleting or renaming a trace must not
+    // strand its golden as unreviewed dead weight that still looks load-bearing.
+    let traces: BTreeSet<String> = ["good", "violations"]
+        .iter()
+        .flat_map(|subdir| trace_files(subdir))
+        .map(|path| path.file_stem().unwrap().to_string_lossy().into_owned())
+        .collect();
+    let goldens: BTreeSet<String> = fs::read_dir(corpus_root().join("golden"))
+        .expect("golden directory")
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
+        .map(|path| path.file_stem().unwrap().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        goldens, traces,
+        "left: golden files; right: traces — every golden needs its trace and every trace its golden"
+    );
 }
 
 #[test]

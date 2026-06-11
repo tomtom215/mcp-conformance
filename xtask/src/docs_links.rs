@@ -11,6 +11,9 @@
 //! Fenced code blocks and inline code spans are stripped before scanning, so
 //! example Markdown inside documentation is never mistaken for a live link.
 
+// `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
+// opposite demands about items in a binary crate's private modules; this follows
+// the rustc lint and quiets the clippy one, per its own known-problems note.
 #![allow(clippy::redundant_pub_crate)]
 
 use std::path::Path;

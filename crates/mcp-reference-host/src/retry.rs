@@ -253,12 +253,24 @@ mod tests {
     proptest! {
         #[test]
         fn unjittered_schedule_is_monotonic_until_cap(retry in 1u32..=64) {
+            // The default policy allows 5 retries, so most of this range
+            // exercises the out-of-budget contract — assert it explicitly
+            // instead of silently skipping (a guarded `if let` here would
+            // make ~92% of samples assert nothing).
             let policy = RetryPolicy::default();
-            if let (Some(a), Some(b)) = (
-                policy.delay_for_retry(retry, 0.0),
-                policy.delay_for_retry(retry.saturating_add(1), 0.0),
-            ) {
+            let this = policy.delay_for_retry(retry, 0.0);
+            let next = policy.delay_for_retry(retry.saturating_add(1), 0.0);
+            if retry < policy.max_retries() {
+                let (Some(a), Some(b)) = (this, next) else {
+                    return Err(proptest::test_runner::TestCaseError::fail(
+                        format!("retries {retry} and {} are within budget and must schedule", retry + 1),
+                    ));
+                };
                 prop_assert!(b >= a);
+            } else if retry == policy.max_retries() {
+                prop_assert!(this.is_some() && next.is_none());
+            } else {
+                prop_assert!(this.is_none() && next.is_none());
             }
         }
 

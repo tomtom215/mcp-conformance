@@ -35,6 +35,28 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- Error-path tests now pin *which* error, not just that one occurred —
+  six sites asserted only `is_err()`, and one of them proved able to hide a
+  deleted security gate: with the sampling capability gate removed, the old
+  assertion stayed green (the doomed `sampling/createMessage` failed
+  downstream as `-32603` — after an illegal request had already gone out on
+  the wire) while the strengthened test fails (demonstrated by neutering the
+  gate). Pinned: the gate's `-32600` and message, resource-not-found's
+  `-32002` (the repo's only deliberate use of it), and `-32602` at the four
+  parameter-boundary sites whose comments claimed the code the assertions
+  never checked.
+- The golden corpus now enforces attribution by name: a violation trace
+  `area-nnn-…` must produce a Fail/Warn row with findings for exactly
+  requirement `AREA-NNN` — previously a defect re-routed to the wrong
+  requirement could re-bless silently, guarded only by global check-ID
+  set-equality and human diff review. Also: every golden must belong to a
+  living trace (orphan sweep), and blessing requires `BLESS=1` exactly,
+  matching the coverage manifest's convention (`BLESS=0` no longer blesses).
+- The tap's every-platform validator round-trip now fails on *any*
+  MUST-level finding, not only `LIFE-*` — a tap serialization regression
+  that manufactures transport or base findings (wrong header recording,
+  broken `seq`, mangled payloads: precisely what the tap exists to get
+  right) was previously visible only in the npx-gated conformance job.
 - Five registry exclusions said things the code disproves, found by tracing
   every "enforced instead" pointer to its target: TOOL-012 cited "policy
   tests" for four duties of which two (rate limiting, output sanitization)

@@ -312,7 +312,11 @@ async fn sse_frames_are_recorded_as_messages_and_delivered_intact() {
 /// invented.
 fn assert_recorded_tool_call_messages(events: &[serde_json::Value]) {
     for window in events.windows(2) {
-        assert!(window[0]["seq"].as_u64() < window[1]["seq"].as_u64());
+        // Unwrap before comparing: `Option<u64>`'s ordering would let a
+        // missing `seq` on the left slip through (`None < Some(_)` is true).
+        let earlier = window[0]["seq"].as_u64().expect("event carries seq");
+        let later = window[1]["seq"].as_u64().expect("event carries seq");
+        assert!(earlier < later, "seq must strictly increase: {window:?}");
     }
     let messages: Vec<_> = events
         .iter()
@@ -448,17 +452,18 @@ async fn tap_output_parses_and_validates_through_the_real_validator() {
     //    tap recorded validates with no MUST-level lifecycle failure.
     let registry = mcp_conformance_core::requirement::Registry::builtin_2025_11_25().unwrap();
     let report = mcp_trace_validator::engine::validate(&registry, &events);
-    let lifecycle_failures: Vec<&str> = report
+    let failures: Vec<&str> = report
         .requirements
         .iter()
-        .filter(|row| {
-            row.outcome == mcp_trace_validator::report::Outcome::Fail && row.id.starts_with("LIFE")
-        })
+        .filter(|row| row.outcome == mcp_trace_validator::report::Outcome::Fail)
         .map(|row| row.id.as_str())
         .collect();
     assert!(
-        lifecycle_failures.is_empty(),
-        "the tap's own handshake must validate, but these LIFE checks failed: {lifecycle_failures:?}\n{}",
+        failures.is_empty(),
+        "a faithfully tapped clean session must produce zero MUST-level \
+         failures in any area — wrong header recording, broken seq, or \
+         mangled payloads all surface exactly here, on every platform, \
+         not only in the npx-gated conformance job. Failed: {failures:?}\n{}",
         report.render_human()
     );
 
