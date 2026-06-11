@@ -25,7 +25,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
 | M1 — Registry and validator | **Complete** — v0.1.0 published to crates.io via [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142) (attested, byte-verified); every DoD line below carries its evidence |
 | M2 — Everything server | **In progress** (2026-06-10): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite in CI; trace tap, agreement check, and coverage manifest live this series (zero unexplained divergence; first divergence triaged as suite-bug — [#7](https://github.com/tomtom215/mcp-conformance/issues/7)) — remaining: upstream offer (maintainer action) |
-| M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (July 28, 2026); re-sequenced ahead of M3 on 2026-06-09 |
+| M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (July 28, 2026); re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
 | M3 — Reference host | Not started |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
 | M5 — Stewardship artifacts | Not started |
@@ -121,9 +121,18 @@ The spec as data, and the engine that judges traces against it.
 
 Re-sequenced ahead of M3 (2026-06-09): multi-revision trace validation is the
 deliverable whose value peaks across the migration window and SEP-2596's ≥ 12-month
-dual-revision tail ([register 1.5a](01-ecosystem-context.md)), and its registry work
+dual-revision tail ([register 1.4, 1.5b](01-ecosystem-context.md)), and its registry work
 cannot start in earnest before the final text ships. The standing RC-tracking
 workstream feeds this milestone until then.
+
+First reconciliation (2026-06-11): the draft changelog inventories materially more
+than the RC announcement did — `server/discover` is a new server MUST,
+`subscriptions/listen` replaces the GET stream and resource subscriptions, tasks move
+to an official extension (SEP-2663), the MRTR pattern replaces server-initiated
+requests (SEP-2322), three authorization deltas entered mid-window (PR #2862), and
+Roots/Sampling/Logging are deprecated (SEP-2577). The stateless state-machine variant
+below is therefore a larger build than first scoped; the extraction checklist in the
+second DoD line reflects the full inventory.
 
 **Definition of done**
 
@@ -132,10 +141,15 @@ workstream feeds this milestone until then.
 - [ ] `2026-07-28` registry entries extracted from the **final** spec text by the same
       per-requirement method (live fetch → verbatim quote → check or documented
       exclusion), behind the `draft-2026-07-28` feature until the official scenarios
-      stabilize; the change inventory in [register 1.5a](01-ecosystem-context.md) is
-      the extraction checklist (SEP-2575 handshake removal, SEP-2567 session removal,
-      SEP-2243 routing headers, SEP-2106 JSON Schema 2020-12, SEP-2164 error-code
-      change, SEP-2549 caching metadata, SEP-414 trace context).
+      stabilize; the change inventory in [register 1.5a–1.5b](01-ecosystem-context.md)
+      is the extraction checklist (SEP-2575 stateless lifecycle — handshake removal,
+      `server/discover`, `subscriptions/listen`, and the
+      `ping`/`logging/setLevel`/`notifications/roots/list_changed` removals; SEP-2567
+      session removal; SEP-2322 MRTR replacing server-initiated requests; SEP-2663
+      tasks extension; SEP-2243 routing headers; SEP-2106 JSON Schema 2020-12;
+      SEP-2164 error-code change; SEP-2549 caching metadata; SEP-414 trace context;
+      SEP-2468/SEP-837/SEP-2352 authorization deltas; SEP-2577 and SEP-2596
+      deprecations plus the RFC 7591 DCR deprecation — reconciled 2026-06-11).
 - [ ] Stateless state-machine variant alongside — not replacing — the `2025-11-25`
       machine, every transition and error edge unit- and property-tested.
 - [ ] Multi-revision judgment: the same trace validated against both revisions in one
