@@ -56,6 +56,28 @@ jobs:
         # coverage must include feature-gated code (see mutants.yml).
         run: cargo mutants --workspace --no-shuffle -- --all-features
 
+  # Early warning on the suite's next line (docs/plan/03-conformance-strategy.md:
+  # "track the 0.2.0-alpha line in a scheduled, non-blocking CI job"). The npm
+  # `alpha` dist-tag floats by design — this job exists to hear breakage coming,
+  # so it tracks whatever upstream currently calls alpha; the PR gate stays on
+  # the exact pin in xtask. Failures here are signal to read, never a gate.
+  suite-alpha:
+    name: Conformance (suite alpha line, informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Official suite (alpha dist-tag) vs everything-server
+        run: cargo xtask conformance
+        env:
+          MCP_SUITE_VERSION: alpha
+
   fuzz:
     name: Fuzz (trace parse, canonical JSON, registry parse)
     runs-on: ubuntu-latest

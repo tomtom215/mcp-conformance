@@ -111,7 +111,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: EmbarkStudios/cargo-deny-action@82eb9f621fbc699dd0918f3ea06864c14cc84246 # v2
+      # Pinned to the release tag's commit (not the floating `v2` tag's
+      # annotated-tag object, which the 2026-06-11 audit found this line
+      # carrying: such an object survives only as an unreferenced blob in
+      # upstream's object store once `v2` moves again — resolvable today,
+      # GC bait tomorrow, and invisible to dependabot).
+      - uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe # v2.0.20
         with:
           command: check
 
@@ -127,9 +132,11 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       # `--workspace` resolves path+version deps against sibling crates rather than
       # crates.io, which is what pre-publish validation needs. xtask is publish=false
-      # and skipped automatically.
+      # but `cargo package --workspace` still packages it (v0.1.0 shipped a stray
+      # xtask .crate before release.yml learned this) — exclude it here for the same
+      # reason, so this job validates exactly what a release would package.
       - name: Package all publishable crates
-        run: cargo package --workspace
+        run: cargo package --workspace --exclude xtask --locked
 
   nightly:
     name: Nightly (informational)
@@ -175,6 +182,10 @@ jobs:
   conformance:
     name: Conformance (official suite, server scenarios)
     runs-on: ubuntu-latest
+    # A warm run takes ~2 minutes; the bound exists because this is the one
+    # job whose tools (npx, the runner) can hang on network state, and a
+    # wedged job should fail in minutes, not at the 6-hour runner cap.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Install toolchain

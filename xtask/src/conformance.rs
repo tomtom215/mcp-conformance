@@ -35,8 +35,16 @@ use std::time::Duration;
 
 /// The pinned official suite version. Bumps are deliberate changes: review
 /// the upstream diff, refresh `conformance/expected-failures.yaml`, and
-/// update register row 2.4 in the same commit.
+/// update register row 2.4 in the same commit. `MCP_SUITE_VERSION` overrides
+/// it for the scheduled alpha-tracking job only — the PR gate always runs
+/// the pin.
 pub(crate) const SUITE_VERSION: &str = "0.1.16";
+
+/// The suite version this run uses: the pin, unless `MCP_SUITE_VERSION`
+/// overrides it (the scheduled alpha-line early-warning job).
+fn suite_version() -> String {
+    std::env::var("MCP_SUITE_VERSION").unwrap_or_else(|_| SUITE_VERSION.to_owned())
+}
 
 /// Spec revision under test — the registry's revision.
 const SPEC_VERSION: &str = "2025-11-25";
@@ -59,6 +67,7 @@ const READINESS_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub(crate) fn run() -> ExitCode {
     let root = crate::workspace_root();
+    let suite = suite_version();
     eprintln!("xtask: conformance — building mcp-everything-server");
     let build = Command::new("cargo")
         .args(["build", "-p", "mcp-everything-server", "--all-features"])
@@ -84,7 +93,7 @@ pub(crate) fn run() -> ExitCode {
     let Some((mut server, address)) = start_server(&root, &tap_dir) else {
         return ExitCode::FAILURE;
     };
-    let outcome = run_suite(&root, &results_dir, &address);
+    let outcome = run_suite(&root, &results_dir, &address, &suite);
     if outcome != ExitCode::SUCCESS {
         let _ = server.kill();
         let _ = server.wait();
@@ -95,7 +104,7 @@ pub(crate) fn run() -> ExitCode {
     await_tap_quiescence(&tap_dir);
     let _ = server.kill();
     let _ = server.wait();
-    match crate::agreement::run(&root, &tap_dir, &results_dir, SUITE_VERSION) {
+    match crate::agreement::run(&root, &tap_dir, &results_dir, &suite) {
         Ok(()) => ExitCode::SUCCESS,
         Err(message) => {
             eprintln!("xtask: agreement — {message}");
@@ -225,14 +234,14 @@ fn await_readiness_line(stderr: std::process::ChildStderr) -> Option<String> {
 }
 
 /// Runs the pinned npx runner against the served address.
-fn run_suite(root: &Path, results_dir: &Path, address: &str) -> ExitCode {
+fn run_suite(root: &Path, results_dir: &Path, address: &str, suite: &str) -> ExitCode {
     eprintln!(
-        "xtask: conformance — running @modelcontextprotocol/conformance@{SUITE_VERSION} \
+        "xtask: conformance — running @modelcontextprotocol/conformance@{suite} \
          (spec {SPEC_VERSION}) against http://{address}/mcp"
     );
     let status = Command::new("npx")
         .arg("-y")
-        .arg(format!("@modelcontextprotocol/conformance@{SUITE_VERSION}"))
+        .arg(format!("@modelcontextprotocol/conformance@{suite}"))
         .arg("server")
         .arg("--url")
         .arg(format!("http://{address}/mcp"))
@@ -247,7 +256,7 @@ fn run_suite(root: &Path, results_dir: &Path, address: &str) -> ExitCode {
     match status {
         Ok(status) if status.success() => {
             eprintln!(
-                "xtask: conformance — green against suite {SUITE_VERSION}; \
+                "xtask: conformance — green against suite {suite}; \
                  results in {}",
                 results_dir.display()
             );
