@@ -294,6 +294,35 @@ mod tests {
     }
 
     #[test]
+    fn a_response_preceding_its_request_pairs_with_nothing() {
+        // Capture order is the only authority (seq is strictly increasing). A
+        // result at seq 0 cannot answer a request that first appears at seq 1
+        // — you cannot answer before you ask — so it pairs with nothing, and
+        // the exchange-based content checks abstain on it. This is the
+        // deliberate lenient-pairing contract: the orphan response is BASE-004's
+        // to flag, not a content check's; pinned here so it cannot drift into
+        // accidentally pairing across the impossible ordering.
+        let events = events_of(&[
+            line(
+                0,
+                "server-to-client",
+                r#"{"jsonrpc":"2.0","id":5,"result":{"tools":[]}}"#,
+            ),
+            line(
+                1,
+                "client-to-server",
+                r#"{"jsonrpc":"2.0","id":5,"method":"tools/list"}"#,
+            ),
+        ]);
+        let context = TraceContext::new(&events);
+        assert_eq!(
+            context.exchanges().count(),
+            0,
+            "a response cannot pair with a request that appears after it"
+        );
+    }
+
+    #[test]
     fn server_initiated_requests_pair_with_client_responses() {
         let events = events_of(&[
             line(
