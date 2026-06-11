@@ -105,7 +105,9 @@ The spec as data, and the engine that judges traces against it.
       unknown fields rejected). First run: 30 sessions, 1,288 pass / 840 excluded /
       0 not-applicable, one MUST divergence triaged suite-bug
       ([#7](https://github.com/tomtom215/mcp-conformance/issues/7) — the runner's
-      dns-rebinding client skips `notifications/initialized`) and one SHOULD warn
+      dns-rebinding client skips `notifications/initialized`; filed upstream 2026-06-11
+      as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338)
+      after source-level verification against suite 0.1.16 and main) and one SHOULD warn
       (TRAN-018: the suite's version-compat probe sends a 2025-03-26 header after
       negotiating 2025-11-25 — informational by design). Reconciliation artifact:
       `target/conformance/agreement.json`.)*
