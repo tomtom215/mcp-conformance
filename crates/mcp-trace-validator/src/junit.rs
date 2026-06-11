@@ -135,8 +135,16 @@ fn location(seq: Option<u64>, check: &str) -> String {
     )
 }
 
-/// Minimal XML escaping for text and attribute content (we always double-quote
+/// XML escaping for text and attribute content (we always double-quote
 /// attributes, so escaping `"` but not `'` is sufficient).
+///
+/// Findings quote trace strings — method names, ids — that come from untrusted
+/// input and may carry characters XML 1.0 forbids entirely. C0 control
+/// characters other than tab/LF/CR cannot appear in an XML 1.0 document even as
+/// numeric references (XML 1.0 §2.2), so a trace whose method name contains,
+/// say, U+0001 would otherwise produce a document a strict CI parser rejects.
+/// Those characters are replaced with U+FFFD (the Unicode replacement
+/// character) so the output is always well-formed.
 fn escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for ch in text.chars() {
@@ -145,6 +153,10 @@ fn escape(text: &str) -> String {
             '<' => out.push_str("&lt;"),
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
+            '\t' | '\n' | '\r' => out.push(ch),
+            // C0 controls (except the three above) are not representable in
+            // XML 1.0 at all; substitute rather than emit an invalid document.
+            c if (c as u32) < 0x20 => out.push('\u{FFFD}'),
             _ => out.push(ch),
         }
     }
@@ -200,6 +212,23 @@ mod tests {
             "{xml}"
         );
         assert_eq!(escape(r#"<a & "b">"#), "&lt;a &amp; &quot;b&quot;&gt;");
+    }
+
+    #[test]
+    fn escape_substitutes_xml_illegal_control_characters() {
+        // C0 controls other than tab/LF/CR cannot appear in XML 1.0 even as
+        // numeric references (XML 1.0 §2.2), so escape() substitutes them with
+        // U+FFFD; tab/LF/CR pass through. This is defense in depth: today's
+        // findings format trace strings with `{:?}`, which already renders a
+        // control char as printable `\u{1}` before it reaches escape(), so the
+        // hazard is not reachable through a current check — but escape()'s
+        // contract is "always emit a well-formed document," independent of how
+        // any caller built its string, and a future Display-formatted finding
+        // must not be able to void that.
+        assert_eq!(escape("a\u{0001}b\u{001F}c"), "a\u{FFFD}b\u{FFFD}c");
+        assert_eq!(escape("a\tb\nc\rd"), "a\tb\nc\rd");
+        // The boundary: U+001F substitutes, U+0020 (space) passes.
+        assert_eq!(escape("\u{001F}\u{0020}"), "\u{FFFD} ");
     }
 
     #[test]

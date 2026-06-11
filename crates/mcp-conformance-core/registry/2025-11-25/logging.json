@@ -23,6 +23,39 @@
         "quote": "Log messages MUST NOT contain: Credentials or secrets; Personal identifying information; Internal system details that could aid attacks"
       },
       "exclusion": "Deciding whether free-form log data contains secrets or PII is semantic content analysis, not structural validation; offline heuristics would produce non-deterministic, unfalsifiable verdicts."
+    },
+    {
+      "id": "LOG-003",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.logging",
+      "source": {
+        "section": "server/utilities/logging#error-handling",
+        "quote": "Servers SHOULD return standard JSON-RPC errors for common failure cases: Invalid log level: `-32602` (Invalid params); Configuration errors: `-32603` (Internal error)"
+      },
+      "exclusion": "Whether a failure case actually occurred (the level was invalid for this server, configuration failed) is server-side ground truth a trace does not carry."
+    },
+    {
+      "id": "LOG-004",
+      "level": "SHOULD",
+      "actor": "server",
+      "capability": "server.logging",
+      "source": {
+        "section": "server/utilities/logging#implementation-considerations",
+        "quote": "Servers SHOULD: Rate limit log messages; Include relevant context in data field; Use consistent logger names; Remove sensitive information"
+      },
+      "exclusion": "Rate policy, context relevance, naming consistency, and redaction are semantic internals (the LOG-002 argument)."
+    },
+    {
+      "id": "LOG-005",
+      "level": "SHOULD",
+      "actor": "both",
+      "capability": "server.logging",
+      "source": {
+        "section": "server/utilities/logging#security",
+        "quote": "Implementations SHOULD: Rate limit messages; Validate all data fields; Control log access; Monitor for sensitive content"
+      },
+      "exclusion": "Rate limiting, validation, access control, and monitoring are implementation-internal enforcement without trace-level observables."
     }
   ]
 }

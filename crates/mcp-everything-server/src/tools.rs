@@ -177,10 +177,21 @@ impl EverythingServer {
 /// `additionalProperties` all preserved (SEP-1613). A derived schema would
 /// not guarantee that, so the route is built by hand from the verbatim JSON.
 pub(crate) fn json_schema_2020_12_route() -> ToolRoute<EverythingServer> {
-    let schema = serde_json::json!({
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "$defs": {
+    // Built as a `Map` directly (not `json!({…})` then destructured) so there
+    // is no Object-or-else branch and thus no `unreachable!` in shipping code;
+    // the nested values still use `json!` for legibility. `serde_json::Map` is
+    // `BTreeMap`-backed (no `preserve_order` feature), so key order — and the
+    // byte-faithful `tools/list` schema the SEP-1613 scenario checks — is
+    // identical to the previous form.
+    let mut schema = serde_json::Map::new();
+    schema.insert(
+        "$schema".to_owned(),
+        serde_json::json!("https://json-schema.org/draft/2020-12/schema"),
+    );
+    schema.insert("type".to_owned(), serde_json::json!("object"));
+    schema.insert(
+        "$defs".to_owned(),
+        serde_json::json!({
             "address": {
                 "type": "object",
                 "properties": {
@@ -188,16 +199,16 @@ pub(crate) fn json_schema_2020_12_route() -> ToolRoute<EverythingServer> {
                     "city": { "type": "string" }
                 }
             }
-        },
-        "properties": {
+        }),
+    );
+    schema.insert(
+        "properties".to_owned(),
+        serde_json::json!({
             "name": { "type": "string" },
             "address": { "$ref": "#/$defs/address" }
-        },
-        "additionalProperties": false
-    });
-    let serde_json::Value::Object(schema) = schema else {
-        unreachable!("the literal above is an object");
-    };
+        }),
+    );
+    schema.insert("additionalProperties".to_owned(), serde_json::json!(false));
     let tool = Tool::new(
         JSON_SCHEMA_TOOL_NAME,
         "Tool with JSON Schema 2020-12 features",

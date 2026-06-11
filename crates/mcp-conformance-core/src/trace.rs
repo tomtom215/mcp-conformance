@@ -21,8 +21,29 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
+
+/// Deserializes an HTTP-headers map with field names normalized to lowercase.
+///
+/// HTTP field names are case-insensitive (RFC 9110 §5.1); the checks compare
+/// against lowercase names, so normalizing here keeps a trace's casing from
+/// changing a verdict. If two differently-cased spellings of one field appear
+/// (a malformed trace), they collapse to one lowercase key — last-in-sorted-
+/// order wins, which is deterministic; conflicting duplicates are themselves a
+/// capture defect.
+fn deserialize_lowercase_header_keys<'de, D>(
+    deserializer: D,
+) -> Result<BTreeMap<String, String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = BTreeMap::<String, String>::deserialize(deserializer)?;
+    Ok(raw
+        .into_iter()
+        .map(|(name, value)| (name.to_ascii_lowercase(), value))
+        .collect())
+}
 
 /// Which party emitted an event.
 ///
@@ -77,9 +98,19 @@ pub enum EventBody {
         /// Response status, when this event records a response.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         status: Option<u16>,
-        /// Headers relevant to conformance (lowercased names). Capture tooling redacts
+        /// Headers relevant to conformance. HTTP field names are
+        /// case-insensitive (RFC 9110 §5.1), so keys are normalized to
+        /// lowercase on deserialization — the contract the transport checks
+        /// rely on when they look a header up by its lowercase name. A trace
+        /// recording on-the-wire casing (`Mcp-Session-Id`) is therefore judged
+        /// the same as one already lowercased; a lossy capture cannot hide a
+        /// bad header behind its casing. Capture tooling redacts
         /// credential-bearing headers by default.
-        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        #[serde(
+            default,
+            skip_serializing_if = "BTreeMap::is_empty",
+            deserialize_with = "deserialize_lowercase_header_keys"
+        )]
         headers: BTreeMap<String, String>,
     },
     /// A transport lifecycle moment.
@@ -221,5 +252,41 @@ mod tests {
         let line =
             r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"telepathy"}"#;
         assert!(serde_json::from_str::<TraceEvent>(line).is_err());
+    }
+
+    #[test]
+    fn http_header_keys_are_lowercased_on_deserialization() {
+        // On-the-wire casing must normalize so a check looking a header up by
+        // its lowercase name cannot be fooled by a capitalized capture.
+        let line = r#"{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":200,"headers":{"Mcp-Session-Id":"abc","Content-Type":"application/json"}}"#;
+        let event: TraceEvent = serde_json::from_str(line).unwrap();
+        let EventBody::Http { headers, .. } = event.body else {
+            panic!("expected an http event");
+        };
+        assert_eq!(
+            headers.get("mcp-session-id").map(String::as_str),
+            Some("abc")
+        );
+        assert_eq!(
+            headers.get("content-type").map(String::as_str),
+            Some("application/json")
+        );
+        // The capitalized spellings are gone, not merely duplicated.
+        assert!(!headers.contains_key("Mcp-Session-Id"));
+        assert_eq!(headers.len(), 2);
+    }
+
+    #[test]
+    fn header_values_are_preserved_verbatim_only_keys_normalize() {
+        // Only field NAMES are case-insensitive; values are untouched.
+        let line = r#"{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","headers":{"ACCEPT":"Application/JSON, Text/Event-Stream"}}"#;
+        let event: TraceEvent = serde_json::from_str(line).unwrap();
+        let EventBody::Http { headers, .. } = event.body else {
+            panic!("expected an http event");
+        };
+        assert_eq!(
+            headers.get("accept").map(String::as_str),
+            Some("Application/JSON, Text/Event-Stream")
+        );
     }
 }

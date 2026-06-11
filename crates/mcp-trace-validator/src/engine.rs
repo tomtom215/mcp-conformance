@@ -289,6 +289,37 @@ mod tests {
     }
 
     #[test]
+    fn empty_trace_passes_vacuously_with_gates_not_applicable() {
+        // The deliberate verdict for "nothing happened": no clause was
+        // violated, so the trace passes — while every capability-gated
+        // requirement reports not-applicable rather than a vacuous pass,
+        // and the totals make the vacuity visible. (Whether an *empty
+        // session* is acceptable evidence is the caller's question: the
+        // agreement check, for one, rejects empty tap directories.)
+        let registry = Registry::builtin_2025_11_25().unwrap();
+        let report = validate(&registry, &[]);
+        assert_eq!(report.verdict(), crate::report::Verdict::Pass);
+        assert_eq!(report.totals.fail, 0);
+        assert_eq!(report.totals.warn, 0);
+        assert_eq!(report.totals.unsupported, 0);
+        let gated = registry
+            .requirements()
+            .iter()
+            .filter(|requirement| {
+                requirement.capability.is_some()
+                    && matches!(
+                        requirement.verification,
+                        mcp_conformance_core::requirement::Verification::Checks { .. }
+                    )
+            })
+            .count();
+        assert_eq!(
+            usize::try_from(report.totals.not_applicable).unwrap(),
+            gated
+        );
+    }
+
+    #[test]
     fn report_is_deterministic_across_runs() {
         let registry = Registry::builtin_2025_11_25().unwrap();
         let events = parse_trace(HAPPY, &Limits::default()).unwrap();

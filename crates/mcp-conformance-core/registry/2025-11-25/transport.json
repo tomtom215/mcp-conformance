@@ -212,6 +212,36 @@
         "quote": "If the server receives a request with an invalid or unsupported `MCP-Protocol-Version`, it MUST respond with `400 Bad Request`."
       },
       "exclusion": "The server's supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. Exercised against mcp-everything-server's declared support in its transport tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-021",
+      "level": "SHOULD NOT",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports#stdio",
+        "quote": "The client MAY capture, forward, or ignore the server's `stderr` output and SHOULD NOT assume `stderr` output indicates error conditions."
+      },
+      "exclusion": "How a client interprets stderr is internal, and stderr bytes are not part of the protocol trace (the trace records MCP messages and transport lifecycle, not diagnostics channels)."
+    },
+    {
+      "id": "TRAN-022",
+      "level": "SHOULD",
+      "actor": "client",
+      "source": {
+        "section": "basic/transports",
+        "quote": "Clients SHOULD support stdio whenever possible."
+      },
+      "exclusion": "A client's supported-transport surface is a property of the implementation, not of any one session; a streamable-HTTP trace says nothing about whether stdio was available."
+    },
+    {
+      "id": "TRAN-023",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic/transports#custom-transports",
+        "quote": "Implementers who choose to support custom transports MUST ensure they preserve the JSON-RPC message format and lifecycle requirements defined by MCP."
+      },
+      "exclusion": "The trace vocabulary covers stdio and streamable HTTP; custom transports are outside the capture universe by construction (TransportKind is closed per revision)."
     }
   ]
 }

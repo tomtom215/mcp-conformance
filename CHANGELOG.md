@@ -11,7 +11,26 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-11
+
 ### Added
+
+- **Registry completeness audit (2026-06-11)**: clause-by-clause re-extraction
+  of the `2025-11-25` spec found 68 in-scope normative clauses missing from
+  the registry; all are now entries (71 → 139), every quote verified verbatim
+  against the published text. Four are mechanically checkable and gained
+  checks plus killer traces: `lifecycle.initialize-result-shape` (LIFE-010 —
+  the initialize result must carry `capabilities` and `serverInfo`),
+  `transport.client-accept-header` (TRAN-025/TRAN-039 — every client request
+  must list `text/event-stream` in `Accept`), `transport.success-content-type`
+  (TRAN-029/TRAN-040 — HTTP 200s must answer `application/json` or
+  `text/event-stream`), and `base.meta-key-format` (BASE-019/BASE-020 — the
+  `_meta` key prefix/name grammar, scoped to the `params`/`result` envelope
+  positions where user data cannot collide). The other 61 carry documented
+  exclusions naming exactly why a recorded trace cannot judge them (stream
+  identity, request methods, timing, and server-internal ground truth are
+  not in the capture vocabulary). The agreement check over the suite's 30
+  tapped sessions runs the new checks at zero unexplained divergence.
 
 - **The agreement check is live** (docs/plan/03-conformance-strategy.md
   §Calibration): `mcp-everything-server` gains a session trace tap (feature
@@ -32,7 +51,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   suite's deliberate version-compat probe (TRAN-018).
 - **Coverage manifest** (`conformance/coverage-manifest.json`): generated
   from the tapped sessions and checked on every conformance run (`BLESS=1`
-  regenerates) — the server's declared capabilities, all seven server-party
+  regenerates) — the server's declared capabilities, all eight server-party
   registry capability gates (each must be declared: the gate caught the
   missing `listChanged` declarations on first run), and the 18 wire methods
   the suite exercises.
@@ -43,6 +62,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 - `mcp-conformance-core`: `TraceEvent::new` — the constructor capture
   tooling needs (`TraceEvent` is `#[non_exhaustive]`, so out-of-crate
   literals don't compile).
+- `mcp-everything-server`: `tap::RECORDED_HEADERS` is now public — the
+  recording allowlist is worth inspecting, and the doc gate (now run with
+  `--all-features`) caught a private-intra-doc link that made it so.
 - `mcp-everything-server`: streamable HTTP serving (`--transport http`)
   behind the default-secure `Host`/`Origin` policy — 403 before any MCP
   processing, loopback-only by default, `--allowed-host` /
@@ -70,9 +92,41 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- `mcp-conformance-core`: `to_canonical_string` walks nesting with an explicit
+  heap work-stack instead of recursion — a deeply nested hostile value can no
+  longer overflow the call stack (an uncatchable abort). Output is
+  byte-identical.
+- `mcp-conformance-core`: `EventBody::Http` normalizes header field names to
+  lowercase on deserialization (HTTP names are case-insensitive, RFC 9110
+  §5.1). Previously a trace recording on-the-wire casing (`Mcp-Session-Id`,
+  `Mcp-Protocol-Version`) slipped past the case-sensitive transport checks,
+  hiding a bad session id or protocol version behind its capitalization.
+- `mcp-trace-validator`: BASE-004/BASE-009 now flag a request answered by
+  *both* a result and an error (each check formerly tracked only its own
+  response flavor and saw a clean one-to-one).
+- `mcp-trace-validator`: JUnit XML escaping substitutes the C0 control
+  characters XML 1.0 forbids entirely (other than tab/LF/CR), so a report can
+  never be an ill-formed document a strict CI parser rejects.
+- `mcp-everything-server`: the session tap's SSE splitter now stops
+  recording a stream whose un-delimited frame outgrows the recording budget
+  (the same 4 MiB bound the JSON path already had) instead of buffering it
+  without limit — recording is diagnostics and must never be what takes the
+  server down. The stream itself still flows to the client untouched.
+- `mcp-everything-server`: the tap records repeated HTTP header field lines as
+  their comma-joined value (RFC 9110 §5.3), so a split `Accept` header is
+  captured faithfully rather than truncated to its first line.
 - Release packaging excludes `xtask` (`publish = false`, but
   `cargo package --workspace` still packaged it; v0.1.0's GitHub Release
   carries the stray — harmless — crate file).
+
+### Security
+
+- `mcp-everything-server`: the `Host`/`Origin` 403 gate now fails closed on
+  duplicate `Host` or `Origin` headers (a smuggling shape — it previously
+  judged only the first value while a downstream consumer could key off a
+  later one). A well-formed request carries exactly one of each.
+- `mcp-everything-server`: the per-session `resources/subscribe` set is
+  capped, so a hostile client cannot grow its bookkeeping without bound.
 
 ## [0.1.0] - 2026-06-10
 
@@ -116,3 +170,7 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   Linux/macOS/Windows × three feature modes), docs, `cargo-deny`, package
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
+
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.2.0
+[0.1.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.1.0

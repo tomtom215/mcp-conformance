@@ -4,13 +4,14 @@
 # mcp-trace-validator
 
 Deterministic offline validation of recorded MCP protocol traces: replay a JSON Lines
-trace against the requirement registry and get requirement-level findings — spec quote,
+trace against the requirement registry and get requirement-level findings — spec clause,
 offending event `seq`, actionable detail — as human text, machine JSON, or JUnit XML.
 
 ```text
 mcp-trace-validator validate session.jsonl
 mcp-trace-validator validate - --format json < session.jsonl
 mcp-trace-validator requirements
+mcp-trace-validator validate session.jsonl --registry my-registry.json  # default: built-in 2025-11-25
 ```
 
 A trace is JSON Lines — one event per line with a capture-assigned `seq`,

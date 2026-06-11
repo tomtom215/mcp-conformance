@@ -35,12 +35,19 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
 2. `cargo clippy --workspace --all-targets -- -D warnings` — also with
    `--no-default-features` and `--all-features`
 3. `cargo test --workspace` — also with `--no-default-features` and `--all-features`
-4. `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps`
+4. `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` — also with
+   `--all-features` (feature-gated modules carry rustdoc too)
+5. The 500-line cap on source and registry files (`cargo xtask file-sizes`)
+6. `cargo deny --all-features check` when cargo-deny is installed — skipped
+   **loudly** otherwise (`cargo install cargo-deny --locked` to run it locally;
+   CI runs it regardless, so a dependency-policy violation will fail there)
+7. Every relative documentation link resolving (`cargo xtask docs-links`)
+8. The README coverage table in sync with the registry (`cargo xtask coverage --check`)
 
-Additionally enforced in CI: `cargo deny check` (licenses, advisories, sources),
-`cargo package --workspace` (publishability), and diff-scoped mutation testing
-(`cargo mutants --in-diff`) on PRs. The standard is **zero surviving mutants in
-every shipped crate** (xtask is excluded via `.cargo/mutants.toml`).
+Additionally enforced in CI: `cargo package --workspace --exclude xtask --locked`
+(publishability) and diff-scoped mutation testing (`cargo mutants --in-diff`)
+on PRs. The standard is **zero surviving mutants in every shipped crate**
+(xtask is excluded via `.cargo/mutants.toml`).
 
 ## Working on checks and the corpus
 
@@ -75,7 +82,7 @@ ci(mutants): scope the PR gate to the diff
 ## Pull requests
 
 The PR template checklist is the contract; the short version: SPDX header on every new
-file, ≤ 500 lines per file, rustdoc on new public items, tests for new code, ADR for
+file, ≤ 500 lines per source file (`cargo xtask file-sizes`), rustdoc on new public items, tests for new code, ADR for
 architectural decisions ([docs/plan/decisions/](docs/plan/decisions/README.md)), plan
 documents updated when scope or status changed. No PR merges red — including docs-only
 PRs, because docs build with `-D warnings` too.

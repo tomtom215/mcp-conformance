@@ -181,4 +181,45 @@ mod tests {
         assert!(!is_notification_method("tools/list"));
         assert!(!is_notification_method("notification/initialized"));
     }
+
+    #[test]
+    fn notification_namespace_boundary_is_the_trailing_slash() {
+        // The prefix the check turns on is exactly `notifications/`. Bare
+        // `notifications` (no slash) is NOT in the namespace; `notifications/`
+        // (empty tail) IS. These two assertions are what kill a mutation of
+        // the prefix to `notifications` (which would wrongly capture a method
+        // literally named `notificationsX`).
+        assert!(!is_notification_method("notifications"));
+        assert!(is_notification_method("notifications/"));
+        assert!(!is_notification_method("notificationsX"));
+    }
+
+    #[test]
+    fn id_only_message_with_jsonrpc_is_invalid_not_a_degenerate_result() {
+        // A message carrying an id but no method/result/error is deliberately
+        // Invalid (a degenerate response is not silently treated as a Result),
+        // independent of the cosmetic jsonrpc field.
+        for payload in [json!({"id": 1}), json!({"jsonrpc": "2.0", "id": 1})] {
+            assert!(
+                matches!(classify(&payload), MessageKind::Invalid { .. }),
+                "{payload} should be Invalid"
+            );
+        }
+    }
+
+    #[test]
+    fn method_takes_precedence_over_a_stray_result_or_error_member() {
+        // A message with a method AND a response member is malformed; the rule
+        // is "method wins" — it classifies by the method (request if id is
+        // present, else notification), the stray result/error ignored. Pinned
+        // so the precedence is intentional, not incidental.
+        assert!(matches!(
+            classify(&json!({"method": "x", "result": {}})),
+            MessageKind::Notification { method: "x" }
+        ));
+        assert!(matches!(
+            classify(&json!({"method": "x", "id": 1, "error": {"code": 0, "message": ""}})),
+            MessageKind::Request { method: "x", .. }
+        ));
+    }
 }

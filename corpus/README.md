@@ -18,7 +18,8 @@ invariant test in `golden.rs` fails if a trace is added without a ledger row). A
 current traces share one provenance: **hand-authored for this repository as
 synthetic sessions** (no third-party traffic, no recorded production data),
 written against the `2025-11-25` spec text fetched live from
-modelcontextprotocol.io on 2026-06-09 and validated against the embedded registry
+modelcontextprotocol.io on 2026-06-09 (re-verified clause-by-clause against the
+live text on 2026-06-11) and validated against the embedded registry
 at the commit that introduced them. Traces produced by capture tooling (roadmap
 M3) will record the capturing implementation and revision here.
 
@@ -26,7 +27,7 @@ M3) will record the capturing implementation and revision here.
 
 | Trace | Exercises |
 |-------|-----------|
-| `http-session.jsonl` | Streamable HTTP session: session-ID assignment and echo, `MCP-Protocol-Version` headers, ping (TRAN-011/013/017/018 pass paths) |
+| `http-session.jsonl` | Streamable HTTP session: session-ID assignment and echo, `MCP-Protocol-Version` headers, `Accept`/`Content-Type` discipline, ping (TRAN-011/013/017/018/025/029/039/040 pass paths) |
 | `stdio-feature-session.jsonl` | Every feature area conformant in one session: tools (incl. outputSchema + structuredContent), resources (read/blob/subscribe/updated), prompts (text/image/audio/embedded), logging, completion, pagination cursor flow |
 | `stdio-full-session.jsonl` | Handshake plus ping, tools/list, tools/call over stdio |
 | `stdio-minimal-init.jsonl` | Smallest conformant session: the three-message handshake |
@@ -42,6 +43,7 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 | `base-001-request-id-boolean.jsonl` | BASE-001 |
 | `base-002-request-id-null.jsonl` | BASE-002 |
 | `base-003-request-id-reuse.jsonl` | BASE-003 |
+| `base-004-request-answered-twice-cross-flavor.jsonl` | BASE-004 (the second of an error+result double-answer) |
 | `base-004-result-unknown-id.jsonl` | BASE-004 |
 | `base-005-notification-with-id.jsonl` | BASE-005 |
 | `base-006-error-missing-message.jsonl` | BASE-006 |
@@ -49,6 +51,7 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 | `base-008-jsonrpc-version.jsonl` | BASE-008 |
 | `base-009-error-unknown-id.jsonl` | BASE-009 |
 | `base-010-response-without-result.jsonl` | BASE-010 |
+| `base-019-meta-key-bad-prefix.jsonl` | BASE-019, BASE-020 (shared `base.meta-key-format` check) |
 | `comp-001-capability-undeclared.jsonl` | COMP-001 |
 | `life-001-first-message-not-initialize.jsonl` | LIFE-001 |
 | `life-002-initialize-missing-protocolversion.jsonl` | LIFE-002 |
@@ -58,6 +61,7 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 | `life-006-result-version-invalid.jsonl` | LIFE-006 |
 | `life-007-initialize-protocolversion-not-string.jsonl` | LIFE-007 |
 | `life-009-undeclared-capability-use.jsonl` | LIFE-009 |
+| `life-010-initialize-result-missing-capabilities.jsonl` | LIFE-010 |
 | `log-001-capability-undeclared.jsonl` | LOG-001 |
 | `page-002-cursor-never-issued.jsonl` | PAGE-002 |
 | `prom-001-capability-undeclared.jsonl` | PROM-001 |
@@ -81,3 +85,5 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 | `tran-013-session-id-not-echoed.jsonl` | TRAN-013 |
 | `tran-017-protocol-version-header-missing.jsonl` | TRAN-017 |
 | `tran-018-protocol-version-mismatched.jsonl` | TRAN-018 |
+| `tran-025-accept-header-missing.jsonl` | TRAN-025, TRAN-039 (shared `transport.client-accept-header` check) |
+| `tran-029-content-type-unexpected.jsonl` | TRAN-029, TRAN-040 (shared `transport.success-content-type` check) |

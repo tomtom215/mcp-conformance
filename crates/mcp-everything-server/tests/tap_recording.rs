@@ -394,6 +394,77 @@ async fn sessions_get_ordinal_files_in_creation_order() {
     let _ = std::fs::remove_dir_all(dir);
 }
 
+/// The raw bytes of the session's trace file, exactly as the tap wrote them.
+fn raw_trace_bytes(dir: &Path, session_id: &str) -> String {
+    for entry in std::fs::read_dir(dir).unwrap().flatten() {
+        if entry.file_name().to_string_lossy().contains(session_id) {
+            return std::fs::read_to_string(entry.path()).unwrap();
+        }
+    }
+    panic!("no trace file for session {session_id}");
+}
+
+#[tokio::test]
+async fn tap_output_parses_and_validates_through_the_real_validator() {
+    // The agreement check proves the tap→validator contract end to end, but
+    // only in the npx-gated conformance job. This runs the same contract on
+    // every platform in the test matrix, with no network: the tap's actual
+    // output bytes must parse through `mcp_trace_validator`'s real reader and
+    // validate against the builtin registry — so a serialization change in the
+    // tap that the reader could not read would fail here, not silently in CI.
+    let (app, dir) = tapped_app("validator-roundtrip");
+    let session_id = initialized_session(&app, &dir).await;
+    // Add feature traffic so the trace exercises more than the handshake.
+    let response = app
+        .clone()
+        .oneshot(mcp_post(
+            CALL_LOGGING_TOOL,
+            &[
+                ("mcp-session-id", session_id.as_str()),
+                ("mcp-protocol-version", "2025-11-25"),
+            ],
+        ))
+        .await
+        .unwrap();
+    let _ = axum::body::to_bytes(response.into_body(), 4 * 1024 * 1024)
+        .await
+        .unwrap();
+    let _ = read_trace(&dir, &session_id, 8).await;
+
+    let bytes = raw_trace_bytes(&dir, &session_id);
+    // 1. The reader accepts the tap's bytes verbatim — no field-name or shape
+    //    mismatch between what the tap serializes and what the reader expects.
+    let events = mcp_trace_validator::reader::parse_trace(
+        &bytes,
+        &mcp_trace_validator::reader::Limits::default(),
+    )
+    .expect("tap output must parse through the validator's reader");
+    assert!(
+        events.len() >= 7,
+        "the handshake plus the tool call is at least seven events: {}",
+        events.len()
+    );
+    // 2. The validator judges the parsed session: the initialize handshake the
+    //    tap recorded validates with no MUST-level lifecycle failure.
+    let registry = mcp_conformance_core::requirement::Registry::builtin_2025_11_25().unwrap();
+    let report = mcp_trace_validator::engine::validate(&registry, &events);
+    let lifecycle_failures: Vec<&str> = report
+        .requirements
+        .iter()
+        .filter(|row| {
+            row.outcome == mcp_trace_validator::report::Outcome::Fail && row.id.starts_with("LIFE")
+        })
+        .map(|row| row.id.as_str())
+        .collect();
+    assert!(
+        lifecycle_failures.is_empty(),
+        "the tap's own handshake must validate, but these LIFE checks failed: {lifecycle_failures:?}\n{}",
+        report.render_human()
+    );
+
+    let _ = std::fs::remove_dir_all(dir);
+}
+
 #[tokio::test]
 async fn sessionless_exchanges_are_not_recorded() {
     let (app, dir) = tapped_app("sessionless");

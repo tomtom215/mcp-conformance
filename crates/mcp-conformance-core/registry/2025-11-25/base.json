@@ -130,6 +130,140 @@
         "quote": "The receiver MUST NOT send a response."
       },
       "exclusion": "A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009."
+    },
+    {
+      "id": "BASE-012",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic",
+        "quote": "All implementations MUST support the base protocol and lifecycle management components."
+      },
+      "exclusion": "The umbrella clause the BASE and LIFE areas mechanize requirement-by-requirement; it has no observable beyond its constituents."
+    },
+    {
+      "id": "BASE-013",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#implementation-requirements",
+        "quote": "Clients and servers MUST support JSON Schema 2020-12 for schemas without an explicit `$schema` field"
+      },
+      "exclusion": "Dialect support is validation behavior inside each implementation; a trace shows schemas exchanged, not how the receiver processed them."
+    },
+    {
+      "id": "BASE-014",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#implementation-requirements",
+        "quote": "Clients and servers MUST validate schemas according to their declared or default dialect."
+      },
+      "exclusion": "Whether validation happened, and against which dialect, is implementation-internal; validation outcomes need ground truth about inputs that a trace does not carry."
+    },
+    {
+      "id": "BASE-015",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#implementation-requirements",
+        "quote": "They MUST handle unsupported dialects gracefully by returning an appropriate error indicating the dialect is not supported."
+      },
+      "exclusion": "Judging graceful handling requires knowing the receiver's supported-dialect set, which is not in the trace."
+    },
+    {
+      "id": "BASE-016",
+      "level": "SHOULD",
+      "actor": "both",
+      "source": {
+        "section": "basic#implementation-requirements",
+        "quote": "Clients and servers SHOULD document which schema dialects they support"
+      },
+      "exclusion": "Documentation lives outside the protocol session entirely."
+    },
+    {
+      "id": "BASE-017",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#schema-validation",
+        "quote": "Schemas MUST be valid according to their declared or default dialect"
+      },
+      "exclusion": "Full dialect validation requires a JSON Schema engine, a dependency mcp-conformance-core deliberately excludes (serde-family only, 02-architecture.md); tools.input-schema-object (TOOL-003) enforces the structural floor."
+    },
+    {
+      "id": "BASE-018",
+      "level": "MUST NOT",
+      "actor": "both",
+      "source": {
+        "section": "basic#_meta",
+        "quote": "Certain key names are reserved by MCP for protocol-level metadata, as specified below; implementations MUST NOT make assumptions about values at these keys."
+      },
+      "exclusion": "What an implementation assumes is internal; only conduct that follows from an assumption could surface, and attributing it requires the assumption."
+    },
+    {
+      "id": "BASE-019",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#_meta",
+        "quote": "If specified, MUST be a series of labels separated by dots (`.`), followed by a slash (`/`); Labels MUST start with a letter and end with a letter or digit; interior characters can be letters, digits, or hyphens (`-`)"
+      },
+      "checks": [
+        "base.meta-key-format"
+      ]
+    },
+    {
+      "id": "BASE-020",
+      "level": "MUST",
+      "actor": "both",
+      "source": {
+        "section": "basic#_meta",
+        "quote": "Unless empty, MUST begin and end with an alphanumeric character (`[a-z0-9A-Z]`); MAY contain hyphens (`-`), underscores (`_`), dots (`.`), and alphanumerics in between"
+      },
+      "checks": [
+        "base.meta-key-format"
+      ]
+    },
+    {
+      "id": "BASE-021",
+      "level": "SHOULD",
+      "actor": "both",
+      "source": {
+        "section": "basic#_meta",
+        "quote": "Implementations SHOULD use reverse DNS notation (e.g., `com.example/` rather than `example.com/`)."
+      },
+      "exclusion": "Whether a syntactically valid prefix is reverse-DNS for its author cannot be decided without knowing the author's domain."
+    },
+    {
+      "id": "BASE-022",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic#icons",
+        "quote": "Clients that support rendering icons MUST support at least the following MIME types:"
+      },
+      "exclusion": "Icon rendering support is client-internal capability with no wire footprint; the conditional premise (that the client renders icons) is equally invisible."
+    },
+    {
+      "id": "BASE-023",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic#icons",
+        "quote": "Consumers of icon metadata MUST take appropriate security precautions when handling icons to prevent compromise:"
+      },
+      "exclusion": "The umbrella for consumer-side icon hygiene (fetch policy, size limits, origin checks) — all consumer-internal conduct after the recorded session ends."
+    },
+    {
+      "id": "BASE-024",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic#icons",
+        "quote": "Clients MUST reject icon URIs that use unsafe schemes and redirects, such as `javascript:`, `file:`, `ftp:`, `ws:`, or local app URI schemes."
+      },
+      "exclusion": "Rejection is client-side handling after receipt; the trace records the icon metadata served, not what the client did with it."
     }
   ]
 }

@@ -16,6 +16,10 @@ use serde_json::Value;
 use super::FindingSink;
 use crate::context::TraceContext;
 
+mod meta;
+
+pub(super) use meta::meta_key_format;
+
 /// Human name of a JSON value's type, for finding details.
 fn type_name(value: &Value) -> &'static str {
     match value {
@@ -99,8 +103,17 @@ pub(super) fn request_id_unique(context: &TraceContext<'_>, sink: &mut FindingSi
     }
 }
 
-/// Walks responses of one flavor and reports those that match no outstanding request
-/// from the opposite party. Shared by `BASE-004` (results) and `BASE-009` (errors).
+/// Walks responses and reports those of the wanted flavor that match no outstanding
+/// request from the opposite party. Shared by `BASE-004` (results) and `BASE-009`
+/// (errors).
+///
+/// A request is answered exactly once, by a result XOR an error. Each flavor's pass
+/// therefore consumes the outstanding entry on *both* flavors — its own (flagging a
+/// mismatch) and the other's (silently, as that other response is the legitimate
+/// first answer). The consequence: a request answered by both a result and an error,
+/// in either order, leaves the *second* response with no outstanding request, and the
+/// pass for the second response's flavor flags it. Without the cross-flavor consume,
+/// each pass saw a clean 1-request→1-response and a double-answer slipped through.
 fn responses_match_requests(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
@@ -115,33 +128,58 @@ fn responses_match_requests(
                     outstanding.insert((event.direction, to_canonical_string(id)), event.seq);
                 }
             }
-            MessageKind::Result { id } if want_results => {
-                check_response_id(
-                    event.seq,
-                    event.direction,
-                    *id,
-                    &mut outstanding,
-                    sink,
-                    "result",
-                );
+            MessageKind::Result { id } => {
+                if want_results {
+                    check_response_id(
+                        event.seq,
+                        event.direction,
+                        *id,
+                        &mut outstanding,
+                        sink,
+                        "result",
+                    );
+                } else {
+                    // The other flavor's valid first answer: consume so a later
+                    // same-id error is seen as answering an already-answered request.
+                    consume_outstanding(event.direction, *id, &mut outstanding);
+                }
             }
-            // The null/absent-id condition lives in the guard: "except in error cases
-            // where the ID could not be read due a malformed request" — an absent or
-            // null id is the spec's escape hatch, not a violation this check can judge.
-            MessageKind::Error { id, .. }
-                if !want_results && id.is_some_and(|id| !id.is_null()) =>
-            {
-                check_response_id(
-                    event.seq,
-                    event.direction,
-                    *id,
-                    &mut outstanding,
-                    sink,
-                    "error",
-                );
+            MessageKind::Error { id, .. } => {
+                // The null/absent-id condition is the spec's escape hatch ("except in
+                // error cases where the ID could not be read due a malformed request"),
+                // so a null/absent error id is neither flagged nor consumes anything.
+                if want_results {
+                    consume_outstanding(event.direction, *id, &mut outstanding);
+                } else if id.is_some_and(|id| !id.is_null()) {
+                    check_response_id(
+                        event.seq,
+                        event.direction,
+                        *id,
+                        &mut outstanding,
+                        sink,
+                        "error",
+                    );
+                }
             }
             _ => {}
         }
+    }
+}
+
+/// Removes the outstanding request a response answers, without flagging — the path
+/// for a response of the flavor a given pass does not judge. A null/absent id matches
+/// no request and removes nothing.
+fn consume_outstanding(
+    response_direction: Direction,
+    id: Option<&Value>,
+    outstanding: &mut HashMap<(Direction, String), u64>,
+) {
+    if let Some(id) = id.filter(|id| !id.is_null()) {
+        let requester = match response_direction {
+            Direction::ClientToServer => Direction::ServerToClient,
+            Direction::ServerToClient => Direction::ClientToServer,
+        };
+        outstanding.remove(&(requester, to_canonical_string(id)));
     }
 }
 
@@ -380,5 +418,60 @@ mod tests {
             r#"{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":18446744073709551615,"method":"tools/list"}}"#
         );
         assert!(run_check("base.request-id-type", &trace).is_empty());
+    }
+
+    /// A request id=2 answered by both an error and a result. The SECOND answer
+    /// has no outstanding request and must be flagged by its own flavor's check;
+    /// the cross-flavor consume is what makes that true (without it both checks
+    /// saw a clean 1:1 and the double-answer slipped through).
+    const REQUEST: &str = r#"{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/list"}}"#;
+    const RESULT_2: &str = r#"{"seq":3,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{}}}"#;
+    const ERROR_2: &str = r#"{"seq":2,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"error":{"code":-32000,"message":"x"}}}"#;
+
+    #[test]
+    fn error_then_result_flags_the_second_answer_as_a_result() {
+        // error (seq2) then result (seq3): the result is the double-answer, so
+        // BASE-004 flags it and BASE-009 stays silent (the error was valid).
+        let trace = format!("{INIT}\n{REQUEST}\n{ERROR_2}\n{RESULT_2}");
+        let results = run_check("base.result-id-matches", &trace);
+        assert_eq!(results.len(), 1, "{results:?}");
+        assert_eq!(results[0].seq, Some(3));
+        assert!(
+            results[0].detail.contains("already answered"),
+            "{results:?}"
+        );
+        assert!(
+            run_check("base.error-id-matches", &trace).is_empty(),
+            "the error was the legitimate first answer"
+        );
+    }
+
+    #[test]
+    fn result_then_error_flags_the_second_answer_as_an_error() {
+        // Reverse order, so the fix cannot be order-specific: result (seq2) then
+        // error (seq3) makes the error the double-answer.
+        let result_seq2 = RESULT_2.replace("\"seq\":3", "\"seq\":2");
+        let error_seq3 = ERROR_2.replace("\"seq\":2", "\"seq\":3");
+        let trace = format!("{INIT}\n{REQUEST}\n{result_seq2}\n{error_seq3}");
+        let errors = run_check("base.error-id-matches", &trace);
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert_eq!(errors[0].seq, Some(3));
+        assert!(errors[0].detail.contains("already answered"), "{errors:?}");
+        assert!(
+            run_check("base.result-id-matches", &trace).is_empty(),
+            "the result was the legitimate first answer"
+        );
+    }
+
+    #[test]
+    fn single_flavor_answer_is_not_flagged_by_the_other_pass() {
+        // Guard against a cross-flavor consume that over-fires: a request
+        // answered once by a result must leave BOTH passes clean.
+        let trace = format!(
+            "{INIT}\n{REQUEST}\n{}",
+            RESULT_2.replace("\"seq\":3", "\"seq\":2")
+        );
+        assert!(run_check("base.result-id-matches", &trace).is_empty());
+        assert!(run_check("base.error-id-matches", &trace).is_empty());
     }
 }

@@ -26,6 +26,12 @@
 //!   making the schema's strictly-increasing-seq rule hold by construction
 //!   even when a session's POST exchanges and SSE streams record
 //!   concurrently.
+//! - **Sessions are trusted to be distinct.** Files are keyed by the
+//!   server-assigned `Mcp-Session-Id`; a client that fabricates another
+//!   session's ID would interleave into that session's file. The tap is
+//!   diagnostics for runs this repository drives (the official runner over
+//!   loopback), not a forensic recorder against adversarial clients — the
+//!   security boundary lives in the policy layer in front of it.
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -40,15 +46,22 @@ use axum::extract::State;
 use axum::http::{HeaderMap, Method, Request};
 use axum::middleware::Next;
 use axum::response::Response;
-use mcp_conformance_core::trace::{
-    Direction, EventBody, LifecycleEvent, TraceEvent, TransportKind,
-};
-use tokio::io::AsyncWriteExt as _;
+use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent};
 use tokio_stream::StreamExt as _;
 
-/// Headers recorded into traces (lowercase). Everything absent from this
-/// allowlist — notably `authorization` and `cookie` — is never captured.
-const RECORDED_HEADERS: [&str; 7] = [
+mod sse;
+
+use sse::SseSplitter;
+
+/// The exact set of HTTP header names (lowercase) the tap records into traces.
+///
+/// This is the recording allowlist, public so a consumer can verify precisely
+/// what the tap captures: everything absent from it — notably `authorization`
+/// and `cookie` — is never written to a trace ([05-security-model.md]'s
+/// redaction-by-construction posture).
+///
+/// [05-security-model.md]: https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/05-security-model.md
+pub const RECORDED_HEADERS: [&str; 7] = [
     "host",
     "origin",
     "accept",
@@ -159,64 +172,9 @@ impl Tap {
 }
 
 /// Per-file writer state: the open handle and the next sequence number.
-struct FileState {
-    file: tokio::fs::File,
-    next_seq: u64,
-}
+mod writer;
 
-/// The writer task: sequences each record per file (the schema's
-/// strictly-increasing rule holds by construction), appends it as one JSON
-/// line, and flushes before accepting the next — everything enqueued before
-/// a kill is durable.
-async fn write_loop(mut receiver: tokio::sync::mpsc::Receiver<Record>) {
-    let mut files: HashMap<PathBuf, FileState> = HashMap::new();
-    while let Some(record) = receiver.recv().await {
-        let path = &record.file.path;
-        if !files.contains_key(path) {
-            match tokio::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(path)
-                .await
-            {
-                Ok(file) => {
-                    files.insert(path.clone(), FileState { file, next_seq: 0 });
-                }
-                Err(error) => {
-                    eprintln!(
-                        "mcp-everything-server: tap cannot open {}: {error}",
-                        path.display()
-                    );
-                    continue;
-                }
-            }
-        }
-        if let Some(state) = files.get_mut(path) {
-            let event = TraceEvent::new(
-                state.next_seq,
-                record.direction,
-                TransportKind::StreamableHttp,
-                record.body,
-            );
-            let Ok(line) = serde_json::to_string(&event) else {
-                eprintln!("mcp-everything-server: tap event unserializable; skipped");
-                continue;
-            };
-            state.next_seq += 1;
-            let write = async {
-                state.file.write_all(line.as_bytes()).await?;
-                state.file.write_all(b"\n").await?;
-                state.file.flush().await
-            };
-            if let Err(error) = write.await {
-                eprintln!(
-                    "mcp-everything-server: tap write to {} failed: {error}",
-                    path.display()
-                );
-            }
-        }
-    }
-}
+use writer::write_loop;
 
 /// The middleware: records the request exchange and, for SSE responses,
 /// every streamed frame, attributing everything to the exchange's session.
@@ -374,151 +332,34 @@ fn recorded_headers(headers: &HeaderMap) -> BTreeMap<String, String> {
         .collect()
 }
 
-/// A header's value as UTF-8, when present and decodable.
+/// A header's value as UTF-8, combining repeated field lines.
+///
+/// HTTP permits a field to appear on multiple lines, semantically equivalent
+/// to one comma-joined value (RFC 9110 §5.3). Recording only the first line
+/// (`HeaderMap::get`) would misrepresent, e.g., an `Accept` split across two
+/// lines — and the validator's `transport.client-accept-header` check reads
+/// exactly this recorded value, so a lossy capture would manufacture a false
+/// finding. We record the faithful combination instead. Returns `None` when
+/// the field is absent or any line is non-UTF-8 (the latter never recorded
+/// rather than recorded partially).
 fn header_value(headers: &HeaderMap, name: &str) -> Option<String> {
-    headers
-        .get(name)
-        .and_then(|value| value.to_str().ok())
-        .map(ToOwned::to_owned)
-}
-
-/// Incremental SSE frame splitter: feed byte chunks, get the JSON payloads
-/// of completed `data:` frames. Carries partial frames across chunks.
-#[derive(Default)]
-struct SseSplitter {
-    buffer: String,
-}
-
-impl SseSplitter {
-    /// Consumes one chunk and returns the payloads of every frame it
-    /// completed. Non-UTF-8 chunks abort recording for this stream (the
-    /// bytes still flow to the client untouched).
-    fn push(&mut self, chunk: &[u8]) -> Vec<serde_json::Value> {
-        let Ok(text) = std::str::from_utf8(chunk) else {
-            self.buffer.clear();
-            return Vec::new();
-        };
-        self.buffer.push_str(text);
-        let mut payloads = Vec::new();
-        // SSE events end at a blank line; tolerate both LF and CRLF framing.
-        // The iteration bound is a real invariant, not decoration: every
-        // completed frame consumes at least its boundary bytes, so an n-byte
-        // buffer holds at most n frames. Bounding the loop makes an infinite
-        // spin impossible even if frame-splitting were to stop consuming
-        // input — a recording bug must never wedge the serving path.
-        for _ in 0..=self.buffer.len() {
-            let Some((frame, rest)) = split_frame(&self.buffer) else {
-                break;
-            };
-            let data = frame
-                .lines()
-                .filter_map(|line| {
-                    line.strip_prefix("data:")
-                        .map(|d| d.strip_prefix(' ').unwrap_or(d))
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
-            if !data.is_empty()
-                && let Ok(payload) = serde_json::from_str(&data)
-            {
-                payloads.push(payload);
-            }
-            self.buffer = rest;
+    let mut lines = headers.get_all(name).iter().peekable();
+    lines.peek()?;
+    let mut combined = String::new();
+    for value in lines {
+        let text = value.to_str().ok()?;
+        if !combined.is_empty() {
+            combined.push_str(", ");
         }
-        payloads
+        combined.push_str(text);
     }
-}
-
-/// Splits `buffer` at the first SSE frame boundary (`\n\n` or `\r\n\r\n`),
-/// returning the frame and the remainder.
-fn split_frame(buffer: &str) -> Option<(String, String)> {
-    let lf = buffer.find("\n\n").map(|i| (i, 2));
-    let crlf = buffer.find("\r\n\r\n").map(|i| (i, 4));
-    let (index, width) = match (lf, crlf) {
-        (Some((li, lw)), Some((ci, cw))) => {
-            if ci < li {
-                (ci, cw)
-            } else {
-                (li, lw)
-            }
-        }
-        (Some(found), None) | (None, Some(found)) => found,
-        (None, None) => return None,
-    };
-    Some((
-        buffer[..index].to_owned(),
-        buffer[index + width..].to_owned(),
-    ))
+    Some(combined)
 }
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn splitter_yields_each_completed_frame_and_carries_partials() {
-        let mut splitter = SseSplitter::default();
-        assert!(splitter.push(b"data: {\"a\":").is_empty());
-        let got = splitter.push(b"1}\n\ndata: {\"b\":2}\n\ndata: {\"c\"");
-        assert_eq!(got, vec![json!({"a": 1}), json!({"b": 2})]);
-        assert_eq!(splitter.push(b":3}\n\n"), vec![json!({"c": 3})]);
-    }
-
-    #[test]
-    fn splitter_joins_multi_line_data_and_tolerates_crlf() {
-        let mut splitter = SseSplitter::default();
-        let got = splitter.push(b"event: message\r\ndata: [1,\r\ndata: 2]\r\n\r\n");
-        assert_eq!(got, vec![json!([1, 2])]);
-    }
-
-    #[test]
-    fn splitter_ignores_non_json_and_empty_frames() {
-        let mut splitter = SseSplitter::default();
-        assert!(splitter.push(b": keep-alive\n\n").is_empty());
-        assert!(splitter.push(b"data: not json\n\n").is_empty());
-        assert_eq!(splitter.push(b"data: 7\n\n"), vec![json!(7)]);
-    }
-
-    #[test]
-    fn split_frame_returns_exact_frame_and_remainder() {
-        assert_eq!(split_frame("no boundary yet"), None);
-        assert_eq!(
-            split_frame("data: 1\n\nrest"),
-            Some(("data: 1".to_owned(), "rest".to_owned()))
-        );
-        assert_eq!(
-            split_frame("data: 1\r\n\r\nrest"),
-            Some(("data: 1".to_owned(), "rest".to_owned()))
-        );
-        // An empty frame is still a frame: the boundary alone splits.
-        assert_eq!(
-            split_frame("\n\ntail"),
-            Some((String::new(), "tail".to_owned()))
-        );
-    }
-
-    #[test]
-    fn split_frame_takes_the_earlier_boundary_when_both_framings_appear() {
-        // CRLF boundary first: it must win even though an LF boundary follows.
-        assert_eq!(
-            split_frame("a\r\n\r\nb\n\nc"),
-            Some(("a".to_owned(), "b\n\nc".to_owned()))
-        );
-        // LF boundary first: it must win even though a CRLF boundary follows.
-        assert_eq!(
-            split_frame("a\n\nb\r\n\r\nc"),
-            Some(("a".to_owned(), "b\r\n\r\nc".to_owned()))
-        );
-        // A CRLF boundary consumes all four bytes: the frame carries no
-        // trailing carriage return and the remainder starts after the
-        // boundary, even at end of input.
-        assert_eq!(
-            split_frame("x\r\n\r\n"),
-            Some(("x".to_owned(), String::new()))
-        );
-    }
 
     #[tokio::test]
     async fn record_json_preserves_the_body_and_records_the_message() {
@@ -591,5 +432,29 @@ mod tests {
         assert_eq!(recorded["host"], "localhost:1234");
         assert_eq!(recorded["mcp-session-id"], "abc");
         assert!(!recorded.contains_key("authorization"));
+    }
+
+    #[test]
+    fn header_value_combines_repeated_field_lines() {
+        // An Accept split across two lines must record as the comma-joined
+        // value, exactly as HTTP semantics combine them — otherwise the
+        // validator's accept-header check would see only the first line and
+        // manufacture a false finding on a perfectly legal request.
+        let mut headers = HeaderMap::new();
+        headers.append("accept", "application/json".parse().unwrap());
+        headers.append("accept", "text/event-stream".parse().unwrap());
+        assert_eq!(
+            header_value(&headers, "accept").as_deref(),
+            Some("application/json, text/event-stream")
+        );
+        // And through the allowlist path, so recording is faithful end to end.
+        let recorded = recorded_headers(&headers);
+        assert_eq!(recorded["accept"], "application/json, text/event-stream");
+    }
+
+    #[test]
+    fn header_value_is_none_for_absent_fields() {
+        let headers = HeaderMap::new();
+        assert_eq!(header_value(&headers, "accept"), None);
     }
 }

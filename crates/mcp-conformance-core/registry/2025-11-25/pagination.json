@@ -32,6 +32,26 @@
         "quote": "Invalid cursors SHOULD result in an error with code -32602 (Invalid params)."
       },
       "exclusion": "Whether a cursor is invalid is server-internal knowledge; a trace cannot distinguish a server accepting a stale-but-valid cursor from one silently tolerating an invalid one."
+    },
+    {
+      "id": "PAGE-004",
+      "level": "SHOULD",
+      "actor": "server",
+      "source": {
+        "section": "server/utilities/pagination#implementation-guidelines",
+        "quote": "Servers SHOULD: Provide stable cursors; Handle invalid cursors gracefully"
+      },
+      "exclusion": "Cursor stability is cross-request server behavior over hidden state; gracefulness on invalid cursors requires knowing a cursor was invalid (the PAGE-003 argument)."
+    },
+    {
+      "id": "PAGE-005",
+      "level": "SHOULD",
+      "actor": "client",
+      "source": {
+        "section": "server/utilities/pagination#implementation-guidelines",
+        "quote": "Clients SHOULD: Treat a missing `nextCursor` as the end of results; Support both paginated and non-paginated flows"
+      },
+      "exclusion": "How a client interprets a missing cursor, and what flows it supports, is client-internal; the wire-visible cursor discipline is PAGE-002's check."
     }
   ]
 }

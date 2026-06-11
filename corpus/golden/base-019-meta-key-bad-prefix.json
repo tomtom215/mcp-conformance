@@ -1,0 +1,824 @@
+{
+  "revision": "2025-11-25",
+  "totals": {
+    "pass": 35,
+    "fail": 2,
+    "warn": 0,
+    "excluded": 89,
+    "unsupported": 0,
+    "not_applicable": 13
+  },
+  "requirements": [
+    {
+      "id": "BASE-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-002",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-003",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-004",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-005",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-007",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-008",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-009",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-010",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-011",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009."
+    },
+    {
+      "id": "BASE-012",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The umbrella clause the BASE and LIFE areas mechanize requirement-by-requirement; it has no observable beyond its constituents."
+    },
+    {
+      "id": "BASE-013",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Dialect support is validation behavior inside each implementation; a trace shows schemas exchanged, not how the receiver processed them."
+    },
+    {
+      "id": "BASE-014",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Whether validation happened, and against which dialect, is implementation-internal; validation outcomes need ground truth about inputs that a trace does not carry."
+    },
+    {
+      "id": "BASE-015",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Judging graceful handling requires knowing the receiver's supported-dialect set, which is not in the trace."
+    },
+    {
+      "id": "BASE-016",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Documentation lives outside the protocol session entirely."
+    },
+    {
+      "id": "BASE-017",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Full dialect validation requires a JSON Schema engine, a dependency mcp-conformance-core deliberately excludes (serde-family only, 02-architecture.md); tools.input-schema-object (TOOL-003) enforces the structural floor."
+    },
+    {
+      "id": "BASE-018",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "What an implementation assumes is internal; only conduct that follows from an assumption could surface, and attributing it requires the assumption."
+    },
+    {
+      "id": "BASE-019",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "base.meta-key-format",
+          "seq": 3,
+          "detail": "params._meta key \"1bad./token\" has prefix label \"1bad\"; labels must start with a letter, end with a letter or digit, and contain only letters, digits, or hyphens"
+        }
+      ]
+    },
+    {
+      "id": "BASE-020",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "base.meta-key-format",
+          "seq": 3,
+          "detail": "params._meta key \"1bad./token\" has prefix label \"1bad\"; labels must start with a letter, end with a letter or digit, and contain only letters, digits, or hyphens"
+        }
+      ]
+    },
+    {
+      "id": "BASE-021",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether a syntactically valid prefix is reverse-DNS for its author cannot be decided without knowing the author's domain."
+    },
+    {
+      "id": "BASE-022",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Icon rendering support is client-internal capability with no wire footprint; the conditional premise (that the client renders icons) is equally invisible."
+    },
+    {
+      "id": "BASE-023",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The umbrella for consumer-side icon hygiene (fetch policy, size limits, origin checks) — all consumer-internal conduct after the recorded session ends."
+    },
+    {
+      "id": "BASE-024",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Rejection is client-side handling after receipt; the trace records the icon metadata served, not what the client did with it."
+    },
+    {
+      "id": "LIFE-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-002",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-003",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-004",
+      "level": "SHOULD NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-005",
+      "level": "SHOULD NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-007",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-008",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "After negotiation, neither stdio nor HTTP message payloads carry a per-message protocol version, so respect is not observable in message traffic. The one wire artifact — the HTTP `MCP-Protocol-Version` header — is judged under TRAN-017 and TRAN-018."
+    },
+    {
+      "id": "LIFE-009",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-010",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-011",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The client's supported-version set is internal state with no wire footprint; the trace shows the version sent, not the versions available."
+    },
+    {
+      "id": "LIFE-012",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The server's supported-version set is internal state with no wire footprint; the trace shows the version answered, not the versions available."
+    },
+    {
+      "id": "LIFE-013",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether the client supports the answered version is client-internal; a continued session is only evidence of support if the premise is known. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header)."
+    },
+    {
+      "id": "LIFE-014",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Stdin closure, signals, and process exit are host-OS actions outside the trace event vocabulary (transport-open/close/abort record that a transport ended, not who ended it or how)."
+    },
+    {
+      "id": "LIFE-015",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged."
+    },
+    {
+      "id": "LIFE-016",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged."
+    },
+    {
+      "id": "LIFE-017",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged."
+    },
+    {
+      "id": "TRAN-001",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings."
+    },
+    {
+      "id": "TRAN-002",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Judging Origin validation requires the server's configured allowlist, which recorded traces do not carry. Enforced instead as default-on policy in mcp-everything-server and exercised by its transport integration tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-003",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Encoding is enforced at capture time: trace documents are read as UTF-8, so a trace that parses is evidence the rule held; non-UTF-8 bytes surface as capture-time read failures, not trace findings."
+    },
+    {
+      "id": "TRAN-004",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-005",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-006",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Recorded HTTP events carry status and conformance-relevant headers, not request lines, so endpoint topology is invisible in a trace. Enforced by mcp-everything-server's transport integration tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-007",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Judging whether an Origin value is invalid requires the server's configured allowlist, which recorded traces do not carry (the TRAN-002 rationale). Enforced as default-on policy in mcp-everything-server with 403 tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-008",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Socket binding is deployment state with no trace footprint. mcp-everything-server binds loopback by default (HttpSecurityPolicy), verified by its transport tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether authentication is properly implemented is not decidable from one session's headers; authorization flows are their own scenario area (corpus/auth, post-M1) mirroring the official suite's `auth` suite."
+    },
+    {
+      "id": "TRAN-010",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Global uniqueness and entropy of an identifier cannot be established from the single sample a trace contains."
+    },
+    {
+      "id": "TRAN-011",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-012",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Secure handling (storage, exposure, logging discipline) is client-internal behavior with no wire footprint beyond the echo requirement judged under TRAN-013."
+    },
+    {
+      "id": "TRAN-013",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-014",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether a server requires a session ID is server configuration a trace does not carry; without it, a non-400 answer to a session-less request is not evidence either way."
+    },
+    {
+      "id": "TRAN-015",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden)."
+    },
+    {
+      "id": "TRAN-016",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The trace schema records HTTP request and response observations as independent events without request/response correlation, so 'in response to' cannot be established offline. Revisit when host-side capture lands (roadmap M3)."
+    },
+    {
+      "id": "TRAN-017",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-018",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-019",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Which version a server assumed is internal state; subsequent traffic does not reveal it."
+    },
+    {
+      "id": "TRAN-020",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The server's supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. Exercised against mcp-everything-server's declared support in its transport tests (roadmap M2)."
+    },
+    {
+      "id": "TRAN-021",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "How a client interprets stderr is internal, and stderr bytes are not part of the protocol trace (the trace records MCP messages and transport lifecycle, not diagnostics channels)."
+    },
+    {
+      "id": "TRAN-022",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "A client's supported-transport surface is a property of the implementation, not of any one session; a streamable-HTTP trace says nothing about whether stdio was available."
+    },
+    {
+      "id": "TRAN-023",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The trace vocabulary covers stdio and streamable HTTP; custom transports are outside the capture universe by construction (TransportKind is closed per revision)."
+    },
+    {
+      "id": "TRAN-024",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Recorded HTTP events carry status and conformance-relevant headers, not request methods or targets, so this clause's subject is invisible in a trace."
+    },
+    {
+      "id": "TRAN-025",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-026",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The capture format records messages individually: a multi-message body cannot be represented in a trace, so a trace that parses is itself the evidence (the TRAN-001/TRAN-003 capture-time argument)."
+    },
+    {
+      "id": "TRAN-027",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it."
+    },
+    {
+      "id": "TRAN-028",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Whether input was acceptable is server-internal judgment, and the trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it."
+    },
+    {
+      "id": "TRAN-029",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-030",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "What a client could have handled is client-internal capability; a trace shows the case that occurred, not the cases supported."
+    },
+    {
+      "id": "TRAN-031",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace."
+    },
+    {
+      "id": "TRAN-032",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace."
+    },
+    {
+      "id": "TRAN-033",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged."
+    },
+    {
+      "id": "TRAN-034",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-035",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Relatedness is a semantic judgment over message content, and which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-036",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-037",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "How the server interpreted a disconnect is internal state; only conduct that follows from a misinterpretation could surface, and attributing it requires the interpretation."
+    },
+    {
+      "id": "TRAN-038",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "A wish to cancel is client intent with no observable of its own; a session without a cancellation is not evidence one was wanted."
+    },
+    {
+      "id": "TRAN-039",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-040",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-041",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Unrelatedness is a semantic judgment over message content, and which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-042",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-043",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace. A duplicated message in the capture order is also indistinguishable from a legitimately repeated notification."
+    },
+    {
+      "id": "TRAN-044",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace."
+    },
+    {
+      "id": "TRAN-045",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace."
+    },
+    {
+      "id": "TRAN-046",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Conditional on client intent (the wish to resume), and the request method is not captured; when a resumption does occur its `last-event-id` header is recorded, but absence proves nothing."
+    },
+    {
+      "id": "TRAN-047",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace."
+    },
+    {
+      "id": "TRAN-048",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Conditional on client intent (no longer needing the session), and the request method is not captured."
+    },
+    {
+      "id": "TOOL-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-002",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The trigger condition — the tool list actually changing — is server-internal state a recorded trace cannot evidence, so absence of the notification is never proof of violation."
+    },
+    {
+      "id": "TOOL-003",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-004",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "How a client weighs annotations is internal trust policy with no wire footprint."
+    },
+    {
+      "id": "TOOL-005",
+      "level": "SHOULD",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-006",
+      "level": "SHOULD",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-007",
+      "level": "SHOULD NOT",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-008",
+      "level": "SHOULD",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-009",
+      "level": "SHOULD",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-010",
+      "level": "SHOULD",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-011",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-012",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Input validation, access control, rate limiting, and output sanitization are server-internal enforcement without a deterministic wire signature; exercised by mcp-everything-server's policy tests (roadmap M2)."
+    },
+    {
+      "id": "TOOL-013",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Name-comparison semantics are consumer-internal; tools.name-unique (TOOL-008) applies case-sensitive comparison in accordance with this clause."
+    },
+    {
+      "id": "TOOL-014",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Client-side validation has no wire footprint; the server-side half of the contract is TOOL-011's check."
+    },
+    {
+      "id": "TOOL-015",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "A host application's approval UX is outside the protocol session; a trace shows invocations that happened, not the approvals that gated them."
+    },
+    {
+      "id": "RES-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "RES-002",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The trigger condition — the resource list actually changing — is server-internal state a recorded trace cannot evidence."
+    },
+    {
+      "id": "RES-003",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether the client can fetch a URI on its own is a property of the client's environment, not of the recorded session."
+    },
+    {
+      "id": "RES-004",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.resources"
+    },
+    {
+      "id": "RES-005",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "URI validation is server-internal enforcement; a trace shows the URIs exchanged, not whether the server vetted them. Exercised by mcp-everything-server's policy tests (roadmap M2)."
+    },
+    {
+      "id": "RES-006",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.resources"
+    },
+    {
+      "id": "RES-007",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The premise — whether the client could fetch the URI directly — is a property of the client's environment, not of the session (the RES-003 argument)."
+    },
+    {
+      "id": "RES-008",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether a failure case actually occurred (the resource was absent, an internal fault happened) is server-side ground truth a trace does not carry."
+    },
+    {
+      "id": "RES-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Which resources are sensitive and what controls guard them is deployment policy with no per-session observable."
+    },
+    {
+      "id": "RES-010",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Permission checks are server-internal enforcement; a trace shows the operations served, not the checks that admitted them."
+    },
+    {
+      "id": "PROM-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-002",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The trigger condition — the prompt list actually changing — is server-internal state a recorded trace cannot evidence."
+    },
+    {
+      "id": "PROM-003",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-004",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-005",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-006",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Validation thoroughness is implementation-internal; a trace shows the prompt traffic, not the vetting applied to it."
+    },
+    {
+      "id": "PROM-007",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether a failure case actually occurred (the name was invalid, an argument was missing) is server-side ground truth a trace does not carry."
+    },
+    {
+      "id": "PROM-008",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Validation thoroughness is implementation-internal (the PROM-006 argument)."
+    },
+    {
+      "id": "PROM-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Client-side pagination handling is internal; a session whose lists fit one page exercises nothing."
+    },
+    {
+      "id": "PROM-010",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Mechanized at the protocol level by LIFE-009's negotiated-capabilities-only check; this restatement adds no separately observable conduct."
+    },
+    {
+      "id": "LOG-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LOG-002",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Deciding whether free-form log data contains secrets or PII is semantic content analysis, not structural validation; offline heuristics would produce non-deterministic, unfalsifiable verdicts."
+    },
+    {
+      "id": "LOG-003",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether a failure case actually occurred (the level was invalid for this server, configuration failed) is server-side ground truth a trace does not carry."
+    },
+    {
+      "id": "LOG-004",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Rate policy, context relevance, naming consistency, and redaction are semantic internals (the LOG-002 argument)."
+    },
+    {
+      "id": "LOG-005",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Rate limiting, validation, access control, and monitoring are implementation-internal enforcement without trace-level observables."
+    },
+    {
+      "id": "COMP-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "COMP-002",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Input validation, rate limiting, and access control are implementation-internal enforcement without a deterministic wire signature."
+    },
+    {
+      "id": "COMP-003",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether a failure case actually occurred is server-side ground truth a trace does not carry."
+    },
+    {
+      "id": "COMP-004",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Relevance ordering, fuzziness, rate policy, and input vetting are semantic internals without trace-level observables."
+    },
+    {
+      "id": "COMP-005",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Debouncing and caching are client-internal and timing-shaped; checks may not consult time (determinism rule)."
+    },
+    {
+      "id": "PAGE-001",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "What a client assumes is internal state; the assumption has no wire footprint (MCP pagination requests carry no size parameter to inspect)."
+    },
+    {
+      "id": "PAGE-002",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PAGE-003",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether a cursor is invalid is server-internal knowledge; a trace cannot distinguish a server accepting a stale-but-valid cursor from one silently tolerating an invalid one."
+    },
+    {
+      "id": "PAGE-004",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Cursor stability is cross-request server behavior over hidden state; gracefulness on invalid cursors requires knowing a cursor was invalid (the PAGE-003 argument)."
+    },
+    {
+      "id": "PAGE-005",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "How a client interprets a missing cursor, and what flows it supports, is client-internal; the wire-visible cursor discipline is PAGE-002's check."
+    }
+  ]
+}

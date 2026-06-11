@@ -165,6 +165,76 @@ fn negotiated_version<'a>(context: &TraceContext<'a>) -> Option<(u64, &'a str)> 
     Some((seq, version))
 }
 
+/// `TRAN-025`/`TRAN-039`: every client HTTP request to the MCP endpoint must
+/// carry an `Accept` header listing `text/event-stream`.
+///
+/// This enforces the floor the two clauses share. POST requests must list
+/// both `application/json` and `text/event-stream`; GET requests must list
+/// `text/event-stream`. Recorded events carry no request method, so the
+/// POST-only half (`application/json` present) is not separately enforceable
+/// offline — but no request form may omit `text/event-stream`, so flagging
+/// that omission is sound for every recorded request.
+pub(super) fn client_accept_header(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    for (seq, headers) in http_headers(context, Direction::ClientToServer) {
+        match headers.get("accept") {
+            None => sink.push(
+                Some(seq),
+                "client HTTP request has no Accept header; every request to the MCP \
+                 endpoint must list text/event-stream (and POST requests application/json)"
+                    .to_owned(),
+            ),
+            Some(accept) if !accept.to_ascii_lowercase().contains("text/event-stream") => sink
+                .push(
+                    Some(seq),
+                    format!("client Accept header {accept:?} does not list text/event-stream"),
+                ),
+            Some(_) => {}
+        }
+    }
+}
+
+/// `TRAN-029`/`TRAN-040`: an HTTP 200 from the MCP endpoint must declare
+/// `Content-Type: application/json` or `Content-Type: text/event-stream`.
+///
+/// Both clauses demand one of the same two content types for their success
+/// case (POST answering a request; GET opening a stream), so the check is
+/// sound without knowing the request method. Non-200 paths (202 accepted,
+/// error statuses, 405) carry no such obligation and are not examined.
+pub(super) fn success_content_type(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    for event in context.events() {
+        if event.direction != Direction::ServerToClient {
+            continue;
+        }
+        let EventBody::Http {
+            status: Some(200),
+            headers,
+        } = &event.body
+        else {
+            continue;
+        };
+        match headers.get("content-type") {
+            None => sink.push(
+                Some(event.seq),
+                "HTTP 200 response carries no Content-Type header; the MCP endpoint \
+                 must answer with application/json or text/event-stream"
+                    .to_owned(),
+            ),
+            Some(content_type) => {
+                let lowered = content_type.to_ascii_lowercase();
+                if !lowered.contains("application/json") && !lowered.contains("text/event-stream") {
+                    sink.push(
+                        Some(event.seq),
+                        format!(
+                            "HTTP 200 Content-Type {content_type:?} is neither application/json \
+                             nor text/event-stream"
+                        ),
+                    );
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -223,6 +293,28 @@ mod tests {
     }
 
     #[test]
+    fn capitalized_header_names_are_still_judged() {
+        // On-the-wire casing must not let a bad header slip past: a session ID
+        // with an illegal space, recorded under the capitalized `Mcp-Session-Id`,
+        // is still caught because trace deserialization lowercases header keys.
+        let bad = http_session(r#"{"Mcp-Session-Id":"has space"}"#, "{}");
+        assert_eq!(
+            findings_for("transport.session-id-visible-ascii", &bad).len(),
+            1,
+            "capitalized header name evaded the visible-ASCII check"
+        );
+        // And a wrong protocol version under `Mcp-Protocol-Version` is flagged
+        // by TRAN-018 rather than silently passing.
+        let wrong_version = http_session(
+            r#"{"mcp-session-id":"abc"}"#,
+            r#"{"mcp-session-id":"abc","Mcp-Protocol-Version":"2024-11-05"}"#,
+        );
+        let findings = findings_for("transport.protocol-version-negotiated", &wrong_version);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("2024-11-05"), "{findings:?}");
+    }
+
+    #[test]
     fn session_id_ascii_boundaries_are_exact() {
         // 0x20 (space) and non-ASCII are out; 0x21 and 0x7E are in.
         let bad = http_session(r#"{"mcp-session-id":"has space"}"#, "{}");
@@ -261,5 +353,55 @@ mod tests {
         let client = findings_for("transport.stdio-client-input-valid", trace);
         assert_eq!(client.len(), 1, "{client:?}");
         assert!(client[0].contains("not a JSON object"), "{client:?}");
+    }
+
+    #[test]
+    fn client_accept_header_requires_event_stream_on_every_request() {
+        // Followup request with no Accept at all.
+        let missing = http_session("{}", r#"{"mcp-protocol-version":"2025-11-25"}"#);
+        let findings = findings_for("transport.client-accept-header", &missing);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("no Accept header"), "{findings:?}");
+
+        // Accept present but without text/event-stream.
+        let json_only = http_session("{}", r#"{"accept":"application/json"}"#);
+        let findings = findings_for("transport.client-accept-header", &json_only);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("text/event-stream"), "{findings:?}");
+
+        // Either order and extra parameters are fine; matching is case-insensitive.
+        let fine = http_session(
+            "{}",
+            r#"{"accept":"TEXT/EVENT-STREAM;q=0.9, application/json"}"#,
+        );
+        assert!(findings_for("transport.client-accept-header", &fine).is_empty());
+    }
+
+    #[test]
+    fn success_content_type_judges_only_200_responses() {
+        // 200 with a content type outside the two allowed.
+        let html = http_session(r#"{"content-type":"text/html"}"#, "{}");
+        let findings = findings_for("transport.success-content-type", &html);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("text/html"), "{findings:?}");
+
+        // 200 with no content type at all.
+        let none = http_session("{}", "{}");
+        let findings = findings_for("transport.success-content-type", &none);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("no Content-Type"), "{findings:?}");
+
+        // SSE and JSON answers both pass; a 202 is not examined.
+        for ok in [
+            r#"{"content-type":"text/event-stream"}"#,
+            r#"{"content-type":"application/json; charset=utf-8"}"#,
+        ] {
+            assert!(
+                findings_for("transport.success-content-type", &http_session(ok, "{}")).is_empty(),
+                "{ok}"
+            );
+        }
+        let accepted = r#"{"seq":0,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":202}"#;
+        assert!(findings_for("transport.success-content-type", accepted).is_empty());
     }
 }

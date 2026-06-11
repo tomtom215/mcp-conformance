@@ -55,7 +55,7 @@ not collide with official naming, formal or informal.
 
 Fallbacks if a name is lost before registration: host → `mcp-host-runtime` →
 `mcp-conformance-host`; everything server → `mcp-everything`; validator → `mcp-validator`;
-core → `mcp-conformance-types`(check at need).
+core → `mcp-conformance-types` (check at need).
 
 ## Consequences
 

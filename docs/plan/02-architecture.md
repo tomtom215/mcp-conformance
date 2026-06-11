@@ -19,6 +19,8 @@ mcp-conformance/
 │   ├── mcp-everything-server/  # reference server exercising every capability (on rmcp)
 │   └── mcp-reference-host/     # reference host / agent loop (on rmcp)
 ├── xtask/                      # cargo xtask: orchestration of official-suite runs (publish = false)
+├── conformance/                # committed suite baselines: expected-failures,
+│                               #   agreement divergences, coverage manifest
 ├── corpus/                     # recorded trace corpora + golden reports (test fixtures, not a crate)
 ├── fuzz/                       # cargo-fuzz targets
 └── docs/                       # this plan, ADRs, later an mdBook
@@ -111,8 +113,9 @@ evaluates every active requirement. Design commitments:
 2. **Explicit state machines.** `2025-11-25`: `Connecting → Initializing → Initialized →
    Ready → Closing` with error edges. The `2026-07-28` rework removes the handshake states —
    modeled as a second state-machine variant behind a feature gate (below), not as a fork.
-3. **Requirement-addressed findings.** Every finding carries a requirement ID, the spec
-   quote, the offending event `seq`, and the expected-vs-actual detail. A report a maintainer
+3. **Requirement-addressed findings.** Every finding carries a requirement ID, the
+   offending event `seq`, and the expected-vs-actual detail; the registry maps the ID
+   back to its verbatim spec quote (`requirements` subcommand). A report a maintainer
    cannot act on is noise.
 4. **Reports as artifacts.** Output formats: human (terminal), JSON (machine), JUnit XML
    (CI). Exit codes: `0` pass, `1` findings, `2` invalid invocation, `3` malformed trace —
@@ -171,7 +174,9 @@ Design commitments:
    server --url …`) against it; collect its verdicts.
 3. Capture the same session as a trace; run `mcp-trace-validator` on it.
 4. **Diff the two verdicts.** Disagreement fails CI and is triaged as either our bug, an
-   official-suite bug (filed upstream), or a spec ambiguity (filed upstream).
+   official-suite bug (filed upstream), or a spec ambiguity (filed upstream). The gate
+   holds in both directions: a baseline entry that explains nothing in the current run
+   is stale and fails CI too ([03-conformance-strategy.md](03-conformance-strategy.md)).
 
 The agreement check is the toolkit's credibility mechanism: the validator is continuously
 calibrated against the authority rather than asking anyone to trust it.
