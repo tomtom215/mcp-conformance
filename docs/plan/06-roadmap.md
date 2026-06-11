@@ -25,7 +25,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
 | M1 — Registry and validator | **Complete** — v0.1.0 published to crates.io via [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142) (attested, byte-verified); every DoD line below carries its evidence |
 | M2 — Everything server | **Complete** (2026-06-11): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite in CI ([run #27266174013](https://github.com/tomtom215/mcp-conformance/actions/runs/27266174013)); trace tap, agreement check, and coverage manifest live (zero unexplained divergence; first divergence triaged suite-bug, filed upstream as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338)); everything-server offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) (pre-flight in [#9](https://github.com/tomtom215/mcp-conformance/issues/9)), README-linked — every DoD line below carries its evidence |
-| M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (July 28, 2026); re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
+| M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (2026-07-28); re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
 | M3 — Reference host | Not started |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
 | M5 — Stewardship artifacts | Not started |
@@ -96,7 +96,7 @@ The spec as data, and the engine that judges traces against it.
       streamable HTTP. *(2026-06-10: every suite-defined tool/resource/prompt implemented
       — [register 2.15](01-ecosystem-context.md). The committed
       `conformance/coverage-manifest.json` is generated from the tapped suite sessions
-      and checked on every `cargo xtask conformance` run: all seven server-party
+      and checked on every `cargo xtask conformance` run: all eight server-party
       registry capability gates declared and active — the manifest gate caught the
       missing `listChanged` declarations, closed by the `test-list-changed` tool — and
       18 distinct wire methods observed. `BLESS=1` regenerates; drift fails the gate.)*

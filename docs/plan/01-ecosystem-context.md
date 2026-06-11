@@ -31,7 +31,7 @@ cited).
 | # | Fact | Status | Verified | Source | Used by |
 |---|------|--------|----------|--------|---------|
 | 1.1 | Current MCP protocol revision is `2025-11-25` | Verified | 2026-06-09 | [Versioning](https://modelcontextprotocol.io/specification/versioning) | Charter, Architecture |
-| 1.2 | A release candidate dated `2026-07-28` exists; final ships July 28, 2026 | Verified | 2026-06-09 | [RC announcement](https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/) (2026-05-21) | Architecture, Roadmap, Risks |
+| 1.2 | A release candidate dated `2026-07-28` exists; final ships 2026-07-28 | Verified | 2026-06-09 | [RC announcement](https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/) (2026-05-21) | Architecture, Roadmap, Risks |
 | 1.3 | The 2026-07-28 RC removes the `initialize`/`initialized` handshake and the `Mcp-Session-Id` header ("stateless rework") | Verified | 2026-06-09 | RC announcement: "The `initialize`/`initialized` handshake is removed." / "The `Mcp-Session-Id` header … also removed." | Architecture §state machines |
 | 1.4 | Feature lifecycle policy: deprecated features remain ≥ 12 months before removal, with a 90-day expedited-removal exception | Verified | 2026-06-09 | Versioning page; RC announcement | Standards §deprecation |
 | 1.5 | The RC adds an Extensions framework: reverse-DNS IDs negotiated via an `extensions` capability map | Verified | 2026-06-09 | RC announcement | Conformance strategy |

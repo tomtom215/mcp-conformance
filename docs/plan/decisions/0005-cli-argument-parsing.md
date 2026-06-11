@@ -51,7 +51,7 @@ integration tests that execute the real binary (`tests/cli.rs`).
 
 Rejected for the user-facing tool: help text, subcommands, and error UX would be
 hand-maintained forever; the saved compile time does not buy back that maintenance.
-(xtask, which is internal and trivial, *does* hand-roll its two-command dispatch —
+(xtask, which is internal and trivial, *does* hand-roll its command dispatch —
 the right tool differs with the audience.)
 
 ### clap as an unconditional dependency

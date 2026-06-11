@@ -42,7 +42,7 @@ publish), with these commitments:
 2. **No third-party code in the toolchain path.** Toolchains install via plain
    `rustup`, as in ci.yml; every action that does run is pinned by commit SHA.
 3. **Packaging is verified and deterministic, provably.** `cargo package --workspace
-   --locked` with verification builds (never `--no-verify`); the publish job
+   --exclude xtask --locked` with verification builds (never `--no-verify`); the publish job
    re-packages and byte-compares against the attested SHA256SUMS before uploading, so
    the SLSA attestation describably covers what was published rather than assuming
    `cargo publish`'s internal re-package matches.

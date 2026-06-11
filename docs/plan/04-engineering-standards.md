@@ -63,8 +63,8 @@ Package registries are reachable only at dependency-install time, under lockfile
 
 1. `cargo fmt --all -- --check`
 2. `cargo clippy --workspace --all-targets -- -D warnings` — repeated per feature
-   combination, including `--no-default-features`, `--all-features`, and
-   `draft-2026-07-28`
+   combination: default, `--no-default-features`, and `--all-features` (the
+   `draft-2026-07-28` feature joins the matrix when M2.5 introduces it)
 3. `cargo test` matrix: {stable, MSRV} × {Linux, macOS, Windows} × feature combinations
 4. `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` — twice: default
    features and `--all-features` (feature-gated modules carry rustdoc the default
@@ -73,12 +73,15 @@ Package registries are reachable only at dependency-install time, under lockfile
    (`cargo xtask coverage --check`), the ≤ 500-line file cap
    (`cargo xtask file-sizes`), and every relative documentation link resolving
    (`cargo xtask docs-links`)
-6. `cargo deny check` (license allowlist, advisories, sources) + `cargo audit`
+6. `cargo deny check` (license allowlist, advisories, sources); `cargo audit` runs
+   in the weekly scheduled job
 7. `cargo package --workspace --exclude xtask --locked` validation (publishability
    of every release crate; xtask is `publish = false` yet `--workspace` would
    package it)
-8. Mutation gate (diff-scoped), fuzz smoke, golden-corpus run, agreement check
-9. Nightly + official-suite `0.2.0-alpha` tracking as scheduled, non-blocking jobs
+8. Mutation gate (diff-scoped), golden-corpus run, agreement check; fuzzing runs
+   in the weekly scheduled job (five minutes per target)
+9. Nightly toolchain (per-push, informational) + official-suite `0.2.0-alpha`
+   tracking as a scheduled, non-blocking job
 
 Workflow hygiene: GitHub Actions pinned by commit SHA; concurrency cancellation for
 superseded pushes (never for `main`); least-privilege workflow permissions.

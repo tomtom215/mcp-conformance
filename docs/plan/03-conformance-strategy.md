@@ -72,8 +72,11 @@ Two hard rules:
 
 ## Scenario taxonomy
 
-Our scenarios and corpora are organized to mirror the official suite's structure
-([register 2.3](01-ecosystem-context.md)) so results are directly comparable:
+Our scenarios and corpora mirror the official suite's structure
+([register 2.3](01-ecosystem-context.md)) so results are directly comparable; the
+committed corpus currently ships `good/`, `violations/`, and `golden/`
+(`corpus/README.md`), with the suite-aligned directories below adopted as their
+content lands:
 
 | Official suite | Our corpus directory | Notes |
 |----------------|---------------------|-------|
@@ -122,9 +125,9 @@ informational SHOULD warning on the suite's version-compat probe.
 
 ## Official-suite version policy
 
-- **Pin** the stable line (`0.1.16` as of 2026-06-09 — [register 2.4](01-ecosystem-context.md))
-  in `xtask` via an exact version and lockfile; upgrades are deliberate PRs with a diff of
-  scenario changes.
+- **Pin** the stable line (`0.1.16` as of 2026-06-11 — [register 2.4](01-ecosystem-context.md))
+  in `xtask` via an exact version (`SUITE_VERSION` in `xtask/src/conformance.rs`);
+  upgrades are deliberate PRs with a diff of scenario changes.
 - **Track** the `0.2.0-alpha` line in a scheduled, non-blocking CI job so breakage arrives as
   an early warning, not a release-day surprise.
 - The `draft` suite runs only under the `draft-2026-07-28` feature until the spec finalizes.

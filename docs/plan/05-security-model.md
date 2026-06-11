@@ -18,7 +18,7 @@ reality, not borrowed from a generic library template.
 | Asset | Threat | Boundary |
 |-------|--------|----------|
 | Validator process | Malicious trace files (parser exploitation, resource exhaustion) | Traces are untrusted input. Hard caps on event count, payload size, and nesting depth; typed errors, never panics; fuzzed continuously. |
-| Host machine running the everything server | The server is intentionally permissive (it exercises *every* capability) — it must never be reachable from a hostile network | Loopback bind by default; `Host`/`Origin` validation on by default; startup banner states the server is a test fixture, not a production component. |
+| Host machine running the everything server | The server is intentionally permissive (it exercises *every* capability) — it must never be reachable from a hostile network | Loopback bind by default; `Host`/`Origin` validation on by default; disabling it requires the self-describing `--dangerously-allow-any-host` flag. |
 | Reference host | Malicious or compromised SUT servers (hostile tool results, oversized streams, slow-loris SSE) | Response size and time budgets; bounded concurrency; cooperative cancellation; no shell interpretation of server-supplied strings. |
 | CI | Supply-chain attacks via actions or dependencies | Actions pinned by SHA; `cargo deny` + `cargo audit` gates; lockfiles; trusted publishing (no long-lived tokens to steal). |
 | Trace corpora | Secrets accidentally recorded into fixtures | Capture tooling redacts `Authorization`/cookie headers and token-shaped strings by default; corpus review is part of PR review. |
