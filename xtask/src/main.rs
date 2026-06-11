@@ -19,11 +19,24 @@
 //!   the coverage manifest. `conformance.rs` documents the network-use boundary:
 //!   orchestration may dial out, `cargo test` never does.
 
+use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 mod agreement;
 mod conformance;
 mod coverage;
+
+/// The workspace root: the parent of this crate's manifest directory.
+///
+/// Tasks anchor every path here so they behave identically from any working
+/// directory — `cargo xtask` inherits the invoker's cwd, which need not be
+/// the root. The compile-time manifest path is correct for a dev-only task
+/// that is always built and run in-tree.
+fn workspace_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
+}
 
 fn main() -> ExitCode {
     let mut args = std::env::args().skip(1);

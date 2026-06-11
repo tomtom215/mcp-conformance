@@ -11,32 +11,34 @@
 //! validator failure on a session the runner passed; explanations live in
 //! `conformance/agreement-divergences.json`, where every entry must carry a
 //! triage class (`our-bug` | `suite-bug` | `spec-ambiguity`) and an upstream
-//! link. The full reconciliation is written to
-//! `target/conformance/agreement.json`.
+//! link. The baseline must also stay live: an entry that explains nothing in
+//! the current run is stale — the divergence it described no longer occurs —
+//! and fails the gate until it is removed, so explanations leave the baseline
+//! in the same change that resolves them (e.g. a suite pin bump). The full
+//! reconciliation is written to `target/conformance/agreement.json`.
 //!
 //! The same captured sessions also prove the server's exercised surface: the
-//! coverage manifest (`conformance/coverage-manifest.json`) records the
-//! capabilities the server declared and the methods the suite drove, checked
-//! against the registry's capability gates. `BLESS=1` regenerates it, like
-//! every other golden artifact in this repository.
+//! coverage manifest (`conformance/coverage-manifest.json`, `manifest.rs`)
+//! records the capabilities the server declared and the methods the suite
+//! drove, checked against the registry's capability gates.
 
 #![allow(clippy::redundant_pub_crate)]
 
-use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use mcp_conformance_core::capability::CapabilityParty;
 use mcp_conformance_core::requirement::Registry;
 use mcp_conformance_core::trace::TraceEvent;
-use mcp_trace_validator::reader::{Limits, parse_trace};
 use mcp_trace_validator::report::{Outcome, Report};
 use serde::{Deserialize, Serialize};
 
-/// Committed explanations for validator-vs-runner divergences.
-const DIVERGENCE_BASELINE: &str = "conformance/agreement-divergences.json";
+mod artifacts;
+mod manifest;
 
-/// Committed manifest of the server surface the suite exercised.
-const MANIFEST_PATH: &str = "conformance/coverage-manifest.json";
+use artifacts::RunnerSide;
+
+/// Committed explanations for validator-vs-runner divergences, relative to
+/// the workspace root.
+const DIVERGENCE_BASELINE: &str = "conformance/agreement-divergences.json";
 
 /// The triage classes the policy admits — nothing else parses.
 const TRIAGE_CLASSES: [&str; 3] = ["our-bug", "suite-bug", "spec-ambiguity"];
@@ -60,6 +62,16 @@ struct ExplainedDivergence {
     #[serde(default, rename = "_note")]
     #[allow(dead_code)]
     note: Option<String>,
+}
+
+impl ExplainedDivergence {
+    /// How the entry is named in gate output: requirement plus filter.
+    fn describe(&self) -> String {
+        self.trace_contains.as_ref().map_or_else(
+            || self.requirement.clone(),
+            |needle| format!("{} (trace_contains {needle:?})", self.requirement),
+        )
+    }
 }
 
 /// The committed divergence baseline file.
@@ -106,14 +118,6 @@ struct AgreementArtifact {
     agreement: bool,
 }
 
-/// The runner's side of the diff, summarized from `checks.json` files.
-#[derive(Debug, Serialize)]
-struct RunnerSide {
-    scenarios: usize,
-    checks: usize,
-    checks_by_status: BTreeMap<String, u32>,
-}
-
 /// The validator's side of the diff.
 #[derive(Debug, Serialize)]
 struct ValidatorSide {
@@ -122,11 +126,22 @@ struct ValidatorSide {
     failures: Vec<ValidatorFailure>,
 }
 
-/// Divergences split by whether the baseline explains them.
+/// Divergences split three ways against the baseline: failures it explains,
+/// failures it does not, and entries that explained nothing (stale).
 #[derive(Debug, Serialize)]
 struct DivergenceReport {
     unexplained: Vec<ValidatorFailure>,
     explained: Vec<ValidatorFailure>,
+    stale_baseline_entries: Vec<String>,
+}
+
+/// The three-way reconciliation of observed failures against the baseline.
+struct Reconciliation {
+    explained: Vec<ValidatorFailure>,
+    unexplained: Vec<ValidatorFailure>,
+    /// Baseline entries (as [`ExplainedDivergence::describe`] strings) that
+    /// matched no failure in this run.
+    stale: Vec<String>,
 }
 
 /// Runs the agreement check and the coverage-manifest check over the tapped
@@ -135,13 +150,18 @@ struct DivergenceReport {
 /// # Errors
 ///
 /// Returns a human-readable description of the first contract violation:
-/// unreadable artifacts, a malformed baseline, an unexplained divergence, or
-/// manifest drift.
-pub(crate) fn run(tap_dir: &Path, results_dir: &Path, suite_version: &str) -> Result<(), String> {
+/// unreadable artifacts, a malformed baseline, an unexplained divergence, a
+/// stale baseline entry, or manifest drift.
+pub(crate) fn run(
+    workspace_root: &Path,
+    tap_dir: &Path,
+    results_dir: &Path,
+    suite_version: &str,
+) -> Result<(), String> {
     let registry = Registry::builtin_2025_11_25()
         .map_err(|error| format!("embedded registry failed to load: {error}"))?;
-    let baseline = load_baseline(Path::new(DIVERGENCE_BASELINE))?;
-    let sessions = load_sessions(tap_dir)?;
+    let baseline = load_baseline(&workspace_root.join(DIVERGENCE_BASELINE))?;
+    let sessions = artifacts::load_sessions(tap_dir)?;
     if sessions.is_empty() {
         return Err(format!(
             "no tapped sessions found in {} — the tap produced nothing, \
@@ -151,16 +171,10 @@ pub(crate) fn run(tap_dir: &Path, results_dir: &Path, suite_version: &str) -> Re
     }
 
     let (totals, failures, reports) = validate_sessions(&registry, &sessions);
+    let reconciliation = reconcile(&baseline, &failures);
+    let gate = gate_error(&reconciliation);
 
-    let (explained, unexplained): (Vec<_>, Vec<_>) =
-        failures.iter().cloned().partition(|failure| {
-            baseline
-                .divergences
-                .iter()
-                .any(|entry| explains(entry, failure))
-        });
-
-    let runner = summarize_runner(results_dir)?;
+    let runner = artifacts::summarize_runner(results_dir)?;
     let artifact = AgreementArtifact {
         suite_version: suite_version.to_owned(),
         spec_revision: registry_revision(&reports),
@@ -170,48 +184,99 @@ pub(crate) fn run(tap_dir: &Path, results_dir: &Path, suite_version: &str) -> Re
             totals,
             failures,
         },
+        agreement: gate.is_none(),
         divergences: DivergenceReport {
-            unexplained: unexplained.clone(),
-            explained,
+            unexplained: reconciliation.unexplained,
+            explained: reconciliation.explained,
+            stale_baseline_entries: reconciliation.stale,
         },
-        agreement: unexplained.is_empty(),
     };
-    write_artifact(results_dir, &artifact)?;
+    artifacts::write_artifact(results_dir, &artifact)?;
 
-    check_manifest(&registry, &sessions)?;
+    manifest::check_manifest(workspace_root, &registry, &sessions)?;
 
-    if unexplained.is_empty() {
-        eprintln!(
-            "xtask: agreement — {} session(s) validated; zero unexplained divergence; \
-             artifact at {}",
-            sessions.len(),
-            results_dir.join("agreement.json").display()
-        );
-        Ok(())
-    } else {
-        Err(divergence_error(&unexplained))
+    if let Some(error) = gate {
+        return Err(error);
+    }
+    eprintln!(
+        "xtask: agreement — {} session(s) validated; zero unexplained divergence; \
+         baseline live; artifact at {}",
+        sessions.len(),
+        results_dir.join("agreement.json").display()
+    );
+    Ok(())
+}
+
+/// Splits observed failures into explained/unexplained against the baseline,
+/// and surfaces baseline entries that explained nothing. Both directions
+/// gate: an unexplained failure is an undocumented divergence, and a stale
+/// entry is documentation for a divergence that no longer exists — left in
+/// place it would silently absorb the *next* failure matching its pattern.
+fn reconcile(baseline: &DivergenceBaseline, failures: &[ValidatorFailure]) -> Reconciliation {
+    let (explained, unexplained): (Vec<_>, Vec<_>) =
+        failures.iter().cloned().partition(|failure| {
+            baseline
+                .divergences
+                .iter()
+                .any(|entry| explains(entry, failure))
+        });
+    let stale = baseline
+        .divergences
+        .iter()
+        .filter(|entry| !failures.iter().any(|failure| explains(entry, failure)))
+        .map(ExplainedDivergence::describe)
+        .collect();
+    Reconciliation {
+        explained,
+        unexplained,
+        stale,
     }
 }
 
-/// Renders the gate-failure message: every unexplained divergence plus the
-/// triage instructions.
-fn divergence_error(unexplained: &[ValidatorFailure]) -> String {
-    let listing = unexplained
-        .iter()
-        .map(|failure| {
-            format!(
-                "  {} on {}: {}",
-                failure.requirement, failure.trace, failure.detail
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!(
-        "{} unexplained validator-vs-runner divergence(s):\n{listing}\n\
-         Triage each (our-bug | suite-bug | spec-ambiguity), fix or file \
-         upstream, and record explained ones in {DIVERGENCE_BASELINE}",
-        unexplained.len()
-    )
+/// The gate-failure message, when the reconciliation demands one: every
+/// unexplained divergence and every stale baseline entry, with triage
+/// instructions for each.
+fn gate_error(reconciliation: &Reconciliation) -> Option<String> {
+    let mut sections = Vec::new();
+    if !reconciliation.unexplained.is_empty() {
+        let listing = reconciliation
+            .unexplained
+            .iter()
+            .map(|failure| {
+                format!(
+                    "  {} on {}: {}",
+                    failure.requirement, failure.trace, failure.detail
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        sections.push(format!(
+            "{} unexplained validator-vs-runner divergence(s):\n{listing}\n\
+             Triage each (our-bug | suite-bug | spec-ambiguity), fix or file \
+             upstream, and record explained ones in {DIVERGENCE_BASELINE}",
+            reconciliation.unexplained.len()
+        ));
+    }
+    if !reconciliation.stale.is_empty() {
+        let listing = reconciliation
+            .stale
+            .iter()
+            .map(|entry| format!("  {entry}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        sections.push(format!(
+            "{} stale baseline entr(y/ies) in {DIVERGENCE_BASELINE} — each \
+             explains a divergence that no longer occurs:\n{listing}\n\
+             Remove them in this same change (typically the suite pin bump or \
+             fix that resolved them)",
+            reconciliation.stale.len()
+        ));
+    }
+    if sections.is_empty() {
+        None
+    } else {
+        Some(sections.join("\n"))
+    }
 }
 
 /// Validates every session, returning aggregate totals, the MUST-level
@@ -301,221 +366,6 @@ fn load_baseline(path: &Path) -> Result<DivergenceBaseline, String> {
     Ok(baseline)
 }
 
-/// Loads every tapped session trace, sorted by file name (creation order —
-/// the tap prefixes an ordinal).
-fn load_sessions(tap_dir: &Path) -> Result<Vec<(String, Vec<TraceEvent>)>, String> {
-    let mut names = Vec::new();
-    let entries = std::fs::read_dir(tap_dir)
-        .map_err(|error| format!("cannot read {}: {error}", tap_dir.display()))?;
-    for entry in entries {
-        let entry = entry.map_err(|error| format!("{}: {error}", tap_dir.display()))?;
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if std::path::Path::new(&name)
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("jsonl"))
-        {
-            names.push(name);
-        }
-    }
-    names.sort();
-    let mut sessions = Vec::new();
-    for name in names {
-        let path = tap_dir.join(&name);
-        let text = std::fs::read_to_string(&path)
-            .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-        let events = parse_trace(&text, &Limits::default())
-            .map_err(|error| format!("{} is not a valid trace: {error}", path.display()))?;
-        sessions.push((name, events));
-    }
-    Ok(sessions)
-}
-
-/// Summarizes the runner's per-scenario `checks.json` artifacts.
-fn summarize_runner(results_dir: &Path) -> Result<RunnerSide, String> {
-    let mut scenarios = 0;
-    let mut checks = 0;
-    let mut by_status: BTreeMap<String, u32> = BTreeMap::new();
-    let entries = std::fs::read_dir(results_dir)
-        .map_err(|error| format!("cannot read {}: {error}", results_dir.display()))?;
-    for entry in entries {
-        let entry = entry.map_err(|error| format!("{}: {error}", results_dir.display()))?;
-        let checks_path = entry.path().join("checks.json");
-        if !checks_path.is_file() {
-            continue;
-        }
-        scenarios += 1;
-        let text = std::fs::read_to_string(&checks_path)
-            .map_err(|error| format!("cannot read {}: {error}", checks_path.display()))?;
-        let parsed: Vec<serde_json::Value> = serde_json::from_str(&text)
-            .map_err(|error| format!("{} is not valid: {error}", checks_path.display()))?;
-        checks += parsed.len();
-        for check in &parsed {
-            let status = check
-                .get("status")
-                .and_then(serde_json::Value::as_str)
-                .unwrap_or("UNKNOWN");
-            *by_status.entry(status.to_owned()).or_insert(0) += 1;
-        }
-    }
-    if scenarios == 0 {
-        return Err(format!(
-            "no checks.json found under {} — did the runner write its results?",
-            results_dir.display()
-        ));
-    }
-    Ok(RunnerSide {
-        scenarios,
-        checks,
-        checks_by_status: by_status,
-    })
-}
-
-/// Writes the reconciliation artifact.
-fn write_artifact(results_dir: &Path, artifact: &AgreementArtifact) -> Result<(), String> {
-    let path = results_dir.join("agreement.json");
-    let json = serde_json::to_string_pretty(artifact)
-        .map_err(|error| format!("agreement artifact unserializable: {error}"))?;
-    std::fs::write(&path, json + "\n")
-        .map_err(|error| format!("cannot write {}: {error}", path.display()))
-}
-
-// ── Coverage manifest ────────────────────────────────────────────────────────
-
-/// The committed manifest: what surface the tapped suite sessions prove.
-#[derive(Debug, Serialize)]
-struct CoverageManifest {
-    /// How to regenerate (kept in the artifact so it explains itself).
-    #[serde(rename = "_generated")]
-    generated: String,
-    /// The registry revision the gates come from.
-    spec_revision: String,
-    /// The server's declared capabilities, from the initialize result.
-    server_capabilities: serde_json::Value,
-    /// Every server-party capability gate in the registry, with whether the
-    /// server declared it. All must be true: an undeclared gate means a slice
-    /// of the registry silently became not-applicable.
-    capability_gates: BTreeMap<String, bool>,
-    /// Request methods the suite drove, as observed on the wire.
-    methods_observed: BTreeSet<String>,
-}
-
-/// Builds the manifest from the tapped sessions and checks it against the
-/// committed copy (or rewrites the committed copy under `BLESS=1`).
-fn check_manifest(
-    registry: &Registry,
-    sessions: &[(String, Vec<TraceEvent>)],
-) -> Result<(), String> {
-    let server_capabilities = sessions
-        .iter()
-        .find_map(|(_, events)| initialize_capabilities(events))
-        .ok_or_else(|| {
-            "no initialize result with capabilities found in any tapped session".to_owned()
-        })?;
-
-    let capability_gates = server_gates(registry, &server_capabilities);
-    let methods_observed = observed_methods(sessions);
-
-    let manifest = CoverageManifest {
-        generated: "cargo xtask conformance (BLESS=1 to regenerate)".to_owned(),
-        spec_revision: "2025-11-25".to_owned(),
-        server_capabilities,
-        capability_gates: capability_gates.clone(),
-        methods_observed,
-    };
-
-    if let Some((gate, _)) = capability_gates.iter().find(|(_, declared)| !**declared) {
-        return Err(format!(
-            "registry gate {gate} is not declared by the server — a slice of \
-             the registry silently became not-applicable; declare the \
-             capability or document the exclusion"
-        ));
-    }
-
-    let rendered = serde_json::to_string_pretty(&manifest)
-        .map_err(|error| format!("manifest unserializable: {error}"))?
-        + "\n";
-    let path = Path::new(MANIFEST_PATH);
-    if std::env::var_os("BLESS").is_some_and(|v| v == "1") {
-        std::fs::write(path, &rendered)
-            .map_err(|error| format!("cannot write {}: {error}", path.display()))?;
-        eprintln!("xtask: agreement — blessed {}", path.display());
-        return Ok(());
-    }
-    let committed = std::fs::read_to_string(path).map_err(|error| {
-        format!(
-            "cannot read {}: {error} (BLESS=1 to create it)",
-            path.display()
-        )
-    })?;
-    if committed == rendered {
-        eprintln!(
-            "xtask: agreement — coverage manifest in sync ({})",
-            path.display()
-        );
-        Ok(())
-    } else {
-        Err(format!(
-            "{} is out of sync with the tapped sessions — review the change \
-             and regenerate with BLESS=1 cargo xtask conformance",
-            path.display()
-        ))
-    }
-}
-
-/// Every server-party capability gate in the registry, with whether the
-/// server's declared capabilities satisfy it.
-fn server_gates(
-    registry: &Registry,
-    server_capabilities: &serde_json::Value,
-) -> BTreeMap<String, bool> {
-    let mut gates = BTreeMap::new();
-    for requirement in registry.requirements() {
-        if let Some(gate) = &requirement.capability
-            && gate.party() == CapabilityParty::Server
-        {
-            gates.insert(
-                gate.as_str().to_owned(),
-                gate.is_declared(Some(server_capabilities)),
-            );
-        }
-    }
-    gates
-}
-
-/// Every request method observed across the tapped sessions.
-fn observed_methods(sessions: &[(String, Vec<TraceEvent>)]) -> BTreeSet<String> {
-    let mut methods = BTreeSet::new();
-    for (_, events) in sessions {
-        for event in events {
-            if let Some(method) = event
-                .message_payload()
-                .and_then(|payload| payload.get("method"))
-                .and_then(serde_json::Value::as_str)
-            {
-                methods.insert(method.to_owned());
-            }
-        }
-    }
-    methods
-}
-
-/// The `capabilities` object from the first initialize *result* in a session.
-fn initialize_capabilities(events: &[TraceEvent]) -> Option<serde_json::Value> {
-    // The initialize request's id, so the matching result can be found.
-    let init_id = events.iter().find_map(|event| {
-        let payload = event.message_payload()?;
-        (payload.get("method")? == "initialize").then(|| payload.get("id").cloned())?
-    })?;
-    events.iter().find_map(|event| {
-        let payload = event.message_payload()?;
-        if payload.get("id") == Some(&init_id) {
-            payload.get("result")?.get("capabilities").cloned()
-        } else {
-            None
-        }
-    })
-}
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -529,18 +379,90 @@ mod tests {
         }
     }
 
-    #[test]
-    fn baseline_entry_explains_by_requirement_and_optional_trace_filter() {
-        let entry = ExplainedDivergence {
-            requirement: "LIFE-009".to_owned(),
+    fn entry(requirement: &str, trace_contains: Option<&str>) -> ExplainedDivergence {
+        ExplainedDivergence {
+            requirement: requirement.to_owned(),
             class: "suite-bug".to_owned(),
             upstream: "https://github.com/example/issues/1".to_owned(),
-            trace_contains: Some("003-".to_owned()),
+            trace_contains: trace_contains.map(ToOwned::to_owned),
             note: None,
-        };
+        }
+    }
+
+    fn baseline(divergences: Vec<ExplainedDivergence>) -> DivergenceBaseline {
+        DivergenceBaseline {
+            policy: "p".to_owned(),
+            divergences,
+        }
+    }
+
+    #[test]
+    fn baseline_entry_explains_by_requirement_and_optional_trace_filter() {
+        let entry = entry("LIFE-009", Some("003-"));
         assert!(explains(&entry, &failure("003-abc.jsonl", "LIFE-009")));
         assert!(!explains(&entry, &failure("004-abc.jsonl", "LIFE-009")));
         assert!(!explains(&entry, &failure("003-abc.jsonl", "TOOL-001")));
+    }
+
+    #[test]
+    fn reconcile_partitions_and_finds_no_stale_when_baseline_is_live() {
+        let baseline = baseline(vec![entry("LIFE-003", Some("dns"))]);
+        let failures = [
+            failure("003-dns-rebinding.jsonl", "LIFE-003"),
+            failure("001-init.jsonl", "TOOL-001"),
+        ];
+        let result = reconcile(&baseline, &failures);
+        assert_eq!(result.explained.len(), 1);
+        assert_eq!(result.unexplained.len(), 1);
+        assert_eq!(result.unexplained[0].requirement, "TOOL-001");
+        assert!(result.stale.is_empty());
+        // Unexplained failures gate; the message carries the triage path.
+        let message = gate_error(&result).unwrap();
+        assert!(message.contains("unexplained"), "{message}");
+        assert!(message.contains("TOOL-001"), "{message}");
+    }
+
+    #[test]
+    fn reconcile_flags_entries_that_explain_nothing_as_stale() {
+        // The divergence this entry described was fixed upstream: nothing in
+        // the run matches it, and the gate must demand its removal rather
+        // than leave a pattern lying in wait for the next LIFE-003 failure.
+        let baseline = baseline(vec![entry("LIFE-003", Some("dns"))]);
+        let result = reconcile(&baseline, &[]);
+        assert!(result.explained.is_empty());
+        assert!(result.unexplained.is_empty());
+        assert_eq!(result.stale, ["LIFE-003 (trace_contains \"dns\")"]);
+        let message = gate_error(&result).unwrap();
+        assert!(message.contains("stale"), "{message}");
+        assert!(message.contains("LIFE-003"), "{message}");
+    }
+
+    #[test]
+    fn stale_entry_does_not_mask_a_new_failure_outside_its_filter() {
+        // Same requirement, different session: the filtered entry explains
+        // nothing (stale) and the new failure must surface as unexplained —
+        // both directions reported in one gate message.
+        let baseline = baseline(vec![entry("LIFE-003", Some("dns"))]);
+        let failures = [failure("001-init.jsonl", "LIFE-003")];
+        let result = reconcile(&baseline, &failures);
+        assert!(result.explained.is_empty());
+        assert_eq!(result.unexplained.len(), 1);
+        assert_eq!(result.stale.len(), 1);
+        let message = gate_error(&result).unwrap();
+        assert!(message.contains("unexplained"), "{message}");
+        assert!(message.contains("stale"), "{message}");
+    }
+
+    #[test]
+    fn unfiltered_entries_match_any_trace_and_stay_live_across_sessions() {
+        // No trace_contains: the entry explains the requirement wherever it
+        // fails, so it is live as long as any session still fails it.
+        let baseline = baseline(vec![entry("LIFE-003", None)]);
+        let failures = [failure("anything.jsonl", "LIFE-003")];
+        let result = reconcile(&baseline, &failures);
+        assert_eq!(result.explained.len(), 1);
+        assert!(result.stale.is_empty());
+        assert!(gate_error(&result).is_none());
     }
 
     #[test]
@@ -564,14 +486,5 @@ mod tests {
         assert!(load_baseline(&path).unwrap_err().contains("upstream"));
 
         std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn initialize_capabilities_pairs_request_id_with_result() {
-        let trace = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":7,"method":"initialize","params":{}}}
-{"seq":1,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":7,"result":{"capabilities":{"tools":{}}}}}"#;
-        let events = parse_trace(trace, &Limits::default()).unwrap();
-        let caps = initialize_capabilities(&events).unwrap();
-        assert_eq!(caps, serde_json::json!({"tools": {}}));
     }
 }
