@@ -111,16 +111,16 @@ pub async fn run(peer: &Peer<RoleClient>, plan: &RunPlan, cancel: &CancellationT
             return report;
         }
 
-        let mut params = CallToolRequestParams::new(call.tool.clone());
-        params.arguments = call.arguments.clone();
+        // The loop owns the plan entry: move the arguments instead of
+        // cloning them (clippy 1.88's assigning_clones caught the clone).
+        let PlannedCall { tool, arguments } = call;
+        let mut params = CallToolRequestParams::new(tool.clone());
+        params.arguments = arguments;
         let outcome = peer.call_tool(params).await;
         report.turns += 1;
 
         let result = judge_outcome(outcome, &mut report.errors);
-        report.outcomes.push(CallOutcome {
-            tool: call.tool,
-            result,
-        });
+        report.outcomes.push(CallOutcome { tool, result });
 
         if report.errors > plan.error_budget {
             report.stop = StopReason::ErrorBudgetExhausted;
