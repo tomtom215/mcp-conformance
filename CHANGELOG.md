@@ -22,6 +22,17 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **The client gate is standing** (`cargo xtask conformance`, same CI job as
+  the server leg): a child-process stdio smoke — the host binary spawning
+  the everything-server binary over a real pipe, the one place two sibling
+  executables can meet — then the four `2025-11-25` client scenarios run
+  sequentially (client runs fail on WARNINGs and the `sse-retry` timing
+  window is load-bearing, so parallel suite mode is deliberately not used),
+  then the client-side agreement replay: every host-captured trace through
+  `mcp-trace-validator` against `conformance/client-agreement-divergences.json`
+  (same triage contract and both-directions staleness discipline as the
+  server baseline; empty and live on first run — 4 sessions, zero
+  unexplained divergence).
 - **`mcp-reference-host`: the suite's client scenarios pass — all four, at
   the pin** (`initialize`; `tools_call` 1/1;
   `elicitation-sep1034-client-defaults` 5/5; `sse-retry` 3/3, inside the
@@ -144,6 +155,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- `conformance/expected-failures.yaml` used a `failures:` key the pinned
+  runner has never read: the 0.1.16 loader consumes exactly `server:` and
+  `client:` keys and silently ignores everything else, so the committed
+  baseline was a no-op that happened to coincide with reality (zero expected
+  failures). The file now uses the real schema, documents the silent-ignore
+  hazard, and carries the (empty) `client:` section the client gate reads.
 - The full `--all-features` mutation sweep (748 mutants, 31 minutes) ran as
   the audit's closing verification: 641 caught, 105 unviable, 0 timeouts,
   and exactly 2 missed — both in the tap's non-JSON-body note, code this

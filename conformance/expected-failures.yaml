@@ -1,11 +1,20 @@
 # SPDX-License-Identifier: MIT
 # Copyright 2026 Tom F. (https://github.com/tomtom215)
 #
-# Explained divergences from the pinned official suite
+# Scenario-level expected-failure baselines for the pinned official suite
 # (@modelcontextprotocol/conformance, version pinned in
-# xtask/src/conformance.rs). The agreement-check policy (docs/plan/
-# 03-conformance-strategy.md): an entry here requires a triage class
-# (our-bug | suite-bug | spec-ambiguity) and an upstream link.
+# xtask/src/conformance.rs). The runner reads exactly two keys — `server:`
+# and `client:`, each a list of scenario names — and SILENTLY IGNORES any
+# other key (verified against the 0.1.16 bundle's loader, which is also why
+# this file's previous `failures:` key was a no-op that happened to coincide
+# with reality). Stale entries — listed but passing — fail the run, so an
+# entry leaves in the same change that fixes its scenario.
 #
-# Empty: 40/40 checks pass against 0.1.16 (2026-06-10).
-failures: []
+# Requirement-level divergence triage (our-bug | suite-bug | spec-ambiguity
+# plus an upstream link) lives in agreement-divergences.json /
+# client-agreement-divergences.json; this file only names whole scenarios
+# the pinned runner is expected to fail.
+#
+# Both empty: 40/40 server checks and 4/4 client scenarios pass at 0.1.16.
+server: []
+client: []

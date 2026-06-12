@@ -182,14 +182,18 @@ jobs:
       - name: Test against minimum dependency versions
         run: cargo test --workspace --all-features --locked
 
-  # The M2 hard gate: the pinned official suite's server scenarios against the
-  # everything server over streamable HTTP (cargo xtask conformance documents
-  # the steps and the version pin). This job is the one deliberate exception
+  # The M2+M3 hard gate: the pinned official suite's server scenarios against
+  # the everything server over streamable HTTP, then the client leg — the
+  # reference host as the suite's client SUT (four protocol scenarios,
+  # sequential so the sse-retry clock is never under parallel load), a
+  # child-process stdio smoke between the two real binaries, and the
+  # agreement replay on both sides (cargo xtask conformance documents the
+  # steps and the version pin). This job is the one deliberate exception
   # to "no network beyond the package registries": npx fetches the pinned
-  # runner from npm, and the runner dials the server over loopback. Tests
+  # runner from npm, and the runner dials loopback in both directions. Tests
   # (`cargo test` anywhere in the workspace) still never touch a network.
   conformance:
-    name: Conformance (official suite, server scenarios)
+    name: Conformance (official suite, server + client scenarios)
     runs-on: ubuntu-latest
     # A warm run takes ~2 minutes; the bound exists because this is the one
     # job whose tools (npx, the runner) can hang on network state, and a
