@@ -191,6 +191,16 @@ second DoD line reflects the full inventory.
 
 ## M3 — Reference host
 
+*(Opened 2026-06-11; ADR-0009 records the design and the pinned suite's client-SUT
+contract. Landed so far: the scriptable interaction layer, the `rmcp::ClientHandler`
+with URL-mode elicitation handling — consent, pending-id tracking, the
+ignore-unknown-completions client MUST — and the bounded loop with all four stop
+conditions tested in-process against the everything server, including the SEP-1034
+defaults round-trip. Still open below: real stdio/HTTP transports, the binary, the
+official client scenarios as SUT, `Retry-After`/SSE-resumption wiring, and host-side
+trace capture. The suite's `auth/*` client scenarios are deferred, matching
+TRAN-009's registry record.)*
+
 **Definition of done**
 
 - [ ] Host completes bounded tool-use loops against the everything server over stdio and

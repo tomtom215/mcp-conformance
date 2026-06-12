@@ -35,6 +35,27 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **`mcp-reference-host`: the host exists** (M3 opens; ADR-0009). Three
+  transport-agnostic pieces, tested in-process against the real
+  `mcp-everything-server`: `script` (every model/user behavior as data —
+  sampling reply, SEP-1034-defaults/fixed/decline/cancel elicitation
+  policies, URL-mode consent, roots; zero model-provider network use by
+  construction), `handler` (the `rmcp::ClientHandler` answering from a
+  script, with an event log and a pending-id set enforcing the URL-mode
+  client MUST — unknown or already-completed `elicitationId` completions
+  are observably ignored), and `run` (the bounded loop: scripted calls or
+  discover-and-call-once with schema-derived arguments — local `$ref`s
+  resolved, enum-as-`oneOf`/`const` sampled — under the stop-condition
+  lattice cancellation > turn limit > error budget > completion, every
+  variant a tested stop reason, in-band `isError` results counting against
+  the budget like protocol errors). The SEP-1034 path round-trips against
+  the same `test_elicitation_sep1034_defaults` tool the server-side suite
+  run exercises, with the wire content pinned byte-for-byte. The client-SUT
+  contract was decoded from the pinned suite 0.1.16 bundle (URL appended as
+  the command's final argument, `MCP_CONFORMANCE_SCENARIO`/`_CONTEXT` env,
+  30 s budget; four protocol scenarios + fourteen deferred `auth/*` ones)
+  and recorded in ADR-0009. Binary, transports, and suite wiring are the
+  next slice; the crate README states exactly what is and is not here.
 - `mcp-everything-server`: `get-structured-content` — the TypeScript
   everything server's structured-output tool, mirrored exactly (the zod city
   enum, the weather fixtures, derived `outputSchema`, `structuredContent`
