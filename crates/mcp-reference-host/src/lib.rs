@@ -20,13 +20,28 @@
 //!   budget, completion), every variant a tested stop reason.
 //! - [`retry`] — the deterministic backoff policy (shipped since v0.1.0);
 //!   the SSE `retry` field is a server-named delay, which is exactly
-//!   [`retry::RetryPolicy::delay_honoring_retry_after`].
+//!   [`retry::RetryPolicy::delay_honoring_retry_after`] — and `resume` is
+//!   where that becomes load-bearing.
+//! - [`capture`] — host-side trace capture: a `Transport` wrapper recording
+//!   every message as a validator-ready trace, redaction by construction
+//!   (the seam never sees headers).
+//! - [`connect`] — the two real transports, from rmcp's official client
+//!   features: child-process stdio (feature `proc`) and streamable HTTP
+//!   (feature `http`).
+//! - [`scenario`] — the pinned suite's client scenarios as plans; one table,
+//!   governed by the suite pin (ADR-0009).
+//! - `resume` (feature `http`) — the compliant SSE-resumption dance rmcp
+//!   1.7's transport cannot perform (measured; ADR-0009 §Amendment).
 //!
-//! The binary, the child-process and streamable-HTTP transports, and the
-//! official-suite client-scenario wiring land in the next M3 slice; this
-//! crate's README states exactly what is and is not here yet.
+//! The binary (`cli` feature) maps `MCP_CONFORMANCE_SCENARIO` to a plan and
+//! exits clean on success — the pinned suite's client-SUT contract.
 
+pub mod capture;
+pub mod connect;
 pub mod handler;
+#[cfg(feature = "http")]
+pub mod resume;
 pub mod retry;
 pub mod run;
+pub mod scenario;
 pub mod script;

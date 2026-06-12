@@ -1195,3 +1195,159 @@ async fn structured_content_tool_pairs_schema_structured_and_text() {
     assert_eq!(mcp_error(bad).code, ErrorCode::INVALID_PARAMS);
     client.cancel().await.expect("clean shutdown");
 }
+
+/// Client for URL-mode elicitation: answers with a fixed action and logs
+/// every completion notification — the only observables `test_url_elicitation`
+/// has.
+#[derive(Debug, Clone)]
+struct UrlModeClient {
+    action: rmcp::model::ElicitationAction,
+    issued: ElicitationCaptures,
+    completions: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+}
+
+impl UrlModeClient {
+    fn new(action: rmcp::model::ElicitationAction) -> Self {
+        Self {
+            action,
+            issued: ElicitationCaptures::default(),
+            completions: std::sync::Arc::default(),
+        }
+    }
+}
+
+impl rmcp::ClientHandler for UrlModeClient {
+    fn get_info(&self) -> rmcp::model::ClientInfo {
+        let mut info = rmcp::model::ClientInfo::default();
+        info.capabilities = rmcp::model::ClientCapabilities::builder()
+            .enable_elicitation()
+            .build();
+        info
+    }
+
+    async fn create_elicitation(
+        &self,
+        params: rmcp::model::CreateElicitationRequestParams,
+        _context: rmcp::service::RequestContext<rmcp::RoleClient>,
+    ) -> Result<rmcp::model::CreateElicitationResult, rmcp::ErrorData> {
+        self.issued
+            .lock()
+            .unwrap()
+            .push(serde_json::to_value(&params).unwrap());
+        Ok(rmcp::model::CreateElicitationResult::new(
+            self.action.clone(),
+        ))
+    }
+
+    async fn on_url_elicitation_notification_complete(
+        &self,
+        params: rmcp::model::ElicitationResponseNotificationParam,
+        _context: rmcp::service::NotificationContext<rmcp::RoleClient>,
+    ) {
+        self.completions.lock().unwrap().push(params.elicitation_id);
+    }
+}
+
+async fn connect_url_mode(
+    action: rmcp::model::ElicitationAction,
+) -> (RunningService<RoleClient, UrlModeClient>, UrlModeClient) {
+    let (server_io, client_io) = tokio::io::duplex(4096);
+    tokio::spawn(async move {
+        if let Ok(server) = EverythingServer::new().serve(server_io).await {
+            let _ = server.waiting().await;
+        }
+    });
+    let handler = UrlModeClient::new(action);
+    let client = handler
+        .clone()
+        .serve(client_io)
+        .await
+        .expect("client initialize");
+    (client, handler)
+}
+
+/// Bounded wait for the completion notification (sent before the tool
+/// result, but dispatched concurrently by the client service).
+async fn await_completions(
+    completions: &std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    expected: usize,
+) -> Vec<String> {
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        let current = completions.lock().unwrap().clone();
+        if current.len() >= expected || tokio::time::Instant::now() >= deadline {
+            return current;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+}
+
+#[tokio::test]
+async fn url_elicitation_accept_issues_then_completes_the_same_id() {
+    let (client, handler) = connect_url_mode(rmcp::model::ElicitationAction::Accept).await;
+    let result = client
+        .call_tool(CallToolRequestParams::new("test_url_elicitation"))
+        .await
+        .expect("test_url_elicitation");
+    let text = result.content[0]
+        .as_text()
+        .map(|t| t.text.as_str())
+        .unwrap();
+    assert!(text.contains("action=accept"), "{text}");
+
+    let issued = handler.issued.lock().unwrap().clone();
+    assert_eq!(issued.len(), 1);
+    assert_eq!(issued[0]["mode"], "url");
+    assert!(
+        issued[0]["url"]
+            .as_str()
+            .is_some_and(|u| u.starts_with("https://")),
+        "{issued:?}"
+    );
+    let id = issued[0]["elicitationId"].as_str().unwrap().to_owned();
+    assert!(text.contains(&id), "the result names the issued id: {text}");
+
+    // Consent recorded → the completion notification for exactly that id.
+    let completions = await_completions(&handler.completions, 1).await;
+    assert_eq!(completions, [id], "completion follows consent, by id");
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn url_elicitation_decline_sends_no_completion() {
+    let (client, handler) = connect_url_mode(rmcp::model::ElicitationAction::Decline).await;
+    let result = client
+        .call_tool(CallToolRequestParams::new("test_url_elicitation"))
+        .await
+        .expect("test_url_elicitation");
+    let text = result.content[0]
+        .as_text()
+        .map(|t| t.text.as_str())
+        .unwrap();
+    assert!(text.contains("action=decline"), "{text}");
+
+    // Give a wrong completion every chance to arrive before asserting none.
+    let completions = await_completions(&handler.completions, 1).await;
+    assert!(
+        completions.is_empty(),
+        "declined consent must not be completed: {completions:?}"
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn url_elicitation_errors_without_the_capability() {
+    // The trivial `()` client advertises no elicitation capability; the gate
+    // must reject before any elicitation request reaches the wire.
+    let client = connect().await;
+    let outcome = client
+        .call_tool(CallToolRequestParams::new("test_url_elicitation"))
+        .await;
+    let error = mcp_error(outcome);
+    assert_eq!(error.code, ErrorCode::INVALID_REQUEST, "{error:?}");
+    assert!(
+        error.message.contains("elicitation"),
+        "the rejection names the missing capability: {error:?}"
+    );
+    client.cancel().await.expect("clean shutdown");
+}

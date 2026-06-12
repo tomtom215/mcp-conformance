@@ -3,7 +3,7 @@
 
 [package]
 name = "mcp-reference-host"
-description = "Reference MCP host: scriptable client handlers and a bounded, deterministic agent loop (transports and suite wiring in progress)"
+description = "Reference MCP host: scriptable client handlers, a bounded deterministic agent loop, real transports, trace capture, and the official suite's client scenarios as SUT"
 readme = "README.md"
 keywords = ["mcp", "conformance", "host", "client", "testing"]
 categories = ["development-tools::testing"]
@@ -22,24 +22,68 @@ rustdoc-args = ["--generate-link-to-definition"]
 
 [features]
 default = []
+# Child-process transport: the host spawns a stdio server (`--server-cmd`).
+proc = ["rmcp/transport-child-process", "tokio/process"]
+# Streamable HTTP transport plus the SSE-resumption client (`resume`), which
+# drives rmcp's public `StreamableHttpClient` seam directly — its only
+# shipped implementation is `reqwest::Client`, and the seam's own vocabulary
+# is `sse_stream::Sse` frames in `futures` streams, hence the three direct
+# dependencies (ADR-0009 §Amendment; all already in the tree as rmcp's own).
+http = [
+    "rmcp/transport-streamable-http-client-reqwest",
+    "dep:reqwest",
+    "dep:futures",
+    "dep:sse-stream",
+]
+# The binary: scenario dispatch for the pinned official suite's client
+# scenarios (URL appended as the final argument) plus a general
+# `--server-cmd`/positional-URL mode.
+cli = ["proc", "http", "dep:clap", "tokio/rt-multi-thread"]
+
+[[bin]]
+name = "mcp-reference-host"
+required-features = ["cli"]
 
 [dependencies]
 # The host is an rmcp client (ADR-0009): handlers, the client role, and the
 # in-process duplex transport the tests drive. Network transports (child
-# process, streamable HTTP) arrive with the binary in a later slice.
+# process, streamable HTTP) live behind the `proc`/`http` features.
 rmcp = { workspace = true, features = ["client", "transport-io", "elicitation"] }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "macros"] }
 tokio-util = { workspace = true }
+clap = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+# The `StreamableHttpClient` seam's stream/frame vocabulary (feature `http`):
+# `get_stream` yields `futures::stream::BoxStream<Result<sse_stream::Sse, …>>`,
+# and the resumption dance reads `retry`/`id`/`data` off those frames. Floors
+# mirror rmcp 1.7.0's own requirements ("0.3" / "0.2"); both crates are
+# already in the tree as rmcp dependencies.
+futures = { version = ">=0.3, <0.4", optional = true }
+sse-stream = { version = ">=0.2, <0.3", optional = true }
 
 [dev-dependencies]
 mcp-everything-server = { workspace = true }
+# Captured traces are pinned against the validator's real reader and judged
+# by the real engine over the builtin registry: a capture that drifts from
+# the trace schema must fail here, not at agreement time.
+mcp-conformance-core = { workspace = true }
+mcp-trace-validator = { workspace = true }
+# The scripted `StreamableHttpClient` fakes in `resume::tests` implement the
+# rmcp trait, whose signatures name `http::HeaderName`/`HeaderValue`.
+http = ">=1, <2"
 proptest = { workspace = true }
 # The probe server in tests/server_initiated.rs drives the host's handlers
 # through real wire dispatch (roots/list, URL elicitation, completion
 # notifications) — the only way to invoke the ClientHandler trait methods.
 rmcp = { workspace = true, features = ["server"] }
-tokio = { workspace = true, features = ["rt-multi-thread", "io-util"] }
+# test-util: paused-time tests pin the resumption dance's deadline arithmetic
+# (a deadline accidentally in the past is invisible to instant-ready fakes).
+tokio = { workspace = true, features = ["rt-multi-thread", "io-util", "net", "test-util"] }
+# tests/transports.rs serves the real everything-server app on a loopback
+# socket (axum::serve) so the host's reqwest-backed transport is exercised
+# against a real wire — no npx, no network beyond loopback.
+axum = { workspace = true }
 
 [lints]
 workspace = true

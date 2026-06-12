@@ -22,6 +22,36 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **`mcp-reference-host`: the suite's client scenarios pass — all four, at
+  the pin** (`initialize`; `tools_call` 1/1;
+  `elicitation-sep1034-client-defaults` 5/5; `sse-retry` 3/3, inside the
+  −50/+200 ms retry window with `Last-Event-ID` offered). What landed: the
+  two real transports from rmcp's official client features (`proc` =
+  child-process stdio, `http` = streamable HTTP over reqwest); the binary
+  (`cli`) honoring the runner's contract (URL as final argument,
+  `MCP_CONFORMANCE_SCENARIO` dispatch through the one `scenario.rs` table)
+  with a hard `--deadline-secs` watchdog (the runner's 30 s kill reaches
+  only its `sh -c` wrapper — an orphaned host would wedge the runner
+  forever, measured); host-side trace capture (`capture`) as a `Transport`
+  wrapper — redaction by construction, the message seam never sees headers
+  — whose output is pinned against the validator's real reader and engine;
+  and the spec's SSE-resumption dance (`resume`) on rmcp's public
+  `StreamableHttpClient` seam, honoring the server-named `retry` through
+  `RetryPolicy::delay_honoring_retry_after` (the load-bearing use ADR-0009
+  predicted). rmcp 1.7's own transport cannot pass `sse-retry` — POST
+  response streams reconnect-never and the in-flight call is lost; measured
+  at source and on the wire (−53 ms "too early", no `Last-Event-ID`) —
+  recorded as register row 3.12 and ADR-0009 §Amendment, upstream filing in
+  the M4 backlog. `reqwest`/`futures`/`sse-stream` enter as direct
+  dependencies of the `http` feature, version-mirroring rmcp's own tree.
+- `mcp-everything-server`: `test_url_elicitation` — the URL-mode elicitation
+  round trip (register 2.10 parity), closing the last interactive
+  TypeScript-surface delta: a `mode: "url"` `elicitation/create` and, on
+  consent, `notifications/elicitation/complete` for the issued id. The
+  host↔server loop — consent recorded, id spent exactly once, by name;
+  decline produces no completion — is pinned end to end in the host's
+  `agent_loop` tests. The README's "needs a URL-capable client" deferral is
+  closed, not restated.
 - `mcp-trace-validator`: `transport.http-post-single-message` — TRAN-026
   ("The body of the POST request MUST be a single JSON-RPC request,
   notification, or response.") is now judged, with a killer trace

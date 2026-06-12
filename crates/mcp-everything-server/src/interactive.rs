@@ -188,6 +188,80 @@ impl EverythingServer {
         )
         .await
     }
+
+    /// `test_url_elicitation` — the full URL-mode round trip (register 2.10
+    /// parity: the TypeScript everything server exercises URL mode; no suite
+    /// scenario does). Sends a `mode: "url"` `elicitation/create`; on
+    /// consent (`accept`), immediately delivers
+    /// `notifications/elicitation/complete` for the issued id — the
+    /// out-of-band interaction, compressed to its wire shape — so a client's
+    /// pending-id handling is exercised end to end.
+    ///
+    /// # Errors
+    ///
+    /// Errors when the client did not advertise the `elicitation`
+    /// capability, or when the elicitation request itself fails.
+    #[tool(description = "URL-mode elicitation round trip for conformance testing")]
+    pub async fn test_url_elicitation(
+        &self,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, ErrorData> {
+        // Server-unique id: URL elicitations are completed *by id*, and a
+        // process-wide counter keeps concurrent calls distinct.
+        static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        let supported = context
+            .peer
+            .peer_info()
+            .is_some_and(|info| info.capabilities.elicitation.is_some());
+        if !supported {
+            return Err(ErrorData::invalid_request(
+                "client does not support elicitation (no elicitation capability advertised)",
+                None,
+            ));
+        }
+        let elicitation_id = format!(
+            "url-elic-{}",
+            NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        );
+        let result = context
+            .peer
+            .create_elicitation(CreateElicitationRequestParams::UrlElicitationParams {
+                meta: None,
+                message: "Complete the interaction in your browser".to_owned(),
+                url: "https://mcp.example/interact".to_owned(),
+                elicitation_id: elicitation_id.clone(),
+            })
+            .await
+            .map_err(|error| {
+                ErrorData::internal_error(
+                    "elicitation/create failed",
+                    Some(serde_json::json!({ "error": error.to_string() })),
+                )
+            })?;
+        if result.action == rmcp::model::ElicitationAction::Accept {
+            // Consent recorded: the out-of-band interaction "finishes" now,
+            // and the spec's completion notification closes the loop.
+            context
+                .peer
+                .notify_url_elicitation_completed(
+                    rmcp::model::ElicitationResponseNotificationParam::new(elicitation_id.clone()),
+                )
+                .await
+                .map_err(|error| {
+                    ErrorData::internal_error(
+                        "notifications/elicitation/complete failed",
+                        Some(serde_json::json!({ "error": error.to_string() })),
+                    )
+                })?;
+        }
+        let action = serde_json::to_value(result.action)
+            .ok()
+            .and_then(|value| value.as_str().map(ToOwned::to_owned))
+            .unwrap_or_else(|| "unknown".to_owned());
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "URL elicitation {elicitation_id}: action={action}"
+        ))]))
+    }
 }
 
 /// The SEP-1330 schema: all five enum variants. A named constructor so the

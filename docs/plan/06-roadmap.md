@@ -191,15 +191,24 @@ second DoD line reflects the full inventory.
 
 ## M3 — Reference host
 
-*(Opened 2026-06-11; ADR-0009 records the design and the pinned suite's client-SUT
-contract. Landed so far: the scriptable interaction layer, the `rmcp::ClientHandler`
-with URL-mode elicitation handling — consent, pending-id tracking, the
-ignore-unknown-completions client MUST — and the bounded loop with all four stop
-conditions tested in-process against the everything server, including the SEP-1034
-defaults round-trip. Still open below: real stdio/HTTP transports, the binary, the
-official client scenarios as SUT, `Retry-After`/SSE-resumption wiring, and host-side
-trace capture. The suite's `auth/*` client scenarios are deferred, matching
-TRAN-009's registry record.)*
+*(Opened 2026-06-11; ADR-0009 records the design, the pinned suite's client-SUT
+contract, and — §Amendment 2026-06-12 — the decoded client verdict rules and the
+measured rmcp SSE-resumption gap (register 3.12). Landed: the scriptable
+interaction layer; the `rmcp::ClientHandler` with URL-mode elicitation handling,
+now exercised end to end against the server's `test_url_elicitation`; the bounded
+loop with every stop condition tested; both real transports from rmcp's official
+client features (child-process stdio, streamable HTTP over reqwest); the binary
+honoring the runner's contract with its own `--deadline-secs` watchdog; host-side
+trace capture pinned against the validator's reader and engine; and the compliant
+SSE-resumption dance — `retry` honored through
+`RetryPolicy::delay_honoring_retry_after`, `Last-Event-ID` offered — on rmcp's
+public `StreamableHttpClient` seam. All four `2025-11-25` client scenarios pass
+at pinned 0.1.16 in local runs (`initialize`; `tools_call` 1/1;
+`elicitation-sep1034-client-defaults` 5/5; `sse-retry` 3/3). Still open below:
+the xtask/CI wiring that turns those runs into the standing gate (with the
+client-side agreement replay), which is also where the child-process spawn gets
+its real-binary proof. The suite's `auth/*` client scenarios are deferred,
+matching TRAN-009's registry record.)*
 
 **Definition of done**
 
