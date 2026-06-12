@@ -35,6 +35,10 @@ tokio-util = { workspace = true }
 [dev-dependencies]
 mcp-everything-server = { workspace = true }
 proptest = { workspace = true }
+# The probe server in tests/server_initiated.rs drives the host's handlers
+# through real wire dispatch (roots/list, URL elicitation, completion
+# notifications) — the only way to invoke the ClientHandler trait methods.
+rmcp = { workspace = true, features = ["server"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "io-util"] }
 
 [lints]

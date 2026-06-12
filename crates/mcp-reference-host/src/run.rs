@@ -310,15 +310,21 @@ mod tests {
                 "city": { "type": "string", "enum": ["New York", "Chicago"] },
                 "flag": { "type": "boolean" },
                 "items": { "type": "array" },
+                "config": { "type": "object" },
                 "message": { "type": "string" }
             },
-            "required": ["city", "flag", "items", "message"]
+            "required": ["city", "flag", "items", "config", "message"]
         }))
         .unwrap();
         let arguments = synthesize_arguments(&schema);
         assert_eq!(arguments["city"], "New York", "first enum value wins");
         assert_eq!(arguments["flag"], true);
         assert_eq!(arguments["items"], serde_json::json!([]));
+        assert_eq!(
+            arguments["config"],
+            serde_json::json!({}),
+            "object-typed requirements get an empty object, not a string"
+        );
         assert_eq!(arguments["message"], "probe");
     }
 

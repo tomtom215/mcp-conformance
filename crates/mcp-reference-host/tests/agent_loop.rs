@@ -261,3 +261,51 @@ async fn discovery_policy_calls_every_tool_with_synthesized_arguments() {
     );
     client.cancel().await.expect("clean shutdown");
 }
+
+#[tokio::test]
+async fn listing_failure_spends_the_budget_and_the_budget_decides() {
+    // Discovery itself failing is an error like any other: with no budget the
+    // run stops exhausted; with budget it is recorded and tolerated (there is
+    // simply nothing to call). Kills the comparison and accounting mutants in
+    // the resolve-failure arm, which no happy path can reach.
+    let (client, _) = connect(InteractionScript::default()).await;
+    let peer = client.peer().clone();
+    client.cancel().await.expect("clean shutdown");
+
+    let exhausted = run(
+        &peer,
+        &RunPlan {
+            turn_limit: 5,
+            error_budget: 0,
+            calls: CallPolicy::EachDiscoveredToolOnce,
+        },
+        &CancellationToken::new(),
+    )
+    .await;
+    assert_eq!(
+        exhausted.stop,
+        StopReason::ErrorBudgetExhausted,
+        "{exhausted:?}"
+    );
+    assert_eq!(exhausted.errors, 1);
+    assert_eq!(exhausted.turns, 0, "listing is not a turn");
+    assert_eq!(exhausted.outcomes[0].tool, "tools/list");
+    assert!(exhausted.outcomes[0].result.is_err());
+
+    let tolerated = run(
+        &peer,
+        &RunPlan {
+            turn_limit: 5,
+            error_budget: 1,
+            calls: CallPolicy::EachDiscoveredToolOnce,
+        },
+        &CancellationToken::new(),
+    )
+    .await;
+    assert_eq!(
+        tolerated.stop,
+        StopReason::Completed,
+        "one error within a budget of one, nothing left to call: {tolerated:?}"
+    );
+    assert_eq!(tolerated.errors, 1);
+}
