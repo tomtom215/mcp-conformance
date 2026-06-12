@@ -11,6 +11,15 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+> **Version-class call** (RELEASING.md: pre-1.0 minors may break, and the
+> changelog says so explicitly): the next release is **0.3.0**, not 0.2.1.
+> Two changes below are breaking — `TraceContext::new` (and therefore
+> `engine::validate`) now panics on hand-built event slices whose `seq` is
+> not strictly increasing, where 0.2.0 judged them silently wrong; and the
+> newly judged TRAN-026 changes verdicts, so a trace containing a
+> client-POSTed batch body that previously failed only generic message
+> checks now also fails `transport.http-post-single-message`.
+
 ### Added
 
 - `mcp-trace-validator`: `transport.http-post-single-message` — TRAN-026
@@ -32,9 +41,6 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   never consults the header, measured) and `default_bind_is_loopback`
   (TRAN-008: every other test passes `--bind` explicitly and would never
   notice a widened default).
-
-### Added
-
 - **`mcp-reference-host`: the host exists** (M3 opens; ADR-0009). Three
   transport-agnostic pieces, tested in-process against the real
   `mcp-everything-server`: `script` (every model/user behavior as data —

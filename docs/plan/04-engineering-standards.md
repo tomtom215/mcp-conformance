@@ -107,7 +107,9 @@ dependencies are justified where they are declared):
 | `rmcp` | everything-server | The point of M2: parity proven *on the official SDK*, not beside it. Feature-minimal (`server`, `macros`, `transport-io`, `transport-streamable-http-server`); MSRV consequence in [ADR-0008](decisions/0008-msrv-1.88.md) |
 | `tokio` | everything-server (`cli`), reference-host (M3) | rmcp's runtime, not re-litigated; no default features, per-crate feature grants |
 | `schemars` | everything-server | Tool/prompt parameter schemas for rmcp's `#[tool]`; already in rmcp's `server` feature tree |
-| `http-body-util`, `tokio-util`, `tokio-stream`, `tracing` | everything-server (floor shims) | Not used directly: documented minimal-versions floor repairs for under-specified third-party requirements (each names its culprit in the manifest; removable when upstream fixes) |
+| `tokio-util` | reference-host; everything-server (floor shim) | Direct in the host: `CancellationToken` is the bounded loop's cooperative stop condition (ADR-0009), already in the tree as rmcp's own dependency. In the everything-server only as a documented minimal-versions floor repair |
+| `tokio-stream` | everything-server | Direct under the `tap` feature (`StreamExt::then` drives the SSE recording pass-through) *and* a documented floor repair for rmcp's under-specified requirement — the manifest comment carries both facts |
+| `http-body-util`, `tracing` | everything-server (floor shims) | Not used directly: documented minimal-versions floor repairs for under-specified third-party requirements (each names its culprit in the manifest; removable when upstream fixes) |
 
 ## Releases
 
