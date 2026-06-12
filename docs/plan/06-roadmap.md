@@ -26,7 +26,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | M1 — Registry and validator | **Complete** — v0.1.0 published to crates.io via [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142) (attested, byte-verified); every DoD line below carries its evidence |
 | M2 — Everything server | **Complete** (2026-06-11): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite in CI ([run #27266174013](https://github.com/tomtom215/mcp-conformance/actions/runs/27266174013)); trace tap, agreement check, and coverage manifest live (zero unexplained divergence; first divergence triaged suite-bug, filed upstream as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338)); everything-server offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) (pre-flight in [#9](https://github.com/tomtom215/mcp-conformance/issues/9)), README-linked — every DoD line below carries its evidence |
 | M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (2026-07-28); re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
-| M3 — Reference host | Not started |
+| M3 — Reference host | **In progress** (opened 2026-06-11, ADR-0009): scriptable handlers + bounded loop landed and tested in-process; transports, binary, suite-as-SUT wiring, and trace capture open |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
 | M5 — Stewardship artifacts | Not started |
 
@@ -71,6 +71,12 @@ The spec as data, and the engine that judges traces against it.
       verbatim against the published text in the same audit, and the agreement check
       over the suite's 30 tapped sessions stayed at zero unexplained divergence with
       the new checks active.)*
+      *(Second adversarial audit, 2026-06-11, post-v0.2.0: one further clause — transports' numbered restatement
+      of the POST obligation, now TRAN-049 — and TRAN-026 converted from a falsely
+      excluded entry ("a multi-message body cannot be represented in a trace" — untrue:
+      the payload is an arbitrary JSON value) to a judged one with a killer trace.
+      140 entries, 51 judged by 47 checks, 89 exclusions, each exclusion's
+      enforcement-pointer now verified against a named test.)*
 - [x] Validator replays the corpus deterministically: 100% pass on known-good traces;
       **every check is killed by at least one injected-violation trace**; byte-identical
       reports across platforms and runs.
@@ -100,6 +106,16 @@ The spec as data, and the engine that judges traces against it.
       registry capability gates declared and active — the manifest gate caught the
       missing `listChanged` declarations, closed by the `test-list-changed` tool — and
       18 distinct wire methods observed. `BLESS=1` regenerates; drift fails the gate.)*
+      *(Second audit, 2026-06-11: the "parity with register 2.10" phrase overclaimed —
+      2.10's TypeScript surface includes structured output, URL-mode elicitation, and
+      async sampling, none of which the suite exercises and one of which the server
+      lacked. Structured output is now real: `get-structured-content` mirrors the
+      TypeScript tool exactly (derived `outputSchema`, `structuredContent`, the
+      backward-compatible text block), pinned by a roundtrip test. URL-mode
+      elicitation and async sampling remain deliberate deltas, documented in the
+      crate README: URL mode needs a URL-capable client and lands with M3's host;
+      async sampling is the tasks pattern, which `2025-11-25` does not define
+      (SEP-2663 moves tasks to an extension in `2026-07-28` — register 1.5a).)*
 - [x] **100% pass on the official suite's server scenarios** (pinned version) in CI via
       `cargo xtask conformance` — the hard gate from here forward. 40/40 checks, suite
       0.1.16, spec `2025-11-25`:
@@ -174,6 +190,16 @@ second DoD line reflects the full inventory.
       provenance-ledger rows.
 
 ## M3 — Reference host
+
+*(Opened 2026-06-11; ADR-0009 records the design and the pinned suite's client-SUT
+contract. Landed so far: the scriptable interaction layer, the `rmcp::ClientHandler`
+with URL-mode elicitation handling — consent, pending-id tracking, the
+ignore-unknown-completions client MUST — and the bounded loop with all four stop
+conditions tested in-process against the everything server, including the SEP-1034
+defaults round-trip. Still open below: real stdio/HTTP transports, the binary, the
+official client scenarios as SUT, `Retry-After`/SSE-resumption wiring, and host-side
+trace capture. The suite's `auth/*` client scenarios are deferred, matching
+TRAN-009's registry record.)*
 
 **Definition of done**
 

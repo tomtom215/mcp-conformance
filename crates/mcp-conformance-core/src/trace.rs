@@ -251,7 +251,11 @@ mod tests {
     fn unknown_kind_is_rejected() {
         let line =
             r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"telepathy"}"#;
-        assert!(serde_json::from_str::<TraceEvent>(line).is_err());
+        let error = serde_json::from_str::<TraceEvent>(line).unwrap_err();
+        assert!(
+            error.to_string().contains("telepathy"),
+            "the rejection names the unknown kind so the trace author can find it: {error}"
+        );
     }
 
     #[test]

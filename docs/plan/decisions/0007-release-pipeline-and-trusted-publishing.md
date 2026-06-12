@@ -4,7 +4,7 @@
 # ADR 0007: Release Pipeline — OIDC Trusted Publishing with a One-Time Bootstrap Token
 
 **Date:** 2026-06-09
-**Status:** Accepted (amended 2026-06-10 — bootstrap complete, conditional removed)
+**Status:** Accepted (amended 2026-06-10; that amendment corrected 2026-06-11 — see §Correction)
 **Author:** Tom F.
 
 ---
@@ -75,9 +75,47 @@ publish), with these commitments:
   `CARGO_REGISTRY_TOKEN` environment secret is deleted, and the token revoked
   (owner-confirmed). The conditional is removed from `release.yml`; the publish job
   is OIDC-only and this negative no longer applies.*
+  *(This amendment was false as written — kept unedited as the record of the error;
+  see §Correction below.)*
 - The determinism check makes releases fail loudly if `cargo package` output is not
   reproducible across two jobs on the same runner image — a deliberate tripwire:
   silent non-determinism would invalidate the attestation's meaning.
+
+### Correction (2026-06-11)
+
+The 2026-06-10 amendment asserted registry-side state that did not exist. The
+evidence: the v0.2.0 release run's OIDC token exchange failed at 2026-06-11T13:14Z
+with crates.io error `400: No Trusted Publishing config found for repository
+tomtom215/mcp-conformance`
+([run 27348688178, attempt 1, job 80806416883](https://github.com/tomtom215/mcp-conformance/actions/runs/27348688178/job/80806416883)) —
+no trusted-publishing config existed for any of the four crates at that moment, so
+none had been configured on 2026-06-10, and "Trusted Publishing Only" (which
+presupposes a config) cannot have been enforced. "Owner-confirmed" entered the
+record without registry-side verification; that label is retired here — a claim is
+either mechanically verified with its method stated, or it is written as unconfirmed.
+
+What is verified now, and how:
+
+- **Trusted publishing is configured for all four crates** (repository
+  `tomtom215/mcp-conformance`, workflow `release.yml`, environment `release`): the
+  owner added the config between 13:14 and 13:36 UTC on 2026-06-11; the re-run's
+  exchange succeeded and all four crates published v0.2.0 via OIDC at 13:37 UTC.
+  crates.io's versions API attributes v0.1.0 to the owner's token
+  (`published_by: tomtom215`) and v0.2.0 to no user — the trusted-publishing
+  signature.
+- **The publish job is OIDC-only**: `release.yml` contains no token fallback; the
+  only `CARGO_REGISTRY_TOKEN` it sets is the OIDC step's 30-minute output
+  (verifiable in-repo).
+- **Owner-stated** (owner-visible only; no external check exists): the per-crate
+  "Trusted Publishing Only" toggle, the deletion of the bootstrap
+  `CARGO_REGISTRY_TOKEN` environment secret, and the bootstrap token's
+  revocation. After this correction landed, the owner confirmed on 2026-06-11
+  that trusted publishing is working as intended; these three items rest on that
+  dated statement — unlike the configuration and OIDC-only facts above, which
+  are mechanically evidenced. The difference from the retracted 2026-06-10
+  "owner-confirmed": this confirmation is a recorded event with a date,
+  responding to a correction that had laid out exactly what was and was not
+  known, rather than a label attached to an unverified checklist.
 
 ## Alternatives Considered
 

@@ -76,6 +76,12 @@ criterion = { version = ">=0.7, <0.8", default-features = false, features = ["ca
 # Workspace-internal crates.
 mcp-conformance-core = { version = "0.2.0", path = "crates/mcp-conformance-core" }
 mcp-trace-validator = { version = "0.2.0", path = "crates/mcp-trace-validator" }
+mcp-everything-server = { version = "0.2.0", path = "crates/mcp-everything-server" }
+
+# Cancellation tokens for the host's bounded loop (ADR-0009): already in the
+# tree as rmcp's own dependency; the direct use is the cooperative stop
+# condition 02-architecture.md promises ("no 'the loop usually terminates'").
+tokio-util = { version = ">=0.7, <0.8", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

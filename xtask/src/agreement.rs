@@ -22,6 +22,9 @@
 //! records the capabilities the server declared and the methods the suite
 //! drove, checked against the registry's capability gates.
 
+// `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
+// opposite demands about items in a binary crate's private modules; this follows
+// the rustc lint and quiets the clippy one, per its own known-problems note.
 #![allow(clippy::redundant_pub_crate)]
 
 use std::path::Path;

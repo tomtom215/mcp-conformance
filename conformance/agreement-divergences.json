@@ -5,7 +5,7 @@
       "requirement": "LIFE-003",
       "class": "suite-bug",
       "upstream": "https://github.com/modelcontextprotocol/conformance/issues/338",
-      "_note": "The runner's dns-rebinding-protection scenario initializes its legitimate-Host probe session and never sends notifications/initialized (a client MUST). Filed upstream 2026-06-11; local issue #7 carries the evidence trail. Remove this entry in the same change that bumps the suite pin to a release containing the fix (or reclassify if maintainers instead clarify the lifecycle text)."
+      "_note": "The runner's dns-rebinding-protection scenario initializes its legitimate-Host probe session and never sends notifications/initialized (a client MUST). Filed upstream 2026-06-11; local issue #7 carries the evidence trail. Remove this entry in the same change that bumps the suite pin to a release containing the fix (or reclassify if maintainers instead clarify the lifecycle text). Live-checked 2026-06-11 (second audit): #338 open, the scenario on upstream main (28f8338) still sends no notifications/initialized, and npm's latest stable remains the pinned 0.1.16 - the entry stands; the staleness gate that forces its removal on a fixing bump is unit-proven (reconcile_flags_entries_that_explain_nothing_as_stale)."
     }
   ]
 }

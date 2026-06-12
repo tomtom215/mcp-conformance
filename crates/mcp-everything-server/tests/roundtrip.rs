@@ -9,8 +9,20 @@
 
 use mcp_everything_server::EverythingServer;
 use rmcp::ServiceExt as _;
-use rmcp::model::{CallToolRequestParams, ProtocolVersion};
+use rmcp::model::{CallToolRequestParams, ErrorCode, ErrorData, ProtocolVersion};
 use rmcp::service::{RoleClient, RunningService};
+
+/// Unwraps an MCP protocol error, panicking when the call succeeded or died
+/// at the transport layer. Error-path tests must pin *which* error: a test
+/// that accepts any `Err` cannot tell a rejected request from a handler that
+/// ran anyway and failed downstream.
+#[track_caller]
+fn mcp_error<T: std::fmt::Debug>(outcome: Result<T, rmcp::ServiceError>) -> ErrorData {
+    match outcome {
+        Err(rmcp::ServiceError::McpError(error)) => error,
+        other => panic!("expected an MCP protocol error, got {other:?}"),
+    }
+}
 
 /// Spawns the server on one end of an in-memory pipe and initializes a
 /// trivial client on the other; returns the connected client handle.
@@ -99,7 +111,17 @@ async fn unknown_tool_is_a_protocol_error_not_a_crash() {
     let outcome = client
         .call_tool(CallToolRequestParams::new("no-such-tool"))
         .await;
-    assert!(outcome.is_err(), "calling an unknown tool must error");
+    let error = mcp_error(outcome);
+    assert_eq!(
+        error.code,
+        ErrorCode::INVALID_PARAMS,
+        "unknown tool is the spec's -32602 protocol error: {error:?}"
+    );
+    assert!(
+        error.message.contains("no-such-tool")
+            || error.message.to_lowercase().contains("not found"),
+        "the error names the problem: {error:?}"
+    );
     // The session must survive the error: the next request still works.
     let tools = client
         .list_tools(None)
@@ -126,9 +148,11 @@ async fn tool_call_with_missing_required_argument_is_a_protocol_error() {
     let outcome = client
         .call_tool(call_with_args("add", &serde_json::json!({"a": 1})))
         .await;
-    assert!(
-        outcome.is_err(),
-        "missing required arg must error: {outcome:?}"
+    let error = mcp_error(outcome);
+    assert_eq!(
+        error.code,
+        ErrorCode::INVALID_PARAMS,
+        "missing required arg is rejected at the parameter boundary: {error:?}"
     );
     // The session survives: the next request still works.
     assert!(
@@ -152,17 +176,19 @@ async fn tool_call_with_wrong_typed_arguments_is_a_protocol_error() {
             &serde_json::json!({"a": "x", "b": 2}),
         ))
         .await;
-    assert!(
-        bad_add.is_err(),
-        "wrong-typed add arg must error: {bad_add:?}"
+    assert_eq!(
+        mcp_error(bad_add).code,
+        ErrorCode::INVALID_PARAMS,
+        "wrong-typed add arg is rejected at the parameter boundary"
     );
     // `echo` wants a string message; a number must be rejected.
     let bad_echo = client
         .call_tool(call_with_args("echo", &serde_json::json!({"message": 123})))
         .await;
-    assert!(
-        bad_echo.is_err(),
-        "wrong-typed echo arg must error: {bad_echo:?}"
+    assert_eq!(
+        mcp_error(bad_echo).code,
+        ErrorCode::INVALID_PARAMS,
+        "wrong-typed echo arg is rejected at the parameter boundary"
     );
     client.cancel().await.expect("clean shutdown");
 }
@@ -196,9 +222,15 @@ async fn prompt_get_with_missing_required_argument_is_a_protocol_error() {
     let mut params = rmcp::model::GetPromptRequestParams::new("test_prompt_with_arguments");
     params.arguments = serde_json::json!({"arg1": "only"}).as_object().cloned();
     let outcome = client.get_prompt(params).await;
+    let error = mcp_error(outcome);
+    assert_eq!(
+        error.code,
+        ErrorCode::INVALID_PARAMS,
+        "missing prompt arg is rejected before the handler formats: {error:?}"
+    );
     assert!(
-        outcome.is_err(),
-        "missing prompt arg must error: {outcome:?}"
+        error.message.contains("arg2"),
+        "the error names the missing argument: {error:?}"
     );
     client.cancel().await.expect("clean shutdown");
 }
@@ -448,7 +480,10 @@ async fn logging_tool_emits_three_staged_info_messages() {
         .call_tool(CallToolRequestParams::new("test_tool_with_logging"))
         .await
         .expect("logging tool");
-    assert!(result.content[0].as_text().is_some());
+    assert_eq!(
+        result.content[0].as_text().map(|t| t.text.as_str()),
+        Some("Tool with logging executed successfully.")
+    );
     let logs = recorder.logs.lock().unwrap().clone();
     let messages: Vec<&str> = logs.iter().map(|(_, m)| m.as_str()).collect();
     assert_eq!(
@@ -499,7 +534,10 @@ async fn progress_tool_walks_0_50_100_against_the_request_token() {
     ));
     params.meta = Some(meta);
     let result = client.call_tool(params).await.expect("progress tool");
-    assert!(result.content[0].as_text().is_some());
+    assert_eq!(
+        result.content[0].as_text().map(|t| t.text.as_str()),
+        Some("Tool with progress executed successfully.")
+    );
     let progress = recorder.progress.lock().unwrap().clone();
     // JSON-value comparison sidesteps float-equality lints; the values are
     // exact integral floats produced by our own u32 conversions.
@@ -523,7 +561,10 @@ async fn rmcp_clients_always_carry_a_progress_token() {
         .call_tool(CallToolRequestParams::new("test_tool_with_progress"))
         .await
         .expect("progress tool without explicit token");
-    assert!(result.content[0].as_text().is_some());
+    assert_eq!(
+        result.content[0].as_text().map(|t| t.text.as_str()),
+        Some("Tool with progress executed successfully.")
+    );
     let count = recorder.progress.lock().unwrap().len();
     assert_eq!(count, 3, "auto-token still produces the staged updates");
     client.cancel().await.expect("clean shutdown");
@@ -590,7 +631,12 @@ async fn resources_surface_matches_the_scenarios() {
             "test://no-such-resource",
         ))
         .await;
-    assert!(missing.is_err(), "unknown URIs are protocol errors");
+    let error = mcp_error(missing);
+    assert_eq!(
+        error.code,
+        ErrorCode::RESOURCE_NOT_FOUND,
+        "unknown URIs are the spec's -32002, not a generic failure: {error:?}"
+    );
 
     client.cancel().await.expect("clean shutdown");
 }
@@ -819,7 +865,10 @@ async fn set_level_filters_subsequent_log_notifications() {
         .call_tool(CallToolRequestParams::new("test_tool_with_logging"))
         .await
         .expect("logging tool above threshold");
-    assert!(result.content[0].as_text().is_some());
+    assert_eq!(
+        result.content[0].as_text().map(|t| t.text.as_str()),
+        Some("Tool with logging executed successfully.")
+    );
     assert!(
         recorder.logs.lock().unwrap().is_empty(),
         "info messages must be filtered at error threshold"
@@ -945,7 +994,20 @@ async fn sampling_tool_errors_when_the_client_lacks_the_capability() {
             ),
         )
         .await;
-    assert!(outcome.is_err(), "must error without sampling capability");
+    // The capability gate must be what rejected this — INVALID_REQUEST with
+    // the gate's message. A bare is_err() cannot tell "rejected by the gate"
+    // from "the gate is gone and the doomed sampling/createMessage failed
+    // downstream as -32603", which is an illegal request on the wire.
+    let error = mcp_error(outcome);
+    assert_eq!(
+        error.code,
+        ErrorCode::INVALID_REQUEST,
+        "the capability gate rejects before any sampling request: {error:?}"
+    );
+    assert!(
+        error.message.contains("sampling"),
+        "the rejection names the missing capability: {error:?}"
+    );
     client.cancel().await.expect("clean shutdown");
 }
 
@@ -1078,5 +1140,58 @@ async fn sep1330_sends_all_five_enum_variants() {
         props["titledMulti"]["items"]["anyOf"][0],
         serde_json::json!({"const": "value1", "title": "First Choice"})
     );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn structured_content_tool_pairs_schema_structured_and_text() {
+    // TOOL-011: a declared outputSchema obligates structuredContent;
+    // TOOL-010: structuredContent obligates the backward-compatible text
+    // block. This tool is the server's only outputSchema declaration, so
+    // this test is what keeps "exercises structured output" true.
+    let client = connect().await;
+    let tools = client.list_tools(None).await.expect("tools/list");
+    let tool = tools
+        .tools
+        .iter()
+        .find(|tool| tool.name == "get-structured-content")
+        .expect("get-structured-content is listed");
+    let schema =
+        serde_json::to_value(tool.output_schema.as_ref().expect("outputSchema declared")).unwrap();
+    for property in ["temperature", "conditions", "humidity"] {
+        assert!(
+            schema["properties"][property].is_object(),
+            "outputSchema describes {property}: {schema}"
+        );
+    }
+
+    let result = client
+        .call_tool(call_with_args(
+            "get-structured-content",
+            &serde_json::json!({"location": "Chicago"}),
+        ))
+        .await
+        .expect("structured tool call");
+    let structured = result
+        .structured_content
+        .as_ref()
+        .expect("structuredContent present");
+    assert_eq!(structured["temperature"], 36.0);
+    assert_eq!(structured["conditions"], "Light rain / drizzle");
+    assert_eq!(structured["humidity"], 82.0);
+    // The backward-compatible text block carries the same JSON document.
+    let text = result.content[0].as_text().expect("text block present");
+    let parsed: serde_json::Value = serde_json::from_str(&text.text).expect("text is JSON");
+    assert_eq!(&parsed, structured);
+
+    // An unknown city is rejected at the parameter boundary like every
+    // other schema violation.
+    let bad = client
+        .call_tool(call_with_args(
+            "get-structured-content",
+            &serde_json::json!({"location": "Atlantis"}),
+        ))
+        .await;
+    assert_eq!(mcp_error(bad).code, ErrorCode::INVALID_PARAMS);
     client.cancel().await.expect("clean shutdown");
 }

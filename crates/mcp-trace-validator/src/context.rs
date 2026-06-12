@@ -57,8 +57,26 @@ pub struct TraceContext<'a> {
 
 impl<'a> TraceContext<'a> {
     /// Builds the context in one pass over the events.
+    ///
+    /// # Panics
+    ///
+    /// When `seq` is not strictly increasing across `events`. The trace
+    /// schema requires it, [`reader::parse_trace`] rejects documents that
+    /// violate it, and several checks compare `seq` values across events on
+    /// the premise that no two events share one — a hand-built slice that
+    /// breaks the premise would otherwise be judged silently wrong, not
+    /// loudly invalid.
+    ///
+    /// [`reader::parse_trace`]: crate::reader::parse_trace
     #[must_use]
     pub fn new(events: &'a [TraceEvent]) -> Self {
+        if let Some(window) = events.windows(2).find(|w| w[0].seq >= w[1].seq) {
+            panic!(
+                "trace events must have strictly increasing seq (the reader guarantees \
+                 this; hand-built slices must too): seq {} is followed by seq {}",
+                window[0].seq, window[1].seq
+            );
+        }
         let kinds: Vec<Option<MessageKind<'a>>> = events
             .iter()
             .map(|event| event.message_payload().map(classify))
@@ -210,6 +228,36 @@ mod tests {
 {"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}
 {"seq":4,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/list"}}"#;
         parse_trace(doc, &Limits::default()).unwrap()
+    }
+
+    #[test]
+    #[should_panic(expected = "strictly increasing seq")]
+    fn duplicate_seq_is_a_loud_contract_violation() {
+        // Checks compare seq values across events assuming uniqueness (e.g.
+        // session_id_echoed's cutoff); a hand-built slice with duplicates
+        // must fail at the boundary, not be judged silently wrong. The
+        // mutants exclusion for `<` vs `<=` in session_id_echoed rests on
+        // exactly this enforcement.
+        use mcp_conformance_core::trace::{Direction, EventBody, TransportKind};
+        let duplicate = vec![
+            TraceEvent::new(
+                7,
+                Direction::ClientToServer,
+                TransportKind::Stdio,
+                EventBody::Message {
+                    payload: serde_json::json!({"jsonrpc":"2.0","id":1,"method":"ping"}),
+                },
+            ),
+            TraceEvent::new(
+                7,
+                Direction::ServerToClient,
+                TransportKind::Stdio,
+                EventBody::Message {
+                    payload: serde_json::json!({"jsonrpc":"2.0","id":1,"result":{}}),
+                },
+            ),
+        ];
+        let _ = TraceContext::new(&duplicate);
     }
 
     #[test]

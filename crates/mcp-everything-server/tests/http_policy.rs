@@ -93,7 +93,9 @@ async fn custom_allowlist_replaces_loopback() {
     .oneshot(allowed)
     .await
     .unwrap();
-    assert_ne!(response.status(), StatusCode::FORBIDDEN);
+    // "Allowed" means the MCP layer actually processed the initialize — not
+    // merely "not 403": a 4xx/5xx from a broken admit path must fail here.
+    assert_eq!(response.status(), StatusCode::OK);
     let response = app.oneshot(denied).await.unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
@@ -105,7 +107,55 @@ async fn dangerous_opt_out_admits_everything() {
         .oneshot(mcp_post(Some("evil.example"), Some("http://evil.example")))
         .await
         .unwrap();
-    assert_ne!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn unsupported_protocol_version_is_rejected_with_400() {
+    // TRAN-020: "If the server receives a request with an invalid or
+    // unsupported MCP-Protocol-Version, it MUST respond with 400 Bad
+    // Request." Enforced by rmcp's streamable HTTP tower layer for requests
+    // within an established session — the initialize exchange itself never
+    // consults the header (negotiation is in-band there), measured against
+    // rmcp 1.7.0. Pinned here so an rmcp regression is caught in this repo,
+    // because the registry's TRAN-020 exclusion names this test as the
+    // enforcement.
+    let app = router(HttpSecurityPolicy::default());
+
+    let init = app
+        .clone()
+        .oneshot(mcp_post(Some("localhost:8080"), None))
+        .await
+        .unwrap();
+    assert_eq!(init.status(), StatusCode::OK, "initialize succeeds");
+    let session_id = init
+        .headers()
+        .get("mcp-session-id")
+        .expect("stateful server assigns a session id")
+        .to_str()
+        .unwrap()
+        .to_owned();
+
+    let ping = Request::builder()
+        .method("POST")
+        .uri("/mcp")
+        .header("content-type", "application/json")
+        .header("accept", "application/json, text/event-stream")
+        .header("host", "localhost:8080")
+        .header("mcp-session-id", &session_id)
+        .header("mcp-protocol-version", "1999-01-01")
+        .body(Body::from(r#"{"jsonrpc":"2.0","id":2,"method":"ping"}"#))
+        .unwrap();
+    let response = app.oneshot(ping).await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let text = String::from_utf8_lossy(&body);
+    assert!(
+        text.contains("Unsupported MCP-Protocol-Version"),
+        "the 400 names the problem: {text}"
+    );
 }
 
 #[tokio::test]
@@ -121,4 +171,45 @@ async fn non_mcp_paths_are_policy_gated_too() {
         .unwrap();
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn session_ids_are_version_4_uuids_and_distinct() {
+    // TRAN-010 (session ids "SHOULD be generated using a secure random
+    // number generator") is excluded from trace judgment — one sample
+    // proves nothing about entropy — so the source is pinned here instead:
+    // rmcp's ids are Uuid::new_v4 (OS RNG). A regression to anything
+    // sequential or constant breaks the version/variant nibbles or the
+    // distinctness check.
+    let app = router(HttpSecurityPolicy::default());
+    let mut seen = std::collections::HashSet::new();
+    for _ in 0..3 {
+        let response = app
+            .clone()
+            .oneshot(mcp_post(Some("localhost:8080"), None))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let id = response
+            .headers()
+            .get("mcp-session-id")
+            .expect("session id assigned")
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let bytes = id.as_bytes();
+        assert_eq!(bytes.len(), 36, "RFC 9562 textual form: {id}");
+        for (index, byte) in bytes.iter().enumerate() {
+            match index {
+                8 | 13 | 18 | 23 => assert_eq!(*byte, b'-', "{id}"),
+                _ => assert!(byte.is_ascii_hexdigit(), "{id}"),
+            }
+        }
+        assert_eq!(bytes[14], b'4', "version nibble says v4 (random): {id}");
+        assert!(
+            matches!(bytes[19], b'8' | b'9' | b'a' | b'b' | b'A' | b'B'),
+            "variant nibble is RFC 9562: {id}"
+        );
+        assert!(seen.insert(id), "session ids must be distinct");
+    }
 }

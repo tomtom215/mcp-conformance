@@ -89,7 +89,7 @@ fn validate_meta_key(key: &str) -> Result<(), String> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use crate::checks;
     use crate::context::TraceContext;
@@ -123,29 +123,31 @@ mod tests {
                 "{valid:?} should be valid"
             );
         }
-        for invalid in [
-            "1bad/x", // label starts with a digit
-            "bad-/x", // label ends with a hyphen
-            "a..b/x", // empty interior label
-            "/x",     // empty prefix label
-            "a_b/x",  // underscore not allowed in labels
-            "a/-x",   // name starts with a hyphen
-            "a/x.",   // name ends with a dot
-            "a/x y",  // space in name
-            "a/b/c",  // slash in name
-            "",       // empty bare name… is an empty name, which is allowed
+        // Each rejection's *reason* feeds `finding.detail` verbatim, so the
+        // table pins which rule fired — a defect routed to the wrong rule
+        // (say, a bad label reported as a bad name) is a wrong diagnostic
+        // even when the verdict is right.
+        for (invalid, reason) in [
+            ("1bad/x", "prefix label"),      // label starts with a digit
+            ("bad-/x", "prefix label"),      // label ends with a hyphen
+            ("a..b/x", "prefix label"),      // empty interior label
+            ("/x", "prefix label"),          // empty prefix label
+            ("a_b/x", "prefix label"),       // underscore not allowed in labels
+            ("a/-x", "begin and end"),       // name starts with a hyphen
+            ("a/x.", "begin and end"),       // name ends with a dot
+            ("a/x y", "characters outside"), // space in name
+            ("a/b/c", "characters outside"), // slash in name
         ] {
-            if invalid.is_empty() {
-                // Documented edge: an empty name is allowed ("Unless empty…"),
-                // and a bare empty key has no prefix either.
-                assert!(validate_meta_key(invalid).is_ok());
-            } else {
-                assert!(
-                    validate_meta_key(invalid).is_err(),
-                    "{invalid:?} should be invalid"
-                );
-            }
+            let error =
+                validate_meta_key(invalid).expect_err(&format!("{invalid:?} should be invalid"));
+            assert!(
+                error.contains(reason),
+                "{invalid:?} should be rejected by the {reason:?} rule, got: {error}"
+            );
         }
+        // Documented edge: an empty name is allowed ("Unless empty…"), and a
+        // bare empty key has no prefix either.
+        assert!(validate_meta_key("").is_ok());
     }
 
     #[test]

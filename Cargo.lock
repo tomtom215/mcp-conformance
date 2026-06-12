@@ -940,7 +940,12 @@ dependencies = [
 name = "mcp-reference-host"
 version = "0.2.0"
 dependencies = [
+ "mcp-everything-server",
  "proptest",
+ "rmcp",
+ "serde_json",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]

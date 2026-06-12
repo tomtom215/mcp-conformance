@@ -1,12 +1,12 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 45,
-    "fail": 1,
+    "pass": 36,
+    "fail": 2,
     "warn": 0,
     "excluded": 89,
     "unsupported": 0,
-    "not_applicable": 5
+    "not_applicable": 13
   },
   "requirements": [
     {
@@ -47,7 +47,14 @@
     {
       "id": "BASE-008",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "base.jsonrpc-version",
+          "seq": 8,
+          "detail": "message is not a JSON-RPC request, notification, or response: message is not a JSON object"
+        }
+      ]
     },
     {
       "id": "BASE-009",
@@ -380,7 +387,14 @@
     {
       "id": "TRAN-026",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.http-post-single-message",
+          "seq": 8,
+          "detail": "client HTTP POST body is not a single JSON-RPC request, notification, or response: message is not a JSON object"
+        }
+      ]
     },
     {
       "id": "TRAN-027",
@@ -531,14 +545,8 @@
     {
       "id": "TOOL-003",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "tools.input-schema-object",
-          "seq": 4,
-          "detail": "tool \"echo\" has an inputSchema that is not a JSON Schema object: null"
-        }
-      ]
+      "outcome": "not-applicable",
+      "capability": "server.tools"
     },
     {
       "id": "TOOL-004",
@@ -549,37 +557,44 @@
     {
       "id": "TOOL-005",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "not-applicable",
+      "capability": "server.tools"
     },
     {
       "id": "TOOL-006",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "not-applicable",
+      "capability": "server.tools"
     },
     {
       "id": "TOOL-007",
       "level": "SHOULD NOT",
-      "outcome": "pass"
+      "outcome": "not-applicable",
+      "capability": "server.tools"
     },
     {
       "id": "TOOL-008",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "not-applicable",
+      "capability": "server.tools"
     },
     {
       "id": "TOOL-009",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "not-applicable",
+      "capability": "server.tools"
     },
     {
       "id": "TOOL-010",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "not-applicable",
+      "capability": "server.tools"
     },
     {
       "id": "TOOL-011",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-applicable",
+      "capability": "server.tools"
     },
     {
       "id": "TOOL-012",

@@ -47,6 +47,28 @@ fn stdio_messages_valid(
     }
 }
 
+/// `TRAN-026`: every JSON-RPC message a client POSTs is a single request,
+/// notification, or response — a JSON object. A batch array (removed from the
+/// protocol in `2025-06-18`) or scalar body is representable in a trace as a
+/// non-object payload and is a violation, not a capture artifact.
+pub(super) fn http_post_single_message(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    for (event, kind, _) in context.messages() {
+        if event.transport != TransportKind::StreamableHttp
+            || event.direction != Direction::ClientToServer
+        {
+            continue;
+        }
+        if let MessageKind::Invalid { reason } = kind {
+            sink.push(
+                Some(event.seq),
+                format!(
+                    "client HTTP POST body is not a single JSON-RPC request, notification, or response: {reason}"
+                ),
+            );
+        }
+    }
+}
+
 /// The headers of every HTTP event in the given direction, in trace order.
 fn http_headers<'a>(
     context: &TraceContext<'a>,
@@ -340,6 +362,35 @@ mod tests {
         assert!(findings[0].contains("2024-11-05"), "{findings:?}");
         // The mismatched header satisfies presence.
         assert!(findings_for("transport.protocol-version-header", &mismatched).is_empty());
+    }
+
+    #[test]
+    fn http_post_single_message_flags_batch_and_scalar_bodies() {
+        // A batch array POSTed by the client violates TRAN-026; a server-sent
+        // array on the same transport is not this clause's subject, and stdio
+        // traffic belongs to the stdio checks.
+        let trace = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}
+{"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":[{"jsonrpc":"2.0","id":2,"method":"ping"},{"jsonrpc":"2.0","id":3,"method":"ping"}]}
+{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":[1,2,3]}
+{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":[4,5,6]}"#;
+        let findings = findings_for("transport.http-post-single-message", trace);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(
+            findings[0].contains("not a single JSON-RPC request")
+                && findings[0].contains("not a JSON object"),
+            "{findings:?}"
+        );
+
+        // A scalar body is equally not a single JSON-RPC message.
+        let scalar = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":"jsonrpc"}"#;
+        assert_eq!(
+            findings_for("transport.http-post-single-message", scalar).len(),
+            1
+        );
+
+        // Well-formed single messages produce no findings.
+        let clean = http_session("{}", "{}");
+        assert!(findings_for("transport.http-post-single-message", &clean).is_empty());
     }
 
     #[test]

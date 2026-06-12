@@ -34,12 +34,22 @@ allow = [
 ]
 
 # ---------------------------------------------------------------------------
-# Bans: duplicate major versions are a warning (transitive churn happens);
-# wildcard requirements are an error (they defeat the upper-bound policy).
+# Bans: a new duplicate major version fails the build — every accepted one is
+# below, version-pinned with its root named, so it re-fires on any drift and
+# cargo-deny warns when the skip goes unused (the duplicate collapsed).
+# Wildcard requirements are an error (they defeat the upper-bound policy).
 # ---------------------------------------------------------------------------
 [bans]
-multiple-versions = "warn"
+multiple-versions = "deny"
 wildcards = "deny"
+skip = [
+    # rmcp 1.7's rand/uuid stack pins getrandom 0.4 (wasip3 -> wit-bindgen
+    # 0.51) while proptest's dev-only rand 0.9 stack pins getrandom 0.3
+    # (wasip2 -> wit-bindgen 0.57). Both legs are WASI-shim targets only —
+    # never compiled on any tested platform. Collapses when proptest moves
+    # to rand 0.10 (still on 0.9 at proptest 1.11.0, checked 2026-06-11).
+    { crate = "wit-bindgen@0.51.0", reason = "target-conditional WASI shim split: rmcp(prod) getrandom 0.4 vs proptest(dev) getrandom 0.3" },
+]
 
 [sources]
 unknown-registry = "deny"

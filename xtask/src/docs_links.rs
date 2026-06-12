@@ -11,6 +11,9 @@
 //! Fenced code blocks and inline code spans are stripped before scanning, so
 //! example Markdown inside documentation is never mistaken for a live link.
 
+// `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
+// opposite demands about items in a binary crate's private modules; this follows
+// the rustc lint and quiets the clippy one, per its own known-problems note.
 #![allow(clippy::redundant_pub_crate)]
 
 use std::path::Path;
@@ -65,8 +68,11 @@ fn tracked_markdown(root: &Path) -> Option<Vec<String>> {
     Some(listing.lines().map(str::to_owned).collect())
 }
 
-/// Every inline-link target in `text` with its 1-based line number, after
-/// stripping fenced code blocks and inline code spans.
+/// Every link target in `text` with its 1-based line number, after stripping
+/// fenced code blocks and inline code spans: inline `[text](target)` links
+/// and reference definitions `[label]: target` (used by the changelog's
+/// compare links — without this, a relative reference-style target would be
+/// the gate's one false-negative path).
 fn links(text: &str) -> Vec<(usize, String)> {
     let mut found = Vec::new();
     let mut in_fence = false;
@@ -79,6 +85,12 @@ fn links(text: &str) -> Vec<(usize, String)> {
             continue;
         }
         let line = strip_inline_code(raw_line);
+        if let Some(rest) = line.strip_prefix('[')
+            && let Some((_, target)) = rest.split_once("]: ")
+        {
+            found.push((index + 1, target.trim().to_owned()));
+            continue;
+        }
         let mut rest = line.as_str();
         while let Some(open) = rest.find("](") {
             let after = &rest[open + 2..];
@@ -221,6 +233,22 @@ mod tests {
         assert_eq!(
             found,
             vec![(1, "x.md".to_owned()), (5, "y.md#z".to_owned())]
+        );
+    }
+
+    #[test]
+    fn extracts_reference_definitions_too() {
+        // A relative reference-style definition must be checked like any
+        // inline link — it was the gate's one false-negative path.
+        let doc =
+            "[Unreleased]: https://example.com/compare\n[broken]: ../no-such.md\nprose [x][broken]";
+        let found = links(doc);
+        assert_eq!(
+            found,
+            vec![
+                (1, "https://example.com/compare".to_owned()),
+                (2, "../no-such.md".to_owned()),
+            ]
         );
     }
 

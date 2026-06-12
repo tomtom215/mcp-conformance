@@ -312,7 +312,11 @@ async fn sse_frames_are_recorded_as_messages_and_delivered_intact() {
 /// invented.
 fn assert_recorded_tool_call_messages(events: &[serde_json::Value]) {
     for window in events.windows(2) {
-        assert!(window[0]["seq"].as_u64() < window[1]["seq"].as_u64());
+        // Unwrap before comparing: `Option<u64>`'s ordering would let a
+        // missing `seq` on the left slip through (`None < Some(_)` is true).
+        let earlier = window[0]["seq"].as_u64().expect("event carries seq");
+        let later = window[1]["seq"].as_u64().expect("event carries seq");
+        assert!(earlier < later, "seq must strictly increase: {window:?}");
     }
     let messages: Vec<_> = events
         .iter()
@@ -448,17 +452,18 @@ async fn tap_output_parses_and_validates_through_the_real_validator() {
     //    tap recorded validates with no MUST-level lifecycle failure.
     let registry = mcp_conformance_core::requirement::Registry::builtin_2025_11_25().unwrap();
     let report = mcp_trace_validator::engine::validate(&registry, &events);
-    let lifecycle_failures: Vec<&str> = report
+    let failures: Vec<&str> = report
         .requirements
         .iter()
-        .filter(|row| {
-            row.outcome == mcp_trace_validator::report::Outcome::Fail && row.id.starts_with("LIFE")
-        })
+        .filter(|row| row.outcome == mcp_trace_validator::report::Outcome::Fail)
         .map(|row| row.id.as_str())
         .collect();
     assert!(
-        lifecycle_failures.is_empty(),
-        "the tap's own handshake must validate, but these LIFE checks failed: {lifecycle_failures:?}\n{}",
+        failures.is_empty(),
+        "a faithfully tapped clean session must produce zero MUST-level \
+         failures in any area — wrong header recording, broken seq, or \
+         mangled payloads all surface exactly here, on every platform, \
+         not only in the npx-gated conformance job. Failed: {failures:?}\n{}",
         report.render_human()
     );
 
@@ -560,6 +565,101 @@ async fn oversized_request_bodies_pass_through_unrecorded() {
         "the oversized exchange contributed no events"
     );
     assert_eq!(events.len(), 13, "seven prior + cap probe (3) + delete (3)");
+
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// One stress-test session: initialize, call `echo` with a session-distinct
+/// marker, and return the session's recorded events once eleven are on disk
+/// (seven handshake + call request headers/message + 200 + result).
+async fn stress_session(
+    app: Router,
+    dir: PathBuf,
+    index: usize,
+) -> (String, String, Vec<serde_json::Value>) {
+    let session_id = initialized_session(&app, &dir).await;
+    // Fixed width so no marker is a substring of another (stress-1 would
+    // match inside stress-12 and fake a bleed).
+    let marker = format!("stress-{index:02}");
+    let call = format!(
+        r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"echo","arguments":{{"message":"{marker}"}}}}}}"#
+    );
+    let response = app
+        .clone()
+        .oneshot(mcp_post(
+            Box::leak(call.into_boxed_str()),
+            &[
+                ("mcp-session-id", session_id.as_str()),
+                ("mcp-protocol-version", "2025-11-25"),
+            ],
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    // Drain the SSE body so the tap observes the full exchange.
+    let _ = axum::body::to_bytes(response.into_body(), 4 * 1024 * 1024)
+        .await
+        .unwrap();
+    let events = read_trace(&dir, &session_id, 11).await;
+    (session_id, marker, events)
+}
+
+/// L3 concurrency proof: many sessions recording through ONE tap (one writer
+/// task, one channel, one session map) at real parallelism. Every per-file
+/// invariant the writer claims "by construction" is asserted over the result:
+/// contiguous `seq` from 0, every line a parseable event, and no
+/// cross-session bleed — each session's echo argument appears in its own
+/// trace and in no other.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn concurrent_sessions_record_isolated_contiguous_traces() {
+    const SESSIONS: usize = 16;
+    let (app, dir) = tapped_app("stress");
+
+    let workers: Vec<_> = (0..SESSIONS)
+        .map(|index| tokio::spawn(stress_session(app.clone(), dir.clone(), index)))
+        .collect();
+    let mut traces = Vec::new();
+    for worker in workers {
+        traces.push(worker.await.expect("worker completes"));
+    }
+    assert_eq!(traces.len(), SESSIONS);
+
+    for (session_id, marker, events) in &traces {
+        // Contiguity, not just monotonicity: the writer assigns 0,1,2,… per
+        // file, so any gap means an event was lost or misrouted.
+        for (index, event) in events.iter().enumerate() {
+            assert_eq!(
+                event["seq"].as_u64(),
+                Some(index as u64),
+                "{session_id}: seq must be contiguous from 0"
+            );
+        }
+        let text: Vec<String> = events.iter().map(ToString::to_string).collect();
+        let own = text
+            .iter()
+            .filter(|line| line.contains(marker.as_str()))
+            .count();
+        assert!(
+            own >= 2,
+            "{session_id}: its own echo call and result must be recorded, found {own}"
+        );
+        for (other_id, other_marker, _) in &traces {
+            if other_id != session_id {
+                assert!(
+                    !text.iter().any(|line| line.contains(other_marker.as_str())),
+                    "{session_id}: contains {other_id}'s marker {other_marker} — cross-session bleed"
+                );
+            }
+        }
+        // And the real reader accepts every file the writer produced.
+        let bytes = raw_trace_bytes(&dir, session_id);
+        let parsed = mcp_trace_validator::reader::parse_trace(
+            &bytes,
+            &mcp_trace_validator::reader::Limits::default(),
+        )
+        .expect("every concurrently written trace parses");
+        assert!(parsed.len() >= 11);
+    }
 
     let _ = std::fs::remove_dir_all(dir);
 }

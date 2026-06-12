@@ -56,7 +56,7 @@
         "section": "server/resources#security-considerations",
         "quote": "Servers MUST validate all resource URIs"
       },
-      "exclusion": "URI validation is server-internal enforcement; a trace shows the URIs exchanged, not whether the server vetted them. Exercised by mcp-everything-server's policy tests (roadmap M2)."
+      "exclusion": "URI validation is server-internal enforcement; a trace shows the URIs exchanged, not whether the server vetted them. mcp-everything-server's read path is fail-closed — unknown or malformed URIs resolve to None — asserted by template_rejects_malformed_instantiations (src/resources.rs) and the unknown-URI protocol-error assertion in resources_surface_matches_the_scenarios (tests/roundtrip.rs)."
     },
     {
       "id": "RES-006",

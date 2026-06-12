@@ -22,7 +22,7 @@
         "section": "server/utilities/logging#security",
         "quote": "Log messages MUST NOT contain: Credentials or secrets; Personal identifying information; Internal system details that could aid attacks"
       },
-      "exclusion": "Deciding whether free-form log data contains secrets or PII is semantic content analysis, not structural validation; offline heuristics would produce non-deterministic, unfalsifiable verdicts."
+      "exclusion": "Deciding whether free-form log data contains secrets or PII is semantic content analysis, not structural validation; offline heuristics would produce unsound, unfalsifiable verdicts — a fixed pattern list is deterministic but proves nothing about what it misses."
     },
     {
       "id": "LOG-003",

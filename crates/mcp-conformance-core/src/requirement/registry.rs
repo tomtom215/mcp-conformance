@@ -187,7 +187,11 @@ mod tests {
     fn builtin_registry_parses_and_validates() {
         let registry = Registry::builtin_2025_11_25().unwrap();
         assert_eq!(registry.revision(), REVISION_2025_11_25);
-        assert!(registry.requirements().len() >= 16);
+        // The exact entry count, not a floor: a registry document silently
+        // dropped from the embed (a forgotten include, a bad merge) shrinks
+        // the count without failing any floor check. The README coverage
+        // gate pins the same number from the other direction.
+        assert_eq!(registry.requirements().len(), 140);
         assert!(registry.get("LIFE-001").is_some());
         assert!(registry.get("NOPE-999").is_none());
     }
