@@ -16,6 +16,9 @@
 #   - `--locked` packaging WITH verification builds (no `--no-verify`);
 #   - packaging determinism proven, not assumed: the publish job re-packages
 #     and byte-compares against the attested SHA256SUMS before uploading;
+#   - cargo-semver-checks gates API compatibility against the crates.io
+#     baseline in `verify`, so a declared behavioral break is never confused
+#     with an accidental, undeclared API-signature break;
 #   - `workflow_dispatch` rehearses every gate without publishing anything.
 
 name: Release
@@ -99,6 +102,18 @@ jobs:
         run: |
           cargo install cargo-deny --locked
           cargo deny check
+      - name: cargo-semver-checks (declared breaks are not accidental API breaks)
+        # The verdict-as-contract gate (design note §9): an API-breaking change
+        # shipped under a version bump that does not admit one fails here, so the
+        # changelog's deliberate, declared behavioral breaks are never confused
+        # with an undeclared API-signature break. `cargo xtask semver` runs
+        # `cargo semver-checks check-release --workspace --exclude xtask` against
+        # the published crates.io baseline — network-bound (it fetches the
+        # baseline), which a release verify job already is. Compiled from source
+        # with --locked, like cargo-deny above.
+        run: |
+          cargo install cargo-semver-checks --locked
+          cargo xtask semver
 
   # ── Gate 2: cross-platform tests, mirroring the ci.yml matrix ──────────────
   tests:
