@@ -197,6 +197,18 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- The round's closing verification ran as its floor and its new dimension:
+  the full `--all-features` mutation sweep — now **857 mutants** (the round
+  added ~109 mutable sites): 741 caught, 116 unviable, **0 missed**, 42
+  minutes — and, for the first time, **miri over `mcp-conformance-core`**
+  (63 tests, 0 findings; isolation disabled for proptest's cwd persistence,
+  and the 50k-deep canonicalization proof runs at depth 500 under
+  `cfg(miri)` — the interpreter checks the walker for UB there, not for
+  native frame budget, which stays a native-only proof). `cargo audit`:
+  233 dependencies, no advisories. `cargo package --workspace --exclude
+  xtask --locked`: green. Both conformance legs re-confirmed on the final
+  tree: server 40/40 with 30-session agreement, client smoke + 4 scenarios
+  with 4-session agreement — zero unexplained divergence everywhere.
 - `conformance/expected-failures.yaml` used a `failures:` key the pinned
   runner has never read: the 0.1.16 loader consumes exactly `server:` and
   `client:` keys and silently ignores everything else, so the committed

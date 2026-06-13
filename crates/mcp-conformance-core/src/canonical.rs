@@ -150,7 +150,11 @@ mod tests {
         // one cannot. The deep value is built and dropped on a large-stack
         // thread (serde_json::Value's *drop* is itself recursive), and moved
         // back out of the small-stack closure so it never drops there.
-        const DEPTH: usize = 50_000;
+        // Under miri the depth shrinks: the interpreter would take hours at
+        // 50k, and the native stack-overflow counterfactual does not
+        // translate to miri's stack anyway — there the run checks the
+        // walker for UB, not for frame budget.
+        const DEPTH: usize = if cfg!(miri) { 500 } else { 50_000 };
         let outcome = std::thread::Builder::new()
             .stack_size(16 * 1024 * 1024)
             .spawn(|| {
