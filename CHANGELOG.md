@@ -163,6 +163,18 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Changed
 
+- Third-audit census closures: the readiness line (`listening on `) is
+  single-sourced as `mcp_everything_server::READINESS_LINE_PREFIX` — the
+  cross-process contract orchestration waits on — with the binary tests
+  pinning the literal independently and xtask's copy carrying the pointer;
+  the corpus README states the violation-trace naming contract the golden
+  harness enforces (`area-nnn-…` must falsify `AREA-NNN` by name); the
+  pathological-input tests document their honest limit (a quadratic-but-
+  correct mutant passes unless it blows the mutation timeout — verdicts and
+  hangs are the caught classes, by design); and the core README's "every
+  in-scope normative clause" claim now names its universe
+  (`sources.json` + the spec-drift gate) instead of leaving "in-scope" to
+  judgment.
 - Two gates can no longer be fooled the way this audit's own tooling was:
   `docs-links` now also checks reference-style definitions (`[label]:
   target` — previously the gate's one false-negative path; today's are all

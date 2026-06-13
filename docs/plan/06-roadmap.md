@@ -26,7 +26,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | M1 — Registry and validator | **Complete** — v0.1.0 published to crates.io via [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142) (attested, byte-verified); every DoD line below carries its evidence |
 | M2 — Everything server | **Complete** (2026-06-11): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite in CI ([run #27266174013](https://github.com/tomtom215/mcp-conformance/actions/runs/27266174013)); trace tap, agreement check, and coverage manifest live (zero unexplained divergence; first divergence triaged suite-bug, filed upstream as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338)); everything-server offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) (pre-flight in [#9](https://github.com/tomtom215/mcp-conformance/issues/9)), README-linked — every DoD line below carries its evidence |
 | M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (2026-07-28); re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
-| M3 — Reference host | **In progress** (opened 2026-06-11, ADR-0009): scriptable handlers + bounded loop landed and tested in-process; transports, binary, suite-as-SUT wiring, and trace capture open |
+| M3 — Reference host | **Complete** (2026-06-13; ADR-0009 + §Amendment): both transports live (child-process stdio, streamable HTTP over reqwest); **all four `2025-11-25` client scenarios pass at pinned 0.1.16 as the standing CI gate**, with the two-real-binaries stdio smoke and the client-side agreement replay (zero unexplained divergence) — [run #27449549660](https://github.com/tomtom215/mcp-conformance/actions/runs/27449549660), "Conformance (official suite, server + client scenarios)"; host trace capture pinned against the validator; SSE resumption honors the server-named `retry` with `Last-Event-ID` (rmcp 1.7's measured gap is register 3.12; the host ships the compliant dance on rmcp's public seam); `auth/*` deferred with an enforced ledger row — every DoD line below carries its evidence |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
 | M5 — Stewardship artifacts | Not started |
 
@@ -212,17 +212,29 @@ matching TRAN-009's registry record.)*
 
 **Definition of done**
 
-- [ ] Host completes bounded tool-use loops against the everything server over stdio and
+- [x] Host completes bounded tool-use loops against the everything server over stdio and
       streamable HTTP: every stop condition (turn limit, completion, cancellation, error
-      budget) tested.
-- [ ] Official suite **client scenarios** pass with the host as SUT (`--command` wiring,
-      pinned version).
-- [ ] Sampling, elicitation (including URL mode), and roots handlers scriptable for CI;
-      zero model-provider network use.
-- [ ] Backoff/retry honoring `Retry-After`, jittered, with budget tests; SSE resumption via
-      event-id cursors where applicable.
-- [ ] Host-side trace capture emits validator-ready traces with default redaction
-      ([05-security-model.md](05-security-model.md)).
+      budget) tested. *(Stop-condition lattice in-process (`agent_loop`); streamable HTTP
+      over a real socket (`transports.rs`); stdio between the two real binaries in the
+      conformance gate's smoke — [run #27449549660](https://github.com/tomtom215/mcp-conformance/actions/runs/27449549660).)*
+- [x] Official suite **client scenarios** pass with the host as SUT (`--command` wiring,
+      pinned version). *(The standing gate: `initialize`; `tools_call` 1/1;
+      `elicitation-sep1034-client-defaults` 5/5; `sse-retry` 3/3 — sequential by design,
+      client runs fail on WARNINGs (ADR-0009 §Amendment). `auth/*` deferred:
+      deferral-ledger row `auth-client-scenarios`, registry TRAN-009.)*
+- [x] Sampling, elicitation (including URL mode), and roots handlers scriptable for CI;
+      zero model-provider network use. *(`script` is data; no code path can dial a
+      provider. URL mode round-trips end to end against `test_url_elicitation`.)*
+- [x] Backoff/retry honoring `Retry-After`, jittered, with budget tests; SSE resumption via
+      event-id cursors where applicable. *(`retry.rs` property-tested since v0.1.0; the
+      `resume` dance honors the server-named `retry` through
+      `delay_honoring_retry_after` and offers `Last-Event-ID` — measured by the suite's
+      own clock, 3/3.)*
+- [x] Host-side trace capture emits validator-ready traces with default redaction
+      ([05-security-model.md](05-security-model.md)). *(`capture` records at the message
+      seam — headers are unobservable there, so credentials cannot leak by construction;
+      output pinned against the validator's reader and engine, and replayed in the
+      client agreement.)*
 
 ## M4 — Upstream engagement (gate, not phase)
 

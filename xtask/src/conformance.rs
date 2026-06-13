@@ -227,6 +227,10 @@ fn await_readiness_line(stderr: std::process::ChildStderr) -> Option<String> {
         }
     });
     let first = receiver.recv_timeout(READINESS_TIMEOUT).ok().flatten()?;
+    // The literal mirrors mcp_everything_server::READINESS_LINE_PREFIX —
+    // xtask cannot depend on the server crate, and the server's binary tests
+    // pin the line against the real executable, so a drift fails there first
+    // (and this task fails loudly at its readiness timeout, never silently).
     let address = first.trim().strip_prefix("listening on ");
     if address.is_none() && !first.trim().is_empty() {
         // A first line that is not the readiness line is the server saying
