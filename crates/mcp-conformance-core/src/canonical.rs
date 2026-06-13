@@ -266,6 +266,33 @@ mod tests {
         assert_eq!(del.as_bytes(), [0x22, 0x7F, 0x22]);
     }
 
+    /// The exact input the weekly fuzz job surfaced on its first real CI run
+    /// (third audit, 2026-06-13): a nested document carrying `-0.0`. The
+    /// canonicalizer folds it to `0` by design (RFC 8785), so the
+    /// *representational* round-trip `parse(canonical(v)) == v` does NOT hold
+    /// — `Float(-0.0)` becomes integer `0`. The property that does hold, and
+    /// the one that matters, is idempotence: canonicalizing the canonical
+    /// form is a no-op. Pinned here at `cargo test` speed because the fuzz
+    /// job runs only weekly; the corpus seed `seed-negative-zero-fold`
+    /// pins it for the fuzzer.
+    #[test]
+    fn negative_zero_fold_is_idempotent_not_representation_preserving() {
+        let value = json!({"b": 1, "a": {"\u{10000}": 2, "\u{e000}": [1.5, -0.0, true, null]}});
+        let canonical = to_canonical_string(&value);
+        let reparsed: Value = serde_json::from_str(&canonical).expect("canonical is valid JSON");
+        // The representational round trip is deliberately lost: -0.0 → 0.
+        assert_ne!(
+            reparsed, value,
+            "JCS folds -0.0 to 0, so Value identity must not hold"
+        );
+        // The real invariant — a stable normal form — holds.
+        assert_eq!(
+            to_canonical_string(&reparsed),
+            canonical,
+            "canonicalization must be idempotent"
+        );
+    }
+
     #[test]
     fn compact_and_stable_for_scalars() {
         for (value, expected) in [

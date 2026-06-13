@@ -197,6 +197,24 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **A fuzz harness that contradicted its own unit test** (third audit, found by the
+  first real CI run of the weekly fuzz job — dispatched precisely because a
+  never-run gate is not a gate). The `canonical_json` fuzz target asserted
+  `parse(canonical(v)) == v` over `serde_json::Value` and called it "round-trip
+  exact" — but canonicalization deliberately folds representations (RFC 8785 maps
+  `-0.0` → `0`, `2.0` → `2`), so that claim is false by design, and the
+  `canonical_form_is_a_parse_fixpoint` unit test had always (correctly) asserted
+  the *idempotence* property instead. The two disagreed; only the fuzzer, on its
+  first generated `-0.0`, could expose it. The canonicalizer was always correct
+  (its `-0.0 → 0` fold is RFC 8785 Appendix B, already unit-tested). Fixed: the
+  fuzz target now asserts the same idempotence
+  (`canonical(parse(canonical(v))) == canonical(v)`); the crashing input is pinned
+  as the corpus seed `seed-negative-zero-fold` and as a `cargo test` regression
+  (`negative_zero_fold_is_idempotent_not_representation_preserving`); and all three
+  fuzz targets were re-run clean (canonical_json 3.5M execs, registry_parse 3.9M,
+  trace_parse 12.8M). The census this round was scoped to read `fuzz_targets/*.rs`
+  and missed the contradiction — recorded so the next round's census cross-checks
+  paired tests of one function, not each in isolation.
 - The round's closing verification ran as its floor and its new dimension:
   the full `--all-features` mutation sweep — now **857 mutants** (the round
   added ~109 mutable sites): 741 caught, 116 unviable, **0 missed**, 42

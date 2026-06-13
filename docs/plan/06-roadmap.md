@@ -86,6 +86,16 @@ The spec as data, and the engine that judges traces against it.
 - [x] Zero surviving mutants in `mcp-conformance-core` and `mcp-trace-validator`; fuzz
       targets (trace parse, canonicalization, registry deserialization) clean for the CI
       budget with corpora committed.
+      *(Erratum, third audit 2026-06-13: "clean for the CI budget" was unverified for the
+      weekly fuzz job, which had never actually run in CI — the repo's first dispatch of it
+      failed. The `canonical_json` target asserted `parse(canonical(v)) == v`
+      (representational identity), a claim false by design for any value JCS folds
+      (`-0.0` → `0`, `2.0` → `2`) and one that **contradicted its own unit test**, which
+      correctly asserts string-level idempotence. It survived only until the fuzzer first
+      generated a `-0.0`. Fixed: the target now asserts the same idempotence
+      (`canonical(parse(canonical(v))) == canonical(v)`), the exact input is pinned by
+      `seed-negative-zero-fold` and a `cargo test` regression, and all three targets now
+      run clean (canonical_json 3.5M execs, registry_parse 3.9M, trace_parse 12.8M).)*
 - [x] Published to crates.io ([v0.1.0](https://github.com/tomtom215/mcp-conformance/releases/tag/v0.1.0),
       [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142)) —
       bootstrapped per ADR-0007, OIDC trusted publishing from the next release; rustdoc
