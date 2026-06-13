@@ -47,11 +47,12 @@ fn suite_version() -> String {
 }
 
 /// Spec revision under test — the registry's revision.
-const SPEC_VERSION: &str = "2025-11-25";
+pub(crate) const SPEC_VERSION: &str = "2025-11-25";
 
-/// Committed baseline of explained failures (suite-native YAML). Empty today;
-/// every entry must name the upstream issue explaining the divergence.
-const EXPECTED_FAILURES: &str = "conformance/expected-failures.yaml";
+/// Committed baseline of expected scenario failures (suite-native YAML:
+/// `server:`/`client:` keys). Empty today; whole-scenario entries only —
+/// requirement-level triage lives in the divergence baselines.
+pub(crate) const EXPECTED_FAILURES: &str = "conformance/expected-failures.yaml";
 
 /// Where the server tap records each suite session, under the workspace root.
 const TAP_DIR: &str = "target/conformance/tap";
@@ -104,14 +105,17 @@ pub(crate) fn run() -> ExitCode {
     await_tap_quiescence(&tap_dir);
     let _ = server.kill();
     let _ = server.wait();
-    match crate::agreement::run(&root, &tap_dir, &results_dir, &suite) {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(message) => {
-            eprintln!("xtask: agreement — {message}");
-            ExitCode::FAILURE
-        }
+    if let Err(message) = crate::agreement::run(&root, &tap_dir, &results_dir, &suite) {
+        eprintln!("xtask: agreement — {message}");
+        return ExitCode::FAILURE;
     }
+    client::run(&root, &suite)
 }
+
+/// The client leg: the host binary as the suite's SUT, plus the
+/// child-process transport's real-binary proof and the client-side
+/// agreement replay.
+mod client;
 
 /// Waits until the tap directory's contents stop growing (three consecutive
 /// identical size samples 150 ms apart), capped at ten seconds. The tap
@@ -223,6 +227,10 @@ fn await_readiness_line(stderr: std::process::ChildStderr) -> Option<String> {
         }
     });
     let first = receiver.recv_timeout(READINESS_TIMEOUT).ok().flatten()?;
+    // The literal mirrors mcp_everything_server::READINESS_LINE_PREFIX —
+    // xtask cannot depend on the server crate, and the server's binary tests
+    // pin the line against the real executable, so a drift fails there first
+    // (and this task fails loudly at its readiness timeout, never silently).
     let address = first.trim().strip_prefix("listening on ");
     if address.is_none() && !first.trim().is_empty() {
         // A first line that is not the readiness line is the server saying

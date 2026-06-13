@@ -5,7 +5,9 @@
 //! allocation-sane on inputs far beyond real sessions, and reject what its
 //! parsers cannot bound. These are correctness tests (they complete or they
 //! don't), not benchmarks — benches/README.md records why no timing gate
-//! exists.
+//! exists. Honest limit: a mutant that is quadratic *but correct* passes
+//! here unless it also blows cargo-mutants' auto-timeout; only verdict
+//! changes and hangs are caught, by design.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 

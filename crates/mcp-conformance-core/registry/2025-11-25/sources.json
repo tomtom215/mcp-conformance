@@ -1,0 +1,29 @@
+{
+  "_policy": "The registry's completeness claim — every MUST on an in-scope page enters, with a check or a documented exclusion — is only falsifiable if the in-scope page set is explicit. This file is that set, for revision 2025-11-25: `in_scope` maps each page (as `source.section` prefixes cite it) to its published source file under docs/specification/2025-11-25/ in the modelcontextprotocol repository; `out_of_scope` names every other page of the revision with the reason it is excluded. `cargo xtask spec-drift` enforces, both directions, that `in_scope` and the set of pages registry entries actually cite are identical, then verifies every quote against the published text (ADR-0010).",
+  "in_scope": {
+    "basic": "basic/index.mdx",
+    "basic/lifecycle": "basic/lifecycle.mdx",
+    "basic/transports": "basic/transports.mdx",
+    "server/prompts": "server/prompts.mdx",
+    "server/resources": "server/resources.mdx",
+    "server/tools": "server/tools.mdx",
+    "server/utilities/completion": "server/utilities/completion.mdx",
+    "server/utilities/logging": "server/utilities/logging.mdx",
+    "server/utilities/pagination": "server/utilities/pagination.mdx"
+  },
+  "out_of_scope": {
+    "architecture": "No RFC 2119 keyword instances on the page (verified at spec 1304c8fe).",
+    "basic/authorization": "Full OAuth flows — the registry's TRAN-009 exclusion records the boundary; the suite's auth/* scenario sets are deferred with a ledger row (deferrals.json: auth-client-scenarios).",
+    "basic/utilities/cancellation": "Never claimed in the registry's surface (M1 DoD names lifecycle, tools, resources, prompts, logging, completion, pagination, transport security). Wire-checkable; expansion candidate alongside M2.5's multi-revision work.",
+    "basic/utilities/ping": "Same as cancellation: unclaimed surface, wire-checkable, M2.5-window expansion candidate — and `2026-07-28` removes ping (register 1.5a), so expansion value is shrinking.",
+    "basic/utilities/progress": "Same as cancellation: unclaimed surface, wire-checkable, M2.5-window expansion candidate.",
+    "basic/utilities/tasks": "SEP-2663 moves tasks out of core into an official extension in `2026-07-28` (register 1.5a); entering them at 2025-11-25 would build registry surface the next revision deletes.",
+    "changelog": "Non-normative revision history (zero RFC 2119 keyword instances, verified at spec 1304c8fe).",
+    "client/elicitation": "Client-feature page: the reference host enforces its wire-visible client MUSTs in code (the pending-id set and its tests — ADR-0009); registry entries for client-actor clauses are an expansion candidate, weighed against SEP-2577 deprecating the sibling client features in `2026-07-28`.",
+    "client/roots": "Client-feature page, deprecated forward by SEP-2577 (register 1.5b); host answers roots/list from its script, asserted in tests.",
+    "client/sampling": "Client-feature page, deprecated forward by SEP-2577 (register 1.5b); host answers sampling from its script with zero model-provider network use by construction.",
+    "index": "Landing page: its keyword instances are the BCP 14 definition boilerplate plus one security-principles `implementors SHOULD` about consent/authorization flows — UI and internal policy, out by strategy rule 2 (03-conformance-strategy.md §What enters the registry); verified at spec 1304c8fe.",
+    "schema": "Generated schema reference: constraints stated only in schema field documentation without RFC 2119 keywords are excluded by strategy rule 3 (03-conformance-strategy.md §What enters the registry).",
+    "server": "Overview page (server/index.mdx): no RFC 2119 keyword instances (verified at spec 1304c8fe); the capability MUSTs live on the per-feature pages the registry cites."
+  }
+}

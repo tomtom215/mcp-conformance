@@ -11,6 +11,15 @@ Fixtures for the golden-corpus tests (`crates/mcp-trace-validator/tests/golden.r
 - **`golden/`** — the byte-pinned expected report for every trace. Regenerate only
   via `cargo xtask bless` and review the diff like code.
 
+## Violation naming contract
+
+A violation trace is named `area-nnn-<slug>.jsonl` and **must** produce a
+Fail/Warn row with findings for exactly requirement `AREA-NNN` — the golden
+harness enforces the attribution by name
+(`violation_traces_fail_and_match_goldens`), so a defect re-routed to a
+different requirement cannot re-bless silently. A stem that does not begin
+with a requirement ID fails the suite loudly.
+
 ## Provenance ledger
 
 Every trace's origin, in one reviewable place that survives history rewrites (the

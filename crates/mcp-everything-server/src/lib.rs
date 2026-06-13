@@ -37,6 +37,15 @@ pub mod interactive;
 pub mod logging;
 pub mod notifying;
 pub mod policy;
+
+/// Prefix of the one readiness line the HTTP binary prints to stderr.
+///
+/// The full line is `listening on <addr>`. Public because it is a
+/// cross-process contract: orchestration (xtask's conformance task, the
+/// binary tests) waits for this exact prefix before dialing — xtask cannot
+/// depend on this crate, so its copy of the literal carries a pointer here
+/// and the binary tests pin the coupling against the real executable.
+pub const READINESS_LINE_PREFIX: &str = "listening on ";
 pub mod prompts;
 pub mod resources;
 pub mod server;

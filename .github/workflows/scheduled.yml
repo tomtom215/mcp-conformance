@@ -99,3 +99,58 @@ jobs:
           for target in trace_parse canonical_json registry_parse; do
             cargo +nightly fuzz run "$target" -- -max_total_time=300
           done
+      # The corpus libFuzzer grew this run, uploaded so coverage accumulates
+      # across weeks instead of restarting from the committed seeds (the
+      # round-two deferral "corpora seed-only", liquidated). Promoting an
+      # interesting artifact into the committed seeds stays a deliberate PR.
+      - name: Upload grown corpora
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-corpora-${{ github.run_id }}
+          path: fuzz/corpus/
+          if-no-files-found: warn
+          retention-days: 90
+
+  # Bench history accumulates as weekly artifacts (the round-two deferral
+  # "bench history not accumulating", liquidated): measured, never gated —
+  # benches/README.md records why no threshold exists. Compare runs by
+  # downloading two artifacts and diffing criterion's estimates.
+  bench:
+    name: Benchmarks (history artifact)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Run benchmarks
+        run: cargo bench --workspace
+      - name: Upload criterion estimates
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bench-history-${{ github.run_id }}
+          path: target/criterion/
+          if-no-files-found: error
+          retention-days: 90
+
+  # The claims-expire gates (ADR-0010): the deferral ledger's review-by dates
+  # and the registry's verbatim quotes, both re-verified weekly. Failures
+  # here page the schedule, not PRs — an expired deferral or a drifted quote
+  # is a maintenance event, not a defect in unrelated work.
+  claims-expire:
+    name: Deferral ledger + spec-quote drift (ADR-0010)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Deferral ledger within its review dates
+        run: cargo xtask deferrals --check
+      - name: Registry quotes match the published spec text
+        run: cargo xtask spec-drift

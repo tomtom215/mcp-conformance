@@ -55,7 +55,9 @@ pub(crate) fn check_manifest(
 
     let manifest = CoverageManifest {
         generated: "cargo xtask conformance (BLESS=1 to regenerate)".to_owned(),
-        spec_revision: "2025-11-25".to_owned(),
+        // The registry's revision, not a literal: when M2.5 adds a second
+        // revision, the manifest must follow the registry under test.
+        spec_revision: registry.revision().to_string(),
         server_capabilities,
         capability_gates: capability_gates.clone(),
         methods_observed,

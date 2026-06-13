@@ -107,6 +107,15 @@ struct SessionFile {
 }
 
 /// Shared tap state installed into the middleware.
+///
+/// Concurrency posture, re-decided 2026-06-13 (third audit): no `loom`
+/// modeling. The shared state is a `Mutex<HashMap>` and one `AtomicU64`
+/// ordinal — no hand-rolled lock-free structure for loom to catch out, and
+/// `Relaxed` suffices for the ordinal because only its *uniqueness* is
+/// load-bearing (`fetch_add` is atomic under any ordering; file naming takes
+/// the session lock anyway). The interleaving evidence is the 16-session
+/// real-parallelism stress test plus the SIGKILL durability test; loom
+/// would re-prove std's Mutex, not this code.
 pub struct Tap {
     dir: PathBuf,
     sender: tokio::sync::mpsc::Sender<Record>,

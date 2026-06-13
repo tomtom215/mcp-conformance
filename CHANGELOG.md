@@ -11,8 +11,88 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+> **Version-class call** (RELEASING.md: pre-1.0 minors may break, and the
+> changelog says so explicitly): the next release is **0.3.0**, not 0.2.1.
+> Two changes below are breaking — `TraceContext::new` (and therefore
+> `engine::validate`) now panics on hand-built event slices whose `seq` is
+> not strictly increasing, where 0.2.0 judged them silently wrong; and the
+> newly judged TRAN-026 changes verdicts, so a trace containing a
+> client-POSTed batch body that previously failed only generic message
+> checks now also fails `transport.http-post-single-message`.
+
 ### Added
 
+- **Claims expire** (ADR-0010): three rounds of auditing found every
+  falsehood in claims that were true once and never re-checked — so the
+  repository now re-checks them itself. The deferral ledger
+  (`docs/plan/deferrals.json`) gives every consciously deferred piece of
+  work a review-by date; `cargo xtask deferrals --check` (weekly scheduled
+  CI) fails once a row expires un-re-decided. First rows: the suite's
+  `auth/*` client scenarios, the rmcp SSE-resumption upstream filing, the
+  rust-sdk#902 offer clock, the register's 90-day sweep, and the suite
+  0.2.0 pin bump. And the registry's verbatim quotes — verified in round
+  two by a `/tmp` script that died with its session — are now re-verified
+  weekly by `cargo xtask spec-drift` against the published spec text, under
+  the normalization `SourceRef::quote` documents (italics/links/escapes
+  unwrapped; list fragments verified verbatim per the `"; "` convention);
+  first live run: 140/140 quotes verified. The registry's in-scope page set
+  is finally explicit data (`registry/2025-11-25/sources.json`: the nine
+  in-scope pages mapped to their published sources, plus every out-of-scope
+  page of the revision with a verified reason — the gate keeps the list and
+  the registry's citations identical in both directions).
+- `cargo xtask ci` now runs the MSRV clippy leg CI runs (loud skip when the
+  1.88 toolchain is absent), and `cargo xtask mutants` is the exact
+  diff-scoped mutation gate from the PR workflow, computed against
+  `origin/main` — the local-vs-CI gate skew that bit round two, mechanized
+  away.
+- Scheduled CI now accumulates evidence weekly instead of discarding it:
+  grown fuzz corpora and criterion bench results upload as 90-day artifacts
+  (the round-two "corpora seed-only" / "no bench history" deferrals,
+  liquidated — benches/README.md records the posture). The tap's `loom`
+  question is re-decided and recorded at the code it judges: nothing
+  lock-free to model, uniqueness-only ordinal, real-parallelism stress test
+  as the standing evidence.
+- **The client gate is standing** (`cargo xtask conformance`, same CI job as
+  the server leg): a child-process stdio smoke — the host binary spawning
+  the everything-server binary over a real pipe, the one place two sibling
+  executables can meet — then the four `2025-11-25` client scenarios run
+  sequentially (client runs fail on WARNINGs and the `sse-retry` timing
+  window is load-bearing, so parallel suite mode is deliberately not used),
+  then the client-side agreement replay: every host-captured trace through
+  `mcp-trace-validator` against `conformance/client-agreement-divergences.json`
+  (same triage contract and both-directions staleness discipline as the
+  server baseline; empty and live on first run — 4 sessions, zero
+  unexplained divergence).
+- **`mcp-reference-host`: the suite's client scenarios pass — all four, at
+  the pin** (`initialize`; `tools_call` 1/1;
+  `elicitation-sep1034-client-defaults` 5/5; `sse-retry` 3/3, inside the
+  −50/+200 ms retry window with `Last-Event-ID` offered). What landed: the
+  two real transports from rmcp's official client features (`proc` =
+  child-process stdio, `http` = streamable HTTP over reqwest); the binary
+  (`cli`) honoring the runner's contract (URL as final argument,
+  `MCP_CONFORMANCE_SCENARIO` dispatch through the one `scenario.rs` table)
+  with a hard `--deadline-secs` watchdog (the runner's 30 s kill reaches
+  only its `sh -c` wrapper — an orphaned host would wedge the runner
+  forever, measured); host-side trace capture (`capture`) as a `Transport`
+  wrapper — redaction by construction, the message seam never sees headers
+  — whose output is pinned against the validator's real reader and engine;
+  and the spec's SSE-resumption dance (`resume`) on rmcp's public
+  `StreamableHttpClient` seam, honoring the server-named `retry` through
+  `RetryPolicy::delay_honoring_retry_after` (the load-bearing use ADR-0009
+  predicted). rmcp 1.7's own transport cannot pass `sse-retry` — POST
+  response streams reconnect-never and the in-flight call is lost; measured
+  at source and on the wire (−53 ms "too early", no `Last-Event-ID`) —
+  recorded as register row 3.12 and ADR-0009 §Amendment, upstream filing in
+  the M4 backlog. `reqwest`/`futures`/`sse-stream` enter as direct
+  dependencies of the `http` feature, version-mirroring rmcp's own tree.
+- `mcp-everything-server`: `test_url_elicitation` — the URL-mode elicitation
+  round trip (register 2.10 parity), closing the last interactive
+  TypeScript-surface delta: a `mode: "url"` `elicitation/create` and, on
+  consent, `notifications/elicitation/complete` for the issued id. The
+  host↔server loop — consent recorded, id spent exactly once, by name;
+  decline produces no completion — is pinned end to end in the host's
+  `agent_loop` tests. The README's "needs a URL-capable client" deferral is
+  closed, not restated.
 - `mcp-trace-validator`: `transport.http-post-single-message` — TRAN-026
   ("The body of the POST request MUST be a single JSON-RPC request,
   notification, or response.") is now judged, with a killer trace
@@ -32,9 +112,6 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   never consults the header, measured) and `default_bind_is_loopback`
   (TRAN-008: every other test passes `--bind` explicitly and would never
   notice a widened default).
-
-### Added
-
 - **`mcp-reference-host`: the host exists** (M3 opens; ADR-0009). Three
   transport-agnostic pieces, tested in-process against the real
   `mcp-everything-server`: `script` (every model/user behavior as data —
@@ -86,6 +163,18 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Changed
 
+- Third-audit census closures: the readiness line (`listening on `) is
+  single-sourced as `mcp_everything_server::READINESS_LINE_PREFIX` — the
+  cross-process contract orchestration waits on — with the binary tests
+  pinning the literal independently and xtask's copy carrying the pointer;
+  the corpus README states the violation-trace naming contract the golden
+  harness enforces (`area-nnn-…` must falsify `AREA-NNN` by name); the
+  pathological-input tests document their honest limit (a quadratic-but-
+  correct mutant passes unless it blows the mutation timeout — verdicts and
+  hangs are the caught classes, by design); and the core README's "every
+  in-scope normative clause" claim now names its universe
+  (`sources.json` + the spec-drift gate) instead of leaving "in-scope" to
+  judgment.
 - Two gates can no longer be fooled the way this audit's own tooling was:
   `docs-links` now also checks reference-style definitions (`[label]:
   target` — previously the gate's one false-negative path; today's are all
@@ -108,6 +197,42 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **A fuzz harness that contradicted its own unit test** (third audit, found by the
+  first real CI run of the weekly fuzz job — dispatched precisely because a
+  never-run gate is not a gate). The `canonical_json` fuzz target asserted
+  `parse(canonical(v)) == v` over `serde_json::Value` and called it "round-trip
+  exact" — but canonicalization deliberately folds representations (RFC 8785 maps
+  `-0.0` → `0`, `2.0` → `2`), so that claim is false by design, and the
+  `canonical_form_is_a_parse_fixpoint` unit test had always (correctly) asserted
+  the *idempotence* property instead. The two disagreed; only the fuzzer, on its
+  first generated `-0.0`, could expose it. The canonicalizer was always correct
+  (its `-0.0 → 0` fold is RFC 8785 Appendix B, already unit-tested). Fixed: the
+  fuzz target now asserts the same idempotence
+  (`canonical(parse(canonical(v))) == canonical(v)`); the crashing input is pinned
+  as the corpus seed `seed-negative-zero-fold` and as a `cargo test` regression
+  (`negative_zero_fold_is_idempotent_not_representation_preserving`); and all three
+  fuzz targets were re-run clean (canonical_json 3.5M execs, registry_parse 3.9M,
+  trace_parse 12.8M). The census this round was scoped to read `fuzz_targets/*.rs`
+  and missed the contradiction — recorded so the next round's census cross-checks
+  paired tests of one function, not each in isolation.
+- The round's closing verification ran as its floor and its new dimension:
+  the full `--all-features` mutation sweep — now **857 mutants** (the round
+  added ~109 mutable sites): 741 caught, 116 unviable, **0 missed**, 42
+  minutes — and, for the first time, **miri over `mcp-conformance-core`**
+  (63 tests, 0 findings; isolation disabled for proptest's cwd persistence,
+  and the 50k-deep canonicalization proof runs at depth 500 under
+  `cfg(miri)` — the interpreter checks the walker for UB there, not for
+  native frame budget, which stays a native-only proof). `cargo audit`:
+  233 dependencies, no advisories. `cargo package --workspace --exclude
+  xtask --locked`: green. Both conformance legs re-confirmed on the final
+  tree: server 40/40 with 30-session agreement, client smoke + 4 scenarios
+  with 4-session agreement — zero unexplained divergence everywhere.
+- `conformance/expected-failures.yaml` used a `failures:` key the pinned
+  runner has never read: the 0.1.16 loader consumes exactly `server:` and
+  `client:` keys and silently ignores everything else, so the committed
+  baseline was a no-op that happened to coincide with reality (zero expected
+  failures). The file now uses the real schema, documents the silent-ignore
+  hazard, and carries the (empty) `client:` section the client gate reads.
 - The full `--all-features` mutation sweep (748 mutants, 31 minutes) ran as
   the audit's closing verification: 641 caught, 105 unviable, 0 timeouts,
   and exactly 2 missed — both in the tap's non-JSON-body note, code this

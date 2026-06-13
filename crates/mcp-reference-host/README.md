@@ -23,13 +23,30 @@ for the conformance toolkit (roadmap M3, ADR-0009), built on
   `mcp-everything-server`.
 - `retry` — the deterministic exponential-backoff policy (caller-supplied
   jitter, `Retry-After` honoring with hard caps) the transport layer builds on.
-
-**Not here yet** (next M3 slices, tracked in the roadmap): the binary, the
-child-process and streamable-HTTP transports, official-suite client-scenario
-wiring (`initialize`, `tools_call`, `sse-retry`,
-`elicitation-sep1034-client-defaults` at pinned 0.1.16 — the `auth/*` set is
-deferred exactly as the registry's TRAN-009 records), and host-side trace
-capture.
+- `connect` — the two real transports, from rmcp's official client features:
+  child-process stdio (feature `proc`) and streamable HTTP over reqwest
+  (feature `http`).
+- `capture` — host-side trace capture: a `Transport` wrapper recording every
+  message as a validator-ready JSON Lines trace. Redaction by construction:
+  the message seam never sees HTTP headers, so a host trace cannot leak
+  credentials — and correspondingly carries no `kind: http` events for the
+  validator's header-level checks to judge.
+- `resume` (feature `http`) — the spec's SSE-resumption dance (server-named
+  `retry` delay honored through `RetryPolicy::delay_honoring_retry_after`,
+  `Last-Event-ID` offered on the GET reconnect), implemented on rmcp's public
+  `StreamableHttpClient` seam because rmcp 1.7's own transport loses an
+  in-flight request when its POST SSE stream closes early (measured; ADR-0009
+  §Amendment).
+- the binary (feature `cli`) — the official suite's client SUT: the runner
+  appends the scenario server's URL as the final argument and names the
+  scenario in `MCP_CONFORMANCE_SCENARIO`; `scenario.rs` is the one table
+  mapping names to plans. All four `2025-11-25` protocol scenarios pass at
+  the pinned 0.1.16 (`initialize`, `tools_call`, `sse-retry` 3/3 including
+  the retry-timing window, `elicitation-sep1034-client-defaults` 5/5). The
+  `auth/*` set is deferred exactly as the registry's TRAN-009 records. The
+  host owns a hard `--deadline-secs` (default 25): the runner's 30 s kill
+  reaches only the `sh -c` wrapper it spawns, so a host that outlives its
+  server must exit by itself rather than wedge the runner.
 
 Part of [mcp-conformance](https://github.com/tomtom215/mcp-conformance); see the
 repository's `docs/plan/` for scope and roadmap.

@@ -83,6 +83,15 @@ mcp-everything-server = { version = "0.2.0", path = "crates/mcp-everything-serve
 # condition 02-architecture.md promises ("no 'the loop usually terminates'").
 tokio-util = { version = ">=0.7, <0.8", default-features = false }
 
+# The host's SSE-resumption path (ADR-0009 §Amendment 2026-06-12) drives
+# rmcp's public `StreamableHttpClient` seam, whose only shipped
+# implementation is `reqwest::Client` — naming that type requires the direct
+# dependency. Already in the tree via rmcp's
+# `transport-streamable-http-client-reqwest` feature at the same version;
+# default-features off (no TLS backend: conformance traffic is loopback).
+# Floor mirrors rmcp 1.7.0's own `reqwest = "0.13.2"` requirement.
+reqwest = { version = ">=0.13.2, <0.14", default-features = false }
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 missing_docs = "deny"

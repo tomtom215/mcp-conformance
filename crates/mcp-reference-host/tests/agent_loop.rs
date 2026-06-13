@@ -204,6 +204,65 @@ async fn sep1034_defaults_round_trip_through_a_real_elicitation() {
 }
 
 #[tokio::test]
+async fn url_elicitation_round_trips_consent_and_completion() {
+    // The everything server's test_url_elicitation sends a mode:"url"
+    // elicitation and, on consent, the completion notification for the same
+    // id — the loop the host's pending-id set exists to close. End to end:
+    // consent recorded, id spent exactly once, by name.
+    let (client, handler) = connect(InteractionScript::default()).await;
+    let plan = RunPlan {
+        turn_limit: 1,
+        error_budget: 0,
+        calls: CallPolicy::Scripted(vec![call("test_url_elicitation", &serde_json::json!({}))]),
+    };
+    let report = run(&client, &plan, &CancellationToken::new()).await;
+    assert_eq!(report.stop, StopReason::Completed, "{report:?}");
+    let text = report.outcomes[0].result.as_deref().unwrap();
+    assert!(text.contains("action=accept"), "{text}");
+
+    let events = handler.events();
+    let answered = events.iter().find_map(|event| match event {
+        HostEvent::UrlElicitationAnswered {
+            elicitation_id,
+            action: "accept",
+        } => Some(elicitation_id.clone()),
+        _ => None,
+    });
+    let answered = answered.unwrap_or_else(|| panic!("consent was recorded: {events:?}"));
+    assert!(
+        events.contains(&HostEvent::UrlElicitationCompleted(answered.clone())),
+        "the same id {answered} was completed: {events:?}"
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn url_elicitation_decline_sends_no_completion() {
+    let script = InteractionScript {
+        url_elicitation: mcp_reference_host::script::UrlElicitationPolicy::Decline,
+        ..InteractionScript::default()
+    };
+    let (client, handler) = connect(script).await;
+    let plan = RunPlan {
+        turn_limit: 1,
+        error_budget: 0,
+        calls: CallPolicy::Scripted(vec![call("test_url_elicitation", &serde_json::json!({}))]),
+    };
+    let report = run(&client, &plan, &CancellationToken::new()).await;
+    assert_eq!(report.stop, StopReason::Completed, "{report:?}");
+    let text = report.outcomes[0].result.as_deref().unwrap();
+    assert!(text.contains("action=decline"), "{text}");
+    let events = handler.events();
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, HostEvent::UrlElicitationCompleted(_))),
+        "declined consent must not be followed by a completion: {events:?}"
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
 async fn sampling_is_answered_from_the_script() {
     let (client, handler) = connect(InteractionScript::default()).await;
     let plan = RunPlan {

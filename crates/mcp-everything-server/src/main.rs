@@ -131,7 +131,7 @@ async fn serve_app(bind: SocketAddr, app: axum::Router) -> ExitCode {
         }
     };
     match listener.local_addr() {
-        Ok(addr) => eprintln!("listening on {addr}"),
+        Ok(addr) => eprintln!("{}{addr}", mcp_everything_server::READINESS_LINE_PREFIX),
         Err(error) => {
             eprintln!("mcp-everything-server: no local addr: {error}");
             return ExitCode::FAILURE;

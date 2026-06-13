@@ -36,6 +36,27 @@ Dependency order, with index-propagation waits between steps:
 2. `mcp-trace-validator` (depends on core)
 3. `mcp-everything-server`, `mcp-reference-host`
 
+## v0.3.0 pre-flight (third audit, 2026-06-13)
+
+The next release is **0.3.0** — the version-class call and its two breaking
+changes are stated at the top of `CHANGELOG.md` `[Unreleased]`. Checklist
+legs pre-run on the audited tree (commit `669c5b4`):
+
+| Leg | Result |
+|-----|--------|
+| `cargo xtask ci` (now incl. the MSRV clippy leg) | green |
+| diff-scoped mutants vs `origin/main` | 0 missed (every audit slice) |
+| full `--all-features` mutation sweep | 857 mutants: 741 caught, 116 unviable, **0 missed** (42 min) |
+| `cargo +nightly miri test -p mcp-conformance-core` (round's new dimension) | green — 63 tests, 0 findings (isolation off for proptest's cwd persistence; PROPTEST_CASES=4; nesting depth 500 under cfg(miri)) |
+| `cargo package --workspace --exclude xtask --locked` | green |
+| `cargo audit` | green (233 dependencies, no advisories) |
+| `cargo xtask conformance` (server 40/40 + agreement; client 4 scenarios + stdio smoke + agreement) | green |
+| `cargo xtask spec-drift` | 140/140 quotes verified |
+| minimal-versions floors (reqwest 0.13.2 / futures 0.3.30 / sse-stream 0.2.0) | build green |
+
+Remaining for the owner: SECURITY.md's table flips to `0.3.x yes / 0.2.x no`
+in the release PR; then steps 1–5 below.
+
 ## Release checklist
 
 1. **Prepare** on a `release/vX.Y.Z` branch:

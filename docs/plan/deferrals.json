@@ -1,0 +1,40 @@
+{
+  "_policy": "Every consciously deferred piece of work gets a row: what was deferred, why, what enforcement exists meanwhile, and a review-by date. `cargo xtask deferrals --check` (weekly scheduled CI) fails once a row passes its date un-re-decided — a deferral nobody re-examines is a silent forever. Re-deciding means either building the thing (delete the row) or re-dating it with a fresh reason in the same commit. Decisions intended to be permanent do not belong here; they get ADRs.",
+  "deferrals": [
+    {
+      "id": "auth-client-scenarios",
+      "what": "The pinned suite's fourteen auth/* client scenarios (OAuth metadata discovery, registration, PKCE flows) as host-SUT gates",
+      "why": "Requires a full OAuth client; ADR-0009 §5 scoped it out of M3 exactly as the registry's TRAN-009 exclusion records for the server side",
+      "meanwhile": "TRAN-009 documented exclusion; the four protocol scenarios gate in CI",
+      "review_by": "2026-09-30"
+    },
+    {
+      "id": "rmcp-sse-resumption-upstream-filing",
+      "what": "File the measured rmcp 1.7 SSE-resumption gap (register row 3.12, ADR-0009 §Amendment) as a rust-sdk issue with the probe artifacts",
+      "why": "Outward-facing engagement is sequenced behind the M3 merge so the dossier can link the compliant implementation",
+      "meanwhile": "Register row 3.12 carries the full repro; probe checks.json retained",
+      "review_by": "2026-07-01"
+    },
+    {
+      "id": "rust-sdk-902-offer-clock",
+      "what": "Re-check rust-sdk#902 (everything-server offer): respond, re-ping, or record the outcome when the R9 60-day clock runs out",
+      "why": "The offer was posted 2026-06-11; the risk register's R9 gives upstream 60 days before the offer is re-evaluated",
+      "meanwhile": "Risk R9 row; issue #9 tracks the conversation",
+      "review_by": "2026-08-10"
+    },
+    {
+      "id": "register-90-day-sweep",
+      "what": "Re-verify every register row dated 2026-06-09..12 in docs/plan/01-ecosystem-context.md before external use",
+      "why": "The register's own maintenance rule 1: rows older than 90 days must be re-verified before citation",
+      "meanwhile": "Rows carry verification dates; CI does not consume row facts",
+      "review_by": "2026-09-07"
+    },
+    {
+      "id": "suite-0-2-0-stable-pin-bump",
+      "what": "Bump the suite pin when the 0.2.0 line stabilizes (alpha.3 published 2026-06-12; register rows 2.4/2.16), refresh both expected-failures baselines and the agreement divergence ledger in the same change",
+      "why": "Pin bumps are deliberate PRs with a scenario diff review (03-conformance-strategy §Official-suite version policy)",
+      "meanwhile": "Weekly suite-alpha job runs the alpha dist-tag non-blocking; conformance#338's fix arrives with the bump and its baseline entry will go stale loudly",
+      "review_by": "2026-08-15"
+    }
+  ]
+}

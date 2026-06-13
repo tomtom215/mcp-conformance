@@ -24,11 +24,14 @@ server scenarios (pinned suite 0.1.16, enforced in CI via
   `structuredContent`), which the suite does not exercise but the spec
   defines.
 
-  Two TypeScript-server features are deliberate deltas at this revision, not
-  omissions: **URL-mode elicitation** (needs a URL-capable client; lands with
-  the reference host, roadmap M3) and **async sampling** (the tasks pattern,
-  which `2025-11-25` does not define — SEP-2663 moves tasks to an extension
-  in `2026-07-28`).
+  One TypeScript-server feature is a deliberate delta at this revision, not
+  an omission: **async sampling** (the tasks pattern, which `2025-11-25` does
+  not define — SEP-2663 moves tasks to an extension in `2026-07-28`).
+  **URL-mode elicitation** closed when the reference host landed its
+  URL-capable handler: `test_url_elicitation` sends a `mode: "url"`
+  `elicitation/create` and, on consent, the completion notification for the
+  issued id — the host↔server round trip is pinned end to end in
+  `mcp-reference-host`'s `agent_loop` tests.
 - A binary serving both transports: `mcp-everything-server --transport stdio`
   or `--transport http` (`--bind` for the address; policy overrides via
   `--allowed-host` / `--dangerously-allow-any-host`).

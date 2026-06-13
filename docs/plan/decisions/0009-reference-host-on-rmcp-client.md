@@ -4,7 +4,7 @@
 # ADR 0009: Reference Host on rmcp's Client Surface, Scripted Interaction as Data
 
 **Date:** 2026-06-11
-**Status:** Accepted
+**Status:** Accepted (amended 2026-06-12)
 **Author:** Tom F.
 
 ---
@@ -92,3 +92,61 @@ proving it.
 Rejected for M3: the DoD demands zero model-provider network use, and the
 conformance value lies in deterministic, replayable behavior. A model-backed
 policy can layer on top of `InteractionScript` later without changing the loop.
+
+## Amendment (2026-06-12): the measured client contract, and where rmcp ends
+
+The transports/binary slice decoded the rest of the `0.1.16` client runner and
+measured rmcp 1.7's transport against the `sse-retry` scenario. Three findings
+bind this ADR's consequences:
+
+1. **Client-side verdicts treat WARNING as failure.** The runner's result
+   judgment (`bn`/`G` in the bundle) fails a scenario on any `FAILURE` *or*
+   `WARNING` check, a timeout, or a non-zero exit — unlike server-side runs,
+   where warnings are informational. `sse-retry`'s `Last-Event-ID` check is a
+   SHOULD that emits WARNING when unmet, so it is effectively mandatory for a
+   green client run. The expected-failures YAML is scenario-granular with
+   separate `server:`/`client:` keys, and stale entries (listed but passing)
+   fail the run — the same both-directions discipline as our agreement
+   baseline. `--suite` runs scenarios in parallel; the gate runs the four
+   protocol scenarios as sequential `--scenario` invocations so the
+   `sse-retry` clock is never measured under parallel load.
+2. **rmcp 1.7 cannot pass `sse-retry`, measured twice.** At source: POST
+   response SSE streams are wrapped by `raw_sse_to_jsonrpc` — explicitly
+   "without reconnection logic" (`streamable_http_client.rs:783`) — so an
+   in-flight request is lost when its stream closes early, while the one
+   wrapper that *does* honor `retry`/`Last-Event-ID`
+   (`SseAutoReconnectStream`, `client_side_sse.rs:262-281`) guards only the
+   standalone GET stream, which opens immediately after initialization. On
+   the wire (probe binary forcing the agent plan through rmcp's transport,
+   2026-06-12, runner `checks.json` retained):
+   `client-sse-retry-timing` **FAILURE** — "reconnected too early (−53ms
+   instead of 500ms)" (the pre-existing GET predates the stream close, so the
+   measured delay is negative); `client-sse-last-event-id` **WARNING** — no
+   `Last-Event-ID` offered; and the `tools/call` never completes, which is
+   the real resilience gap underneath the scenario's clock. Upstream filing
+   is tracked as an M4 engagement item (register row 3.12).
+3. **The host therefore implements the resumption dance itself** (`resume`,
+   feature `http`) — *on rmcp's public `StreamableHttpClient` seam*, not a
+   parallel HTTP stack: `post_message`/`get_stream` are the official client
+   primitives, and the dance adds only the spec's orchestration (read the
+   POST stream to its close, honor the server-named `retry` through
+   `RetryPolicy::delay_honoring_retry_after` — the consequence this ADR
+   predicted — then GET with `Last-Event-ID` and read the pending result).
+   Naming the seam's types makes `reqwest` (the trait's only shipped
+   implementation), `futures`, and `sse-stream` direct dependencies of the
+   `http` feature, all version-mirroring rmcp's own tree; the dependency
+   table carries their rows.
+
+Two consequences for the binary, found the hard way: the runner's 30 s kill
+signals only the `sh -c` wrapper it spawns (`shell: true`), so a host whose
+in-flight call hangs would orphan itself holding the runner's pipes open and
+wedge the run — the host owns a hard `--deadline-secs` (default 25 s, inside
+the runner's 30) and exits 1 with a diagnostic instead. And scenario results
+land in `<output-dir>/<scenario>-<timestamp>/checks.json` (client mode), not
+the server mode's `<scenario>/checks.json` — the xtask client gate globs
+accordingly.
+
+With the dance in place, all four protocol scenarios pass at the pin:
+`initialize`, `tools_call` (1/1), `elicitation-sep1034-client-defaults`
+(5/5), `sse-retry` (3/3 — timing inside the −50/+200 ms window,
+`Last-Event-ID` offered).

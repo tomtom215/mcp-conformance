@@ -1,0 +1,4 @@
+{
+  "policy": "Explained divergences between the official client runner's verdicts and mcp-trace-validator's, over the host-captured client-scenario traces (docs/plan/03-conformance-strategy.md §Calibration; the client leg of cargo xtask conformance). Same contract as agreement-divergences.json: each entry requires requirement, class (our-bug | suite-bug | spec-ambiguity), upstream URL, optional trace_contains; unexplained MUST-level findings fail the gate, and stale entries fail it too. Client traces are message-level captures (the host's Transport seam never sees HTTP headers), so header-level transport checks abstain by construction.",
+  "divergences": []
+}

@@ -26,7 +26,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | M1 — Registry and validator | **Complete** — v0.1.0 published to crates.io via [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142) (attested, byte-verified); every DoD line below carries its evidence |
 | M2 — Everything server | **Complete** (2026-06-11): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite in CI ([run #27266174013](https://github.com/tomtom215/mcp-conformance/actions/runs/27266174013)); trace tap, agreement check, and coverage manifest live (zero unexplained divergence; first divergence triaged suite-bug, filed upstream as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338)); everything-server offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) (pre-flight in [#9](https://github.com/tomtom215/mcp-conformance/issues/9)), README-linked — every DoD line below carries its evidence |
 | M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (2026-07-28); re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
-| M3 — Reference host | **In progress** (opened 2026-06-11, ADR-0009): scriptable handlers + bounded loop landed and tested in-process; transports, binary, suite-as-SUT wiring, and trace capture open |
+| M3 — Reference host | **Complete** (2026-06-13; ADR-0009 + §Amendment): both transports live (child-process stdio, streamable HTTP over reqwest); **all four `2025-11-25` client scenarios pass at pinned 0.1.16 as the standing CI gate**, with the two-real-binaries stdio smoke and the client-side agreement replay (zero unexplained divergence) — [run #27449549660](https://github.com/tomtom215/mcp-conformance/actions/runs/27449549660), "Conformance (official suite, server + client scenarios)"; host trace capture pinned against the validator; SSE resumption honors the server-named `retry` with `Last-Event-ID` (rmcp 1.7's measured gap is register 3.12; the host ships the compliant dance on rmcp's public seam); `auth/*` deferred with an enforced ledger row — every DoD line below carries its evidence |
 | M4 — Upstream engagement | Not started (backlog open from day one) |
 | M5 — Stewardship artifacts | Not started |
 
@@ -86,6 +86,16 @@ The spec as data, and the engine that judges traces against it.
 - [x] Zero surviving mutants in `mcp-conformance-core` and `mcp-trace-validator`; fuzz
       targets (trace parse, canonicalization, registry deserialization) clean for the CI
       budget with corpora committed.
+      *(Erratum, third audit 2026-06-13: "clean for the CI budget" was unverified for the
+      weekly fuzz job, which had never actually run in CI — the repo's first dispatch of it
+      failed. The `canonical_json` target asserted `parse(canonical(v)) == v`
+      (representational identity), a claim false by design for any value JCS folds
+      (`-0.0` → `0`, `2.0` → `2`) and one that **contradicted its own unit test**, which
+      correctly asserts string-level idempotence. It survived only until the fuzzer first
+      generated a `-0.0`. Fixed: the target now asserts the same idempotence
+      (`canonical(parse(canonical(v))) == canonical(v)`), the exact input is pinned by
+      `seed-negative-zero-fold` and a `cargo test` regression, and all three targets now
+      run clean (canonical_json 3.5M execs, registry_parse 3.9M, trace_parse 12.8M).)*
 - [x] Published to crates.io ([v0.1.0](https://github.com/tomtom215/mcp-conformance/releases/tag/v0.1.0),
       [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142)) —
       bootstrapped per ADR-0007, OIDC trusted publishing from the next release; rustdoc
@@ -191,29 +201,50 @@ second DoD line reflects the full inventory.
 
 ## M3 — Reference host
 
-*(Opened 2026-06-11; ADR-0009 records the design and the pinned suite's client-SUT
-contract. Landed so far: the scriptable interaction layer, the `rmcp::ClientHandler`
-with URL-mode elicitation handling — consent, pending-id tracking, the
-ignore-unknown-completions client MUST — and the bounded loop with all four stop
-conditions tested in-process against the everything server, including the SEP-1034
-defaults round-trip. Still open below: real stdio/HTTP transports, the binary, the
-official client scenarios as SUT, `Retry-After`/SSE-resumption wiring, and host-side
-trace capture. The suite's `auth/*` client scenarios are deferred, matching
-TRAN-009's registry record.)*
+*(Opened 2026-06-11; ADR-0009 records the design, the pinned suite's client-SUT
+contract, and — §Amendment 2026-06-12 — the decoded client verdict rules and the
+measured rmcp SSE-resumption gap (register 3.12). Landed: the scriptable
+interaction layer; the `rmcp::ClientHandler` with URL-mode elicitation handling,
+now exercised end to end against the server's `test_url_elicitation`; the bounded
+loop with every stop condition tested; both real transports from rmcp's official
+client features (child-process stdio, streamable HTTP over reqwest); the binary
+honoring the runner's contract with its own `--deadline-secs` watchdog; host-side
+trace capture pinned against the validator's reader and engine; and the compliant
+SSE-resumption dance — `retry` honored through
+`RetryPolicy::delay_honoring_retry_after`, `Last-Event-ID` offered — on rmcp's
+public `StreamableHttpClient` seam. All four `2025-11-25` client scenarios pass
+at pinned 0.1.16 in local runs (`initialize`; `tools_call` 1/1;
+`elicitation-sep1034-client-defaults` 5/5; `sse-retry` 3/3). Still open below:
+the xtask/CI wiring that turns those runs into the standing gate (with the
+client-side agreement replay), which is also where the child-process spawn gets
+its real-binary proof. The suite's `auth/*` client scenarios are deferred,
+matching TRAN-009's registry record.)*
 
 **Definition of done**
 
-- [ ] Host completes bounded tool-use loops against the everything server over stdio and
+- [x] Host completes bounded tool-use loops against the everything server over stdio and
       streamable HTTP: every stop condition (turn limit, completion, cancellation, error
-      budget) tested.
-- [ ] Official suite **client scenarios** pass with the host as SUT (`--command` wiring,
-      pinned version).
-- [ ] Sampling, elicitation (including URL mode), and roots handlers scriptable for CI;
-      zero model-provider network use.
-- [ ] Backoff/retry honoring `Retry-After`, jittered, with budget tests; SSE resumption via
-      event-id cursors where applicable.
-- [ ] Host-side trace capture emits validator-ready traces with default redaction
-      ([05-security-model.md](05-security-model.md)).
+      budget) tested. *(Stop-condition lattice in-process (`agent_loop`); streamable HTTP
+      over a real socket (`transports.rs`); stdio between the two real binaries in the
+      conformance gate's smoke — [run #27449549660](https://github.com/tomtom215/mcp-conformance/actions/runs/27449549660).)*
+- [x] Official suite **client scenarios** pass with the host as SUT (`--command` wiring,
+      pinned version). *(The standing gate: `initialize`; `tools_call` 1/1;
+      `elicitation-sep1034-client-defaults` 5/5; `sse-retry` 3/3 — sequential by design,
+      client runs fail on WARNINGs (ADR-0009 §Amendment). `auth/*` deferred:
+      deferral-ledger row `auth-client-scenarios`, registry TRAN-009.)*
+- [x] Sampling, elicitation (including URL mode), and roots handlers scriptable for CI;
+      zero model-provider network use. *(`script` is data; no code path can dial a
+      provider. URL mode round-trips end to end against `test_url_elicitation`.)*
+- [x] Backoff/retry honoring `Retry-After`, jittered, with budget tests; SSE resumption via
+      event-id cursors where applicable. *(`retry.rs` property-tested since v0.1.0; the
+      `resume` dance honors the server-named `retry` through
+      `delay_honoring_retry_after` and offers `Last-Event-ID` — measured by the suite's
+      own clock, 3/3.)*
+- [x] Host-side trace capture emits validator-ready traces with default redaction
+      ([05-security-model.md](05-security-model.md)). *(`capture` records at the message
+      seam — headers are unobservable there, so credentials cannot leak by construction;
+      output pinned against the validator's reader and engine, and replayed in the
+      client agreement.)*
 
 ## M4 — Upstream engagement (gate, not phase)
 
@@ -250,6 +281,7 @@ Backlog opens at M0; the milestone closes only on merged outcomes.
 | RC tracking | Each upstream RC change | Reconcile draft-revision expectations against the latest text; feeds M2.5, which re-scopes if the rework shifts materially ([08-risk-register.md](08-risk-register.md)) |
 | Suite tracking | Scheduled CI | Pinned-stable upgrades as deliberate PRs; `0.2.0-alpha` watched non-blocking |
 | Register upkeep | 90-day sweep | Re-verify [01-ecosystem-context.md](01-ecosystem-context.md) rows before external use |
+| Claims expiry | Weekly scheduled CI (ADR-0010) | `cargo xtask deferrals --check` fails once a [deferral-ledger](deferrals.json) row passes its review-by date; `cargo xtask spec-drift` re-verifies every registry quote against the published spec text |
 | Upstream presence | Continuous | Issue triage participation and small fixes in rust-sdk/conformance — the relationship M4 depends on is built before it is needed |
 
 ## Sequencing rules
