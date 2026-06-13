@@ -19,9 +19,14 @@ These benchmarks measure and print; CI does not compare them against thresholds 
 history. Gating needs a baseline corpus of measurements from pinned hardware, and
 this project has neither accumulated history nor a dedicated runner — a threshold
 invented today would be folklore, and folklore gates rot into `continue-on-error`.
-The decision gets revisited when there is real history to gate against (M2 is
-complete: the everything-server's tapped suite sessions now supply that
-production-shaped workload, so history can start accumulating).
+
+**History does accumulate now** (third audit, 2026-06-13): the weekly scheduled
+job runs `cargo bench --workspace` and uploads `target/criterion/` as a 90-day
+artifact (`bench-history-<run-id>`), so the baseline corpus this decision was
+waiting for builds itself — on shared runners, so cross-run noise stays part of
+any future threshold conversation. Complexity regressions are separately gated
+by the validator's pathological-input tests, which is where a real blow-up
+fails loudly today.
 
 Criterion runs with default features off: no rayon, no HTML/plotters reports —
 console output only.

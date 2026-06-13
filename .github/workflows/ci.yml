@@ -194,6 +194,13 @@ jobs:
   # (`cargo test` anywhere in the workspace) still never touch a network.
   conformance:
     name: Conformance (official suite, server + client scenarios)
+    # ubuntu-only by decision (third audit, 2026-06-13): the npx-gated legs
+    # buy platform coverage of the *runner*, which upstream itself runs on
+    # Linux. Our platform-variant surface — the tap and capture serialization
+    # the validator consumes — is covered on every OS by the test-matrix
+    # round-trips (tap_output_parses_and_validates_through_the_real_validator
+    # and the host capture tests), so two more npx jobs would re-run Node to
+    # re-prove Rust code already proven cross-platform.
     runs-on: ubuntu-latest
     # A warm run takes ~2 minutes; the bound exists because this is the one
     # job whose tools (npx, the runner) can hang on network state, and a

@@ -25,7 +25,8 @@ or when the reasoning would otherwise live only in someone's head.
 | [0006](0006-capability-gated-applicability.md) | Capability-Gated Applicability and the `not-applicable` Outcome | Accepted |
 | [0007](0007-release-pipeline-and-trusted-publishing.md) | Release Pipeline — OIDC Trusted Publishing with a One-Time Bootstrap Token | Accepted (amended 2026-06-10; amendment corrected 2026-06-11) |
 | [0008](0008-msrv-1.88.md) | MSRV 1.88 — rmcp's Real Compilation Floor | Accepted (supersedes 0004's MSRV clause) |
-| [0009](0009-reference-host-on-rmcp-client.md) | Reference Host on rmcp's Client Surface, Scripted Interaction as Data | Accepted |
+| [0009](0009-reference-host-on-rmcp-client.md) | Reference Host on rmcp's Client Surface, Scripted Interaction as Data | Accepted (amended 2026-06-12) |
+| [0010](0010-deferral-ledger-and-scheduled-reverification.md) | Claims Expire — the Deferral Ledger and Scheduled Re-Verification Gates | Accepted |
 
 ## Process
 

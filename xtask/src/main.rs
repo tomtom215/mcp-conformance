@@ -19,6 +19,13 @@
 //!   cargo-deny is not installed.
 //! - `docs-links` — verify every relative link in tracked Markdown resolves
 //!   (`docs_links.rs`).
+//! - `deferrals [--check]` — list the deferral ledger (docs/plan/deferrals.json);
+//!   `--check` (weekly scheduled job) fails on rows past their review-by date
+//!   (ADR-0010).
+//! - `spec-drift` — verify every registry quote against the published spec
+//!   text (network; weekly scheduled job — ADR-0010).
+//! - `mutants` — the exact diff-scoped mutation gate CI runs on PRs, against
+//!   `origin/main`.
 //! - `conformance` — spawn the everything-server over streamable HTTP (session tap on)
 //!   and drive the pinned official runner against it, then reconcile the runner's
 //!   verdicts with our validator's over the tapped sessions (`agreement.rs`) and check
@@ -31,7 +38,10 @@ use std::process::{Command, ExitCode};
 mod agreement;
 mod conformance;
 mod coverage;
+mod deferrals;
 mod docs_links;
+mod local_gates;
+mod spec_drift;
 
 /// The workspace root: the parent of this crate's manifest directory.
 ///
@@ -49,22 +59,7 @@ fn main() -> ExitCode {
     let mut args = std::env::args().skip(1);
     let task = args.next();
     match task.as_deref() {
-        Some("ci") => {
-            if !run_all(&ci_steps()) {
-                return ExitCode::FAILURE;
-            }
-            if !file_size_gate() {
-                return ExitCode::FAILURE;
-            }
-            if !deny_gate() {
-                return ExitCode::FAILURE;
-            }
-            if !docs_links::run() {
-                return ExitCode::FAILURE;
-            }
-            eprintln!("xtask: coverage table in sync — cargo xtask coverage --check");
-            coverage::run(true)
-        }
+        Some("ci") => run_ci(),
         Some("bless") => {
             if run_all(&bless_steps()) {
                 ExitCode::SUCCESS
@@ -74,19 +69,34 @@ fn main() -> ExitCode {
         }
         Some("coverage") => coverage::run(args.next().as_deref() == Some("--check")),
         Some("file-sizes") => {
-            if file_size_gate() {
+            if local_gates::file_size_gate() {
                 ExitCode::SUCCESS
             } else {
                 ExitCode::FAILURE
             }
         }
         Some("deny") => {
-            if deny_gate() {
+            if local_gates::deny_gate() {
                 ExitCode::SUCCESS
             } else {
                 ExitCode::FAILURE
             }
         }
+        Some("mutants") => {
+            if local_gates::mutants_gate() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        Some("deferrals") => {
+            if deferrals::run(args.next().as_deref() == Some("--check")) {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        Some("spec-drift") => spec_drift::run(),
         Some("docs-links") => {
             if docs_links::run() {
                 ExitCode::SUCCESS
@@ -106,108 +116,28 @@ fn main() -> ExitCode {
     }
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  docs-links         verify every relative link in tracked Markdown resolves\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
-
-/// Runs `cargo deny check` when cargo-deny is installed; skips LOUDLY when it
-/// is not. The CI `deny` job is the enforcement of record, but a versionless
-/// path dependency once sailed through a green `cargo xtask ci` and failed
-/// only in CI — the local gate set must run the same check when it can, and
-/// must never skip it silently when it cannot.
-fn deny_gate() -> bool {
-    let root = workspace_root();
-    let available = Command::new("cargo")
-        .args(["deny", "--version"])
-        .current_dir(&root)
-        .output()
-        .is_ok_and(|output| output.status.success());
-    if !available {
-        eprintln!(
-            "xtask: cargo-deny — SKIPPED (not installed; `cargo install cargo-deny --locked`). \
-             CI runs this gate regardless: a dependency-policy violation will fail there."
-        );
-        return true;
+/// The `ci` task: every local gate, in CI order.
+fn run_ci() -> ExitCode {
+    if !run_all(&ci_steps()) {
+        return ExitCode::FAILURE;
     }
-    // Global options precede the subcommand in cargo-deny's CLI; this mirrors
-    // the CI action's invocation (`--all-features check`) exactly.
-    eprintln!("xtask: cargo-deny — cargo deny --all-features check");
-    match Command::new("cargo")
-        .args(["deny", "--all-features", "check"])
-        .current_dir(&root)
-        .status()
-    {
-        Ok(status) if status.success() => true,
-        Ok(status) => {
-            eprintln!("xtask: cargo-deny failed with {status}");
-            false
-        }
-        Err(error) => {
-            eprintln!("xtask: cannot run cargo deny: {error}");
-            false
-        }
+    if !local_gates::msrv_clippy_gate() {
+        return ExitCode::FAILURE;
     }
+    if !local_gates::file_size_gate() {
+        return ExitCode::FAILURE;
+    }
+    if !local_gates::deny_gate() {
+        return ExitCode::FAILURE;
+    }
+    if !docs_links::run() {
+        return ExitCode::FAILURE;
+    }
+    eprintln!("xtask: coverage table in sync — cargo xtask coverage --check");
+    coverage::run(true)
 }
 
-/// The ≤ 500-line cap from 04-engineering-standards §Source standards,
-/// enforced over non-test source (crate and xtask `src/` trees) and the
-/// embedded registry documents (whose loader promises per-file
-/// reviewability). Integration tests and benches live outside `src/` and
-/// are exempt by construction.
-fn file_size_gate() -> bool {
-    const CAP: usize = 500;
-    let root = workspace_root();
-    let mut roots: Vec<PathBuf> = vec![root.join("xtask/src")];
-    if let Ok(crates) = std::fs::read_dir(root.join("crates")) {
-        for krate in crates.filter_map(Result::ok) {
-            roots.push(krate.path().join("src"));
-            roots.push(krate.path().join("registry"));
-        }
-    }
-    let mut offenders = Vec::new();
-    let mut scanned = 0usize;
-    while let Some(dir) = roots.pop() {
-        let Ok(entries) = std::fs::read_dir(&dir) else {
-            continue;
-        };
-        for entry in entries.filter_map(Result::ok) {
-            let path = entry.path();
-            if path.is_dir() {
-                roots.push(path);
-            } else if path
-                .extension()
-                .is_some_and(|ext| ext == "rs" || ext == "json")
-                && let Ok(text) = std::fs::read_to_string(&path)
-            {
-                scanned += 1;
-                let lines = text.lines().count();
-                if lines > CAP {
-                    offenders.push((path, lines));
-                }
-            }
-        }
-    }
-    // A gate that scanned nothing proves nothing: the workspace has dozens
-    // of source files, so an empty walk means the roots are wrong, and a
-    // green verdict from it would be vacuous.
-    if scanned < 10 {
-        eprintln!("xtask: file sizes — only {scanned} files found; the scan roots are wrong");
-        return false;
-    }
-    if offenders.is_empty() {
-        eprintln!(
-            "xtask: file sizes — every source and registry file ({scanned}) is within {CAP} lines"
-        );
-        true
-    } else {
-        for (path, lines) in &offenders {
-            eprintln!(
-                "xtask: file sizes — {} is {lines} lines (cap {CAP}); split it at a \
-                 reviewable seam",
-                path.display()
-            );
-        }
-        false
-    }
-}
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants            diff-scoped mutation gate vs origin/main (the PR gate, locally)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {

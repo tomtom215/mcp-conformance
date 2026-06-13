@@ -22,6 +22,36 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **Claims expire** (ADR-0010): three rounds of auditing found every
+  falsehood in claims that were true once and never re-checked — so the
+  repository now re-checks them itself. The deferral ledger
+  (`docs/plan/deferrals.json`) gives every consciously deferred piece of
+  work a review-by date; `cargo xtask deferrals --check` (weekly scheduled
+  CI) fails once a row expires un-re-decided. First rows: the suite's
+  `auth/*` client scenarios, the rmcp SSE-resumption upstream filing, the
+  rust-sdk#902 offer clock, the register's 90-day sweep, and the suite
+  0.2.0 pin bump. And the registry's verbatim quotes — verified in round
+  two by a `/tmp` script that died with its session — are now re-verified
+  weekly by `cargo xtask spec-drift` against the published spec text, under
+  the normalization `SourceRef::quote` documents (italics/links/escapes
+  unwrapped; list fragments verified verbatim per the `"; "` convention);
+  first live run: 140/140 quotes verified. The registry's in-scope page set
+  is finally explicit data (`registry/2025-11-25/sources.json`: the nine
+  in-scope pages mapped to their published sources, plus every out-of-scope
+  page of the revision with a verified reason — the gate keeps the list and
+  the registry's citations identical in both directions).
+- `cargo xtask ci` now runs the MSRV clippy leg CI runs (loud skip when the
+  1.88 toolchain is absent), and `cargo xtask mutants` is the exact
+  diff-scoped mutation gate from the PR workflow, computed against
+  `origin/main` — the local-vs-CI gate skew that bit round two, mechanized
+  away.
+- Scheduled CI now accumulates evidence weekly instead of discarding it:
+  grown fuzz corpora and criterion bench results upload as 90-day artifacts
+  (the round-two "corpora seed-only" / "no bench history" deferrals,
+  liquidated — benches/README.md records the posture). The tap's `loom`
+  question is re-decided and recorded at the code it judges: nothing
+  lock-free to model, uniqueness-only ordinal, real-parallelism stress test
+  as the standing evidence.
 - **The client gate is standing** (`cargo xtask conformance`, same CI job as
   the server leg): a child-process stdio smoke — the host binary spawning
   the everything-server binary over a real pipe, the one place two sibling
