@@ -171,9 +171,10 @@ moving from a documented exclusion to a judged check, say — is a breaking chan
 even though no function signature changed. The project treats both kinds of
 break the same way: named explicitly in the changelog, with the version bumped
 accordingly (pre-1.0, minor releases may break and say so). API-signature
-compatibility is additionally checked mechanically (`cargo-semver-checks` against
-the published baseline), so the *behavioral* breaks the changelog must call out
-are never confused with accidental API breaks it failed to.
+compatibility is additionally checked mechanically — `cargo xtask semver` runs
+`cargo-semver-checks` against the published crates.io baseline — so the
+*behavioral* breaks the changelog must call out are never confused with
+accidental API breaks it failed to declare.
 
 ## 10. Why this lives here, and how it connects upstream
 

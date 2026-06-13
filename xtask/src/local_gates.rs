@@ -61,6 +61,62 @@ pub(crate) fn deny_gate() -> bool {
     }
 }
 
+/// Runs `cargo semver-checks check-release` against the published crates.io
+/// baseline when cargo-semver-checks is installed; skips LOUDLY when it is not.
+/// A conformance tool's public contract is partly its Rust API: this gate
+/// catches an API-breaking change shipped under a version bump that does not
+/// admit one (a breaking change on a patch release), so the changelog's
+/// deliberate, declared breaks are never confused with accidental API breaks it
+/// failed to declare. Network: it fetches the baseline from crates.io, so — like
+/// `spec-drift` — it is a release-readiness gate run before tagging, not part of
+/// the offline `ci` set. `xtask` is `publish = false` (no baseline) and excluded.
+pub(crate) fn semver_gate() -> bool {
+    let root = crate::workspace_root();
+    let available = Command::new("cargo")
+        .args(["semver-checks", "--version"])
+        .current_dir(&root)
+        .output()
+        .is_ok_and(|output| output.status.success());
+    if !available {
+        eprintln!(
+            "xtask: cargo-semver-checks — SKIPPED (not installed; \
+             `cargo install cargo-semver-checks --locked`). Run `cargo xtask \
+             semver` before tagging a release: an undeclared API break must fail \
+             before publish, not after."
+        );
+        return true;
+    }
+    eprintln!(
+        "xtask: cargo-semver-checks — cargo semver-checks check-release \
+         --workspace --exclude xtask"
+    );
+    match Command::new("cargo")
+        .args([
+            "semver-checks",
+            "check-release",
+            "--workspace",
+            "--exclude",
+            "xtask",
+        ])
+        .current_dir(&root)
+        .status()
+    {
+        Ok(status) if status.success() => true,
+        Ok(status) => {
+            eprintln!(
+                "xtask: cargo-semver-checks failed with {status} — an API change is \
+                 inconsistent with the version bump; declare the break and bump \
+                 accordingly (RELEASING.md: pre-1.0 minors may break, and say so)"
+            );
+            false
+        }
+        Err(error) => {
+            eprintln!("xtask: cannot run cargo semver-checks: {error}");
+            false
+        }
+    }
+}
+
 /// The MSRV clippy leg CI runs on every PR (all-features mode, the strictest
 /// of CI's three): present locally so a stable-only green can no longer hide
 /// an MSRV-incompatible construct until CI. Skips loudly when the toolchain
