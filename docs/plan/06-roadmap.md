@@ -293,8 +293,8 @@ Backlog opens at M0; the milestone closes only on merged outcomes.
       the README's worked example and `corpus/README.md` verbatim via `{{#include}}`
       (the README example anchored and already pinned to the validator's real output
       by `readme_examples.rs`), so the book cannot drift from its sources; the `book`
-      CI job runs `mdbook build book`, which fails on a missing include file or
-      anchor. **docs.rs completeness is enforced, not assumed:** `missing_docs =
+      CI job runs `mdbook build book` — green in [CI run #27481899846](https://github.com/tomtom215/mcp-conformance/actions/runs/27481899846) — which fails on a
+      missing include file or anchor. **docs.rs completeness is enforced, not assumed:** `missing_docs =
       "deny"` in the workspace lints plus the `--all-features` rustdoc gate under
       `-D warnings` (the `doc` CI job). What remains is **owner-gated**: enabling
       GitHub Pages and a deploy step to publish the rendered bytes the `book` job
