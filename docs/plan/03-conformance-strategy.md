@@ -147,9 +147,14 @@ Our concrete contributions to that path (tracked in
    ([register 3.4](01-ecosystem-context.md)) — built rmcp-idiomatic and offered upstream.
 2. **Conformance scenarios and fixtures** for gaps the suite's Rust runs expose, contributed
    to `modelcontextprotocol/conformance`.
-3. **A published tier-gap report**: the official `tier-check` output plus requirement-level
+3. **A published tier-gap report**: the official suite's measurement plus requirement-level
    detail from our validator, refreshed per spec revision — turning "reach Tier 1" from a
-   slogan into a checklist.
+   slogan into a checklist. First edition published 2026-06-13:
+   [docs/reports/rmcp-tier-gap-2025-11-25.md](../reports/rmcp-tier-gap-2025-11-25.md)
+   (rmcp 38/40 at head `266f870`; the two failures read back to clause level; close-the-gap
+   checklist). It reports the `server`-subcommand figure rather than a `tier-check` aggregate,
+   which is GitHub-token-gated and under-counts ([register 2.13](01-ecosystem-context.md),
+   conformance#182).
 4. **2026-07-28 readiness**: validator and corpus support for the stateless rework *before*
    the two-week window opens, so the Rust ecosystem has a test target early.
 
