@@ -27,8 +27,8 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | M2 — Everything server | **Complete** (2026-06-11): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite in CI ([run #27266174013](https://github.com/tomtom215/mcp-conformance/actions/runs/27266174013)); trace tap, agreement check, and coverage manifest live (zero unexplained divergence; first divergence triaged suite-bug, filed upstream as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338)); everything-server offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) (pre-flight in [#9](https://github.com/tomtom215/mcp-conformance/issues/9)), README-linked — every DoD line below carries its evidence |
 | M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (2026-07-28); re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
 | M3 — Reference host | **Complete** (2026-06-13; ADR-0009 + §Amendment): both transports live (child-process stdio, streamable HTTP over reqwest); **all four `2025-11-25` client scenarios pass at pinned 0.1.16 as the standing CI gate**, with the two-real-binaries stdio smoke and the client-side agreement replay (zero unexplained divergence) — [run #27449549660](https://github.com/tomtom215/mcp-conformance/actions/runs/27449549660), "Conformance (official suite, server + client scenarios)"; host trace capture pinned against the validator; SSE resumption honors the server-named `retry` with `Last-Event-ID` (rmcp 1.7's measured gap is register 3.12; the host ships the compliant dance on rmcp's public seam); `auth/*` deferred with an enforced ledger row — every DoD line below carries its evidence |
-| M4 — Upstream engagement | Not started (backlog open from day one) |
-| M5 — Stewardship artifacts | Not started |
+| M4 — Upstream engagement | In progress (gate, not phase; closes only on merged outcomes) — the public design-note DoD line is **done** ([docs/design/trace-validation.md](../design/trace-validation.md), 2026-06-13: the trace-validation architecture and its trade-offs, written standalone for an upstream audience); the two merged-outcome lines remain open and owner/upstream-gated ([rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902), [rust-sdk#903](https://github.com/modelcontextprotocol/rust-sdk/issues/903), [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338) filed and tracked; a merged floors/MSRV PR or the RustSec advisory for CVE-2026-42559 is the substantive merge the DoD requires — backlog in [07-ecosystem-engagement.md](07-ecosystem-engagement.md)) |
+| M5 — Stewardship artifacts | In progress — the rmcp tier-gap report is published ([docs/reports/rmcp-tier-gap-2025-11-25.md](../reports/rmcp-tier-gap-2025-11-25.md): 38/40 server scenarios at rmcp head `266f870`, re-measured live 2026-06-13); the mdBook, the optional `pmcp` report, and the `draft-2026-07-28` feature-gate drop remain |
 
 ## M0 — Foundation
 
@@ -258,15 +258,31 @@ Backlog opens at M0; the milestone closes only on merged outcomes.
       [07-ecosystem-engagement.md](07-ecosystem-engagement.md)).
 - [ ] RustSec advisory for CVE-2026-42559 filed in coordination with rmcp maintainers, or
       upstream's documented decision not to ([register 4.3](01-ecosystem-context.md)).
-- [ ] A public design note (in-repo) explaining the trace-validation architecture and
-      trade-offs, linkable from upstream discussions.
+- [x] A public design note (in-repo) explaining the trace-validation architecture and
+      trade-offs, linkable from upstream discussions. *(2026-06-13:
+      [docs/design/trace-validation.md](../design/trace-validation.md) — written for an
+      external/upstream audience, standalone from the planning docs; ten decisions and their
+      costs, with the agreement check (continuous calibration against the official suite) as
+      the credibility mechanism. The SemVer §9 records the verdict-as-contract posture the
+      `cargo-semver-checks` dimension verified this round.)*
 
 ## M5 — Stewardship artifacts
 
 **Definition of done**
 
-- [ ] Published tier-gap report for rmcp: official `tier-check` output + requirement-level
+- [x] Published tier-gap report for rmcp: official `tier-check` output + requirement-level
       findings + a concrete close-the-gap checklist; method reproducible from artifacts.
+      *(2026-06-13: [docs/reports/rmcp-tier-gap-2025-11-25.md](../reports/rmcp-tier-gap-2025-11-25.md).
+      Server scenarios re-measured live against the pinned suite 0.1.16 at rmcp head
+      `266f870`: 38/40, failing `prompts-get-with-args` and `elicitation-sep1330-enums`
+      (the latter is [rust-sdk#903](https://github.com/modelcontextprotocol/rust-sdk/issues/903)
+      / register 3.8). Requirement-level reading: neither is a `2025-11-25` normative-clause
+      violation — one sits below the registry's MUST floor (arg substitution is schema
+      prose), the other is a SEP-1330 serialization bug — plus a close-the-gap checklist and
+      reproducible commands. Honest scope: the authoritative figure is the suite's `server`
+      subcommand; `tier-check` itself is GitHub-token-gated and its conformance counter
+      carries conformance#182's "0/30" bug, both documented in the report rather than
+      reported as a misleading number.)*
 - [ ] Optionally the same report for one community SDK (e.g. `pmcp`) to prove generality.
 - [ ] mdBook live (architecture, trace format, corpus guide, conformance results page);
       docs.rs complete for all crates.

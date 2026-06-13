@@ -26,6 +26,11 @@
 //!   text (network; weekly scheduled job — ADR-0010).
 //! - `mutants` — the exact diff-scoped mutation gate CI runs on PRs, against
 //!   `origin/main`.
+//! - `semver` — `cargo semver-checks check-release` against the published
+//!   crates.io baseline (network; release-readiness gate, run before tagging):
+//!   an API-breaking change shipped under a version bump that does not admit one
+//!   fails here, so declared behavioral breaks are never confused with
+//!   undeclared API breaks.
 //! - `conformance` — spawn the everything-server over streamable HTTP (session tap on)
 //!   and drive the pinned official runner against it, then reconcile the runner's
 //!   verdicts with our validator's over the tapped sessions (`agreement.rs`) and check
@@ -60,50 +65,15 @@ fn main() -> ExitCode {
     let task = args.next();
     match task.as_deref() {
         Some("ci") => run_ci(),
-        Some("bless") => {
-            if run_all(&bless_steps()) {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
-            }
-        }
+        Some("bless") => exit_if(run_all(&bless_steps())),
         Some("coverage") => coverage::run(args.next().as_deref() == Some("--check")),
-        Some("file-sizes") => {
-            if local_gates::file_size_gate() {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
-            }
-        }
-        Some("deny") => {
-            if local_gates::deny_gate() {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
-            }
-        }
-        Some("mutants") => {
-            if local_gates::mutants_gate() {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
-            }
-        }
-        Some("deferrals") => {
-            if deferrals::run(args.next().as_deref() == Some("--check")) {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
-            }
-        }
+        Some("file-sizes") => exit_if(local_gates::file_size_gate()),
+        Some("deny") => exit_if(local_gates::deny_gate()),
+        Some("mutants") => exit_if(local_gates::mutants_gate()),
+        Some("semver") => exit_if(local_gates::semver_gate()),
+        Some("deferrals") => exit_if(deferrals::run(args.next().as_deref() == Some("--check"))),
         Some("spec-drift") => spec_drift::run(),
-        Some("docs-links") => {
-            if docs_links::run() {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
-            }
-        }
+        Some("docs-links") => exit_if(docs_links::run()),
         Some("conformance") => conformance::run(),
         Some(other) => {
             eprintln!("unknown task {other:?}\n{USAGE}");
@@ -113,6 +83,16 @@ fn main() -> ExitCode {
             eprintln!("{USAGE}");
             ExitCode::FAILURE
         }
+    }
+}
+
+/// `ExitCode::SUCCESS` when `ok`, else `ExitCode::FAILURE` — the shape every
+/// boolean gate task collapses to.
+const fn exit_if(ok: bool) -> ExitCode {
+    if ok {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
     }
 }
 
@@ -137,7 +117,7 @@ fn run_ci() -> ExitCode {
     coverage::run(true)
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants            diff-scoped mutation gate vs origin/main (the PR gate, locally)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants            diff-scoped mutation gate vs origin/main (the PR gate, locally)\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {
