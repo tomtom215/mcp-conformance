@@ -76,6 +76,9 @@ A trace is JSON Lines: one event per line, each carrying a capture-assigned `seq
 status and conformance-relevant headers; `lifecycle` events mark transport
 open/close. This session reuses a request ID:
 
+<!-- The mdBook chapter book/src/trace-format.md embeds the example below via
+     this anchor; readme_examples.rs pins it to the validator's real output. -->
+<!-- ANCHOR: trace-example -->
 ```jsonl
 {"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"my-host","version":"1.0.0"}}}}
 {"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"my-server","version":"1.0.0"}}}}
@@ -92,6 +95,7 @@ registry, addressed to the offending event:
 totals: 45 pass, 1 fail, 0 warn, 89 excluded, 0 unsupported, 5 not applicable
 verdict: fail
 ```
+<!-- ANCHOR_END: trace-example -->
 
 The five not-applicable rows are the capability-gated requirements this session
 never negotiated (the resources and prompts clauses) — reported as such, never

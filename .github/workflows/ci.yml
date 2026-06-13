@@ -115,6 +115,34 @@ jobs:
       - name: Documentation links resolve
         run: cargo xtask docs-links
 
+  book:
+    name: Book (mdBook)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Install mdBook
+        # Built from source under --locked rather than via a third-party setup
+        # action: one fewer supply-chain dependency, the same discipline as the
+        # plain-rustup toolchain installs. rust-cache restores the prior build.
+        run: cargo install mdbook --locked --version 0.5.3
+      - name: Build the book (a missing include file or anchor fails here)
+        run: mdbook build book
+      - name: Upload the rendered book
+        # The deployable artifact. "Live" GitHub Pages deployment is a separate,
+        # owner-gated step (repository Pages settings); this job proves the book
+        # builds on every push and publishes the bytes a deploy would serve.
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: book
+          path: book/book
+          if-no-files-found: error
+          retention-days: 30
+
   deny:
     name: cargo-deny
     runs-on: ubuntu-latest
