@@ -114,6 +114,8 @@ jobs:
         run: cargo xtask file-sizes
       - name: Documentation links resolve
         run: cargo xtask docs-links
+      - name: README version tracks the workspace version
+        run: cargo xtask version-sync
 
   book:
     name: Book (mdBook)
