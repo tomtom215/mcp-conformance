@@ -22,6 +22,12 @@ homepage.workspace = true
 default = ["cli"]
 cli = ["dep:clap"]
 
+# The stateless `2026-07-28` lifecycle variant (SEP-2575): a second state-machine
+# variant alongside the `2025-11-25` one, gated off while the draft moves. Carries no
+# runtime dependencies; enabling it only compiles in the `context::draft` module
+# (docs/plan/02-architecture.md §Protocol-revision strategy, roadmap M2.5).
+draft-2026-07-28 = []
+
 # docs.rs builds with every feature enabled so feature-gated APIs are documented.
 [package.metadata.docs.rs]
 all-features = true

@@ -13,6 +13,9 @@ use serde_json::Value;
 
 mod pairing;
 
+#[cfg(feature = "draft-2026-07-28")]
+pub mod draft;
+
 pub use pairing::Exchange;
 
 /// The `2025-11-25` session lifecycle phase *before* a given event is processed.

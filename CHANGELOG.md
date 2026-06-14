@@ -13,6 +13,17 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **Stateless `2026-07-28` lifecycle variant** (roadmap M2.5; behind a new, off-by-default
+  `draft-2026-07-28` feature on `mcp-trace-validator`). A second session state-machine
+  variant — `context::draft` — alongside the `2025-11-25` one, modelling SEP-2575's
+  stateless rework: with the `initialize`/`initialized` handshake removed, a session is
+  operational from its first message (no `BeforeInitialize`/`Ready` gate), and the only
+  remaining handshake-like exchange is the optional one-shot `server/discover` probe
+  (`Active` ⇄ `AwaitingDiscoverResult`, with its error edge). Every transition and the
+  error edge are unit-tested, with a property test over arbitrary interleavings. Scoped to
+  the lifecycle and built alongside — not wired into judgment — pending the final spec
+  text; it tracks the draft SEPs (register 1.5a–1.5b) and must be reconciled against the
+  `2026-07-28` text when it ships. Carries no new runtime dependencies.
 - **Multi-revision trace validation** (roadmap M2.5 infrastructure). The registry format
   gains an `applies` revision range — the half-open `[introduced, removed)` interval
   ADR-0006 deferred until a second revision landed — exposed as `AppliesRange` and
