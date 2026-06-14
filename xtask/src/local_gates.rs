@@ -123,15 +123,21 @@ pub(crate) fn semver_gate() -> bool {
 /// is not installed.
 pub(crate) fn msrv_clippy_gate() -> bool {
     let root = crate::workspace_root();
+    // Probe clippy specifically, not just the toolchain: `cargo +{MSRV}
+    // --version` succeeds even when rustup auto-installs a *minimal* toolchain on
+    // the `+` reference, so the older probe reported "available" and then
+    // hard-failed on a missing clippy component — exactly what the v0.3.0 release
+    // rehearsal surfaced (release.yml had installed `1.88` while this gate asks
+    // for `1.88.0`). Checking `clippy --version` makes the loud skip below honest.
     let available = Command::new("cargo")
         .arg(format!("+{MSRV}"))
-        .arg("--version")
+        .args(["clippy", "--version"])
         .current_dir(&root)
         .output()
         .is_ok_and(|output| output.status.success());
     if !available {
         eprintln!(
-            "xtask: MSRV clippy — SKIPPED (toolchain {MSRV} not installed; \
+            "xtask: MSRV clippy — SKIPPED (clippy for toolchain {MSRV} not installed; \
              `rustup toolchain install {MSRV} --component clippy`). CI runs \
              this gate regardless: an MSRV break will fail there."
         );
