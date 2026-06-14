@@ -22,6 +22,10 @@
 //! - `version-sync` — the README's `**Status:` crates.io version must equal
 //!   `[workspace.package].version` (`version_sync.rs`); the README update the
 //!   release checklist otherwise forgets, made a gate.
+//! - `changelog-links` — every `## [X.Y.Z]` heading in `CHANGELOG.md` must have
+//!   a `[X.Y.Z]: <url>` reference definition and `[Unreleased]` must compare
+//!   against the latest release (`changelog_links.rs`); the sibling of
+//!   `version-sync` for the other doc the release checklist forgets.
 //! - `deferrals [--check]` — list the deferral ledger (docs/plan/deferrals.json);
 //!   `--check` (weekly scheduled job) fails on rows past their review-by date
 //!   (ADR-0010).
@@ -54,6 +58,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 mod agreement;
+mod changelog_links;
 mod conformance;
 mod coverage;
 mod cross_arch;
@@ -93,6 +98,7 @@ fn main() -> ExitCode {
         Some("spec-drift") => spec_drift::run(),
         Some("docs-links") => exit_if(docs_links::run()),
         Some("version-sync") => exit_if(version_sync::run()),
+        Some("changelog-links") => exit_if(changelog_links::run()),
         Some("conformance") => conformance::run(),
         Some(other) => {
             eprintln!("unknown task {other:?}\n{USAGE}");
@@ -135,11 +141,14 @@ fn run_ci() -> ExitCode {
     if !version_sync::run() {
         return ExitCode::FAILURE;
     }
+    if !changelog_links::run() {
+        return ExitCode::FAILURE;
+    }
     eprintln!("xtask: coverage table in sync — cargo xtask coverage --check");
     coverage::run(true)
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants            diff-scoped mutation gate vs origin/main (the PR gate, locally)\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants            diff-scoped mutation gate vs origin/main (the PR gate, locally)\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  changelog-links    every CHANGELOG version heading has a link def; Unreleased base current\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {

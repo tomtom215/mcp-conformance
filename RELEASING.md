@@ -62,7 +62,11 @@ in the release PR; then steps 1–5 below.
 1. **Prepare** on a `release/vX.Y.Z` branch:
    - Bump `version` in `[workspace.package]` (one place; all crates inherit).
    - Move `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD` in `CHANGELOG.md`; add a fresh
-     `[Unreleased]` section.
+     `[Unreleased]` section. Update the link-reference definitions at the foot of
+     the file too: add `[X.Y.Z]: …/releases/tag/vX.Y.Z` and repoint `[Unreleased]:`
+     to `…/compare/vX.Y.Z...HEAD` (`cargo xtask changelog-links` enforces both —
+     the step v0.3.0 forgot, leaving `[0.3.0]` rendering as literal text and
+     `[Unreleased]` still comparing against `v0.2.0`).
    - `cargo xtask ci` green; `cargo deny check` green; `cargo package --workspace --exclude xtask --locked`
      green.
    - Update the supported-versions table in `SECURITY.md`.

@@ -76,6 +76,24 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   big-endian cross-gccs hard-conflict at the dpkg level); a target whose toolchain
   is absent skips loudly. Recorded as a new lens in the testing pyramid
   (`docs/plan/04-engineering-standards.md`).
+- **A `changelog-links` gate** (`cargo xtask changelog-links`, in the per-PR
+  `cargo xtask ci` set): every `## [X.Y.Z]` version heading in this file must
+  carry a matching `[X.Y.Z]: <url>` reference definition, and `[Unreleased]:`
+  must compare against the most recent released version. The sibling of
+  `version-sync` for the other doc the release checklist forgets — see the
+  Fixed entry below for the v0.3.0 defect that motivated it. `docs-links` could
+  not catch it: that gate checks the definitions it *finds* resolve, not that a
+  shortcut reference *has* one, and the `[Unreleased]:` target is an absolute
+  URL it skips by design. RELEASING.md's prepare step now names the
+  link-reference update.
+
+### Fixed
+
+- **The CHANGELOG's link-reference definitions, stale since v0.3.0**: `[0.3.0]`
+  had no `[0.3.0]: …` definition, so on GitHub it rendered as the literal text
+  `[0.3.0]` instead of a release link; and `[Unreleased]` compared against
+  `v0.2.0` rather than `v0.3.0`. Both corrected, and the new `changelog-links`
+  gate above keeps the next release honest.
 
 ## [0.3.0] - 2026-06-14
 
@@ -536,6 +554,7 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.3.0
 [0.2.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.2.0
 [0.1.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.1.0
