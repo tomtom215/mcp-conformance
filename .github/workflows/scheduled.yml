@@ -144,31 +144,45 @@ jobs:
   # across platforms"). Every other job here runs 64-bit little-endian — the CI
   # hosts are x86-64/aarch64 Linux/macOS/Windows — so the canonical JSON form,
   # the JSON/JUnit reports, and the golden corpus had only ever been pinned
-  # 64-bit little-endian. This job runs the two engine crates' suites on s390x
+  # 64-bit little-endian. This matrix runs the two engine crates' suites on s390x
   # (64-bit big-endian, under qemu-user) and i686 (32-bit, native via multilib),
   # covering both axes that can perturb byte-level output: endianness and pointer
-  # width. A byte-for-byte divergence is a real defect, not a nightly-churn
-  # artifact. On s390x `cargo xtask cross-arch` excludes two tests by
-  # construction — a native frame-budget proof (non-portable to emulation, as
-  # under miri) and the cli suite (an s390x child qemu-user cannot exec without
-  # binfmt); i686 runs natively, so its whole suite runs unskipped.
+  # width. The arches are split into separate runners because the 32-bit
+  # gcc-multilib and the s390x cross-gcc hard-conflict at the dpkg level
+  # (Conflicts:), so they cannot share one apt root; each leg installs only its
+  # own toolchain and `cargo xtask cross-arch` runs that arch and loudly skips
+  # the other. On s390x two tests are out of scope by construction — a native
+  # frame-budget proof (non-portable to emulation, as under miri) and the cli
+  # suite (an s390x child qemu-user cannot exec without binfmt); i686 runs
+  # natively, so its whole suite runs unskipped. A byte-for-byte divergence on
+  # either is a real defect, not a nightly-churn artifact.
   cross-arch:
-    name: Cross-architecture byte-identity (s390x BE + i686 32-bit)
+    name: Cross-arch byte-identity (${{ matrix.note }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust_target: s390x-unknown-linux-gnu
+            apt: gcc-s390x-linux-gnu qemu-user-static
+            note: s390x 64-bit BE
+          - rust_target: i686-unknown-linux-gnu
+            apt: gcc-multilib
+            note: i686 32-bit
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - name: Install toolchain (with the s390x and i686 std targets)
+      - name: Install toolchain (with the ${{ matrix.rust_target }} std target)
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
           rustup default stable
-          rustup target add s390x-unknown-linux-gnu i686-unknown-linux-gnu
+          rustup target add ${{ matrix.rust_target }}
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - name: Install the s390x cross toolchain, qemu-user, and 32-bit multilib
+      - name: Install the cross toolchain for ${{ matrix.note }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-s390x-linux-gnu qemu-user-static gcc-multilib
-      - name: Build and run the engine suites on each architecture
+          sudo apt-get install -y ${{ matrix.apt }}
+      - name: Build and run the engine suite on ${{ matrix.note }}
         run: cargo xtask cross-arch
 
   # Bench history accumulates as weekly artifacts (the round-two deferral
