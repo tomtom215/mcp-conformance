@@ -205,6 +205,16 @@ mod tests {
     }
 
     #[test]
+    fn requirements_accessor_returns_the_whole_union_in_order() {
+        // The union accessor exposes every entry across revisions, unfiltered and in
+        // registry order — distinct from `registry(rev)`, which reads the field directly
+        // and so would not exercise this method.
+        let set = RegistrySet::from_json(TWO_REVISION).unwrap();
+        let ids: Vec<&str> = set.requirements().iter().map(|r| r.id.as_str()).collect();
+        assert_eq!(ids, ["BASE-001", "LIFE-009", "DISC-001"]);
+    }
+
+    #[test]
     fn projection_filters_to_the_requirements_in_force_at_each_revision() {
         let set = RegistrySet::from_json(TWO_REVISION).unwrap();
 
