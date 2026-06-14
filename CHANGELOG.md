@@ -14,21 +14,26 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 ### Added
 
 - **A cross-architecture byte-identity check** (`cargo xtask cross-arch`;
-  scheduled `cross-arch` CI job): the two engine crates (`mcp-conformance-core`,
-  `mcp-trace-validator`) build and run their suites on architectures CI's own
-  hosts never cover, proving M1's "byte-identical reports across platforms"
-  guarantee across both axes that can perturb byte-level output — **endianness**
-  and **pointer width**. Every CI host is 64-bit little-endian
-  (`x86-64`/`aarch64` Linux/macOS/Windows), so the canonical JSON form, the
-  JSON/JUnit reports, and the golden corpus had only ever been pinned 64-bit
-  little-endian. Targets: `s390x` (64-bit big-endian) under `qemu-user` — first
-  run core 58 + validator lib 88 + golden 5 + readme 2 + pathological 3, all
-  byte-identical, with the native frame-budget proof and the subprocess `cli`
-  suite out of scope (an emulated stack / an `s390x` child cannot exec without
-  `binfmt`); and `i686` (32-bit) run **natively** via multilib — the *whole*
-  suite, `cli` and the deep-stack proof included, byte-identical on 32-bit. A
-  target whose toolchain is absent skips loudly; recorded as a new lens in the
-  testing pyramid (`docs/plan/04-engineering-standards.md`).
+  scheduled `cross-arch` CI matrix): the two engine crates (`mcp-conformance-core`,
+  `mcp-trace-validator`) build and run their suites on every corner of the
+  **(endianness × pointer-width)** square CI's own hosts leave untested, proving
+  M1's "byte-identical reports across platforms" guarantee. Every CI host is
+  64-bit little-endian (`x86-64`/`aarch64` Linux/macOS/Windows), so the canonical
+  JSON form, the JSON/JUnit reports, and the golden corpus had only ever been
+  pinned 64-bit little-endian. The three added corners (`cargo xtask cross-arch`:
+  "3 architectures pass"):
+  - `s390x` (64-bit **big-endian**) and `powerpc` (32-bit **big-endian**) under
+    `qemu-user` — core 58 + validator lib 88 + golden 5 + readme 2 + pathological
+    3, byte-identical, with the native frame-budget proof and the subprocess `cli`
+    suite out of scope (an emulated stack / a cross-built child cannot exec
+    without `binfmt`);
+  - `i686` (32-bit **little-endian**) run **natively** via multilib — the *whole*
+    suite, `cli` and the deep-stack proof included, byte-identical on 32-bit.
+
+  Each arch runs on its own CI runner (the 32-bit `gcc-multilib` and the
+  big-endian cross-gccs hard-conflict at the dpkg level); a target whose toolchain
+  is absent skips loudly. Recorded as a new lens in the testing pyramid
+  (`docs/plan/04-engineering-standards.md`).
 
 ## [0.3.0] - 2026-06-14
 

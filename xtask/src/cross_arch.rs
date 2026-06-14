@@ -9,17 +9,21 @@
 //! canonical JSON form, the JSON and `JUnit` reports, and the golden corpus had
 //! only ever been pinned 64-bit little-endian.
 //!
-//! Targets:
-//! - `s390x-unknown-linux-gnu` — 64-bit **big-endian**, run under `qemu-user`.
-//!   Two tests are out of scope here: the native frame-budget proof
-//!   (`deeply_nested_value_canonicalizes_on_a_small_stack`), non-portable to an
-//!   emulated stack exactly as under `cfg!(miri)`; and the `cli` suite, which
-//!   execs the built binary — an `s390x` child cannot run under `qemu-user`
-//!   without `binfmt`. Linker and runner come from `.cargo/config.toml`.
-//! - `i686-unknown-linux-gnu` — 32-bit little-endian, run **natively** through
-//!   the host's 32-bit multilib runtime. Native execution needs no skips: the
-//!   whole suite runs, the `cli` subprocess tests and the deep-stack proof
-//!   included. The host `cc` links it with `-m32`; no config override is needed.
+//! Targets — the three corners of the (endianness × pointer-width) matrix that
+//! CI's own 64-bit little-endian hosts leave untested:
+//! - `s390x-unknown-linux-gnu` — 64-bit **big-endian**, under `qemu-user`.
+//! - `powerpc-unknown-linux-gnu` — 32-bit **big-endian**, under `qemu-user`.
+//! - `i686-unknown-linux-gnu` — 32-bit **little-endian**, run **natively**
+//!   through the host's 32-bit multilib runtime.
+//!
+//! The two `qemu-user` targets share one exclusion set (`QEMU_LEGS`): the native
+//! frame-budget proof (`deeply_nested_value_canonicalizes_on_a_small_stack`),
+//! non-portable to an emulated stack exactly as under `cfg!(miri)`; and the `cli`
+//! suite, which execs the built binary — a cross-built child cannot run under
+//! `qemu-user` without `binfmt`. Their linker and runner come from
+//! `.cargo/config.toml`. `i686` runs natively, so it needs no skips and no config
+//! override (the host `cc` links it with `-m32`): the whole suite runs, the `cli`
+//! subprocess tests and the deep-stack proof included.
 //!
 //! A target whose cross toolchain is absent is skipped LOUDLY, not failed; the
 //! scheduled CI `cross-arch` matrix installs each arch on its own runner — the
@@ -48,10 +52,38 @@ struct CrossTarget {
     legs: &'static [&'static [&'static str]],
 }
 
-/// The architectures exercised, each naming exactly the test targets that bear
-/// on byte-identical output. `s390x` skips the two tests an emulated big-endian
-/// run cannot carry; `i686` runs natively, so the whole suite (including `cli`
-/// and the deep-stack proof) runs unskipped.
+/// The test targets a `qemu-user` leg runs: every suite that bears on
+/// byte-identical output, minus the two an emulated run cannot carry — the native
+/// frame-budget proof (`deeply_nested_value_canonicalizes_on_a_small_stack`, as
+/// under `cfg!(miri)`) and the `cli` suite (its `exec` of the cross-built child
+/// needs `binfmt`). Shared verbatim by every emulated big-endian target.
+const QEMU_LEGS: &[&[&str]] = &[
+    &[
+        "-p",
+        "mcp-conformance-core",
+        "--",
+        "--skip",
+        "deeply_nested_value_canonicalizes_on_a_small_stack",
+    ],
+    &[
+        "-p",
+        "mcp-trace-validator",
+        "--lib",
+        "--test",
+        "golden",
+        "--test",
+        "readme_examples",
+        "--test",
+        "pathological",
+    ],
+];
+
+/// The architectures exercised — the three corners of the (endianness × pointer-
+/// width) matrix CI's own 64-bit little-endian hosts never reach. The two
+/// `qemu-user` targets (`s390x` 64-bit BE, `powerpc` 32-bit BE) share `QEMU_LEGS`,
+/// skipping the two tests an emulated run cannot carry; `i686` (32-bit LE) runs
+/// natively, so the whole suite — `cli` and the deep-stack proof included — runs
+/// unskipped.
 const TARGETS: &[CrossTarget] = &[
     CrossTarget {
         triple: "s390x-unknown-linux-gnu",
@@ -60,26 +92,16 @@ const TARGETS: &[CrossTarget] = &[
                        apt-get install -y gcc-s390x-linux-gnu qemu-user-static",
         required_bins: &["s390x-linux-gnu-gcc", "qemu-s390x-static"],
         required_files: &[],
-        legs: &[
-            &[
-                "-p",
-                "mcp-conformance-core",
-                "--",
-                "--skip",
-                "deeply_nested_value_canonicalizes_on_a_small_stack",
-            ],
-            &[
-                "-p",
-                "mcp-trace-validator",
-                "--lib",
-                "--test",
-                "golden",
-                "--test",
-                "readme_examples",
-                "--test",
-                "pathological",
-            ],
-        ],
+        legs: QEMU_LEGS,
+    },
+    CrossTarget {
+        triple: "powerpc-unknown-linux-gnu",
+        note: "32-bit big-endian (qemu-user)",
+        install_hint: "rustup target add powerpc-unknown-linux-gnu; \
+                       apt-get install -y gcc-powerpc-linux-gnu qemu-user-static",
+        required_bins: &["powerpc-linux-gnu-gcc", "qemu-ppc-static"],
+        required_files: &[],
+        legs: QEMU_LEGS,
     },
     CrossTarget {
         triple: "i686-unknown-linux-gnu",

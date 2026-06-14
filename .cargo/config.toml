@@ -8,12 +8,17 @@ xtask = "run -p xtask --"
 # `cross-arch` CI job): build the engine crates for architectures CI's own
 # little-endian 64-bit hosts (x86-64/aarch64 Linux/macOS/Windows) never cover,
 # and confirm the canonical form, the JSON/JUnit reports, and the golden corpus
-# are byte-identical there. s390x (64-bit big-endian) runs under qemu-user and
-# needs this linker + runner; `-L` points qemu at the s390x sysroot for the
-# dynamic loader and libc. The i686 (32-bit) leg needs NO entry here — the host
-# `cc` links it with `-m32` and the binary runs natively via multilib. Paths are
-# the Debian/Ubuntu cross-package layout; the gate skips a target loudly when its
-# toolchain is absent, and the CI job installs exactly these packages.
+# are byte-identical there. The two big-endian targets — s390x (64-bit) and
+# powerpc (32-bit) — run under qemu-user and need this linker + runner; `-L`
+# points qemu at each cross sysroot for the dynamic loader and libc. The i686
+# (32-bit little-endian) leg needs NO entry here — the host `cc` links it with
+# `-m32` and the binary runs natively via multilib. Paths are the Debian/Ubuntu
+# cross-package layout; the gate skips a target loudly when its toolchain is
+# absent, and the CI matrix installs exactly these packages.
 [target.s390x-unknown-linux-gnu]
 linker = "s390x-linux-gnu-gcc"
 runner = ["qemu-s390x-static", "-L", "/usr/s390x-linux-gnu"]
+
+[target.powerpc-unknown-linux-gnu]
+linker = "powerpc-linux-gnu-gcc"
+runner = ["qemu-ppc-static", "-L", "/usr/powerpc-linux-gnu"]

@@ -80,13 +80,14 @@ The spec as data, and the engine that judges traces against it.
 - [x] Validator replays the corpus deterministically: 100% pass on known-good traces;
       **every check is killed by at least one injected-violation trace**; byte-identical
       reports across platforms and runs.
-      *(2026-06-14: "across platforms" is now verified on architectures CI's own hosts
-      never cover, not only the 64-bit little-endian ones (`x86-64`/`aarch64`). The engine
-      crates' suites — canonicalization, the JSON/JUnit renderers, and the golden replay
-      whose reports are pinned byte-for-byte — pass on `s390x` (64-bit big-endian, under
-      qemu) and `i686` (32-bit, native multilib) via `cargo xtask cross-arch` and the
-      scheduled `cross-arch` job, covering both endianness and pointer width. This turns an
-      asserted cross-platform guarantee into a tested one.)*
+      *(2026-06-14: "across platforms" is now verified on every corner of the
+      (endianness × pointer-width) square CI's own hosts leave untested, not only the
+      64-bit little-endian ones (`x86-64`/`aarch64`). The engine crates' suites —
+      canonicalization, the JSON/JUnit renderers, and the golden replay whose reports are
+      pinned byte-for-byte — pass on `s390x` (64-bit big-endian) and `powerpc` (32-bit
+      big-endian) under qemu, and `i686` (32-bit little-endian) native, via `cargo xtask
+      cross-arch` and the scheduled `cross-arch` matrix. This turns an asserted
+      cross-platform guarantee into a tested one.)*
 - [x] Session state machine for `2025-11-25` with every transition and error edge unit- and
       property-tested.
 - [x] Report formats: human, JSON, JUnit; exit codes 0/1/2/3 documented and tested.
