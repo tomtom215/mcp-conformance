@@ -1,0 +1,26 @@
+[
+  {
+    "id": "tools-call-simple-text",
+    "name": "ToolsCallSimpleText",
+    "description": "Tool returns simple text content",
+    "status": "SUCCESS",
+    "timestamp": "2026-06-14T19:36:02.893Z",
+    "specReferences": [
+      {
+        "id": "MCP-Tools-Call",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/tools#calling-tools"
+      }
+    ],
+    "details": {
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"content\":[{\"type\":\"text\",\"text\":\"This is a simple text response for testing.\"}]}"
+          }
+        ],
+        "isError": false
+      }
+    }
+  }
+]

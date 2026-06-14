@@ -1,0 +1,19 @@
+[
+  {
+    "id": "tools-call-embedded-resource",
+    "name": "ToolsCallEmbeddedResource",
+    "description": "Tool returns embedded resource content",
+    "status": "FAILURE",
+    "timestamp": "2026-06-14T19:36:03.048Z",
+    "errorMessage": "No resource content found",
+    "specReferences": [
+      {
+        "id": "MCP-Tools-Call",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/tools#calling-tools"
+      }
+    ],
+    "details": {
+      "hasResourceContent": false
+    }
+  }
+]

@@ -16,11 +16,15 @@ use core::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::applies::AppliesRange;
 use crate::capability::CapabilityGate;
+use crate::revision::ProtocolRevision;
 
 mod registry;
+mod set;
 
 pub use registry::{Registry, RegistryError};
+pub use set::RegistrySet;
 
 /// RFC 2119 requirement level of a normative clause.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -206,11 +210,28 @@ pub struct Requirement {
     /// declaration (ADR-0006). Ungated clauses apply to every session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capability: Option<CapabilityGate>,
+    /// The protocol-revision range this clause is in force at (ADR-0006). Absent means
+    /// every revision; a present range is the half-open `[introduced, removed)` interval.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub applies: Option<AppliesRange>,
     /// Source location and verbatim quote.
     pub source: SourceRef,
     /// Check coverage or documented exclusion.
     #[serde(flatten)]
     pub verification: Verification,
+}
+
+impl Requirement {
+    /// Whether this clause is in force at `revision`.
+    ///
+    /// A requirement with no [`applies`](Self::applies) range applies to every revision;
+    /// otherwise the range's half-open `[introduced, removed)` semantics decide.
+    #[must_use]
+    pub fn applies_to(&self, revision: ProtocolRevision) -> bool {
+        self.applies
+            .as_ref()
+            .is_none_or(|range| range.contains(revision))
+    }
 }
 
 #[cfg(test)]
@@ -293,5 +314,39 @@ mod tests {
         assert!(ungated.capability.is_none());
         let back = serde_json::to_string(&ungated).unwrap();
         assert!(!back.contains("capability"), "{back}");
+    }
+
+    #[test]
+    fn applies_to_defaults_to_every_revision_and_honors_a_range() {
+        let rev = |text: &str| text.parse::<ProtocolRevision>().unwrap();
+
+        // No `applies` member: in force at every revision.
+        let ungated: Requirement = serde_json::from_str(
+            r#"{"id": "BASE-001", "level": "MUST", "actor": "both",
+                "source": {"section": "basic#x", "quote": "MUST x"},
+                "checks": ["a"]}"#,
+        )
+        .unwrap();
+        assert!(ungated.applies.is_none());
+        assert!(ungated.applies_to(rev("2025-11-25")));
+        assert!(ungated.applies_to(rev("2099-01-01")));
+
+        // A `removed` bound: in force before it, gone at and after it.
+        let deprecated: Requirement = serde_json::from_str(
+            r#"{"id": "LOG-009", "level": "MUST", "actor": "server",
+                "applies": {"removed": "2026-07-28"},
+                "source": {"section": "logging#x", "quote": "MUST log"},
+                "checks": ["a"]}"#,
+        )
+        .unwrap();
+        assert!(deprecated.applies_to(rev("2025-11-25")));
+        assert!(!deprecated.applies_to(rev("2026-07-28")));
+
+        // The member round-trips.
+        let back = serde_json::to_string(&deprecated).unwrap();
+        assert!(
+            back.contains(r#""applies":{"removed":"2026-07-28"}"#),
+            "{back}"
+        );
     }
 }

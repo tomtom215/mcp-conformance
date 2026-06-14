@@ -1,0 +1,20 @@
+[
+  {
+    "id": "resources-read-text",
+    "name": "ResourcesReadText",
+    "description": "Read text resource successfully",
+    "status": "SUCCESS",
+    "timestamp": "2026-06-14T19:36:03.932Z",
+    "specReferences": [
+      {
+        "id": "MCP-Resources-Read",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/resources#reading-resources"
+      }
+    ],
+    "details": {
+      "uri": "test://static-text",
+      "mimeType": "text/plain",
+      "hasText": true
+    }
+  }
+]

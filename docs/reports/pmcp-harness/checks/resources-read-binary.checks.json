@@ -1,0 +1,21 @@
+[
+  {
+    "id": "resources-read-binary",
+    "name": "ResourcesReadBinary",
+    "description": "Read binary resource successfully",
+    "status": "FAILURE",
+    "timestamp": "2026-06-14T19:36:03.980Z",
+    "errorMessage": "Content missing blob field",
+    "specReferences": [
+      {
+        "id": "MCP-Resources-Read",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/resources#reading-resources"
+      }
+    ],
+    "details": {
+      "uri": "test://static-binary",
+      "mimeType": "image/png",
+      "hasBlob": false
+    }
+  }
+]

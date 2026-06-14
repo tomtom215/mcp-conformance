@@ -1,0 +1,72 @@
+[
+  {
+    "id": "localhost-host-rebinding-rejected",
+    "name": "DNSRebindingRejected",
+    "description": "Server rejects requests with non-localhost Host/Origin headers",
+    "timestamp": "2026-06-14T19:36:04.391Z",
+    "specReferences": [
+      {
+        "id": "MCP-DNS-Rebinding-Protection",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices#local-mcp-server-compromise"
+      },
+      {
+        "id": "MCP-Transport-Security",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#security-warning"
+      }
+    ],
+    "status": "SUCCESS",
+    "details": {
+      "hostHeader": "evil.example.com",
+      "originHeader": "http://evil.example.com",
+      "statusCode": 403,
+      "body": null
+    }
+  },
+  {
+    "id": "localhost-host-valid-accepted",
+    "name": "LocalhostHostAccepted",
+    "description": "Server accepts requests with valid localhost Host/Origin headers",
+    "timestamp": "2026-06-14T19:36:04.391Z",
+    "specReferences": [
+      {
+        "id": "MCP-DNS-Rebinding-Protection",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices#local-mcp-server-compromise"
+      },
+      {
+        "id": "MCP-Transport-Security",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#security-warning"
+      }
+    ],
+    "status": "SUCCESS",
+    "details": {
+      "hostHeader": "127.0.0.1:8484",
+      "originHeader": "http://127.0.0.1:8484",
+      "statusCode": 200,
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": true
+            },
+            "prompts": {
+              "listChanged": true
+            },
+            "resources": {
+              "subscribe": true,
+              "listChanged": true
+            },
+            "logging": {},
+            "completions": {}
+          },
+          "serverInfo": {
+            "name": "pmcp-conformance-harness",
+            "version": "0.1.0"
+          }
+        }
+      }
+    }
+  }
+]

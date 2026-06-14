@@ -18,6 +18,8 @@
 //!   SEP-2484's traceability format.
 //! - [`capability`] — capability gates: the negotiated-capability paths that decide
 //!   whether a gated requirement applies to a given session (ADR-0006).
+//! - [`applies`] — revision ranges: the half-open `[introduced, removed)` interval that
+//!   decides whether a requirement is in force at a given protocol revision (ADR-0006).
 //! - [`message`] — structural classification of JSON-RPC 2.0 messages (request /
 //!   notification / response) as MCP constrains them.
 //! - [`trace`] — the recorded-trace event schema (JSON Lines of [`trace::TraceEvent`])
@@ -43,6 +45,7 @@
 //! assert!(registry.requirements().len() >= 16);
 //! ```
 
+pub mod applies;
 pub mod canonical;
 pub mod capability;
 pub mod message;

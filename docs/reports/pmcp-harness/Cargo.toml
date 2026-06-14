@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# Standalone (non-workspace) conformance harness for the community Rust MCP SDK `pmcp`.
+# This project is intentionally NOT a member of the mcp-conformance workspace; it is
+# built and run in isolation to produce a measured conformance result for pmcp 2.9.0.
+[package]
+name = "pmcp-conformance-harness"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Prevent cargo from walking up and attaching this to any parent workspace.
+[workspace]
+
+[dependencies]
+pmcp = { version = "2.9.0", features = ["streamable-http", "macros", "schema-generation"] }
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,29 @@
+[
+  {
+    "id": "tools-call-with-progress",
+    "name": "ToolsCallWithProgress",
+    "description": "Tool reports progress notifications",
+    "status": "FAILURE",
+    "timestamp": "2026-06-14T19:36:03.617Z",
+    "errorMessage": "No progress notifications received",
+    "specReferences": [
+      {
+        "id": "MCP-Progress",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/progress"
+      }
+    ],
+    "details": {
+      "progressCount": 0,
+      "progressNotifications": [],
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"content\":[{\"type\":\"text\",\"text\":\"Progress tool completed.\"}]}"
+          }
+        ],
+        "isError": false
+      }
+    }
+  }
+]

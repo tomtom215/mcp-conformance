@@ -1,0 +1,16 @@
+[
+  {
+    "id": "tools-call-sampling",
+    "name": "ToolsCallSampling",
+    "description": "Tool requests LLM sampling from client",
+    "status": "FAILURE",
+    "timestamp": "2026-06-14T19:36:03.669Z",
+    "errorMessage": "Failed: MCP error -32603: Protocol error: -32603 - Client does not support sampling (no peer back-channel)",
+    "specReferences": [
+      {
+        "id": "MCP-Sampling",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/sampling"
+      }
+    ]
+  }
+]

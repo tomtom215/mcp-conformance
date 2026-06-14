@@ -177,6 +177,133 @@ fn requirements_lists_the_registry_in_both_formats() {
     assert_eq!(registry["revision"], "2025-11-25");
 }
 
+/// Writes `content` to a unique temp file and returns its path; the caller removes it.
+fn write_temp(tag: &str, content: &str) -> PathBuf {
+    let path = std::env::temp_dir().join(format!("mcp-tv-cli-{tag}-{}.json", std::process::id()));
+    std::fs::write(&path, content).unwrap();
+    path
+}
+
+/// A two-revision set: BASE-001 present throughout, LIFE-009 removed at 2026-07-28,
+/// DISC-001 introduced at 2026-07-28. All use a real check, so a good trace passes.
+const TWO_REVISION_SET: &str = r#"{
+    "revisions": ["2025-11-25", "2026-07-28"],
+    "requirements": [
+        {"id": "BASE-001", "level": "MUST", "actor": "both",
+         "source": {"section": "b#x", "quote": "MUST jsonrpc 2.0"},
+         "checks": ["base.jsonrpc-version"]},
+        {"id": "LIFE-009", "level": "MUST", "actor": "server",
+         "applies": {"removed": "2026-07-28"},
+         "source": {"section": "l#y", "quote": "MUST jsonrpc 2.0"},
+         "checks": ["base.jsonrpc-version"]},
+        {"id": "DISC-001", "level": "MUST", "actor": "server",
+         "applies": {"introduced": "2026-07-28"},
+         "source": {"section": "d#z", "quote": "MUST jsonrpc 2.0"},
+         "checks": ["base.jsonrpc-version"]}
+    ]
+}"#;
+
+#[test]
+fn multi_revision_against_the_builtin_set_judges_its_sole_revision() {
+    let output = run(&[
+        "validate",
+        corpus("good/stdio-minimal-init.jsonl").to_str().unwrap(),
+        "--revision",
+        "2025-11-25",
+    ]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let text = stdout(&output);
+    assert!(
+        text.contains("MCP multi-revision validation — revisions 2025-11-25"),
+        "{text}"
+    );
+    assert!(text.contains("overall verdict: pass"), "{text}");
+}
+
+#[test]
+fn multi_revision_json_shows_per_clause_applicability_across_revisions() {
+    let set = write_temp("set", TWO_REVISION_SET);
+    let output = run(&[
+        "validate",
+        corpus("good/stdio-minimal-init.jsonl").to_str().unwrap(),
+        "--registry-set",
+        set.to_str().unwrap(),
+        "--revision",
+        "2025-11-25",
+        "--revision",
+        "2026-07-28",
+        "--format",
+        "json",
+    ]);
+    std::fs::remove_file(&set).ok();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let report: serde_json::Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(
+        report["revisions"],
+        serde_json::json!(["2025-11-25", "2026-07-28"])
+    );
+
+    let row = |id: &str| {
+        report["requirements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["id"] == id)
+            .unwrap_or_else(|| panic!("row {id} present"))
+            .clone()
+    };
+    // Removed at the boundary: present then absent (null).
+    assert_eq!(
+        row("LIFE-009")["outcomes"],
+        serde_json::json!(["pass", null])
+    );
+    // Introduced at the boundary: absent then present.
+    assert_eq!(
+        row("DISC-001")["outcomes"],
+        serde_json::json!([null, "pass"])
+    );
+}
+
+#[test]
+fn multi_revision_flag_misuse_and_unknown_revisions_exit_two() {
+    let good = corpus("good/stdio-minimal-init.jsonl");
+    let good = good.to_str().unwrap();
+
+    // --registry-set without --revision.
+    let set = write_temp("set-no-rev", TWO_REVISION_SET);
+    let orphan = run(&["validate", good, "--registry-set", set.to_str().unwrap()]);
+    std::fs::remove_file(&set).ok();
+    assert_eq!(orphan.status.code(), Some(2), "{orphan:?}");
+
+    // --registry (single-revision) with --revision (multi) is contradictory.
+    let mixed = run(&[
+        "validate",
+        good,
+        "--registry",
+        good,
+        "--revision",
+        "2025-11-25",
+    ]);
+    assert_eq!(mixed.status.code(), Some(2), "{mixed:?}");
+
+    // A revision the built-in set does not describe.
+    let unknown = run(&["validate", good, "--revision", "2024-01-01"]);
+    assert_eq!(unknown.status.code(), Some(2), "{unknown:?}");
+    let stderr = String::from_utf8_lossy(&unknown.stderr).into_owned();
+    assert!(stderr.contains("does not describe revision"), "{stderr}");
+
+    // JUnit has no multi-revision rendering.
+    let junit = run(&[
+        "validate",
+        good,
+        "--revision",
+        "2025-11-25",
+        "--format",
+        "junit",
+    ]);
+    assert_eq!(junit.status.code(), Some(2), "{junit:?}");
+}
+
 #[test]
 fn junit_format_emits_xml_for_validate_and_rejects_requirements() {
     let output = run(&[

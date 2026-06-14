@@ -87,23 +87,31 @@ impl Registry {
     /// # Ok::<(), mcp_conformance_core::requirement::RegistryError>(())
     /// ```
     pub fn builtin_2025_11_25() -> Result<Self, RegistryError> {
-        let mut requirements = Vec::new();
-        for document in AREAS_2025_11_25 {
-            let area: Self = serde_json::from_str(document).map_err(RegistryError::Parse)?;
-            if area.revision != REVISION_2025_11_25 {
-                return Err(RegistryError::Invalid(format!(
-                    "embedded registry file declares revision {}, expected 2025-11-25",
-                    area.revision
-                )));
-            }
-            requirements.extend(area.requirements);
-        }
+        let requirements = builtin_requirements()?;
         let registry = Self {
             revision: REVISION_2025_11_25,
             requirements,
         };
         registry.validate()?;
         Ok(registry)
+    }
+
+    /// Builds a registry from already-validated parts, skipping the invariant check.
+    ///
+    /// The caller must guarantee `requirements` satisfies the registry invariants
+    /// ([`validate_requirements`]). The only caller is
+    /// [`RegistrySet::registry`](super::RegistrySet::registry), which
+    /// projects a revision-filtered subset of a set whose union those same invariants
+    /// were checked over — and a subset of unique, well-formed entries is itself unique
+    /// and well-formed, so re-validating would only repeat work already done.
+    pub(super) const fn from_parts(
+        revision: ProtocolRevision,
+        requirements: Vec<Requirement>,
+    ) -> Self {
+        Self {
+            revision,
+            requirements,
+        }
     }
 
     /// Parses and validates a registry from a single JSON document.
@@ -140,42 +148,72 @@ impl Registry {
     }
 
     fn validate(&self) -> Result<(), RegistryError> {
-        let mut seen = std::collections::HashSet::new();
-        for requirement in &self.requirements {
-            let id = requirement.id.as_str();
-            if !seen.insert(id) {
-                return Err(RegistryError::Invalid(format!(
-                    "duplicate requirement id {id}"
-                )));
-            }
-            if requirement.source.quote.trim().is_empty() {
-                return Err(RegistryError::Invalid(format!("{id}: empty quote")));
-            }
-            if requirement.source.section.trim().is_empty() {
-                return Err(RegistryError::Invalid(format!("{id}: empty section")));
-            }
-            match &requirement.verification {
-                Verification::Checks { checks } => {
-                    if checks.is_empty() {
-                        return Err(RegistryError::Invalid(format!(
-                            "{id}: checks list is empty — use an exclusion instead"
-                        )));
-                    }
-                    if checks.iter().any(|check| check.trim().is_empty()) {
-                        return Err(RegistryError::Invalid(format!("{id}: empty check id")));
-                    }
+        validate_requirements(&self.requirements)
+    }
+}
+
+/// Loads and merges the embedded `2025-11-25` per-area documents in report order,
+/// checking each declares the expected revision. Shared by the single-revision
+/// [`Registry::builtin_2025_11_25`] and the multi-revision
+/// [`RegistrySet::builtin`](super::RegistrySet::builtin); neither validates here, so each
+/// caller owns the invariant check appropriate to its container.
+pub(super) fn builtin_requirements() -> Result<Vec<Requirement>, RegistryError> {
+    let mut requirements = Vec::new();
+    for document in AREAS_2025_11_25 {
+        let area: Registry = serde_json::from_str(document).map_err(RegistryError::Parse)?;
+        if area.revision != REVISION_2025_11_25 {
+            return Err(RegistryError::Invalid(format!(
+                "embedded registry file declares revision {}, expected 2025-11-25",
+                area.revision
+            )));
+        }
+        requirements.extend(area.requirements);
+    }
+    Ok(requirements)
+}
+
+/// The per-requirement registry invariants, checked over any sequence: unique IDs, a
+/// non-empty quote and section, and a non-empty `checks` list or `exclusion` reason.
+///
+/// Factored out so the single-revision [`Registry`] and the multi-revision
+/// [`RegistrySet`](super::RegistrySet) enforce one definition of "well-formed" rather
+/// than two that could drift.
+pub(super) fn validate_requirements(requirements: &[Requirement]) -> Result<(), RegistryError> {
+    let mut seen = std::collections::HashSet::new();
+    for requirement in requirements {
+        let id = requirement.id.as_str();
+        if !seen.insert(id) {
+            return Err(RegistryError::Invalid(format!(
+                "duplicate requirement id {id}"
+            )));
+        }
+        if requirement.source.quote.trim().is_empty() {
+            return Err(RegistryError::Invalid(format!("{id}: empty quote")));
+        }
+        if requirement.source.section.trim().is_empty() {
+            return Err(RegistryError::Invalid(format!("{id}: empty section")));
+        }
+        match &requirement.verification {
+            Verification::Checks { checks } => {
+                if checks.is_empty() {
+                    return Err(RegistryError::Invalid(format!(
+                        "{id}: checks list is empty — use an exclusion instead"
+                    )));
                 }
-                Verification::Excluded { exclusion } => {
-                    if exclusion.trim().is_empty() {
-                        return Err(RegistryError::Invalid(format!(
-                            "{id}: empty exclusion reason"
-                        )));
-                    }
+                if checks.iter().any(|check| check.trim().is_empty()) {
+                    return Err(RegistryError::Invalid(format!("{id}: empty check id")));
+                }
+            }
+            Verification::Excluded { exclusion } => {
+                if exclusion.trim().is_empty() {
+                    return Err(RegistryError::Invalid(format!(
+                        "{id}: empty exclusion reason"
+                    )));
                 }
             }
         }
-        Ok(())
     }
+    Ok(())
 }
 
 #[cfg(test)]

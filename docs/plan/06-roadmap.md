@@ -25,10 +25,10 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
 | M1 — Registry and validator | **Complete** — v0.1.0 published to crates.io via [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142) (attested, byte-verified); every DoD line below carries its evidence |
 | M2 — Everything server | **Complete** (2026-06-11): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite in CI ([run #27266174013](https://github.com/tomtom215/mcp-conformance/actions/runs/27266174013)); trace tap, agreement check, and coverage manifest live (zero unexplained divergence; first divergence triaged suite-bug, filed upstream as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338)); everything-server offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) (pre-flight in [#9](https://github.com/tomtom215/mcp-conformance/issues/9)), README-linked — every DoD line below carries its evidence |
-| M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (2026-07-28); re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
+| M2.5 — `2026-07-28` migration readiness | **In progress** — every part buildable ahead of the final text is now done: DoD lines 1, 3, and 4 are closed — `applies` revision ranges + a multi-revision loader (`RegistrySet`), the stateless state-machine variant (`context::draft`, behind `draft-2026-07-28`), and multi-revision judgment (`validate_revisions` → `MultiReport`), all tested against the shipped `2025-11-25` plus synthetic/draft data. Only the registry *content* (lines 2, 5) remains, gated on the final text shipping (2026-07-28): the `2026-07-28` registry entries and `corpus/draft/` pairs need the live final text via the extraction method, and the stateless variant must be reconciled against it. Re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
 | M3 — Reference host | **Complete** (2026-06-13; ADR-0009 + §Amendment): both transports live (child-process stdio, streamable HTTP over reqwest); **all four `2025-11-25` client scenarios pass at pinned 0.1.16 as the standing CI gate**, with the two-real-binaries stdio smoke and the client-side agreement replay (zero unexplained divergence) — [run #27449549660](https://github.com/tomtom215/mcp-conformance/actions/runs/27449549660), "Conformance (official suite, server + client scenarios)"; host trace capture pinned against the validator; SSE resumption honors the server-named `retry` with `Last-Event-ID` (rmcp 1.7's measured gap is register 3.12; the host ships the compliant dance on rmcp's public seam); `auth/*` deferred with an enforced ledger row — every DoD line below carries its evidence |
-| M4 — Upstream engagement | In progress (gate, not phase; closes only on merged outcomes) — the public design-note DoD line is **done** ([docs/design/trace-validation.md](../design/trace-validation.md), 2026-06-13: the trace-validation architecture and its trade-offs, written standalone for an upstream audience); the two merged-outcome lines remain open and owner/upstream-gated ([rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902), [rust-sdk#903](https://github.com/modelcontextprotocol/rust-sdk/issues/903), [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338) filed and tracked; a merged floors/MSRV PR or the RustSec advisory for CVE-2026-42559 is the substantive merge the DoD requires — backlog in [07-ecosystem-engagement.md](07-ecosystem-engagement.md)) |
-| M5 — Stewardship artifacts | In progress — the rmcp tier-gap report is published ([docs/reports/rmcp-tier-gap-2025-11-25.md](../reports/rmcp-tier-gap-2025-11-25.md): 38/40 server scenarios at rmcp head `266f870`, re-measured live 2026-06-13); the mdBook is **built and CI-gated** (2026-06-13; [`book/`](../../book): five chapters across all four required areas, the trace-format and corpus chapters embedded verbatim from canonical sources via `{{#include}}`, with `mdbook build book` run on every push by the `book` CI job) and **live since 2026-06-14** at <https://tomtom215.github.io/mcp-conformance/> (deployed by [Pages run #27493955091](https://github.com/tomtom215/mcp-conformance/actions/runs/27493955091) on the v0.3.0 merge; live site returns `200`), with docs.rs having rendered all four crates at `0.3.0` (`doc_status: true`); the optional `pmcp` report and the `draft-2026-07-28` feature-gate drop remain |
+| M4 — Upstream engagement | In progress (gate, not phase; closes only on merged outcomes) — the public design-note DoD line is **done** ([docs/design/trace-validation.md](../design/trace-validation.md), 2026-06-13: the trace-validation architecture and its trade-offs, written standalone for an upstream audience); the two merged-outcome lines remain open and owner/upstream-gated ([rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902), [rust-sdk#903](https://github.com/modelcontextprotocol/rust-sdk/issues/903), [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338) filed and tracked; a merged floors/MSRV PR or the RustSec advisory for CVE-2026-42559 is the substantive merge the DoD requires — backlog in [07-ecosystem-engagement.md](07-ecosystem-engagement.md)). Outward-facing submissions are drafted, **pending owner authorization; none posted**: the [MSRV-policy issue](../reports/rust-sdk-msrv-policy-issue-draft.md) (register 3.5) and the [SSE-resumption filing](../reports/rmcp-sse-resumption-dossier.md) (register 3.12, source re-confirmed 2026-06-14 at `main` head `266f870`) are ready to file; the [RustSec advisory for CVE-2026-42559](../reports/rmcp-cve-2026-42559-rustsec-advisory-draft.md) is drafted but **blocked** — a 2026-06-14 pre-filing check found the CVE + rmcp's GHSA already aliased onto the dynoxide-rs advisory RUSTSEC-2026-0140 (register 4.3), so an `rmcp`-keyed advisory would collide; the gap (direct `rmcp < 1.4.0` dependents) is real but needs RustSec-maintainer reconciliation, not a drop-in PR |
+| M5 — Stewardship artifacts | In progress — the rmcp tier-gap report is published ([docs/reports/rmcp-tier-gap-2025-11-25.md](../reports/rmcp-tier-gap-2025-11-25.md): 38/40 server scenarios at rmcp head `266f870`, re-measured live 2026-06-13); the mdBook is **built and CI-gated** (2026-06-13; [`book/`](../../book): five chapters across all four required areas, the trace-format and corpus chapters embedded verbatim from canonical sources via `{{#include}}`, with `mdbook build book` run on every push by the `book` CI job) and **live since 2026-06-14** at <https://tomtom215.github.io/mcp-conformance/> (deployed by [Pages run #27493955091](https://github.com/tomtom215/mcp-conformance/actions/runs/27493955091) on the v0.3.0 merge; live site returns `200`), with docs.rs having rendered all four crates at `0.3.0` (`doc_status: true`); the optional `pmcp` report is now **published** ([docs/reports/pmcp-tier-gap-2025-11-25.md](../reports/pmcp-tier-gap-2025-11-25.md): a measured **16/30** server scenarios for `pmcp` 2.9.0 over its Streamable-HTTP transport, suite 0.1.16 / spec 2025-11-25, with a committed reproducible harness and source-verified per-failure attribution — proving the method generalizes); only the `draft-2026-07-28` feature-gate drop remains |
 
 ## M0 — Foundation
 
@@ -186,8 +186,21 @@ second DoD line reflects the full inventory.
 
 **Definition of done**
 
-- [ ] `applies` revision ranges in the registry format — the slot ADR-0006 deferred —
+- [x] `applies` revision ranges in the registry format — the slot ADR-0006 deferred —
       with the embedded loader able to serve more than one revision.
+      *(2026-06-14: [`AppliesRange`](../../crates/mcp-conformance-core/src/applies.rs) models
+      the half-open `[introduced, removed)` interval the architecture named
+      ([02-architecture.md](02-architecture.md) §Requirement registry);
+      `Requirement::applies_to(revision)` decides force-at-revision, an absent range meaning
+      every revision (so every existing `2025-11-25` entry is unchanged).
+      [`RegistrySet`](../../crates/mcp-conformance-core/src/requirement/set.rs) carries the
+      union of requirements across revisions and projects to a single-revision `Registry`
+      via `registry(revision)`, sharing one definition of well-formed with the
+      single-revision loader. `RegistrySet::builtin()` describes the sole shipped revision
+      and projects byte-for-byte to `Registry::builtin_2025_11_25()`; the multi-revision
+      behaviour — applicability filtering, unknown-revision → `None`, and the dead-data
+      (`applies` matches no described revision) rejection — is pinned with synthetic
+      ≥2-revision data. Local `cargo xtask ci` green; MSRV-1.88 clippy green.)*
 - [ ] `2026-07-28` registry entries extracted from the **final** spec text by the same
       per-requirement method (live fetch → verbatim quote → check or documented
       exclusion), behind the `draft-2026-07-28` feature until the official scenarios
@@ -200,10 +213,38 @@ second DoD line reflects the full inventory.
       SEP-2164 error-code change; SEP-2549 caching metadata; SEP-414 trace context;
       SEP-2468/SEP-837/SEP-2352 authorization deltas; SEP-2577 and SEP-2596
       deprecations plus the RFC 7591 DCR deprecation — reconciled 2026-06-11).
-- [ ] Stateless state-machine variant alongside — not replacing — the `2025-11-25`
+- [x] Stateless state-machine variant alongside — not replacing — the `2025-11-25`
       machine, every transition and error edge unit- and property-tested.
-- [ ] Multi-revision judgment: the same trace validated against both revisions in one
+      *(2026-06-14:
+      [`context::draft`](../../crates/mcp-trace-validator/src/context/draft.rs), behind the
+      `draft-2026-07-28` feature. The `2026-07-28` rework removes the
+      `initialize`/`initialized` handshake (register 1.3, 1.5a; SEP-2575), so the variant's
+      defining property is that a session is **operational from its first message** — no
+      `BeforeInitialize`/`Ready` gate — with the only remaining handshake-like exchange the
+      optional one-shot `server/discover` probe (`Active` ⇄ `AwaitingDiscoverResult`, plus
+      the error edge). Every transition and the error edge are unit-tested, and a proptest
+      pins the invariants over arbitrary interleavings (starts `Active`; awaiting iff a
+      discover request is outstanding; a transition into awaiting is never spurious). Built
+      *alongside* the stateful machine (not wired into judgment yet — that needs the line-2
+      registry content), and scoped to the lifecycle: per-request `_meta` validation and
+      the removed-method prohibitions are checks that land with the final text. **Draft-tracking:**
+      the shape follows the SEPs in [register 1.5a–1.5b](01-ecosystem-context.md) and must
+      be reconciled against the final `2026-07-28` text. Local `cargo xtask ci` green,
+      including the MSRV-1.88 clippy leg over `--all-features`.)*
+- [x] Multi-revision judgment: the same trace validated against both revisions in one
       invocation, applicability differences per clause visible in the report.
+      *(2026-06-14: [`multi::validate_revisions`](../../crates/mcp-trace-validator/src/multi.rs)
+      projects the set to each requested revision, runs the ordinary engine against each,
+      and aligns the results into a `MultiReport` — one row per clause carrying its outcome
+      under every revision, with a clause that does not exist at a revision reported
+      *absent* (`None`) and kept distinct from ADR-0006's capability `not-applicable`.
+      Exposed in one invocation via `validate --revision <YYYY-MM-DD>` (repeatable),
+      optionally over an external `--registry-set`, in human and JSON form; the
+      [`cli`](../../crates/mcp-trace-validator/tests/cli.rs) integration test drives the real
+      binary against a two-revision set and reads the per-clause `["pass", null]` /
+      `[null, "pass"]` columns. Built and tested against the shipped `2025-11-25` as the
+      sole revision plus synthetic ≥2-revision data, so it is ready to receive the
+      `2026-07-28` registry content (line 2) the day the final text ships.)*
 - [ ] `corpus/draft/` good and violation pairs green against the final text, with
       provenance-ledger rows.
 
@@ -291,7 +332,20 @@ Backlog opens at M0; the milestone closes only on merged outcomes.
       subcommand; `tier-check` itself is GitHub-token-gated and its conformance counter
       carries conformance#182's "0/30" bug, both documented in the report rather than
       reported as a misleading number.)*
-- [ ] Optionally the same report for one community SDK (e.g. `pmcp`) to prove generality.
+- [x] Optionally the same report for one community SDK (e.g. `pmcp`) to prove generality.
+      *(2026-06-14: [docs/reports/pmcp-tier-gap-2025-11-25.md](../reports/pmcp-tier-gap-2025-11-25.md).
+      The community Rust SDK `pmcp` 2.9.0 ships no suite-wired server, so the same method
+      was applied by building a standalone pmcp SUT ([docs/reports/pmcp-harness/](../reports/pmcp-harness/),
+      a non-workspace project — pmcp's MSRV 1.91 never enters our 1.88 workspace) and
+      running the pinned suite 0.1.16 against it: **16/30 server scenarios** (17/32 checks),
+      recomputed directly from the 30 committed `checks.json` files. The 14 failures were
+      iterated down to only pmcp-attributable causes (one harness wiring gap fixed first)
+      and each was root-caused twice — over the wire and against pmcp source — into six
+      limitations of pmcp's Streamable-HTTP surface (no server→client back-channel for
+      logging/progress/sampling/elicitation — transport-scoped; stringified tool output;
+      flat `Content::Resource`; no reachable resource `blob`; stubbed `completion/complete`;
+      strict protocol-version exact-match). The self-built-SUT caveat is stated plainly in
+      the report. Method fully reproducible from the committed harness + commands.)*
 - [x] mdBook live (architecture, trace format, corpus guide, conformance results page);
       docs.rs complete for all crates.
       *(Live 2026-06-14 at <https://tomtom215.github.io/mcp-conformance/>.
