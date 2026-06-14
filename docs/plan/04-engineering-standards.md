@@ -57,6 +57,8 @@ Package registries are reachable only at dependency-install time, under lockfile
 | Mutation | `cargo-mutants` | Zero surviving mutants in every shipped crate (xtask excluded); diff-scoped gate (`--in-diff`) on PRs, full workspace sweep scheduled |
 | Fuzz | `cargo-fuzz` | Targets: trace parsing, JSON canonicalization, registry deserialization. Clean for the CI fuzz budget; corpora checked in |
 | Sanitization | `cargo-careful` | The engine crates (`mcp-conformance-core`, `mcp-trace-validator`) run their suites against a std built with debug assertions and extra const-UB checks; a UB or integer-overflow regression a release build folds is a failure. Scheduled (nightly toolchain) |
+| Cross-architecture | `s390x` + `powerpc` (qemu) + `i686` (native) | The engine crates' suites run on every corner of the (endianness × pointer-width) square CI's hosts leave untested — `s390x` (64-bit big-endian) and `powerpc` (32-bit big-endian) under qemu, `i686` (32-bit little-endian) native — via `cargo xtask cross-arch`: the canonical form, the JSON/`JUnit` reports, and the golden corpus must be byte-identical where every CI host is 64-bit little-endian (`x86-64`/`aarch64`). A byte-for-byte divergence is a failure. Scheduled (`cross-arch` matrix) |
+| Dependency floors | `-Z direct-minimal-versions` | Each declared floor (`Cargo.toml` `>=x.y.z`) is the oldest version the workspace resolves to and builds/tests against, not an assertion: `cargo xtask minimal-versions` pins every direct dependency to its floor, builds the workspace, and runs the engine suites there. A floor below the resolvable minimum (a transitive crate forces higher), or below an API the code uses, is a failure. Scheduled (`minimal-versions` job, nightly) |
 | Conformance | official runner via `xtask` | Agreement check green; M2 onward: 100% server-scenario pass as a hard gate |
 | Benchmarks | `criterion` | Validator throughput (events/sec), canonicalization, state-machine stepping — measured, not gated: no baseline history exists yet, and an invented threshold would be folklore (decision recorded in `crates/mcp-trace-validator/benches/README.md`; revisit with M2's production-shaped workload) |
 
@@ -94,7 +96,10 @@ superseded pushes (never for `main`); least-privilege workflow permissions.
 - Workspace-level version ranges with upper bounds (`>=x.y, <next-major`), the a2a-rust
   convention; `deny.toml` enforces the license allowlist, denies wildcards, and warns on
   duplicate-major drift (warn, not deny: transitive churn happens — the config carries
-  the justification).
+  the justification). The floors are not aspirational: `cargo xtask minimal-versions`
+  (scheduled, nightly) pins every direct dependency to its declared floor and builds and
+  tests there, so a floor below the version the workspace actually resolves to — or below
+  an API the code uses — fails CI.
 - `Cargo.lock` committed (workspace contains binaries and a CLI; reproducible CI outweighs
   library-lockfile purism).
 

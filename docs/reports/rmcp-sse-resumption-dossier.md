@@ -16,18 +16,20 @@ review-by 2026-07-01) and engagement backlog item 10
 ([07-ecosystem-engagement.md](../plan/07-ecosystem-engagement.md)); the register
 record is [3.12](../plan/01-ecosystem-context.md).
 
-## Verified mechanism (source re-confirmed 2026-06-13, rust-sdk head `266f870`)
+## Verified mechanism (source re-confirmed 2026-06-14, rust-sdk head `266f870` — unchanged)
 
 All in `crates/rmcp/src/transport/streamable_http_client.rs` (head `266f870`,
-the `main` tip at the 2026-06-13 confirmation — re-confirm at filing time with
-the one-liner in the last section; line numbers are for that head):
+still the `main` tip at the 2026-06-14 re-confirmation — `git ls-remote
+…/rust-sdk main` returned `266f870` and the line numbers below are unchanged
+from the 2026-06-13 pin; re-confirm again at filing time with the one-liner in
+the last section):
 
 1. `StreamableHttpClientWorker::raw_sse_to_jsonrpc` (line 303) carries the
    verbatim doc comment **"Convert a raw SSE stream into a JSON-RPC message
    stream without reconnection logic."** (lines 301–302).
 2. It is the wrapper applied to every **POST** response SSE stream: the
    `Ok(StreamableHttpPostResponse::Sse(stream, ..))` match arms at lines
-   777–779 and 803–804 spawn `Self::execute_sse_stream(Self::raw_sse_to_jsonrpc(stream), …)`.
+   777–779 and 802–804 spawn `Self::execute_sse_stream(Self::raw_sse_to_jsonrpc(stream), …)`.
    So when a POST's SSE response stream closes before the JSON-RPC reply arrives,
    the in-flight request is simply lost — there is no reconnect, no
    `Last-Event-ID` resume.
@@ -85,7 +87,7 @@ itself, not only by a downstream workaround.
 > `266f870`): `StreamableHttpClientWorker::raw_sse_to_jsonrpc` (l. 303) is
 > documented "Convert a raw SSE stream into a JSON-RPC message stream without
 > reconnection logic" and is the wrapper used for every POST response SSE stream
-> (`StreamableHttpPostResponse::Sse` at l. 777–779 and 803–804). The reconnecting
+> (`StreamableHttpPostResponse::Sse` at l. 777–779 and 802–804). The reconnecting
 > wrapper `SseAutoReconnectStream` (with `retry_connection(last_event_id)`, in
 > `transport/common/client_side_sse.rs`) guards only the standalone GET stream
 > that opens after initialization. So a POST whose response stream closes early

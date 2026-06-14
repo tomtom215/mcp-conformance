@@ -11,6 +11,44 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Added
+
+- **A dependency-floor honesty gate** (`cargo xtask minimal-versions`; scheduled
+  `minimal-versions` CI job): the workspace's declared dependency floors
+  (`Cargo.toml` `>=x.y.z`) are now the oldest versions it actually resolves to and
+  builds/tests against, not assertions. `-Z direct-minimal-versions` pins every
+  direct dependency to its floor, builds the whole workspace, and runs the engine
+  suites there. Building this surfaced six floors sitting *below* the workspace's
+  resolvable minimum — `serde` (→ 1.0.220), `serde_json` (→ 1.0.127), `tower`
+  (→ 0.5.2), `tokio-util` (→ 0.7.9), and, in the host crate, `http` (→ 1.1) and
+  `futures` (→ 0.3.30, whose old floor 0.3.0 is yanked) — each forced higher by the
+  M2 server stack's transitive requirements and raised to the minimum the tree
+  resolves to. Nightly-only (the flag is unstable), so a loud skip without it, and
+  scheduled rather than per-PR since upstream churn can make a floor newly
+  dishonest with no local change. Recorded as a new lens in the testing pyramid
+  (`docs/plan/04-engineering-standards.md`).
+- **A cross-architecture byte-identity check** (`cargo xtask cross-arch`;
+  scheduled `cross-arch` CI matrix): the two engine crates (`mcp-conformance-core`,
+  `mcp-trace-validator`) build and run their suites on every corner of the
+  **(endianness × pointer-width)** square CI's own hosts leave untested, proving
+  M1's "byte-identical reports across platforms" guarantee. Every CI host is
+  64-bit little-endian (`x86-64`/`aarch64` Linux/macOS/Windows), so the canonical
+  JSON form, the JSON/JUnit reports, and the golden corpus had only ever been
+  pinned 64-bit little-endian. The three added corners (`cargo xtask cross-arch`:
+  "3 architectures pass"):
+  - `s390x` (64-bit **big-endian**) and `powerpc` (32-bit **big-endian**) under
+    `qemu-user` — core 58 + validator lib 88 + golden 5 + readme 2 + pathological
+    3, byte-identical, with the native frame-budget proof and the subprocess `cli`
+    suite out of scope (an emulated stack / a cross-built child cannot exec
+    without `binfmt`);
+  - `i686` (32-bit **little-endian**) run **natively** via multilib — the *whole*
+    suite, `cli` and the deep-stack proof included, byte-identical on 32-bit.
+
+  Each arch runs on its own CI runner (the 32-bit `gcc-multilib` and the
+  big-endian cross-gccs hard-conflict at the dpkg level); a target whose toolchain
+  is absent skips loudly. Recorded as a new lens in the testing pyramid
+  (`docs/plan/04-engineering-standards.md`).
+
 ## [0.3.0] - 2026-06-14
 
 > **Version-class call** (RELEASING.md: pre-1.0 minors may break, and the

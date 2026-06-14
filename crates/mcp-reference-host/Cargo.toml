@@ -57,9 +57,11 @@ reqwest = { workspace = true, optional = true }
 # The `StreamableHttpClient` seam's stream/frame vocabulary (feature `http`):
 # `get_stream` yields `futures::stream::BoxStream<Result<sse_stream::Sse, …>>`,
 # and the resumption dance reads `retry`/`id`/`data` off those frames. Floors
-# mirror rmcp 1.7.0's own requirements ("0.3" / "0.2"); both crates are
-# already in the tree as rmcp dependencies.
-futures = { version = ">=0.3, <0.4", optional = true }
+# are the minimal-versions minimums the tree actually resolves to: futures 0.3.30
+# (rmcp's `process-wrap` requires `^0.3.30`; 0.3.0 is yanked), sse-stream 0.2.
+# Both crates are already in the tree as rmcp dependencies. `cargo xtask
+# minimal-versions` keeps these honest.
+futures = { version = ">=0.3.30, <0.4", optional = true }
 sse-stream = { version = ">=0.2, <0.3", optional = true }
 
 [dev-dependencies]
@@ -71,7 +73,8 @@ mcp-conformance-core = { workspace = true }
 mcp-trace-validator = { workspace = true }
 # The scripted `StreamableHttpClient` fakes in `resume::tests` implement the
 # rmcp trait, whose signatures name `http::HeaderName`/`HeaderValue`.
-http = ">=1, <2"
+# Floor 1.1: `reqwest` (the streamable-HTTP client) requires `http ^1.1`.
+http = ">=1.1, <2"
 proptest = { workspace = true }
 # The probe server in tests/server_initiated.rs drives the host's handlers
 # through real wire dispatch (roots/list, URL elicitation, completion

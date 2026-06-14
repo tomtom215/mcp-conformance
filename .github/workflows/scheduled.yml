@@ -3,8 +3,9 @@
 #
 # Scheduled hygiene: weekly RustSec audit, the full mutation sweep that PR-scoped
 # runs (mutants.yml) deliberately skip, fuzzing, a cargo-careful UB/overflow run
-# over the engine crates, benchmarks, and the claims-expiry gates. Manually
-# dispatchable for on-demand runs.
+# over the engine crates, a cross-architecture (s390x/powerpc/i686) byte-identity
+# check, a minimal-versions dependency-floor check, benchmarks, and the
+# claims-expiry gates. Manually dispatchable for on-demand runs.
 
 name: Scheduled
 
@@ -138,6 +139,78 @@ jobs:
       # third lens. `careful` builds the checked sysroot on first run (rust-src).
       - name: Run the engine suites under the careful sysroot
         run: cargo +nightly careful test -p mcp-conformance-core -p mcp-trace-validator --all-features
+
+  # Byte-identical output across architectures (M1 DoD: "byte-identical reports
+  # across platforms"). Every other job here runs 64-bit little-endian — the CI
+  # hosts are x86-64/aarch64 Linux/macOS/Windows — so the canonical JSON form,
+  # the JSON/JUnit reports, and the golden corpus had only ever been pinned
+  # 64-bit little-endian. This matrix runs the engine crates' suites on the three
+  # corners of the (endianness x pointer-width) square those hosts leave untested:
+  # s390x (64-bit BE) and powerpc (32-bit BE) under qemu-user, and i686 (32-bit
+  # LE) natively via multilib. The arches are split into separate runners because
+  # the 32-bit gcc-multilib and the big-endian cross-gccs hard-conflict at the
+  # dpkg level (Conflicts:), so they cannot share one apt root; each leg installs
+  # only its own toolchain and `cargo xtask cross-arch` runs that arch and loudly
+  # skips the rest. On the qemu targets two tests are out of scope by construction
+  # — a native frame-budget proof (non-portable to emulation, as under miri) and
+  # the cli suite (a cross-built child qemu-user cannot exec without binfmt); i686
+  # runs natively, so its whole suite runs unskipped. A byte-for-byte divergence
+  # on any of them is a real defect, not a nightly-churn artifact.
+  cross-arch:
+    name: Cross-arch byte-identity (${{ matrix.note }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust_target: s390x-unknown-linux-gnu
+            apt: gcc-s390x-linux-gnu qemu-user-static
+            note: s390x 64-bit BE
+          - rust_target: powerpc-unknown-linux-gnu
+            apt: gcc-powerpc-linux-gnu qemu-user-static
+            note: powerpc 32-bit BE
+          - rust_target: i686-unknown-linux-gnu
+            apt: gcc-multilib
+            note: i686 32-bit
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install toolchain (with the ${{ matrix.rust_target }} std target)
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+          rustup target add ${{ matrix.rust_target }}
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Install the cross toolchain for ${{ matrix.note }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.apt }}
+      - name: Build and run the engine suite on ${{ matrix.note }}
+        run: cargo xtask cross-arch
+
+  # Dependency floors are honest: the declared `>=x.y.z` lower bounds are the
+  # oldest versions the workspace actually resolves to and builds/tests against,
+  # not assertions. `cargo xtask minimal-versions` pins every direct dependency
+  # to its floor (-Z direct-minimal-versions, nightly), builds the workspace, and
+  # runs the engine suites there. A floor below the resolvable minimum (a
+  # transitive crate forces higher) fails the resolution; a floor below an API
+  # the code uses fails the build. Scheduled, not per-PR: upstream churn can make
+  # a floor newly dishonest with no local change — a maintenance signal, like the
+  # claims-expiry gates, not a defect in unrelated work.
+  minimal-versions:
+    name: Dependency floors (oldest versions resolve, build, and test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install nightly (for -Z direct-minimal-versions) and stable
+        run: |
+          rustup toolchain install nightly --profile minimal --no-self-update
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Resolve to the declared floors, then build and test there
+        run: cargo xtask minimal-versions
 
   # Bench history accumulates as weekly artifacts (the round-two deferral
   # "bench history not accumulating", liquidated): measured, never gated —
