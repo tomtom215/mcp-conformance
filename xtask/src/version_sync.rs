@@ -61,13 +61,16 @@ pub(crate) fn run() -> bool {
 /// The `version` value from the manifest's `[workspace.package]` table — *not*
 /// `rust-version`, and not a `version` key from any other table.
 fn workspace_version(manifest: &str) -> Option<String> {
-    let start = manifest.find("[workspace.package]")?;
-    for line in manifest[start..].lines().skip(1) {
-        let trimmed = line.trim_start();
+    // Walk tables, reading `version` only inside `[workspace.package]` proper —
+    // the table is matched as a header *line*, never a substring, so a comment
+    // or a value that merely mentions the table name cannot misdirect the scan.
+    let mut in_package = false;
+    for line in manifest.lines() {
+        let trimmed = line.trim();
         if trimmed.starts_with('[') {
-            break; // Reached the next table without a version.
-        }
-        if let Some((key, value)) = trimmed.split_once('=')
+            in_package = trimmed == "[workspace.package]";
+        } else if in_package
+            && let Some((key, value)) = trimmed.split_once('=')
             && key.trim() == "version"
         {
             return Some(value.trim().trim_matches('"').to_owned());
@@ -130,6 +133,16 @@ mod tests {
         // key — the gate must pick the [workspace.package] one and stop there.
         let manifest = "[workspace.package]\nrust-version = \"1.88\"\nversion = \"0.3.1\"\n\n[workspace.dependencies]\nserde = { version = \"1\" }\n";
         assert_eq!(workspace_version(manifest).as_deref(), Some("0.3.1"));
+    }
+
+    #[test]
+    fn workspace_version_is_not_fooled_by_a_mention_of_the_table_name() {
+        // A comment naming the table, and a `version` in an earlier table, must
+        // both be ignored: the scan keys off the real header line, not a
+        // substring (the TOML-by-substring trap the older `find` would hit —
+        // it would have stopped at `[other]` and returned `None`).
+        let manifest = "# the version lives in [workspace.package]\n[other]\nversion = \"9.9.9\"\n\n[workspace.package]\nversion = \"0.4.2\"\n";
+        assert_eq!(workspace_version(manifest).as_deref(), Some("0.4.2"));
     }
 
     #[test]
