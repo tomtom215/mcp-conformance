@@ -17,7 +17,7 @@ edition = "2024"
 # compilation floor (let-chains; undeclared upstream) and the lowest bound we
 # actually verify in CI. Bumps are minor releases with a changelog entry.
 rust-version = "1.88"
-version = "0.2.0"
+version = "0.3.0"
 license = "MIT"
 authors = ["Tom F."]
 repository = "https://github.com/tomtom215/mcp-conformance"
@@ -74,9 +74,9 @@ proptest = { version = ">=1.4, <2" }
 criterion = { version = ">=0.7, <0.8", default-features = false, features = ["cargo_bench_support"] }
 
 # Workspace-internal crates.
-mcp-conformance-core = { version = "0.2.0", path = "crates/mcp-conformance-core" }
-mcp-trace-validator = { version = "0.2.0", path = "crates/mcp-trace-validator" }
-mcp-everything-server = { version = "0.2.0", path = "crates/mcp-everything-server" }
+mcp-conformance-core = { version = "0.3.0", path = "crates/mcp-conformance-core" }
+mcp-trace-validator = { version = "0.3.0", path = "crates/mcp-trace-validator" }
+mcp-everything-server = { version = "0.3.0", path = "crates/mcp-everything-server" }
 
 # Cancellation tokens for the host's bounded loop (ADR-0009): already in the
 # tree as rmcp's own dependency; the direct use is the cooperative stop

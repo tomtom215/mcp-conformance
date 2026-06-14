@@ -8,7 +8,7 @@ Record a trace of any MCP session — in any language, over any transport — an
 find out exactly which of the spec's requirements it met, which it broke, and
 why.
 
-**Status: `0.2.0` on [crates.io](https://crates.io/crates/mcp-trace-validator)**
+**Status: `0.3.0` on [crates.io](https://crates.io/crates/mcp-trace-validator)**
 (`cargo install mcp-trace-validator`), published with SLSA build-provenance
 attestations. Pre-1.0, so the API and the verdicts it produces may still change
 between minor releases — the [changelog](CHANGELOG.md) says so explicitly when
