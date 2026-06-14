@@ -4,15 +4,16 @@
 [alias]
 xtask = "run -p xtask --"
 
-# Big-endian cross-check (`cargo xtask endian`, scheduled `endian` CI job):
-# build the engine crates for s390x and run them under qemu-user, proving the
-# canonical form, the JSON/JUnit reports, and the golden corpus are
-# byte-identical on a big-endian target — the one platform class CI's
-# little-endian hosts (x86-64/aarch64 Linux/macOS/Windows) never exercise.
-# Paths are the Debian/Ubuntu cross-package layout (gcc-s390x-linux-gnu,
-# qemu-user-static); `-L` points qemu at the s390x sysroot so it can find the
-# dynamic loader and libc. The gate skips loudly when these are absent, and the
-# CI job installs exactly these packages.
+# Cross-architecture byte-identity check (`cargo xtask cross-arch`, scheduled
+# `cross-arch` CI job): build the engine crates for architectures CI's own
+# little-endian 64-bit hosts (x86-64/aarch64 Linux/macOS/Windows) never cover,
+# and confirm the canonical form, the JSON/JUnit reports, and the golden corpus
+# are byte-identical there. s390x (64-bit big-endian) runs under qemu-user and
+# needs this linker + runner; `-L` points qemu at the s390x sysroot for the
+# dynamic loader and libc. The i686 (32-bit) leg needs NO entry here — the host
+# `cc` links it with `-m32` and the binary runs natively via multilib. Paths are
+# the Debian/Ubuntu cross-package layout; the gate skips a target loudly when its
+# toolchain is absent, and the CI job installs exactly these packages.
 [target.s390x-unknown-linux-gnu]
 linker = "s390x-linux-gnu-gcc"
 runner = ["qemu-s390x-static", "-L", "/usr/s390x-linux-gnu"]

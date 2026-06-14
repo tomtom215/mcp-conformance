@@ -3,9 +3,9 @@
 #
 # Scheduled hygiene: weekly RustSec audit, the full mutation sweep that PR-scoped
 # runs (mutants.yml) deliberately skip, fuzzing, a cargo-careful UB/overflow run
-# over the engine crates, a big-endian (s390x) cross-check of byte-identical
-# output, benchmarks, and the claims-expiry gates. Manually dispatchable for
-# on-demand runs.
+# over the engine crates, a cross-architecture (s390x big-endian + i686 32-bit)
+# byte-identity check, benchmarks, and the claims-expiry gates. Manually
+# dispatchable for on-demand runs.
 
 name: Scheduled
 
@@ -140,35 +140,36 @@ jobs:
       - name: Run the engine suites under the careful sysroot
         run: cargo +nightly careful test -p mcp-conformance-core -p mcp-trace-validator --all-features
 
-  # Byte-identical output across endianness (M1 DoD: "byte-identical reports
-  # across platforms"). Every other job here runs little-endian — the CI hosts
-  # are x86-64/aarch64 Linux/macOS/Windows — so the canonical JSON form, the
-  # JSON/JUnit reports, and the golden corpus had only ever been pinned
-  # little-endian. This job cross-compiles the two engine crates to s390x
-  # (big-endian) and runs their suites under qemu-user; a byte-for-byte
-  # divergence is a real defect, not a nightly-churn artifact. `cargo xtask
-  # endian` excludes two tests by construction — a native frame-budget proof
-  # (non-portable to emulation, as it already is for miri) and the cli suite
-  # (it execs an s390x child qemu-user cannot run without binfmt) — both
-  # orthogonal to endianness.
-  endian:
-    name: Big-endian cross-check (s390x, byte-identical output)
+  # Byte-identical output across architectures (M1 DoD: "byte-identical reports
+  # across platforms"). Every other job here runs 64-bit little-endian — the CI
+  # hosts are x86-64/aarch64 Linux/macOS/Windows — so the canonical JSON form,
+  # the JSON/JUnit reports, and the golden corpus had only ever been pinned
+  # 64-bit little-endian. This job runs the two engine crates' suites on s390x
+  # (64-bit big-endian, under qemu-user) and i686 (32-bit, native via multilib),
+  # covering both axes that can perturb byte-level output: endianness and pointer
+  # width. A byte-for-byte divergence is a real defect, not a nightly-churn
+  # artifact. On s390x `cargo xtask cross-arch` excludes two tests by
+  # construction — a native frame-budget proof (non-portable to emulation, as
+  # under miri) and the cli suite (an s390x child qemu-user cannot exec without
+  # binfmt); i686 runs natively, so its whole suite runs unskipped.
+  cross-arch:
+    name: Cross-architecture byte-identity (s390x BE + i686 32-bit)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - name: Install toolchain (with the s390x std target)
+      - name: Install toolchain (with the s390x and i686 std targets)
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
           rustup default stable
-          rustup target add s390x-unknown-linux-gnu
+          rustup target add s390x-unknown-linux-gnu i686-unknown-linux-gnu
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - name: Install the s390x cross linker and qemu-user
+      - name: Install the s390x cross toolchain, qemu-user, and 32-bit multilib
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-s390x-linux-gnu qemu-user-static
-      - name: Build and run the engine suites big-endian under qemu
-        run: cargo xtask endian
+          sudo apt-get install -y gcc-s390x-linux-gnu qemu-user-static gcc-multilib
+      - name: Build and run the engine suites on each architecture
+        run: cargo xtask cross-arch
 
   # Bench history accumulates as weekly artifacts (the round-two deferral
   # "bench history not accumulating", liquidated): measured, never gated —

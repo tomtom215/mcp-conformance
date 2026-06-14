@@ -13,19 +13,22 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
-- **A big-endian cross-check** (`cargo xtask endian`; scheduled `endian` CI
-  job): the two engine crates (`mcp-conformance-core`, `mcp-trace-validator`)
-  build for `s390x-unknown-linux-gnu` and run their suites under `qemu-user`,
-  proving M1's "byte-identical reports across platforms" guarantee on the one
-  platform class CI never otherwise touches — every CI host is little-endian
+- **A cross-architecture byte-identity check** (`cargo xtask cross-arch`;
+  scheduled `cross-arch` CI job): the two engine crates (`mcp-conformance-core`,
+  `mcp-trace-validator`) build and run their suites on architectures CI's own
+  hosts never cover, proving M1's "byte-identical reports across platforms"
+  guarantee across both axes that can perturb byte-level output — **endianness**
+  and **pointer width**. Every CI host is 64-bit little-endian
   (`x86-64`/`aarch64` Linux/macOS/Windows), so the canonical JSON form, the
-  JSON/JUnit reports, and the golden corpus had only ever been pinned
-  little-endian. First run: core 58 + validator lib 88 + golden 5 + readme 2 +
-  pathological 3, all byte-identical big-endian. Two tests are out of scope by
-  construction (a native frame-budget proof, as for miri; the subprocess `cli`
-  suite `qemu-user` cannot exec without `binfmt`). The gate skips loudly when
-  the cross toolchain is absent; recorded as a new lens in the testing pyramid
-  (`docs/plan/04-engineering-standards.md`).
+  JSON/JUnit reports, and the golden corpus had only ever been pinned 64-bit
+  little-endian. Targets: `s390x` (64-bit big-endian) under `qemu-user` — first
+  run core 58 + validator lib 88 + golden 5 + readme 2 + pathological 3, all
+  byte-identical, with the native frame-budget proof and the subprocess `cli`
+  suite out of scope (an emulated stack / an `s390x` child cannot exec without
+  `binfmt`); and `i686` (32-bit) run **natively** via multilib — the *whole*
+  suite, `cli` and the deep-stack proof included, byte-identical on 32-bit. A
+  target whose toolchain is absent skips loudly; recorded as a new lens in the
+  testing pyramid (`docs/plan/04-engineering-standards.md`).
 
 ## [0.3.0] - 2026-06-14
 
