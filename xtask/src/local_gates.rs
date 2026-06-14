@@ -262,6 +262,138 @@ fn write_diff_against_main(root: &std::path::Path) -> DiffOutcome {
     DiffOutcome::Wrote(diff_path)
 }
 
+/// The big-endian target the endianness cross-check builds and runs under
+/// emulation. `s390x` is unambiguously big-endian, ships a rustc std target,
+/// and has a `qemu-user` backend — so the run needs no real hardware.
+const BIG_ENDIAN_TARGET: &str = "s390x-unknown-linux-gnu";
+
+/// The two cross legs, each naming exactly the test targets that bear on
+/// byte-identical output and omitting the two out-of-scope tests (see
+/// [`endian_gate`]): `--lib` carries the report renderers and the state
+/// machine, `golden` is the byte-pinned report replay, `readme_examples` pins
+/// the documented worked example, and `pathological` holds the
+/// bounded-resource shapes.
+const ENDIAN_LEGS: [(&str, &[&str]); 2] = [
+    (
+        "core (skip the native stack-budget proof)",
+        &[
+            "test",
+            "--target",
+            BIG_ENDIAN_TARGET,
+            "-p",
+            "mcp-conformance-core",
+            "--",
+            "--skip",
+            "deeply_nested_value_canonicalizes_on_a_small_stack",
+        ],
+    ),
+    (
+        "validator lib + golden + readme + pathological (skip the subprocess cli suite)",
+        &[
+            "test",
+            "--target",
+            BIG_ENDIAN_TARGET,
+            "-p",
+            "mcp-trace-validator",
+            "--lib",
+            "--test",
+            "golden",
+            "--test",
+            "readme_examples",
+            "--test",
+            "pathological",
+        ],
+    ),
+];
+
+/// `cargo xtask endian` — build the two engine crates for a big-endian target
+/// (`s390x`) and run their suites under `qemu-user`, proving M1's promise of
+/// "byte-identical reports across platforms" on the one platform class CI never
+/// otherwise touches: every supported CI host (Linux/macOS/Windows on
+/// `x86-64`/`aarch64`) is little-endian, so the canonical JSON form, the
+/// JSON and `JUnit` reports, and the golden corpus had only ever been pinned
+/// little-endian. A byte-for-byte divergence here is a real defect.
+///
+/// Two tests are out of scope by construction and excluded inside the gate:
+/// `deeply_nested_value_canonicalizes_on_a_small_stack` is a *native*
+/// frame-budget proof its own docs call non-portable to a non-native stack (the
+/// reason it already shrinks under `cfg!(miri)`), and the `cli` integration
+/// suite execs the built binary as a child — an `s390x` child cannot run under
+/// `qemu-user` without `binfmt` registration. Neither bears on endianness.
+///
+/// Skips LOUDLY when the cross toolchain (the rust std target,
+/// `s390x-linux-gnu-gcc`, `qemu-s390x-static`) is absent; the scheduled CI
+/// `endian` job installs it and is the enforcement of record. Linker and runner
+/// come from `.cargo/config.toml`'s `[target.s390x-unknown-linux-gnu]`.
+pub(crate) fn endian_gate() -> bool {
+    let root = crate::workspace_root();
+    if !big_endian_toolchain_available(&root) {
+        eprintln!(
+            "xtask: endian — SKIPPED (big-endian cross toolchain absent). Install: \
+             `rustup target add {BIG_ENDIAN_TARGET}` and `apt-get install -y \
+             gcc-s390x-linux-gnu qemu-user-static`. The scheduled CI `endian` job \
+             runs this gate regardless: an endianness regression will fail there."
+        );
+        return true;
+    }
+    for (leg, args) in ENDIAN_LEGS {
+        eprintln!("xtask: endian — {leg}: cargo {}", args.join(" "));
+        // qemu-user gives guest threads a smaller default stack than a native
+        // run; a generous RUST_MIN_STACK keeps the harness threads clear of it
+        // (the one genuinely deep test is already skipped above).
+        match Command::new("cargo")
+            .args(args)
+            .env("RUST_MIN_STACK", "33554432")
+            .current_dir(&root)
+            .status()
+        {
+            Ok(status) if status.success() => {}
+            Ok(status) => {
+                eprintln!(
+                    "xtask: endian — {leg} failed with {status}: a byte-identical-output \
+                     claim does not hold big-endian (or a non-portable test entered scope)"
+                );
+                return false;
+            }
+            Err(error) => {
+                eprintln!("xtask: endian — cannot run cargo: {error}");
+                return false;
+            }
+        }
+    }
+    eprintln!(
+        "xtask: endian — the engine crates build and pass on {BIG_ENDIAN_TARGET} (big-endian); \
+         the canonical form, the reports, and the goldens are byte-identical across endianness"
+    );
+    true
+}
+
+/// True only when all three cross pieces are present: the rust std for
+/// `BIG_ENDIAN_TARGET`, the cross linker, and the `qemu-user` runner. Probing
+/// each keeps an absence an honest skip instead of a confusing build or exec
+/// failure mid-run.
+fn big_endian_toolchain_available(root: &std::path::Path) -> bool {
+    let std_installed = Command::new("rustup")
+        .args(["target", "list", "--installed"])
+        .current_dir(root)
+        .output()
+        .is_ok_and(|output| {
+            output.status.success()
+                && String::from_utf8_lossy(&output.stdout)
+                    .lines()
+                    .any(|line| line.trim() == BIG_ENDIAN_TARGET)
+        });
+    let linker = Command::new("s390x-linux-gnu-gcc")
+        .arg("--version")
+        .output()
+        .is_ok_and(|output| output.status.success());
+    let runner = Command::new("qemu-s390x-static")
+        .arg("--version")
+        .output()
+        .is_ok_and(|output| output.status.success());
+    std_installed && linker && runner
+}
+
 /// The ≤ 500-line cap from 04-engineering-standards §Source standards,
 /// enforced over non-test source (crate and xtask `src/` trees) and the
 /// embedded registry documents (whose loader promises per-file

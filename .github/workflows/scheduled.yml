@@ -3,8 +3,9 @@
 #
 # Scheduled hygiene: weekly RustSec audit, the full mutation sweep that PR-scoped
 # runs (mutants.yml) deliberately skip, fuzzing, a cargo-careful UB/overflow run
-# over the engine crates, benchmarks, and the claims-expiry gates. Manually
-# dispatchable for on-demand runs.
+# over the engine crates, a big-endian (s390x) cross-check of byte-identical
+# output, benchmarks, and the claims-expiry gates. Manually dispatchable for
+# on-demand runs.
 
 name: Scheduled
 
@@ -138,6 +139,36 @@ jobs:
       # third lens. `careful` builds the checked sysroot on first run (rust-src).
       - name: Run the engine suites under the careful sysroot
         run: cargo +nightly careful test -p mcp-conformance-core -p mcp-trace-validator --all-features
+
+  # Byte-identical output across endianness (M1 DoD: "byte-identical reports
+  # across platforms"). Every other job here runs little-endian — the CI hosts
+  # are x86-64/aarch64 Linux/macOS/Windows — so the canonical JSON form, the
+  # JSON/JUnit reports, and the golden corpus had only ever been pinned
+  # little-endian. This job cross-compiles the two engine crates to s390x
+  # (big-endian) and runs their suites under qemu-user; a byte-for-byte
+  # divergence is a real defect, not a nightly-churn artifact. `cargo xtask
+  # endian` excludes two tests by construction — a native frame-budget proof
+  # (non-portable to emulation, as it already is for miri) and the cli suite
+  # (it execs an s390x child qemu-user cannot run without binfmt) — both
+  # orthogonal to endianness.
+  endian:
+    name: Big-endian cross-check (s390x, byte-identical output)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install toolchain (with the s390x std target)
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+          rustup target add s390x-unknown-linux-gnu
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Install the s390x cross linker and qemu-user
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-s390x-linux-gnu qemu-user-static
+      - name: Build and run the engine suites big-endian under qemu
+        run: cargo xtask endian
 
   # Bench history accumulates as weekly artifacts (the round-two deferral
   # "bench history not accumulating", liquidated): measured, never gated —

@@ -11,6 +11,22 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Added
+
+- **A big-endian cross-check** (`cargo xtask endian`; scheduled `endian` CI
+  job): the two engine crates (`mcp-conformance-core`, `mcp-trace-validator`)
+  build for `s390x-unknown-linux-gnu` and run their suites under `qemu-user`,
+  proving M1's "byte-identical reports across platforms" guarantee on the one
+  platform class CI never otherwise touches — every CI host is little-endian
+  (`x86-64`/`aarch64` Linux/macOS/Windows), so the canonical JSON form, the
+  JSON/JUnit reports, and the golden corpus had only ever been pinned
+  little-endian. First run: core 58 + validator lib 88 + golden 5 + readme 2 +
+  pathological 3, all byte-identical big-endian. Two tests are out of scope by
+  construction (a native frame-budget proof, as for miri; the subprocess `cli`
+  suite `qemu-user` cannot exec without `binfmt`). The gate skips loudly when
+  the cross toolchain is absent; recorded as a new lens in the testing pyramid
+  (`docs/plan/04-engineering-standards.md`).
+
 ## [0.3.0] - 2026-06-14
 
 > **Version-class call** (RELEASING.md: pre-1.0 minors may break, and the
