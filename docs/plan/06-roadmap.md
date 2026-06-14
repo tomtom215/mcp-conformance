@@ -28,7 +28,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (2026-07-28); re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
 | M3 — Reference host | **Complete** (2026-06-13; ADR-0009 + §Amendment): both transports live (child-process stdio, streamable HTTP over reqwest); **all four `2025-11-25` client scenarios pass at pinned 0.1.16 as the standing CI gate**, with the two-real-binaries stdio smoke and the client-side agreement replay (zero unexplained divergence) — [run #27449549660](https://github.com/tomtom215/mcp-conformance/actions/runs/27449549660), "Conformance (official suite, server + client scenarios)"; host trace capture pinned against the validator; SSE resumption honors the server-named `retry` with `Last-Event-ID` (rmcp 1.7's measured gap is register 3.12; the host ships the compliant dance on rmcp's public seam); `auth/*` deferred with an enforced ledger row — every DoD line below carries its evidence |
 | M4 — Upstream engagement | In progress (gate, not phase; closes only on merged outcomes) — the public design-note DoD line is **done** ([docs/design/trace-validation.md](../design/trace-validation.md), 2026-06-13: the trace-validation architecture and its trade-offs, written standalone for an upstream audience); the two merged-outcome lines remain open and owner/upstream-gated ([rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902), [rust-sdk#903](https://github.com/modelcontextprotocol/rust-sdk/issues/903), [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338) filed and tracked; a merged floors/MSRV PR or the RustSec advisory for CVE-2026-42559 is the substantive merge the DoD requires — backlog in [07-ecosystem-engagement.md](07-ecosystem-engagement.md)) |
-| M5 — Stewardship artifacts | In progress — the rmcp tier-gap report is published ([docs/reports/rmcp-tier-gap-2025-11-25.md](../reports/rmcp-tier-gap-2025-11-25.md): 38/40 server scenarios at rmcp head `266f870`, re-measured live 2026-06-13); the mdBook, the optional `pmcp` report, and the `draft-2026-07-28` feature-gate drop remain |
+| M5 — Stewardship artifacts | In progress — the rmcp tier-gap report is published ([docs/reports/rmcp-tier-gap-2025-11-25.md](../reports/rmcp-tier-gap-2025-11-25.md): 38/40 server scenarios at rmcp head `266f870`, re-measured live 2026-06-13); the mdBook is **built and CI-gated** (2026-06-13; [`book/`](../../book): five chapters across all four required areas, the trace-format and corpus chapters embedded verbatim from canonical sources via `{{#include}}`, with `mdbook build book` run on every push by the `book` CI job) — the GitHub Pages deploy is wired (`pages.yml`, all actions SHA-pinned) and Pages is enabled, so the book goes live on the first `main` push that touches its sources, and docs.rs completeness is enforced (`missing_docs = "deny"` + the `--all-features` rustdoc gate); the optional `pmcp` report and the `draft-2026-07-28` feature-gate drop remain |
 
 ## M0 — Foundation
 
@@ -286,6 +286,22 @@ Backlog opens at M0; the milestone closes only on merged outcomes.
 - [ ] Optionally the same report for one community SDK (e.g. `pmcp`) to prove generality.
 - [ ] mdBook live (architecture, trace format, corpus guide, conformance results page);
       docs.rs complete for all crates.
+      *(2026-06-13: the book is built and gated, the "live" deployment is the only
+      open piece. [`book/`](../../book) carries five chapters — Introduction,
+      Architecture, The trace format, The trace corpus, Conformance results —
+      covering all four required areas. The trace-format and corpus chapters embed
+      the README's worked example and `corpus/README.md` verbatim via `{{#include}}`
+      (the README example anchored and already pinned to the validator's real output
+      by `readme_examples.rs`), so the book cannot drift from its sources; the `book`
+      CI job runs `mdbook build book` — green in [CI run #27481899846](https://github.com/tomtom215/mcp-conformance/actions/runs/27481899846) — which fails on a
+      missing include file or anchor. **docs.rs completeness is enforced, not assumed:** `missing_docs =
+      "deny"` in the workspace lints plus the `--all-features` rustdoc gate under
+      `-D warnings` (the `doc` CI job). Pages is enabled and the deploy is wired
+      — `pages.yml` (all actions SHA-pinned) builds and deploys the book on a
+      `main` push — but a new `workflow_dispatch` workflow cannot be triggered
+      until it is on the default branch, so the book goes **live on the first
+      `main` push** that touches its sources. The owner's merge to `main` is
+      therefore the only step left.)*
 - [ ] The `draft-2026-07-28` feature gate dropped (revision becomes default) — only after
       the final text has shipped, M2.5 is complete, and the official scenarios for the
       revision stabilize.

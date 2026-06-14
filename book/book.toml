@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+# mdBook configuration. The book is a curated reader's guide; the planning
+# documents under docs/plan/ remain the single source of truth (the chapters
+# link to them, and two chapters embed canonical files verbatim with
+# {{#include}} so the book cannot drift from them). `mdbook build book` is a
+# CI gate (.github/workflows/ci.yml): a missing include file or anchor fails
+# the build.
+
+[book]
+title = "MCP Conformance Toolkit"
+authors = ["Tom F."]
+description = "An independent, trace-based conformance toolkit for the Model Context Protocol."
+src = "src"
+language = "en"
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "ayu"
+git-repository-url = "https://github.com/tomtom215/mcp-conformance"
+# No edit-url-template: a wrong template silently links every page to a 404,
+# and the repository link above already routes a reader to the source.

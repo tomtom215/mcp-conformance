@@ -22,6 +22,25 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **A project mdBook** (`book/`): a curated reader's guide — Introduction,
+  Architecture, the trace format, the trace corpus, and conformance results —
+  built and gated on every push by a `book` CI job (`mdbook build book`). The
+  trace-format and corpus chapters embed the README's worked example and
+  `corpus/README.md` verbatim via `{{#include}}`, so the book cannot drift from
+  its sources; docs.rs completeness stays enforced by `missing_docs = "deny"`
+  and the `--all-features` rustdoc gate. "Live" GitHub Pages deployment is the
+  one owner-gated piece left.
+- **Two more standing gates, and the release pipeline grows a third.**
+  `cargo xtask version-sync` ties the README's stated crates.io version to
+  `[workspace.package].version` (the README update the release checklist used
+  to forget — the stale "0.1.0" a prior audit found, now a CI failure); a
+  weekly `cargo-careful` job runs the engine crates' suites against a std with
+  debug assertions and extra const-UB checks (a UB / integer-overflow
+  regression a release build folds is now caught); and the release `verify`
+  job runs `cargo xtask semver` (cargo-semver-checks vs the crates.io
+  baseline), so an undeclared API break cannot ride a release alongside the
+  declared behavioral ones.
+
 - **Claims expire** (ADR-0010): three rounds of auditing found every
   falsehood in claims that were true once and never re-checked — so the
   repository now re-checks them itself. The deferral ledger

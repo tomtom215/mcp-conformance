@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# Deploys the mdBook (book/) to GitHub Pages. The book is BUILT and gated on
+# every push and PR by ci.yml's `book` job (a broken include or anchor fails
+# there); this workflow builds and DEPLOYS it — on pushes to main that touch the
+# book's sources, and on manual dispatch. Pages source is "GitHub Actions".
+
+name: Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "book/**"
+      - "README.md" # the trace-format chapter embeds the README example
+      - "corpus/README.md" # the corpus chapter embeds this verbatim
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+# Default-deny; the deploy job requests exactly what Pages deployment needs.
+permissions: {}
+
+# One deployment at a time; never cancel an in-flight deploy (a half-applied
+# Pages deployment is worse than a queued one).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # actions/checkout's pinned SHA predates the runner's Node 24 default cutover
+  # (June 16, 2026); opt in now, like every other workflow here.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deploy:
+    name: Build and deploy the book
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read # checkout
+      pages: write # deploy to Pages
+      id-token: write # OIDC verification of the deployment origin
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Install mdBook
+        run: cargo install mdbook --locked --version 0.5.3
+      - name: Build the book
+        run: mdbook build book
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: book/book
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

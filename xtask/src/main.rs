@@ -19,6 +19,9 @@
 //!   cargo-deny is not installed.
 //! - `docs-links` — verify every relative link in tracked Markdown resolves
 //!   (`docs_links.rs`).
+//! - `version-sync` — the README's `**Status:` crates.io version must equal
+//!   `[workspace.package].version` (`version_sync.rs`); the README update the
+//!   release checklist otherwise forgets, made a gate.
 //! - `deferrals [--check]` — list the deferral ledger (docs/plan/deferrals.json);
 //!   `--check` (weekly scheduled job) fails on rows past their review-by date
 //!   (ADR-0010).
@@ -47,6 +50,7 @@ mod deferrals;
 mod docs_links;
 mod local_gates;
 mod spec_drift;
+mod version_sync;
 
 /// The workspace root: the parent of this crate's manifest directory.
 ///
@@ -74,6 +78,7 @@ fn main() -> ExitCode {
         Some("deferrals") => exit_if(deferrals::run(args.next().as_deref() == Some("--check"))),
         Some("spec-drift") => spec_drift::run(),
         Some("docs-links") => exit_if(docs_links::run()),
+        Some("version-sync") => exit_if(version_sync::run()),
         Some("conformance") => conformance::run(),
         Some(other) => {
             eprintln!("unknown task {other:?}\n{USAGE}");
@@ -113,11 +118,14 @@ fn run_ci() -> ExitCode {
     if !docs_links::run() {
         return ExitCode::FAILURE;
     }
+    if !version_sync::run() {
+        return ExitCode::FAILURE;
+    }
     eprintln!("xtask: coverage table in sync — cargo xtask coverage --check");
     coverage::run(true)
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants            diff-scoped mutation gate vs origin/main (the PR gate, locally)\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants            diff-scoped mutation gate vs origin/main (the PR gate, locally)\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {

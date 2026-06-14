@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: MIT
 # Copyright 2026 Tom F. (https://github.com/tomtom215)
 #
-# Scheduled hygiene: weekly RustSec audit and the full mutation sweep that PR-scoped
-# runs (mutants.yml) deliberately skip. Manually dispatchable for on-demand runs.
+# Scheduled hygiene: weekly RustSec audit, the full mutation sweep that PR-scoped
+# runs (mutants.yml) deliberately skip, fuzzing, a cargo-careful UB/overflow run
+# over the engine crates, benchmarks, and the claims-expiry gates. Manually
+# dispatchable for on-demand runs.
 
 name: Scheduled
 
@@ -111,6 +113,31 @@ jobs:
           path: fuzz/corpus/
           if-no-files-found: warn
           retention-days: 90
+
+  # The engine crates' test suites, run against a std built with debug
+  # assertions and extra const-UB checks (cargo-careful). A `forbid(unsafe_code)`
+  # crate cannot author UB itself, but the dependencies it exercises can, and an
+  # integer-overflow or const-UB regression a release build folds silently fails
+  # here. This is the correctness floor mutation and fuzzing hold, viewed through
+  # a third lens; nightly-bound like the fuzz job, and a real gate, not
+  # informational — a finding is a genuine defect, not a nightly-churn artifact.
+  careful:
+    name: cargo-careful (UB / overflow on the engine crates)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install nightly toolchain (with rust-src for the careful sysroot)
+        run: rustup toolchain install nightly --profile minimal --component rust-src --no-self-update
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Install cargo-careful
+        run: cargo install cargo-careful --locked
+      # These two crates have no behavior-affecting feature split — core has no
+      # features, and the validator's only feature (`cli`) is its default — so
+      # `--all-features` is the whole surface and one careful build covers it.
+      # Mutation and fuzz already hold these crates to the highest bar; this is a
+      # third lens. `careful` builds the checked sysroot on first run (rust-src).
+      - name: Run the engine suites under the careful sysroot
+        run: cargo +nightly careful test -p mcp-conformance-core -p mcp-trace-validator --all-features
 
   # Bench history accumulates as weekly artifacts (the round-two deferral
   # "bench history not accumulating", liquidated): measured, never gated —

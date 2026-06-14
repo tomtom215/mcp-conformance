@@ -33,3 +33,6 @@ fuzz/coverage/
 # deliberately, not committed wholesale.
 fuzz/corpus/*/*
 !fuzz/corpus/*/seed-*
+
+# mdBook rendered output (the book sources under book/src are tracked)
+/book/book/

@@ -56,6 +56,7 @@ Package registries are reachable only at dependency-install time, under lockfile
 | Integration | `tests/`, real processes over stdio/HTTP on loopback | Host ↔ everything-server round trips per transport |
 | Mutation | `cargo-mutants` | Zero surviving mutants in every shipped crate (xtask excluded); diff-scoped gate (`--in-diff`) on PRs, full workspace sweep scheduled |
 | Fuzz | `cargo-fuzz` | Targets: trace parsing, JSON canonicalization, registry deserialization. Clean for the CI fuzz budget; corpora checked in |
+| Sanitization | `cargo-careful` | The engine crates (`mcp-conformance-core`, `mcp-trace-validator`) run their suites against a std built with debug assertions and extra const-UB checks; a UB or integer-overflow regression a release build folds is a failure. Scheduled (nightly toolchain) |
 | Conformance | official runner via `xtask` | Agreement check green; M2 onward: 100% server-scenario pass as a hard gate |
 | Benchmarks | `criterion` | Validator throughput (events/sec), canonicalization, state-machine stepping — measured, not gated: no baseline history exists yet, and an invented threshold would be folklore (decision recorded in `crates/mcp-trace-validator/benches/README.md`; revisit with M2's production-shaped workload) |
 
