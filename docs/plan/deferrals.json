@@ -12,7 +12,7 @@
       "id": "rmcp-sse-resumption-upstream-filing",
       "what": "File the measured rmcp 1.7 SSE-resumption gap (register row 3.12, ADR-0009 §Amendment) as a rust-sdk issue with the probe artifacts",
       "why": "Outward-facing engagement is sequenced behind the M3 merge so the dossier can link the compliant implementation",
-      "meanwhile": "Register row 3.12 carries the full repro; a ready-to-file dossier is prepared (docs/reports/rmcp-sse-resumption-dossier.md, source re-confirmed 2026-06-13 at head 266f870); probe checks.json retained",
+      "meanwhile": "Register row 3.12 carries the full repro; a ready-to-file dossier is prepared (docs/reports/rmcp-sse-resumption-dossier.md, source re-confirmed 2026-06-14 at head 266f870 — still the rust-sdk main tip, line numbers unchanged); probe checks.json retained",
       "review_by": "2026-07-01"
     },
     {
