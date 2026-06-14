@@ -35,10 +35,15 @@
 //!   fails here, so declared behavioral breaks are never confused with
 //!   undeclared API breaks.
 //! - `cross-arch` — build the engine crates for architectures CI never covers
-//!   (`s390x` 64-bit big-endian under `qemu`, `i686` 32-bit native multilib) and
-//!   run their suites there, proving "byte-identical reports across platforms"
-//!   (M1) across endianness *and* pointer width; skips a target loudly when its
-//!   cross toolchain is absent (scheduled `cross-arch` CI job).
+//!   (`s390x` 64-bit big-endian and `powerpc` 32-bit big-endian under `qemu`,
+//!   `i686` 32-bit little-endian native) and run their suites there, proving
+//!   "byte-identical reports across platforms" (M1) across every corner of the
+//!   endianness × pointer-width square; skips a target loudly when its cross
+//!   toolchain is absent (scheduled `cross-arch` CI matrix).
+//! - `minimal-versions` — resolve direct dependencies to their declared floors
+//!   (`-Z direct-minimal-versions`), build the workspace, and run the engine
+//!   suites there, proving "floors are the oldest versions we test against"; a
+//!   loud skip without nightly (scheduled `minimal-versions` CI job).
 //! - `conformance` — spawn the everything-server over streamable HTTP (session tap on)
 //!   and drive the pinned official runner against it, then reconcile the runner's
 //!   verdicts with our validator's over the tapped sessions (`agreement.rs`) and check
@@ -55,6 +60,7 @@ mod cross_arch;
 mod deferrals;
 mod docs_links;
 mod local_gates;
+mod minimal_versions;
 mod spec_drift;
 mod version_sync;
 
@@ -82,6 +88,7 @@ fn main() -> ExitCode {
         Some("mutants") => exit_if(local_gates::mutants_gate()),
         Some("semver") => exit_if(local_gates::semver_gate()),
         Some("cross-arch") => exit_if(cross_arch::run()),
+        Some("minimal-versions") => exit_if(minimal_versions::run()),
         Some("deferrals") => exit_if(deferrals::run(args.next().as_deref() == Some("--check"))),
         Some("spec-drift") => spec_drift::run(),
         Some("docs-links") => exit_if(docs_links::run()),
@@ -132,7 +139,7 @@ fn run_ci() -> ExitCode {
     coverage::run(true)
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants            diff-scoped mutation gate vs origin/main (the PR gate, locally)\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x (64-bit BE) + i686 (32-bit): byte-identical output\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants            diff-scoped mutation gate vs origin/main (the PR gate, locally)\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {

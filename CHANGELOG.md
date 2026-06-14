@@ -13,6 +13,20 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **A dependency-floor honesty gate** (`cargo xtask minimal-versions`; scheduled
+  `minimal-versions` CI job): the workspace's declared dependency floors
+  (`Cargo.toml` `>=x.y.z`) are now the oldest versions it actually resolves to and
+  builds/tests against, not assertions. `-Z direct-minimal-versions` pins every
+  direct dependency to its floor, builds the whole workspace, and runs the engine
+  suites there. Building this surfaced six floors sitting *below* the workspace's
+  resolvable minimum — `serde` (→ 1.0.220), `serde_json` (→ 1.0.127), `tower`
+  (→ 0.5.2), `tokio-util` (→ 0.7.9), and, in the host crate, `http` (→ 1.1) and
+  `futures` (→ 0.3.30, whose old floor 0.3.0 is yanked) — each forced higher by the
+  M2 server stack's transitive requirements and raised to the minimum the tree
+  resolves to. Nightly-only (the flag is unstable), so a loud skip without it, and
+  scheduled rather than per-PR since upstream churn can make a floor newly
+  dishonest with no local change. Recorded as a new lens in the testing pyramid
+  (`docs/plan/04-engineering-standards.md`).
 - **A cross-architecture byte-identity check** (`cargo xtask cross-arch`;
   scheduled `cross-arch` CI matrix): the two engine crates (`mcp-conformance-core`,
   `mcp-trace-validator`) build and run their suites on every corner of the

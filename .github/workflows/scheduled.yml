@@ -188,6 +188,30 @@ jobs:
       - name: Build and run the engine suite on ${{ matrix.note }}
         run: cargo xtask cross-arch
 
+  # Dependency floors are honest: the declared `>=x.y.z` lower bounds are the
+  # oldest versions the workspace actually resolves to and builds/tests against,
+  # not assertions. `cargo xtask minimal-versions` pins every direct dependency
+  # to its floor (-Z direct-minimal-versions, nightly), builds the workspace, and
+  # runs the engine suites there. A floor below the resolvable minimum (a
+  # transitive crate forces higher) fails the resolution; a floor below an API
+  # the code uses fails the build. Scheduled, not per-PR: upstream churn can make
+  # a floor newly dishonest with no local change — a maintenance signal, like the
+  # claims-expiry gates, not a defect in unrelated work.
+  minimal-versions:
+    name: Dependency floors (oldest versions resolve, build, and test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install nightly (for -Z direct-minimal-versions) and stable
+        run: |
+          rustup toolchain install nightly --profile minimal --no-self-update
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Resolve to the declared floors, then build and test there
+        run: cargo xtask minimal-versions
+
   # Bench history accumulates as weekly artifacts (the round-two deferral
   # "bench history not accumulating", liquidated): measured, never gated —
   # benches/README.md records why no threshold exists. Compare runs by
