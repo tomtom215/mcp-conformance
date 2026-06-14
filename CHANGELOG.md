@@ -11,6 +11,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-14
+
 > **Version-class call** (RELEASING.md: pre-1.0 minors may break, and the
 > changelog says so explicitly): the next release is **0.3.0**, not 0.2.1.
 > Two changes below are breaking — `TraceContext::new` (and therefore
