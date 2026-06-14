@@ -1,0 +1,27 @@
+[
+  {
+    "id": "prompts-get-with-args",
+    "name": "PromptsGetWithArgs",
+    "description": "Get parameterized prompt with argument substitution",
+    "status": "SUCCESS",
+    "timestamp": "2026-06-14T19:36:04.284Z",
+    "specReferences": [
+      {
+        "id": "MCP-Prompts-Get",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/prompts#getting-prompts"
+      }
+    ],
+    "details": {
+      "messageCount": 1,
+      "messages": [
+        {
+          "role": "user",
+          "content": {
+            "type": "text",
+            "text": "Prompt with arguments: arg1='testValue1', arg2='testValue2'"
+          }
+        }
+      ]
+    }
+  }
+]

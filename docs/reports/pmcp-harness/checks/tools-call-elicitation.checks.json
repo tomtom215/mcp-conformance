@@ -1,0 +1,28 @@
+[
+  {
+    "id": "tools-call-elicitation",
+    "name": "ToolsCallElicitation",
+    "description": "Tool requests user input from client",
+    "status": "FAILURE",
+    "timestamp": "2026-06-14T19:36:03.724Z",
+    "errorMessage": "Server did not request elicitation from client",
+    "specReferences": [
+      {
+        "id": "MCP-Elicitation",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/elicitation"
+      }
+    ],
+    "details": {
+      "elicitationRequested": false,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"content\":[{\"type\":\"text\",\"text\":\"test_elicitation: elicitation not supported by pmcp transport API\"}]}"
+          }
+        ],
+        "isError": false
+      }
+    }
+  }
+]

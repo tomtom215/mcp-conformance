@@ -1,0 +1,16 @@
+[
+  {
+    "id": "completion-complete",
+    "name": "CompletionComplete",
+    "description": "Server responds to completion requests",
+    "status": "FAILURE",
+    "timestamp": "2026-06-14T19:36:02.792Z",
+    "errorMessage": "Failed: [\n  {\n    \"expected\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"completion\"\n    ],\n    \"message\": \"Invalid input: expected object, received undefined\"\n  }\n]",
+    "specReferences": [
+      {
+        "id": "MCP-Completion",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/completion"
+      }
+    ]
+  }
+]

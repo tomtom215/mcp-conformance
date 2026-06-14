@@ -1,0 +1,16 @@
+[
+  {
+    "id": "elicitation-sep1330-general",
+    "name": "ElicitationSEP1330General",
+    "description": "Server requests elicitation with enum schemas",
+    "status": "FAILURE",
+    "timestamp": "2026-06-14T19:36:03.832Z",
+    "errorMessage": "Server did not request elicitation from client",
+    "specReferences": [
+      {
+        "id": "SEP-1330",
+        "url": "https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1330"
+      }
+    ]
+  }
+]
