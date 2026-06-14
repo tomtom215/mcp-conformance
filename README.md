@@ -18,7 +18,7 @@ they do.
 
 ## The problem
 
-The Model Context Protocol is a *specification*: hundreds of normative
+The Model Context Protocol is a *specification*: a long list of normative
 requirements, each a MUST, SHOULD, or MAY that a conforming implementation is
 expected to honor. If you build an MCP server or client, how do you actually
 *know* it conforms?
@@ -92,7 +92,7 @@ its trade-offs are written up for an external audience in
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The spec as data.** A requirement registry whose every entry carries a verbatim spec quote, an RFC 2119 level, an optional capability gate, and either a mechanical check or a documented reason it cannot be judged from a trace (the SEP-2484 traceability shape) — covering the `2025-11-25` core protocol surface. Plus the JSON Lines trace schema and RFC 8785 canonical JSON. Serde only; it links no protocol SDK. |
 | [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Replay a trace; get findings with the spec clause and the offending event `seq`, as human text, JSON, or JUnit, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
 | [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The reference server**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk) (the official Rust SDK). It passes the official suite's full `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy that closes the CVE-2026-42559 DNS-rebinding class by construction. Its session tap records each suite session as a trace for the calibration check. Offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902). |
-| [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference host** (an MCP client). It passes the official suite's `2025-11-25` **client scenarios** at the pinned version — bounded tool-use loops over both real transports (child-process stdio and streamable HTTP), scriptable sampling / elicitation / roots for CI with zero model-provider network use, and host-side trace capture with redaction by construction. |
+| [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference host** (an MCP client). It passes all four of the official suite's `2025-11-25` **client scenarios** at the pinned version — bounded tool-use loops over both real transports (child-process stdio and streamable HTTP), scriptable sampling / elicitation / roots for CI with zero model-provider network use, and host-side trace capture with redaction by construction. |
 
 ## Requirement coverage
 

@@ -131,13 +131,13 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Install cargo-careful
         run: cargo install cargo-careful --locked
-      # Both feature modes, the two deterministic crates the mutation and fuzz
-      # floors already hold to the highest bar. `careful` builds the checked
-      # sysroot on first run (rust-src above) and reuses it.
+      # These two crates have no behavior-affecting feature split — core has no
+      # features, and the validator's only feature (`cli`) is its default — so
+      # `--all-features` is the whole surface and one careful build covers it.
+      # Mutation and fuzz already hold these crates to the highest bar; this is a
+      # third lens. `careful` builds the checked sysroot on first run (rust-src).
       - name: Run the engine suites under the careful sysroot
-        run: |
-          cargo +nightly careful test -p mcp-conformance-core -p mcp-trace-validator --all-features
-          cargo +nightly careful test -p mcp-conformance-core -p mcp-trace-validator
+        run: cargo +nightly careful test -p mcp-conformance-core -p mcp-trace-validator --all-features
 
   # Bench history accumulates as weekly artifacts (the round-two deferral
   # "bench history not accumulating", liquidated): measured, never gated —

@@ -19,16 +19,18 @@ record is [3.12](../plan/01-ecosystem-context.md).
 ## Verified mechanism (source re-confirmed 2026-06-13, rust-sdk head `266f870`)
 
 All in `crates/rmcp/src/transport/streamable_http_client.rs` (head `266f870`,
-the current `main`; line numbers given for that head):
+the `main` tip at the 2026-06-13 confirmation — re-confirm at filing time with
+the one-liner in the last section; line numbers are for that head):
 
 1. `StreamableHttpClientWorker::raw_sse_to_jsonrpc` (line 303) carries the
    verbatim doc comment **"Convert a raw SSE stream into a JSON-RPC message
    stream without reconnection logic."** (lines 301–302).
-2. It is the wrapper applied to every **POST** response SSE stream —
-   `StreamableHttpPostResponse::Sse(stream, ..) => streams.spawn(execute_sse_stream(raw_sse_to_jsonrpc(stream), ..))`
-   at lines 777–779 and 803–804. So when a POST's SSE response stream closes
-   before the JSON-RPC reply arrives, the in-flight request is simply lost —
-   there is no reconnect, no `Last-Event-ID` resume.
+2. It is the wrapper applied to every **POST** response SSE stream: the
+   `Ok(StreamableHttpPostResponse::Sse(stream, ..))` match arms at lines
+   777–779 and 803–804 spawn `Self::execute_sse_stream(Self::raw_sse_to_jsonrpc(stream), …)`.
+   So when a POST's SSE response stream closes before the JSON-RPC reply arrives,
+   the in-flight request is simply lost — there is no reconnect, no
+   `Last-Event-ID` resume.
 3. The wrapper that *does* honor `retry`/`Last-Event-ID` —
    `SseAutoReconnectStream` with its `retry_connection(last_event_id)` machinery
    in `crates/rmcp/src/transport/common/client_side_sse.rs` — guards only the
