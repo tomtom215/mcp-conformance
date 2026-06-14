@@ -13,6 +13,23 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **Multi-revision trace validation** (roadmap M2.5 infrastructure). The registry format
+  gains an `applies` revision range — the half-open `[introduced, removed)` interval
+  ADR-0006 deferred until a second revision landed — exposed as `AppliesRange` and
+  `Requirement::applies_to(revision)` (an absent range means "every revision", so every
+  existing entry is unchanged). A new `RegistrySet` carries the union of requirements
+  across revisions and projects to a single-revision `Registry` for any revision it
+  describes, sharing one definition of "well-formed" with the single-revision loader.
+  `mcp-trace-validator` gains `multi::validate_revisions`, which judges one trace against
+  several revisions in a single pass and aligns the results into a `MultiReport`: one row
+  per clause with its outcome under each revision, a clause *absent* from a revision (its
+  `applies` range excludes it) kept distinct from ADR-0006's capability `not-applicable`.
+  Exposed on the CLI as `validate --revision <YYYY-MM-DD>` (repeatable) with an optional
+  `--registry-set`, in human and JSON form. The machinery is built and tested against the
+  shipped `2025-11-25` as the sole built-in revision plus synthetic multi-revision data, so
+  the `2026-07-28` entries drop in as data behind the planned `draft-2026-07-28` feature
+  the day the final spec text ships. Additive: the single-revision `Registry`,
+  `engine::validate`, and the report/golden artifacts are unchanged.
 - **A dependency-floor honesty gate** (`cargo xtask minimal-versions`; scheduled
   `minimal-versions` CI job): the workspace's declared dependency floors
   (`Cargo.toml` `>=x.y.z`) are now the oldest versions it actually resolves to and

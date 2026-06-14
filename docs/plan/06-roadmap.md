@@ -25,7 +25,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | M0 — Foundation | **Complete** — every gate green in [CI run #3](https://github.com/tomtom215/mcp-conformance/actions/runs/27233613023) |
 | M1 — Registry and validator | **Complete** — v0.1.0 published to crates.io via [release run #2](https://github.com/tomtom215/mcp-conformance/actions/runs/27245596142) (attested, byte-verified); every DoD line below carries its evidence |
 | M2 — Everything server | **Complete** (2026-06-11): server live on rmcp 1.7 over stdio + policy-gated streamable HTTP; **40/40 checks green** against the pinned suite in CI ([run #27266174013](https://github.com/tomtom215/mcp-conformance/actions/runs/27266174013)); trace tap, agreement check, and coverage manifest live (zero unexplained divergence; first divergence triaged suite-bug, filed upstream as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338)); everything-server offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) (pre-flight in [#9](https://github.com/tomtom215/mcp-conformance/issues/9)), README-linked — every DoD line below carries its evidence |
-| M2.5 — `2026-07-28` migration readiness | Not started — opens when the final text ships (2026-07-28); re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
+| M2.5 — `2026-07-28` migration readiness | **In progress** — the multi-revision *infrastructure* is built ahead of the final text (the part that does not need `2026-07-28` content): DoD lines 1 and 4 are closed — `applies` revision ranges + a multi-revision loader (`RegistrySet`), and multi-revision judgment (`validate_revisions` → `MultiReport`), tested against the shipped `2025-11-25` as sole revision plus synthetic ≥2-revision data. The registry *content* (lines 2, 5) stays gated on the final text shipping (2026-07-28); the stateless state-machine variant (line 3) is the next buildable piece (behind a `draft-2026-07-28` feature, tracking still-moving SEPs). Re-sequenced ahead of M3 on 2026-06-09; extraction checklist re-scoped 2026-06-11 — the first RC-tracking reconciliation against the draft changelog ([register 1.5a–1.5b](01-ecosystem-context.md)) surfaced four majors the RC announcement never enumerated (`server/discover`, `subscriptions/listen`, tasks-as-extension, MRTR) plus the Roots/Sampling/Logging deprecations |
 | M3 — Reference host | **Complete** (2026-06-13; ADR-0009 + §Amendment): both transports live (child-process stdio, streamable HTTP over reqwest); **all four `2025-11-25` client scenarios pass at pinned 0.1.16 as the standing CI gate**, with the two-real-binaries stdio smoke and the client-side agreement replay (zero unexplained divergence) — [run #27449549660](https://github.com/tomtom215/mcp-conformance/actions/runs/27449549660), "Conformance (official suite, server + client scenarios)"; host trace capture pinned against the validator; SSE resumption honors the server-named `retry` with `Last-Event-ID` (rmcp 1.7's measured gap is register 3.12; the host ships the compliant dance on rmcp's public seam); `auth/*` deferred with an enforced ledger row — every DoD line below carries its evidence |
 | M4 — Upstream engagement | In progress (gate, not phase; closes only on merged outcomes) — the public design-note DoD line is **done** ([docs/design/trace-validation.md](../design/trace-validation.md), 2026-06-13: the trace-validation architecture and its trade-offs, written standalone for an upstream audience); the two merged-outcome lines remain open and owner/upstream-gated ([rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902), [rust-sdk#903](https://github.com/modelcontextprotocol/rust-sdk/issues/903), [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/338) filed and tracked; a merged floors/MSRV PR or the RustSec advisory for CVE-2026-42559 is the substantive merge the DoD requires — backlog in [07-ecosystem-engagement.md](07-ecosystem-engagement.md)) |
 | M5 — Stewardship artifacts | In progress — the rmcp tier-gap report is published ([docs/reports/rmcp-tier-gap-2025-11-25.md](../reports/rmcp-tier-gap-2025-11-25.md): 38/40 server scenarios at rmcp head `266f870`, re-measured live 2026-06-13); the mdBook is **built and CI-gated** (2026-06-13; [`book/`](../../book): five chapters across all four required areas, the trace-format and corpus chapters embedded verbatim from canonical sources via `{{#include}}`, with `mdbook build book` run on every push by the `book` CI job) and **live since 2026-06-14** at <https://tomtom215.github.io/mcp-conformance/> (deployed by [Pages run #27493955091](https://github.com/tomtom215/mcp-conformance/actions/runs/27493955091) on the v0.3.0 merge; live site returns `200`), with docs.rs having rendered all four crates at `0.3.0` (`doc_status: true`); the optional `pmcp` report and the `draft-2026-07-28` feature-gate drop remain |
@@ -186,8 +186,21 @@ second DoD line reflects the full inventory.
 
 **Definition of done**
 
-- [ ] `applies` revision ranges in the registry format — the slot ADR-0006 deferred —
+- [x] `applies` revision ranges in the registry format — the slot ADR-0006 deferred —
       with the embedded loader able to serve more than one revision.
+      *(2026-06-14: [`AppliesRange`](../../crates/mcp-conformance-core/src/applies.rs) models
+      the half-open `[introduced, removed)` interval the architecture named
+      ([02-architecture.md](02-architecture.md) §Requirement registry);
+      `Requirement::applies_to(revision)` decides force-at-revision, an absent range meaning
+      every revision (so every existing `2025-11-25` entry is unchanged).
+      [`RegistrySet`](../../crates/mcp-conformance-core/src/requirement/set.rs) carries the
+      union of requirements across revisions and projects to a single-revision `Registry`
+      via `registry(revision)`, sharing one definition of well-formed with the
+      single-revision loader. `RegistrySet::builtin()` describes the sole shipped revision
+      and projects byte-for-byte to `Registry::builtin_2025_11_25()`; the multi-revision
+      behaviour — applicability filtering, unknown-revision → `None`, and the dead-data
+      (`applies` matches no described revision) rejection — is pinned with synthetic
+      ≥2-revision data. Local `cargo xtask ci` green; MSRV-1.88 clippy green.)*
 - [ ] `2026-07-28` registry entries extracted from the **final** spec text by the same
       per-requirement method (live fetch → verbatim quote → check or documented
       exclusion), behind the `draft-2026-07-28` feature until the official scenarios
@@ -202,8 +215,20 @@ second DoD line reflects the full inventory.
       deprecations plus the RFC 7591 DCR deprecation — reconciled 2026-06-11).
 - [ ] Stateless state-machine variant alongside — not replacing — the `2025-11-25`
       machine, every transition and error edge unit- and property-tested.
-- [ ] Multi-revision judgment: the same trace validated against both revisions in one
+- [x] Multi-revision judgment: the same trace validated against both revisions in one
       invocation, applicability differences per clause visible in the report.
+      *(2026-06-14: [`multi::validate_revisions`](../../crates/mcp-trace-validator/src/multi.rs)
+      projects the set to each requested revision, runs the ordinary engine against each,
+      and aligns the results into a `MultiReport` — one row per clause carrying its outcome
+      under every revision, with a clause that does not exist at a revision reported
+      *absent* (`None`) and kept distinct from ADR-0006's capability `not-applicable`.
+      Exposed in one invocation via `validate --revision <YYYY-MM-DD>` (repeatable),
+      optionally over an external `--registry-set`, in human and JSON form; the
+      [`cli`](../../crates/mcp-trace-validator/tests/cli.rs) integration test drives the real
+      binary against a two-revision set and reads the per-clause `["pass", null]` /
+      `[null, "pass"]` columns. Built and tested against the shipped `2025-11-25` as the
+      sole revision plus synthetic ≥2-revision data, so it is ready to receive the
+      `2026-07-28` registry content (line 2) the day the final text ships.)*
 - [ ] `corpus/draft/` good and violation pairs green against the final text, with
       provenance-ledger rows.
 
