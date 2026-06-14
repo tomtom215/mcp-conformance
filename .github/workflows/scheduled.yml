@@ -3,9 +3,9 @@
 #
 # Scheduled hygiene: weekly RustSec audit, the full mutation sweep that PR-scoped
 # runs (mutants.yml) deliberately skip, fuzzing, a cargo-careful UB/overflow run
-# over the engine crates, a cross-architecture (s390x big-endian + i686 32-bit)
-# byte-identity check, benchmarks, and the claims-expiry gates. Manually
-# dispatchable for on-demand runs.
+# over the engine crates, a cross-architecture (s390x/powerpc/i686) byte-identity
+# check, a minimal-versions dependency-floor check, benchmarks, and the
+# claims-expiry gates. Manually dispatchable for on-demand runs.
 
 name: Scheduled
 

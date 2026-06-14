@@ -27,9 +27,9 @@
 //!
 //! A target whose cross toolchain is absent is skipped LOUDLY, not failed; the
 //! scheduled CI `cross-arch` matrix installs each arch on its own runner — the
-//! 32-bit `gcc-multilib` and the s390x cross-gcc hard-conflict at the dpkg level,
-//! so they cannot share one — and that matrix is the enforcement of record.
-//! A byte-for-byte divergence on any architecture is a real defect.
+//! 32-bit `gcc-multilib` and the big-endian cross-gccs hard-conflict at the dpkg
+//! level, so they cannot share one — and that matrix is the enforcement of
+//! record. A byte-for-byte divergence on any architecture is a real defect.
 
 // `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
 // opposite demands about items in a binary crate's private modules; this follows
