@@ -80,6 +80,12 @@ The spec as data, and the engine that judges traces against it.
 - [x] Validator replays the corpus deterministically: 100% pass on known-good traces;
       **every check is killed by at least one injected-violation trace**; byte-identical
       reports across platforms and runs.
+      *(2026-06-14: "across platforms" is now verified on a **big-endian** target, not
+      only the little-endian CI hosts (`x86-64`/`aarch64`). The engine crates' suites —
+      canonicalization, the JSON/JUnit renderers, and the golden replay whose reports are
+      pinned byte-for-byte — pass on `s390x` under qemu via `cargo xtask endian` and the
+      scheduled `endian` job; with no native-endian byte operations in the engine, this
+      turns an asserted cross-platform guarantee into a tested one.)*
 - [x] Session state machine for `2025-11-25` with every transition and error edge unit- and
       property-tested.
 - [x] Report formats: human, JSON, JUnit; exit codes 0/1/2/3 documented and tested.
