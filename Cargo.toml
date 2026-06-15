@@ -13,9 +13,11 @@ members = [
 
 [workspace.package]
 edition = "2024"
-# MSRV policy (docs/plan/decisions/0008-msrv-1.88.md): 1.88 is rmcp's measured
-# compilation floor (let-chains; undeclared upstream) and the lowest bound we
-# actually verify in CI. Bumps are minor releases with a changelog entry.
+# MSRV policy (docs/plan/decisions/0008-msrv-1.88.md): 1.88 is the lowest bound
+# we verify in CI. It is forced by rmcp (undeclared upstream): rmcp's `macros`
+# feature pulls darling 0.23.0, which requires 1.88 (empirically re-verified
+# 2026-06-15, ADR-0008 §Correction). Our own code also uses let-chains (1.88).
+# Bumps are minor releases with a changelog entry.
 rust-version = "1.88"
 version = "0.3.0"
 license = "MIT"
