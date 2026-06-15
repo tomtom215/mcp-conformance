@@ -12,7 +12,7 @@
       "id": "rmcp-sse-resumption-upstream-filing",
       "what": "File the measured rmcp 1.7 SSE-resumption gap (register row 3.12, ADR-0009 §Amendment) as a rust-sdk issue with the probe artifacts",
       "why": "Outward-facing engagement is sequenced behind the M3 merge so the dossier can link the compliant implementation",
-      "meanwhile": "Register row 3.12 carries the full repro; a ready-to-file dossier is prepared (docs/reports/rmcp-sse-resumption-dossier.md, source re-confirmed 2026-06-14 at head 266f870 — still the rust-sdk main tip, line numbers unchanged); probe checks.json retained",
+      "meanwhile": "Register row 3.12 carries the full repro; a ready-to-file dossier (docs/reports/rmcp-sse-resumption-dossier.md) was end-to-end re-verified first-hand 2026-06-15 at head 266f870 — stock rmcp 1.7 fails sse-retry (-55ms reconnect, no Last-Event-ID, tools/call hung 20s -> FAILED) while the reference host passes 3/3 on the same public StreamableHttpClient seam; source line numbers (303 raw_sse_to_jsonrpc, 777-779/802-804 POST arms) re-confirmed exact",
       "review_by": "2026-07-01"
     },
     {
