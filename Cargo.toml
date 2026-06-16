@@ -71,7 +71,7 @@ proptest = { version = ">=1.4, <2" }
 # Benchmarks only. Default features off (no rayon, no plotters/HTML reports):
 # benches measure and print, they do not gate — benches/README.md records that
 # decision — so the cargo-bench harness support is all that is needed.
-criterion = { version = ">=0.7, <0.8", default-features = false, features = ["cargo_bench_support"] }
+criterion = { version = ">=0.7, <0.9", default-features = false, features = ["cargo_bench_support"] }
 
 # Workspace-internal crates.
 mcp-conformance-core = { version = "0.3.0", path = "crates/mcp-conformance-core" }
