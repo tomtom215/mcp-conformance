@@ -35,6 +35,13 @@
       "why": "Pin bumps are deliberate PRs with a scenario diff review (03-conformance-strategy §Official-suite version policy)",
       "meanwhile": "Weekly suite-alpha job runs the alpha dist-tag non-blocking; conformance#338's fix arrives with the bump and its baseline entry will go stale loudly",
       "review_by": "2026-08-15"
+    },
+    {
+      "id": "adopt-rmcp-enumnames-fix",
+      "what": "Adopt a released rmcp carrying the enumNames fix (rust-sdk#905, merged to main 2026-06-20) once it ships (v1.8.0 planning, rust-sdk#850); in the same dependency-bump PR update register 3.8/3.10 and drop the tests/roundtrip.rs pin + the interactive.rs workaround note",
+      "why": "The fix is merged upstream but not yet on crates.io (latest published rmcp is 1.7.0, which still drops enumNames); SDK/dependency bumps are deliberate, released-version-only changes per the engineering standards (floors are versions we actually test against)",
+      "meanwhile": "Pinned rmcp 1.7.0 still drops the field; tests/roundtrip.rs pins that current behavior and fails LOUDLY the moment a bumped rmcp preserves enumNames, forcing this update; register 3.8 records the upstream resolution",
+      "review_by": "2026-08-15"
     }
   ]
 }
