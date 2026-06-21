@@ -12,7 +12,7 @@
       "id": "rmcp-sse-resumption-upstream-filing",
       "what": "File the measured rmcp 1.7 SSE-resumption gap (register row 3.12, ADR-0009 §Amendment) as a rust-sdk issue with the probe artifacts",
       "why": "Outward-facing engagement is sequenced behind the M3 merge so the dossier can link the compliant implementation",
-      "meanwhile": "Register row 3.12 carries the full repro; a ready-to-file dossier is prepared (docs/reports/rmcp-sse-resumption-dossier.md, source re-confirmed 2026-06-14 at head 266f870 — still the rust-sdk main tip, line numbers unchanged); probe checks.json retained",
+      "meanwhile": "Register row 3.12 carries the full repro; a ready-to-file dossier (docs/reports/rmcp-sse-resumption-dossier.md) was end-to-end re-verified first-hand 2026-06-15 at head 266f870 — stock rmcp 1.7 fails sse-retry (-55ms reconnect, no Last-Event-ID, tools/call hung 20s -> FAILED) while the reference host passes 3/3 on the same public StreamableHttpClient seam; source line numbers (303 raw_sse_to_jsonrpc, 777-779/802-804 POST arms) re-confirmed exact",
       "review_by": "2026-07-01"
     },
     {
@@ -34,6 +34,13 @@
       "what": "Bump the suite pin when the 0.2.0 line stabilizes (alpha.3 published 2026-06-12; register rows 2.4/2.16), refresh both expected-failures baselines and the agreement divergence ledger in the same change",
       "why": "Pin bumps are deliberate PRs with a scenario diff review (03-conformance-strategy §Official-suite version policy)",
       "meanwhile": "Weekly suite-alpha job runs the alpha dist-tag non-blocking; conformance#338's fix arrives with the bump and its baseline entry will go stale loudly",
+      "review_by": "2026-08-15"
+    },
+    {
+      "id": "adopt-rmcp-enumnames-fix",
+      "what": "Adopt a released rmcp carrying the enumNames fix (rust-sdk#905, merged to main 2026-06-20) once it ships (v1.8.0 planning, rust-sdk#850); in the same dependency-bump PR update register 3.8/3.10 and drop the tests/roundtrip.rs pin + the interactive.rs workaround note",
+      "why": "The fix is merged upstream but not yet on crates.io (latest published rmcp is 1.7.0, which still drops enumNames); SDK/dependency bumps are deliberate, released-version-only changes per the engineering standards (floors are versions we actually test against)",
+      "meanwhile": "Pinned rmcp 1.7.0 still drops the field; tests/roundtrip.rs pins that current behavior and fails LOUDLY the moment a bumped rmcp preserves enumNames, forcing this update; register 3.8 records the upstream resolution",
       "review_by": "2026-08-15"
     }
   ]

@@ -16,7 +16,31 @@ review-by 2026-07-01) and engagement backlog item 10
 ([07-ecosystem-engagement.md](../plan/07-ecosystem-engagement.md)); the register
 record is [3.12](../plan/01-ecosystem-context.md).
 
-## Verified mechanism (source re-confirmed 2026-06-14, rust-sdk head `266f870` — unchanged)
+## End-to-end re-verification (2026-06-15, first-hand)
+
+Both sides reproduced on the wire against the pinned suite
+(`@modelcontextprotocol/conformance@0.1.16`, `--scenario sse-retry --spec-version
+2025-11-25`), at rust-sdk head `266f870`:
+
+- **Stock `rmcp` 1.7 client fails.** A minimal probe using only rmcp's public
+  `StreamableHttpClientTransport::from_uri` + `().serve(transport)` +
+  `call_tool("test_reconnection")` produced `client-sse-retry-timing` **FAILURE**
+  ("reconnected too early, −55ms instead of 500ms"), `client-sse-last-event-id`
+  **WARNING** (no `Last-Event-ID`), and the `tools/call` **never completed** (it hung
+  until the probe's 20 s watchdog) — **OVERALL: FAILED**. (The −55ms matches the
+  2026-06-12 −53ms within run-to-run jitter; the negative sign is the signature — the
+  only stream that reconnects is the pre-existing GET, so the suite times the wrong
+  stream.)
+- **The reference host passes 3/3.** The same scenario against `mcp-reference-host`
+  (the `resume` dance on rmcp's public seam): `client-sse-graceful-reconnect`,
+  `client-sse-retry-timing`, and `client-sse-last-event-id` all **SUCCESS** —
+  **OVERALL: PASSED**.
+
+Same suite, same spec version, same public `StreamableHttpClient` seam — the only
+difference is the reconnection logic this dossier proposes. The source line numbers
+below were re-confirmed exact at `266f870`.
+
+## Verified mechanism (source re-confirmed 2026-06-15, rust-sdk head `266f870`)
 
 All in `crates/rmcp/src/transport/streamable_http_client.rs` (head `266f870`,
 still the `main` tip at the 2026-06-14 re-confirmation — `git ls-remote
