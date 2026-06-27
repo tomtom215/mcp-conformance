@@ -10,10 +10,10 @@
     },
     {
       "id": "rmcp-sse-resumption-upstream-filing",
-      "what": "File the measured rmcp 1.7 SSE-resumption gap (register row 3.12, ADR-0009 §Amendment) as a rust-sdk issue with the probe artifacts",
-      "why": "Outward-facing engagement is sequenced behind the M3 merge so the dossier can link the compliant implementation",
-      "meanwhile": "Register row 3.12 carries the full repro; a ready-to-file dossier (docs/reports/rmcp-sse-resumption-dossier.md) was end-to-end re-verified first-hand 2026-06-15 at head 266f870 — stock rmcp 1.7 fails sse-retry (-55ms reconnect, no Last-Event-ID, tools/call hung 20s -> FAILED) while the reference host passes 3/3 on the same public StreamableHttpClient seam; source line numbers (303 raw_sse_to_jsonrpc, 777-779/802-804 POST arms) re-confirmed exact",
-      "review_by": "2026-07-01"
+      "what": "Re-decided 2026-06-27 — do NOT file the 'add POST-path resumption' fix. The 2026-07-28 draft removes SSE stream resumability and Last-Event-ID from Streamable HTTP (register 1.5d Major #9, SEP-2575), so that fix is obsoleted by the spec. Re-scoped to the durable residue: assess whether rmcp's hang on early POST-stream close (instead of surfacing a re-issuable error, which the new text REQUIRES) is worth filing — judged against the FINAL spec text plus the draft suite's transport/sse scenarios",
+      "why": "The original premise (2025-11-25 requires the Last-Event-ID resumption rmcp lacks on the POST path) is being deleted by 2026-07-28; filing the add-resumption fix now would ask upstream to build a mechanism the next revision removes, while upstream is already implementing the removal (register 3.11). The re-scoped hang question cannot be verified until the final text ships (2026-07-28) and the draft suite scenarios stabilize",
+      "meanwhile": "Register rows 3.12 + 1.5d carry the reconciliation; the dossier (docs/reports/rmcp-sse-resumption-dossier.md) records that the spec removes the requirement and re-scopes to the hang. The 2025-11-25 mechanism remains exact — re-verified first-hand 2026-06-27 at rmcp head eb435c6 (raw_sse_to_jsonrpc l.303 'without reconnection logic'; POST arms l.778-779/803-804; SseAutoReconnectStream GET-only at l.584/720) — and the reference host still passes sse-retry 3/3, so the evidence is preserved if the decision reopens",
+      "review_by": "2026-09-01"
     },
     {
       "id": "rust-sdk-902-offer-clock",
