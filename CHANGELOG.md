@@ -465,6 +465,14 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 - **MSRV raised from 1.85 to 1.88** — rmcp's measured compilation floor
   (let-chains in its library source; undeclared upstream). Per policy
   (ADR-0004/ADR-0008) this makes the next release **0.2.0**.
+  *(Corrected 2026-06-27: the floor is **not** let-chains in rmcp's own source —
+  a later empirical re-test (2026-06-15; toolchains 1.85.0/1.87.0/1.88.0,
+  `--locked`; no `&&`-joined let-chains in `crates/rmcp{,-macros}/src`) disproved
+  that — but the transitive `darling 0.23.0` (`rust-version = 1.88.0`), pulled in
+  by `rmcp-macros`, which cargo enforces with a clear named pre-check rather than
+  an opaque `E0658`. Our own workspace independently uses let-chains, an additional
+  reason for the floor. See ADR-0008 §Correction and register 3.5. The v0.2.0
+  GitHub Release body carries the original wording.)*
 - Release pipeline is OIDC-only: the one-time bootstrap conditional is removed
   from `release.yml`; the publish job authenticates exclusively via trusted
   publishing (ADR-0007). *(Corrected 2026-06-11: this entry originally asserted
