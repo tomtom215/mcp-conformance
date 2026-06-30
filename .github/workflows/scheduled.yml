@@ -29,7 +29,7 @@ jobs:
     name: cargo-audit (RustSec)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install toolchain
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
@@ -44,7 +44,7 @@ jobs:
     name: Mutants (full sweep)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install toolchain
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
@@ -70,7 +70,7 @@ jobs:
     continue-on-error: true
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install toolchain
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
@@ -85,7 +85,7 @@ jobs:
     name: Fuzz (trace parse, canonical JSON, registry parse)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install toolchain
         run: |
           rustup toolchain install nightly --profile minimal --no-self-update
@@ -126,7 +126,7 @@ jobs:
     name: cargo-careful (UB / overflow on the engine crates)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install nightly toolchain (with rust-src for the careful sysroot)
         run: rustup toolchain install nightly --profile minimal --component rust-src --no-self-update
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -174,7 +174,7 @@ jobs:
             apt: gcc-multilib
             note: i686 32-bit
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install toolchain (with the ${{ matrix.rust_target }} std target)
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
@@ -202,7 +202,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install nightly (for -Z direct-minimal-versions) and stable
         run: |
           rustup toolchain install nightly --profile minimal --no-self-update
@@ -220,7 +220,7 @@ jobs:
     name: Benchmarks (history artifact)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install toolchain
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
@@ -244,7 +244,7 @@ jobs:
     name: Deferral ledger + spec-quote drift (ADR-0010)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install toolchain
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
