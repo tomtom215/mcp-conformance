@@ -17,6 +17,31 @@ committed file. Tracked by engagement backlog item 9
 is [3.9](../plan/01-ecosystem-context.md). **Pending owner authorization; nothing
 posted.**
 
+## Update 2026-07-19 — re-verified against rmcp 2.2.0 (the floors story shrank)
+
+rmcp moved `1.7.0 → 1.8.0 → 2.0.0 (breaking) → 2.1.0 → 2.2.0` while this draft sat.
+Re-verifying against the current release changed the floors half materially — the
+body below is the original `1.7.0` analysis, corrected here:
+
+- **`tokio-util` ≥0.7.9 (`tokio_util::bytes`) — no longer applies at 2.2.0.** The 2.x
+  refactor removed that usage (0 occurrences of `tokio_util::bytes` in the published
+  `rmcp-2.2.0` source), so this floor claim is **dropped**. rmcp still *declares*
+  `tokio-util ^0.7`, but the specific under-declaration this draft named is gone.
+- **`tokio-stream` ≥0.1.1 (`wrappers`) — still bites at 2.2.0.** `tokio_stream::wrappers`
+  is still imported (`handler/client/progress.rs`, `transport/streamable_http_server/session/local.rs`).
+  This is the one solid rmcp-keyed floor claim now.
+- **`tracing` ≥0.1.41 — plausible but unconfirmed at 2.2.0.** `#[instrument]` is still
+  used (2×); the empirical floor was never bisected and a full `-Z minimal-versions`
+  reproduce against 2.2.0 awaits the breaking 2.x pin bump.
+- **`from_build_env` — unchanged; still buggy in released 1.8.0 AND 2.2.0** (`env!` at
+  the definition site; verified by grepping both published crates). This is now clearly
+  the **stronger, durable** half of the dossier.
+
+**Net:** at 2.2.0 the floors ask is essentially a single `tokio-stream` bump (plus a
+soft `tracing` one) — thin, on top of `-Z minimal-versions` already being contentious.
+`from_build_env` is the piece worth leading with. If filed, target **2.2.0**, not 1.7.0.
+Everything below reads as originally written for 1.7.0.
+
 Per the [upstream-first policy](../plan/07-ecosystem-engagement.md) these are
 **issue-first**: open the issue(s) describing the change, PR on maintainer interest.
 They can go as one "hygiene findings from building on rmcp 1.7" issue with two

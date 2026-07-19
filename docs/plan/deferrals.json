@@ -38,9 +38,9 @@
     },
     {
       "id": "adopt-rmcp-enumnames-fix",
-      "what": "Adopt a released rmcp carrying the enumNames fix (rust-sdk#905, merged to main 2026-06-20) once it ships (v1.8.0 planning, rust-sdk#850); in the same dependency-bump PR update register 3.8/3.10 and drop the tests/roundtrip.rs pin + the interactive.rs workaround note",
-      "why": "The fix is merged upstream but not yet on crates.io (latest published rmcp is 1.7.0, which still drops enumNames); SDK/dependency bumps are deliberate, released-version-only changes per the engineering standards (floors are versions we actually test against)",
-      "meanwhile": "Pinned rmcp 1.7.0 still drops the field; tests/roundtrip.rs pins that current behavior and fails LOUDLY the moment a bumped rmcp preserves enumNames, forcing this update; register 3.8 records the upstream resolution",
+      "what": "ACTIONABLE as of 2026-07-19: the enumNames fix (rust-sdk#905) now ships in released rmcp 1.8.0 AND 2.2.0. Adopt it via a 1.7.0 -> 1.8.0 MINOR bump (1.8.0 predates the breaking 2.0.0, so this avoids the 2.x migration); in the same PR update register 3.8/3.10 and drop the tests/roundtrip.rs pin + the interactive.rs workaround note. Owner decides timing (a deliberate dependency bump changing the shipped artifact)",
+      "why": "The fix is now on crates.io (verified 2026-07-19: deny_unknown_fields present in the published rmcp-1.8.0 and rmcp-2.2.0 elicitation_schema.rs). Adoption is a deliberate, released-version-only dependency bump per the engineering standards, and is the owner's call (plan step 4); kept deferred with a backstop date rather than done unilaterally",
+      "meanwhile": "Pinned rmcp 1.7.0 still drops the field; tests/roundtrip.rs pins that current behavior and fails LOUDLY the moment a bumped rmcp preserves enumNames, forcing this update; register 3.8 records the release confirmation. The 1.8.0 minor path means adoption no longer waits on the 2.x line",
       "review_by": "2026-08-15"
     }
   ]
