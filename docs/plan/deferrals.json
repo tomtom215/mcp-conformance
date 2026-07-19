@@ -38,10 +38,10 @@
     },
     {
       "id": "adopt-rmcp-enumnames-fix",
-      "what": "ACTIONABLE as of 2026-07-19: the enumNames fix (rust-sdk#905) now ships in released rmcp 1.8.0 AND 2.2.0. Adopt it via a 1.7.0 -> 1.8.0 MINOR bump (1.8.0 predates the breaking 2.0.0, so this avoids the 2.x migration); in the same PR update register 3.8/3.10 and drop the tests/roundtrip.rs pin + the interactive.rs workaround note. Owner decides timing (a deliberate dependency bump changing the shipped artifact)",
-      "why": "The fix is now on crates.io (verified 2026-07-19: deny_unknown_fields present in the published rmcp-1.8.0 and rmcp-2.2.0 elicitation_schema.rs). Adoption is a deliberate, released-version-only dependency bump per the engineering standards, and is the owner's call (plan step 4); kept deferred with a backstop date rather than done unilaterally",
-      "meanwhile": "Pinned rmcp 1.7.0 still drops the field; tests/roundtrip.rs pins that current behavior and fails LOUDLY the moment a bumped rmcp preserves enumNames, forcing this update; register 3.8 records the release confirmation. The 1.8.0 minor path means adoption no longer waits on the 2.x line",
-      "review_by": "2026-08-15"
+      "what": "Adopt rmcp 1.8.0+ for the enumNames fix (rust-sdk#905) as a DELIBERATE upgrade WITH conformance re-validation, folded into the M2.5 2026-07-28 migration. NOT the clean minor bump it looked like: an attempt on 2026-07-19 (bumped 1.7.0->1.8.0, flipped the roundtrip.rs enumNames assertion to preserved — that part worked) was REVERTED because 1.8.0 bundles two more behavior changes. When adopting: drop the roundtrip.rs loss-pin + interactive.rs notes, add the #[allow(deprecated)] sites, decide the arg-error semantics, update register 3.8/3.10",
+      "why": "1.8.0 is inseparable from: (a) SEP-2577 forward-deprecation of Roots/Sampling/Logging — features active and REQUIRED for our 2025-11-25 conformance surface, needing ~7 #[allow(deprecated)] sites across mcp-everything-server + mcp-reference-host; and (b) a semantics change where tool-argument-deserialization failures return a tool-error result (isError:true) instead of an MCP protocol error (-32602), which broke 3 arg-validation tests. (b) is conformance-relevant and CANNOT be validated locally (needs the npx conformance gate), so reactively patching tests around it risks masking a 40/40 regression. This belongs in a deliberate upgrade with full suite re-validation, not a hygiene bump",
+      "meanwhile": "Pinned rmcp 1.7.0; tests/roundtrip.rs still pins the enumNames loss and fails LOUDLY the moment a bumped rmcp preserves it, forcing this work; register 3.8 records the release confirmation AND the 2026-07-19 bump-attempt findings. The M2.5 migration will upgrade rmcp deliberately and re-run the conformance gate, which is where these three changes get handled together",
+      "review_by": "2026-09-01"
     }
   ]
 }
