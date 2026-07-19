@@ -16,7 +16,48 @@ review-by 2026-07-01) and engagement backlog item 10
 ([07-ecosystem-engagement.md](../plan/07-ecosystem-engagement.md)); the register
 record is [3.12](../plan/01-ecosystem-context.md).
 
-## End-to-end re-verification (2026-06-15, first-hand)
+## Status — re-decided 2026-06-27: the `2026-07-28` draft removes this requirement
+
+**Do not file the "add POST-path resumption" fix below as written.** A standing
+RC-tracking re-reconciliation on 2026-06-27 ([register 1.5d](../plan/01-ecosystem-context.md))
+found that the `2026-07-28` draft changelog now carries a new **Major** entry
+(SEP-2575):
+
+> Remove SSE stream resumability and message redelivery (the `Last-Event-ID`
+> header and SSE event IDs) from the Streamable HTTP transport. A broken response
+> stream loses the in-flight request; clients **MUST** re-issue it as a new request
+> with a new request ID.
+
+This entry was authored 2026-06-07 (changelog commit `0fc9d5a`) and merged to `main`
+after the 2026-06-14 reconciliation. It **inverts the filing calculus**:
+
+- The gap is real and exact **for `2025-11-25`** — re-verified first-hand 2026-06-27
+  at rmcp head `eb435c6` (the source claims below are unchanged), and the suite's
+  `sse-retry` scenario still runs at `--spec-version 2025-11-25`.
+- But the *fix this dossier proposes* — applying a reconnecting wrapper to POST
+  response streams, threading `Last-Event-ID` — is **exactly the mechanism the next
+  spec deletes**. rmcp's maintainers are already implementing the stateless rework
+  (SEP-2575 wave, [register 3.11](../plan/01-ecosystem-context.md)), so a "please add
+  `Last-Event-ID` resumption" issue would ask them to build something they are about
+  to remove. It would read as not tracking the draft, the opposite of the credibility
+  the M4 engagement is meant to earn.
+- The **durable residue** is narrower and survives the spec change: on an early
+  POST-stream close rmcp *hangs* (the `tools/call` never completes — measured below)
+  rather than surfacing an error the caller can act on. Under `2026-07-28` the client
+  **MUST** re-issue the request as a new one; a transport that hangs instead never
+  gives the caller the chance. That is a robustness bug worth raising — but it is a
+  *different* report than this one, and it can only be framed and verified against the
+  **final** text plus the draft suite's transport/`sse` scenarios, neither of which
+  is stable yet.
+
+**Decision:** the deferral `rmcp-sse-resumption-upstream-filing`
+([deferrals.json](../plan/deferrals.json)) is re-dated to `2026-09-01` and re-scoped
+to the hang question, to be re-decided after the `2026-07-28` text ships and the draft
+suite scenarios settle. The `2025-11-25` evidence below is retained intact so the
+decision can reopen cheaply. Everything from here down is the original `2025-11-25`
+dossier, preserved unchanged except where it now reads "re-confirmed 2026-06-27".
+
+## End-to-end re-verification (2026-06-15, first-hand; source re-confirmed 2026-06-27 at `eb435c6`)
 
 Both sides reproduced on the wire against the pinned suite
 (`@modelcontextprotocol/conformance@0.1.16`, `--scenario sse-retry --spec-version
@@ -152,10 +193,14 @@ npx -y @modelcontextprotocol/conformance@0.1.16 client \
 
 ## Action
 
-- [ ] File the issue above on `modelcontextprotocol/rust-sdk` (maintainer action;
-      re-run the source-confirm one-liner against the head at filing time).
-- [ ] On maintainer interest: PR the POST-path reconnection with a regression
-      test built on the `sse-retry` scenario.
-- [ ] When fixed in a released rmcp we adopt: update register row 3.12, retire
-      the deferral row `rmcp-sse-resumption-upstream-filing`, and note whether the
-      reference host's `resume` dance can lean on rmcp directly.
+- [x] ~~File the "add POST-path resumption" issue/PR.~~ **Superseded 2026-06-27**
+      (see Status above): the `2026-07-28` draft removes SSE resumability (SEP-2575),
+      so this fix is obsoleted by the spec. Not filing.
+- [ ] After the `2026-07-28` text ships and the draft suite's transport/`sse`
+      scenarios stabilize: re-decide the *durable* report — rmcp hangs on early
+      POST-stream close instead of surfacing the re-issuable error the new text
+      requires — framed and verified against the final spec, not `2025-11-25`
+      (deferral `rmcp-sse-resumption-upstream-filing`, review-by 2026-09-01).
+- [ ] When the M5 gate-drop makes `2026-07-28` the default: revisit the reference
+      host's `resume` dance, which honors `Last-Event-ID` for `2025-11-25` and is
+      obsolete under the new transport — register row 3.12.
