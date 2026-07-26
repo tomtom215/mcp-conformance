@@ -178,7 +178,12 @@ official suite, and engineered to the standard set by
 pedantic + nursery at `-D warnings` on stable and MSRV across three platforms,
 property and golden-corpus tests, diff-scoped mutation gates with a
 zero-surviving-mutants standard on every shipped crate, fuzzing, a
-sanitization pass, and `cargo deny` on every push.
+sanitization pass, and `cargo deny` on every push — plus scheduled gates that
+catch what a green PR cannot: byte-identical reports on big-endian and 32-bit
+targets, a build at the oldest dependency versions the manifests claim to
+support, and a ratcheted measurement of how much of the *next* spec revision
+the reference server already satisfies
+([`conformance/draft-readiness.json`](conformance/draft-readiness.json)).
 
 The full reasoning, with every claim verified and dated, is in
 [docs/plan/00-charter.md](docs/plan/00-charter.md).

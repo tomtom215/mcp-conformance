@@ -13,6 +13,30 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **A measured readiness score for the next revision** (`cargo xtask draft-readiness`;
+  scheduled `draft-readiness` CI job). The `2026-07-28` change inventory says *what*
+  changes; it cannot say how large the migration is. This drives the official runner's
+  **draft scenario set** against the current `2025-11-25` everything server and ratchets
+  every check's status against a committed baseline
+  (`conformance/draft-readiness.json`) — the gate fails when a passing check is lost
+  (a migration regression) *and* when one is gained or the suite's check set moves
+  (`BLESS=1` re-records), so the figure quoted in the roadmap cannot drift in either
+  direction. Both the suite version and the spec revision are exact pins: a ratchet whose
+  input floats is not a ratchet, which is also why this is a separate job from the
+  alpha-tracking one whose whole purpose is to float. Statuses are recorded verbatim per
+  check rather than folded into a passed/total ratio, because the runner's `INFO` outcome
+  is neither a pass nor a failure and a denominator that absorbs it is how a conformance
+  number becomes a lie — the same reason ADR-0006 reports capability-gated requirements as
+  not-applicable. Deliberately separate from `cargo xtask conformance`: the runner here
+  speaks a revision the registry does not describe, so there is nothing to reconcile the
+  validator against, and the failures are findings rather than build breakage.
+  **First measurement (2026-07-26): 1 passing, 20 failing, 1 informational across 20
+  scenarios** — and every failure is the same failure, an HTTP 422 at the removed
+  `initialize` handshake, so the migration is one piece of work (the stateless lifecycle)
+  rather than twenty. The single pass is the DNS-rebinding rejection, which is
+  revision-independent because the `Host`/`Origin` policy runs in middleware ahead of any
+  protocol handling. Written up in
+  `docs/reports/draft-2026-07-28-readiness-2026-07-26.md`.
 - **Stateless `2026-07-28` lifecycle variant** (roadmap M2.5; behind a new, off-by-default
   `draft-2026-07-28` feature on `mcp-trace-validator`). A second session state-machine
   variant — `context::draft` — alongside the `2025-11-25` one, modelling SEP-2575's

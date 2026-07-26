@@ -164,7 +164,7 @@ fn await_tap_quiescence(tap_dir: &Path) {
 /// [`READINESS_TIMEOUT`] so a wedged spawn fails the task instead of hanging
 /// it, and the rest of the child's stderr is drained (and forwarded) so a
 /// chatty server can never fill the pipe and deadlock against it.
-fn start_server(root: &Path, tap_dir: &Path) -> Option<(std::process::Child, String)> {
+pub(crate) fn start_server(root: &Path, tap_dir: &Path) -> Option<(std::process::Child, String)> {
     let binary = root.join(format!(
         "target/debug/mcp-everything-server{}",
         std::env::consts::EXE_SUFFIX

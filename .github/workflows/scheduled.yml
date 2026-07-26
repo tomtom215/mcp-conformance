@@ -85,6 +85,25 @@ jobs:
         env:
           MCP_SUITE_VERSION: alpha
 
+  # How much of the *next* revision the current server already satisfies
+  # (docs/plan/06-roadmap.md M2.5). Unlike suite-alpha above, this one gates:
+  # its suite version and spec revision are both exact pins, so the measurement
+  # is reproducible and a change in it is real news — either migration progress
+  # or a regression. `BLESS=1 cargo xtask draft-readiness` re-records.
+  draft-readiness:
+    name: Draft readiness (2026-07-28 scenarios, ratcheted)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Draft scenarios vs everything-server, against the committed baseline
+        run: cargo xtask draft-readiness
+
   fuzz:
     name: Fuzz (trace parse, canonical JSON, registry parse)
     runs-on: ubuntu-latest
