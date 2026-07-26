@@ -22,6 +22,60 @@ use std::process::Command;
 /// The MSRV this workspace pins (ADR-0008); the clippy leg runs on it.
 const MSRV: &str = "1.88.0";
 
+/// Whether `cargo-deny` is installed. Split out so the `ci` summary can name
+/// what did not run without duplicating the probe.
+fn deny_available() -> bool {
+    Command::new("cargo")
+        .args(["deny", "--version"])
+        .current_dir(crate::workspace_root())
+        .output()
+        .is_ok_and(|output| output.status.success())
+}
+
+/// Whether clippy exists **for the MSRV toolchain** — see `msrv_clippy_gate`
+/// for why the toolchain alone is not a sufficient probe.
+fn msrv_clippy_available() -> bool {
+    Command::new("cargo")
+        .arg(format!("+{MSRV}"))
+        .args(["clippy", "--version"])
+        .current_dir(crate::workspace_root())
+        .output()
+        .is_ok_and(|output| output.status.success())
+}
+
+/// The gates this machine cannot run, by name.
+///
+/// A local run that skips a gate is not a smaller version of CI — it is a
+/// different, weaker claim, and the difference has to be stated where the
+/// reader is looking. `cargo xtask ci` prints "all steps passed" partway
+/// through (it means the cargo steps), so a skip notice scrolling past above
+/// that line is easy to read as coverage. This drives the closing summary that
+/// cannot be.
+pub(crate) fn skipped_gates() -> Vec<&'static str> {
+    let mut skipped = Vec::new();
+    if !msrv_clippy_available() {
+        skipped.push("MSRV clippy");
+    }
+    if !deny_available() {
+        skipped.push("cargo-deny");
+    }
+    skipped
+}
+
+/// The closing line for `cargo xtask ci`, given the gates that did not run.
+pub(crate) fn ci_summary(skipped: &[&str]) -> String {
+    if skipped.is_empty() {
+        return "xtask: ci — every local gate ran and passed".to_owned();
+    }
+    format!(
+        "xtask: ci — PASSED, but {} gate(s) did NOT run here: {}. CI enforces them, so a \
+         green local run is a weaker claim than a green CI run — install the missing tools \
+         before treating this as verification.",
+        skipped.len(),
+        skipped.join(", ")
+    )
+}
+
 /// Runs `cargo deny check` when cargo-deny is installed; skips LOUDLY when it
 /// is not. The CI `deny` job is the enforcement of record, but a versionless
 /// path dependency once sailed through a green `cargo xtask ci` and failed
@@ -29,12 +83,7 @@ const MSRV: &str = "1.88.0";
 /// must never skip it silently when it cannot.
 pub(crate) fn deny_gate() -> bool {
     let root = crate::workspace_root();
-    let available = Command::new("cargo")
-        .args(["deny", "--version"])
-        .current_dir(&root)
-        .output()
-        .is_ok_and(|output| output.status.success());
-    if !available {
+    if !deny_available() {
         eprintln!(
             "xtask: cargo-deny — SKIPPED (not installed; `cargo install cargo-deny --locked`). \
              CI runs this gate regardless: a dependency-policy violation will fail there."
@@ -129,13 +178,7 @@ pub(crate) fn msrv_clippy_gate() -> bool {
     // hard-failed on a missing clippy component — exactly what the v0.3.0 release
     // rehearsal surfaced (release.yml had installed `1.88` while this gate asks
     // for `1.88.0`). Checking `clippy --version` makes the loud skip below honest.
-    let available = Command::new("cargo")
-        .arg(format!("+{MSRV}"))
-        .args(["clippy", "--version"])
-        .current_dir(&root)
-        .output()
-        .is_ok_and(|output| output.status.success());
-    if !available {
+    if !msrv_clippy_available() {
         eprintln!(
             "xtask: MSRV clippy — SKIPPED (clippy for toolchain {MSRV} not installed; \
              `rustup toolchain install {MSRV} --component clippy`). CI runs \
@@ -335,6 +378,23 @@ mod tests {
         // plausible number of files (the vacuous-walk check) and the
         // committed tree must be within the cap.
         assert!(file_size_gate());
+    }
+
+    #[test]
+    fn a_complete_run_says_so_plainly() {
+        let summary = super::ci_summary(&[]);
+        assert!(summary.contains("every local gate ran"), "{summary}");
+        assert!(!summary.contains("NOT run"), "{summary}");
+    }
+
+    #[test]
+    fn a_partial_run_names_what_was_missing_and_refuses_to_call_it_verification() {
+        let summary = super::ci_summary(&["MSRV clippy", "cargo-deny"]);
+        // The count, both names, and the caveat all have to survive — this is
+        // the line that stops "all steps passed" from being over-read.
+        assert!(summary.contains("2 gate(s) did NOT run"), "{summary}");
+        assert!(summary.contains("MSRV clippy, cargo-deny"), "{summary}");
+        assert!(summary.contains("weaker claim"), "{summary}");
     }
 
     #[test]
