@@ -43,12 +43,25 @@ allow = [
 multiple-versions = "deny"
 wildcards = "deny"
 skip = [
-    # rmcp 1.7's rand/uuid stack pins getrandom 0.4 (wasip3 -> wit-bindgen
-    # 0.51) while proptest's dev-only rand 0.9 stack pins getrandom 0.3
-    # (wasip2 -> wit-bindgen 0.57). Both legs are WASI-shim targets only —
-    # never compiled on any tested platform. Collapses when proptest moves
-    # to rand 0.10 (still on 0.9 at proptest 1.11.0, checked 2026-06-11).
-    { crate = "wit-bindgen@0.51.0", reason = "target-conditional WASI shim split: rmcp(prod) getrandom 0.4 vs proptest(dev) getrandom 0.3" },
+    # The proc-macro ecosystem is mid-migration from syn 2 to syn 3, so a build
+    # that uses both derive-heavy and platform crates gets one of each. Verified
+    # from Cargo.lock on 2026-07-26 — syn 3.0.3 is named by the crates that moved
+    # fast (serde_derive 1.0.229, clap_derive 4.6.4, async-trait 0.1.91,
+    # thiserror-impl 2.0.19, ref-cast-impl 1.0.26), syn 2.0.119 by the seventeen
+    # that have not (darling, schemars_derive, rmcp-macros, tokio-macros,
+    # tracing-attributes, futures-macro, the windows-* and zerocopy/yoke/zerovec
+    # families, …). Nothing here is ours to fix and nothing ships in a binary:
+    # both are build-time-only proc-macro dependencies, so the cost is compile
+    # time, not surface area. Pinning our own derive crates backwards to force
+    # agreement would trade a real dependency upgrade for a cosmetic graph.
+    # Collapses on its own as the syn-2 holdouts migrate; re-fires if either
+    # version moves, because the pin is exact.
+    { crate = "syn@2.0.119", reason = "ecosystem mid-migration to syn 3: build-time proc-macro dependency of both the moved and unmoved derive crates" },
+    # Removed 2026-07-26: the wit-bindgen 0.51/0.57 split (rmcp's getrandom 0.4
+    # vs proptest's dev-only getrandom 0.3) has collapsed — the lock now carries
+    # only 0.57.1, so cargo-deny's unmatched-skip warning correctly retired it.
+    # Kept as a note rather than silently deleted: a skip that disappears without
+    # explanation reads like someone loosened the policy.
 ]
 
 [sources]

@@ -126,6 +126,16 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `rmcp-macros` ceiling — which turns out to be a second job the shim does for free:
   rmcp 1.8.0 requires `rmcp-macros ^1.8.0`, so the bound keeps `cargo update` from
   silently performing the upgrade the deferral says must be deliberate.
+  The update moved the duplicate-version landscape, so `deny.toml`'s skip list moved
+  with it: the `wit-bindgen` 0.51/0.57 split **collapsed** (its skip is retired, with a
+  note saying why rather than a silent deletion — a skip that vanishes unexplained reads
+  like a loosened policy), and `syn` 2/3 appeared in its place. That one is the ecosystem
+  mid-migration: `serde_derive`, `clap_derive`, `async-trait`, `thiserror-impl` and
+  `ref-cast-impl` have moved to syn 3 while seventeen other derive crates have not.
+  Both are build-time-only proc-macro dependencies, so the cost is compile time rather
+  than shipped surface, and holding our own derive crates back to force agreement would
+  trade a real upgrade for a cosmetic graph. Skipped with the roots named and pinned
+  exactly, so it re-fires the moment either version moves.
 
 ### Fixed
 
