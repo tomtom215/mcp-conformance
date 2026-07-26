@@ -31,7 +31,7 @@
     },
     {
       "id": "suite-0-2-0-stable-pin-bump",
-      "what": "Bump the suite pin when the 0.2.0 line stabilizes (alpha.3 published 2026-06-12; register rows 2.4/2.16), refresh both expected-failures baselines and the agreement divergence ledger in the same change",
+      "what": "Bump the suite pin when the 0.2.0 line stabilizes (alpha.3 published 2026-06-12; register rows 2.4/2.16), refresh both expected-failures baselines and the agreement divergence ledger in the same change. 2026-07-26: there are now TWO suite pins to move together — xtask's SUITE_VERSION (0.1.16, the 2025-11-25 gate) and draft_readiness::DRAFT_SUITE_VERSION (0.2.0-alpha.9, the 2026-07-28 ratchet); the latter also needs BLESS=1 re-measurement in the same commit, since a suite bump changes the check set the baseline pins. Still nothing stable to bump to: latest stable is 0.1.16 (unchanged since 2026-03-30) and the alpha dist-tag has been quiet since 2026-07-01",
       "why": "Pin bumps are deliberate PRs with a scenario diff review (03-conformance-strategy §Official-suite version policy)",
       "meanwhile": "Weekly suite-alpha job runs the alpha dist-tag non-blocking; conformance#338's fix arrives with the bump and its baseline entry will go stale loudly",
       "review_by": "2026-08-15"

@@ -11,8 +11,20 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # Routine drift: one reviewable PR, expected to be mergeable on green CI.
       cargo-dependencies:
         patterns: ["*"]
+        # rmcp is not routine. An rmcp bump is a deliberate upgrade that must be
+        # re-validated against the official suite (deferral
+        # `adopt-rmcp-enumnames-fix`), and grouping it here made the whole PR
+        # unmergeable: #28 bundled rmcp 1.7 -> 2.2 (~70 compile errors) with six
+        # harmless bumps, so the six were held hostage by the one. `rmcp-macros`
+        # rides along because it is version-locked to rmcp (register 3.13).
+        exclude-patterns: ["rmcp", "rmcp-macros"]
+      # Its own PR, so the SDK upgrade is *visible* rather than hidden — it is
+      # the input to milestone M2.5, not noise to be ignored.
+      rmcp-sdk:
+        patterns: ["rmcp", "rmcp-macros"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

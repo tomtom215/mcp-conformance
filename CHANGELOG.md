@@ -87,6 +87,22 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   URL it skips by design. RELEASING.md's prepare step now names the
   link-reference update.
 
+### Changed
+
+- **Dependabot no longer groups the rmcp SDK with routine dependency drift.** An rmcp
+  bump is a deliberate upgrade requiring conformance re-validation (deferral
+  `adopt-rmcp-enumnames-fix`), so bundling it with everything else made the whole PR
+  unmergeable — [#28](https://github.com/tomtom215/mcp-conformance/pull/28) carried
+  `rmcp 1.7 -> 2.2` (~70 compile errors) together with six harmless bumps, holding the six
+  hostage to the one. `rmcp` and `rmcp-macros` now get their own group, so the SDK upgrade
+  stays *visible* as milestone input while routine drift stays mergeable. The routine
+  bumps #28 proposed are applied here directly (`serde_json` 1.0.151, `clap` 4.6.4,
+  `tokio` 1.53.1, `http-body-util` 0.1.4, `futures` 0.3.33, `sse-stream` 0.2.5, and the
+  transitive drift behind them); `rmcp` stays at 1.7.0, held there by the new
+  `rmcp-macros` ceiling — which turns out to be a second job the shim does for free:
+  rmcp 1.8.0 requires `rmcp-macros ^1.8.0`, so the bound keeps `cargo update` from
+  silently performing the upgrade the deferral says must be deliberate.
+
 ### Fixed
 
 - **The scheduled dependency-floors gate, red since 2026-07-06** — a broken
