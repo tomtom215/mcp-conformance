@@ -89,6 +89,24 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The scheduled dependency-floors gate, red since 2026-07-06** — a broken
+  dependency pair upstream resolution actively prefers. `rmcp` declares its own
+  proc-macro crate as `rmcp-macros = "^N.M.P"`, but the two are lockstep-coupled
+  (the macro expands to calls into `rmcp`'s internals), so Cargo happily resolves
+  `rmcp 1.7.0` with `rmcp-macros 1.8.0` — a pair that does not compile: 1.8.0's
+  `#[tool]` expansion calls `rmcp::handler::server::common::schema_for_input`,
+  which 1.7.0 does not export (added in 1.8.0), giving `E0425` at all five
+  `#[tool]` sites in `mcp-everything-server`. The committed `Cargo.lock` hid it;
+  the floors gate regenerates the lock, so it broke the first Monday after
+  `rmcp-macros 1.8.0` was published (2026-06-23) and stayed broken for three
+  scheduled runs. Repaired here with a documented **ceiling shim**
+  (`rmcp-macros = ">=1.7.0, <1.8.0"`) beside the existing floor shims — it must
+  move with the `rmcp` pin at the M2.5 upgrade, and fails loudly rather than
+  silently if it does not. No runtime change: `rmcp-macros` was already in the
+  tree as `rmcp`'s own dependency at exactly this version, and `Cargo.lock` gains
+  only the new dependency edge. Reported as register row 3.13 and queued upstream
+  as a one-line `=N.M.P` pin (engagement backlog item 11); the caret declaration
+  is still present at `rmcp 3.0.0-beta.2`.
 - **The CHANGELOG's link-reference definitions, stale since v0.3.0**: `[0.3.0]`
   had no `[0.3.0]: …` definition, so on GitHub it rendered as the literal text
   `[0.3.0]` instead of a release link; and `[Unreleased]` compared against
