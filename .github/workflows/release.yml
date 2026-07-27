@@ -5,6 +5,7 @@
 # shape follows a2a-rust's proven release.yml, hardened per ADR-0007):
 #
 #   verify ──┬──► package (attest + SHA256SUMS) ──► github-release ──► publish
+#            │                                                          └──► verify-install
 #   tests ───┘                                                         (release env,
 #                                                                       OIDC)
 #
@@ -335,3 +336,77 @@ jobs:
             echo "> docs.rs builds follow within minutes. Published via OIDC trusted"
             echo "> publishing."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Prove the published artifact is actually installable ───────────────────
+  # RELEASING.md step 5 used to say "install path works on a clean machine" and
+  # leave it to a human. This is that step, automated. It can only run AFTER
+  # publish — `mcp-trace-validator` depends on `mcp-conformance-core`, so
+  # installing it from the registry is impossible until the sibling is there,
+  # which is the same circularity that makes `cargo package` (not per-crate
+  # `--dry-run`) the pre-publish check.
+  #
+  # Honest about what it is: a DETECTOR, not a preventer. By the time it runs,
+  # the version is on crates.io and cannot be replaced. What it buys is finding
+  # out from CI, within minutes, rather than from a user's bug report — the
+  # failure it exists for is a packaging bug (an `include`d file missing from
+  # the .crate) that every pre-publish gate passes because the workspace still
+  # has the file on disk.
+  #
+  # Deliberately NOT cached: a warm registry and target dir would defeat the
+  # "clean machine" claim this job makes.
+  verify-install:
+    name: Install from crates.io (${{ matrix.toolchain }})
+    needs: [verify, publish]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Stable is what most users have; MSRV proves the published artifact
+        # honours the floor the manifest declares, which no pre-publish gate
+        # checks against the *packaged* form.
+        toolchain: [stable, "1.88"]
+    permissions:
+      contents: read
+    steps:
+      - name: Install toolchain
+        run: |
+          rustup toolchain install ${{ matrix.toolchain }} --profile minimal --no-self-update
+          rustup default ${{ matrix.toolchain }}
+      - name: cargo install mcp-trace-validator, exactly as the README tells users to
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.verify.outputs.version }}"
+          # The sparse index can lag behind a completed publish at some CDN
+          # edges, so a miss here is retried before it is believed.
+          for attempt in 1 2 3 4 5; do
+            if cargo install mcp-trace-validator --version "${VERSION}"; then
+              installed=1; break
+            fi
+            echo "::warning::install attempt ${attempt} failed; the index may still be propagating"
+            sleep $(( attempt * 20 ))
+          done
+          [[ "${installed:-0}" == "1" ]] || { echo "::error::cargo install failed after 5 attempts"; exit 1; }
+      - name: The installed binary runs and is the version we published
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.verify.outputs.version }}"
+          # Closes the loop: resolving and building is not the same as shipping
+          # a binary that starts and reports itself correctly.
+          got="$(mcp-trace-validator --version)"
+          echo "installed: ${got}"
+          grep -qF "${VERSION}" <<<"${got}" || {
+            echo "::error::installed binary reports '${got}', expected ${VERSION}"
+            exit 1
+          }
+          mcp-trace-validator --help >/dev/null
+      - name: The pinned graph is coherent too (`--locked`)
+        # The unlocked install above is the user-facing command; this one proves
+        # the Cargo.lock published inside the crate still resolves, so a future
+        # `--locked` install (the reproducible one) is not already broken.
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo install mcp-trace-validator --version "${{ needs.verify.outputs.version }}" --locked --force

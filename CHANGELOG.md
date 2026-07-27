@@ -11,8 +11,49 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.4.0] - 2026-07-27
+
+**Verdicts change in this release.** `PROM-008` moves from *excluded* to
+*judged*, so a trace that previously reported no finding for it can now report
+one, and every report's totals shift (52 checked / 88 excluded, was 51 / 89).
+Pre-1.0 minor releases may do this and the README says so; this note is the
+"explicitly" that promise refers to. Re-baseline any committed golden reports.
+
+**The API grows, and nothing is removed.** `RegistrySet`, `AppliesRange`,
+`Requirement::applies_to`, the `multi` module with `validate_revisions` /
+`MultiReport`, the CLI's `--revision` and `--registry-set`, and the
+off-by-default `draft-2026-07-28` feature are all additive; the single-revision
+`Registry` and `engine::validate` are untouched. Code written against 0.3.0
+compiles unchanged against 0.4.0.
+
+**Why now, one day before the `2026-07-28` specification ships:** multi-revision
+validation is the feature whose value peaks across the migration window, and it
+is more useful in a published crate the day the text lands than in a repository
+a week later. The registry content for the new revision is deliberately *not*
+here — it is extracted from the final text, which had not shipped when this was
+cut (`docs/plan/01-ecosystem-context.md` row 1.5f).
+
 ### Added
 
+- **The release pipeline now proves the published crate is installable**
+  (`verify-install` job in `release.yml`). `RELEASING.md` step 5 used to read
+  "install path works on a clean machine" and leave it to a human, which is the
+  one shape of claim this project otherwise refuses to leave un-gated. The job
+  runs `cargo install mcp-trace-validator` — the exact command the README gives
+  users — on an uncached runner on both stable and MSRV the moment `publish`
+  finishes, then runs the installed binary and checks it reports the published
+  version, and separately re-installs `--locked` to prove the lockfile shipped
+  inside the crate still resolves. It is deliberately a **detector, not a
+  gate**: by the time it can run, the version is immutable on crates.io. That
+  is not a flaw in the design but a property of the problem — the bug it exists
+  for is a packaging one, a file missing from the `.crate` that every
+  pre-publish gate passes because the workspace still has it on disk, and it
+  cannot run earlier because `mcp-trace-validator` depends on
+  `mcp-conformance-core`, so installing it from the registry is impossible
+  until the sibling is published. Finding that from CI in minutes beats finding
+  it from a user's bug report.
 - **A requirement moved from excluded to judged, by auditing the exclusions**
   (`PROM-008`; registry now **52 judged by 48 checks, 88 exclusions**). The first two
   registry audits re-read the *spec text* looking for clauses with no entry. This one
@@ -651,7 +692,8 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.4.0
 [0.3.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.3.0
 [0.2.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.2.0
 [0.1.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.1.0

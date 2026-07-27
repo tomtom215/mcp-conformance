@@ -84,8 +84,21 @@ in the release PR; then steps 1–5 below.
    crates are skipped and the chain resumes.
    Rehearse first: `Actions → Release → Run workflow` from the `release/vX.Y.Z`
    branch runs every gate and packaging step but can never publish.
-5. **Verify**: crates on crates.io, docs on docs.rs, install path
-   (`cargo install mcp-trace-validator`) works on a clean machine.
+5. **Verify**: crates on crates.io and docs on docs.rs — both still eyeball
+   steps. The install path is **no longer one of them**: the `verify-install`
+   job (added v0.4.0) runs `cargo install mcp-trace-validator` on a clean,
+   uncached runner on both stable and MSRV the moment `publish` finishes, then
+   runs the installed binary and checks it reports the published version.
+   It is a detector rather than a gate — by the time it runs the version is
+   immutable on crates.io — but the bug it exists for is a packaging one (a
+   file missing from the `.crate` that every pre-publish gate passes, because
+   the workspace still has it on disk), and finding that from CI in minutes
+   beats finding it from a user.
+
+   It cannot run any earlier: `mcp-trace-validator` depends on
+   `mcp-conformance-core`, so installing it from the registry is impossible
+   until the sibling is published — the same circularity that makes
+   `cargo package` rather than per-crate `--dry-run` the pre-publish check.
 
 ## When publishing fails mid-way
 

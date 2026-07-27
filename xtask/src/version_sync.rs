@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! The `version-sync` task: the README's stated crates.io version must equal
-//! `[workspace.package].version`.
+//! The `version-sync` task: every human-facing statement of the released
+//! version must equal `[workspace.package].version` — today the README's
+//! `**Status:` line and `CITATION.cff`'s `version` field.
 //!
 //! The 2026-06-13 audit's predecessor found the README claiming `0.1.0` on
 //! crates.io long after `0.2.0` shipped — a stale fact nothing re-checked,
@@ -12,6 +13,12 @@
 //! `**Status:` line must move with it, or CI fails. Fail-closed — an anchor it
 //! cannot find in either file fails, because a version gate that cannot locate
 //! the version it guards is worse than no gate.
+//!
+//! `CITATION.cff` joined the gate when its `version`/`date-released` fields were
+//! added (v0.4.0). A citation file exists to be copied into someone else's
+//! bibliography, so a stale version there is not an internal inconsistency —
+//! it is a wrong fact published under the project's name, in the one file
+//! whose entire purpose is being quoted verbatim.
 
 // `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
 // opposite demands about items in a binary crate's private modules; this follows
@@ -43,19 +50,63 @@ pub(crate) fn run() -> bool {
             return false;
         }
     };
-    if want == got {
-        eprintln!(
-            "xtask: version sync — README states `{got}`, matching [workspace.package].version"
-        );
-        true
-    } else {
+    if want != got {
         eprintln!(
             "xtask: version sync — README's `**Status:` line says `{got}` but \
              [workspace.package].version is `{want}`; bump the README's version line \
              (this is the README update the release checklist otherwise forgets)"
         );
-        false
+        return false;
     }
+    let Ok(citation) = fs::read_to_string(root.join("CITATION.cff")) else {
+        eprintln!("xtask: version sync — cannot read CITATION.cff");
+        return false;
+    };
+    let cited = match citation_version(&citation) {
+        Ok(version) => version,
+        Err(problem) => {
+            eprintln!("xtask: version sync — {problem}");
+            return false;
+        }
+    };
+    if want != cited {
+        eprintln!(
+            "xtask: version sync — CITATION.cff says `{cited}` but \
+             [workspace.package].version is `{want}`; bump `version` (and \
+             `date-released`) so the citation people copy is not a stale one"
+        );
+        return false;
+    }
+    eprintln!(
+        "xtask: version sync — README and CITATION.cff both state `{got}`, matching \
+         [workspace.package].version"
+    );
+    true
+}
+
+/// The top-level `version` key from `CITATION.cff`. YAML, but the file is flat
+/// and hand-maintained, so a top-level-key scan is the honest tool — it reads
+/// only column-zero `version:` lines, never one nested under another key.
+/// Fail-closed: missing, duplicated, or non-version-shaped values all error.
+fn citation_version(citation: &str) -> Result<String, String> {
+    let mut found: Option<String> = None;
+    for line in citation.lines() {
+        if line.starts_with(char::is_whitespace) || line.starts_with('#') {
+            continue;
+        }
+        let Some(value) = line.strip_prefix("version:") else {
+            continue;
+        };
+        let token = value.trim().trim_matches('"').trim_matches('\'');
+        if !is_version_like(token) {
+            return Err(format!("CITATION.cff `version:` is not a version: {line}"));
+        }
+        if found.is_some() {
+            return Err("CITATION.cff carries more than one top-level `version:`".to_owned());
+        }
+        found = Some(token.to_owned());
+    }
+    found.ok_or_else(|| "CITATION.cff carries no top-level `version:` key".to_owned())
 }
 
 /// The `version` value from the manifest's `[workspace.package]` table — *not*
@@ -126,6 +177,38 @@ fn is_version_like(token: &str) -> bool {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn citation_version_reads_the_top_level_key() {
+        let cff = "cff-version: 1.2.0\nversion: \"0.4.0\"\ndate-released: \"2026-07-27\"\n";
+        assert_eq!(citation_version(cff).as_deref(), Ok("0.4.0"));
+    }
+
+    #[test]
+    fn citation_version_ignores_nested_and_commented_keys() {
+        // `cff-version` is a different key, the indented `version` belongs to a
+        // nested mapping, and the commented one is not data at all. Only the
+        // column-zero `version:` counts.
+        let cff = concat!(
+            "cff-version: 1.2.0\n",
+            "references:\n",
+            "  - type: software\n",
+            "    version: \"9.9.9\"\n",
+            "# version: \"8.8.8\"\n",
+            "version: 0.4.0\n",
+        );
+        assert_eq!(citation_version(cff).as_deref(), Ok("0.4.0"));
+    }
+
+    #[test]
+    fn citation_version_fails_closed() {
+        // Absent, duplicated, and non-version values must all error rather than
+        // silently pass — a version gate that cannot find its version is worse
+        // than no gate.
+        assert!(citation_version("cff-version: 1.2.0\n").is_err());
+        assert!(citation_version("version: 0.4.0\nversion: 0.5.0\n").is_err());
+        assert!(citation_version("version: unreleased\n").is_err());
+    }
 
     #[test]
     fn workspace_version_reads_the_package_table_not_rust_version() {
