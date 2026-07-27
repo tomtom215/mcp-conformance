@@ -11,6 +11,30 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.4.0] - 2026-07-27
+
+**Verdicts change in this release.** `PROM-008` moves from *excluded* to
+*judged*, so a trace that previously reported no finding for it can now report
+one, and every report's totals shift (52 checked / 88 excluded, was 51 / 89).
+Pre-1.0 minor releases may do this and the README says so; this note is the
+"explicitly" that promise refers to. Re-baseline any committed golden reports.
+
+**The API grows, and nothing is removed.** `RegistrySet`, `AppliesRange`,
+`Requirement::applies_to`, the `multi` module with `validate_revisions` /
+`MultiReport`, the CLI's `--revision` and `--registry-set`, and the
+off-by-default `draft-2026-07-28` feature are all additive; the single-revision
+`Registry` and `engine::validate` are untouched. Code written against 0.3.0
+compiles unchanged against 0.4.0.
+
+**Why now, one day before the `2026-07-28` specification ships:** multi-revision
+validation is the feature whose value peaks across the migration window, and it
+is more useful in a published crate the day the text lands than in a repository
+a week later. The registry content for the new revision is deliberately *not*
+here — it is extracted from the final text, which had not shipped when this was
+cut (`docs/plan/01-ecosystem-context.md` row 1.5f).
+
 ### Added
 
 - **A requirement moved from excluded to judged, by auditing the exclusions**
@@ -651,7 +675,8 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.4.0
 [0.3.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.3.0
 [0.2.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.2.0
 [0.1.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.1.0
