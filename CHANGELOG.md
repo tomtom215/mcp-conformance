@@ -37,6 +37,23 @@ cut (`docs/plan/01-ecosystem-context.md` row 1.5f).
 
 ### Added
 
+- **The release pipeline now proves the published crate is installable**
+  (`verify-install` job in `release.yml`). `RELEASING.md` step 5 used to read
+  "install path works on a clean machine" and leave it to a human, which is the
+  one shape of claim this project otherwise refuses to leave un-gated. The job
+  runs `cargo install mcp-trace-validator` — the exact command the README gives
+  users — on an uncached runner on both stable and MSRV the moment `publish`
+  finishes, then runs the installed binary and checks it reports the published
+  version, and separately re-installs `--locked` to prove the lockfile shipped
+  inside the crate still resolves. It is deliberately a **detector, not a
+  gate**: by the time it can run, the version is immutable on crates.io. That
+  is not a flaw in the design but a property of the problem — the bug it exists
+  for is a packaging one, a file missing from the `.crate` that every
+  pre-publish gate passes because the workspace still has it on disk, and it
+  cannot run earlier because `mcp-trace-validator` depends on
+  `mcp-conformance-core`, so installing it from the registry is impossible
+  until the sibling is published. Finding that from CI in minutes beats finding
+  it from a user's bug report.
 - **A requirement moved from excluded to judged, by auditing the exclusions**
   (`PROM-008`; registry now **52 judged by 48 checks, 88 exclusions**). The first two
   registry audits re-read the *spec text* looking for clauses with no entry. This one
