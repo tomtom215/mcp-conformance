@@ -1,0 +1,51 @@
+{
+  "revisions": [
+    "2025-11-25",
+    "2026-07-28"
+  ],
+  "requirements": [
+    {
+      "id": "LIFE-001",
+      "level": "MUST",
+      "actor": "client",
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The initialization phase MUST be the first interaction between client and server."
+      },
+      "checks": [
+        "lifecycle.first-interaction-initialize"
+      ],
+      "applies": {
+        "introduced": "2025-11-25",
+        "removed": "2026-07-28"
+      }
+    },
+    {
+      "id": "BASE-001",
+      "level": "MUST",
+      "actor": "either",
+      "source": {
+        "section": "basic#requests",
+        "quote": "Requests MUST include a string or integer ID."
+      },
+      "checks": [
+        "base.request-id-type"
+      ]
+    },
+    {
+      "id": "BASE-019",
+      "level": "MUST",
+      "actor": "either",
+      "source": {
+        "section": "basic#meta",
+        "quote": "Prefixes MUST be reverse-DNS."
+      },
+      "checks": [
+        "base.meta-key-prefix"
+      ],
+      "applies": {
+        "introduced": "2026-07-28"
+      }
+    }
+  ]
+}
