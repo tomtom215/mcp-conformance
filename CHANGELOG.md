@@ -143,7 +143,10 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   transitive drift behind them); `rmcp` stays at 1.7.0, held there by the new
   `rmcp-macros` ceiling — which turns out to be a second job the shim does for free:
   rmcp 1.8.0 requires `rmcp-macros ^1.8.0`, so the bound keeps `cargo update` from
-  silently performing the upgrade the deferral says must be deliberate.
+  silently performing the upgrade the deferral says must be deliberate. Why the pin
+  holds rather than moving to `2.2.0` or the `3.0.0-beta` line that implements the next
+  revision is now a recorded decision with a date and revisit conditions —
+  [ADR-0011](docs/plan/decisions/0011-rmcp-pin-holds-at-1-7.md).
   The update moved the duplicate-version landscape, so `deny.toml`'s skip list moved
   with it: the `wit-bindgen` 0.51/0.57 split **collapsed** (its skip is retired, with a
   note saying why rather than a silent deletion — a skip that vanishes unexplained reads
