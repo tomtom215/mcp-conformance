@@ -77,6 +77,24 @@ The spec as data, and the engine that judges traces against it.
       the payload is an arbitrary JSON value) to a judged one with a killer trace.
       140 entries, 51 judged by 47 checks, 89 exclusions, each exclusion's
       enforcement-pointer now verified against a named test.)*
+      *(Third adversarial audit, 2026-07-26 — this one over the **exclusions** rather
+      than the spec text: all 89 documented exclusions re-read against what a trace
+      actually carries. **88 held**, several emphatically so (TRAN-001: a parseable
+      trace *is* the evidence framing held; TRAN-003: absence is not evidence because
+      capture drops undecodable bytes; BASE-011: the violation is caught, attributed to
+      BASE-004/BASE-009). **One did not.** PROM-008 ("Servers SHOULD validate prompt
+      arguments before processing") was excluded as "validation thoroughness is
+      implementation-internal" — true of thoroughness, false of *failure*: a server that
+      answers `prompts/get` with a result, when the request omits an argument that same
+      server published as `required` in `prompts/list`, demonstrably processed input it
+      had declared invalid. Both halves of that comparison are recorded messages, so the
+      exclusion's premise was simply untrue — the same shape as TRAN-026's in the second
+      audit. Now judged by `prompts.arguments-validated` with a killer trace: **140
+      entries, 52 judged by 48 checks, 88 exclusions**. The check is deliberately narrow
+      — it fires only on prompts whose required arguments were observed being declared,
+      and only when the server returned a *result*, since an error means the server did
+      reject the call. PROM-007 stays excluded on purpose: two of its three enumerated
+      failure cases (invalid name, internal error) really are server-side ground truth.)*
 - [x] Validator replays the corpus deterministically: 100% pass on known-good traces;
       **every check is killed by at least one injected-violation trace**; byte-identical
       reports across platforms and runs.

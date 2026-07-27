@@ -22,7 +22,7 @@
         "section": "server/prompts#list-changed-notification",
         "quote": "When the list of available prompts changes, servers that declared the `listChanged` capability SHOULD send a notification:"
       },
-      "exclusion": "The trigger condition — the prompt list actually changing — is server-internal state a recorded trace cannot evidence."
+      "exclusion": "The trigger condition \u2014 the prompt list actually changing \u2014 is server-internal state a recorded trace cannot evidence."
     },
     {
       "id": "PROM-003",
@@ -93,7 +93,9 @@
         "section": "server/prompts#implementation-considerations",
         "quote": "Servers SHOULD validate prompt arguments before processing"
       },
-      "exclusion": "Validation thoroughness is implementation-internal (the PROM-006 argument)."
+      "checks": [
+        "prompts.arguments-validated"
+      ]
     },
     {
       "id": "PROM-009",

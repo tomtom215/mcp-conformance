@@ -4,9 +4,9 @@
     "pass": 38,
     "fail": 0,
     "warn": 0,
-    "excluded": 89,
+    "excluded": 88,
     "unsupported": 0,
-    "not_applicable": 13
+    "not_applicable": 14
   },
   "requirements": [
     {
@@ -709,8 +709,8 @@
     {
       "id": "PROM-008",
       "level": "SHOULD",
-      "outcome": "excluded",
-      "exclusion": "Validation thoroughness is implementation-internal (the PROM-006 argument)."
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
     },
     {
       "id": "PROM-009",

@@ -13,6 +13,24 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **A requirement moved from excluded to judged, by auditing the exclusions**
+  (`PROM-008`; registry now **52 judged by 48 checks, 88 exclusions**). The first two
+  registry audits re-read the *spec text* looking for clauses with no entry. This one
+  re-read the 89 *exclusions* — the entries that claim a recorded trace cannot judge
+  them — against what a trace actually carries. 88 held. `PROM-008` ("Servers SHOULD
+  validate prompt arguments before processing") did not: it was excluded because
+  "validation thoroughness is implementation-internal", which is true of thoroughness
+  and false of failure. A server that answers `prompts/get` with a successful result,
+  when the request omits an argument that same server published as `required` in its
+  own `prompts/list`, demonstrably processed input it had declared invalid — and both
+  halves of that comparison are recorded messages, needing no server-side knowledge.
+  That is the same defect the second audit found in `TRAN-026`: an exclusion whose
+  stated reason was simply untrue. The new `prompts.arguments-validated` check is
+  deliberately narrow, because a verdict is only worth its soundness — it judges only
+  prompts whose required arguments were observed being declared, and only when the
+  server returned a *result*, since an error response means the server did reject the
+  call. `PROM-007` stays excluded on purpose: two of its three enumerated failure cases
+  (invalid prompt name, internal error) genuinely are server-side ground truth.
 - **A measured readiness score for the next revision** (`cargo xtask draft-readiness`;
   scheduled `draft-readiness` CI job). The `2026-07-28` change inventory says *what*
   changes; it cannot say how large the migration is. This drives the official runner's

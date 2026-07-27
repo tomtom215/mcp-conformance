@@ -1,12 +1,12 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 36,
-    "fail": 2,
-    "warn": 0,
+    "pass": 41,
+    "fail": 0,
+    "warn": 1,
     "excluded": 88,
     "unsupported": 0,
-    "not_applicable": 14
+    "not_applicable": 10
   },
   "requirements": [
     {
@@ -47,14 +47,7 @@
     {
       "id": "BASE-008",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "base.jsonrpc-version",
-          "seq": 3,
-          "detail": "message is not a JSON-RPC request, notification, or response: message carries none of method, result, or error"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-009",
@@ -262,14 +255,7 @@
     {
       "id": "TRAN-004",
       "level": "MUST NOT",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "transport.stdio-server-output-valid",
-          "seq": 3,
-          "detail": "message on stdout is not a valid MCP message: message carries none of method, result, or error"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "TRAN-005",
@@ -693,20 +679,17 @@
     {
       "id": "PROM-003",
       "level": "MUST",
-      "outcome": "not-applicable",
-      "capability": "server.prompts"
+      "outcome": "pass"
     },
     {
       "id": "PROM-004",
       "level": "MUST",
-      "outcome": "not-applicable",
-      "capability": "server.prompts"
+      "outcome": "pass"
     },
     {
       "id": "PROM-005",
       "level": "MUST",
-      "outcome": "not-applicable",
-      "capability": "server.prompts"
+      "outcome": "pass"
     },
     {
       "id": "PROM-006",
@@ -723,8 +706,14 @@
     {
       "id": "PROM-008",
       "level": "SHOULD",
-      "outcome": "not-applicable",
-      "capability": "server.prompts"
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "prompts.arguments-validated",
+          "seq": 6,
+          "detail": "server returned a result for prompts/get \"review\" although the request omitted the required argument(s) [\"diff\"] it declared in prompts/list"
+        }
+      ]
     },
     {
       "id": "PROM-009",
