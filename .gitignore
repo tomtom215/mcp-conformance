@@ -23,6 +23,13 @@
 mutants.out/
 mutants.out.old/
 
+# The pmcp harness is its own non-workspace project (docs/reports/pmcp-harness),
+# so the root-anchored `/target` above does not cover it — building the artifact
+# once dropped its whole target/ tree into `git add`. Its Cargo.lock IS tracked:
+# the harness is the evidence for a dated measurement, and a measurement nobody
+# can reproduce is an anecdote.
+docs/reports/pmcp-harness/target/
+
 # cargo-fuzz build/findings output (fuzz/ is its own workspace)
 fuzz/target/
 fuzz/artifacts/

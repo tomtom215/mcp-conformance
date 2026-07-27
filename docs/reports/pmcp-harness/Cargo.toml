@@ -14,7 +14,18 @@ publish = false
 [workspace]
 
 [dependencies]
-pmcp = { version = "2.9.0", features = ["streamable-http", "macros", "schema-generation"] }
+# EXACT, deliberately. This harness is not a dependent of pmcp — it is the
+# evidence for a dated measurement, so the SUT's version is part of the
+# artifact, not a detail to be resolved freshly. A caret here silently
+# re-pointed the harness at whatever pmcp shipped later (2.9.0 -> 2.17.0 by
+# 2026-07-26) while the report still said 2.9.0, which would make the
+# published figure unreproducible by the very commands the report gives.
+# Re-measuring a newer pmcp is a deliberate change: bump this pin, re-run,
+# refresh `checks/`, and re-date the report in the same commit. The generated
+# `Cargo.lock` is committed alongside for the same reason — the measurement's
+# whole value is that someone else can obtain it, which means pinning the tree
+# it was taken from, not just the crate under test.
+pmcp = { version = "=2.9.0", features = ["streamable-http", "macros", "schema-generation"] }
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }

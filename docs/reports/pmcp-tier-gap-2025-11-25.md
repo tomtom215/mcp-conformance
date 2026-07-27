@@ -3,6 +3,15 @@
 
 # pmcp tier-gap report — `2025-11-25`
 
+> **Reproducibility note (2026-07-26).** The harness's `pmcp` requirement was
+> `"2.9.0"` — a caret, which by today resolves to pmcp **2.17.0**, eight minor
+> versions past the version this report measures. The commands below would then
+> have produced a different measurement than the one recorded here, silently.
+> The pin is now exact (`=2.9.0`) and the harness's `Cargo.lock` is committed,
+> so the figures below are obtainable, not merely described. The measurement
+> itself is unchanged and still dated 2026-06-14; re-measuring a current pmcp is
+> deliberate work that re-dates this report.
+
 **What this is.** A reproducible measurement of the community Rust MCP SDK
 [`pmcp`](https://crates.io/crates/pmcp) (repo
 [`paiml/pmcp`](https://github.com/paiml/pmcp)) against the official conformance

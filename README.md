@@ -63,7 +63,7 @@ MCP trace validation — revision 2025-11-25
   ...
   FAIL  LIFE-001 (MUST)
         seq 0: first message is a "tools/list" request, expected "initialize"
-totals: 36 pass, 1 fail, 1 warn, 89 excluded, 0 unsupported, 13 not applicable
+totals: 36 pass, 1 fail, 1 warn, 88 excluded, 0 unsupported, 14 not applicable
 verdict: fail
 ```
 
@@ -107,13 +107,13 @@ in CI — the numbers cannot drift from the data:
 | TRAN | 49 | 11 | 38 | 0 |
 | TOOL | 15 | 9 | 6 | 13 |
 | RES | 10 | 3 | 7 | 6 |
-| PROM | 10 | 4 | 6 | 7 |
+| PROM | 10 | 5 | 5 | 7 |
 | LOG | 5 | 1 | 4 | 4 |
 | COMP | 5 | 1 | 4 | 3 |
 | PAGE | 5 | 1 | 4 | 0 |
-| **Total** | **140** | **51** | **89** | **33** |
+| **Total** | **140** | **52** | **88** | **33** |
 
-Revision `2025-11-25`: 140 requirements — 51 judged by 47 distinct trace checks (every check falsified by a committed violation trace), 89 carrying documented exclusions explaining why a recorded trace cannot judge them. Capability-gated requirements report *not-applicable* (never a vacuous pass) for sessions that did not negotiate the capability.
+Revision `2025-11-25`: 140 requirements — 52 judged by 48 distinct trace checks (every check falsified by a committed violation trace), 88 carrying documented exclusions explaining why a recorded trace cannot judge them. Capability-gated requirements report *not-applicable* (never a vacuous pass) for sessions that did not negotiate the capability.
 <!-- coverage:end -->
 
 A requirement gated on a capability that was never negotiated is reported
@@ -144,12 +144,12 @@ registry, addressed to the offending event:
 ```text
   FAIL  BASE-003 (MUST NOT)
         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
-totals: 45 pass, 1 fail, 0 warn, 89 excluded, 0 unsupported, 5 not applicable
+totals: 45 pass, 1 fail, 0 warn, 88 excluded, 0 unsupported, 6 not applicable
 verdict: fail
 ```
 <!-- ANCHOR_END: trace-example -->
 
-The five not-applicable rows are the capability-gated requirements this session
+The six not-applicable rows are the capability-gated requirements this session
 never negotiated (the resources and prompts clauses) — reported as such, never
 as passes. [`corpus/`](corpus) holds complete annotated sessions for every area.
 
@@ -178,7 +178,12 @@ official suite, and engineered to the standard set by
 pedantic + nursery at `-D warnings` on stable and MSRV across three platforms,
 property and golden-corpus tests, diff-scoped mutation gates with a
 zero-surviving-mutants standard on every shipped crate, fuzzing, a
-sanitization pass, and `cargo deny` on every push.
+sanitization pass, and `cargo deny` on every push — plus scheduled gates that
+catch what a green PR cannot: byte-identical reports on big-endian and 32-bit
+targets, a build at the oldest dependency versions the manifests claim to
+support, and a ratcheted measurement of how much of the *next* spec revision
+the reference server already satisfies
+([`conformance/draft-readiness.json`](conformance/draft-readiness.json)).
 
 The full reasoning, with every claim verified and dated, is in
 [docs/plan/00-charter.md](docs/plan/00-charter.md).

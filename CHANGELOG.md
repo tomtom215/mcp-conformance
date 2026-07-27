@@ -13,6 +13,48 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **A requirement moved from excluded to judged, by auditing the exclusions**
+  (`PROM-008`; registry now **52 judged by 48 checks, 88 exclusions**). The first two
+  registry audits re-read the *spec text* looking for clauses with no entry. This one
+  re-read the 89 *exclusions* — the entries that claim a recorded trace cannot judge
+  them — against what a trace actually carries. 88 held. `PROM-008` ("Servers SHOULD
+  validate prompt arguments before processing") did not: it was excluded because
+  "validation thoroughness is implementation-internal", which is true of thoroughness
+  and false of failure. A server that answers `prompts/get` with a successful result,
+  when the request omits an argument that same server published as `required` in its
+  own `prompts/list`, demonstrably processed input it had declared invalid — and both
+  halves of that comparison are recorded messages, needing no server-side knowledge.
+  That is the same defect the second audit found in `TRAN-026`: an exclusion whose
+  stated reason was simply untrue. The new `prompts.arguments-validated` check is
+  deliberately narrow, because a verdict is only worth its soundness — it judges only
+  prompts whose required arguments were observed being declared, and only when the
+  server returned a *result*, since an error response means the server did reject the
+  call. `PROM-007` stays excluded on purpose: two of its three enumerated failure cases
+  (invalid prompt name, internal error) genuinely are server-side ground truth.
+- **A measured readiness score for the next revision** (`cargo xtask draft-readiness`;
+  scheduled `draft-readiness` CI job). The `2026-07-28` change inventory says *what*
+  changes; it cannot say how large the migration is. This drives the official runner's
+  **draft scenario set** against the current `2025-11-25` everything server and ratchets
+  every check's status against a committed baseline
+  (`conformance/draft-readiness.json`) — the gate fails when a passing check is lost
+  (a migration regression) *and* when one is gained or the suite's check set moves
+  (`BLESS=1` re-records), so the figure quoted in the roadmap cannot drift in either
+  direction. Both the suite version and the spec revision are exact pins: a ratchet whose
+  input floats is not a ratchet, which is also why this is a separate job from the
+  alpha-tracking one whose whole purpose is to float. Statuses are recorded verbatim per
+  check rather than folded into a passed/total ratio, because the runner's `INFO` outcome
+  is neither a pass nor a failure and a denominator that absorbs it is how a conformance
+  number becomes a lie — the same reason ADR-0006 reports capability-gated requirements as
+  not-applicable. Deliberately separate from `cargo xtask conformance`: the runner here
+  speaks a revision the registry does not describe, so there is nothing to reconcile the
+  validator against, and the failures are findings rather than build breakage.
+  **First measurement (2026-07-26): 1 passing, 20 failing, 1 informational across 20
+  scenarios** — and every failure is the same failure, an HTTP 422 at the removed
+  `initialize` handshake, so the migration is one piece of work (the stateless lifecycle)
+  rather than twenty. The single pass is the DNS-rebinding rejection, which is
+  revision-independent because the `Host`/`Origin` policy runs in middleware ahead of any
+  protocol handling. Written up in
+  `docs/reports/draft-2026-07-28-readiness-2026-07-26.md`.
 - **Stateless `2026-07-28` lifecycle variant** (roadmap M2.5; behind a new, off-by-default
   `draft-2026-07-28` feature on `mcp-trace-validator`). A second session state-machine
   variant — `context::draft` — alongside the `2025-11-25` one, modelling SEP-2575's
@@ -87,8 +129,55 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   URL it skips by design. RELEASING.md's prepare step now names the
   link-reference update.
 
+### Changed
+
+- **Dependabot no longer groups the rmcp SDK with routine dependency drift.** An rmcp
+  bump is a deliberate upgrade requiring conformance re-validation (deferral
+  `adopt-rmcp-enumnames-fix`), so bundling it with everything else made the whole PR
+  unmergeable — [#28](https://github.com/tomtom215/mcp-conformance/pull/28) carried
+  `rmcp 1.7 -> 2.2` (~70 compile errors) together with six harmless bumps, holding the six
+  hostage to the one. `rmcp` and `rmcp-macros` now get their own group, so the SDK upgrade
+  stays *visible* as milestone input while routine drift stays mergeable. The routine
+  bumps #28 proposed are applied here directly (`serde_json` 1.0.151, `clap` 4.6.4,
+  `tokio` 1.53.1, `http-body-util` 0.1.4, `futures` 0.3.33, `sse-stream` 0.2.5, and the
+  transitive drift behind them); `rmcp` stays at 1.7.0, held there by the new
+  `rmcp-macros` ceiling — which turns out to be a second job the shim does for free:
+  rmcp 1.8.0 requires `rmcp-macros ^1.8.0`, so the bound keeps `cargo update` from
+  silently performing the upgrade the deferral says must be deliberate. Why the pin
+  holds rather than moving to `2.2.0` or the `3.0.0-beta` line that implements the next
+  revision is now a recorded decision with a date and revisit conditions —
+  [ADR-0011](docs/plan/decisions/0011-rmcp-pin-holds-at-1-7.md).
+  The update moved the duplicate-version landscape, so `deny.toml`'s skip list moved
+  with it: the `wit-bindgen` 0.51/0.57 split **collapsed** (its skip is retired, with a
+  note saying why rather than a silent deletion — a skip that vanishes unexplained reads
+  like a loosened policy), and `syn` 2/3 appeared in its place. That one is the ecosystem
+  mid-migration: `serde_derive`, `clap_derive`, `async-trait`, `thiserror-impl` and
+  `ref-cast-impl` have moved to syn 3 while seventeen other derive crates have not.
+  Both are build-time-only proc-macro dependencies, so the cost is compile time rather
+  than shipped surface, and holding our own derive crates back to force agreement would
+  trade a real upgrade for a cosmetic graph. Skipped with the roots named and pinned
+  exactly, so it re-fires the moment either version moves.
+
 ### Fixed
 
+- **The scheduled dependency-floors gate, red since 2026-07-06** — a broken
+  dependency pair upstream resolution actively prefers. `rmcp` declares its own
+  proc-macro crate as `rmcp-macros = "^N.M.P"`, but the two are lockstep-coupled
+  (the macro expands to calls into `rmcp`'s internals), so Cargo happily resolves
+  `rmcp 1.7.0` with `rmcp-macros 1.8.0` — a pair that does not compile: 1.8.0's
+  `#[tool]` expansion calls `rmcp::handler::server::common::schema_for_input`,
+  which 1.7.0 does not export (added in 1.8.0), giving `E0425` at all five
+  `#[tool]` sites in `mcp-everything-server`. The committed `Cargo.lock` hid it;
+  the floors gate regenerates the lock, so it broke the first Monday after
+  `rmcp-macros 1.8.0` was published (2026-06-23) and stayed broken for three
+  scheduled runs. Repaired here with a documented **ceiling shim**
+  (`rmcp-macros = ">=1.7.0, <1.8.0"`) beside the existing floor shims — it must
+  move with the `rmcp` pin at the M2.5 upgrade, and fails loudly rather than
+  silently if it does not. No runtime change: `rmcp-macros` was already in the
+  tree as `rmcp`'s own dependency at exactly this version, and `Cargo.lock` gains
+  only the new dependency edge. Reported as register row 3.13 and queued upstream
+  as a one-line `=N.M.P` pin (engagement backlog item 11); the caret declaration
+  is still present at `rmcp 3.0.0-beta.2`.
 - **The CHANGELOG's link-reference definitions, stale since v0.3.0**: `[0.3.0]`
   had no `[0.3.0]: …` definition, so on GitHub it rendered as the literal text
   `[0.3.0]` instead of a release link; and `[Unreleased]` compared against

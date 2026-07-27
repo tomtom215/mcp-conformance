@@ -50,6 +50,23 @@ mcp-conformance-core = { workspace = true, optional = true }
 # itself still comes from the binary or the test harness.
 tokio = { workspace = true, features = ["time"] }
 
+# Version-coupling shim (a *ceiling*, not a floor). rmcp and its proc-macro
+# crate are lockstep-coupled — the macro expands to calls into `rmcp`'s
+# internals — but rmcp declares `rmcp-macros = "^N.M.P"`, which permits a
+# newer macro crate against an older library. That pair does not compile:
+# rmcp-macros 1.8.0 emits `rmcp::handler::server::common::schema_for_input`,
+# a function 1.7.0 does not have (added in 1.8.0), so `#[tool]` expansion
+# fails with E0425 at five sites in this crate. Our Cargo.lock hides it; the
+# floors gate regenerates the lock, so it broke the first Monday after
+# rmcp-macros 1.8.0 was published (2026-06-23). Pinning the macro crate to
+# the same minor as the pinned rmcp is the repair. When the rmcp pin moves
+# (the M2.5 deliberate upgrade), this bound must move with it — and fails
+# loudly rather than silently if it does not. It also holds the rmcp pin
+# itself: rmcp 1.8.0 requires rmcp-macros ^1.8.0, so this bound is what
+# makes ADR-0011's "hold at 1.7" mechanical rather than a promise.
+# Upstream: register row 3.13.
+rmcp-macros = ">=1.7.0, <1.8.0"
+
 # Minimal-versions floor shims: direct declarations whose only job is to
 # repair under-specified floors in third-party manifests so
 # `-Zminimal-versions` builds (the CI "Minimal versions" job). Each names the

@@ -55,8 +55,8 @@ fn the_inline_trace_example_produces_exactly_the_quoted_output() {
     // rows; hold the prose to the same standard as the quoted output.
     let report = validate_text(&trace);
     assert_eq!(
-        report.totals.not_applicable, 5,
-        "the README prose explains five not-applicable rows"
+        report.totals.not_applicable, 6,
+        "the README prose explains six not-applicable rows"
     );
 }
 

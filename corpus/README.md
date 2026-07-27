@@ -77,6 +77,7 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 | `prom-003-image-data-invalid.jsonl` | PROM-003 |
 | `prom-004-audio-data-invalid.jsonl` | PROM-004 |
 | `prom-005-embedded-resource-malformed.jsonl` | PROM-005 |
+| `prom-008-required-argument-unvalidated.jsonl` | PROM-008 |
 | `res-001-capability-undeclared.jsonl` | RES-001 |
 | `res-004-uri-bad-scheme.jsonl` | RES-004 |
 | `res-006-blob-not-base64.jsonl` | RES-006 |

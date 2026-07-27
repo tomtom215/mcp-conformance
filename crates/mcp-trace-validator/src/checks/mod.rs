@@ -247,6 +247,10 @@ pub static ALL: &[Check] = &[
         run: prompts::embedded_resource_shape,
     },
     Check {
+        id: "prompts.arguments-validated",
+        run: prompts::arguments_validated,
+    },
+    Check {
         id: "logging.capability-declared",
         run: utilities::logging_capability_declared,
     },

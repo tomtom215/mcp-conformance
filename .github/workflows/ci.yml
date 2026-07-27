@@ -26,8 +26,12 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
-  # actions/checkout's pinned SHA predates the runner's Node 24 default cutover
-  # (June 16, 2026); opt in now rather than break later.
+  # Every JavaScript action pinned here already declares `node24` (verified
+  # 2026-07-26 at the pinned SHAs: actions/checkout v7.0.1 and Swatinem/rust-cache;
+  # actions/attest-build-provenance is composite), so this is no longer the
+  # load-bearing opt-in it was when checkout sat at v6.0.3 — it stays as a guard
+  # so a future pin that predates the June 16, 2026 runner cutover cannot
+  # silently run on the old runtime.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1

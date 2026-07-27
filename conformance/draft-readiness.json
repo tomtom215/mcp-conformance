@@ -1,0 +1,72 @@
+{
+  "_policy": "Measured by `cargo xtask draft-readiness`: the status of every check the official runner's 2026-07-28 draft scenarios report against the 2025-11-25 everything server. The gate fails on ANY change — a lost pass is a migration regression, a gained one is progress that gets recorded deliberately (BLESS=1) in the commit that earned it. Statuses are verbatim: INFO is the runner's informational outcome and is neither a pass nor a failure. This is NOT a conformance claim about the 2026-07-28 revision — the requirement registry does not describe that revision yet.",
+  "failing": 20,
+  "informational": 1,
+  "passing": 1,
+  "scenarios": {
+    "completion-complete": {
+      "completion-complete": "FAILURE"
+    },
+    "dns-rebinding-protection": {
+      "localhost-host-rebinding-rejected": "SUCCESS",
+      "localhost-host-valid-accepted": "FAILURE"
+    },
+    "prompts-get-embedded-resource": {
+      "prompts-get-embedded-resource": "FAILURE"
+    },
+    "prompts-get-simple": {
+      "prompts-get-simple": "FAILURE"
+    },
+    "prompts-get-with-args": {
+      "prompts-get-with-args": "FAILURE"
+    },
+    "prompts-get-with-image": {
+      "prompts-get-with-image": "FAILURE"
+    },
+    "prompts-list": {
+      "prompts-list": "FAILURE"
+    },
+    "resources-list": {
+      "resources-list": "FAILURE"
+    },
+    "resources-read-binary": {
+      "resources-read-binary": "FAILURE"
+    },
+    "resources-read-text": {
+      "resources-read-text": "FAILURE"
+    },
+    "resources-templates-read": {
+      "resources-templates-read": "FAILURE"
+    },
+    "server-sse-multiple-streams": {
+      "server-accepts-multiple-post-streams": "FAILURE",
+      "server-sse-streams-functional": "INFO"
+    },
+    "tools-call-audio": {
+      "tools-call-audio": "FAILURE"
+    },
+    "tools-call-embedded-resource": {
+      "tools-call-embedded-resource": "FAILURE"
+    },
+    "tools-call-error": {
+      "tools-call-error": "FAILURE"
+    },
+    "tools-call-image": {
+      "tools-call-image": "FAILURE"
+    },
+    "tools-call-mixed-content": {
+      "tools-call-mixed-content": "FAILURE"
+    },
+    "tools-call-simple-text": {
+      "tools-call-simple-text": "FAILURE"
+    },
+    "tools-call-with-progress": {
+      "tools-call-with-progress": "FAILURE"
+    },
+    "tools-list": {
+      "tools-list": "FAILURE"
+    }
+  },
+  "spec": "2026-07-28",
+  "suite": "0.2.0-alpha.9"
+}

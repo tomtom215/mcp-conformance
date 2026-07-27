@@ -50,6 +50,99 @@ fn prompt_content_items<'a>(context: &TraceContext<'a>) -> Vec<(u64, &'a Value)>
     items
 }
 
+/// The required-argument names each `prompts/list` result declared, by prompt name.
+///
+/// The server's own declaration is the ground truth this check needs, and it is in
+/// the trace — which is the whole reason `PROM-008` is judgeable at all.
+fn declared_required_arguments<'a>(
+    context: &TraceContext<'a>,
+) -> std::collections::BTreeMap<&'a str, Vec<&'a str>> {
+    let mut declared = std::collections::BTreeMap::new();
+    for exchange in context.exchanges_for("prompts/list") {
+        let prompts = exchange
+            .result
+            .and_then(|result| result.get("prompts"))
+            .and_then(Value::as_array);
+        for prompt in prompts.into_iter().flatten() {
+            let Some(name) = prompt.get("name").and_then(Value::as_str) else {
+                continue;
+            };
+            let required: Vec<&str> = prompt
+                .get("arguments")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter(|argument| argument.get("required").and_then(Value::as_bool) == Some(true))
+                .filter_map(|argument| argument.get("name").and_then(Value::as_str))
+                .collect();
+            if !required.is_empty() {
+                // A later listing wins: the server may re-declare its surface.
+                declared.insert(name, required);
+            }
+        }
+    }
+    declared
+}
+
+/// `PROM-008`: "Servers SHOULD validate prompt arguments before processing".
+///
+/// Validation *thoroughness* is internal, but validation *failure* is not: a server
+/// that answers a `prompts/get` with a successful result, when that request omits an
+/// argument the server itself published as `required` in `prompts/list`, demonstrably
+/// processed input it had declared invalid. Both halves of that comparison — the
+/// declaration and the call — are recorded messages, so no server-side knowledge is
+/// needed. This is the same cross-message correlation `LIFE-009` uses for capability
+/// gating and `PAGE-002` for cursors.
+///
+/// Deliberately narrow, because a conformance verdict is only worth its soundness:
+/// - It fires only on prompts whose required arguments were *observed* being declared;
+///   an unlisted prompt, or a session with no `prompts/list`, is not judged.
+/// - It fires only when the server returned a **result**. An error response means the
+///   server did reject the call, which satisfies this clause; whether that error
+///   carries exactly `-32602` is `PROM-007`'s enumeration, and that requirement stays
+///   excluded because its other two cases (invalid name, internal error) remain
+///   server-side ground truth.
+pub(super) fn arguments_validated(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    let declared = declared_required_arguments(context);
+    if declared.is_empty() {
+        return;
+    }
+    for exchange in context.exchanges_for("prompts/get") {
+        if exchange.result.is_none() {
+            continue;
+        }
+        let Some(params) = exchange.params else {
+            continue;
+        };
+        let Some(name) = params.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(required) = declared.get(name) else {
+            continue;
+        };
+        let supplied = params.get("arguments");
+        let missing: Vec<&str> = required
+            .iter()
+            .filter(|argument| {
+                supplied
+                    .and_then(|arguments| arguments.get(*argument))
+                    .is_none()
+            })
+            .copied()
+            .collect();
+        if missing.is_empty() {
+            continue;
+        }
+        sink.push(
+            Some(exchange.response.seq),
+            format!(
+                "server returned a result for prompts/get {name:?} although the request \
+                 omitted the required argument(s) {missing:?} it declared in prompts/list"
+            ),
+        );
+    }
+}
+
 /// `PROM-003`: image content data must be base64 with a MIME type present.
 pub(super) fn image_content_encoding(context: &TraceContext<'_>, sink: &mut FindingSink) {
     binary_content_encoding(context, sink, "image");
@@ -167,6 +260,71 @@ mod tests {
             r#"{{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{{"jsonrpc":"2.0","id":2,"result":{{"messages":[{{"role":"user","content":{content}}}]}}}}}}"#
         );
         format!("{HANDSHAKE}\n{request}\n{result}")
+    }
+
+    /// Builds a session that lists `review` with a required `diff` argument, then
+    /// issues `prompts/get` with `arguments` and gets `response` back.
+    fn listed_then_called(arguments: &str, response: &str) -> String {
+        let list = r#"{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"prompts/list"}}
+{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"prompts":[{"name":"review","arguments":[{"name":"diff","required":true},{"name":"tone","required":false}]}]}}}"#;
+        let get = format!(
+            r#"{{"seq":5,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{{"jsonrpc":"2.0","id":3,"method":"prompts/get","params":{{"name":"review","arguments":{arguments}}}}}}}"#
+        );
+        format!("{HANDSHAKE}\n{list}\n{get}\n{response}")
+    }
+
+    const RESULT: &str = r#"{"seq":6,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"result":{"messages":[]}}}"#;
+    const ERROR: &str = r#"{"seq":6,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"error":{"code":-32602,"message":"missing required argument: diff"}}}"#;
+
+    #[test]
+    fn serving_a_result_despite_a_missing_required_argument_is_a_finding() {
+        let trace = listed_then_called(r#"{"tone":"terse"}"#, RESULT);
+        let findings = findings_for("prompts.arguments-validated", &trace);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("\"diff\""), "{findings:?}");
+        assert!(findings[0].contains("review"), "{findings:?}");
+    }
+
+    #[test]
+    fn supplying_the_required_argument_is_clean() {
+        let trace = listed_then_called(r#"{"diff":"--- a\n+++ b"}"#, RESULT);
+        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+    }
+
+    #[test]
+    fn an_omitted_optional_argument_is_not_a_finding() {
+        // `tone` is declared `required: false`; only `diff` may be demanded.
+        let trace = listed_then_called(r#"{"diff":"d"}"#, RESULT);
+        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+    }
+
+    #[test]
+    fn rejecting_the_call_satisfies_the_clause() {
+        // The server *did* validate — an error response is the compliant answer,
+        // so the check must stay silent even though the argument was missing.
+        let trace = listed_then_called(r#"{"tone":"terse"}"#, ERROR);
+        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+    }
+
+    #[test]
+    fn a_prompt_never_listed_is_not_judged() {
+        // Without an observed declaration there is no ground truth, so a
+        // `prompts/get` for an unlisted prompt is outside the check's reach.
+        let get = r#"{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"prompts/get","params":{"name":"unlisted"}}}"#;
+        let result = r#"{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"messages":[]}}}"#;
+        let trace = format!("{HANDSHAKE}\n{get}\n{result}");
+        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+    }
+
+    #[test]
+    fn a_missing_arguments_object_entirely_is_still_a_finding() {
+        // Omitting `arguments` altogether must read the same as omitting the
+        // required key inside it.
+        let get = r#"{"seq":5,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"method":"prompts/get","params":{"name":"review"}}}"#;
+        let list = r#"{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"prompts/list"}}
+{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"prompts":[{"name":"review","arguments":[{"name":"diff","required":true}]}]}}}"#;
+        let trace = format!("{HANDSHAKE}\n{list}\n{get}\n{RESULT}");
+        assert_eq!(findings_for("prompts.arguments-validated", &trace).len(), 1);
     }
 
     #[test]

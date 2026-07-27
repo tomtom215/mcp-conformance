@@ -4,7 +4,7 @@
 # Architecture Decision Records
 
 **Status:** Active
-**Last reviewed:** 2026-06-11
+**Last reviewed:** 2026-07-27
 
 ---
 
@@ -27,6 +27,7 @@ or when the reasoning would otherwise live only in someone's head.
 | [0008](0008-msrv-1.88.md) | MSRV 1.88 — rmcp's Real Compilation Floor | Accepted (supersedes 0004's MSRV clause) |
 | [0009](0009-reference-host-on-rmcp-client.md) | Reference Host on rmcp's Client Surface, Scripted Interaction as Data | Accepted (amended 2026-06-12) |
 | [0010](0010-deferral-ledger-and-scheduled-reverification.md) | Claims Expire — the Deferral Ledger and Scheduled Re-Verification Gates | Accepted |
+| [0011](0011-rmcp-pin-holds-at-1-7.md) | The rmcp Pin Holds at 1.7 Until Both the Spec Text and rmcp 3.0 Are Final | Accepted |
 
 ## Process
 

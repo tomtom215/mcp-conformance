@@ -1,10 +1,10 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 40,
+    "pass": 41,
     "fail": 1,
     "warn": 0,
-    "excluded": 89,
+    "excluded": 88,
     "unsupported": 0,
     "not_applicable": 10
   },
@@ -713,8 +713,7 @@
     {
       "id": "PROM-008",
       "level": "SHOULD",
-      "outcome": "excluded",
-      "exclusion": "Validation thoroughness is implementation-internal (the PROM-006 argument)."
+      "outcome": "pass"
     },
     {
       "id": "PROM-009",

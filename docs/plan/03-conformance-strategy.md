@@ -129,8 +129,21 @@ informational SHOULD warning on the suite's version-compat probe.
   in `xtask` via an exact version (`SUITE_VERSION` in `xtask/src/conformance.rs`);
   upgrades are deliberate PRs with a diff of scenario changes.
 - **Track** the `0.2.0-alpha` line in a scheduled, non-blocking CI job so breakage arrives as
-  an early warning, not a release-day surprise.
+  an early warning, not a release-day surprise. That job floats the `alpha` dist-tag *by
+  design* — it exists to hear upstream churn coming — and stays at the registry's revision,
+  so it is signal to read, never a gate.
+- **Measure** the next revision separately and *gate* it: `DRAFT_SUITE_VERSION` in
+  `xtask/src/draft_readiness.rs` pins an exact alpha (`0.2.0-alpha.9`) and runs the
+  runner's `2026-07-28` scenarios against the current server, ratcheting every check's
+  status against `conformance/draft-readiness.json`. Floating and pinned are not
+  interchangeable here: a tracking job wants the newest thing upstream has, a ratchet
+  wants an input that cannot move underneath it, so the two are different jobs on
+  different pins rather than one job with a compromise. Both pins move together when the
+  `0.2.0` line stabilizes (deferral `suite-0-2-0-stable-pin-bump`), the draft one with a
+  `BLESS=1` re-measurement in the same commit.
 - The `draft` suite runs only under the `draft-2026-07-28` feature until the spec finalizes.
+  The readiness ratchet above is *not* that: it never involves the validator or the
+  registry, so it makes no claim about a revision the registry does not describe.
 
 ## Supporting rmcp's path to Tier 1
 
