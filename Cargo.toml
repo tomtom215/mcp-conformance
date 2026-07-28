@@ -45,7 +45,7 @@ clap = { version = ">=4.5, <5", features = ["derive"] }
 # ADR-0008 raised the workspace MSRV to its measured 1.88 floor. Features are
 # the minimum for "every capability over stdio and streamable HTTP": no
 # client, no auth, no reqwest, no child-process transport.
-rmcp = { version = ">=1.7, <2", default-features = false, features = [
+rmcp = { version = ">=1.7, <3", default-features = false, features = [
     "server",
     "macros",
     "transport-io",
