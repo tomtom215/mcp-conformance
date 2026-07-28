@@ -140,3 +140,36 @@ Rejected as the status quo that produced the problem: grouping made
 six routine bumps hostage to one major. `rmcp` now has its own Dependabot group
 so the proposal stays *visible* as milestone input, and this ADR — not the PR
 queue — decides when it lands.
+
+## Amendment (2026-07-28): condition one is met, condition two is not
+
+The `2026-07-28` specification text **shipped on its scheduled date**
+([register 1.5h](../01-ecosystem-context.md)), which falsifies Context point 1
+above as of this date. Read that point as history: it recorded the state on
+2026-07-27, and the decision it supports is unaffected.
+
+**The pin still holds, on the second condition alone.** This ADR requires
+*both* the text and a stable `3.0.x`. Checked 2026-07-28: rmcp's newest release
+is `3.0.0-beta.4` (published the same day) and `max_stable_version` is still
+`2.2.0`. The `3.0.x` line remains pre-release, so every argument in
+§Alternatives against adopting a beta — we publish, and Cargo's pre-release
+semantics do not let downstream opt back out — applies unchanged. The
+`rmcp-macros` ceiling shim and the `adopt-rmcp-enumnames-fix` deferral
+(`review_by` 2026-09-01) both stay in force.
+
+One supporting signal from §Alternatives has now expired and should not be
+re-cited: `3.0.0-beta.2`'s `ProtocolVersion::LATEST` still reading
+`V_2025_11_25` was offered as evidence that *the ecosystem agrees the revision
+is not yet live*. That reading is dead — the revision is live. If the beta line
+still lags the released text, that is now an argument about rmcp's readiness,
+not about the spec's.
+
+**What this does not gate.** Context point 3 said nothing in any open DoD is
+blocked on the SDK, and that remains true and now load-bearing: M2.5's open
+lines are registry entries and `corpus/draft/` pairs extracted from the final
+text, which is exactly what shipped. The Decision's phrase "executed as one
+piece of work together with M2.5's registry extraction" scopes *when the
+upgrade lands*, not when extraction may start — extraction proceeds now against
+the released text, and the upgrade joins it when a stable `3.0.x` exists. Read
+the other way, a beta SDK would hold the milestone hostage indefinitely, which
+no part of this ADR argues for.

@@ -33,11 +33,30 @@ use std::process::ExitCode;
 use mcp_conformance_core::requirement::{Registry, Requirement};
 use serde::Deserialize;
 
-/// The committed in-scope page set, relative to the workspace root.
-const SOURCES: &str = "crates/mcp-conformance-core/registry/2025-11-25/sources.json";
+/// The revision whose registry this gate verifies. The embedded registry
+/// describes exactly one revision; when the `2026-07-28` entries land
+/// (roadmap M2.5 line 2) this becomes the set the gate iterates, and the two
+/// helpers below already resolve per revision so that lands as a loop rather
+/// than a rewrite.
+const REVISION: &str = "2025-11-25";
 
-/// Where the published spec text lives, per page file.
-const RAW_BASE: &str = "https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/main/docs/specification/2025-11-25";
+/// The committed in-scope page set for a revision, relative to the workspace root.
+fn sources_path(revision: &str) -> String {
+    format!("crates/mcp-conformance-core/registry/{revision}/sources.json")
+}
+
+/// Where a revision's published spec text lives, per page file.
+///
+/// Revision-scoped rather than fixed: the spec repo publishes each revision
+/// under its own dated directory, so a quote is only ever checked against the
+/// text of the revision that carries it. That distinction became load-bearing
+/// on 2026-07-28, when `2026-07-28` shipped alongside `2025-11-25` (register
+/// 1.5h) — before that there was only one published revision to point at.
+fn raw_base(revision: &str) -> String {
+    format!(
+        "https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/main/docs/specification/{revision}"
+    )
+}
 
 /// The committed in-scope/out-of-scope page sets.
 #[derive(Debug, Deserialize)]
@@ -62,7 +81,7 @@ pub(crate) fn run() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let sources = match load_sources() {
+    let sources = match load_sources(REVISION) {
         Ok(sources) => sources,
         Err(message) => {
             eprintln!("xtask: spec-drift — {message}");
@@ -76,7 +95,7 @@ pub(crate) fn run() -> ExitCode {
 
     let mut drifted = 0u32;
     for (page, requirements) in &by_page {
-        let url = format!("{RAW_BASE}/{}", sources.in_scope[page]);
+        let url = format!("{}/{}", raw_base(REVISION), sources.in_scope[page]);
         let text = match fetch(&url) {
             Ok(text) => text,
             Err(message) => {
@@ -151,8 +170,8 @@ fn sets_agree(sources: &Sources, by_page: &BTreeMap<String, Vec<&Requirement>>) 
     listed == cited
 }
 
-fn load_sources() -> Result<Sources, String> {
-    let path = crate::workspace_root().join(SOURCES);
+fn load_sources(revision: &str) -> Result<Sources, String> {
+    let path = crate::workspace_root().join(sources_path(revision));
     let text = std::fs::read_to_string(&path)
         .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
     serde_json::from_str(&text).map_err(|error| format!("{} is not valid: {error}", path.display()))
@@ -428,11 +447,25 @@ mod tests {
         // The offline halves of the gate, pinned in `cargo test`: the file
         // parses strictly and the two page sets agree. The network half
         // (quote verification) runs in the scheduled job.
-        let sources = load_sources().unwrap();
+        let sources = load_sources(REVISION).unwrap();
         let registry = Registry::builtin_2025_11_25().unwrap();
         let by_page = requirements_by_page(&registry);
         assert!(sets_agree(&sources, &by_page));
         assert_eq!(sources.in_scope.len(), 9, "the nine in-scope pages");
         assert!(!sources.out_of_scope.is_empty());
+    }
+
+    #[test]
+    fn pages_and_sources_resolve_under_their_own_revision() {
+        // The point of deriving both from a revision rather than fixing them:
+        // with `2026-07-28` published beside `2025-11-25`, a quote checked
+        // against the wrong revision's page would drift silently in whichever
+        // direction the two texts happen to agree.
+        assert!(raw_base("2026-07-28").ends_with("/docs/specification/2026-07-28"));
+        assert!(
+            sources_path("2026-07-28")
+                .starts_with("crates/mcp-conformance-core/registry/2026-07-28/")
+        );
+        assert_ne!(raw_base(REVISION), raw_base("2026-07-28"));
     }
 }

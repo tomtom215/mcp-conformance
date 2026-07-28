@@ -8,9 +8,15 @@
 //! `docs/plan/01-ecosystem-context.md` rows 1.5a–1.5f as a *list of changes*.
 //! A list says what will be different; it does not say how much work the
 //! migration is. This task answers that with a number: it drives the official
-//! runner's **draft scenario set** against the current `2025-11-25` server and
-//! records the score against a committed baseline
+//! runner's **`2026-07-28` scenario set** against the current `2025-11-25`
+//! server and records the score against a committed baseline
 //! (`conformance/draft-readiness.json`).
+//!
+//! The revision itself shipped on 2026-07-28 (register 1.5h), so "draft" in
+//! this task's name now describes the *scenarios*, not the specification: they
+//! exist only on the suite's pre-release `0.2.0-alpha` line. The name is kept
+//! because it is load-bearing across CI, the committed baseline's filename, and
+//! the published report path; it moves with the suite pin, not here.
 //!
 //! The baseline makes the number a **ratchet**, not a report. The gate fails
 //! when the score drops (a migration regression) *and* when it rises or the
@@ -39,14 +45,15 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-/// The suite version this task pins. The **draft** scenarios only exist on the
+/// The suite version this task pins. The `2026-07-28` scenarios only exist on the
 /// `0.2.0-alpha` line ([register 2.4](../../docs/plan/01-ecosystem-context.md)),
 /// but the pin is exact rather than the floating `alpha` dist-tag: a ratchet
 /// whose input can change under it is not a ratchet. Bumps are deliberate —
 /// re-measure, re-bless, and update register row 2.4 in the same commit.
 pub(super) const DRAFT_SUITE_VERSION: &str = "0.2.0-alpha.9";
 
-/// The revision under test — the one the registry does not describe yet.
+/// The revision under test — shipped 2026-07-28, but not one the registry
+/// describes yet (roadmap M2.5 line 2).
 pub(super) const DRAFT_SPEC_VERSION: &str = "2026-07-28";
 
 /// Committed score, relative to the workspace root.

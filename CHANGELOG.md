@@ -11,7 +11,40 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **The `2026-07-28` specification shipped on its scheduled date, and the
+  repository's claims about it are corrected to match.** v0.4.0 was cut one day
+  ahead of the text and said so throughout; those statements are now false and
+  a reader cannot tell which are history and which are current. Recorded as
+  register row 1.5h with four independent confirmations of a real cut — the
+  site default redirects to `/specification/2026-07-28`, the version dropdown
+  marks it `(latest)`, upstream's `draft/changelog.mdx` was reset to its
+  post-release stub, and `schema/2026-07-28/schema.ts` is on `main`. The
+  shipped changelog carries **exactly the planned inventory** (nine Major,
+  twelve Minor, four Deprecated, unchanged since 1.5d/1.5e), so roadmap M2.5's
+  extraction checklist needs no re-scoping. Documentation only: no crate's
+  behaviour, API, or verdicts change.
+- **`spec-drift` resolves its pages per revision instead of hardcoding one.**
+  Both the sources path and the raw base URL are now derived from a revision,
+  so `2026-07-28` registry entries will be verified against the `2026-07-28`
+  text rather than silently checked against `2025-11-25` pages. With one
+  published revision this was a distinction without a difference; with two it
+  is a correctness bug waiting for the next entry. The live gate still
+  verifies all 140 quotes.
+- **ADR-0011 amended (2026-07-28), decision unchanged.** Its first condition
+  is met and its second is not: rmcp's newest is `3.0.0-beta.4` while
+  `max_stable_version` is still `2.2.0`, so the pin holds at 1.7.0 and the
+  `rmcp-macros` ceiling shim stays in force. The amendment also retires a
+  supporting argument that expired with the release, and records that the
+  Decision's bundling of the SDK upgrade with M2.5's extraction scopes *when
+  the upgrade lands*, not when extraction may start.
+- **`draft-readiness` prose corrected:** "draft" now describes the pre-release
+  suite scenarios (`0.2.0-alpha`), not the specification. The task, its
+  committed baseline filename, and the report path keep their names — those
+  are load-bearing across CI — and the rename is deferred to the suite pin
+  bump, where the pins move anyway. The committed `_policy` string matches the
+  generator byte-for-byte, so `BLESS=1` produces no spurious diff.
 
 ## [0.4.0] - 2026-07-27
 
