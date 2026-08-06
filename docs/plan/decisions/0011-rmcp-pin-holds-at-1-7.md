@@ -173,3 +173,43 @@ upgrade lands*, not when extraction may start — extraction proceeds now agains
 the released text, and the upgrade joins it when a stable `3.0.x` exists. Read
 the other way, a beta SDK would hold the milestone hostage indefinitely, which
 no part of this ADR argues for.
+
+## Amendment (2026-08-06): both conditions are met — the pin is released
+
+`rmcp 3.0.0` — a **stable** release, not a pre-release — published on
+2026-07-28, the same day the specification text shipped. The line has since
+moved to `3.0.1` (2026-07-29), `3.1.0` (2026-07-31) and `3.1.1` (2026-08-05)
+([register 3.14](../01-ecosystem-context.md)). Both conditions this ADR set now
+hold, so **the hold expires by its own terms.** No further decision is needed
+to upgrade; what remains is executing it as the single measured move the
+Decision describes.
+
+**Target `3.1.1`, not `3.0.0`.** The Decision says one deliberate move rather
+than a sequence, and by the time both conditions were checkable the `3.1` minor
+already existed. Adopting `3.0.0` now would schedule a second migration to
+reach where the ecosystem already is.
+
+**What makes this safe to execute rather than merely permitted.** The upgrade's
+sharpest risk was never compile breakage — it was losing the calibration
+anchor. The 40/40 `2025-11-25` conformance gate is what judges whether the
+migration worked, and if `3.x` had dropped `2025-11-25` the upgrade would have
+retired that gate *before* the registry could describe `2026-07-28`, leaving a
+window with nothing to measure against. It did not: `3.1.1` supports all three
+revisions and `ProtocolVersion::LATEST` is still `V_2025_11_25`, with
+`2026-07-28` reachable via explicit opt-in (register 3.14, read first-hand in
+the crate source). The gate survives the upgrade, so exactly one variable moves
+at a time — the sequencing §Consequences claimed as this decision's main
+benefit, now actually available.
+
+**What does not change.** The `rmcp-macros` ceiling shim stays: `3.1.1` still
+caret-pins its companion at `^3.1.1` (register 3.13 is unfixed upstream), so
+the bound moves to the `3.1` minor rather than being deleted. The suite pin is
+untouched and unrelated — the official runner's stable `latest` is still
+`0.1.16`, so `suite-0-2-0-stable-pin-bump` is not released by this and neither
+is M5's feature-gate drop, which additionally requires the `2026-07-28`
+scenarios to stabilize.
+
+**Status.** This ADR is **superseded in effect** on its operative clause: the
+pin no longer holds. It stays Accepted as the record of *why* it held from
+2026-07-27 to 2026-08-06, and of the three-variable sequencing argument that
+still governs how the upgrade is executed and validated.
