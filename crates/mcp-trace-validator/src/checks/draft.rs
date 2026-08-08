@@ -17,6 +17,11 @@ pub(super) mod envelope;
 pub(super) mod meta;
 pub(super) mod transport;
 
+#[cfg(test)]
+mod testkit;
+#[cfg(test)]
+mod tests;
+
 /// The HTTP status of the response that carried the message at `seq`.
 ///
 /// Several clauses pair a JSON-RPC error code with an HTTP status ("`400 Bad

@@ -14,6 +14,9 @@ use serde_json::Value;
 use super::super::FindingSink;
 use crate::context::TraceContext;
 
+#[cfg(test)]
+mod tests;
+
 /// JSON-RPC's implementation-defined server-error range, which `2026-07-28`
 /// partitions (`basic/index#error-codes`).
 const LEGACY_RANGE: core::ops::RangeInclusive<i64> = -32019..=-32000;

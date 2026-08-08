@@ -27,6 +27,9 @@ mod headers;
 mod stream;
 mod validation;
 
+#[cfg(test)]
+mod tests;
+
 pub(in crate::checks) use headers::{
     header_value_encoding, protocol_version_header_matches_body, protocol_version_header_present,
     request_metadata_headers, sentinel_marker_case, sentinel_pattern_encoded,

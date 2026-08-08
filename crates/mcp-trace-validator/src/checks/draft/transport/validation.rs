@@ -21,6 +21,9 @@ use super::{
 };
 use crate::context::TraceContext;
 
+#[cfg(test)]
+mod tests;
+
 /// `HeaderMismatch`.
 const HEADER_MISMATCH: i64 = -32020;
 /// `UnsupportedProtocolVersionError`.

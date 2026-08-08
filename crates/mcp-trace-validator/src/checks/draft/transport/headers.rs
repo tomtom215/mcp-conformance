@@ -16,9 +16,12 @@ use std::collections::BTreeSet;
 use super::super::super::FindingSink;
 use super::{
     Designation, Match, Post, compare, designations, designations_by_tool, header_safe,
-    is_miscased_sentinel, mirrors, posts, sentinel_payload, tool_definitions,
+    is_miscased_sentinel, mirrors, posts, tool_definitions,
 };
 use crate::context::TraceContext;
+
+#[cfg(test)]
+mod tests;
 
 /// RFC 9110 §5.1 `tchar`, the punctuation half.
 const TCHAR: &[u8] = b"!#$%&'*+-.^_`|~";
@@ -138,9 +141,12 @@ pub(in crate::checks) fn header_value_encoding(context: &TraceContext<'_>, sink:
             continue;
         }
         for (name, value) in encodable_headers(&post) {
-            // Already encoded, or miscased — the latter is TRAN-089's finding,
-            // and reporting it here too would blame the wrong clause.
-            if sentinel_payload(value).is_some() || is_miscased_sentinel(value) {
+            // Miscased markers are TRAN-089's finding; reporting them here too
+            // would blame the wrong clause. A *correctly* spelled sentinel needs
+            // no exemption — its markers and Base64 payload are visible ASCII,
+            // so it is header-safe on its own, and a sentinel whose payload is
+            // not (`=?base64?café?=`) is exactly the defect this clause names.
+            if is_miscased_sentinel(value) {
                 continue;
             }
             if !header_safe(value) {

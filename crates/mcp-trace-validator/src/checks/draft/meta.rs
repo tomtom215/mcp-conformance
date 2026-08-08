@@ -19,6 +19,9 @@ use super::http_status_for;
 use crate::context::TraceContext;
 use mcp_conformance_core::trace::Direction;
 
+#[cfg(test)]
+mod tests;
+
 /// Fields `2026-07-28` requires in every client request's `_meta`.
 const REQUIRED_REQUEST_FIELDS: &[&str] = &[
     "io.modelcontextprotocol/protocolVersion",

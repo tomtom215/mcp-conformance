@@ -18,6 +18,9 @@ use super::super::super::FindingSink;
 use crate::context::TraceContext;
 use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TransportKind};
 
+#[cfg(test)]
+mod tests;
+
 /// `TRAN-060`: clients do not POST JSON-RPC responses.
 pub(in crate::checks) fn client_no_responses(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, _, _) in context.messages() {
@@ -104,50 +107,81 @@ pub(in crate::checks) fn accel_buffering_header(
 /// or abort on Streamable HTTP. Judged only against ids still outstanding when
 /// it happened: a message answering a request the server had already completed
 /// is a different defect, and not one this clause reaches.
+/// One pass over the events, flipping at the close rather than comparing
+/// sequence numbers against it. A `seq` comparison would be untestable here:
+/// the close is a lifecycle event, so no *message* can ever share its `seq`,
+/// and `<` versus `<=` would be a distinction no trace could exhibit.
 pub(in crate::checks) fn no_messages_after_cancellation(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let Some(closed_at) = cancellation_seq(context) else {
-        return;
-    };
     let mut outstanding: BTreeSet<String> = BTreeSet::new();
-    for (event, _, _) in context.messages() {
-        let Some(payload) = event.message_payload() else {
-            continue;
-        };
-        let Some(id) = payload.get("id").filter(|id| !id.is_null()) else {
-            continue;
-        };
-        if event.seq < closed_at {
-            if payload.get("method").is_some() {
-                outstanding.insert(id.to_string());
-            } else {
-                outstanding.remove(&id.to_string());
-            }
-        } else if event.direction == Direction::ServerToClient
-            && outstanding.contains(&id.to_string())
-        {
-            sink.push(
-                Some(event.seq),
-                format!(
-                    "server sent a further message for request id {id}, whose response \
-                     stream closed at seq {closed_at}; a close is cancellation at this revision"
-                ),
-            );
+    let mut closed_at: Option<u64> = None;
+    for event in context.events() {
+        if let Some(closed_at) = closed_at {
+            report_after_close(event, &outstanding, closed_at, sink);
+        } else if is_cancellation(event) {
+            closed_at = Some(event.seq);
+        } else {
+            track_outstanding(event, &mut outstanding);
         }
     }
 }
 
-/// The `seq` at which the recorded Streamable HTTP transport closed, if it did.
-fn cancellation_seq(context: &TraceContext<'_>) -> Option<u64> {
-    context.events().iter().find_map(|event| {
-        let closed = matches!(
-            event.body,
-            EventBody::Lifecycle {
-                event: LifecycleEvent::TransportClose | LifecycleEvent::TransportAbort
-            }
+/// Whether `event` is the recorded form of a response stream closing.
+fn is_cancellation(event: &mcp_conformance_core::trace::TraceEvent) -> bool {
+    let closed = matches!(
+        event.body,
+        EventBody::Lifecycle {
+            event: LifecycleEvent::TransportClose | LifecycleEvent::TransportAbort
+        }
+    );
+    closed && event.transport == TransportKind::StreamableHttp
+}
+
+/// Opens an id on a request and closes it on the answer, so `outstanding` holds
+/// exactly the ids in flight.
+fn track_outstanding(
+    event: &mcp_conformance_core::trace::TraceEvent,
+    outstanding: &mut BTreeSet<String>,
+) {
+    let Some(payload) = event.message_payload() else {
+        return;
+    };
+    let Some(id) = payload.get("id").filter(|id| !id.is_null()) else {
+        return;
+    };
+    if payload.get("method").is_some() {
+        outstanding.insert(id.to_string());
+    } else {
+        outstanding.remove(&id.to_string());
+    }
+}
+
+/// Reports a server message for an id that was still in flight at the close.
+fn report_after_close(
+    event: &mcp_conformance_core::trace::TraceEvent,
+    outstanding: &BTreeSet<String>,
+    closed_at: u64,
+    sink: &mut FindingSink,
+) {
+    if event.direction != Direction::ServerToClient {
+        return;
+    }
+    let Some(id) = event
+        .message_payload()
+        .and_then(|payload| payload.get("id"))
+        .filter(|id| !id.is_null())
+    else {
+        return;
+    };
+    if outstanding.contains(&id.to_string()) {
+        sink.push(
+            Some(event.seq),
+            format!(
+                "server sent a further message for request id {id}, whose response \
+                 stream closed at seq {closed_at}; a close is cancellation at this revision"
+            ),
         );
-        (closed && event.transport == TransportKind::StreamableHttp).then_some(event.seq)
-    })
+    }
 }

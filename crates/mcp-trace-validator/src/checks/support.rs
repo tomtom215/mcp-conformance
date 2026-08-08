@@ -97,7 +97,10 @@ pub(super) fn decode_base64(text: &str) -> Option<String> {
             b'/' => 63,
             _ => return None,
         };
-        accumulator = (accumulator << 6) | sextet;
+        // `+`, not `|`: the shift clears the low six bits and a sextet occupies
+        // only those, so the two are numerically identical here — and `|` would
+        // be an operator no test could ever distinguish from its mutations.
+        accumulator = (accumulator << 6) + sextet;
         bits += 6;
         if bits >= 8 {
             bits -= 8;
@@ -161,6 +164,21 @@ mod tests {
             );
         }
         assert_eq!(decode_base64("").as_deref(), Some(""));
+    }
+
+    #[cfg(feature = "draft-2026-07-28")]
+    #[test]
+    fn base64_decoding_covers_the_whole_alphabet_and_every_padding_length() {
+        // `+` and `/` are the two alphabet entries a lazy table would omit.
+        assert_eq!(decode_base64("fn5+").as_deref(), Some("~~~"));
+        assert_eq!(decode_base64("fn4/").as_deref(), Some("~~?"));
+        // Each padding length exercises a different number of emitted bytes.
+        assert_eq!(decode_base64("YQ==").as_deref(), Some("a")); // 1 byte
+        assert_eq!(decode_base64("YWI=").as_deref(), Some("ab")); // 2 bytes
+        assert_eq!(decode_base64("YWJj").as_deref(), Some("abc")); // 3 bytes
+        // Ordering matters: the bits accumulate most-significant sextet first,
+        // so a transposition must not decode to the same text.
+        assert_eq!(decode_base64("YmFj").as_deref(), Some("bac"));
     }
 
     #[cfg(feature = "draft-2026-07-28")]
