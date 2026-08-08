@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::revision::{ProtocolRevision, REVISION_2025_11_25};
 
-use super::registry::{builtin_requirements, validate_requirements};
+use super::registry::{builtin_set_requirements, validate_requirements};
 use super::{Registry, RegistryError, Requirement};
 
 /// A requirement registry spanning more than one protocol revision.
@@ -96,7 +96,7 @@ impl RegistrySet {
                 #[cfg(feature = "draft-2026-07-28")]
                 crate::revision::REVISION_2026_07_28,
             ],
-            requirements: builtin_requirements()?,
+            requirements: builtin_set_requirements()?,
         };
         set.validate()?;
         Ok(set)
@@ -332,17 +332,30 @@ mod tests {
         assert_eq!(projected.requirements().len(), 140);
     }
 
-    /// Every embedded entry is bounded at `2026-07-28`; none of them describes it.
+    /// No entry serves both revisions. Each revision's entries quote its own pages, so
+    /// an entry in force at both would be citing text that only exists in one — the
+    /// failure the `removed`/`introduced` bounds exist to make impossible. Disjointness
+    /// holds in both feature modes: with the feature off the `2026-07-28` side is empty,
+    /// which is trivially disjoint; with it on, the bounds do the work.
     #[test]
-    fn no_embedded_requirement_applies_at_2026_07_28() {
+    fn the_two_revisions_share_no_requirement() {
         let set = RegistrySet::builtin().unwrap();
-        let leaked: Vec<_> = set
+        let at_old: Vec<_> = set
             .requirements()
             .iter()
-            .filter(|requirement| requirement.applies_to(rev("2026-07-28")))
-            .map(|requirement| requirement.id.as_str())
+            .filter(|r| r.applies_to(rev("2025-11-25")))
+            .map(|r| r.id.as_str())
             .collect();
-        assert!(leaked.is_empty(), "leaked into 2026-07-28: {leaked:?}");
+        let both: Vec<_> = at_old
+            .iter()
+            .copied()
+            .filter(|id| {
+                set.requirements()
+                    .iter()
+                    .any(|r| r.id.as_str() == *id && r.applies_to(rev("2026-07-28")))
+            })
+            .collect();
+        assert!(both.is_empty(), "in force at both revisions: {both:?}");
     }
 
     #[test]
@@ -357,14 +370,27 @@ mod tests {
 
     #[test]
     #[cfg(feature = "draft-2026-07-28")]
-    fn with_the_feature_2026_07_28_is_described_but_still_empty() {
+    fn with_the_feature_2026_07_28_carries_only_its_own_entries() {
         let set = RegistrySet::builtin().unwrap();
         assert_eq!(set.revisions(), [rev("2025-11-25"), rev("2026-07-28")]);
         let draft = set.registry(rev("2026-07-28")).unwrap();
         assert!(
-            draft.requirements().is_empty(),
-            "no area has landed yet; an entry here without a check would be the \
-             placeholder-exclusion failure M2.5's addendum rejects"
+            !draft.requirements().is_empty(),
+            "the first area (basic/index#meta) has landed"
         );
+        // Every entry is one this revision introduced — nothing inherited by an
+        // absent `applies` range, which is how a 2025-11-25 quote would leak in.
+        for requirement in draft.requirements() {
+            let introduced = requirement
+                .applies
+                .as_ref()
+                .and_then(crate::applies::AppliesRange::introduced);
+            assert_eq!(
+                introduced,
+                Some(rev("2026-07-28")),
+                "{} is served at 2026-07-28 without being introduced there",
+                requirement.id
+            );
+        }
     }
 }

@@ -1,0 +1,21 @@
+{
+  "_policy": "The in-scope page set for revision 2026-07-28, with the same contract as the 2025-11-25 file: `in_scope` maps each page (as `source.section` prefixes cite it) to its published source file under docs/specification/2026-07-28/, and `cargo xtask spec-drift` enforces both directions — every listed page is cited, every cited page is listed — then verifies each quote against the published text (ADR-0010). One difference matters and is deliberate: this registry is being built AREA BY AREA, so `in_scope` grows as areas land rather than describing the whole revision from the start. `out_of_scope` therefore means what it means at 2025-11-25 — deliberately excluded, with the reason — and NOT 'not extracted yet'. Pages that are neither listed here are simply not yet entered; the complete clause inventory for the revision, quote-verified and ready to curate, is docs/reports/registry-extraction-2026-07-28-inventory-2026-08-06.md, which is the backlog. Conflating the two buckets would let unfinished work read as a scoping decision.",
+  "in_scope": {
+    "basic/index": "basic/index.mdx"
+  },
+  "out_of_scope": {
+    "architecture/index": "No RFC 2119 keyword instances on the page (verified 2026-08-06 against the published text).",
+    "basic/authorization/authorization-server-discovery": "Full OAuth flows — the same boundary the registry's TRAN-009 exclusion records at 2025-11-25, with the suite's auth/* scenarios deferred under the `auth-client-scenarios` ledger row.",
+    "basic/authorization/client-registration": "Full OAuth flows; see `basic/authorization/authorization-server-discovery`.",
+    "basic/authorization/index": "Full OAuth flows; see `basic/authorization/authorization-server-discovery`.",
+    "basic/authorization/security-considerations": "Full OAuth flows; see `basic/authorization/authorization-server-discovery`.",
+    "changelog": "Non-normative revision history.",
+    "client/elicitation": "Client-feature page: the reference host enforces its wire-visible client MUSTs in code (ADR-0009), as at 2025-11-25.",
+    "client/roots": "Client-feature page, deprecated forward by SEP-2577 (register 1.5b).",
+    "client/sampling": "Client-feature page, deprecated forward by SEP-2577 (register 1.5b).",
+    "deprecated": "Registry of features in the Deprecated lifecycle state; no RFC 2119 keyword instances of its own (verified 2026-08-06).",
+    "index": "Landing page: keyword instances are the BCP 14 boilerplate plus security-principles guidance about consent and authorization flows — UI and internal policy, out by strategy rule 2.",
+    "schema": "Generated schema reference: constraints stated only in schema field documentation without RFC 2119 keywords are excluded by strategy rule 3.",
+    "server/index": "Overview page: no RFC 2119 keyword instances (verified 2026-08-06); the capability MUSTs live on the per-feature pages."
+  }
+}

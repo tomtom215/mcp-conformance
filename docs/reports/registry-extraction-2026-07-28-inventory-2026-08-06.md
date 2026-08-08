@@ -180,3 +180,37 @@ inventory landable and visible without overstating coverage, and keeps the
 pass-rate denominators honest, while checks arrive area by area behind the
 `draft-2026-07-28` feature. It should be an ADR, because it changes what a
 registry entry can claim.
+
+
+---
+
+## Addendum 2 (2026-08-06): the blocker was wrong — the engine already had the state
+
+The addendum above concluded that a faithful extraction needed either a new
+`Verification` variant or a full check implementation first, because `exclusion`
+may not mean "check not written yet". The first half of that stands. The
+conclusion did not: **the engine already models exactly the missing state**, one
+layer down from the schema.
+
+A requirement whose `checks` name an unimplemented check is reported
+`unsupported` — first-class in `Totals`, listed with the missing check IDs, and
+*outranking* fail/warn/pass in verdict priority (`engine.rs`,
+`verdict_priority_is_unsupported_fail_warn_pass`). The engine's own comment is
+the point: `unsupported` "is a property of (registry, build), not of what one
+trace negotiated".
+
+So an entry can say, truthfully, "this clause is verified by check X" while the
+build reports that X is absent. That is not a placeholder exclusion — it is a
+true statement plus a visible build fact, and it cannot be mistaken for a pass.
+No schema change is needed, and the recommendation to add a `Deferred` variant
+is withdrawn: it would have duplicated, at the schema layer, a distinction the
+engine already draws better.
+
+**First slice landed on that basis:** `basic/index#meta`, 16 clauses, curated
+individually as BASE-025…040. Five reuse the implemented `base.meta-key-format`
+check, because the `_meta` key grammar is unchanged from `2025-11-25` and the
+check already carries a corpus violation. Five carry genuine exclusions — two of
+them because the clause's own "unless specifically configured not to do so"
+escape hatch makes an absent field unattributable, which is a property of the
+clause, not of our engine. Six name checks that do not exist yet and therefore
+report `unsupported`, which is the honest answer until they are written.

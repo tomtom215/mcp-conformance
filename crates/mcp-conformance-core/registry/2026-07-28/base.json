@@ -1,0 +1,235 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "BASE-025",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "Certain key names are reserved by MCP for protocol-level metadata, as specified below; implementations MUST NOT make assumptions about values at these keys."
+      },
+      "exclusion": "What an implementation assumes is internal; only conduct that follows from an assumption could surface, and attributing it requires the assumption. Same clause and same reasoning as BASE-018 at 2025-11-25."
+    },
+    {
+      "id": "BASE-026",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "If specified, MUST be a series of labels separated by dots (`.`), followed by a slash (`/`)."
+      },
+      "checks": [
+        "base.meta-key-format"
+      ]
+    },
+    {
+      "id": "BASE-027",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "Labels MUST start with a letter and end with a letter or digit; interior characters can be letters, digits, or hyphens (`-`)."
+      },
+      "checks": [
+        "base.meta-key-format"
+      ]
+    },
+    {
+      "id": "BASE-028",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "Implementations SHOULD use reverse DNS notation (e.g., `com.example/` rather than `example.com/`)."
+      },
+      "exclusion": "Whether a syntactically valid prefix is reverse-DNS for its author cannot be decided without knowing the author's domain. Same clause and same reasoning as BASE-021 at 2025-11-25."
+    },
+    {
+      "id": "BASE-029",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "Unless empty, MUST begin and end with an alphanumeric character (`[a-z0-9A-Z]`)."
+      },
+      "checks": [
+        "base.meta-key-format"
+      ]
+    },
+    {
+      "id": "BASE-030",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "Client requests carry the following `io.modelcontextprotocol/*` fields in `meta`; fields marked as required MUST be included on every request."
+      },
+      "checks": [
+        "meta.required-request-fields"
+      ]
+    },
+    {
+      "id": "BASE-031",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "A request missing any required field is malformed; the server MUST reject it with JSON-RPC error code `-32602` (Invalid params)."
+      },
+      "checks": [
+        "meta.missing-required-field-rejected"
+      ]
+    },
+    {
+      "id": "BASE-032",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "On HTTP, the response status MUST be `400 Bad Request`."
+      },
+      "checks": [
+        "meta.missing-required-field-http-status"
+      ]
+    },
+    {
+      "id": "BASE-033",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "Clients SHOULD include `io.modelcontextprotocol/clientInfo` on every request unless specifically configured not to do so."
+      },
+      "exclusion": "The clause's own escape hatch defeats the check: an absent `clientInfo` is either non-compliance or the configured-off case the clause permits, and a trace cannot distinguish them. The adjacent observable — that a *present* value is well-formed — belongs to the key-format checks on BASE-026/027/029."
+    },
+    {
+      "id": "BASE-034",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "A server MUST NOT rely on capabilities the client has not declared."
+      },
+      "checks": [
+        "meta.no-undeclared-capability-reliance"
+      ]
+    },
+    {
+      "id": "BASE-035",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "If processing a request requires a capability the client did not include in `io.modelcontextprotocol/clientCapabilities`, the server MUST return a `MissingRequiredClientCapabilityError` (`-32021`) whose `data.requiredCapabilities` lists the missing capabilities."
+      },
+      "checks": [
+        "meta.missing-capability-error"
+      ]
+    },
+    {
+      "id": "BASE-036",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "On HTTP, the response status MUST be `400 Bad Request`."
+      },
+      "checks": [
+        "meta.missing-capability-http-status"
+      ]
+    },
+    {
+      "id": "BASE-037",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "Servers SHOULD include the following `io.modelcontextprotocol/*` field in every result's `meta`, unless specifically configured not to do so, to identify themselves without relying on any prior connection state:"
+      },
+      "exclusion": "Same escape hatch as BASE-033, mirrored to the server: an absent `serverInfo` is either non-compliance or the configured-off case the clause permits, and the trace cannot tell which."
+    },
+    {
+      "id": "BASE-038",
+      "level": "SHOULD NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "Implementations SHOULD NOT use them to change the behavior of the client or server, and SHOULD NOT rely on them for security decisions."
+      },
+      "exclusion": "Self-reported identity is advisory; whether a peer let it change behavior or drive a security decision is internal reasoning with no wire footprint, the same boundary BASE-025 draws for reserved-key assumptions."
+    },
+    {
+      "id": "BASE-039",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "On notifications delivered via a [`subscriptions/listen`][subscriptions-listen] stream, the server MUST include `io.modelcontextprotocol/subscriptionId` in `meta` so the client can correlate the notification with the originating subscription request."
+      },
+      "checks": [
+        "meta.subscription-id-present"
+      ]
+    },
+    {
+      "id": "BASE-040",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#meta",
+        "quote": "When present, their values MUST follow W3C Trace Context and W3C Baggage formats respectively."
+      },
+      "checks": [
+        "meta.trace-context-format"
+      ]
+    }
+  ]
+}
