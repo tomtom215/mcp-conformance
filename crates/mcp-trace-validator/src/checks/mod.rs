@@ -342,6 +342,53 @@ pub fn find(id: &str) -> Option<&'static Check> {
     ALL.iter().find(|check| check.id == id)
 }
 
+/// Whether `check` is a committed-but-unimplemented id (see `PLANNED`).
+#[cfg(test)]
+// Const-evaluable only with the feature off, where the body is a literal `false`;
+// with it on, the slice lookup is not const. Following the lint would make the
+// signature depend on which features are enabled.
+#[allow(clippy::missing_const_for_fn)]
+fn is_planned(check: &str) -> bool {
+    #[cfg(feature = "draft-2026-07-28")]
+    let planned = PLANNED.contains(&check);
+    #[cfg(not(feature = "draft-2026-07-28"))]
+    let planned = {
+        let _ = check;
+        false
+    };
+    planned
+}
+
+#[cfg(all(test, feature = "draft-2026-07-28"))]
+/// Checks a registry entry names that this build does not implement yet.
+///
+/// The engine reports such a requirement as `unsupported` — first-class in the
+/// totals, listed with the missing id, outranking pass/fail — so an entry naming
+/// one states something true (the clause is verified by this check) alongside a
+/// visible build fact (the check is absent). That is the mechanism incremental
+/// extraction is meant to use, and it is why an entry must never be given a
+/// placeholder *exclusion* instead.
+///
+/// The list exists so the mechanism cannot hide a typo: a misspelled check id
+/// would otherwise degrade silently to `unsupported` and read as planned work.
+/// Every row is a commitment, and the test below retires each one the moment its
+/// check lands.
+const PLANNED: &[&str] = &[
+    "transport.request-metadata-headers",
+    "transport.client-no-responses",
+    "transport.no-independent-server-requests",
+    "transport.accel-buffering-header",
+    "transport.no-messages-after-cancellation",
+    "transport.protocol-version-header-matches-body",
+    "transport.header-mismatch-rejected",
+    "transport.unsupported-version-error",
+    "transport.unknown-method-404",
+    "transport.header-value-encoding",
+    "transport.x-mcp-header-mirrored",
+    "transport.x-mcp-header-name-valid",
+    "transport.header-body-match-validated",
+];
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -373,8 +420,10 @@ mod tests {
             if let Verification::Checks { checks } = &requirement.verification {
                 for check in checks {
                     assert!(
-                        find(check).is_some(),
-                        "{}: references unimplemented check {check}",
+                        find(check).is_some() || is_planned(check),
+                        "{}: references check {check}, which is neither implemented nor \
+                         listed in PLANNED — a typo in a check id would otherwise be \
+                         invisible, reported as `unsupported` rather than as a defect",
                         requirement.id
                     );
                     referenced.insert(check.clone());
@@ -386,6 +435,21 @@ mod tests {
                 referenced.contains(check.id),
                 "check {} is implemented but referenced by no requirement",
                 check.id
+            );
+        }
+        // The list retires itself: implementing a planned check without removing
+        // its row fails here, so PLANNED can never quietly outlive its purpose.
+        // Feature-gated with the data — without it, the revision that names these
+        // is not described and nothing could reference them.
+        #[cfg(feature = "draft-2026-07-28")]
+        for planned in PLANNED {
+            assert!(
+                find(planned).is_none(),
+                "check {planned} is implemented — remove it from PLANNED"
+            );
+            assert!(
+                referenced.contains(*planned),
+                "check {planned} is planned but no requirement references it"
             );
         }
     }

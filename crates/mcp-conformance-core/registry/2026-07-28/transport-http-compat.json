@@ -1,0 +1,44 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "TRAN-107",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#backward-compatibility",
+        "quote": "On `400 Bad Request`, the client SHOULD inspect the response body before falling back: modern servers also use `400` for [`UnsupportedProtocolVersionError`][unsupported-version], `MissingRequiredClientCapabilityError`, and header-validation failures."
+      },
+      "exclusion": "Whether the client inspected a `400` body before falling back is internal reasoning; a subsequent fallback request is equally consistent with either."
+    },
+    {
+      "id": "TRAN-108",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#earlier-streamable-http-revisions",
+        "quote": "A server that supports only this revision and receives such traffic from an older client SHOULD respond as follows:"
+      },
+      "exclusion": "The umbrella introducing the backward-compatibility response table; each response it prescribes is a clause of its own, and the umbrella adds no separate observable."
+    },
+    {
+      "id": "TRAN-109",
+      "level": "SHOULD NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#httpsse-transport-2024-11-05",
+        "quote": "New implementations SHOULD NOT adopt it; existing implementations SHOULD migrate to Streamable HTTP."
+      },
+      "exclusion": "Adopting or migrating away from a transport is a project decision, not a property of any session."
+    }
+  ]
+}

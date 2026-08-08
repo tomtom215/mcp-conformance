@@ -305,3 +305,43 @@ stayed excluded.
 The check registrations are gated on `draft-2026-07-28` alongside the data, so
 a default build has neither, and the falsifiability invariant holds in both
 feature modes rather than only the one that happens to be tested.
+
+
+---
+
+## Addendum 5 (2026-08-06): `basic/transports/streamable-http` entered — 60 clauses
+
+The revision's largest page is curated. The registry is now **117 entries — 30
+judged, 21 unsupported, 66 excluded** — across two of fifteen in-scope pages,
+and `spec-drift` verifies 257 quotes across both revisions, 0 drifted.
+
+Four checks carried over because the rule did not change: the `Accept` header
+listing both content types, the single-message POST body, the `Content-Type`
+the server may answer with, and the `MCP-Protocol-Version` header's presence.
+One reuse was checked rather than assumed —
+`transport.http-post-single-message` enforces *singleness* only, not which
+message kinds are permitted, so it still fits a clause that narrowed from
+"request, notification, or response" to "request or notification". The narrowing
+itself is a separate new clause (clients may no longer POST responses at all).
+
+Thirteen checks are named and not yet implemented, so their entries report
+`unsupported`. **That created a conflict with an invariant this session had just
+tightened.** `builtin_registry_and_check_inventory_cover_each_other_exactly` was
+changed one commit earlier to drive the registry *set*, and it asserts every
+referenced check exists — a rule stricter than the engine, which supports
+`unsupported` deliberately. Rather than weaken it, the assertion now consults a
+committed `PLANNED` list, and the test retires each row itself: implementing a
+planned check without deleting its row fails, and so does a planned check no
+requirement references. A misspelled check id therefore still fails loudly
+instead of degrading silently into `unsupported`, which was the protection worth
+keeping.
+
+The 66 exclusions cluster in three honest places. Intermediary clauses bind a
+party that is not an endpoint of the recorded session. Encode/decode clauses
+bind a step that happens inside a receiver, where only the outcome reaches the
+wire — and that outcome is checked. The `x-mcp-header` schema constraints
+require walking a tool's JSON Schema, which `mcp-conformance-core` has no engine
+to do by deliberate architectural choice, the same boundary BASE-073 draws.
+
+**Next**: the thirteen `PLANNED` checks, with corpus pairs, exactly as the
+fourteen for `basic/index` were done.

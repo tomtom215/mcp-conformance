@@ -1,0 +1,70 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "TRAN-050",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http",
+        "quote": "The server MUST provide a single HTTP endpoint path (hereafter referred to as the MCP endpoint) that supports POST."
+      },
+      "exclusion": "Endpoint topology — how many paths a server exposes and which methods each accepts — is deployment configuration; a recorded session shows one endpoint being used, never the set that exists. Same reasoning as TRAN-006 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-051",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#security--endpoint",
+        "quote": "Servers MUST validate the `Origin` header on all incoming connections to prevent DNS rebinding attacks."
+      },
+      "exclusion": "Origin validation is server-internal policy applied before any MCP message; the trace records admitted sessions, not the requests a policy refused. Same reasoning as TRAN-002 at 2025-11-25; the everything server's policy middleware is tested directly in http_policy.rs."
+    },
+    {
+      "id": "TRAN-052",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#security--endpoint",
+        "quote": "If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden."
+      },
+      "exclusion": "A refused request never becomes an MCP session, so the 403 it drew is outside what the tap records. Same reasoning as TRAN-007 at 2025-11-25; enforced in code and covered by the server's own policy tests."
+    },
+    {
+      "id": "TRAN-053",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#security--endpoint",
+        "quote": "When running locally, servers SHOULD bind only to localhost (127.0.0.1) rather than all network interfaces (0.0.0.0)."
+      },
+      "exclusion": "Bind address is process configuration with no wire footprint. Same reasoning as TRAN-008 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-054",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#security--endpoint",
+        "quote": "Servers SHOULD implement proper authentication for all connections."
+      },
+      "exclusion": "Authentication sits in front of the protocol; the authorization specification is out of scope for this registry for the reason `sources.json` records. Same reasoning as TRAN-009 at 2025-11-25."
+    }
+  ]
+}
