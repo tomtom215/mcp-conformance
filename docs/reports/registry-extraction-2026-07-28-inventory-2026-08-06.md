@@ -264,3 +264,44 @@ The registry file was split at the page's own section seams — `messages`,
 implementation plus a `corpus/draft/` violation pair, and
 `corpus_falsifies_every_check` needs extending to drive the `2026-07-28`
 registry over that corpus — today it only runs `builtin_2025_11_25()`.
+
+
+---
+
+## Addendum 4 (2026-08-06): the 14 checks are implemented — `basic/index` judges
+
+All 14 clauses that reported `unsupported` now have implementations and a
+violation trace each. The `2026-07-28` registry is **26 judged / 0 unsupported /
+31 excluded**: nothing in it is aspirational any more.
+
+Six read the message envelope — `resultType` presence, in-flight request-ID
+collision, and the four error-code partition rules (legacy sub-range, undefined
+codes in the MCP-reserved sub-range, withdrawn `-32002`/`-32042`, and
+application codes misplaced inside the JSON-RPC reserved range). Eight read the
+`_meta` envelope — required request fields, the `-32602` a malformed envelope
+must draw and its HTTP 400, the `-32021` shape and *its* 400, undeclared-capability
+reliance surfaced through MRTR `input_required`, subscription tagging, and W3C
+`traceparent` grammar.
+
+Each is falsifiable by construction: where a clause has only a positive form
+("the server never relied on X"), the check reports the one wire-visible way it
+fails rather than pretending to prove the positive. Clauses with *no* such form
+stayed excluded.
+
+**Three existing invariants had to be widened, and each caught a real gap:**
+
+1. `builtin_registry_and_check_inventory_cover_each_other_exactly` drove
+   `Registry::builtin_2025_11_25()`, so it failed the moment a check existed
+   that only the newer revision names. It now drives the registry **set** —
+   both halves still bind, across revisions.
+2. `corpus_falsifies_every_check` drove one corpus. It now unions both, so the
+   invariant is "*some* corpus kills each implemented check", which is the
+   property that actually matters.
+3. `every_trace_has_a_provenance_ledger_row` covered only `good` and
+   `violations` — the 15 new fixtures were undocumented and the test was
+   silently fine with it. It now covers `draft/` too, and `corpus/README.md`
+   carries a row per trace.
+
+The check registrations are gated on `draft-2026-07-28` alongside the data, so
+a default build has neither, and the falsifiability invariant holds in both
+feature modes rather than only the one that happens to be tested.

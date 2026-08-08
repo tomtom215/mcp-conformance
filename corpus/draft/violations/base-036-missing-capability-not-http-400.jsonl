@@ -1,0 +1,3 @@
+{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}}
+{"seq":1,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32021,"message":"needs a capability","data":{"requiredCapabilities":["elicitation"]}}}}
+{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":500}

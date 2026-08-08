@@ -13,6 +13,8 @@
 //!   report them.
 
 mod base;
+#[cfg(feature = "draft-2026-07-28")]
+mod draft;
 mod lifecycle;
 mod negotiation;
 mod prompts;
@@ -262,6 +264,76 @@ pub static ALL: &[Check] = &[
         id: "pagination.cursor-opacity",
         run: utilities::cursor_opacity,
     },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "base.result-type-present",
+        run: draft::envelope::result_type_present,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "base.request-id-unique-in-flight",
+        run: draft::envelope::request_id_unique_in_flight,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "base.error-code-legacy-subrange",
+        run: draft::envelope::error_code_legacy_subrange,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "base.error-code-reserved-subrange",
+        run: draft::envelope::error_code_reserved_subrange,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "base.error-code-withdrawn",
+        run: draft::envelope::error_code_withdrawn,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "base.error-code-application-range",
+        run: draft::envelope::error_code_application_range,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "meta.required-request-fields",
+        run: draft::meta::required_request_fields,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "meta.missing-required-field-rejected",
+        run: draft::meta::missing_required_field_rejected,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "meta.missing-required-field-http-status",
+        run: draft::meta::missing_required_field_http_status,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "meta.missing-capability-error",
+        run: draft::meta::missing_capability_error,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "meta.missing-capability-http-status",
+        run: draft::meta::missing_capability_http_status,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "meta.no-undeclared-capability-reliance",
+        run: draft::meta::no_undeclared_capability_reliance,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "meta.subscription-id-present",
+        run: draft::meta::subscription_id_present,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "meta.trace-context-format",
+        run: draft::meta::trace_context_format,
+    },
 ];
 
 /// Looks up a check by its stable ID.
@@ -274,7 +346,7 @@ pub fn find(id: &str) -> Option<&'static Check> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use mcp_conformance_core::requirement::{Registry, Verification};
+    use mcp_conformance_core::requirement::Verification;
     use std::collections::HashSet;
 
     #[test]
@@ -289,9 +361,15 @@ mod tests {
     fn builtin_registry_and_check_inventory_cover_each_other_exactly() {
         // Every check the registry references exists, and every implemented check is
         // referenced — drift in either direction is a defect, not a warning.
-        let registry = Registry::builtin_2025_11_25().unwrap();
+        //
+        // Driven from the registry *set*, not one revision: checks arrive with the
+        // revision that needs them, so a `2026-07-28` check is referenced only by that
+        // revision's entries. Both halves still bind — an implemented check no
+        // revision names is dead code, and a named check nothing implements would be
+        // reported `unsupported` rather than judged.
+        let set = mcp_conformance_core::requirement::RegistrySet::builtin().unwrap();
         let mut referenced = HashSet::new();
-        for requirement in registry.requirements() {
+        for requirement in set.requirements() {
             if let Verification::Checks { checks } = &requirement.verification {
                 for check in checks {
                     assert!(
