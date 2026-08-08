@@ -486,6 +486,46 @@ verified state, not intent.
 | Feature gate | everything `2026-07-28` is behind `draft-2026-07-28`; the default build is untouched |
 | `PLANNED` ledger | **empty** — nothing in the registry names a check that does not exist |
 
+### Open blocker: the draft checks have no unit tests (PR #35, `Mutants (PR diff)`)
+
+The diff-scoped mutation gate fails on this branch: **391 mutants tested, 75
+missed.** Every missed mutant is a behaviour change no test observes, and the
+gate is zero-tolerance by design.
+
+The cause is not subtle, and it is a gap against this repository's own standard.
+Each `2025-11-25` check module carries 6–11 unit tests; **all six draft check
+modules carry zero.** The corpus proves *falsifiability* — one trace kills each
+check — but one trace exercises one path, so branch conditions, boundary
+comparisons and the pure helpers are unobserved.
+
+Where the 75 cluster:
+
+| Module | Missed | The shape of them |
+|---|---:|---|
+| `draft/meta.rs` | ~20 | `validate_traceparent`'s grammar branches (8), the `_meta`-rejection match guards, `subscription_id_present`'s method filter |
+| `draft/envelope.rs` | 13 | the sign of every error-code constant, and the boolean structure of `error_code_application_range` |
+| `draft/transport/validation.rs` | 11 | `unsupported_version_shape`/`_answer` whole-function stubs, `declared_versions -> None`, `answer_label` |
+| `draft/transport.rs` | 8 | `is_request`, `posts`' direction filter, `header_safe`, `header_text`'s type conversions |
+| `draft.rs` | 6 | `http_status_for`'s return value and its backwards scan |
+| `draft/transport/stream.rs` | 3 | `client_no_responses`, the `<` vs `<=` at the cancellation boundary |
+| `draft/transport/headers.rs` | 2 | `encodable_headers`, the encoded-or-miscased skip |
+| `checks/support.rs` | 2 | `decode_base64`'s `+` alphabet entry and its bit accumulation |
+
+The fix is mechanical, not architectural: a `#[cfg(test)] mod tests;` per draft
+module, following the `findings_for` pattern the `2025-11-25` modules already
+use. Most of the count falls to table-driven tests on the pure helpers —
+`validate_traceparent`, `header_safe`, `header_text`, `decode_base64`,
+`sentinel_payload`, `compare` — which are directly callable and where one table
+kills many mutants at once. Because inline tests count against the 500-line file
+cap, put each module's tests in a sibling file (`draft/meta/tests.rs`, and so
+on) rather than inline.
+
+Reproduce locally with `cargo install cargo-mutants --locked` then
+`cargo xtask mutants`, which runs exactly what CI runs. Scope a fast loop with
+`cargo mutants --file 'crates/mcp-trace-validator/src/checks/draft/**' -- --all-features`.
+
+**This is the first thing to do on this branch — before page three.**
+
 ### Resuming
 
 The backlog is the clause inventory above: thirteen pages, extracted and
