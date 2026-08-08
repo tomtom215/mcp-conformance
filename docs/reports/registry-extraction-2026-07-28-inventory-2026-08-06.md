@@ -116,3 +116,62 @@ being an inventory.
 4. `spec-drift` iterating both revisions — the helpers already resolve per
    revision, so this is a loop, not a rewrite.
 5. `corpus/draft/` good and violation pairs (DoD line 5).
+
+---
+
+## Addendum (2026-08-06): the curation is blocked on checks, not on data entry
+
+Curation was started page by page, beginning with `server/discover` (4 clauses).
+It stopped at the first entry, on a policy question that decides all 274.
+
+`Verification::Excluded` documents itself as "Not mechanically verifiable from a
+recorded trace", and
+[03-conformance-strategy.md](../plan/03-conformance-strategy.md) §What enters
+the registry is explicit about the rule:
+
+> Every MUST / MUST NOT on an in-scope page enters — with checks when a recorded
+> trace can judge it, with a documented exclusion naming where it *is* enforced
+> when it cannot. No exceptions: that is the SEP-2484 floor.
+
+So `exclusion` means **a trace cannot judge this clause**. It does not mean
+*the check has not been written yet*. Every exclusion in the shipped registry
+holds to that: LIFE-011 excludes because "the client's supported-version set is
+internal state with no wire footprint"; LIFE-015 because "checks may not
+consult time"; LIFE-014 because stdin closure and signals "are host-OS actions
+outside the trace event vocabulary".
+
+Take the first `server/discover` clause, "Servers MUST implement it." A trace
+that carries a `server/discover` request and a `-32601` answer falsifies it
+outright. It is *wire-observable*, so under the rule it must carry a **check** —
+and writing `exclusion: "the validator does not model 2026-07-28 yet"` would be
+a false statement about the clause, not a documented limitation. Doing that 274
+times would produce a registry that passes every gate while quietly inverting
+the meaning of its own central field, which is precisely the "private dialect"
+the strategy document opens by forbidding.
+
+**What this means for M2.5 line 2.** The remaining work is not data entry. Most
+of the 274 clauses are wire-observable, so the honest path requires the
+validator to actually model the revision — the stateless lifecycle beyond
+`context::draft`'s phase model, MRTR, subscriptions, discovery and caching —
+and a check per observable clause. The extraction tool and inventory remove the
+quoting risk from that work; they do not shrink it.
+
+Three ways forward, none of which should be chosen silently:
+
+1. **Implement checks alongside entries, area by area.** Faithful to the rule
+   and to the DoD. Largest, and the only one that yields a registry that
+   *judges* anything.
+2. **Extend `Verification` with a third variant** — a `Deferred { reason }`
+   that means "wire-checkable, check not yet implemented" — so the inventory can
+   land as data without lying about coverage. This is a core schema change: the
+   coverage manifest, the agreement check and report denominators all read this
+   enum, and ADR-0006's not-applicable semantics sit next to it.
+3. **Land only genuinely unobservable clauses now.** Honest, and nearly useless:
+   it would populate the registry with exactly the requirements no trace can
+   judge.
+
+Recommendation: **(2) first, then (1) incrementally.** The variant makes the
+inventory landable and visible without overstating coverage, and keeps the
+pass-rate denominators honest, while checks arrive area by area behind the
+`draft-2026-07-28` feature. It should be an ADR, because it changes what a
+registry entry can claim.
