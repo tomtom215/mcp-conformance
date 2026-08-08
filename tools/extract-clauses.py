@@ -11,9 +11,13 @@ class of error by porting that normalization exactly, so a quote it emits is
 already in the form the gate compares against.
 
 **Calibration is the reason to trust it.** The port is verified against the
-shipped registry: all 130 committed `2025-11-25` quotes verify under this
+shipped registry: all 140 committed `2025-11-25` quotes verify under this
 file's `normalize` + `quote_present`, including LIFE-009, which exercises the
 intro-colon path. A port that drifts from the Rust fails that check loudly.
+
+Beware one trap this file has already fallen into: `"resources.json"` ends with
+`"sources.json"`, so a loop that skips the page manifest with
+`endswith("sources.json")` silently drops ten requirements. Compare basenames.
 
 Two subtleties the port must honour, both learned by the check failing first:
 

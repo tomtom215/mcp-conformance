@@ -5,6 +5,9 @@
       "id": "PAGE-001",
       "level": "MUST NOT",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/pagination#pagination-model",
         "quote": "Page size is determined by the server, and clients MUST NOT assume a fixed page size"
@@ -15,6 +18,9 @@
       "id": "PAGE-002",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/pagination#implementation-guidelines",
         "quote": "Clients MUST treat cursors as opaque tokens: Don't make assumptions about cursor format; Don't attempt to parse or modify cursors; Don't persist cursors across sessions"
@@ -27,6 +33,9 @@
       "id": "PAGE-003",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/pagination#error-handling",
         "quote": "Invalid cursors SHOULD result in an error with code -32602 (Invalid params)."
@@ -37,6 +46,9 @@
       "id": "PAGE-004",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/pagination#implementation-guidelines",
         "quote": "Servers SHOULD: Provide stable cursors; Handle invalid cursors gracefully"
@@ -47,6 +59,9 @@
       "id": "PAGE-005",
       "level": "SHOULD",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/pagination#implementation-guidelines",
         "quote": "Clients SHOULD: Treat a missing `nextCursor` as the end of results; Support both paginated and non-paginated flows"

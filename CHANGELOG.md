@@ -13,6 +13,38 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Changed
 
+- **M2.5 Phase 0: the registry can describe two revisions, and the `2025-11-25`
+  surface provably did not move.** All 140 embedded entries are now bounded
+  `applies: {removed: "2026-07-28"}`, and `RegistrySet::builtin()` describes the
+  new revision behind a new off-by-default `draft-2026-07-28` feature on
+  `mcp-conformance-core`.
+
+  The bound is the point. An absent `applies` range means *every* revision, so
+  describing a second one without it would have silently applied all 140
+  entries — every quote citing a `2025-11-25` page — to `2026-07-28`, making an
+  unextracted revision read as fully covered. Two tests stand guard: the
+  `2025-11-25` projection still reconstructs `Registry::builtin_2025_11_25()`
+  byte-for-byte at 140 entries, and no embedded requirement applies at
+  `2026-07-28`. Both run in each feature mode.
+
+  With the feature on, `registry("2026-07-28")` answers with an **empty but
+  real** registry — a state `RegistrySet::registry`'s contract already
+  distinguished from `None`. It is off by default precisely because an empty
+  registry judges nothing and therefore fails nothing; a default build must not
+  be able to read that silence as conformance.
+
+  No verdicts change: 40/40 server and 4/4 client conformance stay green with
+  zero unexplained divergence, and `spec-drift` still verifies every quote.
+
+- **Correction: the registry is 140 entries, not 130.** Several figures
+  published earlier this session were computed by scripts that skipped
+  `resources.json`, because `"resources.json".endswith("sources.json")` is true
+  and the loops filtered the page manifest that way. The extractor's calibration
+  claim survives re-checking at the true total — **140/140** quotes verify — but
+  the counts in `tools/extract-clauses.py` and the extraction inventory are
+  corrected, and the trap is documented in the tool. The true split, 52 checked
+  / 88 excluded, matches what v0.4.0's changelog already stated.
+
 - **The SDK moved from `rmcp 1.7.0` to `3.1.2`, and a before/after wire diff
   says what that changed.** ADR-0011 held the pin until both the `2026-07-28`
   text shipped and rmcp cut a stable `3.0.x`; both are now true, so the hold

@@ -5,6 +5,9 @@
       "id": "LIFE-001",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#initialization",
         "quote": "The initialization phase MUST be the first interaction between client and server."
@@ -17,6 +20,9 @@
       "id": "LIFE-002",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#initialization",
         "quote": "The client MUST initiate this phase by sending an `initialize` request containing: Protocol version supported; Client capabilities; Client implementation information"
@@ -29,6 +35,9 @@
       "id": "LIFE-003",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#initialization",
         "quote": "After successful initialization, the client MUST send an `initialized` notification to indicate it is ready to begin normal operations"
@@ -41,6 +50,9 @@
       "id": "LIFE-004",
       "level": "SHOULD NOT",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#initialization",
         "quote": "The client SHOULD NOT send requests other than pings before the server has responded to the `initialize` request."
@@ -53,6 +65,9 @@
       "id": "LIFE-005",
       "level": "SHOULD NOT",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#initialization",
         "quote": "The server SHOULD NOT send requests other than pings and logging before receiving the `initialized` notification."
@@ -65,6 +80,9 @@
       "id": "LIFE-006",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#version-negotiation",
         "quote": "If the server supports the requested protocol version, it MUST respond with the same version. Otherwise, the server MUST respond with another protocol version it supports."
@@ -77,6 +95,9 @@
       "id": "LIFE-007",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#version-negotiation",
         "quote": "In the `initialize` request, the client MUST send a protocol version it supports."
@@ -89,6 +110,9 @@
       "id": "LIFE-008",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#operation",
         "quote": "Both parties MUST: Respect the negotiated protocol version"
@@ -99,6 +123,9 @@
       "id": "LIFE-009",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#operation",
         "quote": "Both parties MUST: Only use capabilities that were successfully negotiated"
@@ -111,6 +138,9 @@
       "id": "LIFE-010",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#initialization",
         "quote": "The server MUST respond with its own capabilities and information:"
@@ -123,6 +153,9 @@
       "id": "LIFE-011",
       "level": "SHOULD",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#version-negotiation",
         "quote": "This SHOULD be the latest version supported by the client."
@@ -133,6 +166,9 @@
       "id": "LIFE-012",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#version-negotiation",
         "quote": "This SHOULD be the latest version supported by the server."
@@ -143,6 +179,9 @@
       "id": "LIFE-013",
       "level": "SHOULD",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#version-negotiation",
         "quote": "If the client does not support the version in the server's response, it SHOULD disconnect."
@@ -153,6 +192,9 @@
       "id": "LIFE-014",
       "level": "SHOULD",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#shutdown",
         "quote": "For the stdio transport, the client SHOULD initiate shutdown by: First, closing the input stream to the child process (the server); Waiting for the server to exit, or sending `SIGTERM` if the server does not exit within a reasonable time; Sending `SIGKILL` if the server does not exit within a reasonable time after `SIGTERM`"
@@ -163,6 +205,9 @@
       "id": "LIFE-015",
       "level": "SHOULD",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#timeouts",
         "quote": "Implementations SHOULD establish timeouts for all sent requests, to prevent hung connections and resource exhaustion."
@@ -173,6 +218,9 @@
       "id": "LIFE-016",
       "level": "SHOULD",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#timeouts",
         "quote": "When the request has not received a success or error response within the timeout period, the sender SHOULD issue a cancellation notification for that request and stop waiting for a response."
@@ -183,6 +231,9 @@
       "id": "LIFE-017",
       "level": "SHOULD",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/lifecycle#timeouts",
         "quote": "However, implementations SHOULD always enforce a maximum timeout, regardless of progress notifications, to limit the impact of a misbehaving client or server."

@@ -20,7 +20,7 @@ published text after the gate's normalization.
 
 The tool ports `xtask/src/spec_drift.rs`'s `normalize` and `quote_present`
 exactly, and the port is **calibrated against the shipped registry**: all
-**130/130** committed `2025-11-25` quotes verify under it, LIFE-009 included —
+**140/140** committed `2025-11-25` quotes verify under it, LIFE-009 included —
 that one exercises the intro-colon path, where a quote cites a parent clause
 plus a selected bullet and appears nowhere contiguously in the page.
 
@@ -40,9 +40,9 @@ now encoded in the tool:
 
 Levels follow the registry's existing inclusion policy, measured from the
 shipped data rather than assumed: `2025-11-25` admits **MUST / MUST NOT /
-SHOULD / SHOULD NOT** only — no MAY, no RECOMMENDED, no OPTIONAL — across 130
-entries (64/12/49/5), of which 49 carry checks and 81 carry documented
-exclusions.
+SHOULD / SHOULD NOT** only — no MAY, no RECOMMENDED, no OPTIONAL — across 140
+entries (68/12/55/5), of which 52 carry checks and 88 carry documented
+exclusions, matching the totals v0.4.0's changelog states.
 
 | Page | MUST | MUST NOT | SHOULD | SHOULD NOT | Total |
 |------|-----:|---------:|-------:|-----------:|------:|
@@ -62,7 +62,7 @@ exclusions.
 | `basic/transports/index` | 3 | 0 | 2 | 0 | **5** |
 | `server/discover` | 1 | 0 | 2 | 1 | **4** |
 | **Total** | **133** | **47** | **82** | **12** | **274** |
-For scale: the shipped `2025-11-25` registry is 130 entries over 9 pages. This
+For scale: the shipped `2025-11-25` registry is 140 entries over 9 pages. This
 revision is **274 over 15** — roughly twice the surface, because the stateless
 rework splits transports into three pages and adds four mechanisms that did not
 exist before (`server/discover`, MRTR, subscriptions, caching).
@@ -106,13 +106,18 @@ being an inventory.
 
 1. `registry/2026-07-28/*.json` per area, plus `sources.json` for the fifteen
    in-scope pages.
-2. **Every existing `2025-11-25` entry needs `applies: {removed: "2026-07-28"}`.**
-   An absent range means *every* revision, so adding a second revision to
-   `RegistrySet::builtin()` would otherwise silently apply all 130 current
-   entries — whose quotes cite `2025-11-25` pages — to the new revision too.
-   This is the single highest-risk step in the wiring.
-3. `RegistrySet::builtin()` extended to describe both revisions, behind the
-   off-by-default `draft-2026-07-28` feature.
+2. ~~**Every existing `2025-11-25` entry needs `applies: {removed: "2026-07-28"}`.**~~
+   **Done** — all 140 entries are bounded, with two tests standing guard: one
+   asserts the `2025-11-25` projection still reconstructs
+   `Registry::builtin_2025_11_25()` byte-for-byte at 140 entries, the other that
+   no embedded requirement applies at `2026-07-28`. An absent range means *every*
+   revision, so without the bound all 140 entries — whose quotes cite
+   `2025-11-25` pages — would have leaked into the new revision and read as if it
+   had been extracted.
+3. ~~`RegistrySet::builtin()` extended to describe both revisions, behind the
+   off-by-default `draft-2026-07-28` feature.~~ **Done** — off by default;
+   with the feature, `registry("2026-07-28")` answers with an empty-but-real
+   registry, which `RegistrySet::registry`'s contract already anticipated.
 4. `spec-drift` iterating both revisions — the helpers already resolve per
    revision, so this is a loop, not a rewrite.
 5. `corpus/draft/` good and violation pairs (DoD line 5).
