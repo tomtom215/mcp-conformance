@@ -10,16 +10,23 @@
 //! implement it — tools, resources (with subscriptions), prompts, logging,
 //! and completions today.
 
+// SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
+// functional and REQUIRED on the `2025-11-25` surface this crate implements
+// and the official suite exercises, so rmcp 3.x's deprecation attributes fire
+// on correct code — here, Logging. Scoped to this module, never the crate:
+// a blanket allow would also hide a deprecation that genuinely matters. The
+// honest cost is that a *different* future deprecation in this module would
+// be silenced too. Retires when the `2025-11-25` surface does.
+#![allow(deprecated)]
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use rmcp::handler::server::router::prompt::PromptRouter;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::model::{
-    CompleteRequestParams, CompleteResult, CompletionInfo, ErrorData as McpError,
-    GetPromptRequestParams, GetPromptResult, Implementation, ListPromptsResult,
+    CompleteRequestParams, CompleteResult, CompletionInfo, ErrorData as McpError, Implementation,
     ListResourceTemplatesResult, ListResourcesResult, LoggingLevel, PaginatedRequestParams,
-    ProtocolVersion, ReadResourceRequestParams, ReadResourceResult, Reference,
+    ProtocolVersion, ReadResourceRequestParams, ReadResourceResponse, Reference,
     ResourceUpdatedNotificationParam, ServerCapabilities, ServerInfo, SetLevelRequestParams,
     SubscribeRequestParams, UnsubscribeRequestParams,
 };
@@ -155,11 +162,14 @@ impl ServerHandler for EverythingServer {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
-        Ok(ListResourcesResult {
-            resources: resources::catalog(),
-            next_cursor: None,
-            meta: None,
-        })
+        // rmcp 3.x added SEP-2322's `result_type` and SEP-2549's
+        // `ttl_ms`/`cache_scope` to every list result. Build through rmcp's
+        // constructor rather than a literal: it sets `result_type` to
+        // `COMPLETE` and rmcp's server handler *clears* that field for peers
+        // that negotiated a pre-`2026-07-28` revision, so the `2025-11-25`
+        // wire shape is unchanged while the type stays correct for the newer
+        // revision. Setting the fields by hand would defeat that clearing.
+        Ok(ListResourcesResult::with_all_items(resources::catalog()))
     }
 
     async fn list_resource_templates(
@@ -167,24 +177,30 @@ impl ServerHandler for EverythingServer {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourceTemplatesResult, McpError> {
-        Ok(ListResourceTemplatesResult {
-            resource_templates: resources::templates(),
-            next_cursor: None,
-            meta: None,
-        })
+        Ok(ListResourceTemplatesResult::with_all_items(
+            resources::templates(),
+        ))
     }
 
     async fn read_resource(
         &self,
         request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ReadResourceResult, McpError> {
-        resources::read(&request.uri).ok_or_else(|| {
-            McpError::resource_not_found(
-                "resource not found",
-                Some(serde_json::json!({ "uri": request.uri })),
-            )
-        })
+    ) -> Result<ReadResourceResponse, McpError> {
+        // MRTR (SEP-2322) turned this return into a union of Complete /
+        // InputRequired. This server implements `2025-11-25`, which has no
+        // MRTR, so the only correct variant is Complete — and `.into()` is
+        // the single seam that guarantees it: `From<ReadResourceResult>`
+        // constructs `Complete` and nothing else. See `call_tool` for the
+        // same seam on the tools side.
+        resources::read(&request.uri)
+            .map(Into::into)
+            .ok_or_else(|| {
+                McpError::resource_not_found(
+                    "resource not found",
+                    Some(serde_json::json!({ "uri": request.uri })),
+                )
+            })
     }
 
     async fn subscribe(
@@ -198,7 +214,7 @@ impl ServerHandler for EverythingServer {
         if self.track_subscription(request.uri.clone()) {
             let _ = context
                 .peer
-                .notify_resource_updated(ResourceUpdatedNotificationParam { uri: request.uri })
+                .notify_resource_updated(ResourceUpdatedNotificationParam::new(request.uri))
                 .await;
         }
         Ok(())
@@ -244,7 +260,12 @@ impl ServerHandler for EverythingServer {
                     .map(ToString::to_string)
                     .collect()
             }
-            Reference::Prompt(_) | Reference::Resource(_) => Vec::new(),
+            // `Reference` became `#[non_exhaustive]` in rmcp 3.x. Completing
+            // to nothing is the conformant answer for every reference this
+            // server does not special-case, so the catch-all carries the same
+            // meaning the explicit arms did — and a future variant inherits
+            // it rather than breaking the build.
+            _ => Vec::new(),
         };
         let completion = CompletionInfo::with_all_values(values).map_err(|message| {
             McpError::internal_error(

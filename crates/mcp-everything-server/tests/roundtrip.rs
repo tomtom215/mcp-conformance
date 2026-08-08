@@ -5,6 +5,11 @@
 //! `tokio::io::duplex` — full initialize/list/call exchanges through the same
 //! codec the stdio transport uses, with no sockets and no subprocesses.
 
+// These tests exercise Roots/Sampling/Logging, which SEP-2577
+// forward-deprecates but `2025-11-25` still requires — the very surface the
+// official suite grades. Scoped to this test module; see the library modules
+// for the same note.
+#![allow(deprecated)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use mcp_everything_server::EverythingServer;
@@ -42,7 +47,10 @@ async fn initialize_negotiates_the_pinned_revision_and_capabilities() {
     let info = client.peer_info().expect("initialize result");
     assert_eq!(info.protocol_version, ProtocolVersion::V_2025_11_25);
     assert!(info.capabilities.tools.is_some());
-    assert_eq!(info.server_info.name, "mcp-everything-server");
+    assert_eq!(
+        info.server_info.as_ref().map(|i| i.name.as_str()),
+        Some("mcp-everything-server")
+    );
     client.cancel().await.expect("clean shutdown");
 }
 
@@ -141,18 +149,29 @@ fn call_with_args(tool: &str, args: &serde_json::Value) -> CallToolRequestParams
 }
 
 #[tokio::test]
-async fn tool_call_with_missing_required_argument_is_a_protocol_error() {
+async fn tool_call_with_missing_required_argument_is_a_tool_execution_error() {
     let client = connect().await;
-    // `add` requires both a and b; omitting b must be rejected at the
-    // parameter boundary (-32602), never reach the handler, never crash.
-    let outcome = client
+    // `add` requires both a and b; omitting b must be rejected before the
+    // handler runs — but as a *tool execution* error, not a protocol error.
+    //
+    // This assertion was inverted until the rmcp 3.x upgrade, and the old one
+    // was wrong. The 2025-11-25 tools page splits the two mechanisms by what
+    // failed: protocol errors cover "Unknown tools, Malformed requests
+    // (requests that fail to satisfy CallToolRequest schema), Server errors";
+    // tool execution errors (`isError: true`) cover "API failures, Input
+    // validation errors, Business logic errors". `{"a": 1}` is a *valid*
+    // CallToolRequest — it fails only `add`'s own inputSchema — so it is an
+    // input validation error. rmcp 1.7.0 returned -32602 here; 1.8.0 changed
+    // it and this crate pinned the old, non-conformant behaviour until now.
+    // Register 3.17.
+    let result = client
         .call_tool(call_with_args("add", &serde_json::json!({"a": 1})))
-        .await;
-    let error = mcp_error(outcome);
+        .await
+        .expect("input validation is reported in-band, not as a protocol error");
     assert_eq!(
-        error.code,
-        ErrorCode::INVALID_PARAMS,
-        "missing required arg is rejected at the parameter boundary: {error:?}"
+        result.is_error,
+        Some(true),
+        "missing required arg is a tool execution error: {result:?}"
     );
     // The session survives: the next request still works.
     assert!(
@@ -167,7 +186,7 @@ async fn tool_call_with_missing_required_argument_is_a_protocol_error() {
 }
 
 #[tokio::test]
-async fn tool_call_with_wrong_typed_arguments_is_a_protocol_error() {
+async fn tool_call_with_wrong_typed_arguments_is_a_tool_execution_error() {
     let client = connect().await;
     // `add` wants numbers; a string must be rejected, not coerced or panicked.
     let bad_add = client
@@ -177,18 +196,22 @@ async fn tool_call_with_wrong_typed_arguments_is_a_protocol_error() {
         ))
         .await;
     assert_eq!(
-        mcp_error(bad_add).code,
-        ErrorCode::INVALID_PARAMS,
-        "wrong-typed add arg is rejected at the parameter boundary"
+        bad_add
+            .expect("input validation is reported in-band")
+            .is_error,
+        Some(true),
+        "wrong-typed add arg is a tool execution error (see the missing-arg test)"
     );
     // `echo` wants a string message; a number must be rejected.
     let bad_echo = client
         .call_tool(call_with_args("echo", &serde_json::json!({"message": 123})))
         .await;
     assert_eq!(
-        mcp_error(bad_echo).code,
-        ErrorCode::INVALID_PARAMS,
-        "wrong-typed echo arg is rejected at the parameter boundary"
+        bad_echo
+            .expect("input validation is reported in-band")
+            .is_error,
+        Some(true),
+        "wrong-typed echo arg is a tool execution error"
     );
     client.cancel().await.expect("clean shutdown");
 }
@@ -244,10 +267,7 @@ async fn completion_over_a_resource_reference_returns_no_candidates() {
     let result = client
         .complete(rmcp::model::CompleteRequestParams::new(
             rmcp::model::Reference::for_resource("test://static-text"),
-            rmcp::model::ArgumentInfo {
-                name: "anything".into(),
-                value: "pa".into(),
-            },
+            rmcp::model::ArgumentInfo::new("anything", "pa"),
         ))
         .await
         .expect("completion over a resource ref");
@@ -528,7 +548,7 @@ async fn list_changed_tool_emits_all_three_notifications() {
 async fn progress_tool_walks_0_50_100_against_the_request_token() {
     let (client, recorder) = connect_recording().await;
     let mut params = CallToolRequestParams::new("test_tool_with_progress");
-    let mut meta = rmcp::model::Meta::default();
+    let mut meta = rmcp::model::RequestMetaObject::default();
     meta.set_progress_token(rmcp::model::ProgressToken(
         rmcp::model::NumberOrString::String("probe-1".into()),
     ));
@@ -799,10 +819,7 @@ async fn completion_filters_the_documented_candidates_by_prefix() {
     let client = connect().await;
     let mut params = rmcp::model::CompleteRequestParams::new(
         rmcp::model::Reference::for_prompt("test_prompt_with_arguments"),
-        rmcp::model::ArgumentInfo {
-            name: "arg1".into(),
-            value: "par".into(),
-        },
+        rmcp::model::ArgumentInfo::new("arg1", "par"),
     );
     params.context = None;
     let result = client.complete(params).await.expect("completion/complete");
@@ -812,10 +829,7 @@ async fn completion_filters_the_documented_candidates_by_prefix() {
     let narrowed = client
         .complete(rmcp::model::CompleteRequestParams::new(
             rmcp::model::Reference::for_prompt("test_prompt_with_arguments"),
-            rmcp::model::ArgumentInfo {
-                name: "arg1".into(),
-                value: "pari".into(),
-            },
+            rmcp::model::ArgumentInfo::new("arg1", "pari"),
         ))
         .await
         .expect("narrowed completion");
@@ -824,10 +838,7 @@ async fn completion_filters_the_documented_candidates_by_prefix() {
     let unrelated = client
         .complete(rmcp::model::CompleteRequestParams::new(
             rmcp::model::Reference::for_prompt("some_other_prompt"),
-            rmcp::model::ArgumentInfo {
-                name: "arg1".into(),
-                value: "x".into(),
-            },
+            rmcp::model::ArgumentInfo::new("arg1", "x"),
         ))
         .await
         .expect("unrelated completion");
@@ -838,10 +849,7 @@ async fn completion_filters_the_documented_candidates_by_prefix() {
     let wrong_argument = client
         .complete(rmcp::model::CompleteRequestParams::new(
             rmcp::model::Reference::for_prompt("test_prompt_with_arguments"),
-            rmcp::model::ArgumentInfo {
-                name: "arg2".into(),
-                value: "par".into(),
-            },
+            rmcp::model::ArgumentInfo::new("arg2", "par"),
         ))
         .await
         .expect("wrong-argument completion");
@@ -926,15 +934,14 @@ impl rmcp::ClientHandler for InteractiveClient {
 
     async fn create_elicitation(
         &self,
-        params: rmcp::model::CreateElicitationRequestParams,
+        params: rmcp::model::ElicitRequestParams,
         _context: rmcp::service::RequestContext<rmcp::RoleClient>,
-    ) -> Result<rmcp::model::CreateElicitationResult, rmcp::ErrorData> {
+    ) -> Result<rmcp::model::ElicitResult, rmcp::ErrorData> {
         self.elicitations
             .lock()
             .unwrap()
             .push(serde_json::to_value(&params).unwrap());
-        let mut result =
-            rmcp::model::CreateElicitationResult::new(rmcp::model::ElicitationAction::Accept);
+        let mut result = rmcp::model::ElicitResult::new(rmcp::model::ElicitationAction::Accept);
         result.content = Some(serde_json::json!({"username": "tester", "email": "t@example.com"}));
         Ok(result)
     }
@@ -1111,22 +1118,21 @@ async fn sep1330_sends_all_five_enum_variants() {
         props["titledSingle"]["oneOf"][0],
         serde_json::json!({"const": "value1", "title": "First Option"})
     );
-    // 3. Legacy: the enum values survive the round-trip; `enumNames` does
-    // NOT — rmcp's client-side untagged EnumSchema deserialization matches
-    // the legacy form as Untitled first and drops the field. The true wire
-    // shape (enumNames included) is pinned at serialization in
-    // interactive.rs's unit tests; this assertion documents the loss so an
-    // upstream fix is immediately visible.
+    // 3. Legacy: both the enum values and `enumNames` survive the
+    // round-trip. This was a *loss* pin until the rmcp 3.x upgrade: rmcp
+    // <= 1.7.0 matched the legacy form as `Untitled` first in its untagged
+    // `EnumSchema` and silently dropped the field (register 3.8). The
+    // ordering fix landed upstream in rust-sdk#905, so the assertion is now
+    // inverted and pins the fix — a Null here is an upstream regression.
     assert_eq!(
         props["legacyEnum"]["enum"],
         serde_json::json!(["opt1", "opt2", "opt3"])
     );
     assert_eq!(
         props["legacyEnum"]["enumNames"],
-        serde_json::Value::Null,
-        "rmcp round-trip currently drops enumNames; a value here means \
-         upstream fixed their untagged ordering — update this test and the \
-         register row"
+        serde_json::json!(["Option One", "Option Two", "Option Three"]),
+        "rmcp 3.x preserves enumNames (rust-sdk#905); a Null here means \
+         upstream regressed the untagged EnumSchema ordering"
     );
     // 4. Untitled multi-select: array of enum items.
     assert_eq!(props["untitledMulti"]["type"], "array");
@@ -1192,7 +1198,14 @@ async fn structured_content_tool_pairs_schema_structured_and_text() {
             &serde_json::json!({"location": "Atlantis"}),
         ))
         .await;
-    assert_eq!(mcp_error(bad).code, ErrorCode::INVALID_PARAMS);
+    // Same reclassification as the argument-validation tests: an unknown
+    // enum variant fails the tool's own inputSchema, not the CallToolRequest
+    // schema, so 2025-11-25 reports it with `isError: true`. Register 3.17.
+    assert_eq!(
+        bad.expect("input validation is reported in-band").is_error,
+        Some(true),
+        "unknown enum variant is a tool execution error"
+    );
     client.cancel().await.expect("clean shutdown");
 }
 
@@ -1227,24 +1240,35 @@ impl rmcp::ClientHandler for UrlModeClient {
 
     async fn create_elicitation(
         &self,
-        params: rmcp::model::CreateElicitationRequestParams,
+        params: rmcp::model::ElicitRequestParams,
         _context: rmcp::service::RequestContext<rmcp::RoleClient>,
-    ) -> Result<rmcp::model::CreateElicitationResult, rmcp::ErrorData> {
+    ) -> Result<rmcp::model::ElicitResult, rmcp::ErrorData> {
         self.issued
             .lock()
             .unwrap()
             .push(serde_json::to_value(&params).unwrap());
-        Ok(rmcp::model::CreateElicitationResult::new(
-            self.action.clone(),
-        ))
+        Ok(rmcp::model::ElicitResult::new(self.action.clone()))
     }
 
-    async fn on_url_elicitation_notification_complete(
+    // rmcp 3.x removed the typed hook with the 2026-07-28 deletion of
+    // `notifications/elicitation/complete`; the notification is still part of
+    // 2025-11-25, so it arrives through the generic seam.
+    async fn on_custom_notification(
         &self,
-        params: rmcp::model::ElicitationResponseNotificationParam,
+        notification: rmcp::model::CustomNotification,
         _context: rmcp::service::NotificationContext<rmcp::RoleClient>,
     ) {
-        self.completions.lock().unwrap().push(params.elicitation_id);
+        if notification.method != "notifications/elicitation/complete" {
+            return;
+        }
+        if let Some(id) = notification
+            .params
+            .as_ref()
+            .and_then(|params| params.get("elicitationId"))
+            .and_then(serde_json::Value::as_str)
+        {
+            self.completions.lock().unwrap().push(id.to_owned());
+        }
     }
 }
 

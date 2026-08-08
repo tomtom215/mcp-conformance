@@ -13,6 +13,68 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Changed
 
+- **The SDK moved from `rmcp 1.7.0` to `3.1.2`, and a before/after wire diff
+  says what that changed.** ADR-0011 held the pin until both the `2026-07-28`
+  text shipped and rmcp cut a stable `3.0.x`; both are now true, so the hold
+  expired by its own terms. The 40/40 server and 4/4 client conformance gates
+  stayed green with both expected-failure lists still empty, and the agreement
+  check still reports zero unexplained divergence.
+
+  The diff was calibrated before it was trusted: two consecutive runs at 1.7.0
+  produced zero differences across all 34 sessions, so anything the upgrade
+  moved is signal. Exactly three effects account for every difference — five
+  `inputSchema`s and one `outputSchema` no longer carry the schemars-derived
+  top-level `title`/`description` (rustdoc artifacts that were leaking onto the
+  wire); `clientInfo.version` follows the SDK version, which is register 3.9's
+  `from_build_env` bug re-observed rather than anything new; and the
+  concurrent-multi-stream session became nondeterministic in its response
+  interleaving, proven by diffing two 3.1.2 runs against each other. Normalize
+  the first two away and 29/30 server sessions and 4/4 client sessions are
+  byte-identical, the sole exception being the session shown to be
+  nondeterministic. Register 3.16.
+
+- **Tool-argument validation now reports the error class the spec asks for.**
+  Arguments that fail a tool's own `inputSchema` are returned as a tool
+  execution result with `isError: true`, not as an MCP protocol error. This is
+  a **behaviour change, and a correction**: the `2025-11-25` tools page places
+  "Input validation errors" under tool execution errors and reserves protocol
+  errors for unknown tools, malformed `CallToolRequest`s, and server errors.
+  rmcp changed this in 1.8.0 and this workspace pinned the old, non-conformant
+  behaviour until now. Unknown tools stay `-32602`, and missing *prompt*
+  arguments stay protocol errors because `GetPromptResult` has no `isError`
+  channel. Three tests were inverted deliberately. Register 3.17.
+
+- **URL-mode elicitation is preserved rather than dropped.** rmcp 3.x deleted
+  `notifications/elicitation/complete` along with the `2026-07-28` removal of
+  the feature, but the notification is still part of `2025-11-25`, which this
+  server implements and rmcp still lists as supported. It is now sent and
+  received through `ServerNotification::CustomNotification`, keeping the
+  capability the crate advertises. The host deliberately matches the literal
+  method name: rmcp 3.x's `ElicitationResponseNotificationMethod` constant is
+  `notifications/elicitation/response`, a *different* notification, and binding
+  to it would have left the host silently deaf — caught by the round-trip test.
+
+- **Readiness for `2026-07-28` jumped from 1 passing / 20 failing / 1
+  informational to 23 passing / 0 failing / 0 informational.** The single
+  blocker was the removed handshake: rmcp 1.7.0's server rejected every
+  scenario with HTTP 422 before any handler ran. On rmcp 3.x the everything
+  server passes the official runner's whole `2026-07-28` scenario set.
+  This remains **not** a conformance claim about that revision — the
+  requirement registry still does not describe it and the validator is not
+  involved — but the lifecycle blocker is gone. Baseline re-blessed.
+
+- **SEP-2577 deprecation allows are module-scoped, never crate-wide.** Roots,
+  Sampling and Logging are deprecated forward but remain required on the
+  `2025-11-25` surface the suite grades, so rmcp 3.x's attributes fire on
+  correct code. Each of the six library modules and two test modules carries
+  its own `#![allow(deprecated)]` with a comment naming the feature. The honest
+  cost, stated in each: an unrelated future deprecation in those modules would
+  also be silenced.
+
+- **`rmcp-macros` ceiling shim moved to `>=3.1.1, <3.2.0`.** Register 3.13 is
+  still unfixed upstream — rmcp 3.1.2 caret-pins its own macro crate — so the
+  shim keeps doing real work.
+
 - **The `2026-07-28` specification shipped on its scheduled date, and the
   repository's claims about it are corrected to match.** v0.4.0 was cut one day
   ahead of the text and said so throughout; those statements are now false and

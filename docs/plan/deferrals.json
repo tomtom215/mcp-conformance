@@ -35,13 +35,6 @@
       "why": "Pin bumps are deliberate PRs with a scenario diff review (03-conformance-strategy \u00a7Official-suite version policy)",
       "meanwhile": "Weekly suite-alpha job runs the alpha dist-tag non-blocking; conformance#338's fix arrives with the bump and its baseline entry will go stale loudly",
       "review_by": "2026-08-15"
-    },
-    {
-      "id": "adopt-rmcp-enumnames-fix",
-      "what": "Execute the rmcp upgrade 1.7.0 -> 3.1.1 as a DELIBERATE change WITH conformance re-validation, folded into the M2.5 2026-07-28 migration. 2026-08-06: ADR-0011's hold EXPIRED \u2014 both its conditions are met (text shipped 2026-07-28; rmcp cut stable 3.0.0 the same day, now 3.1.1). The blocker is no longer availability but execution: register 3.15 measures the cost first-hand (25 errors, 10 of them a pure rename layer, 22 structural across 2 crates plus ~1900 test lines) and names the four decisions that gate landing it \u2014 MRTR return unions, URL-mode elicitation (removed from the SDK; keep via ServerNotification::CustomNotification or drop the tool and amend register 2.10), the tool-argument-deserialization semantics, and the SEP-2577 allow(deprecated) sites. Still required when adopting: MOVE THE rmcp-macros CEILING SHIM to >=3.1.1, <3.2.0 (register 3.13 is unfixed upstream \u2014 3.1.1 still caret-pins ^3.1.1), drop the roundtrip.rs enumNames loss-pin, update register 3.8/3.10/3.13",
-      "why": "Pin-holding is over; what remains is a migration whose wire behaviour only the npx conformance gate can judge. rmcp 3.x is safe to target \u2014 it keeps 2025-11-25 in SUPPORTED with ProtocolVersion::LATEST still V_2025_11_25, and clears 2026-07-28-only result fields for peers on older revisions (register 3.14, 3.15) \u2014 so the 40/40 calibration gate survives the upgrade rather than being retired before the registry can describe 2026-07-28. Landing it reactively (patching tests until they pass) risks masking a 40/40 regression, which is the failure this row has always existed to prevent",
-      "meanwhile": "Pinned rmcp 1.7.0 and the 1.7 ceiling shim keep the tree green and the 40/40 gate standing; tests/roundtrip.rs still pins the enumNames loss and fails LOUDLY the moment a bumped rmcp preserves it. Register 3.15 holds the measured migration map so the survey is not repeated",
-      "review_by": "2026-09-01"
     }
   ]
 }

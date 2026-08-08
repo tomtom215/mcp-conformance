@@ -15,9 +15,7 @@ use std::sync::Arc;
 
 use rmcp::handler::server::router::tool::{ToolRoute, ToolRouter};
 use rmcp::handler::server::wrapper::{Json, Parameters};
-use rmcp::model::{
-    AnnotateAble as _, CallToolResult, Content, RawAudioContent, RawContent, ResourceContents, Tool,
-};
+use rmcp::model::{CallToolResult, ContentBlock, ResourceContents, Tool};
 use rmcp::{ErrorData, tool, tool_router};
 
 use crate::fixtures::{TINY_PNG_BASE64, TINY_WAV_BASE64};
@@ -91,7 +89,7 @@ impl EverythingServer {
         &self,
         Parameters(EchoArgs { message }): Parameters<EchoArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        Ok(CallToolResult::success(vec![Content::text(format!(
+        Ok(CallToolResult::success(vec![ContentBlock::text(format!(
             "Echo: {message}"
         ))]))
     }
@@ -107,7 +105,7 @@ impl EverythingServer {
         &self,
         Parameters(AddArgs { a, b }): Parameters<AddArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        Ok(CallToolResult::success(vec![Content::text(format!(
+        Ok(CallToolResult::success(vec![ContentBlock::text(format!(
             "The sum of {a} and {b} is {sum}.",
             sum = a + b
         ))]))
@@ -149,7 +147,7 @@ impl EverythingServer {
     /// Never fails; the `Result` is the `#[tool]` calling convention.
     #[tool(description = "Returns a simple text response for conformance testing")]
     pub fn test_simple_text(&self) -> Result<CallToolResult, ErrorData> {
-        Ok(CallToolResult::success(vec![Content::text(
+        Ok(CallToolResult::success(vec![ContentBlock::text(
             "This is a simple text response for testing.",
         )]))
     }
@@ -161,7 +159,7 @@ impl EverythingServer {
     /// Never fails; the `Result` is the `#[tool]` calling convention.
     #[tool(description = "Returns image content for conformance testing")]
     pub fn test_image_content(&self) -> Result<CallToolResult, ErrorData> {
-        Ok(CallToolResult::success(vec![Content::image(
+        Ok(CallToolResult::success(vec![ContentBlock::image(
             TINY_PNG_BASE64,
             "image/png",
         )]))
@@ -174,15 +172,14 @@ impl EverythingServer {
     /// Never fails; the `Result` is the `#[tool]` calling convention.
     #[tool(description = "Returns audio content for conformance testing")]
     pub fn test_audio_content(&self) -> Result<CallToolResult, ErrorData> {
-        // No `Content::audio` convenience constructor exists in rmcp 1.7;
-        // build the variant directly.
-        Ok(CallToolResult::success(vec![
-            RawContent::Audio(RawAudioContent {
-                data: TINY_WAV_BASE64.into(),
-                mime_type: "audio/wav".into(),
-            })
-            .no_annotation(),
-        ]))
+        // rmcp 3.x supplies the convenience constructor 1.7 lacked, and it
+        // produces the same wire shape the hand-built variant did: an
+        // unannotated `AudioContent` whose `_meta`/`annotations` are `None`
+        // and therefore skipped.
+        Ok(CallToolResult::success(vec![ContentBlock::audio(
+            TINY_WAV_BASE64,
+            "audio/wav",
+        )]))
     }
 
     /// `tools-call-embedded-resource`: embedded text resource content.
@@ -192,7 +189,7 @@ impl EverythingServer {
     /// Never fails; the `Result` is the `#[tool]` calling convention.
     #[tool(description = "Returns embedded resource content for conformance testing")]
     pub fn test_embedded_resource(&self) -> Result<CallToolResult, ErrorData> {
-        Ok(CallToolResult::success(vec![Content::resource(
+        Ok(CallToolResult::success(vec![ContentBlock::resource(
             ResourceContents::TextResourceContents {
                 uri: "test://embedded-resource".into(),
                 mime_type: Some("text/plain".into()),
@@ -211,9 +208,9 @@ impl EverythingServer {
     #[tool(description = "Returns multiple content types for conformance testing")]
     pub fn test_multiple_content_types(&self) -> Result<CallToolResult, ErrorData> {
         Ok(CallToolResult::success(vec![
-            Content::text("Multiple content types test:"),
-            Content::image(TINY_PNG_BASE64, "image/png"),
-            Content::resource(ResourceContents::TextResourceContents {
+            ContentBlock::text("Multiple content types test:"),
+            ContentBlock::image(TINY_PNG_BASE64, "image/png"),
+            ContentBlock::resource(ResourceContents::TextResourceContents {
                 uri: "test://mixed-content-resource".into(),
                 mime_type: Some("application/json".into()),
                 text: r#"{"test":"data","value":123}"#.into(),
@@ -231,7 +228,7 @@ impl EverythingServer {
     /// result, not a protocol error.
     #[tool(description = "Intentionally returns an error result for conformance testing")]
     pub fn test_error_handling(&self) -> Result<CallToolResult, ErrorData> {
-        Ok(CallToolResult::error(vec![Content::text(
+        Ok(CallToolResult::error(vec![ContentBlock::text(
             "This tool intentionally returns an error for testing",
         )]))
     }
@@ -281,9 +278,12 @@ pub(crate) fn json_schema_2020_12_route() -> ToolRoute<EverythingServer> {
     );
     ToolRoute::new_dyn(tool, |_context| {
         Box::pin(async {
-            Ok(CallToolResult::success(vec![Content::text(
+            // `.into()` lifts to `CallToolResponse::Complete` — the only MRTR
+            // variant valid for `2025-11-25` (see `server.rs::read_resource`).
+            Ok(CallToolResult::success(vec![ContentBlock::text(
                 "JSON Schema 2020-12 tool executed.",
-            )]))
+            )])
+            .into())
         })
     })
 }

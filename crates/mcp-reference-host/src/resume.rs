@@ -254,7 +254,7 @@ async fn resume_pending<C: StreamableHttpClient + Sync>(
     let mut get_stream = client
         .get_stream(
             Arc::clone(url),
-            session_for_get,
+            Some(session_for_get),
             last_event_id.clone(),
             None,
             HashMap::new(),

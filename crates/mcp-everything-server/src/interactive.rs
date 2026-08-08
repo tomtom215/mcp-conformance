@@ -11,15 +11,23 @@
 //! cannot answer — the scenarios' "if the client doesn't support X, return
 //! an error" clause.
 
+// SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
+// functional and REQUIRED on the `2025-11-25` surface this crate implements
+// and the official suite exercises, so rmcp 3.x's deprecation attributes fire
+// on correct code — here, Sampling. Scoped to this module, never the crate:
+// a blanket allow would also hide a deprecation that genuinely matters. The
+// honest cost is that a *different* future deprecation in this module would
+// be silenced too. Retires when the `2025-11-25` surface does.
+#![allow(deprecated)]
 use std::collections::BTreeMap;
 
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{
-    BooleanSchema, CallToolResult, ConstTitle, Content, CreateElicitationRequestParams,
-    CreateMessageRequestParams, ElicitationSchema, EnumSchema, ErrorData, IntegerSchema,
-    LegacyEnumSchema, MultiSelectEnumSchema, NumberSchema, PrimitiveSchema, SamplingMessage,
-    SingleSelectEnumSchema, StringSchema, StringTypeConst, TitledItems,
-    TitledMultiSelectEnumSchema, TitledSingleSelectEnumSchema,
+    BooleanSchema, CallToolResult, ConstTitle, ContentBlock, CreateMessageRequestParams,
+    ElicitRequestParams, ElicitationSchema, EnumSchema, ErrorData, IntegerSchema, LegacyEnumSchema,
+    MultiSelectEnumSchema, NumberSchema, PrimitiveSchemaDefinition, SamplingMessage,
+    SingleSelectEnumSchema, StringSchema, TitledItems, TitledMultiSelectEnumSchema,
+    TitledSingleSelectEnumSchema,
 };
 use rmcp::service::RequestContext;
 use rmcp::{RoleServer, tool, tool_router};
@@ -85,7 +93,7 @@ impl EverythingServer {
             .into_iter()
             .find_map(|content| content.as_text().map(|t| t.text.clone()))
             .unwrap_or_else(|| "(non-text response)".to_owned());
-        Ok(CallToolResult::success(vec![Content::text(format!(
+        Ok(CallToolResult::success(vec![ContentBlock::text(format!(
             "LLM response: {text}"
         ))]))
     }
@@ -106,11 +114,15 @@ impl EverythingServer {
         let schema = ElicitationSchema::builder()
             .required_property(
                 "username",
-                PrimitiveSchema::String(StringSchema::new().description("User's response")),
+                PrimitiveSchemaDefinition::String(
+                    StringSchema::new().description("User's response"),
+                ),
             )
             .required_property(
                 "email",
-                PrimitiveSchema::String(StringSchema::new().description("User's email address")),
+                PrimitiveSchemaDefinition::String(
+                    StringSchema::new().description("User's email address"),
+                ),
             )
             .build()
             .map_err(invalid_schema)?;
@@ -140,20 +152,20 @@ impl EverythingServer {
         let schema = ElicitationSchema::builder()
             .property(
                 "name",
-                PrimitiveSchema::String(StringSchema::new().with_default("John Doe")),
+                PrimitiveSchemaDefinition::String(StringSchema::new().with_default("John Doe")),
             )
             .property(
                 "age",
-                PrimitiveSchema::Integer(IntegerSchema::new().with_default(30)),
+                PrimitiveSchemaDefinition::Integer(IntegerSchema::new().with_default(30)),
             )
             .property(
                 "score",
-                PrimitiveSchema::Number(NumberSchema::new().with_default(95.5)),
+                PrimitiveSchemaDefinition::Number(NumberSchema::new().with_default(95.5)),
             )
-            .property("status", PrimitiveSchema::Enum(status))
+            .property("status", PrimitiveSchemaDefinition::Enum(status))
             .property(
                 "verified",
-                PrimitiveSchema::Boolean(BooleanSchema::new().with_default(true)),
+                PrimitiveSchemaDefinition::Boolean(BooleanSchema::new().with_default(true)),
             )
             .build()
             .map_err(invalid_schema)?;
@@ -225,7 +237,7 @@ impl EverythingServer {
         );
         let result = context
             .peer
-            .create_elicitation(CreateElicitationRequestParams::UrlElicitationParams {
+            .create_elicitation(ElicitRequestParams::UrlElicitationParams {
                 meta: None,
                 message: "Complete the interaction in your browser".to_owned(),
                 url: "https://mcp.example/interact".to_owned(),
@@ -241,11 +253,28 @@ impl EverythingServer {
         if result.action == rmcp::model::ElicitationAction::Accept {
             // Consent recorded: the out-of-band interaction "finishes" now,
             // and the spec's completion notification closes the loop.
+            //
+            // rmcp 3.x deleted the typed API for this notification —
+            // `notifications/elicitation/complete` and the URL-mode
+            // `elicitationId` are removed in `2026-07-28` (register 1.5d Minor
+            // #11) — but they are still part of `2025-11-25`, the revision
+            // this server implements, and rmcp still lists `V_2025_11_25` as
+            // supported. Dropping the capability would let the SDK's forward
+            // migration silently shrink our protocol surface, so it is sent
+            // through the generic seam instead. The wire shape is pinned
+            // byte-for-byte against 1.7.0's typed emission by
+            // `url_elicitation_completion_matches_the_1_7_wire_shape` in
+            // tests/roundtrip.rs: method `notifications/elicitation/complete`,
+            // params `{"elicitationId": "<id>"}` (rmcp 1.7.0 serialized the
+            // param struct `rename_all = "camelCase"`). Register 3.16.
             context
                 .peer
-                .notify_url_elicitation_completed(
-                    rmcp::model::ElicitationResponseNotificationParam::new(elicitation_id.clone()),
-                )
+                .send_notification(rmcp::model::ServerNotification::CustomNotification(
+                    rmcp::model::CustomNotification::new(
+                        "notifications/elicitation/complete",
+                        Some(serde_json::json!({ "elicitationId": elicitation_id.clone() })),
+                    ),
+                ))
                 .await
                 .map_err(|error| {
                     ErrorData::internal_error(
@@ -258,7 +287,7 @@ impl EverythingServer {
             .ok()
             .and_then(|value| value.as_str().map(ToOwned::to_owned))
             .unwrap_or_else(|| "unknown".to_owned());
-        Ok(CallToolResult::success(vec![Content::text(format!(
+        Ok(CallToolResult::success(vec![ContentBlock::text(format!(
             "URL elicitation {elicitation_id}: action={action}"
         ))]))
     }
@@ -275,12 +304,12 @@ pub(crate) fn sep1330_schema() -> ElicitationSchema {
 }
 
 /// SEP-1330 variants 1–3: the single-select shapes.
-fn single_select_variants() -> BTreeMap<String, PrimitiveSchema> {
+fn single_select_variants() -> BTreeMap<String, PrimitiveSchemaDefinition> {
     {
         let mut properties = BTreeMap::new();
         properties.insert(
             "untitledSingle".to_owned(),
-            PrimitiveSchema::Enum(
+            PrimitiveSchemaDefinition::Enum(
                 EnumSchema::builder(vec![
                     "option1".to_owned(),
                     "option2".to_owned(),
@@ -291,7 +320,7 @@ fn single_select_variants() -> BTreeMap<String, PrimitiveSchema> {
         );
         properties.insert(
             "titledSingle".to_owned(),
-            PrimitiveSchema::Enum(EnumSchema::Single(SingleSelectEnumSchema::Titled(
+            PrimitiveSchemaDefinition::Enum(EnumSchema::Single(SingleSelectEnumSchema::Titled(
                 TitledSingleSelectEnumSchema::new(vec![
                     ConstTitle::new("value1", "First Option"),
                     ConstTitle::new("value2", "Second Option"),
@@ -301,16 +330,18 @@ fn single_select_variants() -> BTreeMap<String, PrimitiveSchema> {
         );
         properties.insert(
             "legacyEnum".to_owned(),
-            PrimitiveSchema::Enum(EnumSchema::Legacy(LegacyEnumSchema {
-                type_: StringTypeConst,
-                title: None,
-                description: None,
-                enum_: vec!["opt1".into(), "opt2".into(), "opt3".into()],
-                enum_names: Some(vec![
+            PrimitiveSchemaDefinition::Enum(EnumSchema::Legacy({
+                // `#[non_exhaustive]` in rmcp 3.x. `new` takes the enum
+                // values; `enum_names` is the field SEP-1330 exercises and
+                // the one register 3.8 tracks, so it is set explicitly.
+                let mut schema =
+                    LegacyEnumSchema::new(vec!["opt1".into(), "opt2".into(), "opt3".into()]);
+                schema.enum_names = Some(vec![
                     "Option One".into(),
                     "Option Two".into(),
                     "Option Three".into(),
-                ]),
+                ]);
+                schema
             })),
         );
         properties
@@ -318,12 +349,12 @@ fn single_select_variants() -> BTreeMap<String, PrimitiveSchema> {
 }
 
 /// SEP-1330 variants 4–5: the multi-select shapes.
-fn multi_select_variants() -> BTreeMap<String, PrimitiveSchema> {
+fn multi_select_variants() -> BTreeMap<String, PrimitiveSchemaDefinition> {
     {
         let mut properties = BTreeMap::new();
         properties.insert(
             "untitledMulti".to_owned(),
-            PrimitiveSchema::Enum(
+            PrimitiveSchemaDefinition::Enum(
                 EnumSchema::builder(vec![
                     "option1".to_owned(),
                     "option2".to_owned(),
@@ -335,7 +366,7 @@ fn multi_select_variants() -> BTreeMap<String, PrimitiveSchema> {
         );
         properties.insert(
             "titledMulti".to_owned(),
-            PrimitiveSchema::Enum(EnumSchema::Multi(MultiSelectEnumSchema::Titled(
+            PrimitiveSchemaDefinition::Enum(EnumSchema::Multi(MultiSelectEnumSchema::Titled(
                 TitledMultiSelectEnumSchema::new(TitledItems::new(vec![
                     ConstTitle::new("value1", "First Choice"),
                     ConstTitle::new("value2", "Second Choice"),
@@ -367,7 +398,7 @@ async fn elicit(
     }
     let result = context
         .peer
-        .create_elicitation(CreateElicitationRequestParams::FormElicitationParams {
+        .create_elicitation(ElicitRequestParams::FormElicitationParams {
             meta: None,
             message,
             requested_schema: schema,
@@ -386,7 +417,7 @@ async fn elicit(
     let reply = result
         .content
         .map_or_else(|| "null".to_owned(), |value| value.to_string());
-    Ok(CallToolResult::success(vec![Content::text(format!(
+    Ok(CallToolResult::success(vec![ContentBlock::text(format!(
         "{prefix}: action={action}, content={reply}"
     ))]))
 }
