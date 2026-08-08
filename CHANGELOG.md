@@ -71,6 +71,16 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   cost, stated in each: an unrelated future deprecation in those modules would
   also be silenced.
 
+- **`cargo-deny` gets a documented `base64` duplicate skip, because the rmcp
+  upgrade created one.** rmcp 3.1.2 requires base64 0.23 while hyper-util
+  0.1.20 (reached via both axum and reqwest) still requires 0.22, and `bans` is
+  `deny`. This is stated in the skip as costing more than the neighbouring
+  `syn` skip: syn is build-time only, whereas both base64 copies are compiled
+  into the binaries. Accepted because neither version is ours to pin, with an
+  exact pin so it re-fires when either moves. Found by CI, not locally —
+  cargo-deny is now installed in the dev loop so `cargo xtask ci` reports
+  "every local gate ran and passed" instead of skipping it.
+
 - **`rmcp-macros` ceiling shim moved to `>=3.1.1, <3.2.0`.** Register 3.13 is
   still unfixed upstream — rmcp 3.1.2 caret-pins its own macro crate — so the
   shim keeps doing real work.

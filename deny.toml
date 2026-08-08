@@ -57,6 +57,25 @@ skip = [
     # Collapses on its own as the syn-2 holdouts migrate; re-fires if either
     # version moves, because the pin is exact.
     { crate = "syn@2.0.119", reason = "ecosystem mid-migration to syn 3: build-time proc-macro dependency of both the moved and unmoved derive crates" },
+    # Introduced 2026-08-06 by the rmcp 1.7.0 -> 3.1.2 upgrade, which requires
+    # base64 0.23 while the hyper stack has not moved: 0.23.1 is named by rmcp
+    # 3.1.2, 0.22.1 by hyper-util 0.1.20 (reached through both axum 0.8.9 and
+    # reqwest 0.13.4). Verified from Cargo.lock and from the cargo-deny run that
+    # first failed on it.
+    #
+    # **This skip costs more than the syn one above, and the difference is worth
+    # stating.** syn is build-time-only, so its duplicate costs compile time and
+    # nothing else. base64 is a runtime dependency: both copies are compiled
+    # into the binaries, so this is real surface area, not a cosmetic graph.
+    # It is accepted because neither version is ours to choose — rmcp and
+    # hyper-util each pin their own, and forcing agreement would mean either
+    # holding rmcp back (which ADR-0011 has just finished doing for a year) or
+    # patching a transitive dependency we do not own.
+    #
+    # Collapses on its own when hyper-util adopts base64 0.23. The pin is exact,
+    # so it re-fires the moment either version moves and the decision gets
+    # re-made rather than inherited.
+    { crate = "base64@0.22.1", reason = "rmcp 3.1.2 requires base64 0.23 while hyper-util 0.1.20 still requires 0.22; neither is ours to pin" },
     # Removed 2026-07-26: the wit-bindgen 0.51/0.57 split (rmcp's getrandom 0.4
     # vs proptest's dev-only getrandom 0.3) has collapsed — the lock now carries
     # only 0.57.1, so cargo-deny's unmatched-skip warning correctly retired it.
