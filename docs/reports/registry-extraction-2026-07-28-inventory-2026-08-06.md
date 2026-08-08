@@ -214,3 +214,53 @@ them because the clause's own "unless specifically configured not to do so"
 escape hatch makes an absent field unattributable, which is a property of the
 clause, not of our engine. Six name checks that do not exist yet and therefore
 report `unsupported`, which is the honest answer until they are written.
+
+
+---
+
+## Addendum 3 (2026-08-06): `basic/index` complete — 57/57 entered
+
+The page's remaining 41 clauses are curated, so `basic/index` is fully entered
+and the first in-scope page is closed. All 57 quotes verify against the live
+text (`spec-drift`: 197 across both revisions, 0 drifted).
+
+| Disposition | Entries | Meaning |
+|---|---:|---|
+| Judged today | 12 | Named check is implemented and already carries a corpus violation |
+| `unsupported` | 14 | Named check does not exist yet; the build says so, loudly |
+| Excluded | 31 | No recorded trace can judge the clause, reason stated per entry |
+
+**Twelve clauses judge on day one** because the JSON-RPC envelope did not change:
+message shape, request-ID typing and nullability, result/error ID correlation,
+the error `code`/`message` shape, integer error codes, notification IDs and the
+`_meta` key grammar all reuse checks the `2025-11-25` corpus already falsifies.
+That is the payoff of extracting per revision rather than sharing entries — the
+quotes differ, the checks do not.
+
+**One clause looked reusable and is not.** At `2025-11-25`, BASE-003 forbids a
+request ID that "MUST NOT have been previously used by the requestor within the
+same session". At `2026-07-28` the rule is narrower: the ID "MUST NOT match the
+ID of any other request the sender has issued and **not yet received a response
+for**" — reuse after completion is now legal. Pointing BASE-045 at the existing
+`base.request-id-unique` would have reported conforming traces as violations, so
+it names a new `base.request-id-unique-in-flight` and reports `unsupported`
+until that exists. This is exactly the failure mode per-clause curation is for;
+a bulk mapping from old IDs to new would have shipped it.
+
+**Where the exclusions concentrate**, and why they are honest rather than
+convenient: the statelessness clauses bind *reliance* and *preparedness*, which
+are inferences a trace cannot witness; the JSON Schema clauses bind validator
+behavior inside each implementation, which `mcp-conformance-core` deliberately
+cannot evaluate (no JSON Schema engine — 02-architecture.md); the icon clauses
+bind consumer conduct after the session ends; and the `resultType`
+backward-compatibility rules bind how a *client interprets* an absent field.
+Several restate `2025-11-25` clauses whose exclusions this project already
+argued, and those entries say so and cite the original.
+
+The registry file was split at the page's own section seams — `messages`,
+`statelessness`, `schema`, `meta`, `icons` — when it crossed the 500-line cap.
+
+**Next**: the 14 `unsupported` checks are the natural unit. Each needs an
+implementation plus a `corpus/draft/` violation pair, and
+`corpus_falsifies_every_check` needs extending to drive the `2026-07-28`
+registry over that corpus — today it only runs `builtin_2025_11_25()`.

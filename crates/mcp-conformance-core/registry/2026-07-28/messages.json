@@ -1,0 +1,321 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "BASE-041",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index",
+        "quote": "Cross-cutting concerns like logging and argument completion All implementations MUST support the base protocol, versioning, and the message patterns."
+      },
+      "exclusion": "The umbrella clause the BASE area mechanizes requirement-by-requirement; it has no observable beyond its constituents. Same role as BASE-012 at 2025-11-25, widened by this revision from 'base protocol and lifecycle management' to 'base protocol, versioning, and the message patterns'."
+    },
+    {
+      "id": "BASE-042",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#messages",
+        "quote": "All messages between MCP clients and servers MUST follow the JSON-RPC 2.0 specification."
+      },
+      "checks": [
+        "base.jsonrpc-version"
+      ]
+    },
+    {
+      "id": "BASE-043",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#requests",
+        "quote": "Requests MUST include a string or integer ID."
+      },
+      "checks": [
+        "base.request-id-type"
+      ]
+    },
+    {
+      "id": "BASE-044",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#requests",
+        "quote": "Unlike base JSON-RPC, the ID MUST NOT be `null`."
+      },
+      "checks": [
+        "base.request-id-not-null"
+      ]
+    },
+    {
+      "id": "BASE-045",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#requests",
+        "quote": "The request ID MUST NOT match the ID of any other request the sender has issued and not yet received a response for."
+      },
+      "checks": [
+        "base.request-id-unique-in-flight"
+      ]
+    },
+    {
+      "id": "BASE-046",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#result-responses",
+        "quote": "Result responses MUST include the same ID as the request they correspond to."
+      },
+      "checks": [
+        "base.result-id-matches"
+      ]
+    },
+    {
+      "id": "BASE-047",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#result-responses",
+        "quote": "Result responses MUST include a `result` field."
+      },
+      "checks": [
+        "base.result-field"
+      ]
+    },
+    {
+      "id": "BASE-048",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#result-responses",
+        "quote": "The `result` MUST include a `resultType` field to indicate the type of the result."
+      },
+      "checks": [
+        "base.result-type-present"
+      ]
+    },
+    {
+      "id": "BASE-049",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#resulttype",
+        "quote": "The set of supported `ResultType` values MUST be created from the set defined in the core protocol and include any additional values of supported extensions that are advertised via capabilities."
+      },
+      "exclusion": "The client's set of supported `ResultType` values is internal state assembled from the core protocol plus its advertised extensions; a trace shows the values a server sent, never the set the client was willing to accept."
+    },
+    {
+      "id": "BASE-050",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#resulttype",
+        "quote": "A `resultType` of any value unrecognized by the client MUST be considered invalid."
+      },
+      "exclusion": "What a client 'considers invalid' is internal judgment. The observable consequence — a client refusing to proceed — is client conduct after receipt, outside a server-side trace, and indistinguishable from any other reason it stopped."
+    },
+    {
+      "id": "BASE-051",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#resulttype",
+        "quote": "For backward compatibility with servers implementing earlier protocol versions, which do not include `resultType`, clients MUST treat an absent `resultType` as `\"complete\"`."
+      },
+      "exclusion": "The backward-compatibility rule binds the client's *interpretation* of an absent field, which leaves no wire artifact: the trace records that `resultType` was absent, not that the client read it as `complete`."
+    },
+    {
+      "id": "BASE-052",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#error-responses",
+        "quote": "Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request)."
+      },
+      "checks": [
+        "base.error-id-matches"
+      ]
+    },
+    {
+      "id": "BASE-053",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#error-responses",
+        "quote": "Error responses MUST include an `error` field with a `code` and `message`."
+      },
+      "checks": [
+        "base.error-shape"
+      ]
+    },
+    {
+      "id": "BASE-054",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#error-responses",
+        "quote": "Error codes MUST be integers."
+      },
+      "checks": [
+        "base.error-code-integer"
+      ]
+    },
+    {
+      "id": "BASE-055",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "New codes MUST NOT be allocated in this sub-range, and new implementations SHOULD NOT use codes from this sub-range at all."
+      },
+      "checks": [
+        "base.error-code-legacy-subrange"
+      ]
+    },
+    {
+      "id": "BASE-056",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "Apart from `-32002` (see below), receivers MUST NOT assume any specific meaning for these codes."
+      },
+      "exclusion": "What a receiver assumes about a legacy code's meaning is internal; only conduct following from the assumption could surface, and attributing it requires the assumption. Same boundary as BASE-025 for reserved `_meta` keys."
+    },
+    {
+      "id": "BASE-057",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "Implementations MUST NOT emit any code from this sub-range that is not defined by this specification and MUST use defined codes only with their specified meanings."
+      },
+      "checks": [
+        "base.error-code-reserved-subrange"
+      ]
+    },
+    {
+      "id": "BASE-058",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "Implementations of this protocol version MUST NOT emit these codes:"
+      },
+      "checks": [
+        "base.error-code-withdrawn"
+      ]
+    },
+    {
+      "id": "BASE-059",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "Clients SHOULD still accept `-32002` from servers implementing earlier versions."
+      },
+      "exclusion": "Client-side acceptance of a legacy code is internal handling; the trace records the `-32002` a server sent, not whether the client honoured it. The emitting side is judged by BASE-058."
+    },
+    {
+      "id": "BASE-060",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "New error codes for purposes not defined by this specification SHOULD be allocated outside the JSON-RPC reserved range (`-32768` to `-32000`); the remainder of the integer space is available for application-defined errors."
+      },
+      "checks": [
+        "base.error-code-application-range"
+      ]
+    },
+    {
+      "id": "BASE-061",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#notifications",
+        "quote": "The receiver MUST NOT send a response."
+      },
+      "exclusion": "A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by `base.result-id-matches` and `base.error-id-matches`. Same reasoning as BASE-011 at 2025-11-25."
+    },
+    {
+      "id": "BASE-062",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#notifications",
+        "quote": "Notifications MUST NOT include an ID."
+      },
+      "checks": [
+        "base.notification-no-id"
+      ]
+    }
+  ]
+}

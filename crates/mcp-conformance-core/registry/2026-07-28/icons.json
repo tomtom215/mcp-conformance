@@ -1,0 +1,57 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "BASE-078",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#icons",
+        "quote": "Clients that support rendering icons MUST support at least the following MIME types:"
+      },
+      "exclusion": "Icon rendering support is client-internal capability with no wire footprint; the conditional premise (that the client renders icons) is equally invisible. Same reasoning as BASE-022 at 2025-11-25."
+    },
+    {
+      "id": "BASE-079",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#icons",
+        "quote": "`image/png` - PNG images (safe, universal compatibility) `image/jpeg` (and `image/jpg`) - JPEG images (safe, universal compatibility) Clients that support rendering icons SHOULD also support:"
+      },
+      "exclusion": "Extends the same client-internal rendering-support premise as the MUST above it; neither the support nor its absence reaches the wire."
+    },
+    {
+      "id": "BASE-080",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#icons",
+        "quote": "Consumers of icon metadata MUST take appropriate security precautions when handling icons to prevent compromise:"
+      },
+      "exclusion": "The umbrella for consumer-side icon hygiene (fetch policy, size limits, origin checks) — all consumer-internal conduct after the recorded session ends. Same reasoning as BASE-023 at 2025-11-25."
+    },
+    {
+      "id": "BASE-081",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#icons",
+        "quote": "Clients MUST reject icon URIs that use unsafe schemes and redirects, such as `javascript:`, `file:`, `ftp:`, `ws:`, or local app URI schemes."
+      },
+      "exclusion": "Rejection is client-side handling after receipt; the trace records the icon metadata served, not what the client did with it. Same reasoning as BASE-024 at 2025-11-25."
+    }
+  ]
+}

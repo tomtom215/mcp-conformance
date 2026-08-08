@@ -39,7 +39,13 @@ const AREAS_2025_11_25: &[&str] = &[
 /// clause inventory. The complete, quote-verified inventory is the backlog, recorded
 /// in `docs/reports/registry-extraction-2026-07-28-inventory-2026-08-06.md`.
 #[cfg(feature = "draft-2026-07-28")]
-const AREAS_2026_07_28: &[&str] = &[include_str!("../../registry/2026-07-28/base.json")];
+const AREAS_2026_07_28: &[&str] = &[
+    include_str!("../../registry/2026-07-28/messages.json"),
+    include_str!("../../registry/2026-07-28/statelessness.json"),
+    include_str!("../../registry/2026-07-28/schema.json"),
+    include_str!("../../registry/2026-07-28/meta.json"),
+    include_str!("../../registry/2026-07-28/icons.json"),
+];
 
 /// A complete requirement registry for one protocol revision.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
