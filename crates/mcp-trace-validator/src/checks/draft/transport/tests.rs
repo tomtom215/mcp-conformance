@@ -94,14 +94,21 @@ fn comparison_decodes_the_sentinel_before_judging() {
     );
 }
 
-/// A POST framing `payload`, plus a stdio POST and a server `http` event that
-/// must both be ignored.
+/// A POST framing `payload`, preceded by two events that must be ignored: a
+/// server `http` event, and a stdio client `http` event *with its own message*.
+///
+/// The stdio pair matters. Each ignored event has exactly one of the two filter
+/// conditions wrong, and the stdio one is followed by a message it could pair
+/// with — so a filter that required *both* conditions to be wrong before
+/// skipping would produce a second POST here, rather than a candidate that gets
+/// silently dropped for want of a message.
 fn mixed_transports(payload: &str) -> String {
     trace(&[
         r#"{"seq":0,"direction":"server-to-client","transport":"streamable-http","kind":"http","headers":{"content-type":"application/json"}}"#.to_owned(),
         r#"{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"http","headers":{"mcp-method":"ping"}}"#.to_owned(),
-        post(2, r#"{"mcp-method":"ping"}"#),
-        client(3, payload),
+        r#"{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"ping"}}"#.to_owned(),
+        post(3, r#"{"mcp-method":"ping"}"#),
+        client(4, payload),
     ])
 }
 
@@ -115,8 +122,8 @@ fn only_client_posts_over_streamable_http_are_posts() {
     let found = posts(&context);
 
     assert_eq!(found.len(), 1, "the server and stdio events are not POSTs");
-    assert_eq!(found[0].seq, 2);
-    assert_eq!(found[0].message_seq, 3);
+    assert_eq!(found[0].seq, 3);
+    assert_eq!(found[0].message_seq, 4);
     assert_eq!(found[0].method(), Some("ping"));
 }
 

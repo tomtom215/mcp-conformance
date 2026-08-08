@@ -52,6 +52,22 @@ fn only_a_client_sent_response_over_this_transport_is_reported() {
     ));
     assert!(findings_for(check, &trace(&lines)).is_empty());
 
+    // A client message carrying a result but *no* id is not a response this
+    // clause can name — there is nothing for it to answer, so BASE-004 owns it.
+    // Reporting it here would mean the three conditions were being read as
+    // alternatives rather than as one shape.
+    let mut lines = call(0);
+    lines.push(client(2, r#"{"jsonrpc":"2.0","result":{}}"#));
+    assert!(findings_for(check, &trace(&lines)).is_empty());
+
+    // Nor is a message that carries a result alongside a method.
+    let mut lines = call(0);
+    lines.push(client(
+        2,
+        r#"{"jsonrpc":"2.0","id":9,"method":"ping","result":{}}"#,
+    ));
+    assert!(findings_for(check, &trace(&lines)).is_empty());
+
     // The same client response over stdio belongs to the stdio clauses.
     let stdio = [
         r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":9,"result":{}}}"#,
