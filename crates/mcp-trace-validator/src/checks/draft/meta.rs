@@ -15,6 +15,7 @@ use std::collections::BTreeMap;
 use serde_json::Value;
 
 use super::super::FindingSink;
+use super::http_status_for;
 use crate::context::TraceContext;
 use mcp_conformance_core::trace::Direction;
 
@@ -130,21 +131,6 @@ pub(in crate::checks) fn missing_required_field_rejected(
     }
 }
 
-/// The HTTP status recorded closest after `seq`, when the trace carries one.
-fn http_status_after(context: &TraceContext<'_>, seq: u64) -> Option<(u64, u16)> {
-    context
-        .events()
-        .iter()
-        .filter(|event| event.seq > seq)
-        .find_map(|event| match &event.body {
-            mcp_conformance_core::trace::EventBody::Http {
-                status: Some(status),
-                ..
-            } => Some((event.seq, *status)),
-            _ => None,
-        })
-}
-
 /// Reports every server error carrying `code` whose HTTP response status is not
 /// `400` — the shared body of `BASE-032` and `BASE-036`.
 fn http_status_for_error(
@@ -168,7 +154,7 @@ fn http_status_for_error(
         }
         // Only judged when the recording actually carries HTTP framing; on stdio
         // there is no status to check, and a trace without one evidences nothing.
-        if let Some((status_seq, status)) = http_status_after(context, event.seq)
+        if let Some((status_seq, status)) = http_status_for(context, event.seq)
             && status != 400
         {
             sink.push(

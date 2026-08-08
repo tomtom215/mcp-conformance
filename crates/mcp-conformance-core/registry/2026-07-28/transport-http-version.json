@@ -13,7 +13,7 @@
         "quote": "Every POST request to the MCP endpoint MUST include an `MCP-Protocol-Version` header."
       },
       "checks": [
-        "transport.protocol-version-header"
+        "transport.protocol-version-header-present"
       ]
     },
     {
@@ -43,7 +43,7 @@
         "quote": "If the values do not match, the server MUST reject the request with `400 Bad Request` and a `HeaderMismatch` JSON-RPC error (see Server Validation)."
       },
       "checks": [
-        "transport.header-mismatch-rejected"
+        "transport.version-mismatch-rejected"
       ]
     },
     {

@@ -345,3 +345,111 @@ to do by deliberate architectural choice, the same boundary BASE-073 draws.
 
 **Next**: the thirteen `PLANNED` checks, with corpus pairs, exactly as the
 fourteen for `basic/index` were done.
+
+---
+
+## Addendum 6 (2026-08-08): the planned checks are implemented — the transport judges
+
+Every clause that reported `unsupported` now has an implementation and a
+violation trace. The `2026-07-28` registry is **117 entries — 51 judged / 0
+unsupported / 66 excluded**, and `PLANNED` is empty for the first time since it
+was introduced. `spec-drift` verifies 257 quotes across both revisions, 0
+drifted.
+
+Addendum 5 committed to thirteen checks. **Eighteen landed**, and the difference
+is the substance of this pass rather than scope creep.
+
+### One reuse was vacuous, and would have reported a pass
+
+TRAN-071 ("every POST request MUST include an `MCP-Protocol-Version` header")
+was pointed at the `2025-11-25` check of the same purpose. That check begins by
+locating the negotiated version in the `initialize` result and returns early
+without it — and `2026-07-28` has no `initialize`. It would have inspected
+nothing and reported **pass**, which is worse than the `unsupported` it
+replaced: an absent check is visible in the totals, a vacuous one is not.
+TRAN-071 now names `transport.protocol-version-header-present`, written against
+the POST itself. The other three carried-over reuses were re-read for the same
+failure mode and are sound — none consults the handshake.
+
+### Five clauses were being judged by a check that bundled their neighbours
+
+`transport.header-value-encoding` covered TRAN-077/086/087/089/092 and
+`transport.header-mismatch-rejected` covered TRAN-073/096/098/102. Because the
+engine attributes a check's finding to every requirement naming it, a trace
+carrying an unencoded non-ASCII value reported TRAN-089 — the *marker-case*
+rule — as failed. The product's claim is requirement-level findings, so the two
+were split along the rules they actually state:
+
+| Check | Requirements | Rule |
+|---|---|---|
+| `transport.header-value-encoding` | TRAN-077, TRAN-086, TRAN-087 | a value that cannot be carried plainly is Base64-encoded |
+| `transport.sentinel-marker-case` | TRAN-089 | the sentinel markers are exactly lowercase |
+| `transport.sentinel-pattern-encoded` | TRAN-092 | a plain value shaped like the sentinel is encoded too |
+| `transport.version-mismatch-rejected` | TRAN-073 | a version header/body mismatch is rejected |
+| `transport.invalid-param-header-rejected` | TRAN-096 | a recognized `Mcp-Param-*` with invalid characters is rejected |
+| `transport.header-mismatch-status` | TRAN-098, TRAN-102 | a `HeaderMismatch` rejection carries HTTP 400 |
+
+The pairs that remain shared — TRAN-077/086/087, TRAN-097/100, TRAN-098/102 —
+state *one* rule in several sections, which is the same reason TRAN-025/039
+share a check at `2025-11-25`.
+
+### `http_status_after` searched the wrong direction
+
+The helper the HTTP-status clauses use looked *forward* from a message for the
+next recorded status. The tap records a response's `http` event **before** the
+message it framed (`mcp_everything_server::tap::record_response`), and every
+captured trace in `corpus/good/` shows that order. On a real capture the helper
+would therefore have read the *next* exchange's status, or none at all — so
+BASE-032 and BASE-036 would have passed vacuously since the day they landed.
+It now scans backwards to the nearest server-sent status, which also handles
+SSE correctly: every frame of one response rides one status event. The two
+corpus traces that had been authored to fit the bug are reshaped to the capture
+order.
+
+### What the trace can now judge that it could not before
+
+- **Base64 sentinel decoding.** A ~25-line RFC 4648 decoder next to the existing
+  validator (no new dependency; the judgment surface stays `serde`-only, and it
+  is gated with its caller). Header/body comparison now decodes first — the
+  comparison TRAN-091 and TRAN-103 require of servers — instead of abstaining on
+  the case the specification spends most of its words on. Its test decodes the
+  spec's own encoding table verbatim.
+- **`x-mcp-header` annotations by property path.** The walk follows chains of
+  `properties` keys only, which is the specification's *statically reachable*
+  definition, and reads the argument at the exact annotated path. This is a
+  structural walk, not a JSON Schema engine — the reachability clauses that do
+  need one (TRAN-081, TRAN-082) stay excluded.
+- **TRAN-080 in full.** All four constraints its quote states — non-empty,
+  field-name token syntax, case-insensitive uniqueness within one `inputSchema`,
+  and primitive-typed properties only — rather than the first two.
+- **TRAN-074's obligation side.** When a trace carries the server's own
+  `server/discover` result, a request naming a version outside its
+  `supportedVersions` must draw `-32022`. The list comes from what the server
+  said about itself; there is no assumption about which versions it ought to
+  implement.
+
+### Boundaries the specification drew, and the checks respect
+
+Notification POSTs are not judged by any header clause: the revision states
+that "header requirements for notification POSTs are not defined by this
+revision". Cancellation is anchored to a recorded transport close or abort,
+because closing a request's response stream *is* the cancellation signal
+(TRAN-069) — and only ids still outstanding at that moment are judged.
+
+### Corpus
+
+A conformant HTTP session (`draft/good/streamable-http-session.jsonl`) exercises
+discovery, an `x-mcp-header` annotation mirrored into `Mcp-Param-Region`, an SSE
+response with `X-Accel-Buffering: no`, and a non-ASCII `Mcp-Name` riding the
+sentinel — 51 checked entries pass, none vacuously. Eighteen violation traces
+follow; where one falsifies more than one requirement, `corpus/README.md` says
+which and why, and there are only two reasons: several sections stating one
+rule, or a clause whose antecedent is itself the other party's violation (a
+server cannot fail to reject a bad header unless the client sent one).
+
+Two files crossed the 500-line cap on the way and were split at subject seams
+rather than at arbitrary line counts: the check inventory left `checks/mod.rs`
+for `checks/inventory.rs`, and the response-stream clauses left
+`draft/transport.rs` for `draft/transport/stream.rs`.
+
+**Next**: the thirteen remaining in-scope pages of the revision.

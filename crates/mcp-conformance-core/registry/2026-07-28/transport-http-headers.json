@@ -179,7 +179,7 @@
         "quote": "These markers are case-sensitive and MUST appear exactly as shown (lowercase)."
       },
       "checks": [
-        "transport.header-value-encoding"
+        "transport.sentinel-marker-case"
       ]
     },
     {
@@ -220,7 +220,7 @@
         "quote": "To avoid ambiguity, clients MUST also Base64-encode any plain-ASCII value that matches the sentinel pattern (i.e., starts with `=?base64?` and ends with `?=`)."
       },
       "checks": [
-        "transport.header-value-encoding"
+        "transport.sentinel-pattern-encoded"
       ]
     },
     {
@@ -274,7 +274,7 @@
         "quote": "Servers MUST reject requests with a recognized `Mcp-Param-{Name}` header that contains invalid characters (see Value Encoding)."
       },
       "checks": [
-        "transport.header-mismatch-rejected"
+        "transport.invalid-param-header-rejected"
       ]
     },
     {
@@ -304,7 +304,7 @@
         "quote": "Servers MUST reject requests with a `400 Bad Request` HTTP status and JSON-RPC error code `-32020` (`HeaderMismatch`) if any validation fails."
       },
       "checks": [
-        "transport.header-mismatch-rejected"
+        "transport.header-mismatch-status"
       ]
     },
     {
@@ -360,7 +360,7 @@
         "quote": "When rejecting a request due to header validation failure, servers MUST return HTTP status `400 Bad Request` and MUST include a JSON-RPC error response using the following error code:"
       },
       "checks": [
-        "transport.header-mismatch-rejected"
+        "transport.header-mismatch-status"
       ]
     },
     {

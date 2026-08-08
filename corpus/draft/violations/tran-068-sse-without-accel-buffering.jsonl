@@ -1,0 +1,4 @@
+{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","headers":{"accept":"application/json, text/event-stream","content-type":"application/json","mcp-protocol-version":"2026-07-28","mcp-method":"tools/call","mcp-name":"echo"}}
+{"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"echo","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"corpus-client","version":"0.1.0"}}}}}
+{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":200,"headers":{"content-type":"text/event-stream"}}
+{"seq":3,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","content":[]}}}
