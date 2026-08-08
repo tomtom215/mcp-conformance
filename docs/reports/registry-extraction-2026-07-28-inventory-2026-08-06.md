@@ -104,8 +104,14 @@ being an inventory.
 
 ## Wiring still required for M2.5 line 2
 
+*(Status line as of 2026-08-08 — see Addendum 6 for the current numbers; items
+2, 3 and 4 are closed, 1 and 5 are the live work.)*
+
 1. `registry/2026-07-28/*.json` per area, plus `sources.json` for the fifteen
-   in-scope pages.
+   in-scope pages. **In progress — 2 of 15 pages.** Ten area files exist and
+   `sources.json` grows as pages land, by the policy written into that file:
+   `out_of_scope` means *deliberately excluded*, so a page reached by neither
+   bucket is simply not extracted yet.
 2. ~~**Every existing `2025-11-25` entry needs `applies: {removed: "2026-07-28"}`.**~~
    **Done** — all 140 entries are bounded, with two tests standing guard: one
    asserts the `2025-11-25` projection still reconstructs
@@ -118,9 +124,15 @@ being an inventory.
    off-by-default `draft-2026-07-28` feature.~~ **Done** — off by default;
    with the feature, `registry("2026-07-28")` answers with an empty-but-real
    registry, which `RegistrySet::registry`'s contract already anticipated.
-4. `spec-drift` iterating both revisions — the helpers already resolve per
-   revision, so this is a loop, not a rewrite.
-5. `corpus/draft/` good and violation pairs (DoD line 5).
+4. ~~`spec-drift` iterating both revisions — the helpers already resolve per
+   revision, so this is a loop, not a rewrite.~~ **Done** — `REVISIONS` drives
+   `verify_revision` per revision and skips one the built registry does not
+   describe; 257 quotes across both, 0 drifted.
+5. `corpus/draft/` good and violation pairs (DoD line 5). **In progress —
+   two good sessions (stdio and Streamable HTTP) and 33 violation traces, one
+   per clause, each with a provenance row in `corpus/README.md`.** The pairs
+   arrive with their area, not afterwards: `corpus_falsifies_every_check`
+   fails the build for any implemented check no corpus trace kills.
 
 ---
 
@@ -453,3 +465,76 @@ for `checks/inventory.rs`, and the response-stream clauses left
 `draft/transport.rs` for `draft/transport/stream.rs`.
 
 **Next**: the thirteen remaining in-scope pages of the revision.
+
+---
+
+## Handover (2026-08-08): where this stands, and how to resume
+
+This report is the working document for roadmap M2.5 line 2. Everything below is
+verified state, not intent.
+
+### State
+
+| | |
+|---|---|
+| Branch | `claude/text-release-check-suq6cc`, 13 commits ahead of `main`, all gates green |
+| Pages entered | **2 of 15** in-scope: `basic/index`, `basic/transports/streamable-http` |
+| `2026-07-28` registry | **117 entries — 51 judged, 0 unsupported, 66 excluded** |
+| `2025-11-25` registry | **140 entries, unchanged** — byte-equality with `Registry::builtin_2025_11_25()` is a test, not a hope |
+| Quote verification | `spec-drift`: **257 quotes across 2 revisions, 0 drifted** |
+| Corpus | 2 good `2026-07-28` sessions (stdio, Streamable HTTP) + 33 violation traces, each with a `corpus/README.md` row |
+| Feature gate | everything `2026-07-28` is behind `draft-2026-07-28`; the default build is untouched |
+| `PLANNED` ledger | **empty** — nothing in the registry names a check that does not exist |
+
+### Resuming
+
+The backlog is the clause inventory above: thirteen pages, extracted and
+quote-verified, waiting on curation. Per page, the loop that produced the two
+finished areas:
+
+1. **Fetch the page** from `docs/specification/2026-07-28/<page>.mdx` in the
+   `modelcontextprotocol/modelcontextprotocol` repository into a scratch
+   directory.
+2. **Extract candidates**: `python3 tools/extract-clauses.py <spec-root> <page>`.
+   The tool ports `spec_drift.rs`'s normalization exactly and is calibrated
+   against all 140 shipped `2025-11-25` quotes, so a quote it emits already has
+   the shape the gate compares against. Never hand-transcribe a quote — BASE-039
+   was written by hand and failed the gate on a reference-style link.
+3. **Curate by hand**, one clause at a time — `id`, `actor`, capability gate,
+   `applies` range, and the real judgment: a named check, or an exclusion whose
+   reason is specific to *that* clause. The tool guesses none of these, and
+   neither should the curator.
+4. **Add the page to `in_scope`** in `registry/2026-07-28/sources.json`.
+   `spec-drift` enforces both directions — every listed page is cited, every
+   cited page is listed.
+5. **Write the checks with their corpus pairs**, in the same commit or the next
+   one. An entry may name a check that does not exist yet — the engine reports
+   it `unsupported`, which is honest — but the id must then be listed in
+   `PLANNED` (`checks/inventory.rs`), which retires each row automatically when
+   its check lands.
+6. **Verify**: `cargo xtask ci`, then
+   `cargo run -q -p xtask --features draft-2026-07-28 -- spec-drift` (network),
+   then `cargo xtask conformance`.
+
+### What will catch a mistake, so it does not have to be remembered
+
+- `describing_2026_07_28_does_not_change_what_2025_11_25_requires` — the shipped
+  revision cannot drift while the new one is built.
+- `builtin_registry_and_check_inventory_cover_each_other_exactly` — a misspelled
+  check id fails loudly instead of degrading into `unsupported`.
+- `corpus_falsifies_every_check` — an implemented check no trace kills fails the
+  build.
+- `every_trace_has_a_provenance_ledger_row` — an undocumented fixture fails the
+  build.
+- `spec-drift` — a quote that is not in the published text fails the build.
+
+### Two hazards this work has already hit, both worth re-reading before starting
+
+- **A reused `2025-11-25` check can be vacuous here.** Anything that consults the
+  `initialize` exchange returns early at `2026-07-28` and reports *pass* without
+  inspecting anything. Read a candidate for reuse to the bottom before pointing a
+  clause at it (Addendum 6, TRAN-071).
+- **A check that bundles adjacent rules makes every requirement naming it
+  imprecise**, because the engine attributes a finding to all of them. Share a
+  check only where the clauses state one rule across several sections
+  (Addendum 6, the six-way split).

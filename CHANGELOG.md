@@ -11,6 +11,64 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Added
+
+- **The `2026-07-28` registry judges two of its fifteen in-scope pages, and
+  nothing in it is aspirational.** `basic/index` (57 clauses) and
+  `basic/transports/streamable-http` (60) are entered by the same
+  per-requirement method as `2025-11-25` — live fetch, verbatim quote, then a
+  named check or an exclusion whose reason is specific to that clause. The
+  result is **117 entries: 51 judged, 0 unsupported, 66 excluded**, behind the
+  off-by-default `draft-2026-07-28` feature, with `spec-drift` verifying all
+  257 quotes across both revisions and both a passing and a violating corpus
+  trace behind every judged clause. The `2025-11-25` registry is untouched at
+  140 entries, and a test asserts the byte-equality rather than assuming it.
+
+  Thirty-two checks are new, all feature-gated: six for the message envelope
+  (`resultType`, in-flight id reuse, the four error-code partition rules),
+  eight for the per-request `_meta` envelope the stateless rework introduced,
+  and eighteen for Streamable HTTP — request metadata headers, the Base64
+  value-encoding rules, `x-mcp-header` mirroring and annotation validity, the
+  server-side rejection clauses, and the response-stream rules. Judging Base64
+  sentinel values needed a decoder; it is ~25 lines beside the existing
+  validator rather than a new dependency, so the judgment surface stays
+  `serde`-only.
+
+  Two boundaries are the specification's, not ours: notification POSTs are
+  unjudged because the revision states their header requirements are undefined,
+  and the `x-mcp-header` reachability clauses stay excluded because deciding
+  them needs a JSON Schema engine, not a session.
+
+### Fixed
+
+- **`meta.missing-required-field-http-status` and
+  `meta.missing-capability-http-status` could not fail on a real capture.**
+  Both ask whether a JSON-RPC error carried HTTP 400, and the helper they share
+  searched *forward* from the error message for the next recorded status — but
+  the tap records a response's `http` event **before** the message it framed,
+  as every captured trace in `corpus/good/` shows. On a live recording the
+  helper read the following exchange's status, or none at all, so both clauses
+  reported a vacuous pass. It now scans backwards to the nearest server-sent
+  status, which also handles SSE correctly: every frame of one response rides
+  one status event.
+
+- **A reused check would have reported a vacuous pass for TRAN-071.** The
+  `2026-07-28` clause "every POST request MUST include an
+  `MCP-Protocol-Version` header" was pointed at the `2025-11-25` check of the
+  same purpose, which returns early unless it finds the version negotiated in
+  an `initialize` result — the handshake this revision removes. It would have
+  inspected nothing and passed, which is worse than the `unsupported` it
+  replaced: an absent check is visible in the totals, a vacuous one is not.
+  Caught before shipping; the clause now names a check written against the POST
+  itself.
+
+- **Five clauses were judged by checks that bundled their neighbours' rules.**
+  The engine attributes a check's finding to every requirement naming it, so a
+  trace carrying an unencoded non-ASCII header value reported the *marker-case*
+  clause as failed. The two bundling checks are split into six along the rules
+  they state; requirements now share a check only where they state one rule
+  across several sections.
+
 ### Changed
 
 - **M2.5 Phase 0: the registry can describe two revisions, and the `2025-11-25`
