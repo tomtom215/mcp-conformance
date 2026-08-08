@@ -39,6 +39,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   and the `x-mcp-header` reachability clauses stay excluded because deciding
   them needs a JSON Schema engine, not a session.
 
+  Each check carries unit tests alongside its corpus pair, because the two
+  answer different questions — "does this check ever fire?" and "does it fire on
+  exactly the right thing?" — and only the second scales with the number of
+  branches a check has. The diff-scoped mutation gate is the arbiter: 356
+  mutants over the new code, 356 caught.
+
 ### Fixed
 
 - **`meta.missing-required-field-http-status` and
@@ -61,6 +67,13 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   replaced: an absent check is visible in the totals, a vacuous one is not.
   Caught before shipping; the clause now names a check written against the POST
   itself.
+
+- **A header value shaped like the Base64 sentinel was treated as encoded even
+  when its payload was not.** `=?base64?café?=` matched the sentinel pattern and
+  was skipped, but it is not an encoded value — it is a header that still cannot
+  be transmitted, which is exactly what the Value Encoding clauses forbid. Only
+  a *miscased* sentinel is now deferred (to the marker-case clause); everything
+  else is judged on the bytes it actually carries.
 
 - **Five clauses were judged by checks that bundled their neighbours' rules.**
   The engine attributes a check's finding to every requirement naming it, so a
