@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::revision::{ProtocolRevision, REVISION_2025_11_25};
 
-use super::registry::{builtin_requirements, validate_requirements};
+use super::registry::{builtin_set_requirements, validate_requirements};
 use super::{Registry, RegistryError, Requirement};
 
 /// A requirement registry spanning more than one protocol revision.
@@ -57,9 +57,19 @@ pub struct RegistrySet {
 }
 
 impl RegistrySet {
-    /// Loads the embedded seed set. Today it describes the single shipped revision
-    /// (`2025-11-25`) from the same per-area documents [`Registry::builtin_2025_11_25`]
-    /// merges; the type serves more than one revision so future entries are pure data.
+    /// Loads the embedded seed set from the same per-area documents
+    /// [`Registry::builtin_2025_11_25`] merges.
+    ///
+    /// Which revisions it *describes* depends on the `draft-2026-07-28` feature. Off
+    /// (the default) it describes `2025-11-25` alone. On, it also describes
+    /// `2026-07-28` — and, until that revision's requirement content lands area by
+    /// area, `registry(2026-07-28)` returns an **empty but real** registry. That
+    /// distinction is the whole reason the feature exists: an empty registry judges
+    /// nothing, so nothing can fail it, and a default build must not be able to mistake
+    /// that silence for conformance.
+    ///
+    /// Every embedded requirement is bounded `removed = 2026-07-28`, so the projection
+    /// at `2025-11-25` is unchanged whether or not the feature is on.
     ///
     /// # Errors
     ///
@@ -72,16 +82,21 @@ impl RegistrySet {
     /// use mcp_conformance_core::requirement::RegistrySet;
     ///
     /// let set = RegistrySet::builtin()?;
-    /// assert_eq!(set.revisions(), ["2025-11-25".parse()?]);
-    /// // Projecting the sole revision reconstructs the single-revision builtin.
+    /// assert!(set.revisions().contains(&"2025-11-25".parse()?));
+    /// // Projecting `2025-11-25` reconstructs the single-revision builtin, in either
+    /// // feature mode.
     /// let projected = set.registry("2025-11-25".parse()?).unwrap();
     /// assert_eq!(projected, mcp_conformance_core::requirement::Registry::builtin_2025_11_25()?);
     /// # Ok::<(), Box<dyn core::error::Error>>(())
     /// ```
     pub fn builtin() -> Result<Self, RegistryError> {
         let set = Self {
-            revisions: vec![REVISION_2025_11_25],
-            requirements: builtin_requirements()?,
+            revisions: vec![
+                REVISION_2025_11_25,
+                #[cfg(feature = "draft-2026-07-28")]
+                crate::revision::REVISION_2026_07_28,
+            ],
+            requirements: builtin_set_requirements()?,
         };
         set.validate()?;
         Ok(set)
@@ -197,10 +212,12 @@ mod tests {
     #[test]
     fn builtin_set_describes_the_shipped_revision_and_projects_to_the_single_registry() {
         let set = RegistrySet::builtin().unwrap();
-        assert_eq!(set.revisions(), [REVISION_2025_11_25]);
+        // Which *other* revisions are described depends on the feature; that
+        // `2025-11-25` is among them, and projects unchanged, does not.
+        assert!(set.revisions().contains(&REVISION_2025_11_25));
         let projected = set.registry(REVISION_2025_11_25).unwrap();
-        // Projection of the sole revision reconstructs the canonical single-revision
-        // builtin byte-for-byte — the multi-revision path is a superset, not a fork.
+        // Projection reconstructs the canonical single-revision builtin
+        // byte-for-byte — the multi-revision path is a superset, not a fork.
         assert_eq!(projected, Registry::builtin_2025_11_25().unwrap());
     }
 
@@ -298,5 +315,82 @@ mod tests {
         let json = serde_json::to_string(&set).unwrap();
         let back = RegistrySet::from_json(&json).unwrap();
         assert_eq!(back, set);
+    }
+
+    /// The invariant the `removed = 2026-07-28` bound exists to protect, and the one
+    /// that would fail silently if it were missing: describing a second revision must
+    /// not change what the first one requires. An absent `applies` range means *every*
+    /// revision, so without the bound all 140 entries — every quote citing a
+    /// `2025-11-25` page — would leak into `2026-07-28` and read as if that revision
+    /// had been extracted. Asserted in both feature modes, because the projection is
+    /// what every caller actually consumes.
+    #[test]
+    fn describing_2026_07_28_does_not_change_what_2025_11_25_requires() {
+        let set = RegistrySet::builtin().unwrap();
+        let projected = set.registry(rev("2025-11-25")).unwrap();
+        assert_eq!(projected, Registry::builtin_2025_11_25().unwrap());
+        assert_eq!(projected.requirements().len(), 140);
+    }
+
+    /// No entry serves both revisions. Each revision's entries quote its own pages, so
+    /// an entry in force at both would be citing text that only exists in one — the
+    /// failure the `removed`/`introduced` bounds exist to make impossible. Disjointness
+    /// holds in both feature modes: with the feature off the `2026-07-28` side is empty,
+    /// which is trivially disjoint; with it on, the bounds do the work.
+    #[test]
+    fn the_two_revisions_share_no_requirement() {
+        let set = RegistrySet::builtin().unwrap();
+        let at_old: Vec<_> = set
+            .requirements()
+            .iter()
+            .filter(|r| r.applies_to(rev("2025-11-25")))
+            .map(|r| r.id.as_str())
+            .collect();
+        let both: Vec<_> = at_old
+            .iter()
+            .copied()
+            .filter(|id| {
+                set.requirements()
+                    .iter()
+                    .any(|r| r.id.as_str() == *id && r.applies_to(rev("2026-07-28")))
+            })
+            .collect();
+        assert!(both.is_empty(), "in force at both revisions: {both:?}");
+    }
+
+    #[test]
+    #[cfg(not(feature = "draft-2026-07-28"))]
+    fn without_the_feature_the_set_says_nothing_about_2026_07_28() {
+        let set = RegistrySet::builtin().unwrap();
+        assert_eq!(set.revisions(), [rev("2025-11-25")]);
+        // `None` is "this set says nothing about that revision" — distinct from the
+        // empty-but-real registry the feature-on build answers with.
+        assert!(set.registry(rev("2026-07-28")).is_none());
+    }
+
+    #[test]
+    #[cfg(feature = "draft-2026-07-28")]
+    fn with_the_feature_2026_07_28_carries_only_its_own_entries() {
+        let set = RegistrySet::builtin().unwrap();
+        assert_eq!(set.revisions(), [rev("2025-11-25"), rev("2026-07-28")]);
+        let draft = set.registry(rev("2026-07-28")).unwrap();
+        assert!(
+            !draft.requirements().is_empty(),
+            "the first area (basic/index#meta) has landed"
+        );
+        // Every entry is one this revision introduced — nothing inherited by an
+        // absent `applies` range, which is how a 2025-11-25 quote would leak in.
+        for requirement in draft.requirements() {
+            let introduced = requirement
+                .applies
+                .as_ref()
+                .and_then(crate::applies::AppliesRange::introduced);
+            assert_eq!(
+                introduced,
+                Some(rev("2026-07-28")),
+                "{} is served at 2026-07-28 without being introduced there",
+                requirement.id
+            );
+        }
     }
 }

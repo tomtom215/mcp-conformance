@@ -5,6 +5,9 @@
       "id": "BASE-001",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#requests",
         "quote": "Requests MUST include a string or integer ID."
@@ -17,6 +20,9 @@
       "id": "BASE-002",
       "level": "MUST NOT",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#requests",
         "quote": "Unlike base JSON-RPC, the ID MUST NOT be `null`."
@@ -29,6 +35,9 @@
       "id": "BASE-003",
       "level": "MUST NOT",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#requests",
         "quote": "The request ID MUST NOT have been previously used by the requestor within the same session."
@@ -41,6 +50,9 @@
       "id": "BASE-004",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#result-responses",
         "quote": "Result responses MUST include the same ID as the request they correspond to."
@@ -53,6 +65,9 @@
       "id": "BASE-005",
       "level": "MUST NOT",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#notifications",
         "quote": "Notifications MUST NOT include an ID."
@@ -65,6 +80,9 @@
       "id": "BASE-006",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#error-responses",
         "quote": "Error responses MUST include an `error` field with a `code` and `message`."
@@ -77,6 +95,9 @@
       "id": "BASE-007",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#error-responses",
         "quote": "Error codes MUST be integers."
@@ -89,6 +110,9 @@
       "id": "BASE-008",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#messages",
         "quote": "All messages between MCP clients and servers MUST follow the JSON-RPC 2.0 specification."
@@ -101,6 +125,9 @@
       "id": "BASE-009",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#error-responses",
         "quote": "Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request)."
@@ -113,6 +140,9 @@
       "id": "BASE-010",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#result-responses",
         "quote": "Result responses MUST include a `result` field."
@@ -125,6 +155,9 @@
       "id": "BASE-011",
       "level": "MUST NOT",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#notifications",
         "quote": "The receiver MUST NOT send a response."
@@ -135,6 +168,9 @@
       "id": "BASE-012",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic",
         "quote": "All implementations MUST support the base protocol and lifecycle management components."
@@ -145,6 +181,9 @@
       "id": "BASE-013",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#implementation-requirements",
         "quote": "Clients and servers MUST support JSON Schema 2020-12 for schemas without an explicit `$schema` field"
@@ -155,6 +194,9 @@
       "id": "BASE-014",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#implementation-requirements",
         "quote": "Clients and servers MUST validate schemas according to their declared or default dialect."
@@ -165,6 +207,9 @@
       "id": "BASE-015",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#implementation-requirements",
         "quote": "They MUST handle unsupported dialects gracefully by returning an appropriate error indicating the dialect is not supported."
@@ -175,6 +220,9 @@
       "id": "BASE-016",
       "level": "SHOULD",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#implementation-requirements",
         "quote": "Clients and servers SHOULD document which schema dialects they support"
@@ -185,6 +233,9 @@
       "id": "BASE-017",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#schema-validation",
         "quote": "Schemas MUST be valid according to their declared or default dialect"
@@ -195,6 +246,9 @@
       "id": "BASE-018",
       "level": "MUST NOT",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#_meta",
         "quote": "Certain key names are reserved by MCP for protocol-level metadata, as specified below; implementations MUST NOT make assumptions about values at these keys."
@@ -205,6 +259,9 @@
       "id": "BASE-019",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#_meta",
         "quote": "If specified, MUST be a series of labels separated by dots (`.`), followed by a slash (`/`); Labels MUST start with a letter and end with a letter or digit; interior characters can be letters, digits, or hyphens (`-`)"
@@ -217,6 +274,9 @@
       "id": "BASE-020",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#_meta",
         "quote": "Unless empty, MUST begin and end with an alphanumeric character (`[a-z0-9A-Z]`); MAY contain hyphens (`-`), underscores (`_`), dots (`.`), and alphanumerics in between"
@@ -229,6 +289,9 @@
       "id": "BASE-021",
       "level": "SHOULD",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#_meta",
         "quote": "Implementations SHOULD use reverse DNS notation (e.g., `com.example/` rather than `example.com/`)."
@@ -239,6 +302,9 @@
       "id": "BASE-022",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#icons",
         "quote": "Clients that support rendering icons MUST support at least the following MIME types:"
@@ -249,6 +315,9 @@
       "id": "BASE-023",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#icons",
         "quote": "Consumers of icon metadata MUST take appropriate security precautions when handling icons to prevent compromise:"
@@ -259,6 +328,9 @@
       "id": "BASE-024",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic#icons",
         "quote": "Clients MUST reject icon URIs that use unsafe schemes and redirects, such as `javascript:`, `file:`, `ftp:`, `ws:`, or local app URI schemes."

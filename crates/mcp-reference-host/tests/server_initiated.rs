@@ -7,6 +7,11 @@
 //! `ClientHandler` trait methods themselves are invoked, which is what the
 //! diff-scoped mutation gate demands of them.
 
+// These tests exercise Roots/Sampling/Logging, which SEP-2577
+// forward-deprecates but `2025-11-25` still requires — the very surface the
+// official suite grades. Scoped to this test module; see the library modules
+// for the same note.
+#![allow(deprecated)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::sync::{Arc, Mutex};
@@ -14,9 +19,7 @@ use std::time::Duration;
 
 use mcp_reference_host::handler::{HostEvent, HostHandler};
 use mcp_reference_host::script::InteractionScript;
-use rmcp::model::{
-    CreateElicitationRequestParams, ElicitationResponseNotificationParam, Root, ServerInfo,
-};
+use rmcp::model::{CustomNotification, ElicitRequestParams, Root, ServerInfo, ServerNotification};
 use rmcp::service::{NotificationContext, RoleServer};
 use rmcp::{ServerHandler, ServiceExt as _};
 
@@ -50,7 +53,7 @@ impl ServerHandler for ProbeServer {
                 *observed.roots.lock().unwrap() = Some(result.roots);
             }
             let _ = peer
-                .create_elicitation(CreateElicitationRequestParams::UrlElicitationParams {
+                .create_elicitation(ElicitRequestParams::UrlElicitationParams {
                     meta: None,
                     message: "continue in the browser".to_owned(),
                     url: "https://mcp.example/ui/key".to_owned(),
@@ -58,13 +61,19 @@ impl ServerHandler for ProbeServer {
                 })
                 .await;
             let _ = peer
-                .notify_url_elicitation_completed(ElicitationResponseNotificationParam::new(
-                    "probe-elic-1",
+                .send_notification(ServerNotification::CustomNotification(
+                    CustomNotification::new(
+                        "notifications/elicitation/complete",
+                        Some(serde_json::json!({ "elicitationId": "probe-elic-1" })),
+                    ),
                 ))
                 .await;
             let _ = peer
-                .notify_url_elicitation_completed(ElicitationResponseNotificationParam::new(
-                    "never-issued",
+                .send_notification(ServerNotification::CustomNotification(
+                    CustomNotification::new(
+                        "notifications/elicitation/complete",
+                        Some(serde_json::json!({ "elicitationId": "never-issued" })),
+                    ),
                 ))
                 .await;
             observed.done.notify_one();

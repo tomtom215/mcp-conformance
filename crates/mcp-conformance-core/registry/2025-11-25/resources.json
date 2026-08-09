@@ -5,6 +5,9 @@
       "id": "RES-001",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/resources#capabilities",
         "quote": "Servers that support resources MUST declare the `resources` capability:"
@@ -18,6 +21,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.resources.listChanged",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/resources#list-changed-notification",
         "quote": "When the list of available resources changes, servers that declared the `listChanged` capability SHOULD send a notification:"
@@ -29,6 +35,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.resources",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/resources#https",
         "quote": "Servers SHOULD use this scheme only when the client is able to fetch and load the resource directly from the web on its own—that is, it doesn’t need to read the resource via the MCP server."
@@ -40,6 +49,9 @@
       "level": "MUST",
       "actor": "server",
       "capability": "server.resources",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/resources#custom-uri-schemes",
         "quote": "Custom URI schemes MUST be in accordance with RFC3986, taking the above guidance in to account."
@@ -52,6 +64,9 @@
       "id": "RES-005",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/resources#security-considerations",
         "quote": "Servers MUST validate all resource URIs"
@@ -63,6 +78,9 @@
       "level": "MUST",
       "actor": "server",
       "capability": "server.resources",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/resources#security-considerations",
         "quote": "Binary data MUST be properly encoded"
@@ -76,6 +94,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.resources",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/resources#https",
         "quote": "For other use cases, servers SHOULD prefer to use another URI scheme, or define a custom one, even if the server will itself be downloading resource contents over the internet."
@@ -87,6 +108,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.resources",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/resources#error-handling",
         "quote": "Servers SHOULD return standard JSON-RPC errors for common failure cases: Resource not found: `-32002`; Internal errors: `-32603`"
@@ -97,6 +121,9 @@
       "id": "RES-009",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/resources#security-considerations",
         "quote": "Access controls SHOULD be implemented for sensitive resources"
@@ -107,6 +134,9 @@
       "id": "RES-010",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/resources#security-considerations",
         "quote": "Resource permissions SHOULD be checked before operations"

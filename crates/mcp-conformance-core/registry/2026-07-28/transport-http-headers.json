@@ -1,0 +1,419 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "TRAN-077",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#standard-request-headers",
+        "quote": "If the `Mcp-Name` source value cannot be safely represented as a plain ASCII header value, clients MUST encode it using the Base64 sentinel format described in Value Encoding."
+      },
+      "checks": [
+        "transport.header-value-encoding"
+      ]
+    },
+    {
+      "id": "TRAN-078",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#custom-headers-from-tool-parameters",
+        "quote": "While the use of `x-mcp-header` is optional for servers, clients MUST support this feature."
+      },
+      "exclusion": "Client support for `x-mcp-header` is internal capability. Its observable consequence — mirroring designated values into headers — is the next clause and is checked there."
+    },
+    {
+      "id": "TRAN-079",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#custom-headers-from-tool-parameters",
+        "quote": "When a server's tool definition includes `x-mcp-header` annotations, conforming clients MUST mirror the designated parameter values into HTTP headers."
+      },
+      "checks": [
+        "transport.x-mcp-header-mirrored"
+      ]
+    },
+    {
+      "id": "TRAN-080",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#schema-extension",
+        "quote": "MUST NOT be empty MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1) MUST NOT contain control characters, including carriage return (CR, `\\r`) or line feed (LF, `\\n`) MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema` MUST only be applied to parameters with primitive types (integer, string, boolean)."
+      },
+      "checks": [
+        "transport.x-mcp-header-name-valid"
+      ]
+    },
+    {
+      "id": "TRAN-081",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#schema-extension",
+        "quote": "Integer values MUST be within the safe range for JavaScript (−2<sup>53</sup>+1 to 2<sup>53</sup>−1) MUST only be applied to properties that are statically reachable from the schema root: reachable via a chain consisting solely of `properties` keys."
+      },
+      "exclusion": "Reachability of a property from the schema root, and the safe-integer bound on its value, require walking the tool's JSON Schema — a JSON Schema engine `mcp-conformance-core` deliberately excludes (02-architecture.md), the same boundary BASE-073 draws."
+    },
+    {
+      "id": "TRAN-082",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#schema-extension",
+        "quote": "The chain MUST NOT pass through `items` (or any other array keyword), composition keywords (`oneOf`, `anyOf`, `allOf`, `not`), conditional keywords (`if`/`then`/`else`), or `$ref`."
+      },
+      "exclusion": "The forbidden keyword chain is a JSON Schema traversal, which core has no engine to perform; see the sibling clause above."
+    },
+    {
+      "id": "TRAN-083",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#schema-extension",
+        "quote": "Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints."
+      },
+      "exclusion": "Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it."
+    },
+    {
+      "id": "TRAN-084",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#schema-extension",
+        "quote": "Rejection means the client MUST exclude the invalid tool from the result of `tools/list`."
+      },
+      "exclusion": "The excluded tool is absent from a list the *client* assembles for its own consumer — a data structure that never reaches the wire."
+    },
+    {
+      "id": "TRAN-085",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#schema-extension",
+        "quote": "Clients SHOULD log a warning when rejecting a tool definition, including the tool name and the reason for rejection."
+      },
+      "exclusion": "Logging is client-internal diagnostics with no wire footprint."
+    },
+    {
+      "id": "TRAN-086",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#value-encoding",
+        "quote": "Clients MUST encode parameter values before including them in HTTP headers to ensure safe transmission and prevent injection attacks."
+      },
+      "checks": [
+        "transport.header-value-encoding"
+      ]
+    },
+    {
+      "id": "TRAN-087",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#value-encoding",
+        "quote": "When a value cannot be safely represented as a plain ASCII header value (e.g., it contains non-ASCII characters, control characters, or has leading/trailing whitespace), clients MUST use Base64 encoding of the UTF-8 representation with the following format:"
+      },
+      "checks": [
+        "transport.header-value-encoding"
+      ]
+    },
+    {
+      "id": "TRAN-088",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#value-encoding",
+        "quote": "Tool and prompt names are only SHOULD-constrained to header-safe characters, so a name (or resource URI) outside the safe set is carried as:"
+      },
+      "exclusion": "A descriptive clause explaining why names are carried encoded, not an independent obligation; the encoding rule itself is checked on the clauses above."
+    },
+    {
+      "id": "TRAN-089",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#value-encoding",
+        "quote": "These markers are case-sensitive and MUST appear exactly as shown (lowercase)."
+      },
+      "checks": [
+        "transport.sentinel-marker-case"
+      ]
+    },
+    {
+      "id": "TRAN-090",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#value-encoding",
+        "quote": "Servers and intermediaries that need to inspect these values MUST decode them accordingly."
+      },
+      "exclusion": "Decoding is what a receiver does internally before comparison; the trace shows the encoded value on the wire and the outcome, never the decode step."
+    },
+    {
+      "id": "TRAN-091",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#value-encoding",
+        "quote": "In particular, servers MUST decode an encoded `Mcp-Name` or `Mcp-Param-{Name}` value before comparing it to the corresponding request body value during Server Validation."
+      },
+      "exclusion": "Same internal-decode boundary as the clause above: only the comparison's outcome reaches the wire, and that is judged by TRAN-097."
+    },
+    {
+      "id": "TRAN-092",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#value-encoding",
+        "quote": "To avoid ambiguity, clients MUST also Base64-encode any plain-ASCII value that matches the sentinel pattern (i.e., starts with `=?base64?` and ends with `?=`)."
+      },
+      "checks": [
+        "transport.sentinel-pattern-encoded"
+      ]
+    },
+    {
+      "id": "TRAN-093",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#client-behavior",
+        "quote": "When constructing a `tools/call` request via HTTP transport, the client MUST:"
+      },
+      "exclusion": "The umbrella introducing the client's `tools/call` construction steps; each step is a clause of its own above, and the umbrella has no observable beyond them."
+    },
+    {
+      "id": "TRAN-094",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#client-behavior",
+        "quote": "If the server rejects a request with a `HeaderMismatch` error because required `Mcp-Param-*` headers are missing or do not match the body, the client SHOULD call `tools/list` to check for changes to the tool's `inputSchema`, then retry the original request with the appropriate headers."
+      },
+      "exclusion": "Whether a client re-fetched `tools/list` after a `HeaderMismatch` is recovery conduct; a later `tools/list` in the same recording is equally consistent with any other reason for calling it."
+    },
+    {
+      "id": "TRAN-095",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#server-behavior-for-custom-headers",
+        "quote": "Intermediate servers that do not recognize an `Mcp-Param-{Name}` header MUST forward it and otherwise ignore it, as required by the [HTTP Semantics RFC][http-semantics]."
+      },
+      "exclusion": "Intermediary behavior: a forwarding proxy is not a party to the MCP session, and the trace records the endpoints, not the hops between them."
+    },
+    {
+      "id": "TRAN-096",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#server-behavior-for-custom-headers",
+        "quote": "Servers MUST reject requests with a recognized `Mcp-Param-{Name}` header that contains invalid characters (see Value Encoding)."
+      },
+      "checks": [
+        "transport.invalid-param-header-rejected"
+      ]
+    },
+    {
+      "id": "TRAN-097",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#server-behavior-for-custom-headers",
+        "quote": "Any server that processes the message body MUST validate that encoded header values, after decoding if Base64-encoded, match the corresponding values in the request body."
+      },
+      "checks": [
+        "transport.header-body-match-validated"
+      ]
+    },
+    {
+      "id": "TRAN-098",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#server-behavior-for-custom-headers",
+        "quote": "Servers MUST reject requests with a `400 Bad Request` HTTP status and JSON-RPC error code `-32020` (`HeaderMismatch`) if any validation fails."
+      },
+      "checks": [
+        "transport.header-mismatch-status"
+      ]
+    },
+    {
+      "id": "TRAN-099",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#case-sensitivity",
+        "quote": "Clients and servers MUST use case-insensitive comparisons for header names."
+      },
+      "exclusion": "Case-insensitive comparison is internal string handling. The trace lowercases header names on read (`EventBody::Http`), so a capture cannot even preserve the casing a party compared against."
+    },
+    {
+      "id": "TRAN-100",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#server-validation",
+        "quote": "Servers that process the request body MUST reject requests where the values specified in the headers do not match the corresponding values in the request body."
+      },
+      "checks": [
+        "transport.header-body-match-validated"
+      ]
+    },
+    {
+      "id": "TRAN-101",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#server-validation",
+        "quote": "When validating integer parameter values, servers SHOULD compare the header value and the body value numerically rather than as strings (e.g., `42.0` and `42` are considered equal)."
+      },
+      "exclusion": "Numeric-versus-string comparison is internal; only the comparison's verdict reaches the wire, and that is judged by TRAN-097."
+    },
+    {
+      "id": "TRAN-102",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#server-validation",
+        "quote": "When rejecting a request due to header validation failure, servers MUST return HTTP status `400 Bad Request` and MUST include a JSON-RPC error response using the following error code:"
+      },
+      "checks": [
+        "transport.header-mismatch-status"
+      ]
+    },
+    {
+      "id": "TRAN-103",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#server-validation",
+        "quote": "For headers that permit the Base64 sentinel encoding (`Mcp-Name` and `Mcp-Param-{Name}`), servers MUST decode encoded values (see Value Encoding) before comparing them to the body value."
+      },
+      "exclusion": "Same internal-decode boundary as the earlier decode clauses: the wire shows the encoded value and the outcome, not the decoding in between."
+    },
+    {
+      "id": "TRAN-104",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#server-validation",
+        "quote": "Intermediaries MUST return an appropriate HTTP error status (e.g., `400 Bad Request`) for validation failures but are not required to return a JSON-RPC error response."
+      },
+      "exclusion": "Intermediary behavior; see the forwarding clause above. An intermediary's HTTP error never becomes an MCP message in this session."
+    },
+    {
+      "id": "TRAN-105",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#server-validation",
+        "quote": "Intermediaries that enforce policy based on mirrored headers (e.g., routing or rate-limiting by tenant) SHOULD verify that the `MCP-Protocol-Version` header indicates a version that requires header–body validation."
+      },
+      "exclusion": "Intermediary policy enforcement, outside the recorded session's endpoints."
+    },
+    {
+      "id": "TRAN-106",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#server-validation",
+        "quote": "If the version is older or the header is absent, the intermediary SHOULD reject the request rather than trusting unvalidated header values."
+      },
+      "exclusion": "Intermediary rejection policy, outside the recorded session's endpoints."
+    }
+  ]
+}

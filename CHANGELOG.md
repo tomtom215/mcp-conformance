@@ -11,7 +11,215 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **The `2026-07-28` registry judges two of its fifteen in-scope pages, and
+  nothing in it is aspirational.** `basic/index` (57 clauses) and
+  `basic/transports/streamable-http` (60) are entered by the same
+  per-requirement method as `2025-11-25` — live fetch, verbatim quote, then a
+  named check or an exclusion whose reason is specific to that clause. The
+  result is **117 entries: 51 judged, 0 unsupported, 66 excluded**, behind the
+  off-by-default `draft-2026-07-28` feature, with `spec-drift` verifying all
+  257 quotes across both revisions and both a passing and a violating corpus
+  trace behind every judged clause. The `2025-11-25` registry is untouched at
+  140 entries, and a test asserts the byte-equality rather than assuming it.
+
+  Thirty-two checks are new, all feature-gated: six for the message envelope
+  (`resultType`, in-flight id reuse, the four error-code partition rules),
+  eight for the per-request `_meta` envelope the stateless rework introduced,
+  and eighteen for Streamable HTTP — request metadata headers, the Base64
+  value-encoding rules, `x-mcp-header` mirroring and annotation validity, the
+  server-side rejection clauses, and the response-stream rules. Judging Base64
+  sentinel values needed a decoder; it is ~25 lines beside the existing
+  validator rather than a new dependency, so the judgment surface stays
+  `serde`-only.
+
+  Two boundaries are the specification's, not ours: notification POSTs are
+  unjudged because the revision states their header requirements are undefined,
+  and the `x-mcp-header` reachability clauses stay excluded because deciding
+  them needs a JSON Schema engine, not a session.
+
+  Each check carries unit tests alongside its corpus pair, because the two
+  answer different questions — "does this check ever fire?" and "does it fire on
+  exactly the right thing?" — and only the second scales with the number of
+  branches a check has. The diff-scoped mutation gate is the arbiter: 356
+  mutants over the new code, 356 caught.
+
+### Fixed
+
+- **`meta.missing-required-field-http-status` and
+  `meta.missing-capability-http-status` could not fail on a real capture.**
+  Both ask whether a JSON-RPC error carried HTTP 400, and the helper they share
+  searched *forward* from the error message for the next recorded status — but
+  the tap records a response's `http` event **before** the message it framed,
+  as every captured trace in `corpus/good/` shows. On a live recording the
+  helper read the following exchange's status, or none at all, so both clauses
+  reported a vacuous pass. It now scans backwards to the nearest server-sent
+  status, which also handles SSE correctly: every frame of one response rides
+  one status event.
+
+- **A reused check would have reported a vacuous pass for TRAN-071.** The
+  `2026-07-28` clause "every POST request MUST include an
+  `MCP-Protocol-Version` header" was pointed at the `2025-11-25` check of the
+  same purpose, which returns early unless it finds the version negotiated in
+  an `initialize` result — the handshake this revision removes. It would have
+  inspected nothing and passed, which is worse than the `unsupported` it
+  replaced: an absent check is visible in the totals, a vacuous one is not.
+  Caught before shipping; the clause now names a check written against the POST
+  itself.
+
+- **A header value shaped like the Base64 sentinel was treated as encoded even
+  when its payload was not.** `=?base64?café?=` matched the sentinel pattern and
+  was skipped, but it is not an encoded value — it is a header that still cannot
+  be transmitted, which is exactly what the Value Encoding clauses forbid. Only
+  a *miscased* sentinel is now deferred (to the marker-case clause); everything
+  else is judged on the bytes it actually carries.
+
+- **Five clauses were judged by checks that bundled their neighbours' rules.**
+  The engine attributes a check's finding to every requirement naming it, so a
+  trace carrying an unencoded non-ASCII header value reported the *marker-case*
+  clause as failed. The two bundling checks are split into six along the rules
+  they state; requirements now share a check only where they state one rule
+  across several sections.
+
+### Changed
+
+- **M2.5 Phase 0: the registry can describe two revisions, and the `2025-11-25`
+  surface provably did not move.** All 140 embedded entries are now bounded
+  `applies: {removed: "2026-07-28"}`, and `RegistrySet::builtin()` describes the
+  new revision behind a new off-by-default `draft-2026-07-28` feature on
+  `mcp-conformance-core`.
+
+  The bound is the point. An absent `applies` range means *every* revision, so
+  describing a second one without it would have silently applied all 140
+  entries — every quote citing a `2025-11-25` page — to `2026-07-28`, making an
+  unextracted revision read as fully covered. Two tests stand guard: the
+  `2025-11-25` projection still reconstructs `Registry::builtin_2025_11_25()`
+  byte-for-byte at 140 entries, and no embedded requirement applies at
+  `2026-07-28`. Both run in each feature mode.
+
+  With the feature on, `registry("2026-07-28")` answers with an **empty but
+  real** registry — a state `RegistrySet::registry`'s contract already
+  distinguished from `None`. It is off by default precisely because an empty
+  registry judges nothing and therefore fails nothing; a default build must not
+  be able to read that silence as conformance.
+
+  No verdicts change: 40/40 server and 4/4 client conformance stay green with
+  zero unexplained divergence, and `spec-drift` still verifies every quote.
+
+- **Correction: the registry is 140 entries, not 130.** Several figures
+  published earlier this session were computed by scripts that skipped
+  `resources.json`, because `"resources.json".endswith("sources.json")` is true
+  and the loops filtered the page manifest that way. The extractor's calibration
+  claim survives re-checking at the true total — **140/140** quotes verify — but
+  the counts in `tools/extract-clauses.py` and the extraction inventory are
+  corrected, and the trap is documented in the tool. The true split, 52 checked
+  / 88 excluded, matches what v0.4.0's changelog already stated.
+
+- **The SDK moved from `rmcp 1.7.0` to `3.1.2`, and a before/after wire diff
+  says what that changed.** ADR-0011 held the pin until both the `2026-07-28`
+  text shipped and rmcp cut a stable `3.0.x`; both are now true, so the hold
+  expired by its own terms. The 40/40 server and 4/4 client conformance gates
+  stayed green with both expected-failure lists still empty, and the agreement
+  check still reports zero unexplained divergence.
+
+  The diff was calibrated before it was trusted: two consecutive runs at 1.7.0
+  produced zero differences across all 34 sessions, so anything the upgrade
+  moved is signal. Exactly three effects account for every difference — five
+  `inputSchema`s and one `outputSchema` no longer carry the schemars-derived
+  top-level `title`/`description` (rustdoc artifacts that were leaking onto the
+  wire); `clientInfo.version` follows the SDK version, which is register 3.9's
+  `from_build_env` bug re-observed rather than anything new; and the
+  concurrent-multi-stream session became nondeterministic in its response
+  interleaving, proven by diffing two 3.1.2 runs against each other. Normalize
+  the first two away and 29/30 server sessions and 4/4 client sessions are
+  byte-identical, the sole exception being the session shown to be
+  nondeterministic. Register 3.16.
+
+- **Tool-argument validation now reports the error class the spec asks for.**
+  Arguments that fail a tool's own `inputSchema` are returned as a tool
+  execution result with `isError: true`, not as an MCP protocol error. This is
+  a **behaviour change, and a correction**: the `2025-11-25` tools page places
+  "Input validation errors" under tool execution errors and reserves protocol
+  errors for unknown tools, malformed `CallToolRequest`s, and server errors.
+  rmcp changed this in 1.8.0 and this workspace pinned the old, non-conformant
+  behaviour until now. Unknown tools stay `-32602`, and missing *prompt*
+  arguments stay protocol errors because `GetPromptResult` has no `isError`
+  channel. Three tests were inverted deliberately. Register 3.17.
+
+- **URL-mode elicitation is preserved rather than dropped.** rmcp 3.x deleted
+  `notifications/elicitation/complete` along with the `2026-07-28` removal of
+  the feature, but the notification is still part of `2025-11-25`, which this
+  server implements and rmcp still lists as supported. It is now sent and
+  received through `ServerNotification::CustomNotification`, keeping the
+  capability the crate advertises. The host deliberately matches the literal
+  method name: rmcp 3.x's `ElicitationResponseNotificationMethod` constant is
+  `notifications/elicitation/response`, a *different* notification, and binding
+  to it would have left the host silently deaf — caught by the round-trip test.
+
+- **Readiness for `2026-07-28` jumped from 1 passing / 20 failing / 1
+  informational to 23 passing / 0 failing / 0 informational.** The single
+  blocker was the removed handshake: rmcp 1.7.0's server rejected every
+  scenario with HTTP 422 before any handler ran. On rmcp 3.x the everything
+  server passes the official runner's whole `2026-07-28` scenario set.
+  This remains **not** a conformance claim about that revision — the
+  requirement registry still does not describe it and the validator is not
+  involved — but the lifecycle blocker is gone. Baseline re-blessed.
+
+- **SEP-2577 deprecation allows are module-scoped, never crate-wide.** Roots,
+  Sampling and Logging are deprecated forward but remain required on the
+  `2025-11-25` surface the suite grades, so rmcp 3.x's attributes fire on
+  correct code. Each of the six library modules and two test modules carries
+  its own `#![allow(deprecated)]` with a comment naming the feature. The honest
+  cost, stated in each: an unrelated future deprecation in those modules would
+  also be silenced.
+
+- **`cargo-deny` gets a documented `base64` duplicate skip, because the rmcp
+  upgrade created one.** rmcp 3.1.2 requires base64 0.23 while hyper-util
+  0.1.20 (reached via both axum and reqwest) still requires 0.22, and `bans` is
+  `deny`. This is stated in the skip as costing more than the neighbouring
+  `syn` skip: syn is build-time only, whereas both base64 copies are compiled
+  into the binaries. Accepted because neither version is ours to pin, with an
+  exact pin so it re-fires when either moves. Found by CI, not locally —
+  cargo-deny is now installed in the dev loop so `cargo xtask ci` reports
+  "every local gate ran and passed" instead of skipping it.
+
+- **`rmcp-macros` ceiling shim moved to `>=3.1.1, <3.2.0`.** Register 3.13 is
+  still unfixed upstream — rmcp 3.1.2 caret-pins its own macro crate — so the
+  shim keeps doing real work.
+
+- **The `2026-07-28` specification shipped on its scheduled date, and the
+  repository's claims about it are corrected to match.** v0.4.0 was cut one day
+  ahead of the text and said so throughout; those statements are now false and
+  a reader cannot tell which are history and which are current. Recorded as
+  register row 1.5h with four independent confirmations of a real cut — the
+  site default redirects to `/specification/2026-07-28`, the version dropdown
+  marks it `(latest)`, upstream's `draft/changelog.mdx` was reset to its
+  post-release stub, and `schema/2026-07-28/schema.ts` is on `main`. The
+  shipped changelog carries **exactly the planned inventory** (nine Major,
+  twelve Minor, four Deprecated, unchanged since 1.5d/1.5e), so roadmap M2.5's
+  extraction checklist needs no re-scoping. Documentation only: no crate's
+  behaviour, API, or verdicts change.
+- **`spec-drift` resolves its pages per revision instead of hardcoding one.**
+  Both the sources path and the raw base URL are now derived from a revision,
+  so `2026-07-28` registry entries will be verified against the `2026-07-28`
+  text rather than silently checked against `2025-11-25` pages. With one
+  published revision this was a distinction without a difference; with two it
+  is a correctness bug waiting for the next entry. The live gate still
+  verifies all 140 quotes.
+- **ADR-0011 amended (2026-07-28), decision unchanged.** Its first condition
+  is met and its second is not: rmcp's newest is `3.0.0-beta.4` while
+  `max_stable_version` is still `2.2.0`, so the pin holds at 1.7.0 and the
+  `rmcp-macros` ceiling shim stays in force. The amendment also retires a
+  supporting argument that expired with the release, and records that the
+  Decision's bundling of the SDK upgrade with M2.5's extraction scopes *when
+  the upgrade lands*, not when extraction may start.
+- **`draft-readiness` prose corrected:** "draft" now describes the pre-release
+  suite scenarios (`0.2.0-alpha`), not the specification. The task, its
+  committed baseline filename, and the report path keep their names — those
+  are load-bearing across CI — and the rename is deferred to the suite pin
+  bump, where the pins move anyway. The committed `_policy` string matches the
+  generator byte-for-byte, so `BLESS=1` produces no spurious diff.
 
 ## [0.4.0] - 2026-07-27
 

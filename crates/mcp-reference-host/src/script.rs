@@ -10,8 +10,16 @@
 //! requires: a client accepting a form fills every omitted field that carries a
 //! schema default before responding.
 
+// SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
+// functional and REQUIRED on the `2025-11-25` surface this crate implements
+// and the official suite exercises, so rmcp 3.x's deprecation attributes fire
+// on correct code — here, Sampling. Scoped to this module, never the crate:
+// a blanket allow would also hide a deprecation that genuinely matters. The
+// honest cost is that a *different* future deprecation in this module would
+// be silenced too. Retires when the `2025-11-25` surface does.
+#![allow(deprecated)]
 use rmcp::model::{
-    ElicitationSchema, EnumSchema, MultiSelectEnumSchema, PrimitiveSchema, Root,
+    ElicitationSchema, EnumSchema, MultiSelectEnumSchema, PrimitiveSchemaDefinition, Root,
     SingleSelectEnumSchema,
 };
 use serde_json::{Map, Value};
@@ -88,30 +96,37 @@ pub fn defaults_from_schema(schema: &ElicitationSchema) -> Map<String, Value> {
 }
 
 /// The default value of one primitive property, when it declares one.
-fn default_of(property: &PrimitiveSchema) -> Option<Value> {
+fn default_of(property: &PrimitiveSchemaDefinition) -> Option<Value> {
     match property {
-        PrimitiveSchema::String(string) => string.default.clone().map(Value::String),
-        PrimitiveSchema::Number(number) => number
+        PrimitiveSchemaDefinition::String(string) => string.default.clone().map(Value::String),
+        PrimitiveSchemaDefinition::Number(number) => number
             .default
             .and_then(serde_json::Number::from_f64)
             .map(Value::Number),
-        PrimitiveSchema::Integer(integer) => {
+        PrimitiveSchemaDefinition::Integer(integer) => {
             integer.default.map(|value| Value::Number(value.into()))
         }
-        PrimitiveSchema::Boolean(boolean) => boolean.default.map(Value::Bool),
-        PrimitiveSchema::Enum(EnumSchema::Single(single)) => match single {
+        PrimitiveSchemaDefinition::Boolean(boolean) => boolean.default.map(Value::Bool),
+        PrimitiveSchemaDefinition::Enum(EnumSchema::Single(single)) => match single {
             SingleSelectEnumSchema::Untitled(schema) => schema.default.clone().map(Value::String),
             SingleSelectEnumSchema::Titled(schema) => schema.default.clone().map(Value::String),
+            // `#[non_exhaustive]` in rmcp 3.x: an unrecognized form declares
+            // no default this host can read, which is the same answer it
+            // gives for the legacy form below.
+            _ => None,
         },
-        PrimitiveSchema::Enum(EnumSchema::Multi(multi)) => {
+        PrimitiveSchemaDefinition::Enum(EnumSchema::Multi(multi)) => {
             let default = match multi {
                 MultiSelectEnumSchema::Untitled(schema) => schema.default.clone(),
                 MultiSelectEnumSchema::Titled(schema) => schema.default.clone(),
+                _ => None,
             };
             default.map(|values| Value::Array(values.into_iter().map(Value::String).collect()))
         }
-        // The legacy enum form (SEP-1330's predecessor) defines no default.
-        PrimitiveSchema::Enum(EnumSchema::Legacy(_)) => None,
+        // The legacy enum form (SEP-1330's predecessor) defines no default,
+        // and neither does any primitive type this host does not recognize —
+        // `PrimitiveSchemaDefinition` became `#[non_exhaustive]` in rmcp 3.x.
+        PrimitiveSchemaDefinition::Enum(EnumSchema::Legacy(_)) | _ => None,
     }
 }
 

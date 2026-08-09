@@ -5,6 +5,9 @@
       "id": "TOOL-001",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#capabilities",
         "quote": "Servers that support tools MUST declare the `tools` capability:"
@@ -18,6 +21,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.tools.listChanged",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#list-changed-notification",
         "quote": "When the list of available tools changes, servers that declared the `listChanged` capability SHOULD send a notification:"
@@ -29,6 +35,9 @@
       "level": "MUST",
       "actor": "server",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#tool",
         "quote": "`inputSchema`: JSON Schema defining expected parameters; MUST be a valid JSON Schema object (not `null`)"
@@ -41,6 +50,9 @@
       "id": "TOOL-004",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#tool",
         "quote": "For trust & safety and security, clients MUST consider tool annotations to be untrusted unless they come from trusted servers."
@@ -52,6 +64,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#tool-names",
         "quote": "Tool names SHOULD be between 1 and 128 characters in length (inclusive)."
@@ -65,6 +80,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#tool-names",
         "quote": "The following SHOULD be the only allowed characters: uppercase and lowercase ASCII letters (A-Z, a-z), digits (0-9), underscore (_), hyphen (-), and dot (.)"
@@ -78,6 +96,9 @@
       "level": "SHOULD NOT",
       "actor": "server",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#tool-names",
         "quote": "Tool names SHOULD NOT contain spaces, commas, or other special characters."
@@ -91,6 +112,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#tool-names",
         "quote": "Tool names SHOULD be unique within a server."
@@ -104,6 +128,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#embedded-resources",
         "quote": "Servers that use embedded resources SHOULD implement the `resources` capability:"
@@ -117,6 +144,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#structured-content",
         "quote": "For backwards compatibility, a tool that returns structured content SHOULD also return the serialized JSON in a TextContent block."
@@ -130,6 +160,9 @@
       "level": "MUST",
       "actor": "server",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#output-schema",
         "quote": "If an output schema is provided: Servers MUST provide structured results that conform to this schema."
@@ -143,6 +176,9 @@
       "level": "MUST",
       "actor": "server",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#security-considerations",
         "quote": "Servers MUST: Validate all tool inputs; Implement proper access controls; Rate limit tool invocations; Sanitize tool outputs"
@@ -154,6 +190,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#tool-names",
         "quote": "Tool names SHOULD be considered case-sensitive."
@@ -165,6 +204,9 @@
       "level": "SHOULD",
       "actor": "client",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#output-schema",
         "quote": "Clients SHOULD validate structured results against this schema."
@@ -176,6 +218,9 @@
       "level": "SHOULD",
       "actor": "client",
       "capability": "server.tools",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/tools#user-interaction-model",
         "quote": "For trust & safety and security, there SHOULD always be a human in the loop with the ability to deny tool invocations."

@@ -9,10 +9,7 @@
 //! subscribe/unsubscribe bookkeeping (held in
 //! [`crate::server::EverythingServer`]; this module is the pure catalog).
 
-use rmcp::model::{
-    AnnotateAble as _, RawResource, RawResourceTemplate, ReadResourceResult, Resource,
-    ResourceContents, ResourceTemplate,
-};
+use rmcp::model::{ReadResourceResult, Resource, ResourceContents, ResourceTemplate};
 
 use crate::fixtures::TINY_PNG_BASE64;
 
@@ -26,46 +23,38 @@ pub const TEMPLATE_URI: &str = "test://template/{id}/data";
 /// Every direct resource, as `resources/list` reports it.
 #[must_use]
 pub fn catalog() -> Vec<Resource> {
+    // rmcp 3.x flattened `Annotated<RawResource>` into a `#[non_exhaustive]`
+    // `Resource` carrying `annotations` directly, so these are built through
+    // `new` + field assignment rather than a struct literal. The emitted JSON
+    // is unchanged: every field left at its `new` default is
+    // `skip_serializing_if = "Option::is_none"`, and the old `no_annotation()`
+    // meant exactly today's `annotations: None`.
     vec![
-        RawResource {
-            uri: STATIC_TEXT_URI.into(),
-            name: "static-text".into(),
-            title: None,
-            description: Some("A static text resource for conformance testing".into()),
-            mime_type: Some("text/plain".into()),
-            size: None,
-            icons: None,
-            meta: None,
-        }
-        .no_annotation(),
-        RawResource {
-            uri: STATIC_BINARY_URI.into(),
-            name: "static-binary".into(),
-            title: None,
-            description: Some("A static binary resource for conformance testing".into()),
-            mime_type: Some("image/png".into()),
-            size: None,
-            icons: None,
-            meta: None,
-        }
-        .no_annotation(),
+        {
+            let mut resource = Resource::new(STATIC_TEXT_URI, "static-text");
+            resource.description = Some("A static text resource for conformance testing".into());
+            resource.mime_type = Some("text/plain".into());
+            resource
+        },
+        {
+            let mut resource = Resource::new(STATIC_BINARY_URI, "static-binary");
+            resource.description = Some("A static binary resource for conformance testing".into());
+            resource.mime_type = Some("image/png".into());
+            resource
+        },
     ]
 }
 
 /// Every resource template, as `resources/templates/list` reports it.
 #[must_use]
 pub fn templates() -> Vec<ResourceTemplate> {
-    vec![
-        RawResourceTemplate {
-            uri_template: TEMPLATE_URI.into(),
-            name: "template-data".into(),
-            title: None,
-            description: Some("Parameterized resource template for conformance testing".into()),
-            mime_type: Some("application/json".into()),
-            icons: None,
-        }
-        .no_annotation(),
-    ]
+    vec![{
+        let mut template = ResourceTemplate::new(TEMPLATE_URI, "template-data");
+        template.description =
+            Some("Parameterized resource template for conformance testing".into());
+        template.mime_type = Some("application/json".into());
+        template
+    }]
 }
 
 /// Resolves a URI to its contents; `None` is "no such resource".

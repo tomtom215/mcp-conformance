@@ -1,70 +1,71 @@
 {
-  "_policy": "Measured by `cargo xtask draft-readiness`: the status of every check the official runner's 2026-07-28 draft scenarios report against the 2025-11-25 everything server. The gate fails on ANY change — a lost pass is a migration regression, a gained one is progress that gets recorded deliberately (BLESS=1) in the commit that earned it. Statuses are verbatim: INFO is the runner's informational outcome and is neither a pass nor a failure. This is NOT a conformance claim about the 2026-07-28 revision — the requirement registry does not describe that revision yet.",
-  "failing": 20,
-  "informational": 1,
-  "passing": 1,
+  "_policy": "Measured by `cargo xtask draft-readiness`: the status of every check the official runner's 2026-07-28 scenarios report against the 2025-11-25 everything server. The gate fails on ANY change — a lost pass is a migration regression, a gained one is progress that gets recorded deliberately (BLESS=1) in the commit that earned it. Statuses are verbatim: INFO is the runner's informational outcome and is neither a pass nor a failure. This is NOT a conformance claim about the 2026-07-28 revision: the text shipped on 2026-07-28 (register 1.5h), but the requirement registry does not describe that revision yet (roadmap M2.5 line 2), and these scenarios come from a pre-release suite, so the check set itself can still move.",
+  "failing": 0,
+  "informational": 0,
+  "passing": 23,
   "scenarios": {
     "completion-complete": {
-      "completion-complete": "FAILURE"
+      "completion-complete": "SUCCESS"
     },
     "dns-rebinding-protection": {
       "localhost-host-rebinding-rejected": "SUCCESS",
-      "localhost-host-valid-accepted": "FAILURE"
+      "localhost-host-valid-accepted": "SUCCESS"
     },
     "prompts-get-embedded-resource": {
-      "prompts-get-embedded-resource": "FAILURE"
+      "prompts-get-embedded-resource": "SUCCESS"
     },
     "prompts-get-simple": {
-      "prompts-get-simple": "FAILURE"
+      "prompts-get-simple": "SUCCESS"
     },
     "prompts-get-with-args": {
-      "prompts-get-with-args": "FAILURE"
+      "prompts-get-with-args": "SUCCESS"
     },
     "prompts-get-with-image": {
-      "prompts-get-with-image": "FAILURE"
+      "prompts-get-with-image": "SUCCESS"
     },
     "prompts-list": {
-      "prompts-list": "FAILURE"
+      "prompts-list": "SUCCESS"
     },
     "resources-list": {
-      "resources-list": "FAILURE"
+      "resources-list": "SUCCESS"
     },
     "resources-read-binary": {
-      "resources-read-binary": "FAILURE"
+      "resources-read-binary": "SUCCESS"
     },
     "resources-read-text": {
-      "resources-read-text": "FAILURE"
+      "resources-read-text": "SUCCESS"
     },
     "resources-templates-read": {
-      "resources-templates-read": "FAILURE"
+      "resources-templates-read": "SUCCESS"
     },
     "server-sse-multiple-streams": {
-      "server-accepts-multiple-post-streams": "FAILURE",
-      "server-sse-streams-functional": "INFO"
+      "server-accepts-multiple-post-streams": "SUCCESS",
+      "server-sse-streams-functional": "SUCCESS"
     },
     "tools-call-audio": {
-      "tools-call-audio": "FAILURE"
+      "tools-call-audio": "SUCCESS"
     },
     "tools-call-embedded-resource": {
-      "tools-call-embedded-resource": "FAILURE"
+      "tools-call-embedded-resource": "SUCCESS"
     },
     "tools-call-error": {
-      "tools-call-error": "FAILURE"
+      "tools-call-error": "SUCCESS"
     },
     "tools-call-image": {
-      "tools-call-image": "FAILURE"
+      "tools-call-image": "SUCCESS"
     },
     "tools-call-mixed-content": {
-      "tools-call-mixed-content": "FAILURE"
+      "tools-call-mixed-content": "SUCCESS"
     },
     "tools-call-simple-text": {
-      "tools-call-simple-text": "FAILURE"
+      "tools-call-simple-text": "SUCCESS"
     },
     "tools-call-with-progress": {
-      "tools-call-with-progress": "FAILURE"
+      "tools-call-with-progress": "SUCCESS"
     },
     "tools-list": {
-      "tools-list": "FAILURE"
+      "tools-list": "SUCCESS",
+      "tools-name-format": "SUCCESS"
     }
   },
   "spec": "2026-07-28",

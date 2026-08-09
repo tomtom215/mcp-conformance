@@ -69,6 +69,47 @@ pub(super) fn is_base64(text: &str) -> bool {
         .all(|&b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/')
 }
 
+/// The bytes `text` encodes, for standard base64 (RFC 4648 §4), as UTF-8.
+///
+/// `None` when `text` is not valid base64 or does not decode to UTF-8. Written
+/// here rather than pulled in as a dependency: the judgment surface is
+/// deliberately dependency-free (only `serde`/`serde_json`), and one alphabet
+/// with one padding rule is all the `2026-07-28` header sentinel needs — its
+/// values are "Base64 encoding of the UTF-8 representation"
+/// (`basic/transports/streamable-http#value-encoding`). Gated with its only
+/// caller, since a decoder no build path reaches is dead weight.
+#[cfg(feature = "draft-2026-07-28")]
+pub(super) fn decode_base64(text: &str) -> Option<String> {
+    if !is_base64(text) {
+        return None;
+    }
+    let mut bytes = Vec::with_capacity(text.len() / 4 * 3);
+    let mut accumulator: u32 = 0;
+    let mut bits: u32 = 0;
+    // `is_base64` has already established that `=` appears only as trailing
+    // padding, so stopping at the first one cannot truncate real data.
+    for byte in text.bytes().take_while(|&byte| byte != b'=') {
+        let sextet = match byte {
+            b'A'..=b'Z' => u32::from(byte - b'A'),
+            b'a'..=b'z' => u32::from(byte - b'a') + 26,
+            b'0'..=b'9' => u32::from(byte - b'0') + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => return None,
+        };
+        // `+`, not `|`: the shift clears the low six bits and a sextet occupies
+        // only those, so the two are numerically identical here — and `|` would
+        // be an operator no test could ever distinguish from its mutations.
+        accumulator = (accumulator << 6) + sextet;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            bytes.push(u8::try_from((accumulator >> bits) & 0xff).ok()?);
+        }
+    }
+    String::from_utf8(bytes).ok()
+}
+
 /// `true` when `uri` begins with an RFC 3986 §3.1 scheme followed by `:`:
 /// `ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )`. Judges scheme syntax only — the
 /// registry documents that deeper RFC 3986 validation is out of trace scope.
@@ -103,6 +144,51 @@ mod tests {
         ] {
             assert!(!is_base64(invalid), "{invalid:?} should not validate");
         }
+    }
+
+    #[cfg(feature = "draft-2026-07-28")]
+    #[test]
+    fn base64_decoding_round_trips_the_specification_examples() {
+        // The encoding table in `basic/transports/streamable-http#value-encoding`,
+        // verbatim: each encoded header value must decode back to its original.
+        for (encoded, original) in [
+            ("SGVsbG8sIOS4lueVjA==", "Hello, 世界"),
+            ("IHBhZGRlZCA=", " padded "),
+            ("bGluZTEKbGluZTI=", "line1\nline2"),
+            ("PT9iYXNlNjQ/bGl0ZXJhbD89", "=?base64?literal?="),
+        ] {
+            assert_eq!(
+                decode_base64(encoded).as_deref(),
+                Some(original),
+                "{encoded:?} should decode to {original:?}"
+            );
+        }
+        assert_eq!(decode_base64("").as_deref(), Some(""));
+    }
+
+    #[cfg(feature = "draft-2026-07-28")]
+    #[test]
+    fn base64_decoding_covers_the_whole_alphabet_and_every_padding_length() {
+        // `+` and `/` are the two alphabet entries a lazy table would omit.
+        assert_eq!(decode_base64("fn5+").as_deref(), Some("~~~"));
+        assert_eq!(decode_base64("fn4/").as_deref(), Some("~~?"));
+        // Each padding length exercises a different number of emitted bytes.
+        assert_eq!(decode_base64("YQ==").as_deref(), Some("a")); // 1 byte
+        assert_eq!(decode_base64("YWI=").as_deref(), Some("ab")); // 2 bytes
+        assert_eq!(decode_base64("YWJj").as_deref(), Some("abc")); // 3 bytes
+        // Ordering matters: the bits accumulate most-significant sextet first,
+        // so a transposition must not decode to the same text.
+        assert_eq!(decode_base64("YmFj").as_deref(), Some("bac"));
+    }
+
+    #[cfg(feature = "draft-2026-07-28")]
+    #[test]
+    fn base64_decoding_refuses_what_it_cannot_represent() {
+        // Not base64 at all.
+        assert_eq!(decode_base64("aGk"), None);
+        assert_eq!(decode_base64("aG=k"), None);
+        // Valid base64 whose bytes are not UTF-8 (0xFF is never a UTF-8 lead byte).
+        assert_eq!(decode_base64("/w=="), None);
     }
 
     #[test]

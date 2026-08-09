@@ -1,0 +1,83 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "BASE-063",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#statelessness",
+        "quote": "Servers MUST NOT rely on prior requests over the same connection to establish context (e.g., capabilities, protocol version, client identity)."
+      },
+      "exclusion": "Reliance is internal reasoning. A server that answers correctly may or may not have consulted prior requests, and one that errors may have done so for any reason; the trace shows the answer, not the inference behind it. The adjacent observable is that every request carries its own context, judged by BASE-030."
+    },
+    {
+      "id": "BASE-064",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#statelessness",
+        "quote": "Servers SHOULD be prepared to handle requests associated with multiple tasks, threads, or conversations."
+      },
+      "exclusion": "Preparedness is a property of the server's implementation, not of any session it took part in; a trace that happens to interleave conversations evidences capability, while one that does not evidences nothing."
+    },
+    {
+      "id": "BASE-065",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#statelessness",
+        "quote": "Servers SHOULD NOT require that a client reuse the same connection or process to perform related operations."
+      },
+      "exclusion": "Falsifying this needs a server refusing an operation *because* it arrived on a different connection — two correlated connections in one recording, which the trace vocabulary does not span: each recorded session is one transport."
+    },
+    {
+      "id": "BASE-066",
+      "level": "SHOULD NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#statelessness",
+        "quote": "Clients SHOULD NOT use an individual task, thread, or conversation as the lifetime boundary for the stdio process."
+      },
+      "exclusion": "Process lifetime is host-OS conduct outside the trace event vocabulary — `transport-open`/`close`/`abort` record that a transport ended, not what the client tied its lifetime to. Same boundary as LIFE-014 at 2025-11-25."
+    },
+    {
+      "id": "BASE-067",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#statelessness",
+        "quote": "State that needs to span multiple requests (e.g., long-running tasks, application-level handles) MUST be referenced by an explicit identifier the client passes on each request."
+      },
+      "exclusion": "Which state 'needs to span multiple requests' is server-internal; the trace shows the arguments a client passed, not whether they carried everything the server required. A violation surfaces only as the server failing for some other stated reason."
+    },
+    {
+      "id": "BASE-068",
+      "level": "SHOULD NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#auth",
+        "quote": "Implementations using an HTTP-based transport SHOULD conform to this specification, whereas implementations using STDIO transport SHOULD NOT follow this specification, and instead retrieve credentials from the environment."
+      },
+      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, which `sources.json` records as out of scope for the same reason it is at 2025-11-25."
+    }
+  ]
+}

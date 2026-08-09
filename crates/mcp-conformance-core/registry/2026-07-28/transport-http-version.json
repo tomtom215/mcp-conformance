@@ -1,0 +1,93 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "TRAN-071",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#protocol-version-header",
+        "quote": "Every POST request to the MCP endpoint MUST include an `MCP-Protocol-Version` header."
+      },
+      "checks": [
+        "transport.protocol-version-header-present"
+      ]
+    },
+    {
+      "id": "TRAN-072",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#protocol-version-header",
+        "quote": "`MCP-Protocol-Version: 2026-07-28` The header value MUST match the `io.modelcontextprotocol/protocolVersion` field carried in the request body's `meta`."
+      },
+      "checks": [
+        "transport.protocol-version-header-matches-body"
+      ]
+    },
+    {
+      "id": "TRAN-073",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#protocol-version-header",
+        "quote": "If the values do not match, the server MUST reject the request with `400 Bad Request` and a `HeaderMismatch` JSON-RPC error (see Server Validation)."
+      },
+      "checks": [
+        "transport.version-mismatch-rejected"
+      ]
+    },
+    {
+      "id": "TRAN-074",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#protocol-version-header",
+        "quote": "If the server does not implement the requested protocol version (whether the version is unknown to the server, or is a known version the server has chosen not to support), it MUST respond with `400 Bad Request` and an [`UnsupportedProtocolVersionError`][unsupported-version] listing its supported versions."
+      },
+      "checks": [
+        "transport.unsupported-version-error"
+      ]
+    },
+    {
+      "id": "TRAN-075",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#protocol-version-header",
+        "quote": "If the server does not implement the requested RPC method, it MUST respond with `404 Not Found` and a JSON-RPC error with code `-32601` (`Method not found`)."
+      },
+      "checks": [
+        "transport.unknown-method-404"
+      ]
+    },
+    {
+      "id": "TRAN-076",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#protocol-version-header",
+        "quote": "A server that does not support such clients MUST reject a request without the header per Server Validation."
+      },
+      "exclusion": "Whether a server supports header-less clients is its own policy; a trace shows how it answered one request, not the policy behind it. The rejection shape, when it happens, is judged by TRAN-073."
+    }
+  ]
+}

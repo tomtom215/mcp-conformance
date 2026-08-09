@@ -9,7 +9,7 @@
 //! description (the scenarios require one).
 
 use rmcp::handler::server::wrapper::Parameters;
-use rmcp::model::{PromptMessage, PromptMessageRole};
+use rmcp::model::{PromptMessage, Role};
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, prompt, prompt_router};
 
@@ -43,7 +43,7 @@ impl EverythingServer {
     #[prompt(name = "test_simple_prompt")]
     async fn test_simple_prompt(&self) -> Result<Vec<PromptMessage>, ErrorData> {
         Ok(vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "This is a simple prompt for testing.",
         )])
     }
@@ -56,7 +56,7 @@ impl EverythingServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<Vec<PromptMessage>, ErrorData> {
         Ok(vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             format!("Prompt with arguments: arg1='{arg1}', arg2='{arg2}'"),
         )])
     }
@@ -70,7 +70,7 @@ impl EverythingServer {
     ) -> Result<Vec<PromptMessage>, ErrorData> {
         Ok(vec![
             PromptMessage::new_resource(
-                PromptMessageRole::User,
+                Role::User,
                 resource_uri,
                 Some("text/plain".into()),
                 Some("Embedded resource content for testing.".into()),
@@ -78,10 +78,7 @@ impl EverythingServer {
                 None,
                 None,
             ),
-            PromptMessage::new_text(
-                PromptMessageRole::User,
-                "Please process the embedded resource above.",
-            ),
+            PromptMessage::new_text(Role::User, "Please process the embedded resource above."),
         ])
     }
 
@@ -108,7 +105,7 @@ impl EverythingServer {
         })?;
         Ok(vec![
             image_message,
-            PromptMessage::new_text(PromptMessageRole::User, "Please analyze the image above."),
+            PromptMessage::new_text(Role::User, "Please analyze the image above."),
         ])
     }
 }

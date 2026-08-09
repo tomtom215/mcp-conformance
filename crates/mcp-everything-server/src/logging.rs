@@ -9,6 +9,14 @@
 //! (`debug` lowest → `emergency` highest) is encoded here explicitly and
 //! exhaustively tested.
 
+// SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
+// functional and REQUIRED on the `2025-11-25` surface this crate implements
+// and the official suite exercises, so rmcp 3.x's deprecation attributes fire
+// on correct code — here, Logging. Scoped to this module, never the crate:
+// a blanket allow would also hide a deprecation that genuinely matters. The
+// honest cost is that a *different* future deprecation in this module would
+// be silenced too. Retires when the `2025-11-25` surface does.
+#![allow(deprecated)]
 use rmcp::model::LoggingLevel;
 
 /// Spec severity order, `debug` = 0 (least severe) … `emergency` = 7.

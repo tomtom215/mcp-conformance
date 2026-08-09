@@ -5,6 +5,9 @@
       "id": "TRAN-024",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "Every JSON-RPC message sent from the client MUST be a new HTTP POST request to the MCP endpoint."
@@ -15,6 +18,9 @@
       "id": "TRAN-025",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "The client MUST include an `Accept` header, listing both `application/json` and `text/event-stream` as supported content types."
@@ -27,6 +33,9 @@
       "id": "TRAN-026",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "The body of the POST request MUST be a single JSON-RPC request, notification, or response."
@@ -39,6 +48,9 @@
       "id": "TRAN-027",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "If the server accepts the input, the server MUST return HTTP status code 202 Accepted with no body."
@@ -49,6 +61,9 @@
       "id": "TRAN-028",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "If the server cannot accept the input, it MUST return an HTTP error status code (e.g., 400 Bad Request)."
@@ -59,6 +74,9 @@
       "id": "TRAN-029",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "If the input is a JSON-RPC request, the server MUST either return `Content-Type: text/event-stream`, to initiate an SSE stream, or `Content-Type: application/json`, to return one JSON object."
@@ -71,6 +89,9 @@
       "id": "TRAN-030",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "The client MUST support both these cases."
@@ -81,6 +102,9 @@
       "id": "TRAN-031",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "The server SHOULD immediately send an SSE event consisting of an event ID and an empty `data` field in order to prime the client to reconnect (using that event ID as `Last-Event-ID`)."
@@ -91,6 +115,9 @@
       "id": "TRAN-032",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "If the server does close the connection prior to terminating the SSE stream, it SHOULD send an SSE event with a standard `retry` field before closing the connection."
@@ -101,6 +128,9 @@
       "id": "TRAN-033",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "The client MUST respect the `retry` field, waiting the given number of milliseconds before attempting to reconnect."
@@ -111,6 +141,9 @@
       "id": "TRAN-034",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "The SSE stream SHOULD eventually include a JSON-RPC response for the JSON-RPC request sent in the POST body."
@@ -121,6 +154,9 @@
       "id": "TRAN-035",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "These messages SHOULD relate to the originating client request."
@@ -131,6 +167,9 @@
       "id": "TRAN-036",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "After the JSON-RPC response has been sent, the server SHOULD terminate the SSE stream."
@@ -141,6 +180,9 @@
       "id": "TRAN-037",
       "level": "SHOULD NOT",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "Disconnection SHOULD NOT be interpreted as the client cancelling its request."
@@ -151,6 +193,9 @@
       "id": "TRAN-038",
       "level": "SHOULD",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "To cancel, the client SHOULD explicitly send an MCP `CancelledNotification`."
@@ -161,6 +206,9 @@
       "id": "TRAN-039",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#listening-for-messages-from-the-server",
         "quote": "The client MUST include an `Accept` header, listing `text/event-stream` as a supported content type."
@@ -173,6 +221,9 @@
       "id": "TRAN-040",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#listening-for-messages-from-the-server",
         "quote": "The server MUST either return `Content-Type: text/event-stream` in response to this HTTP GET, or else return HTTP 405 Method Not Allowed, indicating that the server does not offer an SSE stream at this endpoint."
@@ -185,6 +236,9 @@
       "id": "TRAN-041",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#listening-for-messages-from-the-server",
         "quote": "These messages SHOULD be unrelated to any concurrently-running JSON-RPC request from the client."
@@ -195,6 +249,9 @@
       "id": "TRAN-042",
       "level": "MUST NOT",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#listening-for-messages-from-the-server",
         "quote": "The server MUST NOT send a JSON-RPC response on the stream unless resuming a stream associated with a previous client request."
@@ -205,6 +262,9 @@
       "id": "TRAN-043",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#multiple-connections",
         "quote": "The server MUST send each of its JSON-RPC messages on only one of the connected streams; that is, it MUST NOT broadcast the same message across multiple streams."
@@ -215,6 +275,9 @@
       "id": "TRAN-044",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#resumability-and-redelivery",
         "quote": "If present, the ID MUST be globally unique across all streams within that session—or all streams with that specific client, if session management is not in use."
@@ -225,6 +288,9 @@
       "id": "TRAN-045",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#resumability-and-redelivery",
         "quote": "Event IDs SHOULD encode sufficient information to identify the originating stream, enabling the server to correlate a `Last-Event-ID` to the correct stream."
@@ -235,6 +301,9 @@
       "id": "TRAN-046",
       "level": "SHOULD",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#resumability-and-redelivery",
         "quote": "If the client wishes to resume after a disconnection (whether due to network failure or server-initiated closure), it SHOULD issue an HTTP GET to the MCP endpoint, and include the `Last-Event-ID` header to indicate the last event ID it received."
@@ -245,6 +314,9 @@
       "id": "TRAN-047",
       "level": "MUST NOT",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#resumability-and-redelivery",
         "quote": "The server MUST NOT replay messages that would have been delivered on a different stream."
@@ -255,6 +327,9 @@
       "id": "TRAN-048",
       "level": "SHOULD",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#session-management",
         "quote": "Clients that no longer need a particular session (e.g., because the user is leaving the client application) SHOULD send an HTTP DELETE to the MCP endpoint with the `MCP-Session-Id` header, to explicitly terminate the session."
@@ -265,6 +340,9 @@
       "id": "TRAN-049",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "The client MUST use HTTP POST to send JSON-RPC messages to the MCP endpoint."

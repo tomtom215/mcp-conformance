@@ -161,7 +161,7 @@ fn every_trace_has_a_provenance_ledger_row() {
     // unlike commit messages); a trace without a row is an undocumented fixture.
     let ledger = fs::read_to_string(corpus_root().join("README.md"))
         .expect("corpus/README.md exists and is the provenance ledger");
-    for subdir in ["good", "violations"] {
+    for subdir in ["good", "violations", "draft/good", "draft/violations"] {
         for trace_path in trace_files(subdir) {
             let name = trace_path
                 .file_name()
@@ -180,15 +180,30 @@ fn every_trace_has_a_provenance_ledger_row() {
 fn corpus_falsifies_every_check() {
     // Every implemented check must be killed by at least one violation trace; a check
     // that has never failed anything is untested code wearing a green badge.
-    let registry = Registry::builtin_2025_11_25().unwrap();
+    //
+    // Unioned across corpora since the registry describes more than one revision: a
+    // `2026-07-28` check is exercised by `corpus/draft/violations` under that
+    // revision's registry, and the invariant is that *some* corpus kills each check —
+    // not that any single one does.
     let mut failed_checks = BTreeSet::new();
-    for trace_path in trace_files("violations") {
-        let report = validate_file(&registry, &trace_path);
-        for row in &report.requirements {
-            for finding in &row.findings {
-                failed_checks.insert(finding.check.clone());
+    let mut collect = |registry: &Registry, subdir: &str| {
+        for trace_path in trace_files(subdir) {
+            let report = validate_file(registry, &trace_path);
+            for row in &report.requirements {
+                for finding in &row.findings {
+                    failed_checks.insert(finding.check.clone());
+                }
             }
         }
+    };
+    collect(&Registry::builtin_2025_11_25().unwrap(), "violations");
+    #[cfg(feature = "draft-2026-07-28")]
+    {
+        let draft = mcp_conformance_core::requirement::RegistrySet::builtin()
+            .unwrap()
+            .registry("2026-07-28".parse().unwrap())
+            .expect("the draft feature describes 2026-07-28");
+        collect(&draft, "draft/violations");
     }
     let implemented: BTreeSet<String> = mcp_trace_validator::checks::ALL
         .iter()
@@ -196,8 +211,47 @@ fn corpus_falsifies_every_check() {
         .collect();
     assert_eq!(
         failed_checks, implemented,
-        "left: checks falsified by the corpus; right: checks implemented — \
+        "left: checks falsified by the corpora; right: checks implemented — \
          every implemented check needs a violation trace, and every finding must \
          come from a registered check"
     );
+}
+
+/// The `2026-07-28` corpus, held to the same contract as the `2025-11-25` one:
+/// a conforming session passes everything, and every check that revision's
+/// registry names has a trace that kills it.
+///
+/// Gated on the feature because without it the registry set does not describe
+/// the revision — there would be nothing to project and nothing to judge.
+#[cfg(feature = "draft-2026-07-28")]
+mod draft {
+    use super::{trace_files, validate_file};
+    use mcp_conformance_core::requirement::Registry;
+    use mcp_conformance_core::requirement::RegistrySet;
+
+    fn draft_registry() -> Registry {
+        RegistrySet::builtin()
+            .unwrap()
+            .registry("2026-07-28".parse().unwrap())
+            .expect("the draft feature describes 2026-07-28")
+    }
+
+    #[test]
+    fn draft_good_traces_pass_every_named_check() {
+        let registry = draft_registry();
+        for trace_path in trace_files("draft/good") {
+            let report = validate_file(&registry, &trace_path);
+            let failures: Vec<_> = report
+                .requirements
+                .iter()
+                .filter(|row| !row.findings.is_empty())
+                .map(|row| (row.id.clone(), row.findings.clone()))
+                .collect();
+            assert!(
+                failures.is_empty(),
+                "{} should conform: {failures:#?}",
+                trace_path.display()
+            );
+        }
+    }
 }

@@ -5,6 +5,9 @@
       "id": "PROM-001",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/prompts#capabilities",
         "quote": "Servers that support prompts MUST declare the `prompts` capability during initialization:"
@@ -18,6 +21,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.prompts.listChanged",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/prompts#list-changed-notification",
         "quote": "When the list of available prompts changes, servers that declared the `listChanged` capability SHOULD send a notification:"
@@ -29,6 +35,9 @@
       "level": "MUST",
       "actor": "server",
       "capability": "server.prompts",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/prompts#image-content",
         "quote": "The image data MUST be base64-encoded and include a valid MIME type."
@@ -42,6 +51,9 @@
       "level": "MUST",
       "actor": "server",
       "capability": "server.prompts",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/prompts#audio-content",
         "quote": "The audio data MUST be base64-encoded and include a valid MIME type."
@@ -55,6 +67,9 @@
       "level": "MUST",
       "actor": "server",
       "capability": "server.prompts",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/prompts#embedded-resources",
         "quote": "Resources can contain either text or binary (blob) data and MUST include: A valid resource URI; The appropriate MIME type; Either text content or base64-encoded blob data"
@@ -67,6 +82,9 @@
       "id": "PROM-006",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/prompts#security",
         "quote": "Implementations MUST carefully validate all prompt inputs and outputs to prevent injection attacks or unauthorized access to resources."
@@ -78,6 +96,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.prompts",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/prompts#error-handling",
         "quote": "Servers SHOULD return standard JSON-RPC errors for common failure cases: Invalid prompt name: `-32602` (Invalid params); Missing required arguments: `-32602` (Invalid params); Internal errors: `-32603` (Internal error)"
@@ -89,6 +110,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.prompts",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/prompts#implementation-considerations",
         "quote": "Servers SHOULD validate prompt arguments before processing"
@@ -102,6 +126,9 @@
       "level": "SHOULD",
       "actor": "client",
       "capability": "server.prompts",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/prompts#implementation-considerations",
         "quote": "Clients SHOULD handle pagination for large prompt lists"
@@ -112,6 +139,9 @@
       "id": "PROM-010",
       "level": "SHOULD",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/prompts#implementation-considerations",
         "quote": "Both parties SHOULD respect capability negotiation"

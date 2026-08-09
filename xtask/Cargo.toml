@@ -13,6 +13,12 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 
+[features]
+# Passthrough so `cargo xtask spec-drift` can verify the in-progress revision's
+# quotes: without it the registry set does not describe `2026-07-28`, and the gate
+# reports the revision as skipped rather than silently verifying nothing.
+draft-2026-07-28 = ["mcp-conformance-core/draft-2026-07-28"]
+
 [dependencies]
 mcp-conformance-core.workspace = true
 mcp-trace-validator.workspace = true

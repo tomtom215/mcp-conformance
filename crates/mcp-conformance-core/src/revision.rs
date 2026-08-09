@@ -24,6 +24,19 @@ pub const REVISION_2025_11_25: ProtocolRevision = ProtocolRevision {
     day: 25,
 };
 
+/// The `2026-07-28` protocol revision, published on that date.
+///
+/// Named here because the registry's revision *ranges* refer to it already: every
+/// `2025-11-25` entry is bounded `removed = 2026-07-28`, since its quote cites a
+/// `2025-11-25` page and the published text was rewritten even where the underlying
+/// requirement survived. Requirement *content* for this revision arrives area by area
+/// behind the `draft-2026-07-28` feature.
+pub const REVISION_2026_07_28: ProtocolRevision = ProtocolRevision {
+    year: 2026,
+    month: 7,
+    day: 28,
+};
+
 /// A dated MCP protocol revision identifier (`YYYY-MM-DD`).
 ///
 /// Ordering is chronological, which gives revision-range logic ("does requirement X

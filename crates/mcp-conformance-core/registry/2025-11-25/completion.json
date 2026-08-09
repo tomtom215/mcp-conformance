@@ -5,6 +5,9 @@
       "id": "COMP-001",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/completion#capabilities",
         "quote": "Servers that support completions MUST declare the `completions` capability:"
@@ -17,6 +20,9 @@
       "id": "COMP-002",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/completion#security",
         "quote": "Implementations MUST: Validate all completion inputs; Implement appropriate rate limiting; Control access to sensitive suggestions; Prevent completion-based information disclosure"
@@ -28,6 +34,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.completions",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/completion#error-handling",
         "quote": "Servers SHOULD return standard JSON-RPC errors for common failure cases: Method not found: `-32601` (Capability not supported); Invalid prompt name: `-32602` (Invalid params); Missing required arguments: `-32602` (Invalid params); Internal errors: `-32603` (Internal error)"
@@ -39,6 +48,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.completions",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/completion#implementation-considerations",
         "quote": "Servers SHOULD: Return suggestions sorted by relevance; Implement fuzzy matching where appropriate; Rate limit completion requests; Validate all inputs"
@@ -50,6 +62,9 @@
       "level": "SHOULD",
       "actor": "client",
       "capability": "server.completions",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/completion#implementation-considerations",
         "quote": "Clients SHOULD: Debounce rapid completion requests; Cache completion results where appropriate; Handle missing or partial results gracefully"

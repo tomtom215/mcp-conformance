@@ -97,7 +97,7 @@ impl StreamableHttpClient for ScriptedClient {
     async fn get_stream(
         &self,
         _uri: Arc<str>,
-        _session_id: Arc<str>,
+        _session_id: Option<Arc<str>>,
         last_event_id: Option<String>,
         _auth_header: Option<String>,
         _custom_headers: HashMap<http::HeaderName, http::HeaderValue>,
@@ -219,7 +219,7 @@ async fn immediate_json_result_needs_no_resumption() {
         async fn get_stream(
             &self,
             _uri: Arc<str>,
-            _session_id: Arc<str>,
+            _session_id: Option<Arc<str>>,
             _last_event_id: Option<String>,
             _auth_header: Option<String>,
             _custom_headers: HashMap<http::HeaderName, http::HeaderValue>,
@@ -320,7 +320,7 @@ impl StreamableHttpClient for ShapeClient {
     async fn get_stream(
         &self,
         _uri: Arc<str>,
-        _session_id: Arc<str>,
+        _session_id: Option<Arc<str>>,
         _last_event_id: Option<String>,
         _auth_header: Option<String>,
         _custom_headers: HashMap<http::HeaderName, http::HeaderValue>,

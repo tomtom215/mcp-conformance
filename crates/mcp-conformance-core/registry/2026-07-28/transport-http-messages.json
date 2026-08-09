@@ -1,0 +1,229 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "TRAN-055",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "Every JSON-RPC message sent from the client MUST be a new HTTP POST request to the MCP endpoint."
+      },
+      "exclusion": "Whether each message was carried by its own POST is HTTP framing the trace summarizes rather than reproduces: `kind: http` events record status and headers, not the request/connection boundary each message rode on. Same reasoning as TRAN-024 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-056",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "The client MUST use HTTP POST to send JSON-RPC messages."
+      },
+      "exclusion": "The HTTP method used is not recorded — the trace's `kind: http` events carry status and headers, not the verb. Same reasoning as TRAN-049 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-057",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "The client MUST include an `Accept` header listing both `application/json` and `text/event-stream` as supported content types."
+      },
+      "checks": [
+        "transport.client-accept-header"
+      ]
+    },
+    {
+      "id": "TRAN-058",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "The client MUST include the request metadata headers on each POST request."
+      },
+      "checks": [
+        "transport.request-metadata-headers"
+      ]
+    },
+    {
+      "id": "TRAN-059",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "The body of the HTTP POST MUST be a single JSON-RPC request or notification."
+      },
+      "checks": [
+        "transport.http-post-single-message"
+      ]
+    },
+    {
+      "id": "TRAN-060",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "The client MUST NOT send JSON-RPC responses."
+      },
+      "checks": [
+        "transport.client-no-responses"
+      ]
+    },
+    {
+      "id": "TRAN-061",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "If the server accepts it, the server MUST return HTTP status code `202 Accepted` with no body."
+      },
+      "exclusion": "A `202 Accepted` carries no body and answers a notification, which has no id to correlate it with; the trace records the status but cannot tie it to the message it accepted. Same reasoning as TRAN-027 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-062",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "If the server cannot accept it, it MUST return an HTTP error status code (e.g., `400 Bad Request`)."
+      },
+      "exclusion": "Which inputs a server declines to accept, and why, is server-internal admission policy; a declined request produces no MCP message to judge. Same reasoning as TRAN-028 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-063",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "If the body is a JSON-RPC request, the server MUST return either `Content-Type: application/json` (a single JSON object) or `Content-Type: text/event-stream` (an SSE response stream)."
+      },
+      "checks": [
+        "transport.success-content-type"
+      ]
+    },
+    {
+      "id": "TRAN-064",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "The client MUST support both."
+      },
+      "exclusion": "Client support for both response shapes is internal capability: a session that received one shape evidences nothing about the other. Same reasoning as TRAN-030 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-065",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#receiving-messages",
+        "quote": "These notifications MUST relate to the originating client request."
+      },
+      "exclusion": "Relatedness is semantic. A notification carries no id tying it to a request, so the trace cannot decide whether it 'relates to' the originating one. Same reasoning as TRAN-035 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-066",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#receiving-messages",
+        "quote": "The server MUST NOT send independent JSON-RPC requests on this stream."
+      },
+      "checks": [
+        "transport.no-independent-server-requests"
+      ]
+    },
+    {
+      "id": "TRAN-067",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#receiving-messages",
+        "quote": "The final JSON-RPC response SHOULD terminate the stream."
+      },
+      "exclusion": "Stream termination after the final response is SSE framing; the trace records messages and transport lifecycle, not whether the stream closed promptly afterwards. Same reasoning as TRAN-036 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-068",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#receiving-messages",
+        "quote": "When initiating an SSE stream, servers SHOULD include the `X-Accel-Buffering: no` header in the HTTP response."
+      },
+      "checks": [
+        "transport.accel-buffering-header"
+      ]
+    },
+    {
+      "id": "TRAN-069",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#cancellation",
+        "quote": "Closing the SSE response stream MUST be treated by the server as cancellation of that request."
+      },
+      "exclusion": "How a server *treats* a closed stream is internal: cancellation is a decision, and the trace shows only that the transport ended. The observable consequence — messages sent afterwards — is TRAN-071's business."
+    },
+    {
+      "id": "TRAN-070",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#cancellation",
+        "quote": "The server SHOULD stop work on the cancelled request as soon as practical and MUST NOT send any further messages for it."
+      },
+      "checks": [
+        "transport.no-messages-after-cancellation"
+      ]
+    }
+  ]
+}

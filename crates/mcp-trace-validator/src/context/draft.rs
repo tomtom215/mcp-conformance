@@ -20,8 +20,10 @@
 //! registry clauses and checks (roadmap M2.5 line 2), which land with the final spec text.
 //!
 //! **Draft-tracking:** the shape here follows the SEPs catalogued in register 1.5a–1.5b
-//! and must be reconciled against the final `2026-07-28` text when it ships; the gate
-//! keeps it off the default build until then.
+//! and must be reconciled against the final `2026-07-28` text. That text **shipped on
+//! 2026-07-28** (register 1.5h) with the inventory unchanged, so the reconciliation is
+//! now due rather than pending, and it is roadmap M2.5 line 2's work. The feature gate
+//! keeps this off the default build until the reconciliation lands.
 
 use mcp_conformance_core::message::{MessageKind, classify};
 use mcp_conformance_core::trace::{Direction, TraceEvent};

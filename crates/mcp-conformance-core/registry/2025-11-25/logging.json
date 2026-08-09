@@ -5,6 +5,9 @@
       "id": "LOG-001",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/logging#capabilities",
         "quote": "Servers that emit log message notifications MUST declare the `logging` capability:"
@@ -18,6 +21,9 @@
       "level": "MUST NOT",
       "actor": "server",
       "capability": "server.logging",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/logging#security",
         "quote": "Log messages MUST NOT contain: Credentials or secrets; Personal identifying information; Internal system details that could aid attacks"
@@ -29,6 +35,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.logging",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/logging#error-handling",
         "quote": "Servers SHOULD return standard JSON-RPC errors for common failure cases: Invalid log level: `-32602` (Invalid params); Configuration errors: `-32603` (Internal error)"
@@ -40,6 +49,9 @@
       "level": "SHOULD",
       "actor": "server",
       "capability": "server.logging",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/logging#implementation-considerations",
         "quote": "Servers SHOULD: Rate limit log messages; Include relevant context in data field; Use consistent logger names; Remove sensitive information"
@@ -51,6 +63,9 @@
       "level": "SHOULD",
       "actor": "both",
       "capability": "server.logging",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "server/utilities/logging#security",
         "quote": "Implementations SHOULD: Rate limit messages; Validate all data fields; Control log access; Monitor for sensitive content"

@@ -15,6 +15,17 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 
+[features]
+# Describe the `2026-07-28` revision in `RegistrySet::builtin()` (roadmap M2.5).
+# Off by default and deliberately so: the revision's requirement content is
+# being extracted area by area, and until an area lands, `registry("2026-07-28")`
+# answers with an *empty* registry. That is an honest answer to "what does this
+# set say about that revision" and a misleading one to "is this server
+# conformant" — nothing is judged, so nothing can fail. Keeping it opt-in means
+# a default build cannot mistake silence for a pass. Mirrors the
+# `draft-2026-07-28` feature on `mcp-trace-validator`.
+draft-2026-07-28 = []
+
 # docs.rs builds with every feature enabled so feature-gated APIs are documented.
 [package.metadata.docs.rs]
 all-features = true

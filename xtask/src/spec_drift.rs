@@ -30,14 +30,35 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::process::ExitCode;
 
-use mcp_conformance_core::requirement::{Registry, Requirement};
+use mcp_conformance_core::requirement::{Registry, RegistrySet, Requirement};
 use serde::Deserialize;
 
-/// The committed in-scope page set, relative to the workspace root.
-const SOURCES: &str = "crates/mcp-conformance-core/registry/2025-11-25/sources.json";
+/// The revisions this gate verifies, each against its own published pages.
+///
+/// `2026-07-28` is built area by area, so its `sources.json` lists only the pages
+/// whose areas have landed — the set-agreement check below then holds for it exactly
+/// as it does for the complete revision: every listed page is cited, every cited page
+/// is listed. The gate reads the registry *set*, so a revision appears here only once
+/// its entries are embedded.
+const REVISIONS: &[&str] = &["2025-11-25", "2026-07-28"];
 
-/// Where the published spec text lives, per page file.
-const RAW_BASE: &str = "https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/main/docs/specification/2025-11-25";
+/// The committed in-scope page set for a revision, relative to the workspace root.
+fn sources_path(revision: &str) -> String {
+    format!("crates/mcp-conformance-core/registry/{revision}/sources.json")
+}
+
+/// Where a revision's published spec text lives, per page file.
+///
+/// Revision-scoped rather than fixed: the spec repo publishes each revision
+/// under its own dated directory, so a quote is only ever checked against the
+/// text of the revision that carries it. That distinction became load-bearing
+/// on 2026-07-28, when `2026-07-28` shipped alongside `2025-11-25` (register
+/// 1.5h) — before that there was only one published revision to point at.
+fn raw_base(revision: &str) -> String {
+    format!(
+        "https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/main/docs/specification/{revision}"
+    )
+}
 
 /// The committed in-scope/out-of-scope page sets.
 #[derive(Debug, Deserialize)]
@@ -55,52 +76,33 @@ struct Sources {
 }
 
 pub(crate) fn run() -> ExitCode {
-    let registry = match Registry::builtin_2025_11_25() {
-        Ok(registry) => registry,
+    let set = match RegistrySet::builtin() {
+        Ok(set) => set,
         Err(error) => {
-            eprintln!("xtask: spec-drift — embedded registry failed to load: {error}");
+            eprintln!("xtask: spec-drift — embedded registry set failed to load: {error}");
             return ExitCode::FAILURE;
         }
     };
-    let sources = match load_sources() {
-        Ok(sources) => sources,
-        Err(message) => {
-            eprintln!("xtask: spec-drift — {message}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let by_page = requirements_by_page(&registry);
-    if !sets_agree(&sources, &by_page) {
-        return ExitCode::FAILURE;
-    }
-
     let mut drifted = 0u32;
-    for (page, requirements) in &by_page {
-        let url = format!("{RAW_BASE}/{}", sources.in_scope[page]);
-        let text = match fetch(&url) {
-            Ok(text) => text,
-            Err(message) => {
-                eprintln!("xtask: spec-drift — cannot fetch {url}: {message}");
-                return ExitCode::FAILURE;
-            }
+    let mut checked = 0u32;
+    for revision in REVISIONS {
+        let Ok(parsed) = revision.parse() else {
+            eprintln!("xtask: spec-drift — {revision} is not a protocol revision");
+            return ExitCode::FAILURE;
         };
-        let normalized = normalize(&text);
-        let mut page_drifted = 0u32;
-        for requirement in requirements {
-            if !quote_present(&normalized, &requirement.source.quote) {
-                eprintln!(
-                    "xtask: spec-drift — {}: quote no longer found on {page}:\n  {:?}",
-                    requirement.id, requirement.source.quote
-                );
-                page_drifted += 1;
+        // A revision the set does not describe has no embedded entries to verify —
+        // the `draft-2026-07-28` feature being off is the ordinary case, not an error.
+        let Some(registry) = set.registry(parsed) else {
+            eprintln!("xtask: spec-drift — {revision}: not described by this build, skipped");
+            continue;
+        };
+        match verify_revision(revision, &registry) {
+            Ok(count) => {
+                checked += count.0;
+                drifted += count.1;
             }
+            Err(()) => return ExitCode::FAILURE,
         }
-        eprintln!(
-            "xtask: spec-drift — {page}: {} quote(s), {page_drifted} drifted (content {})",
-            requirements.len(),
-            fingerprint(&text)
-        );
-        drifted += page_drifted;
     }
 
     if drifted > 0 {
@@ -111,8 +113,55 @@ pub(crate) fn run() -> ExitCode {
         );
         return ExitCode::FAILURE;
     }
-    eprintln!("xtask: spec-drift — every registry quote verified against the published text");
+    eprintln!(
+        "xtask: spec-drift — {checked} quote(s) across {} revision(s) verified against \
+         the published text",
+        REVISIONS.len()
+    );
     ExitCode::SUCCESS
+}
+
+/// Verifies one revision's quotes against its own published pages.
+///
+/// Returns `(quotes checked, quotes drifted)`, or `Err(())` when the revision could not
+/// be verified at all — an unreadable sources file, a page/registry disagreement, or a
+/// failed fetch. An unverified page is not a verified page.
+fn verify_revision(revision: &str, registry: &Registry) -> Result<(u32, u32), ()> {
+    let sources = load_sources(revision).map_err(|message| {
+        eprintln!("xtask: spec-drift — {revision}: {message}");
+    })?;
+    let by_page = requirements_by_page(registry);
+    if !sets_agree(&sources, &by_page) {
+        return Err(());
+    }
+
+    let mut checked = 0u32;
+    let mut drifted = 0u32;
+    for (page, requirements) in &by_page {
+        let url = format!("{}/{}", raw_base(revision), sources.in_scope[page]);
+        let text = fetch(&url).map_err(|message| {
+            eprintln!("xtask: spec-drift — cannot fetch {url}: {message}");
+        })?;
+        let normalized = normalize(&text);
+        let mut page_drifted = 0u32;
+        for requirement in requirements {
+            if !quote_present(&normalized, &requirement.source.quote) {
+                eprintln!(
+                    "xtask: spec-drift — {}: quote no longer found on {revision}/{page}:\n  {:?}",
+                    requirement.id, requirement.source.quote
+                );
+                page_drifted += 1;
+            }
+        }
+        eprintln!(
+            "xtask: spec-drift — {revision}/{page}: {} quote(s), {page_drifted} drifted (content {})",
+            requirements.len(),
+            fingerprint(&text)
+        );
+        checked += u32::try_from(requirements.len()).unwrap_or(u32::MAX);
+        drifted += page_drifted;
+    }
+    Ok((checked, drifted))
 }
 
 /// Registry requirements grouped by the page their `source.section` cites.
@@ -151,8 +200,8 @@ fn sets_agree(sources: &Sources, by_page: &BTreeMap<String, Vec<&Requirement>>) 
     listed == cited
 }
 
-fn load_sources() -> Result<Sources, String> {
-    let path = crate::workspace_root().join(SOURCES);
+fn load_sources(revision: &str) -> Result<Sources, String> {
+    let path = crate::workspace_root().join(sources_path(revision));
     let text = std::fs::read_to_string(&path)
         .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
     serde_json::from_str(&text).map_err(|error| format!("{} is not valid: {error}", path.display()))
@@ -204,134 +253,16 @@ fn fingerprint(text: &str) -> String {
     )
 }
 
-/// The normalization `SourceRef::quote` documents, applied to page text and
-/// quotes alike: markdown bullet/number markers dropped, bold markers
-/// dropped, typographic quotes straightened, whitespace runs collapsed —
-/// and the quote convention's `"; "` list joins relaxed to single spaces on
-/// both sides before matching.
-fn normalize(text: &str) -> String {
-    let mut joined = String::with_capacity(text.len());
-    for line in text.lines() {
-        let trimmed = line.trim_start();
-        let without_marker = trimmed
-            .strip_prefix("- ")
-            .or_else(|| trimmed.strip_prefix("* "))
-            .or_else(|| strip_numbered_marker(trimmed))
-            .unwrap_or(trimmed);
-        joined.push(' ');
-        joined.push_str(without_marker);
-    }
-    let unstyled = strip_italics(&unwrap_links(&joined).replace("**", "").replace("\\_", "_"))
-        .replace(['\u{201c}', '\u{201d}'], "\"")
-        .replace('\u{2019}', "'");
-    let mut collapsed = String::with_capacity(unstyled.len());
-    let mut last_space = false;
-    for ch in unstyled.chars() {
-        if ch.is_whitespace() {
-            if !last_space {
-                collapsed.push(' ');
-            }
-            last_space = true;
-        } else {
-            collapsed.push(ch);
-            last_space = false;
-        }
-    }
-    collapsed.trim().to_owned()
-}
+mod quote;
 
-/// Replaces every markdown link `[text](target)` with its text — quotes cite
-/// the rendered words, and links may span source lines (handled because
-/// unwrapping runs after line joining).
-fn unwrap_links(text: &str) -> String {
-    let mut out = text.to_owned();
-    loop {
-        let Some(mid) = out.find("](") else {
-            return out;
-        };
-        let Some(open) = out[..mid].rfind('[') else {
-            return out;
-        };
-        let Some(close_rel) = out[mid + 2..].find(')') else {
-            return out;
-        };
-        let close = mid + 2 + close_rel;
-        let mut next = String::with_capacity(out.len());
-        next.push_str(&out[..open]);
-        next.push_str(&out[open + 1..mid]);
-        next.push_str(&out[close + 1..]);
-        out = next;
-    }
-}
-
-/// Drops `_italic_` markers while keeping identifier underscores: an
-/// underscore is a marker when a word character sits on exactly one side of
-/// it — `_latest_` loses both, `list_changed` keeps its underscore (word
-/// characters on both sides), and the rendered `(_)` keeps it (word
-/// characters on neither side). Runs after escape unwrapping so MDX's
-/// literal `\_` has already become a plain underscore.
-fn strip_italics(text: &str) -> String {
-    let chars: Vec<char> = text.chars().collect();
-    let mut out = String::with_capacity(text.len());
-    for (index, &ch) in chars.iter().enumerate() {
-        if ch == '_' {
-            let prev_word = index > 0 && chars[index - 1].is_alphanumeric();
-            let next_word = chars.get(index + 1).is_some_and(|c| c.is_alphanumeric());
-            if prev_word != next_word {
-                continue;
-            }
-        }
-        out.push(ch);
-    }
-    out
-}
-
-/// `1. ` / `12. ` ordered-list markers.
-fn strip_numbered_marker(line: &str) -> Option<&str> {
-    let digits = line.chars().take_while(char::is_ascii_digit).count();
-    if digits == 0 {
-        return None;
-    }
-    line.get(digits..)?.strip_prefix(". ")
-}
-
-/// Whether `quote` appears in the normalized page text: as one contiguous
-/// run when it can, otherwise fragment-by-fragment on the `"; "` separators —
-/// `SourceRef::quote`'s documented convention flattens lists and may keep
-/// only the normative items, so the fragments are the verbatim units. The
-/// fragment path cannot detect reordering, only rewording; the contiguous
-/// path is tried first and covers every single-sentence quote.
-fn quote_present(page_normalized: &str, quote: &str) -> bool {
-    let relaxed_page = page_normalized.replace("; ", " ");
-    let normalized_quote = normalize(quote);
-    if relaxed_page.contains(&normalized_quote.replace("; ", " ")) {
-        return true;
-    }
-    if normalized_quote
-        .split("; ")
-        .all(|fragment| !fragment.is_empty() && relaxed_page.contains(fragment))
-    {
-        return true;
-    }
-    // The convention's full shape: an introducing clause ending `:` whose
-    // selected items follow. Verify the intro (with its colon) and each item
-    // independently — LIFE-009 quotes the parent plus one of its bullets.
-    if let Some((intro, items)) = normalized_quote.split_once(": ") {
-        let intro_present = relaxed_page.contains(&format!("{intro}:"));
-        let items_present = items
-            .split("; ")
-            .all(|fragment| !fragment.is_empty() && relaxed_page.contains(fragment));
-        if intro_present && items_present {
-            return true;
-        }
-    }
-    false
-}
+use quote::{normalize, quote_present};
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    // Private to the quote module now; the test stays here with its siblings.
+    use super::quote::strip_numbered_marker;
 
     #[test]
     fn normalization_flattens_lists_the_way_quotes_are_written() {
@@ -428,11 +359,25 @@ mod tests {
         // The offline halves of the gate, pinned in `cargo test`: the file
         // parses strictly and the two page sets agree. The network half
         // (quote verification) runs in the scheduled job.
-        let sources = load_sources().unwrap();
+        let sources = load_sources("2025-11-25").unwrap();
         let registry = Registry::builtin_2025_11_25().unwrap();
         let by_page = requirements_by_page(&registry);
         assert!(sets_agree(&sources, &by_page));
         assert_eq!(sources.in_scope.len(), 9, "the nine in-scope pages");
         assert!(!sources.out_of_scope.is_empty());
+    }
+
+    #[test]
+    fn pages_and_sources_resolve_under_their_own_revision() {
+        // The point of deriving both from a revision rather than fixing them:
+        // with `2026-07-28` published beside `2025-11-25`, a quote checked
+        // against the wrong revision's page would drift silently in whichever
+        // direction the two texts happen to agree.
+        assert!(raw_base("2026-07-28").ends_with("/docs/specification/2026-07-28"));
+        assert!(
+            sources_path("2026-07-28")
+                .starts_with("crates/mcp-conformance-core/registry/2026-07-28/")
+        );
+        assert_ne!(raw_base("2025-11-25"), raw_base("2026-07-28"));
     }
 }

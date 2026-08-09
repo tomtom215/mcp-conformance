@@ -1,0 +1,122 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "BASE-069",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#schema-dialect",
+        "quote": "Implementations MUST support at least 2020-12 and SHOULD document which additional dialects they support Recommendation:"
+      },
+      "exclusion": "Dialect support is validation behavior inside each implementation; a trace shows schemas exchanged, not which dialects the receiver could handle. Same reasoning as BASE-013 at 2025-11-25."
+    },
+    {
+      "id": "BASE-070",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#implementation-requirements",
+        "quote": "Clients and servers MUST support JSON Schema 2020-12 for schemas without an explicit `$schema` field Clients and servers MUST validate schemas according to their declared or default dialect."
+      },
+      "exclusion": "Dialect support and validation are behavior inside each implementation; a trace shows schemas exchanged, not how the receiver processed them. Same reasoning as BASE-013/BASE-014 at 2025-11-25."
+    },
+    {
+      "id": "BASE-071",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#implementation-requirements",
+        "quote": "They MUST handle unsupported dialects gracefully by returning an appropriate error indicating the dialect is not supported."
+      },
+      "exclusion": "Graceful handling is receiver conduct; the trace would show an error, but not that it was raised for an unsupported dialect rather than any other malformed-schema reason. Same reasoning as BASE-015 at 2025-11-25."
+    },
+    {
+      "id": "BASE-072",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#implementation-requirements",
+        "quote": "Clients and servers SHOULD document which schema dialects they support"
+      },
+      "exclusion": "Documentation is a property of the project, not of any session. Same reasoning as BASE-016 at 2025-11-25."
+    },
+    {
+      "id": "BASE-073",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#schema-validation",
+        "quote": "Schemas MUST be valid according to their declared or default dialect"
+      },
+      "exclusion": "Full dialect validation requires a JSON Schema engine, a dependency `mcp-conformance-core` deliberately excludes (serde-family only, 02-architecture.md). Same reasoning as BASE-017 at 2025-11-25."
+    },
+    {
+      "id": "BASE-074",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#ref-resolution",
+        "quote": "Implementations MUST NOT automatically dereference `$ref` values that resolve to a network URI."
+      },
+      "exclusion": "Whether an implementation dereferenced a `$ref` is an outbound fetch to a third party, not an MCP message; nothing in the recorded session distinguishes a resolved reference from an unresolved one."
+    },
+    {
+      "id": "BASE-075",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#ref-resolution",
+        "quote": "Implementations MAY offer an opt-in mode that fetches non-local `$ref`s but it MUST be disabled by default and SHOULD enforce an allowlist of hosts or at minimum reject loopback, link-local, and private network addresses, apply timeouts and size limits, and log dereferenced URIs."
+      },
+      "exclusion": "The default state of an opt-in mode, its allowlist, timeouts and logging are all implementation configuration; none appears in an MCP session."
+    },
+    {
+      "id": "BASE-076",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#ref-resolution",
+        "quote": "Schemas that fail to validate due to an unresolved external `$ref` SHOULD be rejected rather than silently treated as permissive."
+      },
+      "exclusion": "Rejection happens inside the receiver's schema validation; the trace shows the schema that was sent, not what the receiver did with an unresolvable reference."
+    },
+    {
+      "id": "BASE-077",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#composition-keyword-resource-use",
+        "quote": "Implementations SHOULD apply reasonable bounds, such as a maximum schema depth, a cap on the total number of subschemas, or a per-validation time budget, to prevent a malicious schema from acting as a Denial-of-Service vector against the validator."
+      },
+      "exclusion": "Depth caps, subschema counts and time budgets are validator-internal resource policy, invisible in the messages exchanged."
+    }
+  ]
+}

@@ -5,6 +5,9 @@
       "id": "TRAN-001",
       "level": "MUST NOT",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#stdio",
         "quote": "Messages are delimited by newlines, and MUST NOT contain embedded newlines."
@@ -15,6 +18,9 @@
       "id": "TRAN-002",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#security-warning",
         "quote": "Servers MUST validate the `Origin` header on all incoming connections to prevent DNS rebinding attacks"
@@ -25,6 +31,9 @@
       "id": "TRAN-003",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports",
         "quote": "JSON-RPC messages MUST be UTF-8 encoded."
@@ -35,6 +44,9 @@
       "id": "TRAN-004",
       "level": "MUST NOT",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#stdio",
         "quote": "The server MUST NOT write anything to its `stdout` that is not a valid MCP message."
@@ -47,6 +59,9 @@
       "id": "TRAN-005",
       "level": "MUST NOT",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#stdio",
         "quote": "The client MUST NOT write anything to the server's `stdin` that is not a valid MCP message."
@@ -59,6 +74,9 @@
       "id": "TRAN-006",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#streamable-http",
         "quote": "The server MUST provide a single HTTP endpoint path (hereafter referred to as the MCP endpoint) that supports both POST and GET methods."
@@ -69,6 +87,9 @@
       "id": "TRAN-007",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#security-warning",
         "quote": "If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden."
@@ -79,6 +100,9 @@
       "id": "TRAN-008",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#security-warning",
         "quote": "When running locally, servers SHOULD bind only to localhost (127.0.0.1) rather than all network interfaces (0.0.0.0)"
@@ -89,6 +113,9 @@
       "id": "TRAN-009",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#security-warning",
         "quote": "Servers SHOULD implement proper authentication for all connections"
@@ -99,6 +126,9 @@
       "id": "TRAN-010",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#session-management",
         "quote": "The session ID SHOULD be globally unique and cryptographically secure (e.g., a securely generated UUID, a JWT, or a cryptographic hash)."
@@ -109,6 +139,9 @@
       "id": "TRAN-011",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#session-management",
         "quote": "The session ID MUST only contain visible ASCII characters (ranging from 0x21 to 0x7E)."
@@ -121,6 +154,9 @@
       "id": "TRAN-012",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#session-management",
         "quote": "The client MUST handle the session ID in a secure manner, see Session Hijacking mitigations for more details."
@@ -131,6 +167,9 @@
       "id": "TRAN-013",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#session-management",
         "quote": "If an `MCP-Session-Id` is returned by the server during initialization, clients using the Streamable HTTP transport MUST include it in the `MCP-Session-Id` header on all of their subsequent HTTP requests."
@@ -143,6 +182,9 @@
       "id": "TRAN-014",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#session-management",
         "quote": "Servers that require a session ID SHOULD respond to requests without an `MCP-Session-Id` header (other than initialization) with HTTP 400 Bad Request."
@@ -153,6 +195,9 @@
       "id": "TRAN-015",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#session-management",
         "quote": "The server MAY terminate the session at any time, after which it MUST respond to requests containing that session ID with HTTP 404 Not Found."
@@ -163,6 +208,9 @@
       "id": "TRAN-016",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#session-management",
         "quote": "When a client receives HTTP 404 in response to a request containing an `MCP-Session-Id`, it MUST start a new session by sending a new `InitializeRequest` without a session ID attached."
@@ -173,6 +221,9 @@
       "id": "TRAN-017",
       "level": "MUST",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#protocol-version-header",
         "quote": "If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server, allowing the MCP server to respond based on the MCP protocol version."
@@ -185,6 +236,9 @@
       "id": "TRAN-018",
       "level": "SHOULD",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#protocol-version-header",
         "quote": "The protocol version sent by the client SHOULD be the one negotiated during initialization."
@@ -197,6 +251,9 @@
       "id": "TRAN-019",
       "level": "SHOULD",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#protocol-version-header",
         "quote": "For backwards compatibility, if the server does not receive an `MCP-Protocol-Version` header, and has no other way to identify the version - for example, by relying on the protocol version negotiated during initialization - the server SHOULD assume protocol version `2025-03-26`."
@@ -207,6 +264,9 @@
       "id": "TRAN-020",
       "level": "MUST",
       "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#protocol-version-header",
         "quote": "If the server receives a request with an invalid or unsupported `MCP-Protocol-Version`, it MUST respond with `400 Bad Request`."
@@ -217,6 +277,9 @@
       "id": "TRAN-021",
       "level": "SHOULD NOT",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#stdio",
         "quote": "The client MAY capture, forward, or ignore the server's `stderr` output and SHOULD NOT assume `stderr` output indicates error conditions."
@@ -227,6 +290,9 @@
       "id": "TRAN-022",
       "level": "SHOULD",
       "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports",
         "quote": "Clients SHOULD support stdio whenever possible."
@@ -237,6 +303,9 @@
       "id": "TRAN-023",
       "level": "MUST",
       "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
       "source": {
         "section": "basic/transports#custom-transports",
         "quote": "Implementers who choose to support custom transports MUST ensure they preserve the JSON-RPC message format and lifecycle requirements defined by MCP."

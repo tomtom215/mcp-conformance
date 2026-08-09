@@ -8,10 +8,18 @@
 //! *during* a tool call, so the inter-notification delays the scenarios ask
 //! for (~50 ms) are part of the contract, not an implementation detail.
 
+// SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
+// functional and REQUIRED on the `2025-11-25` surface this crate implements
+// and the official suite exercises, so rmcp 3.x's deprecation attributes fire
+// on correct code — here, Logging. Scoped to this module, never the crate:
+// a blanket allow would also hide a deprecation that genuinely matters. The
+// honest cost is that a *different* future deprecation in this module would
+// be silenced too. Retires when the `2025-11-25` surface does.
+#![allow(deprecated)]
 use std::time::Duration;
 
 use rmcp::model::{
-    CallToolResult, Content, LoggingLevel, LoggingMessageNotificationParam,
+    CallToolResult, ContentBlock, LoggingLevel, LoggingMessageNotificationParam,
     ProgressNotificationParam,
 };
 use rmcp::service::RequestContext;
@@ -46,11 +54,16 @@ impl EverythingServer {
             async move {
                 if permitted {
                     let _ = peer
-                        .notify_logging_message(LoggingMessageNotificationParam {
-                            level: LoggingLevel::Info,
-                            logger: Some("test_tool_with_logging".into()),
-                            data: serde_json::Value::String(message.into()),
-                        })
+                        .notify_logging_message(
+                            // `#[non_exhaustive]` in rmcp 3.x; `new` + the
+                            // `with_logger` builder sets exactly the three
+                            // fields the literal did, so the wire shape holds.
+                            LoggingMessageNotificationParam::new(
+                                LoggingLevel::Info,
+                                serde_json::Value::String(message.into()),
+                            )
+                            .with_logger("test_tool_with_logging"),
+                        )
                         .await;
                 }
             }
@@ -60,7 +73,7 @@ impl EverythingServer {
         log("Tool processing data").await;
         tokio::time::sleep(STAGE_DELAY).await;
         log("Tool execution completed").await;
-        Ok(CallToolResult::success(vec![Content::text(
+        Ok(CallToolResult::success(vec![ContentBlock::text(
             "Tool with logging executed successfully.",
         )]))
     }
@@ -83,12 +96,10 @@ impl EverythingServer {
             async move {
                 if let Some(token) = token {
                     let _ = peer
-                        .notify_progress(ProgressNotificationParam {
-                            progress_token: token,
-                            progress: progress.into(),
-                            total: Some(100_u32.into()),
-                            message: None,
-                        })
+                        .notify_progress(
+                            ProgressNotificationParam::new(token, progress.into())
+                                .with_total(100_u32.into()),
+                        )
                         .await;
                 }
             }
@@ -102,7 +113,7 @@ impl EverythingServer {
         notify(50).await;
         tokio::time::sleep(STAGE_DELAY).await;
         notify(100).await;
-        Ok(CallToolResult::success(vec![Content::text(
+        Ok(CallToolResult::success(vec![ContentBlock::text(
             "Tool with progress executed successfully.",
         )]))
     }
@@ -125,7 +136,7 @@ impl EverythingServer {
         let _ = context.peer.notify_tool_list_changed().await;
         let _ = context.peer.notify_resource_list_changed().await;
         let _ = context.peer.notify_prompt_list_changed().await;
-        Ok(CallToolResult::success(vec![Content::text(
+        Ok(CallToolResult::success(vec![ContentBlock::text(
             "list_changed notifications emitted.",
         )]))
     }
