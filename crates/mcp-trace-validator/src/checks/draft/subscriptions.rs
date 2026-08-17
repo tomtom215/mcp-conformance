@@ -132,6 +132,9 @@ pub(in crate::checks) fn only_requested_notifications(
         if method == ACKNOWLEDGED {
             continue;
         }
+        // The subject is a notification delivered on a subscription; the
+        // acknowledgment is the stream's own opening and not filtered content.
+        sink.examined();
         if let Some(reason) = unrequested(subscription.filter, method, params) {
             sink.push(
                 Some(seq),
@@ -200,6 +203,9 @@ pub(in crate::checks) fn acknowledgment_first(context: &TraceContext<'_>, sink: 
         if !open.contains_key(&id) || !decided.insert(id.clone()) {
             continue;
         }
+        // The subject is a subscription's *first* tagged message; a
+        // subscription that produced none is undecided, not conforming.
+        sink.examined();
         match method {
             Some(ACKNOWLEDGED) => {}
             Some(other) => sink.push(
@@ -237,6 +243,7 @@ pub(in crate::checks) fn graceful_close_result_empty(
         let Some(result) = exchange.result.and_then(Value::as_object) else {
             continue;
         };
+        sink.examined();
         let extra: Vec<&String> = result
             .keys()
             .filter(|key| *key != "resultType" && *key != "_meta")

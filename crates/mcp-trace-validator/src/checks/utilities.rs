@@ -13,20 +13,23 @@ use mcp_conformance_core::trace::Direction;
 /// `LOG-001`: "Servers that emit log message notifications MUST declare the `logging`
 /// capability:" — emission is directly observable.
 pub(super) fn logging_capability_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    if server_capability(context, &["logging"]) != Some(false) {
-        return;
-    }
+    // The subject is an emitted log notification, declaration or not; a session
+    // in which the server never logged leaves this clause untested.
+    let declared = server_capability(context, &["logging"]) != Some(false);
     for (event, kind, _) in context.messages() {
         if event.direction != Direction::ServerToClient {
             continue;
         }
         if matches!(kind, MessageKind::Notification { method } if *method == "notifications/message")
         {
-            sink.push(
-                Some(event.seq),
-                "server emitted a log message notification without declaring the logging capability"
-                    .to_owned(),
-            );
+            sink.examined();
+            if !declared {
+                sink.push(
+                    Some(event.seq),
+                    "server emitted a log message notification without declaring the logging capability"
+                        .to_owned(),
+                );
+            }
         }
     }
 }
@@ -35,16 +38,19 @@ pub(super) fn logging_capability_declared(context: &TraceContext<'_>, sink: &mut
 /// capability:" — successfully answering `completion/complete` is the observable form
 /// of support.
 pub(super) fn completion_capability_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    if server_capability(context, &["completions"]) != Some(false) {
-        return;
-    }
+    // The subject is an answered completion, declaration or not; a session that
+    // never asked for one leaves this clause untested.
+    let declared = server_capability(context, &["completions"]) != Some(false);
     for exchange in context.exchanges_for("completion/complete") {
         if exchange.result.is_some() {
-            sink.push(
-                Some(exchange.response.seq),
-                "server answered completion/complete without declaring the completions capability"
-                    .to_owned(),
-            );
+            sink.examined();
+            if !declared {
+                sink.push(
+                    Some(exchange.response.seq),
+                    "server answered completion/complete without declaring the completions capability"
+                        .to_owned(),
+                );
+            }
         }
     }
 }
@@ -98,6 +104,9 @@ fn check_cursor_provenance(
         .and_then(|payload| payload.get("params"))
         .and_then(|params| params.get("cursor"));
     let Some(cursor) = cursor else { return };
+    // The subject is a *continuation* request: a first page carries no cursor
+    // and so puts no opacity claim to the test.
+    sink.examined();
     let Some(cursor) = cursor.as_str() else {
         sink.push(
             Some(event.seq),

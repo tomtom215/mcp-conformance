@@ -69,6 +69,7 @@ pub(in crate::checks) fn required_request_fields(
         if id.is_none() {
             continue; // a notification, not a request
         }
+        sink.examined();
         let meta = params_meta(payload);
         for field in REQUIRED_REQUEST_FIELDS {
             let present = meta.is_some_and(|meta| meta.contains_key(*field));
@@ -130,6 +131,9 @@ pub(in crate::checks) fn missing_required_field_rejected(
         let Some(&request_seq) = malformed.get(&id.to_string()) else {
             continue;
         };
+        // The subject is an *answer* to a malformed request; one the recording
+        // never saw answered settles nothing.
+        sink.examined();
         match payload.get("error").and_then(|error| error.get("code")) {
             Some(code) if code.as_i64() == Some(INVALID_PARAMS) => {}
             Some(code) => sink.push(
@@ -173,9 +177,11 @@ fn http_status_for_error(
         }
         // Only judged when the recording actually carries HTTP framing; on stdio
         // there is no status to check, and a trace without one evidences nothing.
-        if let Some((status_seq, status)) = http_status_for(context, event.seq)
-            && status != 400
-        {
+        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+            continue;
+        };
+        sink.examined();
+        if status != 400 {
             sink.push(
                 Some(status_seq),
                 format!("{clause}: error {code} was returned with HTTP {status}, not 400"),
@@ -244,6 +250,7 @@ pub(in crate::checks) fn missing_capability_error(
         if error.get("code").and_then(Value::as_i64) != Some(MISSING_CAPABILITY_CODE) {
             continue;
         }
+        sink.examined();
         match error
             .get("data")
             .and_then(|data| data.get("requiredCapabilities"))
@@ -332,6 +339,9 @@ pub(in crate::checks) fn no_undeclared_capability_reliance(
                 "roots/list" => "roots",
                 _ => continue,
             };
+            // The subject is an input request of a kind a capability governs;
+            // the revision's other input kinds need none.
+            sink.examined();
             if !declared.iter().any(|name| name == needed) {
                 sink.push(
                     Some(event.seq),
@@ -355,14 +365,13 @@ pub(in crate::checks) fn subscription_id_present(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let listening = context.messages().any(|(_, _, _)| false)
-        || context.messages().any(|(event, _, _)| {
-            event
-                .message_payload()
-                .and_then(|payload| payload.get("method"))
-                .and_then(Value::as_str)
-                == Some("subscriptions/listen")
-        });
+    let listening = context.messages().any(|(event, _, _)| {
+        event
+            .message_payload()
+            .and_then(|payload| payload.get("method"))
+            .and_then(Value::as_str)
+            == Some("subscriptions/listen")
+    });
     if !listening {
         return;
     }
@@ -385,6 +394,7 @@ pub(in crate::checks) fn subscription_id_present(
         {
             continue;
         }
+        sink.examined();
         let tagged = params_meta(payload)
             .is_some_and(|meta| meta.contains_key("io.modelcontextprotocol/subscriptionId"));
         if !tagged {
@@ -416,22 +426,26 @@ pub(in crate::checks) fn trace_context_format(context: &TraceContext<'_>, sink: 
                 .and_then(|member| member.get("_meta"))
                 .and_then(Value::as_object);
             let Some(meta) = meta else { continue };
-            if let Some(value) = meta.get("traceparent")
-                && let Err(reason) = validate_traceparent(value)
-            {
-                sink.push(
-                    Some(event.seq),
-                    format!("{envelope}._meta.traceparent {reason}"),
-                );
-            }
-            for key in ["tracestate", "baggage"] {
-                if let Some(value) = meta.get(key)
-                    && !value.is_string()
-                {
+            // The subject is a trace-context field that is actually present:
+            // the clause binds their format, not their use.
+            if let Some(value) = meta.get("traceparent") {
+                sink.examined();
+                if let Err(reason) = validate_traceparent(value) {
                     sink.push(
                         Some(event.seq),
-                        format!("{envelope}._meta.{key} is not a string"),
+                        format!("{envelope}._meta.traceparent {reason}"),
                     );
+                }
+            }
+            for key in ["tracestate", "baggage"] {
+                if let Some(value) = meta.get(key) {
+                    sink.examined();
+                    if !value.is_string() {
+                        sink.push(
+                            Some(event.seq),
+                            format!("{envelope}._meta.{key} is not a string"),
+                        );
+                    }
                 }
             }
         }

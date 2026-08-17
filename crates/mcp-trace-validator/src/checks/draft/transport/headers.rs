@@ -39,7 +39,11 @@ pub(in crate::checks) fn protocol_version_header_present(
     sink: &mut FindingSink,
 ) {
     for post in posts(context) {
-        if post.is_request() && !post.headers.contains_key("mcp-protocol-version") {
+        if !post.is_request() {
+            continue; // Notification POSTs carry no header requirements here.
+        }
+        sink.examined();
+        if !post.headers.contains_key("mcp-protocol-version") {
             sink.push(
                 Some(post.seq),
                 "client POST lacks the MCP-Protocol-Version header".to_owned(),
@@ -65,6 +69,7 @@ pub(in crate::checks) fn protocol_version_header_matches_body(
         ) else {
             continue;
         };
+        sink.examined();
         if header != body {
             sink.push(
                 Some(post.seq),
@@ -97,6 +102,7 @@ pub(in crate::checks) fn request_metadata_headers(
             if mirror.header.starts_with("mcp-param-") {
                 continue; // custom headers are TRAN-079's
             }
+            sink.examined();
             let Some(sent) = post.headers.get(&mirror.header) else {
                 sink.push(
                     Some(post.seq),
@@ -149,6 +155,7 @@ pub(in crate::checks) fn header_value_encoding(context: &TraceContext<'_>, sink:
             if is_miscased_sentinel(value) {
                 continue;
             }
+            sink.examined();
             if !header_safe(value) {
                 sink.push(
                     Some(post.seq),
@@ -169,6 +176,7 @@ pub(in crate::checks) fn sentinel_marker_case(context: &TraceContext<'_>, sink: 
             continue;
         }
         for (name, value) in encodable_headers(&post) {
+            sink.examined();
             if is_miscased_sentinel(value) {
                 sink.push(
                     Some(post.seq),
@@ -203,6 +211,7 @@ pub(in crate::checks) fn sentinel_pattern_encoded(
             let Some(sent) = post.headers.get(&mirror.header) else {
                 continue;
             };
+            sink.examined();
             if compare(sent, &mirror.value) == Match::UnencodedSentinel {
                 sink.push(
                     Some(post.seq),
@@ -233,8 +242,11 @@ pub(in crate::checks) fn x_mcp_header_mirrored(context: &TraceContext<'_>, sink:
             continue;
         }
         for mirror in mirrors(&post, &designated) {
-            if mirror.header.starts_with("mcp-param-") && !post.headers.contains_key(&mirror.header)
-            {
+            if !mirror.header.starts_with("mcp-param-") {
+                continue; // The standard headers are TRAN-058's.
+            }
+            sink.examined();
+            if !post.headers.contains_key(&mirror.header) {
                 sink.push(
                     Some(post.seq),
                     format!(
@@ -267,6 +279,7 @@ pub(in crate::checks) fn x_mcp_header_name_valid(
         };
         let mut seen: BTreeSet<String> = BTreeSet::new();
         for designation in designations(schema) {
+            sink.examined();
             let duplicate = !seen.insert(designation.name.to_ascii_lowercase());
             for reason in annotation_faults(&designation, duplicate) {
                 sink.push(

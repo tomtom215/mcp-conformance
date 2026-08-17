@@ -62,6 +62,9 @@ pub(in crate::checks) fn invalid_cursor_rejected(
         if let Some(cursor) = presented
             && !issued.contains(&(exchange.method, cursor))
         {
+            // The subject is a request presenting a cursor this session never
+            // issued: no such request, and the clause is untested here.
+            sink.examined();
             let code = exchange
                 .response
                 .message_payload()

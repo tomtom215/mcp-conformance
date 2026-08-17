@@ -41,10 +41,12 @@ faithfully by the component that holds the bytes.
   before any comparison, so a report is byte-identical across platforms and runs.
   Correctness here is a *fixpoint* property, tested as one — a real bug hid until
   a fuzzer first generated `-0.0`.
-- **Not-applicable is not pass.** A requirement gated on a capability that was
-  never negotiated is reported as not-applicable, never as a vacuous pass.
-  Inflating a pass rate with checks for features the server never advertised is
-  how a conformance tool loses credibility.
+- **A pass has to be earned.** A requirement gated on a capability that was
+  never negotiated is reported as not-applicable, and one whose subject matter
+  the session never carried is reported not-observed — never as a vacuous pass.
+  Every check counts the subjects it considered, so the report can tell
+  "complied with" from "never came up". Inflating a pass rate with checks that
+  had nothing to look at is how a conformance tool loses credibility.
 - **Calibration against the authority.** The agreement check (see the
   [Introduction](introduction.md)) diffs our verdicts against the official
   runner's on every CI run; an unexplained divergence fails the build, and a

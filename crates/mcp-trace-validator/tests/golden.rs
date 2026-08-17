@@ -281,6 +281,48 @@ fn corpus_falsifies_every_check() {
     );
 }
 
+#[test]
+fn checks_count_their_subjects() {
+    // The other half of `corpus_falsifies_every_check`. That one proves a check
+    // *can fail*; this one proves it can say **why a pass is a pass** — that on
+    // some committed trace it found subjects to judge, rather than reporting
+    // green because the session never came near its clause.
+    //
+    // Without this the sink's counting is advisory: a new check that never
+    // calls `examined` reports every requirement it backs as *not observed*,
+    // silently and forever. Run against every corpus, since a check may only be
+    // reachable under one revision's traffic.
+    let mut examined_somewhere = BTreeSet::new();
+    for subdir in [
+        "good",
+        "violations",
+        "draft/good",
+        "draft/violations",
+        "draft/captured",
+    ] {
+        for trace_path in trace_files(subdir) {
+            let text = fs::read_to_string(&trace_path).unwrap();
+            let events = reader::parse_trace(&text, &reader::Limits::default()).unwrap();
+            let context = mcp_trace_validator::context::TraceContext::new(&events);
+            for check in mcp_trace_validator::checks::ALL {
+                if check.run(&context).subjects > 0 {
+                    examined_somewhere.insert(check.id.to_owned());
+                }
+            }
+        }
+    }
+    let implemented: BTreeSet<String> = mcp_trace_validator::checks::ALL
+        .iter()
+        .map(|check| check.id.to_owned())
+        .collect();
+    let never: Vec<&String> = implemented.difference(&examined_somewhere).collect();
+    assert!(
+        never.is_empty(),
+        "these checks examined no subject on any corpus trace, so every clause they \
+         back can only ever report `not observed`: {never:#?}"
+    );
+}
+
 /// The `2026-07-28` corpus, held to the same contract as the `2025-11-25` one:
 /// a conforming session passes everything, and every check that revision's
 /// registry names has a trace that kills it.

@@ -75,9 +75,13 @@ pub(in crate::checks) fn header_mismatch_status(
         if answer_code(event) != Some(HEADER_MISMATCH) {
             continue;
         }
-        if let Some((status_seq, status)) = http_status_for(context, event.seq)
-            && status != 400
-        {
+        // Only judged where the recording carries HTTP framing; on stdio there
+        // is no status to hold the error against.
+        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+            continue;
+        };
+        sink.examined();
+        if status != 400 {
             sink.push(
                 Some(status_seq),
                 format!(
@@ -103,6 +107,9 @@ fn rejected_for(
         let Some(reason) = fault(post) else {
             continue;
         };
+        // The subject is a POST that actually carried the fault; a session whose
+        // POSTs were all well-formed never puts the rejection rule to the test.
+        sink.examined();
         let code = answer_code(exchange.response);
         if code != Some(HEADER_MISMATCH) {
             sink.push(
@@ -173,6 +180,7 @@ pub(in crate::checks) fn header_body_match_validated(
             let Some(sent) = post.headers.get(&mirror.header) else {
                 continue;
             };
+            sink.examined();
             if compare(sent, &mirror.value) == Match::Mismatch {
                 sink.push(
                     Some(exchange.response.seq),
@@ -203,6 +211,7 @@ fn unsupported_version_shape(context: &TraceContext<'_>, sink: &mut FindingSink)
         if answer_code(event) != Some(UNSUPPORTED_VERSION) {
             continue;
         }
+        sink.examined();
         let lists_versions = event
             .message_payload()
             .and_then(|payload| payload.get("error"))
@@ -239,9 +248,11 @@ pub(in crate::checks) fn unsupported_version_status(
         if answer_code(event) != Some(UNSUPPORTED_VERSION) {
             continue;
         }
-        if let Some((status_seq, status)) = http_status_for(context, event.seq)
-            && status != 400
-        {
+        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+            continue;
+        };
+        sink.examined();
+        if status != 400 {
             sink.push(
                 Some(status_seq),
                 format!(
@@ -281,6 +292,9 @@ fn unsupported_version_answer(context: &TraceContext<'_>, sink: &mut FindingSink
         if supported.contains(requested) {
             continue;
         }
+        // The subject is a request naming a version the server's own list omits;
+        // a session that only ever asked for supported ones is untested here.
+        sink.examined();
         let code = answer_code(exchange.response);
         if code != Some(UNSUPPORTED_VERSION) {
             sink.push(
@@ -324,9 +338,11 @@ pub(in crate::checks) fn unknown_method_404(context: &TraceContext<'_>, sink: &m
         if answer_code(event) != Some(METHOD_NOT_FOUND) {
             continue;
         }
-        if let Some((status_seq, status)) = http_status_for(context, event.seq)
-            && status != 404
-        {
+        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+            continue;
+        };
+        sink.examined();
+        if status != 404 {
             sink.push(
                 Some(status_seq),
                 format!(

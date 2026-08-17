@@ -59,12 +59,18 @@ fn answered_undeclared(
     capability: &str,
     methods: &[&str],
 ) {
-    if declares(context, capability) != Some(false) {
+    // No `server/discover` result at all: there is no declaration surface, so
+    // the session's capability state is unknowable rather than empty.
+    let Some(declared) = declares(context, capability) else {
         return;
-    }
+    };
     for method in methods {
         for exchange in context.exchanges_for(method) {
-            if exchange.result.is_some() {
+            if exchange.result.is_none() {
+                continue;
+            }
+            sink.examined();
+            if !declared {
                 sink.push(
                     Some(exchange.response.seq),
                     format!(
@@ -88,22 +94,25 @@ pub(in crate::checks) fn completions_declared(context: &TraceContext<'_>, sink: 
 /// removed and the level rides each request's `_meta` — so the observable form of
 /// "emits log message notifications" is the notification itself.
 pub(in crate::checks) fn logging_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    if declares(context, "logging") != Some(false) {
+    let Some(declared) = declares(context, "logging") else {
         return;
-    }
+    };
     for (event, kind, _) in context.messages() {
         if event.direction != Direction::ServerToClient {
             continue;
         }
         if matches!(kind, MessageKind::Notification { method } if *method == "notifications/message")
         {
-            sink.push(
-                Some(event.seq),
-                format!(
-                    "server emitted `notifications/message` while its `{DISCOVER}` result \
-                     declared no `logging` capability"
-                ),
-            );
+            sink.examined();
+            if !declared {
+                sink.push(
+                    Some(event.seq),
+                    format!(
+                        "server emitted `notifications/message` while its `{DISCOVER}` result \
+                         declared no `logging` capability"
+                    ),
+                );
+            }
         }
     }
 }
@@ -125,6 +134,9 @@ fn declared_list_answered(context: &TraceContext<'_>, sink: &mut FindingSink, ca
         return;
     };
     for exchange in context.exchanges_for(method) {
+        // The subject is a call of the declared capability's list operation:
+        // a capability nobody exercised is not one this session saw served.
+        sink.examined();
         let code = exchange
             .response
             .message_payload()
@@ -201,9 +213,9 @@ pub(in crate::checks) fn embedded_resource_declared(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    if declares(context, "resources") != Some(false) {
+    let Some(declared) = declares(context, "resources") else {
         return;
-    }
+    };
     for exchange in context.exchanges_for("tools/call") {
         let embedded = exchange
             .result
@@ -214,7 +226,11 @@ pub(in crate::checks) fn embedded_resource_declared(
                     block.get("type").and_then(serde_json::Value::as_str) == Some("resource")
                 })
             });
-        if embedded {
+        if !embedded {
+            continue;
+        }
+        sink.examined();
+        if !declared {
             sink.push(
                 Some(exchange.response.seq),
                 format!(

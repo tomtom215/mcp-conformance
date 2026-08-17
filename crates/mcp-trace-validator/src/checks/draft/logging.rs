@@ -55,14 +55,15 @@ pub(in crate::checks) fn level_requested(context: &TraceContext<'_>, sink: &mut 
                     .is_some()
             })
     });
-    if any_requested {
-        return;
-    }
     for (event, kind, _) in context.messages() {
-        if event.direction != Direction::ServerToClient {
+        if !is_log(event, kind) {
             continue;
         }
-        if is_log(event, kind) {
+        // The subject is an emitted log notification: a session in which the
+        // server never logged puts nothing to this test, whether or not a
+        // request asked for logs.
+        sink.examined();
+        if !any_requested {
             sink.push(
                 Some(event.seq),
                 "server emitted `notifications/message` though no request in this session \
@@ -87,6 +88,7 @@ pub(in crate::checks) fn not_on_subscription(context: &TraceContext<'_>, sink: &
         if !is_log(event, kind) {
             continue;
         }
+        sink.examined();
         let tagged = event
             .message_payload()
             .and_then(|payload| payload.get("params"))
@@ -132,6 +134,9 @@ pub(in crate::checks) fn invalid_level_rejected(
         if level.as_str().is_some_and(|name| LEVELS.contains(&name)) {
             continue;
         }
+        // The subject is a request that named a level outside the eight; a
+        // session that only ever named valid ones leaves this clause untested.
+        sink.examined();
         let code = exchange
             .response
             .message_payload()

@@ -152,6 +152,7 @@ pub(in crate::checks) fn input_required_supported_methods(
     sink: &mut FindingSink,
 ) {
     for round in rounds(context) {
+        sink.examined();
         let (_, _, method) = round.origin;
         if !SUPPORTED.contains(&method) {
             sink.push(
@@ -173,6 +174,7 @@ pub(in crate::checks) fn input_request_methods(context: &TraceContext<'_>, sink:
             continue;
         };
         for (key, request) in requests {
+            sink.examined();
             match request.get("method").and_then(Value::as_str) {
                 Some(method) if INPUT_REQUEST_METHODS.contains(&method) => {}
                 Some(method) => sink.push(
@@ -201,6 +203,7 @@ pub(in crate::checks) fn input_required_has_content(
     sink: &mut FindingSink,
 ) {
     for round in rounds(context) {
+        sink.examined();
         if round.requests.is_none() && round.state.is_none() {
             sink.push(
                 Some(round.seq),
@@ -221,6 +224,12 @@ pub(in crate::checks) fn retry_carries_input_responses(
         let Some(round) = round else {
             continue;
         };
+        // The subject is a retry of a round that actually asked for something:
+        // where nothing was asked, there is nothing a retry could omit.
+        if round.requests.is_none_or(Map::is_empty) {
+            continue;
+        }
+        sink.examined();
         for key in missing_keys(&round, &retry) {
             sink.push(
                 Some(retry.seq),
@@ -262,6 +271,7 @@ pub(in crate::checks) fn request_state_echoed(context: &TraceContext<'_>, sink: 
             continue;
         };
         let Some(issued) = round.state else { continue };
+        sink.examined();
         match retry.state {
             Some(echoed) if echoed == issued => {}
             Some(echoed) => sink.push(
@@ -293,6 +303,7 @@ pub(in crate::checks) fn no_unsolicited_request_state(
         if retry.state.is_none() {
             continue;
         }
+        sink.examined();
         let issued = round.and_then(|round| round.state);
         if issued.is_none() {
             sink.push(
@@ -311,6 +322,7 @@ pub(in crate::checks) fn retry_id_differs(context: &TraceContext<'_>, sink: &mut
         let Some(round) = round else {
             continue;
         };
+        sink.examined();
         let (origin_seq, origin_id, _) = round.origin;
         if retry.id == origin_id {
             sink.push(
@@ -345,6 +357,7 @@ pub(in crate::checks) fn request_state_scoped_to_retry(
         let Some(&origin_method) = issued.get(&state.to_string()) else {
             continue;
         };
+        sink.examined();
         if retry.method != origin_method {
             sink.push(
                 Some(retry.seq),
@@ -377,7 +390,13 @@ pub(in crate::checks) fn missing_input_reasked(context: &TraceContext<'_>, sink:
             continue;
         };
         let missing = missing_keys(&round, &retry);
-        if missing.is_empty() || exchange.result.is_some() {
+        if missing.is_empty() {
+            continue; // Nothing was omitted, so no shortfall to answer.
+        }
+        // The subject is an *answered* retry that fell short: the clause is
+        // about which of the two answers the server chose.
+        sink.examined();
+        if exchange.result.is_some() {
             continue;
         }
         sink.push(

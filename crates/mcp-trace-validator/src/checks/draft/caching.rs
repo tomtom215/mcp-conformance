@@ -64,7 +64,11 @@ pub(in crate::checks) fn hints_on_cacheable_results(
         let from_retry = exchange.params.is_some_and(|params| {
             params.get("inputResponses").is_some() || params.get("requestState").is_some()
         });
-        if from_retry || result.get("ttlMs").is_some() {
+        if from_retry {
+            continue;
+        }
+        sink.examined();
+        if result.get("ttlMs").is_some() {
             continue;
         }
         sink.push(
@@ -94,6 +98,7 @@ pub(in crate::checks) fn ttl_non_negative(context: &TraceContext<'_>, sink: &mut
         else {
             continue;
         };
+        sink.examined();
         match ttl.as_i64() {
             Some(value) if value >= 0 => {}
             Some(value) => sink.push(
@@ -130,12 +135,21 @@ pub(in crate::checks) fn page_scope_consistent(context: &TraceContext<'_>, sink:
             .params
             .and_then(|params| params.get("cursor"))
             .map(ToString::to_string);
+        // Only a continuation page can disagree with the page before it: a
+        // first page is the one that *sets* the scope, so a session with no
+        // multi-page listing leaves this clause untested.
         let chain = cursor
             .and_then(|cursor| awaiting.remove(&(exchange.method, cursor)))
-            .unwrap_or_else(|| {
-                scopes.push((scope.clone(), exchange.response.seq));
-                scopes.len() - 1
-            });
+            .map_or_else(
+                || {
+                    scopes.push((scope.clone(), exchange.response.seq));
+                    scopes.len() - 1
+                },
+                |chain| {
+                    sink.examined();
+                    chain
+                },
+            );
         let (first, first_seq) = &scopes[chain];
         if *first != scope {
             sink.push(

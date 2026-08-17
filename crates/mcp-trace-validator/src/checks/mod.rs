@@ -53,14 +53,14 @@ pub struct Check {
 pub struct CheckOutcome {
     /// Findings, each stamped with the check's ID.
     pub findings: Vec<Finding>,
-    /// How many subjects the check examined, when it reports that.
+    /// How many subjects the check examined.
     ///
-    /// `None` means the check has not been instrumented, and the engine then
-    /// treats it as having examined something — the fail-safe direction. A
-    /// wrong `Some(0)` would report a clause as unobserved when it was really
-    /// judged and clean, which loses information; a wrong "observed" only
-    /// restores today's behaviour.
-    pub subjects: Option<u32>,
+    /// Zero means the trace held nothing this check's clause binds, which is
+    /// what separates a *pass* from a *not-observed* row. Every registered
+    /// check counts its subjects — `checks_count_their_subjects` in
+    /// `tests/golden.rs` holds that line, so a new check that forgets to can
+    /// never quietly report a clause as passing on evidence it never had.
+    pub subjects: u32,
 }
 
 impl Check {
@@ -70,7 +70,7 @@ impl Check {
         let mut sink = FindingSink {
             check: self.id,
             findings: Vec::new(),
-            subjects: None,
+            subjects: 0,
         };
         (self.run)(context, &mut sink);
         CheckOutcome {
@@ -85,7 +85,7 @@ impl Check {
 pub struct FindingSink {
     check: &'static str,
     findings: Vec<Finding>,
-    subjects: Option<u32>,
+    subjects: u32,
 }
 
 impl FindingSink {
@@ -113,17 +113,8 @@ impl FindingSink {
     /// session without one gave the clause nothing to bind to. The difference
     /// is what separates "complied with" from "never came up", and reporting
     /// the second as the first states evidence the trace does not carry.
-    pub fn examined(&mut self) {
-        self.subjects = Some(self.subjects.unwrap_or(0).saturating_add(1));
-    }
-
-    /// Records that this check considered `count` subjects at once.
-    ///
-    /// The same rule as [`Self::examined`], for checks that compute their
-    /// subject set before looping — or that legitimately examined none.
-    pub fn examined_many(&mut self, count: usize) {
-        let count = u32::try_from(count).unwrap_or(u32::MAX);
-        self.subjects = Some(self.subjects.unwrap_or(0).saturating_add(count));
+    pub const fn examined(&mut self) {
+        self.subjects = self.subjects.saturating_add(1);
     }
 }
 

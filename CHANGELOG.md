@@ -59,8 +59,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `initialize`, no sessions, `server/discover` for capability advertisement,
   per-request `_meta` required, and SEP-2549 caching hints on cacheable
   results. The official suite's `2026-07-28` scenarios pass **23/23** against
-  it, and this workspace's own registry judges **124 clauses pass, 0 fail** on
-  captured sessions over HTTP *and* over stdio.
+  it, and this workspace's own registry reports **0 fail** on captured sessions
+  over HTTP *and* over stdio — 59 clauses judged and passing on the HTTP
+  capture, 56 on the stdio one, the rest *not observed* because those sessions
+  never carried the traffic they bind to. (Those two counts read 124 apiece
+  until the vacuous-pass fix below; the sessions have not changed, only what
+  the report is willing to claim about them.)
 
   stdio needed the enforcement rmcp performs inside its HTTP tower layer and
   that a header-less transport has nobody to do: `StatelessEnvelope` supplies
@@ -137,6 +141,41 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   page, reproducing the network gate exactly.
 
 ### Fixed
+
+- **A clause a session never came near was reported as a `pass`.** This was the
+  single largest correctness defect in the report. A check that ran, found
+  nothing to look at, and returned no findings was classified exactly like one
+  that examined real traffic and found it conforming — so a trace that opened a
+  connection and stopped scored a hundred-odd passes, and the difference
+  between "this server complied" and "this session never tested it" was
+  invisible. ADR-0006 had already refused this accounting for capability-gated
+  clauses; it applied everywhere else too, and did not.
+
+  Every check now counts the *subjects* it considered — trace elements that,
+  with different content, could have produced a finding — counted after the
+  filters that define the clause's scope and before the condition that makes an
+  element a violation. A requirement whose checks found no subject and reported
+  no finding is `not-observed`, rendered `NOBS` in text, `not-observed` in JSON
+  and the multi-revision table, and `<skipped>` in JUnit with its own reason.
+  `totals:` now names every outcome, so the counts visibly sum to the
+  registry's size.
+
+  **Verdicts do not move.** Across all 130 golden reports the only outcome
+  transition is `pass` → `not-observed`: no finding appeared, disappeared, or
+  changed requirement. What changed is the arithmetic every claim rested on —
+  the conforming `2025-11-25` sessions report 15–35 passes where they reported
+  38–52, and the `2026-07-28` captures 56–59 where they reported 124. Those
+  earlier numbers were not measurements of conformance; they were counts of
+  checks that had nothing to say.
+
+  Two accounting defects fell out of the same change and are fixed with it:
+  JUnit's `skipped=` attribute and `tests=` count omitted the new outcome while
+  the body rendered it, and the human `totals:` line omitted it entirely, so
+  neither summed to the registry's size. `checks_count_their_subjects` in the
+  golden suite now holds the line: every registered check must examine at least
+  one subject on at least one committed trace, which is the other half of
+  `corpus_falsifies_every_check` — that one proves a check can fail, this one
+  proves its pass can mean something.
 
 - **The session trace tap could not record protocol revision `2026-07-28` at
   all, and said nothing.** It keyed every exchange on `Mcp-Session-Id` and

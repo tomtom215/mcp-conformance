@@ -157,6 +157,9 @@ pub(super) fn negotiated_capabilities_only(context: &TraceContext<'_>, sink: &mu
         let Some((_, _, party, path)) = gate else {
             continue;
         };
+        // The subject is a capability-gated message; a session that sent none
+        // put nothing to the test, however long it ran.
+        sink.examined();
         let declared = match party {
             CapabilityParty::Server => server_capability(context, path),
             CapabilityParty::Client => client_capability(context, path),

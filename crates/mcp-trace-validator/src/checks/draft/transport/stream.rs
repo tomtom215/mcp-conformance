@@ -38,6 +38,7 @@ pub(in crate::checks) fn client_no_responses(context: &TraceContext<'_>, sink: &
         let Some(payload) = event.message_payload() else {
             continue;
         };
+        sink.examined();
         let is_response = payload.get("id").is_some()
             && payload.get("method").is_none()
             && (payload.get("result").is_some() || payload.get("error").is_some());
@@ -69,6 +70,7 @@ pub(in crate::checks) fn no_independent_server_requests(
         let Some(payload) = event.message_payload() else {
             continue;
         };
+        sink.examined();
         if let Some(method) = payload.get("method").and_then(Value::as_str)
             && payload.get("id").is_some_and(|id| !id.is_null())
         {
@@ -98,7 +100,11 @@ pub(in crate::checks) fn accel_buffering_header(
         let is_sse = headers
             .get("content-type")
             .is_some_and(|value| value.starts_with("text/event-stream"));
-        if is_sse && headers.get("x-accel-buffering").map(String::as_str) != Some("no") {
+        if !is_sse {
+            continue; // Only an event stream can be buffered by a proxy.
+        }
+        sink.examined();
+        if headers.get("x-accel-buffering").map(String::as_str) != Some("no") {
             sink.push(
                 Some(event.seq),
                 "SSE response does not carry `X-Accel-Buffering: no`".to_owned(),
@@ -182,6 +188,9 @@ fn report_after_close(
     else {
         return;
     };
+    // The subject is a server message carrying an id *after* the close: before
+    // one, nothing is forbidden, and a session with no close is untested.
+    sink.examined();
     if outstanding.contains(&id.to_string()) {
         sink.push(
             Some(event.seq),

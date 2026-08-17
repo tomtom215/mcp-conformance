@@ -71,6 +71,7 @@ pub(in crate::checks) fn cancel_notification_references_request(
         if method != CANCELLED {
             continue;
         }
+        sink.examined();
         let names_a_request = params
             .and_then(|params| params.get("requestId"))
             .is_some_and(|id| !id.is_null());
@@ -125,6 +126,13 @@ pub(in crate::checks) fn no_messages_after_cancel_notification(
             record_progress_token(event, &mut tokens);
             continue;
         }
+        if cancelled.is_empty() {
+            continue; // Nothing has been cancelled yet, so nothing is forbidden.
+        }
+        // The subject is a server message sent while a cancellation stands: it
+        // may or may not belong to the cancelled request, and the trace shows
+        // which.
+        sink.examined();
         report_if_cancelled(event, &tokens, &cancelled, sink);
     }
 }

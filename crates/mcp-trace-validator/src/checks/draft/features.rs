@@ -51,7 +51,13 @@ pub(in crate::checks) fn deterministic_order(context: &TraceContext<'_>, sink: &
         if let Some((first_seq, first)) = &seen {
             let same_set: BTreeSet<&String> = first.iter().collect();
             let this_set: BTreeSet<&String> = names.iter().collect();
-            if same_set == this_set && *first != names {
+            if same_set != this_set {
+                continue; // The set changed, so the clause says nothing here.
+            }
+            // The subject is a re-listing of an unchanged set: one `tools/list`
+            // can neither agree nor disagree with itself.
+            sink.examined();
+            if *first != names {
                 sink.push(
                     Some(exchange.response.seq),
                     format!(
@@ -107,6 +113,7 @@ pub(in crate::checks) fn x_mcp_header_integer_range(
             let Some(integer) = value.and_then(Value::as_i64) else {
                 continue;
             };
+            sink.examined();
             if !(-SAFE_INTEGER..=SAFE_INTEGER).contains(&integer) {
                 sink.push(
                     Some(event.seq),
@@ -133,12 +140,15 @@ pub(in crate::checks) fn read_contents_non_empty(
     sink: &mut FindingSink,
 ) {
     for exchange in context.exchanges_for("resources/read") {
-        let empty = exchange
+        let Some(contents) = exchange
             .result
             .and_then(|result| result.get("contents"))
             .and_then(Value::as_array)
-            .is_some_and(Vec::is_empty);
-        if empty {
+        else {
+            continue;
+        };
+        sink.examined();
+        if contents.is_empty() {
             sink.push(
                 Some(exchange.response.seq),
                 "`resources/read` answered with an empty `contents` array, which is ambiguous \

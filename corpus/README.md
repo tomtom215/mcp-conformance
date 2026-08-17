@@ -144,7 +144,7 @@ two reports is attributable to that one change.
 | Server | `mcp-everything-server` serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-08-17 | same run, second leg |
 | Contents | 91 events / 22 POST exchanges | 91 events / 22 POST exchanges |
-| Our verdict | 123 pass, **1 fail**, 0 warn, 148 excluded | **124 pass, 0 fail, 0 warn**, 148 excluded |
+| Our verdict | 58 pass, **1 fail**, 0 warn, 65 not observed, 148 excluded | **59 pass, 0 fail, 0 warn**, 65 not observed, 148 excluded |
 | The official runner's verdict | 23/23 | 23/23 |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
@@ -174,13 +174,19 @@ than quietly fixed: **a check can only be as honest as the recording it reads,
 and a capture path that silently drops evidence manufactures findings against
 conforming implementations.**
 
-**Why the runner's 23/23 and our 123-vs-124 are both right.** The suite's
+**Why the runner's 23/23 and our 58-vs-59 are both right.** The suite's
 `2026-07-28` scenarios exercise features — list a thing, call a thing, read a
 thing — and a `2025-11-25` server answers all of them, because rmcp serves a
 per-request-versioned POST whichever revision the handler advertises. The
-registry here judges 124 clauses of the specification's prose instead, so it
-sees the one place the two servers actually differ. Neither instrument is wrong;
-they are measuring different things, and this pair is the evidence for that.
+registry here judges the specification's prose instead, so it sees the one place
+the two servers actually differ. Neither instrument is wrong; they are measuring
+different things, and this pair is the evidence for that.
+
+The 65 not-observed rows are the honest denominator: of the 124 clauses this
+revision's registry can judge, these sessions carried subject matter for 59.
+They open no subscription, present no cursor, draw no error, and send no
+malformed `_meta`, so those clauses are neither passed nor failed here — they
+are untested, and the report says which.
 
 Regenerate both with `cargo xtask draft-readiness` and copy
 `target/draft-readiness/<revision>/tap/001-stateless.jsonl`; the ephemeral port
@@ -195,17 +201,25 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-17 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep, and four MRTR rounds (three elicitations and one sampling) |
-| Our verdict | **124 pass, 0 fail, 0 warn**, 148 excluded |
+| Our verdict | **56 pass, 0 fail, 0 warn**, 68 not observed, 148 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
-suite drives no subscription, so in the two HTTP captures the four judged
-`SUBS` clauses pass without evidence — nothing in those sessions could have
-violated a rule about a stream they never opened. Their rows read identically
-to this one's, and only this one is backed by an acknowledgment, a filter the
-server narrowed, four tagged notifications and an empty graceful-closure
-result. The report format does not currently distinguish "checked and clean"
-from "nothing to check" outside the capability gate (ADR-0006), which is a
-reporting limitation worth knowing when comparing these three files.
+suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
+which binds a subscription stream's notifications — are backed by this file
+alone: an acknowledgment, a filter the server narrowed, four tagged
+notifications and an empty graceful-closure result. The same holds for the MRTR
+clauses. In the two HTTP captures every one of those rows now reads **not
+observed**; here they read `pass`.
+
+That asymmetry is the reason to keep all three, and it used to be invisible.
+Until the vacuous-pass fix, those rows read identically across the three files
+— `pass` everywhere, whether or not the session had opened a stream — and this
+paragraph recorded that as a known reporting limitation. It is a limitation no
+longer: every check counts the subjects it examined, so a clause with nothing
+to look at reports `not-observed`. Read in the other direction, the captures
+are complementary rather than redundant: the HTTP pair evidences PROM-016 and
+RES-018, which this session never exercises, and this one evidences the
+subscription and MRTR clauses, which theirs never do.
 
 **Its provenance is weaker than the pair above, and deliberately labelled so.**
 Both ends of this session are ours: the official suite drives servers over
@@ -248,7 +262,7 @@ falsifies exactly the requirement it is named for.
 
 | Trace | Exercises |
 |-------|-----------|
-| `stateless-session.jsonl` | Conformant `2026-07-28` stateless session over **stdio**: every request carries its own `_meta` envelope (protocolVersion + clientCapabilities), every result carries `resultType`, request ids are reused only after their response. It now also carries a complete conforming MRTR round — `input_required` with an `elicitation/create` request and a `requestState`, then a retry under a new id echoing the state and supplying `inputResponses` — so the MRTR checks pass on real content rather than by abstention. The Streamable HTTP clauses among them still pass by abstention — there is no HTTP framing for them to read, which is why `streamable-http-session.jsonl` exists. |
+| `stateless-session.jsonl` | Conformant `2026-07-28` stateless session over **stdio**: every request carries its own `_meta` envelope (protocolVersion + clientCapabilities), every result carries `resultType`, request ids are reused only after their response. It now also carries a complete conforming MRTR round — `input_required` with an `elicitation/create` request and a `requestState`, then a retry under a new id echoing the state and supplying `inputResponses` — so the MRTR checks pass on real content. The Streamable HTTP clauses report *not observed* here: there is no HTTP framing for them to read, which is why `streamable-http-session.jsonl` exists. |
 | `base-030-request-meta-missing-required-field.jsonl` | Request `_meta` omits `io.modelcontextprotocol/clientCapabilities` (BASE-030) |
 | `base-031-malformed-meta-answered-with-result.jsonl` | Server answers a `_meta`-incomplete request with a result instead of `-32602` (BASE-031) |
 | `base-032-invalid-params-not-http-400.jsonl` | `-32602` returned with HTTP 200 rather than 400 (BASE-032) |

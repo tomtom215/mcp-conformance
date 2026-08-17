@@ -27,8 +27,10 @@ that reuses a request ID, and the verdict that catches it:
 
 {{#include ../../README.md:trace-example}}
 
-The `totals` line distinguishes the verdict's components: the five
-**not-applicable** rows are capability-gated requirements this session never
-negotiated (the resources and prompts clauses) — reported as such, never as
-passes. See [Architecture](architecture.md) for why that distinction is
-load-bearing.
+The `totals` line distinguishes the verdict's components, and two of them are
+not passes. The **not-applicable** rows are capability-gated requirements this
+session never negotiated (the resources and prompts clauses); the
+**not-observed** rows are clauses whose subject matter never appeared at all —
+nothing was paginated, no binary content was sent, no error was returned. A
+four-line session earns fifteen passes, not a hundred. See
+[Architecture](architecture.md) for why that distinction is load-bearing.

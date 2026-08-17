@@ -110,6 +110,10 @@ pub(in crate::checks) fn retry_uses_supported_version(
                 let Some(requested) = declared_version(payload) else {
                     continue;
                 };
+                // The subject is a request sent *after* the server stated its
+                // versions: before that statement there is nothing to select
+                // from, and a session that drew no such error is untested.
+                sink.examined();
                 if !listed.contains(requested) {
                     sink.push(
                         Some(event.seq),
@@ -189,6 +193,7 @@ pub(in crate::checks) fn extension_identifier_format(
     sink: &mut FindingSink,
 ) {
     for (seq, surface, identifier) in extension_identifiers(context) {
+        sink.examined();
         if let Err(reason) = validate_meta_key(identifier) {
             sink.push(
                 Some(seq),
@@ -256,6 +261,9 @@ pub(in crate::checks) fn initialize_error_names_versions(
         else {
             continue;
         };
+        // The subject is a *refused* `initialize`: the antecedent — a server
+        // that does not serve the legacy era — is witnessed by the refusal.
+        sink.examined();
         if !names_a_revision(error) {
             sink.push(
                 Some(exchange.response.seq),

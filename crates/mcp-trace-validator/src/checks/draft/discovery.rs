@@ -16,7 +16,6 @@ use std::collections::BTreeMap;
 
 use mcp_conformance_core::message::MessageKind;
 use mcp_conformance_core::trace::Direction;
-use serde_json::Value;
 
 use super::super::FindingSink;
 use crate::context::TraceContext;
@@ -69,17 +68,22 @@ pub(in crate::checks) fn implemented(context: &TraceContext<'_>, sink: &mut Find
         if event.direction != Direction::ServerToClient {
             continue;
         }
-        let MessageKind::Error {
-            id: Some(id),
-            error,
-        } = kind
-        else {
-            continue;
+        // The subject is an *answered* probe, whichever way it was answered: a
+        // result proves the method is implemented just as an error may disprove
+        // it, and a session whose probe went unanswered settles nothing.
+        let (id, error) = match kind {
+            MessageKind::Result { id: Some(id) } => (*id, None),
+            MessageKind::Error {
+                id: Some(id),
+                error,
+            } => (*id, Some(*error)),
+            _ => continue,
         };
         if !probes.contains_key(&id.to_string()) {
             continue;
         }
-        if error.get("code").and_then(Value::as_i64) == Some(METHOD_NOT_FOUND) {
+        sink.examined();
+        if error.and_then(|error| error.get("code")?.as_i64()) == Some(METHOD_NOT_FOUND) {
             sink.push(
                 Some(event.seq),
                 "`server/discover` was answered with -32601 (method not found); \
@@ -127,7 +131,11 @@ pub(in crate::checks) fn dual_era_probe_first(context: &TraceContext<'_>, sink: 
     let Some((seq, method)) = first else {
         return;
     };
-    if legacy && modern && method != DISCOVER {
+    if !legacy || !modern {
+        return; // The antecedent — a dual-era client — is not witnessed here.
+    }
+    sink.examined();
+    if method != DISCOVER {
         sink.push(
             Some(seq),
             format!(

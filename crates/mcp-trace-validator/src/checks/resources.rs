@@ -27,18 +27,21 @@ const RESOURCE_METHODS: &[&str] = &[
 /// capability:" — successfully serving resources traffic is the observable form of
 /// support.
 pub(super) fn capability_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    if server_capability(context, &["resources"]) != Some(false) {
-        return;
-    }
+    // The subject is an answered resources exchange, declaration or not; a
+    // session that never touched resources leaves this clause untested.
+    let declared = server_capability(context, &["resources"]) != Some(false);
     for exchange in context.exchanges() {
         if RESOURCE_METHODS.contains(&exchange.method) && exchange.result.is_some() {
-            sink.push(
-                Some(exchange.response.seq),
-                format!(
-                    "server answered {:?} without declaring the resources capability",
-                    exchange.method
-                ),
-            );
+            sink.examined();
+            if !declared {
+                sink.push(
+                    Some(exchange.response.seq),
+                    format!(
+                        "server answered {:?} without declaring the resources capability",
+                        exchange.method
+                    ),
+                );
+            }
         }
     }
 }
@@ -78,6 +81,7 @@ fn server_stated_uris<'a>(context: &TraceContext<'a>) -> Vec<(u64, &'a str)> {
 /// the full clause.
 pub(super) fn uri_scheme_rfc3986(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (seq, uri) in server_stated_uris(context) {
+        sink.examined();
         if !has_rfc3986_scheme(uri) {
             sink.push(
                 Some(seq),
@@ -101,6 +105,7 @@ pub(super) fn blob_base64(context: &TraceContext<'_>, sink: &mut FindingSink) {
             let Some(blob) = content.get("blob") else {
                 continue;
             };
+            sink.examined();
             let valid = blob.as_str().is_some_and(is_base64);
             if !valid {
                 let uri = content
