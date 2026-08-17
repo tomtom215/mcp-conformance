@@ -366,6 +366,16 @@ pub static ALL: &[Check] = &[
         id: "transport.x-mcp-header-name-valid",
         run: draft::transport::x_mcp_header_name_valid,
     },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "discover.implemented",
+        run: draft::discovery::implemented,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "discover.dual-era-probe-first",
+        run: draft::discovery::dual_era_probe_first,
+    },
 ];
 
 /// Looks up a check by its stable ID.

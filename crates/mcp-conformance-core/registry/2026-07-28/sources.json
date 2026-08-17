@@ -2,7 +2,8 @@
   "_policy": "The in-scope page set for revision 2026-07-28, with the same contract as the 2025-11-25 file: `in_scope` maps each page (as `source.section` prefixes cite it) to its published source file under docs/specification/2026-07-28/, and `cargo xtask spec-drift` enforces both directions — every listed page is cited, every cited page is listed — then verifies each quote against the published text (ADR-0010). One difference matters and is deliberate: this registry is being built AREA BY AREA, so `in_scope` grows as areas land rather than describing the whole revision from the start. `out_of_scope` therefore means what it means at 2025-11-25 — deliberately excluded, with the reason — and NOT 'not extracted yet'. Pages that are neither listed here are simply not yet entered; the complete clause inventory for the revision, quote-verified and ready to curate, is docs/reports/registry-extraction-2026-07-28-inventory-2026-08-06.md, which is the backlog. Conflating the two buckets would let unfinished work read as a scoping decision.",
   "in_scope": {
     "basic/index": "basic/index.mdx",
-    "basic/transports/streamable-http": "basic/transports/streamable-http.mdx"
+    "basic/transports/streamable-http": "basic/transports/streamable-http.mdx",
+    "server/discover": "server/discover.mdx"
   },
   "out_of_scope": {
     "architecture/index": "No RFC 2119 keyword instances on the page (verified 2026-08-06 against the published text).",

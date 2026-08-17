@@ -1,8 +1,8 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 51,
-    "fail": 2,
+    "pass": 52,
+    "fail": 1,
     "warn": 0,
     "excluded": 68,
     "unsupported": 0,
@@ -86,14 +86,7 @@
     {
       "id": "BASE-055",
       "level": "MUST NOT",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "base.error-code-legacy-subrange",
-          "seq": 1,
-          "detail": "error code -32002 is in the legacy sub-range (-32000..-32019), which 2026-07-28 implementations are not to use"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-056",
@@ -109,14 +102,7 @@
     {
       "id": "BASE-058",
       "level": "MUST NOT",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "base.error-code-withdrawn",
-          "seq": 1,
-          "detail": "error code -32002 — resource not found (2025-11-25 and earlier; replaced by -32602) — must not be emitted at 2026-07-28"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-059",
@@ -677,7 +663,14 @@
     {
       "id": "DISC-001",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "discover.implemented",
+          "seq": 1,
+          "detail": "`server/discover` was answered with -32601 (method not found); 2026-07-28 servers must implement it"
+        }
+      ]
     },
     {
       "id": "DISC-002",

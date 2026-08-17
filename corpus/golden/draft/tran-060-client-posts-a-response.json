@@ -1,10 +1,10 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 49,
+    "pass": 51,
     "fail": 2,
     "warn": 0,
-    "excluded": 66,
+    "excluded": 68,
     "unsupported": 0,
     "not_applicable": 0
   },
@@ -673,6 +673,28 @@
       "level": "SHOULD NOT",
       "outcome": "excluded",
       "exclusion": "Adopting or migrating away from a transport is a project decision, not a property of any session."
+    },
+    {
+      "id": "DISC-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "DISC-002",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "DISC-003",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The same clause as BASE-037, restated for one result type: BASE-037 is the general rule for `serverInfo` in every result and carries the escape hatch \"unless specifically configured not to do so\". A restatement in the DiscoverResult field list does not withdraw that exemption, so an absent `serverInfo` here is still either non-compliance or the configured-off case, and the trace cannot tell which."
+    },
+    {
+      "id": "DISC-004",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds what the client does with `serverInfo` after reading it — behaviour changes and security decisions are internal reasoning, and a trace records the messages, not the inferences drawn from them. Same boundary as BASE-022's icon-consumer clauses."
     }
   ]
 }

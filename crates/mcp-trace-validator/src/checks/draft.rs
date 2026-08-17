@@ -13,6 +13,7 @@ use mcp_conformance_core::trace::{Direction, EventBody};
 
 use crate::context::TraceContext;
 
+pub(super) mod discovery;
 pub(super) mod envelope;
 pub(super) mod meta;
 pub(super) mod transport;
