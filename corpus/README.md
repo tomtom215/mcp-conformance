@@ -224,33 +224,26 @@ header and status clauses, which no stdio recording can carry, and this one
 evidences the subscription, MRTR, prompts, resources, logging, completion and
 error-code clauses, which theirs never reach.
 
-**What the 47 not-observed rows still are, and why.** Twenty-four are
-Streamable HTTP clauses (`TRAN-057`…`TRAN-102`) that a stdio recording
-structurally cannot carry. Nine are server *rejection* rules — `BASE-031`,
-`BASE-032`, `BASE-035`, `BASE-036`, `VERS-001`, `VERS-002`, `VERS-008`,
-`LOG-010`, `PAGE-011` — reachable only by a client that deliberately sends
-something malformed, which this session does not: it is the conforming
-capture, and a probe session is a separate recording with a separate expected
-report. Four need surface this server does not have (`CACH-015`/`CACH-016` and
-`PAGE-010` need a catalog large enough to paginate; `TOOL-033`/`TOOL-034` need
-an `x-mcp-header` designation; `PROM-017` needs a prompt carrying audio).
-`TOOL-022` is the interesting one: rmcp's client caches `tools/list` under the
-server's own `ttlMs`, so a second listing never reaches the wire — a
-conforming client cannot exercise the deterministic-order clause within the
-TTL, which is a property of the caching feature working rather than a gap to
-close. The rest (`TRAN-123`/`TRAN-124` cancellation, `MRTR-024`,
-`DISC-002`, `BASE-040`, `BASE-047`) are reachable and not yet driven.
-
-**Across all five captures, 109 of the 124 judgeable clauses are evidenced by
-at least one recording.** The probe session closed the largest group — the
-rejection rules — and what remains divides in two. Seven need server surface
-this reference does not have: pagination for `CACH-015`/`016` and `PAGE-010`,
-an `x-mcp-header` designation for `TOOL-033`/`034` and `TRAN-079`/`080`/`096`,
-and a prompt carrying audio for `PROM-017`. Eight are conforming client
-behaviour simply not driven yet: `BASE-040`'s `traceparent`, `BASE-047`,
-`VERS-004`'s extension identifiers, cancellation for
-`TRAN-070`/`123`/`124`, and `MRTR-024`'s shortfall retry. Neither group is a
-defect; both are work.
+**What the 47 not-observed rows still are, and why.** Twenty-three are
+Streamable HTTP clauses in the `TRAN-057`…`TRAN-102` band that a stdio
+recording structurally cannot carry — the band holds 25 judged clauses, and
+the two a stdio session does reach (`TRAN-060`, `TRAN-066`) are judged here.
+Nine are server *rejection* rules — `BASE-031`, `BASE-032`, `BASE-035`,
+`BASE-036`, `VERS-001`, `VERS-002`, `VERS-008`, `LOG-010`, `PAGE-011` —
+reachable only by a client that deliberately sends something malformed, which
+this session does not: it is the conforming capture, and a probe session is a
+separate recording with a separate expected report. Six need surface this
+server does not have (`CACH-015`/`CACH-016` and `PAGE-010` need a catalog
+large enough to paginate; `TOOL-033`/`TOOL-034` need an `x-mcp-header`
+designation; `PROM-017` needs a prompt carrying audio). `TOOL-022` is the
+interesting one: rmcp's client caches `tools/list` under the server's own
+`ttlMs`, so a second listing never reaches the wire — a conforming client
+cannot exercise the deterministic-order clause within the TTL, which is a
+property of the caching feature working rather than a gap to close (the
+official suite's runner does not cache, and judges it on both of its
+captures). The remaining eight are reachable and not yet driven:
+`TRAN-123`/`TRAN-124` cancellation, `TRAN-128` and `DISC-002`'s dual-era
+probe, `MRTR-024`, `BASE-040`, `BASE-047`, and `VERS-004`.
 
 #### The HTTP capture of the same session
 
@@ -266,14 +259,14 @@ defect; both are work.
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
 messages and nothing else — redaction by construction, and no HTTP framing to
 record even if it wanted to. So a host-side HTTP recording would report the
-twenty-four Streamable HTTP clauses as *not observed* exactly like the stdio
+Streamable HTTP clauses as *not observed* exactly like the stdio
 one. The server's tap sits above the transport and sees the status line and
 the conformance-relevant headers, which is why this leg is the only recording
 in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 90 of the 124 judgeable clauses it is the best-covered capture here. Its 34
+At 89 of the 124 judgeable clauses it is the best-covered capture here. Its 35
 not-observed rows are the server-rejection rules a conforming client never
 triggers, the pagination and `x-mcp-header` clauses this server's surface does
 not reach, and `TOOL-022` (rmcp's client caches `tools/list` under the
@@ -340,6 +333,39 @@ request that had not asked for them. The official suite's `2026-07-28`
 scenarios exercise no interactive tool and no logging tool, so an HTTP-only
 corpus would have shipped both defects. That is the argument for capturing both
 transports rather than treating one as representative.
+
+#### What the captures evidence, together
+
+The table below is generated from the committed golden reports by
+`cargo xtask draft-coverage` and verified by `cargo xtask ci` — per ADR-0001
+these numbers are a projection of the data, not prose anyone maintains. The
+same gate parses every "N of the M judgeable clauses" claim elsewhere in the
+shipped Markdown and fails when one disagrees, which is how the counts in this
+section stopped being wrong.
+
+<!-- draft-coverage:begin (generated by `cargo xtask draft-coverage`; do not edit by hand) -->
+| Capture | Judged | pass | fail | warn | Not observed |
+|---------|-------:|-----:|-----:|-----:|-------------:|
+| `official-suite-2026-07-28-scenarios` | 59 | 58 | 1 | 0 | 65 |
+| `official-suite-2026-07-28-stateless` | 59 | 59 | 0 | 0 | 65 |
+| `probe-2026-07-28-http` | 66 | 54 | 10 | 2 | 58 |
+| `reference-host-2026-07-28-http` | 89 | 89 | 0 | 0 | 35 |
+| `reference-host-2026-07-28-stdio` | 77 | 77 | 0 | 0 | 47 |
+| **Union** | **109** | | | | **15** |
+
+Across all 5 captures, **109 of the 124 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+
+The 15 clauses no capture reaches: `BASE-040`, `BASE-047`, `CACH-015`, `CACH-016`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-096`, `TRAN-123`, `TRAN-124`, `VERS-004`.
+<!-- draft-coverage:end -->
+
+The probe session closed the largest group — the rejection rules — and what
+is left divides in two. Eight need server surface this reference does not
+have: pagination for `CACH-015`/`CACH-016`, an `x-mcp-header` designation for
+`TOOL-033`/`TOOL-034` and `TRAN-079`/`TRAN-080`/`TRAN-096`, and a prompt
+carrying audio for `PROM-017`. Seven are conforming client behaviour simply
+not driven yet: `BASE-040`'s `traceparent`, `BASE-047`, `VERS-004`'s extension
+identifiers, cancellation for `TRAN-070`/`TRAN-123`/`TRAN-124`, and
+`MRTR-024`'s shortfall retry. Neither group is a defect; both are work.
 
 ### `2026-07-28` authored (`corpus/draft/`)
 

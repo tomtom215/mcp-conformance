@@ -101,7 +101,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   hand-written reason, and the gate holds the set in both directions. It has
   since worked both ways: the two server defects it found went into the ledger,
   and when they were fixed the gate refused the change until their entries were
-  retired. Across all three captures **109 of the 124 judgeable clauses are now
+  retired. Across all five captures **109 of the 124 judgeable clauses are now
   evidenced**, up from 92, and all ten rejection clauses the probe exercises
   pass.
 
@@ -111,7 +111,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   rather than the host's transport wrapper — deliberately, because the host's
   recorder sits at rmcp's `Transport` seam and carries protocol messages only
   (redaction by construction), so a host-side HTTP recording would report the
-  twenty-four Streamable HTTP clauses *not observed* exactly like the stdio
+  Streamable HTTP clauses *not observed* exactly like the stdio
   one. The tap sits above the transport and sees status lines and headers.
 
   At **89 of the 124 judgeable clauses, 0 fail** it is the best-covered capture
@@ -212,6 +212,23 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   mechanism (TRAN-060/066/119/120, MRTR-001) and one was logging without being
   asked (LOG-008).
 
+- **`cargo xtask draft-coverage`: what the captures evidence is now a
+  projection, not prose.** ADR-0001 forbids hand-maintained counts, and the
+  per-capture coverage numbers were the one place they had accumulated. The new
+  task generates `corpus/README.md`'s per-capture table — judged, pass, fail,
+  warn, not observed, plus the union and the clauses no capture reaches — from
+  the committed golden reports, and `--check` (a step of `cargo xtask ci`)
+  fails when the committed block has drifted.
+
+  A table alone cannot stop a sentence in another file from disagreeing with
+  it, which is how these numbers drifted in the first place, so the same task
+  parses every "N of the M judgeable clauses" claim in the shipped Markdown and
+  requires it to name a real pair: the denominator must be the judgeable total,
+  and the numerator must be either the union or some capture's own judged
+  count. `CHANGELOG.md` is read only above its first released heading — a
+  shipped release's numbers were true when written and are not rewritten to
+  match today's corpus.
+
 - **`tools/extract-clauses.py --verify`** runs `spec-drift`'s comparison offline
   over a committed registry directory — the fast inner loop while curating a
   page, reproducing the network gate exactly.
@@ -271,6 +288,23 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   computed. Nothing in the corpus could have caught this before: every
   `-32602` in every recording *was* a malformed envelope until the enriched
   HTTP capture carried one that was not.
+
+- **Six coverage counts in shipped documentation were wrong, every one of them
+  overstating.** `crates/mcp-everything-server/README.md` reported the
+  *judgeable total* as a pass count — "124 clauses pass, 0 fail" where the
+  conforming captures evidence 91 — which is the same vacuous-pass accounting
+  the fix above removed from the report, surviving in prose. `corpus/README.md`
+  wrote the HTTP capture up at 90 judged and 34 not observed where the report
+  says 89 and 35; called 23 Streamable HTTP clauses "twenty-four"; called six
+  surface-limited clauses "Four" and then listed six; and split the fifteen
+  unevidenced clauses "Seven … Eight" where the split is 8 and 7, with
+  `PAGE-010` listed among them although the probe session judges it.
+  `README.md` and this file attributed the 109-clause union to three captures
+  when it takes all five — the official runner's two are what reach `TOOL-022`.
+
+  All six are corrected against the reports, and `cargo xtask draft-coverage
+  --check` is why they cannot recur: it fails on each of them, which is how
+  they were found.
 
 - **A clause a session never came near was reported as a `pass`.** This was the
   single largest correctness defect in the report. A check that ran, found

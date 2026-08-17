@@ -16,8 +16,8 @@
 //! messages and nothing else — redaction by construction, and no HTTP framing
 //! to record even if there were any. HTTP is recorded by the *server's tap*,
 //! which sits above the transport and sees status lines and headers, so its
-//! recording is the only one that can bear on the twenty-four Streamable HTTP
-//! clauses (`TRAN-057`…`TRAN-102`) at all. Driving the same session both ways
+//! recording is the only one that can bear on the Streamable HTTP clauses
+//! (`TRAN-057`…`TRAN-102`) at all. Driving the same session both ways
 //! and recording it from both ends is what makes the pair complementary
 //! instead of redundant.
 //!

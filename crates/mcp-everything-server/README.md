@@ -41,8 +41,10 @@ server scenarios (pinned suite 0.1.16, enforced in CI via
   with `-32022` naming the versions it does speak, rather than negotiated into
   a handshake that leads nowhere. The suite's `2026-07-28` scenarios pass
   **23/23** against this mode, and the repository's own requirement registry
-  judges **124 clauses pass, 0 fail** on captured sessions of it over both
-  transports. Server-to-client requests go by SEP-2322's MRTR pattern at this
+  evidences **109 of the 124 judgeable clauses** across five committed captures
+  of it over both transports, with 0 fail on the conforming ones and everything
+  the sessions never touched reported *not observed* rather than counted as a
+  pass. Server-to-client requests go by SEP-2322's MRTR pattern at this
   revision — `elicitation/create` and `sampling/createMessage` are *returned*
   inside an `input_required` result and the client retries — because the
   revision forbids sending them independently. `logging/setLevel` is gone with
