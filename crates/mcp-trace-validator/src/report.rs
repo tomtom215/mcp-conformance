@@ -44,6 +44,17 @@ pub enum Outcome {
     /// The requirement is gated on a capability this session never declared
     /// (ADR-0006); its checks were not run.
     NotApplicable,
+    /// Every covering check ran and found nothing to judge: this session
+    /// carried none of the traffic the clause binds to.
+    ///
+    /// Distinct from [`Self::Pass`], and the distinction is the whole point. A
+    /// clause about `subscriptions/listen` cannot be *complied with* by a
+    /// session that never opened a stream — there was no opportunity to break
+    /// it — so reporting `pass` states evidence the trace does not carry.
+    /// Distinct from [`Self::NotApplicable`] too: that one is the registry
+    /// saying the clause is gated on a capability nobody declared, this one is
+    /// the trace saying it had nothing to show.
+    NotObserved,
 }
 
 /// Aggregate counts, in report order. `excluded` and `unsupported` are first-class:
@@ -63,6 +74,8 @@ pub struct Totals {
     pub unsupported: u32,
     /// Requirements with outcome [`Outcome::NotApplicable`].
     pub not_applicable: u32,
+    /// Requirements with outcome [`Outcome::NotObserved`].
+    pub not_observed: u32,
 }
 
 /// One requirement's row in the report.
@@ -133,6 +146,7 @@ impl Report {
                 Outcome::Excluded => "EXCL",
                 Outcome::Unsupported => "UNSUP",
                 Outcome::NotApplicable => "N/A",
+                Outcome::NotObserved => "NOBS",
             };
             let _ = writeln!(out, "  {marker:<5} {} ({})", row.id, row.level);
             for finding in &row.findings {
@@ -230,6 +244,7 @@ mod tests {
                 excluded: 1,
                 unsupported: 0,
                 not_applicable: 1,
+            not_observed: 0,
             },
             requirements: vec![
                 RequirementReport {

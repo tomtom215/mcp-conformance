@@ -89,11 +89,21 @@ fn build_row(requirement: &Requirement, context: &TraceContext<'_>) -> Requireme
                 row.outcome = Outcome::NotApplicable;
                 row.capability = Some(gate.as_str().to_owned());
             } else {
+                // `None` from any check means "not instrumented", and that
+                // must win: treating an unknown as "observed" keeps today's
+                // behaviour, while treating it as unobserved would report a
+                // clause nobody judged as one nothing bound to.
+                let mut observed = false;
                 for check in resolved {
-                    row.findings.extend(check.run(context));
+                    let outcome = check.run(context);
+                    observed |= outcome.subjects.is_none_or(|subjects| subjects > 0);
+                    row.findings.extend(outcome.findings);
                 }
-                row.outcome =
-                    classify_outcome(requirement.level.is_error(), row.findings.is_empty());
+                row.outcome = if row.findings.is_empty() && !observed {
+                    Outcome::NotObserved
+                } else {
+                    classify_outcome(requirement.level.is_error(), row.findings.is_empty())
+                };
             }
         }
         // Verification is #[non_exhaustive]; a future arm must be handled
@@ -131,6 +141,7 @@ const fn tally(totals: &mut Totals, outcome: Outcome) {
         Outcome::Excluded => totals.excluded += 1,
         Outcome::Unsupported => totals.unsupported += 1,
         Outcome::NotApplicable => totals.not_applicable += 1,
+        Outcome::NotObserved => totals.not_observed += 1,
     }
 }
 

@@ -272,6 +272,7 @@ mod tests {
         checks::find(check)
             .unwrap()
             .run(&context)
+        .findings
             .into_iter()
             .map(|finding| finding.detail)
             .collect()

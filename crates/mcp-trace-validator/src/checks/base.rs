@@ -54,16 +54,18 @@ fn id_is_string_or_integer(id: &Value) -> bool {
 /// `BASE-001`: "Requests MUST include a string or integer ID."
 pub(super) fn request_id_type(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Request { method, id } = kind
-            && !id_is_string_or_integer(id)
-        {
+        let MessageKind::Request { method, id } = kind else {
+            continue;
+        };
+        sink.examined();
+        if !id_is_string_or_integer(id) {
             sink.push(
                     Some(event.seq),
                     format!(
                         "request {method:?} carries {} as its id; the ID must be a string or an integer",
-                        type_name(id)
-                    ),
-                );
+                    type_name(id)
+                ),
+            );
         }
     }
 }
@@ -71,9 +73,11 @@ pub(super) fn request_id_type(context: &TraceContext<'_>, sink: &mut FindingSink
 /// `BASE-002`: "Unlike base JSON-RPC, the ID MUST NOT be `null`."
 pub(super) fn request_id_not_null(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Request { method, id } = kind
-            && id.is_null()
-        {
+        let MessageKind::Request { method, id } = kind else {
+            continue;
+        };
+        sink.examined();
+        if id.is_null() {
             sink.push(
                 Some(event.seq),
                 format!("request {method:?} carries a null id, which MCP forbids"),
@@ -91,6 +95,7 @@ pub(super) fn request_id_unique(context: &TraceContext<'_>, sink: &mut FindingSi
             if id.is_null() {
                 continue; // BASE-002's finding; don't double-report.
             }
+            sink.examined();
             let key = (event.direction, to_canonical_string(id));
             match first_use.get(&key) {
                 Some(previous) => sink.push(
@@ -135,6 +140,10 @@ fn responses_match_requests(
             }
             MessageKind::Result { id } => {
                 if want_results {
+                    // The subject is a response of the flavour this pass
+                    // judges; the other flavour is consumed silently and is
+                    // not this clause's business.
+                    sink.examined();
                     check_response_id(
                         event.seq,
                         event.direction,
@@ -156,6 +165,7 @@ fn responses_match_requests(
                 if want_results {
                     consume_outstanding(event.direction, *id, &mut outstanding);
                 } else if id.is_some_and(|id| !id.is_null()) {
+                    sink.examined();
                     check_response_id(
                         event.seq,
                         event.direction,
@@ -242,15 +252,17 @@ pub(super) fn error_id_matches(context: &TraceContext<'_>, sink: &mut FindingSin
 /// classifies structurally as a request; this check is what catches it.
 pub(super) fn notification_no_id(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Request { method, .. } = kind
-            && is_notification_method(method)
-        {
+        let MessageKind::Request { method, .. } = kind else {
+            continue;
+        };
+        sink.examined();
+        if is_notification_method(method) {
             sink.push(
                     Some(event.seq),
                     format!(
-                        "{method:?} is a notification method but the message carries an id; notifications must not include one"
-                    ),
-                );
+                    "{method:?} is a notification method but the message carries an id; notifications must not include one"
+                ),
+            );
         }
     }
 }
@@ -260,6 +272,7 @@ pub(super) fn notification_no_id(context: &TraceContext<'_>, sink: &mut FindingS
 pub(super) fn error_shape(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
         if let MessageKind::Error { error, .. } = kind {
+            sink.examined();
             let Some(object) = error.as_object() else {
                 sink.push(
                     Some(event.seq),
@@ -294,11 +307,16 @@ pub(super) fn error_shape(context: &TraceContext<'_>, sink: &mut FindingSink) {
 /// `BASE-007`: "Error codes MUST be integers."
 pub(super) fn error_code_integer(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Error { error, .. } = kind
-            && let Some(code) = error.get("code")
-            && !code.is_i64()
-            && !code.is_u64()
-        {
+        let MessageKind::Error { error, .. } = kind else {
+            continue;
+        };
+        // The subject is an error *carrying a code*: an error with none is
+        // BASE-006's finding, and this clause has nothing to judge there.
+        let Some(code) = error.get("code") else {
+            continue;
+        };
+        sink.examined();
+        if !code.is_i64() && !code.is_u64() {
             sink.push(
                 Some(event.seq),
                 format!("error code is {}, expected an integer", type_name(code)),
@@ -319,11 +337,11 @@ pub(super) fn result_field(context: &TraceContext<'_>, sink: &mut FindingSink) {
         let Some(object) = event.message_payload().and_then(Value::as_object) else {
             continue;
         };
-        if object.contains_key("id")
-            && !object.contains_key("method")
-            && !object.contains_key("result")
-            && !object.contains_key("error")
-        {
+        if !object.contains_key("id") || object.contains_key("method") {
+            continue;
+        }
+        sink.examined();
+        if !object.contains_key("result") && !object.contains_key("error") {
             sink.push(
                 Some(event.seq),
                 "response-shaped message (id present, no method) carries no result field"
@@ -338,6 +356,7 @@ pub(super) fn result_field(context: &TraceContext<'_>, sink: &mut FindingSink) {
 /// and carries `"jsonrpc": "2.0"`.
 pub(super) fn jsonrpc_version(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
+        sink.examined();
         if let MessageKind::Invalid { reason } = kind {
             sink.push(
                 Some(event.seq),
@@ -375,7 +394,7 @@ mod tests {
     fn run_check(check_id: &str, trace: &str) -> Vec<Finding> {
         let events: Vec<TraceEvent> = parse_trace(trace, &Limits::default()).unwrap();
         let context = TraceContext::new(&events);
-        checks::find(check_id).unwrap().run(&context)
+        checks::find(check_id).unwrap().run(&context).findings
     }
 
     const INIT: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}"#;

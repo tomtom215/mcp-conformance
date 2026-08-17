@@ -100,7 +100,10 @@ fn render_row(out: &mut String, report: &Report, row: &crate::report::Requiremen
             }
             out.push_str("</system-out>\n    </testcase>\n");
         }
-        Outcome::Excluded | Outcome::Unsupported | Outcome::NotApplicable => {
+        Outcome::Excluded
+        | Outcome::Unsupported
+        | Outcome::NotApplicable
+        | Outcome::NotObserved => {
             let _ = writeln!(
                 out,
                 r#"    <testcase classname="{classname}" name="{name}"><skipped message="{}"/></testcase>"#,
@@ -117,6 +120,9 @@ fn skip_reason(row: &crate::report::RequirementReport) -> String {
             .exclusion
             .clone()
             .unwrap_or_else(|| "excluded".to_owned()),
+        Outcome::NotObserved => {
+            "the session carried none of the traffic this clause binds to".to_owned()
+        }
         Outcome::NotApplicable => format!(
             "not applicable: capability {} was not declared in this session",
             row.capability.as_deref().unwrap_or("(unknown)")
@@ -283,6 +289,7 @@ mod tests {
                 excluded: 2,
                 unsupported: 1,
                 not_applicable: 1,
+            not_observed: 0,
             },
             requirements: vec![failed, excluded_a, excluded_b, unsupported, not_applicable],
         };

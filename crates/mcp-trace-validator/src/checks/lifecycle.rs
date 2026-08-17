@@ -22,6 +22,7 @@ pub(super) fn first_interaction_initialize(context: &TraceContext<'_>, sink: &mu
     let Some((event, kind, _)) = context.messages().next() else {
         return;
     };
+    sink.examined();
     match (event.direction, kind) {
         (Direction::ClientToServer, MessageKind::Request { method, .. })
             if *method == "initialize" => {}
@@ -46,6 +47,7 @@ pub(super) fn initialize_params(context: &TraceContext<'_>, sink: &mut FindingSi
     let Some((seq, params)) = context.initialize().request else {
         return; // No initialize at all: LIFE-001's finding.
     };
+    sink.examined();
     let Some(params) = params else {
         sink.push(
             Some(seq),
@@ -104,13 +106,15 @@ fn expect_member(
 /// notification …".
 pub(super) fn initialized_notification(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let init = context.initialize();
-    if let Some((result_seq, _)) = init.result
-        && init.initialized.is_none()
-    {
+    let Some((result_seq, _)) = init.result else {
+        return; // Nothing answered initialize, so nothing owes a follow-up.
+    };
+    sink.examined();
+    if init.initialized.is_none() {
         sink.push(
-                Some(result_seq),
-                "the server answered initialize here, but no notifications/initialized notification follows in the trace".to_owned(),
-            );
+            Some(result_seq),
+            "the server answered initialize here, but no notifications/initialized notification follows in the trace".to_owned(),
+        );
     }
 }
 
@@ -130,10 +134,11 @@ pub(super) fn client_requests_before_init_response(
         ) {
             continue;
         }
-        if let MessageKind::Request { method, .. } = kind
-            && *method != "initialize"
-            && *method != "ping"
-        {
+        let MessageKind::Request { method, .. } = kind else {
+            continue;
+        };
+        sink.examined();
+        if *method != "initialize" && *method != "ping" {
             sink.push(
                 Some(event.seq),
                 format!(
@@ -158,9 +163,11 @@ pub(super) fn server_requests_before_initialized(
         if event.direction != Direction::ServerToClient || phase == Phase::Ready {
             continue;
         }
-        if let MessageKind::Request { method, .. } = kind
-            && *method != "ping"
-        {
+        let MessageKind::Request { method, .. } = kind else {
+            continue;
+        };
+        sink.examined();
+        if *method != "ping" {
             sink.push(
                 Some(event.seq),
                 format!(
@@ -178,6 +185,7 @@ pub(super) fn initialize_protocol_version(context: &TraceContext<'_>, sink: &mut
     let Some((seq, params)) = context.initialize().request else {
         return; // No initialize at all: LIFE-001's finding.
     };
+    sink.examined();
     match params.and_then(|params| params.get("protocolVersion")) {
         None => sink.push(
             Some(seq),
@@ -198,6 +206,7 @@ pub(super) fn initialize_result_version(context: &TraceContext<'_>, sink: &mut F
     let Some((seq, result)) = context.initialize().result else {
         return;
     };
+    sink.examined();
     match result.get("protocolVersion") {
         None => sink.push(
             Some(seq),
@@ -229,6 +238,7 @@ pub(super) fn initialize_result_shape(context: &TraceContext<'_>, sink: &mut Fin
     let Some((seq, result)) = context.initialize().result else {
         return;
     };
+    sink.examined();
     for (member, label) in [
         ("capabilities", "its capabilities"),
         ("serverInfo", "its implementation information (serverInfo)"),
@@ -316,7 +326,7 @@ mod tests {
         let context = TraceContext::new(&events);
         let findings = crate::checks::find("lifecycle.initialize-params")
             .expect("check exists")
-            .run(&context);
+            .run(&context).findings;
         assert_eq!(findings.len(), 3, "{findings:?}");
         assert!(
             findings[0]
@@ -351,6 +361,7 @@ mod tests {
             crate::checks::find("lifecycle.initialize-result-shape")
                 .expect("check registered")
                 .run(&context)
+        .findings
         };
 
         // Complete shape: no findings.
@@ -377,6 +388,7 @@ mod tests {
             crate::checks::find("lifecycle.initialize-result-shape")
                 .unwrap()
                 .run(&context)
+        .findings
                 .is_empty()
         );
     }

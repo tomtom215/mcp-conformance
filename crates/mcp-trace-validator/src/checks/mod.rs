@@ -47,16 +47,36 @@ pub struct Check {
     run: CheckFn,
 }
 
+/// What running one check produced.
+#[derive(Debug, Default)]
+#[non_exhaustive]
+pub struct CheckOutcome {
+    /// Findings, each stamped with the check's ID.
+    pub findings: Vec<Finding>,
+    /// How many subjects the check examined, when it reports that.
+    ///
+    /// `None` means the check has not been instrumented, and the engine then
+    /// treats it as having examined something — the fail-safe direction. A
+    /// wrong `Some(0)` would report a clause as unobserved when it was really
+    /// judged and clean, which loses information; a wrong "observed" only
+    /// restores today's behaviour.
+    pub subjects: Option<u32>,
+}
+
 impl Check {
-    /// Runs the check, returning its findings tagged with this check's ID.
+    /// Runs the check, returning its findings and what it examined.
     #[must_use]
-    pub fn run(&self, context: &TraceContext<'_>) -> Vec<Finding> {
+    pub fn run(&self, context: &TraceContext<'_>) -> CheckOutcome {
         let mut sink = FindingSink {
             check: self.id,
             findings: Vec::new(),
+            subjects: None,
         };
         (self.run)(context, &mut sink);
-        sink.findings
+        CheckOutcome {
+            findings: sink.findings,
+            subjects: sink.subjects,
+        }
     }
 }
 
@@ -65,6 +85,7 @@ impl Check {
 pub struct FindingSink {
     check: &'static str,
     findings: Vec<Finding>,
+    subjects: Option<u32>,
 }
 
 impl FindingSink {
@@ -75,6 +96,34 @@ impl FindingSink {
             seq,
             detail,
         });
+    }
+
+    /// Records that this check considered one more subject.
+    ///
+    /// **The counting rule**, applied identically by every check:
+    ///
+    /// > A subject is a trace element the check *considered* — one that, with
+    /// > different content, could have produced a finding. Count it after the
+    /// > filters that define the clause's scope, and before the condition that
+    /// > makes an element a violation.
+    ///
+    /// So a prohibition over server messages counts every server message,
+    /// because any of them could have been the violation; a clause about
+    /// subscription streams counts only messages on such a stream, because a
+    /// session without one gave the clause nothing to bind to. The difference
+    /// is what separates "complied with" from "never came up", and reporting
+    /// the second as the first states evidence the trace does not carry.
+    pub fn examined(&mut self) {
+        self.subjects = Some(self.subjects.unwrap_or(0).saturating_add(1));
+    }
+
+    /// Records that this check considered `count` subjects at once.
+    ///
+    /// The same rule as [`Self::examined`], for checks that compute their
+    /// subject set before looping — or that legitimately examined none.
+    pub fn examined_many(&mut self, count: usize) {
+        let count = u32::try_from(count).unwrap_or(u32::MAX);
+        self.subjects = Some(self.subjects.unwrap_or(0).saturating_add(count));
     }
 }
 
