@@ -18,7 +18,9 @@ use clap::{Parser, ValueEnum};
 use mcp_everything_server::EverythingServer;
 use mcp_everything_server::policy::HttpSecurityPolicy;
 use mcp_everything_server::server::ServedRevision;
+use mcp_everything_server::server::stateless::StatelessEnvelope;
 use rmcp::ServiceExt as _;
+use rmcp::service::serve_directly;
 use rmcp::transport::stdio;
 
 /// Reference MCP server for conformance testing.
@@ -103,24 +105,6 @@ async fn main() -> ExitCode {
         eprintln!("mcp-everything-server: --tap-dir requires --transport http");
         return ExitCode::from(2);
     }
-    if revision.is_stateless() && matches!(cli.transport, Transport::Stdio) {
-        // Refused rather than served badly. rmcp's stdio server is built
-        // around the handshake — `serve()` waits for an `initialize` before it
-        // dispatches anything — so this combination would answer the refusal
-        // this revision owes a legacy client and then exit, which is not a
-        // server. `serve_directly` would skip the handshake, but the
-        // per-request `_meta` enforcement that makes the stateless surface
-        // *conformant* lives in rmcp's HTTP layer and reads HTTP headers;
-        // reproducing it for stdio would be new protocol logic with no
-        // independent client to validate it against (the official suite drives
-        // servers over `--url` only). An unverified conformance claim is the
-        // one thing this binary must not ship.
-        eprintln!(
-            "mcp-everything-server: --protocol-version 2026-07-28 requires --transport http \
-             (the stateless surface is not served over stdio here; see the crate README)"
-        );
-        return ExitCode::from(2);
-    }
     match cli.transport {
         Transport::Stdio => serve_stdio(revision).await,
         Transport::Http => {
@@ -153,14 +137,38 @@ async fn serve_http_tapped(
 }
 
 async fn serve_stdio(revision: ServedRevision) -> ExitCode {
-    let service = match EverythingServer::serving(revision).serve(stdio()).await {
+    let server = EverythingServer::serving(revision);
+    if revision.is_stateless() {
+        return serve_stdio_stateless(server).await;
+    }
+    let service = match server.serve(stdio()).await {
         Ok(service) => service,
         Err(error) => {
             eprintln!("mcp-everything-server: failed to start on stdio: {error}");
             return ExitCode::FAILURE;
         }
     };
-    match service.waiting().await {
+    waited(service.waiting().await)
+}
+
+/// Serves the stateless surface over stdio.
+///
+/// `serve` cannot: it waits for an `initialize` before dispatching anything,
+/// and this revision removed that message. `serve_directly` is rmcp's entry
+/// point for exactly this — a peer with no handshake and no negotiated state —
+/// and [`StatelessEnvelope`] supplies the per-request checking that rmcp
+/// performs inside its HTTP layer and that stdio therefore has nobody to do.
+///
+/// There is no readiness line and nothing to bind: over stdio the server is
+/// ready when the process is, and stdout belongs to the protocol.
+async fn serve_stdio_stateless(server: EverythingServer) -> ExitCode {
+    let service = serve_directly(StatelessEnvelope(server), stdio(), None);
+    waited(service.waiting().await)
+}
+
+/// The exit code for a service that has stopped.
+fn waited<T, E: std::fmt::Display>(outcome: Result<T, E>) -> ExitCode {
+    match outcome {
         Ok(_) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("mcp-everything-server: serve error: {error}");

@@ -15,6 +15,9 @@
 use std::io::{BufRead as _, BufReader, Write as _};
 use std::process::{Command, Stdio};
 
+/// The `2026-07-28` `_meta` envelope every request carries.
+const ENVELOPE: &str = r#""_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}"#;
+
 /// A spawned server, killed and reaped when it leaves scope — **including
 /// while a panic unwinds**.
 ///
@@ -146,20 +149,58 @@ fn protocol_version_flag_selects_the_surface_the_binary_serves() {
     let _ = child.wait();
 }
 
-/// The stateless surface is HTTP-only here, and the binary says so rather than
-/// starting a server that cannot serve it.
+/// The stateless surface over stdio, end to end through the real binary.
+///
+/// `serve` cannot reach this path — it waits for an `initialize` that this
+/// revision removed — so what is pinned is that the binary took the
+/// `serve_directly` route *and* installed the envelope gate on it: one request
+/// with the envelope is answered, one without it is refused.
 #[test]
-fn the_stateless_revision_over_stdio_is_an_invocation_error() {
-    let output = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
-        .args(["--transport", "stdio", "--protocol-version", "2026-07-28"])
-        .output()
-        .expect("binary runs");
-    assert_eq!(output.status.code(), Some(2), "clap's usage exit code");
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("requires --transport http"),
-        "the message names the fix: {stderr}"
+fn the_stateless_revision_is_served_over_stdio() {
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args(["--transport", "stdio", "--protocol-version", "2026-07-28"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("binary spawns"),
     );
+    let mut stdin = child.stdin.take().unwrap();
+    let mut reader = BufReader::new(child.stdout.take().unwrap());
+
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{{{ENVELOPE}}}}}"#
+    )
+    .expect("write discover");
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{{}}}}"#
+    )
+    .expect("write a request with no envelope");
+
+    // Correlated by id, not by arrival order: a stateless server has no
+    // reason to answer two independent requests in the order it read them,
+    // and this one does not.
+    let mut answers = std::collections::BTreeMap::new();
+    for _ in 0..2 {
+        let mut line = String::new();
+        reader.read_line(&mut line).expect("an answer");
+        let answer: serde_json::Value = serde_json::from_str(&line).expect("one JSON line");
+        answers.insert(answer["id"].as_u64().expect("an id"), answer);
+    }
+    assert_eq!(
+        answers[&1]["result"]["supportedVersions"],
+        serde_json::json!(["2026-07-28"]),
+        "{:?}",
+        answers[&1]
+    );
+    assert_eq!(answers[&2]["error"]["code"], -32602, "{:?}", answers[&2]);
+
+    drop(stdin);
+    let status = child.wait().expect("child exits");
+    assert!(status.success(), "clean shutdown after stdin EOF: {status}");
 }
 
 #[test]

@@ -58,6 +58,7 @@ use crate::{logging, resources};
 
 mod caching;
 mod revision;
+pub mod stateless;
 pub use revision::ServedRevision;
 
 /// Upper bound on tracked subscriptions per session. Far above any legitimate

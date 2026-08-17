@@ -18,13 +18,14 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use mcp_reference_host::capture::{CaptureTransport, RecordingTransport};
 use mcp_reference_host::handler::HostHandler;
 use mcp_reference_host::run::{RunPlan, RunReport, StopReason, run};
 use mcp_reference_host::scenario::{ScenarioPlan, plan_for};
 use mcp_reference_host::script::InteractionScript;
-use rmcp::ServiceExt as _;
+use rmcp::model::ProtocolVersion;
+use rmcp::service::{ClientLifecycleMode, ClientServiceExt as _};
 use rmcp::transport::Transport;
 use tokio_util::sync::CancellationToken;
 
@@ -54,6 +55,43 @@ struct Cli {
     /// wedge the runner forever (measured against suite 0.1.16).
     #[arg(long, default_value_t = 25)]
     deadline_secs: u64,
+    /// Protocol revision to speak. `2026-07-28` uses the stateless lifecycle:
+    /// `server/discover` instead of `initialize`, and a `_meta` envelope on
+    /// every request.
+    #[arg(long, value_enum, default_value_t = Revision::default())]
+    protocol_version: Revision,
+}
+
+/// The revision the host speaks, as a CLI value.
+///
+/// A separate enum from rmcp's [`ProtocolVersion`] because the choice here is
+/// not "which version string" but "which lifecycle": `2026-07-28` removed the
+/// handshake, so the two options differ in the messages the host sends before
+/// it can send anything else.
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+enum Revision {
+    /// The `initialize` handshake.
+    #[default]
+    #[value(name = "2025-11-25")]
+    V20251125,
+    /// Stateless: `server/discover`, then a `_meta` envelope per request.
+    #[value(name = "2026-07-28")]
+    V20260728,
+}
+
+impl From<Revision> for ClientLifecycleMode {
+    fn from(revision: Revision) -> Self {
+        match revision {
+            Revision::V20251125 => Self::Initialize,
+            // Only this revision, not a preference list: the host is asked to
+            // exercise the stateless surface, and a list that could fall back
+            // would quietly record a legacy session instead when the server
+            // does not serve it.
+            Revision::V20260728 => Self::Discover {
+                preferred_versions: vec![ProtocolVersion::V_2026_07_28],
+            },
+        }
+    }
 }
 
 #[tokio::main]
@@ -81,6 +119,7 @@ async fn dispatch(cli: Cli) -> ExitCode {
     );
 
     let url = cli.url.or(cli.positional_url);
+    let lifecycle = ClientLifecycleMode::from(cli.protocol_version);
     match (plan, url, cli.server_cmd) {
         (ScenarioPlan::SseRetry, Some(url), _) => sse_retry(&url).await,
         (ScenarioPlan::SseRetry, None, _) => {
@@ -91,10 +130,10 @@ async fn dispatch(cli: Cli) -> ExitCode {
             let transport = mcp_reference_host::connect::streamable_http(&url);
             match cli.trace_dir {
                 Some(dir) => match recording(transport, CaptureTransport::StreamableHttp, &dir) {
-                    Ok(transport) => agent_run(transport, script, plan).await,
+                    Ok(transport) => agent_run(transport, script, plan, lifecycle.clone()).await,
                     Err(code) => code,
                 },
-                None => agent_run(transport, script, plan).await,
+                None => agent_run(transport, script, plan, lifecycle.clone()).await,
             }
         }
         (ScenarioPlan::Agent { script, plan }, None, Some(command)) => {
@@ -107,10 +146,10 @@ async fn dispatch(cli: Cli) -> ExitCode {
             };
             match cli.trace_dir {
                 Some(dir) => match recording(transport, CaptureTransport::Stdio, &dir) {
-                    Ok(transport) => agent_run(transport, script, plan).await,
+                    Ok(transport) => agent_run(transport, script, plan, lifecycle.clone()).await,
                     Err(code) => code,
                 },
-                None => agent_run(transport, script, plan).await,
+                None => agent_run(transport, script, plan, lifecycle.clone()).await,
             }
         }
         (ScenarioPlan::Agent { .. }, None, None) => {
@@ -181,9 +220,14 @@ async fn agent_run(
     transport: impl Transport<rmcp::service::RoleClient> + 'static,
     script: InteractionScript,
     plan: RunPlan,
+    lifecycle: ClientLifecycleMode,
 ) -> ExitCode {
     let handler = HostHandler::new(script);
-    let client = match handler.clone().serve(transport).await {
+    let client = match handler
+        .clone()
+        .serve_with_lifecycle(transport, lifecycle)
+        .await
+    {
         Ok(client) => client,
         Err(error) => {
             eprintln!("mcp-reference-host: initialization failed: {error}");

@@ -210,12 +210,26 @@ pub(in crate::checks) fn missing_capability_http_status(
     );
 }
 
-/// `BASE-035`: a `-32021` must carry `data.requiredCapabilities` listing what
+/// `BASE-035`: a `-32021` must carry `data.requiredCapabilities` naming what
 /// was missing.
 ///
 /// The trace cannot show that the server *needed* a capability, so the positive
 /// direction is out of reach; what it can show is a `-32021` whose shape does
-/// not carry the list the clause requires.
+/// not carry what the clause requires.
+///
+/// The clause's word is "lists", and this check read that as a JSON array until
+/// 2026-08-17. The schema disagrees, and the schema is the authority:
+/// `MissingRequiredClientCapabilityError.error.data.requiredCapabilities` is
+/// typed [`ClientCapabilities`][schema] — the same nested object a client sends
+/// in its `_meta`, carrying the *shape* of what is missing rather than a list of
+/// names. Judged as an array, this check reported a conforming server, which is
+/// the worst thing a conformance check can do; it now requires an object.
+///
+/// An empty object is still reported. `{}` declares nothing missing, so it
+/// leaves the client with no more information than an error carrying no `data`
+/// at all — the very thing the clause exists to prevent.
+///
+/// [schema]: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2026-07-28/schema.ts
 pub(in crate::checks) fn missing_capability_error(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
@@ -234,13 +248,13 @@ pub(in crate::checks) fn missing_capability_error(
             .get("data")
             .and_then(|data| data.get("requiredCapabilities"))
         {
-            Some(list) if list.is_array() => {
-                if list.as_array().is_some_and(Vec::is_empty) {
+            Some(required) if required.is_object() => {
+                if required.as_object().is_some_and(serde_json::Map::is_empty) {
                     sink.push(
                         Some(event.seq),
                         format!(
                             "error {MISSING_CAPABILITY_CODE} carries an empty \
-                             `data.requiredCapabilities`; it must list the missing capabilities"
+                             `data.requiredCapabilities`; it must name the missing capabilities"
                         ),
                     );
                 }
@@ -249,14 +263,14 @@ pub(in crate::checks) fn missing_capability_error(
                 Some(event.seq),
                 format!(
                     "error {MISSING_CAPABILITY_CODE} has `data.requiredCapabilities` \
-                     that is not an array"
+                     that is not a `ClientCapabilities` object"
                 ),
             ),
             None => sink.push(
                 Some(event.seq),
                 format!(
                     "error {MISSING_CAPABILITY_CODE} has no `data.requiredCapabilities` \
-                     listing the missing capabilities"
+                     naming the missing capabilities"
                 ),
             ),
         }

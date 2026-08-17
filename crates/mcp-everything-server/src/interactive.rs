@@ -32,7 +32,10 @@ use rmcp::model::{
 use rmcp::service::RequestContext;
 use rmcp::{RoleServer, tool, tool_router};
 
-use crate::server::EverythingServer;
+use crate::server::{EverythingServer, ServedRevision};
+
+mod capability;
+use capability::Required;
 
 /// Arguments for `test_sampling`.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -63,16 +66,7 @@ impl EverythingServer {
         Parameters(SamplingArgs { prompt }): Parameters<SamplingArgs>,
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, ErrorData> {
-        let supported = context
-            .peer
-            .peer_info()
-            .is_some_and(|info| info.capabilities.sampling.is_some());
-        if !supported {
-            return Err(ErrorData::invalid_request(
-                "client does not support sampling (no sampling capability advertised)",
-                None,
-            ));
-        }
+        capability::require(&context, self.revision(), Required::Sampling)?;
         let result = context
             .peer
             .create_message(CreateMessageRequestParams::new(
@@ -126,7 +120,7 @@ impl EverythingServer {
             )
             .build()
             .map_err(invalid_schema)?;
-        elicit(&context, message, schema, "User response").await
+        elicit(&context, self.revision(), message, schema, "User response").await
     }
 
     /// `elicitation-sep1034-defaults`: every primitive type carrying a
@@ -171,6 +165,7 @@ impl EverythingServer {
             .map_err(invalid_schema)?;
         elicit(
             &context,
+            self.revision(),
             "Please confirm or adjust the prefilled values".to_owned(),
             schema,
             "Elicitation completed",
@@ -194,6 +189,7 @@ impl EverythingServer {
         let schema = sep1330_schema();
         elicit(
             &context,
+            self.revision(),
             "Please choose from the enum variants".to_owned(),
             schema,
             "Elicitation completed",
@@ -221,16 +217,7 @@ impl EverythingServer {
         // Server-unique id: URL elicitations are completed *by id*, and a
         // process-wide counter keeps concurrent calls distinct.
         static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-        let supported = context
-            .peer
-            .peer_info()
-            .is_some_and(|info| info.capabilities.elicitation.is_some());
-        if !supported {
-            return Err(ErrorData::invalid_request(
-                "client does not support elicitation (no elicitation capability advertised)",
-                None,
-            ));
-        }
+        capability::require(&context, self.revision(), Required::Elicitation)?;
         let elicitation_id = format!(
             "url-elic-{}",
             NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
@@ -382,20 +369,12 @@ fn multi_select_variants() -> BTreeMap<String, PrimitiveSchemaDefinition> {
 /// result formatting (`<prefix>: action=…, content=…`).
 async fn elicit(
     context: &RequestContext<RoleServer>,
+    revision: ServedRevision,
     message: String,
     schema: ElicitationSchema,
     prefix: &str,
 ) -> Result<CallToolResult, ErrorData> {
-    let supported = context
-        .peer
-        .peer_info()
-        .is_some_and(|info| info.capabilities.elicitation.is_some());
-    if !supported {
-        return Err(ErrorData::invalid_request(
-            "client does not support elicitation (no elicitation capability advertised)",
-            None,
-        ));
-    }
+    capability::require(context, revision, Required::Elicitation)?;
     let result = context
         .peer
         .create_elicitation(ElicitRequestParams::FormElicitationParams {

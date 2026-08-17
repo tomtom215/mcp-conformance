@@ -238,15 +238,18 @@ fn a_legacy_initialize_is_outside_the_rejection_rule() {
 }
 
 #[test]
-fn the_missing_capability_error_must_list_what_was_missing() {
+fn the_missing_capability_error_must_name_what_was_missing() {
     let check = "meta.missing-capability-error";
 
-    // Absent, empty, and wrongly-typed lists are each their own finding.
+    // Absent, empty, and wrongly-typed each their own finding. The array case
+    // is here because this check once *required* it: the schema types
+    // `requiredCapabilities` as a `ClientCapabilities` object, so an array is
+    // as malformed as a bare string.
     assert_eq!(findings_for(check, &capability_error("")).len(), 1);
     assert_eq!(
         findings_for(
             check,
-            &capability_error(r#","data":{"requiredCapabilities":[]}"#)
+            &capability_error(r#","data":{"requiredCapabilities":{}}"#)
         )
         .len(),
         1
@@ -259,12 +262,22 @@ fn the_missing_capability_error_must_list_what_was_missing() {
         .len(),
         1
     );
-
-    // A populated array is what the clause asks for.
-    assert!(
+    assert_eq!(
         findings_for(
             check,
             &capability_error(r#","data":{"requiredCapabilities":["elicitation"]}"#)
+        )
+        .len(),
+        1,
+        "an array is not a ClientCapabilities object"
+    );
+
+    // The shape the schema defines, and the shape rmcp's
+    // `ErrorData::missing_required_client_capability` produces.
+    assert!(
+        findings_for(
+            check,
+            &capability_error(r#","data":{"requiredCapabilities":{"elicitation":{}}}"#)
         )
         .is_empty()
     );
