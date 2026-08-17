@@ -1,0 +1,117 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "LOG-006",
+      "level": "SHOULD NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/logging",
+        "quote": "New implementations SHOULD NOT adopt it; existing implementations SHOULD migrate to logging to `stderr` for stdio transports, or to OpenTelemetry for structured observability."
+      },
+      "exclusion": "Binds an adoption decision and a migration plan, neither of which is a message. A server that uses the feature is not thereby a *new* implementation, and a trace carries nothing that dates the code sending it."
+    },
+    {
+      "id": "LOG-007",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/logging#capabilities",
+        "quote": "Servers that emit log message notifications MUST declare the `logging` capability:"
+      },
+      "checks": [
+        "capabilities.logging-declared"
+      ]
+    },
+    {
+      "id": "LOG-008",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/logging#per-request-log-level",
+        "quote": "The server MUST NOT emit `notifications/message` for a request that does not include this field."
+      },
+      "checks": [
+        "logging.level-requested"
+      ]
+    },
+    {
+      "id": "LOG-009",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/logging#per-request-log-level",
+        "quote": "`notifications/message` is request-scoped: the server MUST NOT deliver it on a `subscriptions/listen` stream or on any stream other than the one carrying the response to the request that set the log level."
+      },
+      "checks": [
+        "logging.not-on-subscription"
+      ]
+    },
+    {
+      "id": "LOG-010",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/logging#error-handling",
+        "quote": "If the `io.modelcontextprotocol/logLevel` value carried in a request's `meta` is not a recognized log level, the server SHOULD reject that request with a standard JSON-RPC error: Invalid log level: `-32602` (Invalid params); Internal errors: `-32603` (Internal error)"
+      },
+      "checks": [
+        "logging.invalid-level-rejected"
+      ]
+    },
+    {
+      "id": "LOG-011",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/logging#implementation-considerations",
+        "quote": "Servers SHOULD: Rate limit log messages; Include relevant context in data field; Use consistent logger names; Remove sensitive information"
+      },
+      "exclusion": "Rate limiting is measured in elapsed time (LIFE-015); \"relevant context\", \"consistent\" logger names and \"sensitive\" information are judgements about the meaning of the payload, which this engine does not model \u2014 the same boundary BASE-073 draws for JSON Schema."
+    },
+    {
+      "id": "LOG-012",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/logging#security",
+        "quote": "Log messages MUST NOT contain: Credentials or secrets; Personal identifying information; Internal system details that could aid attacks"
+      },
+      "exclusion": "Requires classifying the *meaning* of arbitrary JSON. Whether a string is a credential, a person's identity, or an internal detail that aids an attacker cannot be decided structurally, and a checker that guessed would report conforming servers while missing real leaks."
+    },
+    {
+      "id": "LOG-013",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/logging#security",
+        "quote": "Implementations SHOULD: Rate limit messages; Validate all data fields; Control log access; Monitor for sensitive content"
+      },
+      "exclusion": "Four operational practices of an implementation. Access control and monitoring happen outside the session entirely, and validation that accepts leaves nothing behind \u2014 the same reason MRTR-021 excludes."
+    }
+  ]
+}

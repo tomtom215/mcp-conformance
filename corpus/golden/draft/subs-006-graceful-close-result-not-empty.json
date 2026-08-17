@@ -1,10 +1,10 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 86,
+    "pass": 95,
     "fail": 0,
     "warn": 2,
-    "excluded": 111,
+    "excluded": 122,
     "unsupported": 0,
     "not_applicable": 0
   },
@@ -1128,6 +1128,117 @@
       "level": "MUST NOT",
       "outcome": "excluded",
       "exclusion": "Access control happens before a response is composed, inside the server: a trace shows what one caller was given, never what a different caller would have been refused. Whether `cacheScope` was *relied upon* for that decision is a fact about the server's code."
+    },
+    {
+      "id": "COMP-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "COMP-007",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "COMP-008",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Each row's antecedent is a server-side determination — that this prompt name is invalid, that a required argument is missing — and a trace shows the answer without the reason for it. An exchange ending in `-32602` and one ending in a result are equally consistent with the clause, because nothing on the wire says which case the server was in."
+    },
+    {
+      "id": "COMP-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Four quality properties, none of them a message shape: relevance ordering has no wire-observable definition, fuzzy matching is an algorithm choice, rate limiting is measured in elapsed time (LIFE-015), and validation that accepts leaves no trace."
+    },
+    {
+      "id": "COMP-010",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Debouncing and caching are timing and cache-hit properties, both invisible for the reasons CACH-010 and CACH-002 record; \"gracefully\" describes what the client does after the response arrives, which is not a message."
+    },
+    {
+      "id": "COMP-011",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Security properties of an implementation, not of an exchange. A trace shows one completion answered for one caller; whether a different caller would have been refused, and whether the suggestions disclosed something they should not, are facts about the server's data and policy rather than about the message."
+    },
+    {
+      "id": "PAGE-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PAGE-007",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Forbids an assumption. A client that assumed a fixed page size and one that did not send identical requests — the assumption only shows in how the client interprets what comes back, which is not on the wire."
+    },
+    {
+      "id": "PAGE-008",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Cursor stability is a property across time and sessions — the same cursor presented later must still resolve — which one recording cannot exhibit. The graceful half is stated concretely by PAGE-011, and that is where it is judged."
+    },
+    {
+      "id": "PAGE-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Both bind how a client reads a result it already has. Stopping because `nextCursor` was absent and stopping for any other reason produce the same session: no further request."
+    },
+    {
+      "id": "PAGE-010",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PAGE-011",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "LOG-006",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds an adoption decision and a migration plan, neither of which is a message. A server that uses the feature is not thereby a *new* implementation, and a trace carries nothing that dates the code sending it."
+    },
+    {
+      "id": "LOG-007",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LOG-008",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "LOG-009",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "LOG-010",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "LOG-011",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Rate limiting is measured in elapsed time (LIFE-015); \"relevant context\", \"consistent\" logger names and \"sensitive\" information are judgements about the meaning of the payload, which this engine does not model — the same boundary BASE-073 draws for JSON Schema."
+    },
+    {
+      "id": "LOG-012",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Requires classifying the *meaning* of arbitrary JSON. Whether a string is a credential, a person's identity, or an internal detail that aids an attacker cannot be decided structurally, and a checker that guessed would report conforming servers while missing real leaks."
+    },
+    {
+      "id": "LOG-013",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Four operational practices of an implementation. Access control and monitoring happen outside the session entirely, and validation that accepts leaves nothing behind — the same reason MRTR-021 excludes."
     }
   ]
 }

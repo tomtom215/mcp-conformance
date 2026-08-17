@@ -161,6 +161,12 @@ falsifies exactly the requirement it is named for.
 | `tran-097-header-body-mismatch-accepted.jsonl` | `Mcp-Param-Region: us-east1` against `arguments.region = "us-west1"`, answered with a result (TRAN-097, TRAN-100 — one rule stated in two sections) |
 | `tran-098-header-mismatch-without-400.jsonl` | `HeaderMismatch` returned with HTTP 500 rather than 400 (TRAN-098, TRAN-102 — one rule stated in two sections) |
 | `tran-074-unsupported-version-without-400.jsonl` | `-32022` returned with HTTP 200 rather than 400 (TRAN-074). The status half of that clause had no trace of its own until `transport.unsupported-version-status` was split out; it had been riding the kills of the sibling rules it was bundled with. |
+| `comp-007-completions-undeclared.jsonl` | `completion/complete` answered though the `server/discover` result declared no `completions` capability (COMP-007) |
+| `log-007-logging-undeclared.jsonl` | `notifications/message` emitted though discovery declared no `logging` capability (LOG-007) |
+| `log-008-log-without-requested-level.jsonl` | A log notification in a session where no request set `io.modelcontextprotocol/logLevel` (LOG-008) |
+| `log-009-log-on-subscription-stream.jsonl` | A log notification tagged with a subscription id, so travelling on a subscription's stream (LOG-009) |
+| `log-010-unrecognized-log-level-accepted.jsonl` | A request declaring log level `verbose`, served rather than rejected with `-32602` (LOG-010) |
+| `page-011-unissued-cursor-accepted.jsonl` | A `tools/list` presenting a cursor the session never issued, answered with a result (PAGE-011). Also falsifies PAGE-002 at its own revision's registry, and PAGE-010 here — the fabricated cursor is the client's defect and this clause's antecedent. |
 | `cach-001-cacheable-result-without-hints.jsonl` | A `complete` `tools/list` result with no `ttlMs` caching hint (CACH-001) |
 | `cach-008-negative-ttl.jsonl` | `ttlMs: -1`, which servers must never provide (CACH-008) |
 | `cach-015-page-scope-changes.jsonl` | A paginated `tools/list` whose second page switches from `private` to `public` (CACH-015, and CACH-016 — the same rule and its worked example) |

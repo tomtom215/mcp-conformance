@@ -415,6 +415,33 @@ pub static ALL: &[Check] = &[
         "caching.page-scope-consistent",
         draft::caching::page_scope_consistent
     ),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!(
+        "capabilities.completions-declared",
+        draft::capabilities::completions_declared
+    ),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!(
+        "capabilities.logging-declared",
+        draft::capabilities::logging_declared
+    ),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!("logging.level-requested", draft::logging::level_requested),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!(
+        "logging.not-on-subscription",
+        draft::logging::not_on_subscription
+    ),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!(
+        "logging.invalid-level-rejected",
+        draft::logging::invalid_level_rejected
+    ),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!(
+        "pagination.invalid-cursor-rejected",
+        draft::pagination::invalid_cursor_rejected
+    ),
 ];
 /// Looks up a check by its stable ID.
 #[must_use]
