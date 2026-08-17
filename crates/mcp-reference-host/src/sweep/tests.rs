@@ -87,10 +87,23 @@ fn a_prompt_with_no_arguments_is_called_with_none() {
 
 #[test]
 fn the_report_counts_only_the_steps_that_drew_errors() {
+    // Three counts, not one. Every assertion in this workspace on `errors()`
+    // used to expect exactly the sweep's one deliberate miss, so a body that
+    // ignored the steps and returned `1` satisfied all of them — the mutation
+    // gate found it. A counter is only shown to count when it is made to
+    // produce more than one answer.
     let mut report = SweepReport::default();
+    assert_eq!(report.errors(), 0, "an empty sweep drew no errors");
+
     report.record("resources/list", Ok("2 resource(s)".to_owned()));
+    assert_eq!(report.errors(), 0, "a step that succeeded is not an error");
+
     report.record("resources/read test://gone", Err("-32602".to_owned()));
     assert_eq!(report.errors(), 1);
-    assert_eq!(report.steps.len(), 2);
+
+    report.record("prompts/get absent", Err("-32602".to_owned()));
+    assert_eq!(report.errors(), 2, "errors accumulate rather than latch");
+
+    assert_eq!(report.steps.len(), 3);
     assert_eq!(report.steps[1].what, "resources/read test://gone");
 }
