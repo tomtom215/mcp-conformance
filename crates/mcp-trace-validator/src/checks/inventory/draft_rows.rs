@@ -1,0 +1,300 @@
+// SPDX-License-Identifier: MIT
+// Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+//! The `2026-07-28` half of the check inventory.
+//!
+//! Split from [`super`] when the combined list crossed the 500-line cap, at the
+//! seam that will keep holding: one revision's rows per file, concatenated into
+//! `ALL` at compile time. Empty without the `draft-2026-07-28` feature, which is
+//! what keeps a default build free of the revision entirely.
+
+use super::Check;
+#[cfg(feature = "draft-2026-07-28")]
+use crate::checks::draft;
+
+macro_rules! check {
+    ($id:literal, $run:path) => {
+        Check { id: $id, run: $run }
+    };
+}
+
+/// The revision's rows, in stable order.
+#[cfg(feature = "draft-2026-07-28")]
+pub(super) const DRAFT: &[Check] = &[
+    check!(
+        "base.result-type-present",
+        draft::envelope::result_type_present
+    ),
+    check!(
+        "base.request-id-unique-in-flight",
+        draft::envelope::request_id_unique_in_flight
+    ),
+    check!(
+        "base.error-code-legacy-subrange",
+        draft::envelope::error_code_legacy_subrange
+    ),
+    check!(
+        "base.error-code-reserved-subrange",
+        draft::envelope::error_code_reserved_subrange
+    ),
+    check!(
+        "base.error-code-withdrawn",
+        draft::envelope::error_code_withdrawn
+    ),
+    check!(
+        "base.error-code-application-range",
+        draft::envelope::error_code_application_range
+    ),
+    check!(
+        "meta.required-request-fields",
+        draft::meta::required_request_fields
+    ),
+    check!(
+        "meta.missing-required-field-rejected",
+        draft::meta::missing_required_field_rejected
+    ),
+    check!(
+        "meta.missing-required-field-http-status",
+        draft::meta::missing_required_field_http_status
+    ),
+    check!(
+        "meta.missing-capability-error",
+        draft::meta::missing_capability_error
+    ),
+    check!(
+        "meta.missing-capability-http-status",
+        draft::meta::missing_capability_http_status
+    ),
+    check!(
+        "meta.no-undeclared-capability-reliance",
+        draft::meta::no_undeclared_capability_reliance
+    ),
+    check!(
+        "meta.subscription-id-present",
+        draft::meta::subscription_id_present
+    ),
+    check!(
+        "meta.trace-context-format",
+        draft::meta::trace_context_format
+    ),
+    check!(
+        "transport.protocol-version-header-present",
+        draft::transport::protocol_version_header_present
+    ),
+    check!(
+        "transport.protocol-version-header-matches-body",
+        draft::transport::protocol_version_header_matches_body
+    ),
+    check!(
+        "transport.request-metadata-headers",
+        draft::transport::request_metadata_headers
+    ),
+    check!(
+        "transport.client-no-responses",
+        draft::transport::client_no_responses
+    ),
+    check!(
+        "transport.no-independent-server-requests",
+        draft::transport::no_independent_server_requests
+    ),
+    check!(
+        "transport.accel-buffering-header",
+        draft::transport::accel_buffering_header
+    ),
+    check!(
+        "transport.no-messages-after-cancellation",
+        draft::transport::no_messages_after_cancellation
+    ),
+    check!(
+        "transport.version-mismatch-rejected",
+        draft::transport::version_mismatch_rejected
+    ),
+    check!(
+        "transport.invalid-param-header-rejected",
+        draft::transport::invalid_param_header_rejected
+    ),
+    check!(
+        "transport.header-mismatch-status",
+        draft::transport::header_mismatch_status
+    ),
+    check!(
+        "transport.header-body-match-validated",
+        draft::transport::header_body_match_validated
+    ),
+    check!(
+        "transport.unsupported-version-error",
+        draft::transport::unsupported_version_error
+    ),
+    check!(
+        "transport.unsupported-version-status",
+        draft::transport::unsupported_version_status
+    ),
+    check!(
+        "transport.unknown-method-404",
+        draft::transport::unknown_method_404
+    ),
+    check!(
+        "transport.header-value-encoding",
+        draft::transport::header_value_encoding
+    ),
+    check!(
+        "transport.sentinel-marker-case",
+        draft::transport::sentinel_marker_case
+    ),
+    check!(
+        "transport.sentinel-pattern-encoded",
+        draft::transport::sentinel_pattern_encoded
+    ),
+    check!(
+        "transport.x-mcp-header-mirrored",
+        draft::transport::x_mcp_header_mirrored
+    ),
+    check!(
+        "transport.x-mcp-header-name-valid",
+        draft::transport::x_mcp_header_name_valid
+    ),
+    check!("discover.implemented", draft::discovery::implemented),
+    check!(
+        "discover.dual-era-probe-first",
+        draft::discovery::dual_era_probe_first
+    ),
+    check!(
+        "versioning.retry-uses-supported-version",
+        draft::versioning::retry_uses_supported_version
+    ),
+    check!(
+        "versioning.extension-identifier-format",
+        draft::versioning::extension_identifier_format
+    ),
+    check!(
+        "versioning.initialize-error-names-versions",
+        draft::versioning::initialize_error_names_versions
+    ),
+    check!(
+        "transport.cancel-notification-references-request",
+        draft::transport::cancel_notification_references_request
+    ),
+    check!(
+        "transport.no-messages-after-cancel-notification",
+        draft::transport::no_messages_after_cancel_notification
+    ),
+    check!(
+        "mrtr.input-required-supported-methods",
+        draft::mrtr::input_required_supported_methods
+    ),
+    check!(
+        "mrtr.input-request-methods",
+        draft::mrtr::input_request_methods
+    ),
+    check!(
+        "mrtr.input-required-has-content",
+        draft::mrtr::input_required_has_content
+    ),
+    check!(
+        "mrtr.retry-carries-input-responses",
+        draft::mrtr::retry_carries_input_responses
+    ),
+    check!(
+        "mrtr.request-state-echoed",
+        draft::mrtr::request_state_echoed
+    ),
+    check!(
+        "mrtr.no-unsolicited-request-state",
+        draft::mrtr::no_unsolicited_request_state
+    ),
+    check!("mrtr.retry-id-differs", draft::mrtr::retry_id_differs),
+    check!(
+        "mrtr.request-state-scoped-to-retry",
+        draft::mrtr::request_state_scoped_to_retry
+    ),
+    check!(
+        "mrtr.missing-input-reasked",
+        draft::mrtr::missing_input_reasked
+    ),
+    check!(
+        "subscriptions.only-requested-notifications",
+        draft::subscriptions::only_requested_notifications
+    ),
+    check!(
+        "subscriptions.acknowledgment-first",
+        draft::subscriptions::acknowledgment_first
+    ),
+    check!(
+        "subscriptions.graceful-close-result-empty",
+        draft::subscriptions::graceful_close_result_empty
+    ),
+    check!(
+        "caching.hints-on-cacheable-results",
+        draft::caching::hints_on_cacheable_results
+    ),
+    check!("caching.ttl-non-negative", draft::caching::ttl_non_negative),
+    check!(
+        "caching.page-scope-consistent",
+        draft::caching::page_scope_consistent
+    ),
+    check!(
+        "capabilities.completions-declared",
+        draft::capabilities::completions_declared
+    ),
+    check!(
+        "capabilities.logging-declared",
+        draft::capabilities::logging_declared
+    ),
+    check!("logging.level-requested", draft::logging::level_requested),
+    check!(
+        "logging.not-on-subscription",
+        draft::logging::not_on_subscription
+    ),
+    check!(
+        "logging.invalid-level-rejected",
+        draft::logging::invalid_level_rejected
+    ),
+    check!(
+        "pagination.invalid-cursor-rejected",
+        draft::pagination::invalid_cursor_rejected
+    ),
+    check!(
+        "capabilities.tools-declared",
+        draft::capabilities::tools_declared
+    ),
+    check!(
+        "capabilities.resources-declared",
+        draft::capabilities::resources_declared
+    ),
+    check!(
+        "capabilities.prompts-declared",
+        draft::capabilities::prompts_declared
+    ),
+    check!(
+        "capabilities.tools-list-implemented",
+        draft::capabilities::tools_list_implemented
+    ),
+    check!(
+        "capabilities.resources-list-implemented",
+        draft::capabilities::resources_list_implemented
+    ),
+    check!(
+        "capabilities.prompts-list-implemented",
+        draft::capabilities::prompts_list_implemented
+    ),
+    check!(
+        "capabilities.embedded-resource-declared",
+        draft::capabilities::embedded_resource_declared
+    ),
+    check!(
+        "tools.deterministic-order",
+        draft::features::deterministic_order
+    ),
+    check!(
+        "tools.x-mcp-header-integer-range",
+        draft::features::x_mcp_header_integer_range
+    ),
+    check!(
+        "resources.read-contents-non-empty",
+        draft::features::read_contents_non_empty
+    ),
+];
+
+/// Nothing to register without the feature.
+#[cfg(not(feature = "draft-2026-07-28"))]
+pub(super) const DRAFT: &[Check] = &[];

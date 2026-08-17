@@ -1,10 +1,10 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 96,
+    "pass": 123,
     "fail": 0,
     "warn": 1,
-    "excluded": 122,
+    "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0
   },
@@ -1232,6 +1232,297 @@
       "level": "SHOULD",
       "outcome": "excluded",
       "exclusion": "Four operational practices of an implementation. Access control and monitoring happen outside the session entirely, and validation that accepts leaves nothing behind — the same reason MRTR-021 excludes."
+    },
+    {
+      "id": "TOOL-016",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-017",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds the application's user interface — what it shows, when it asks, whether a person is there. None of it is a message, and MCP deliberately does not mandate an interaction model."
+    },
+    {
+      "id": "TOOL-018",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds the application's user interface — what it shows, when it asks, whether a person is there. None of it is a message, and MCP deliberately does not mandate an interaction model."
+    },
+    {
+      "id": "TOOL-019",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-020",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-021",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds the set across *connections* and across other requests — two properties that need more than one session, or a second request whose effect on the first is invisible. A single recording shows one list at one moment."
+    },
+    {
+      "id": "TOOL-022",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-023",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-024",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The antecedent is that the underlying set changed, which happens inside the server and reaches the wire only as the notification the clause is asking for."
+    },
+    {
+      "id": "TOOL-025",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-026",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "\"Consider untrusted\" is a disposition toward data already received, and \"trusted servers\" is the client's own configuration. Neither reaches the wire."
+    },
+    {
+      "id": "TOOL-027",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-028",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "States how names are to be *compared*, not how they may be spelled. Two implementations differing on case sensitivity send identical messages until they disagree about a collision, and TOOL-030 already judges the collision."
+    },
+    {
+      "id": "TOOL-029",
+      "level": "SHOULD NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-030",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-031",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds a client aggregating *several* servers. One recorded session is one server, so the collision the clause is about cannot appear in it, and neither can the disambiguation strategy."
+    },
+    {
+      "id": "TOOL-032",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Forbids relying on `serverInfo` for disambiguation — a client-side decision about data it holds. Binds what the client does with what it received; the reasoning leaves no message behind."
+    },
+    {
+      "id": "TOOL-033",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-034",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-035",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The client filtering its own copy of a list it already received. A tool excluded from the client's view is still in the server's `tools/list` result on the wire, so the trace shows nothing either way."
+    },
+    {
+      "id": "TOOL-036",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds the client's log, which is not part of the session."
+    },
+    {
+      "id": "TOOL-037",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Requires deciding whether a parameter is sensitive — a judgement about the *meaning* of a name and its values, which this engine does not model. Same boundary as LOG-012."
+    },
+    {
+      "id": "TOOL-038",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-039",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-040",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-041",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Validation performed inside the client, against a schema this engine has no JSON Schema evaluator for by deliberate architectural choice — the boundary BASE-073 draws. A client that validated and one that did not send the same messages."
+    },
+    {
+      "id": "TOOL-042",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds what the client hands to a language model, which is downstream of the session entirely."
+    },
+    {
+      "id": "TOOL-043",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Four operational properties of the server — input validation, access control, rate limiting, output sanitization. A trace shows one call answered for one caller; whether another would have been refused, and whether the output was sanitized, are facts about the server's code and data."
+    },
+    {
+      "id": "TOOL-044",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Six client-side practices — confirmation prompts, showing inputs, validating results, `$ref` resolution, timeouts, audit logs. Each happens inside the client or in its UI; none is a message."
+    },
+    {
+      "id": "RES-011",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "RES-012",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "RES-013",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "RES-014",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds the set across *connections* and across other requests — two properties that need more than one session, or a second request whose effect on the first is invisible. A single recording shows one list at one moment."
+    },
+    {
+      "id": "RES-015",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The antecedent is that the underlying set changed, which happens inside the server and reaches the wire only as the notification the clause is asking for. A session with no notification is equally consistent with a list that never changed."
+    },
+    {
+      "id": "RES-016",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Turns on whether the client can fetch the resource itself, which is a fact about the client and its network, not about any message. The server's choice of scheme is visible; the condition that licenses it is not."
+    },
+    {
+      "id": "RES-017",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Design guidance about which scheme to prefer, resolved before a URI is ever minted. Whether \"other use cases\" applies is the server author's judgement, and RES-018 checks the only part a trace can hold the result to: that a custom scheme is well-formed."
+    },
+    {
+      "id": "RES-018",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "RES-019",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The antecedent — that the requested resource does not exist — is the server's own knowledge. An error and a result are both consistent with the clause, because nothing on the wire says which case the server was in. The one shape the clause rules out explicitly is checked, as RES-022."
+    },
+    {
+      "id": "RES-020",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "\"Internal errors\" names a class of server-side failure that no message declares membership of. Every error code is consistent with the clause unless the trace says what went wrong, and it never does."
+    },
+    {
+      "id": "RES-021",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds how a client interprets an error it received. Note the direction: BASE-058 forbids a `2026-07-28` *server* from emitting `-32002`, and this asks clients to keep accepting it from older ones — neither contradicts the other, and neither is visible in what the client sends."
+    },
+    {
+      "id": "RES-022",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "RES-023",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-011",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-012",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-013",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-014",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds the set across *connections* and across other requests — two properties that need more than one session, or a second request whose effect on the first is invisible. A single recording shows one list at one moment."
+    },
+    {
+      "id": "PROM-015",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The antecedent is that the underlying set changed, which happens inside the server and reaches the wire only as the notification the clause is asking for. A session with no notification is equally consistent with a list that never changed."
+    },
+    {
+      "id": "PROM-016",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-017",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-018",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-019",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Each row's antecedent is a server-side determination — an invalid prompt name, a missing required argument — and the trace shows the answer without the reason. Same shape as COMP-008."
+    },
+    {
+      "id": "PROM-020",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-021",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "\"Carefully validate to prevent injection attacks\" is a property of the server's handling, not of the message: a prompt that was validated and one that was not look identical when both are accepted. What a trace can hold an implementation to is the concrete shape rules, PROM-016 through PROM-020."
     }
   ]
 }

@@ -1,0 +1,410 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "TOOL-016",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`."
+      },
+      "checks": [
+        "meta.required-request-fields"
+      ]
+    },
+    {
+      "id": "TOOL-017",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#user-interaction-model",
+        "quote": "For trust & safety and security, there SHOULD always be a human in the loop with the ability to deny tool invocations."
+      },
+      "exclusion": "Binds the application's user interface \u2014 what it shows, when it asks, whether a person is there. None of it is a message, and MCP deliberately does not mandate an interaction model."
+    },
+    {
+      "id": "TOOL-018",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#user-interaction-model",
+        "quote": "Applications SHOULD: Provide UI that makes clear which tools are being exposed to the AI model; Insert clear visual indicators when tools are invoked; Present confirmation prompts to the user for operations, to ensure a human is in the loop"
+      },
+      "exclusion": "Binds the application's user interface \u2014 what it shows, when it asks, whether a person is there. None of it is a message, and MCP deliberately does not mandate an interaction model."
+    },
+    {
+      "id": "TOOL-019",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#capabilities",
+        "quote": "Servers that support tools MUST declare the `tools` capability:"
+      },
+      "checks": [
+        "capabilities.tools-declared"
+      ]
+    },
+    {
+      "id": "TOOL-020",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#capabilities",
+        "quote": "Servers that declare the `tools` capability MUST respond to `tools/list` requests with the set of tools currently available to the requesting client."
+      },
+      "checks": [
+        "capabilities.tools-list-implemented"
+      ]
+    },
+    {
+      "id": "TOOL-021",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#capabilities",
+        "quote": "This set MAY be empty and MAY change over time (see List Changed Notification), but MUST NOT vary per-connection or as a side effect of other requests on the connection."
+      },
+      "exclusion": "Binds the set across *connections* and across other requests \u2014 two properties that need more than one session, or a second request whose effect on the first is invisible. A single recording shows one list at one moment."
+    },
+    {
+      "id": "TOOL-022",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#capabilities",
+        "quote": "Servers SHOULD return tools in a deterministic order (i.e., the same ordering across requests when the underlying set of tools has not changed)."
+      },
+      "checks": [
+        "tools.deterministic-order"
+      ]
+    },
+    {
+      "id": "TOOL-023",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#input-required-tool-results",
+        "quote": "Note that the JSON-RPC `id` MUST be different between the initial request and the retry."
+      },
+      "checks": [
+        "mrtr.retry-id-differs"
+      ]
+    },
+    {
+      "id": "TOOL-024",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#list-changed-notification",
+        "quote": "When the list of available tools changes, servers that declared the `listChanged` capability SHOULD send a notification to clients that have opened a `subscriptions/listen` stream with `toolsListChanged: true`:"
+      },
+      "exclusion": "The antecedent is that the underlying set changed, which happens inside the server and reaches the wire only as the notification the clause is asking for."
+    },
+    {
+      "id": "TOOL-025",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#tool",
+        "quote": "JSON Schema defining expected parameters Follows the JSON Schema usage guidelines Defaults to 2020-12 if no `$schema` field is present MUST be a valid JSON Schema object (not `null`) For tools with no parameters, use one of these valid approaches:"
+      },
+      "checks": [
+        "tools.input-schema-object"
+      ]
+    },
+    {
+      "id": "TOOL-026",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#tool",
+        "quote": "For trust & safety and security, clients MUST consider tool annotations to be untrusted unless they come from trusted servers."
+      },
+      "exclusion": "\"Consider untrusted\" is a disposition toward data already received, and \"trusted servers\" is the client's own configuration. Neither reaches the wire."
+    },
+    {
+      "id": "TOOL-027",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "Tool names SHOULD be between 1 and 128 characters in length (inclusive)."
+      },
+      "checks": [
+        "tools.name-length"
+      ]
+    },
+    {
+      "id": "TOOL-028",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "Tool names SHOULD be considered case-sensitive."
+      },
+      "exclusion": "States how names are to be *compared*, not how they may be spelled. Two implementations differing on case sensitivity send identical messages until they disagree about a collision, and TOOL-030 already judges the collision."
+    },
+    {
+      "id": "TOOL-029",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "The following SHOULD be the only allowed characters: uppercase and lowercase ASCII letters (A-Z, a-z), digits (0-9), underscore (_), hyphen (-), and dot (.) Tool names SHOULD NOT contain spaces, commas, or other special characters."
+      },
+      "checks": [
+        "tools.name-charset"
+      ]
+    },
+    {
+      "id": "TOOL-030",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "Tool names SHOULD be unique within a server."
+      },
+      "checks": [
+        "tools.name-unique"
+      ]
+    },
+    {
+      "id": "TOOL-031",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "Clients or proxies that aggregate tools from multiple servers MAY encounter naming collisions (for example, two servers each exposing a `search` tool) and SHOULD implement a disambiguation strategy such as prefixing tool names with a server identifier."
+      },
+      "exclusion": "Binds a client aggregating *several* servers. One recorded session is one server, so the collision the clause is about cannot appear in it, and neither can the disambiguation strategy."
+    },
+    {
+      "id": "TOOL-032",
+      "level": "SHOULD NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "The server `name` (from `serverInfo`) is not guaranteed to be unique across servers and SHOULD NOT be relied upon for disambiguation."
+      },
+      "exclusion": "Forbids relying on `serverInfo` for disambiguation \u2014 a client-side decision about data it holds. Binds what the client does with what it received; the reasoning leaves no message behind."
+    },
+    {
+      "id": "TOOL-033",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#x-mcp-header",
+        "quote": "MUST NOT be empty MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1) MUST NOT contain control characters, including carriage return (CR, `\\r`) or line feed (LF, `\\n`) MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema` MUST only be applied to parameters with primitive types (integer, string, boolean)."
+      },
+      "checks": [
+        "transport.x-mcp-header-name-valid"
+      ]
+    },
+    {
+      "id": "TOOL-034",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#x-mcp-header",
+        "quote": "Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (\u22122<sup>53</sup>+1 to 2<sup>53</sup>\u22121) MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints."
+      },
+      "checks": [
+        "tools.x-mcp-header-integer-range"
+      ]
+    },
+    {
+      "id": "TOOL-035",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#x-mcp-header",
+        "quote": "Rejection means the client MUST exclude the invalid tool from the result of `tools/list`."
+      },
+      "exclusion": "The client filtering its own copy of a list it already received. A tool excluded from the client's view is still in the server's `tools/list` result on the wire, so the trace shows nothing either way."
+    },
+    {
+      "id": "TOOL-036",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#x-mcp-header",
+        "quote": "Clients SHOULD log a warning when rejecting a tool definition, including the tool name and the reason for rejection."
+      },
+      "exclusion": "Binds the client's log, which is not part of the session."
+    },
+    {
+      "id": "TOOL-037",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#x-mcp-header",
+        "quote": "Server developers SHOULD NOT mark sensitive parameters (passwords, API keys, tokens, PII) with `x-mcp-header`, as header values are visible to network intermediaries."
+      },
+      "exclusion": "Requires deciding whether a parameter is sensitive \u2014 a judgement about the *meaning* of a name and its values, which this engine does not model. Same boundary as LOG-012."
+    },
+    {
+      "id": "TOOL-038",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#embedded-resources",
+        "quote": "Servers that use embedded resources SHOULD implement the `resources` capability:"
+      },
+      "checks": [
+        "capabilities.embedded-resource-declared"
+      ]
+    },
+    {
+      "id": "TOOL-039",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#structured-content",
+        "quote": "For backwards compatibility, a tool that returns structured content SHOULD also return the serialized JSON in a TextContent block."
+      },
+      "checks": [
+        "tools.structured-content-text"
+      ]
+    },
+    {
+      "id": "TOOL-040",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#output-schema",
+        "quote": "Servers MUST provide structured results that conform to this schema."
+      },
+      "checks": [
+        "tools.output-schema-structured-result"
+      ]
+    },
+    {
+      "id": "TOOL-041",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#output-schema",
+        "quote": "Clients SHOULD validate structured results against this schema."
+      },
+      "exclusion": "Validation performed inside the client, against a schema this engine has no JSON Schema evaluator for by deliberate architectural choice \u2014 the boundary BASE-073 draws. A client that validated and one that did not send the same messages."
+    },
+    {
+      "id": "TOOL-042",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#error-handling",
+        "quote": "Clients SHOULD provide tool execution errors to language models to enable self-correction."
+      },
+      "exclusion": "Binds what the client hands to a language model, which is downstream of the session entirely."
+    },
+    {
+      "id": "TOOL-043",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#security-considerations",
+        "quote": "Servers MUST: Validate all tool inputs; Implement proper access controls; Rate limit tool invocations; Sanitize tool outputs"
+      },
+      "exclusion": "Four operational properties of the server \u2014 input validation, access control, rate limiting, output sanitization. A trace shows one call answered for one caller; whether another would have been refused, and whether the output was sanitized, are facts about the server's code and data."
+    },
+    {
+      "id": "TOOL-044",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#security-considerations",
+        "quote": "Clients SHOULD: Prompt for user confirmation on sensitive operations; Show tool inputs to the user before calling the server, to avoid malicious or accidental data exfiltration; Validate tool results before passing to LLM; Follow the `$ref` resolution requirements when validating tool inputs and outputs against `inputSchema` and `outputSchema`; Implement timeouts for tool calls; Log tool usage for audit purposes"
+      },
+      "exclusion": "Six client-side practices \u2014 confirmation prompts, showing inputs, validating results, `$ref` resolution, timeouts, audit logs. Each happens inside the client or in its UI; none is a message."
+    }
+  ]
+}

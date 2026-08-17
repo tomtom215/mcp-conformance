@@ -1,0 +1,162 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "PROM-011",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/prompts",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`."
+      },
+      "checks": [
+        "meta.required-request-fields"
+      ]
+    },
+    {
+      "id": "PROM-012",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/prompts#capabilities",
+        "quote": "Servers that support prompts MUST declare the `prompts` capability in their `DiscoverResult`:"
+      },
+      "checks": [
+        "capabilities.prompts-declared"
+      ]
+    },
+    {
+      "id": "PROM-013",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/prompts#capabilities",
+        "quote": "Servers that declare the `prompts` capability MUST respond to `prompts/list` requests with the set of prompts currently available to the requesting client."
+      },
+      "checks": [
+        "capabilities.prompts-list-implemented"
+      ]
+    },
+    {
+      "id": "PROM-014",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/prompts#capabilities",
+        "quote": "This set MAY be empty and MAY change over time (see List Changed Notification), but MUST NOT vary per-connection or as a side effect of other requests on the connection."
+      },
+      "exclusion": "Binds the set across *connections* and across other requests \u2014 two properties that need more than one session, or a second request whose effect on the first is invisible. A single recording shows one list at one moment."
+    },
+    {
+      "id": "PROM-015",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/prompts#list-changed-notification",
+        "quote": "When the list of available prompts changes, servers that declared the `listChanged` capability SHOULD send a notification to clients that have opened a `subscriptions/listen` stream with `promptsListChanged: true`:"
+      },
+      "exclusion": "The antecedent is that the underlying set changed, which happens inside the server and reaches the wire only as the notification the clause is asking for. A session with no notification is equally consistent with a list that never changed."
+    },
+    {
+      "id": "PROM-016",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/prompts#image-content",
+        "quote": "The image data MUST be base64-encoded and include a valid MIME type."
+      },
+      "checks": [
+        "prompts.image-content-encoding"
+      ]
+    },
+    {
+      "id": "PROM-017",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/prompts#audio-content",
+        "quote": "The audio data MUST be base64-encoded and include a valid MIME type."
+      },
+      "checks": [
+        "prompts.audio-content-encoding"
+      ]
+    },
+    {
+      "id": "PROM-018",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/prompts#embedded-resources",
+        "quote": "Resources can contain either text or binary (blob) data and MUST include:"
+      },
+      "checks": [
+        "prompts.embedded-resource-shape"
+      ]
+    },
+    {
+      "id": "PROM-019",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/prompts#error-handling",
+        "quote": "Servers SHOULD return standard JSON-RPC errors for common failure cases:"
+      },
+      "exclusion": "Each row's antecedent is a server-side determination \u2014 an invalid prompt name, a missing required argument \u2014 and the trace shows the answer without the reason. Same shape as COMP-008."
+    },
+    {
+      "id": "PROM-020",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/prompts#implementation-considerations",
+        "quote": "Servers SHOULD validate prompt arguments before processing Clients SHOULD handle pagination for large prompt lists Both parties SHOULD respect capability negotiation"
+      },
+      "checks": [
+        "prompts.arguments-validated"
+      ]
+    },
+    {
+      "id": "PROM-021",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/prompts#security",
+        "quote": "Implementations MUST carefully validate all prompt inputs and outputs to prevent injection attacks or unauthorized access to resources."
+      },
+      "exclusion": "\"Carefully validate to prevent injection attacks\" is a property of the server's handling, not of the message: a prompt that was validated and one that was not look identical when both are accepted. What a trace can hold an implementation to is the concrete shape rules, PROM-016 through PROM-020."
+    }
+  ]
+}

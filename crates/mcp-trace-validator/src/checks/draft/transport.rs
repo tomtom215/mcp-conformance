@@ -273,7 +273,7 @@ fn collect_designations(schema: &Value, path: &mut Vec<String>, out: &mut Vec<De
 }
 
 /// The designations declared per tool name, across every tool list in the trace.
-pub(super) fn designations_by_tool(
+pub(in crate::checks::draft) fn designations_by_tool(
     context: &TraceContext<'_>,
 ) -> BTreeMap<String, Vec<Designation>> {
     let mut out = BTreeMap::new();

@@ -13,9 +13,7 @@
 //! vacuous `pass` — the TRAN-071 failure mode, five times over.
 //!
 //! The declaration surface here is the `server/discover` result, so that is what
-//! these read. `tools`, `resources` and `prompts` join them when their pages are
-//! entered; a check no requirement references is dead weight, so each arrives
-//! with the clause that names it.
+//! these read.
 //!
 //! The abstention is preserved where it is honest: a session that
 //! never probed carries no declaration, and silence is not a denial.
@@ -104,6 +102,124 @@ pub(in crate::checks) fn logging_declared(context: &TraceContext<'_>, sink: &mut
                 format!(
                     "server emitted `notifications/message` while its `{DISCOVER}` result \
                      declared no `logging` capability"
+                ),
+            );
+        }
+    }
+}
+
+/// The list operation each capability's declaration obliges the server to answer.
+const LIST_METHOD: &[(&str, &str)] = &[
+    ("tools", "tools/list"),
+    ("resources", "resources/list"),
+    ("prompts", "prompts/list"),
+];
+
+/// Reports a declared capability whose list operation the server refused as an
+/// unimplemented method — the shared body of TOOL-020, RES-013 and PROM-013.
+fn declared_list_answered(context: &TraceContext<'_>, sink: &mut FindingSink, capability: &str) {
+    if declares(context, capability) != Some(true) {
+        return;
+    }
+    let Some((_, method)) = LIST_METHOD.iter().find(|(name, _)| *name == capability) else {
+        return;
+    };
+    for exchange in context.exchanges_for(method) {
+        let code = exchange
+            .response
+            .message_payload()
+            .and_then(|payload| payload.get("error"))
+            .and_then(|error| error.get("code"))
+            .and_then(serde_json::Value::as_i64);
+        if code == Some(-32601) {
+            sink.push(
+                Some(exchange.response.seq),
+                format!(
+                    "server declared the `{capability}` capability but answered `{method}` \
+                     with -32601; a declared capability must be served"
+                ),
+            );
+        }
+    }
+}
+
+/// `TOOL-016`: a server serving tools declares the `tools` capability.
+pub(in crate::checks) fn tools_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    answered_undeclared(context, sink, "tools", &["tools/list", "tools/call"]);
+}
+
+/// `RES-012`: a server serving resources declares the `resources` capability.
+pub(in crate::checks) fn resources_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    answered_undeclared(
+        context,
+        sink,
+        "resources",
+        &[
+            "resources/list",
+            "resources/templates/list",
+            "resources/read",
+        ],
+    );
+}
+
+/// `PROM-012`: a server serving prompts declares the `prompts` capability.
+pub(in crate::checks) fn prompts_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    answered_undeclared(context, sink, "prompts", &["prompts/list", "prompts/get"]);
+}
+
+/// `TOOL-020`: a declared `tools` capability answers `tools/list`.
+pub(in crate::checks) fn tools_list_implemented(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    declared_list_answered(context, sink, "tools");
+}
+
+/// `RES-013`: a declared `resources` capability answers `resources/list`.
+pub(in crate::checks) fn resources_list_implemented(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    declared_list_answered(context, sink, "resources");
+}
+
+/// `PROM-013`: a declared `prompts` capability answers `prompts/list`.
+pub(in crate::checks) fn prompts_list_implemented(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    declared_list_answered(context, sink, "prompts");
+}
+
+/// `TOOL-038`: a server embedding resources in tool results declares `resources`.
+///
+/// The observable form of "uses embedded resources" is a `resource` content block
+/// in a `tools/call` result — the same evidence `tools.embedded-resource-capability`
+/// reads at `2025-11-25`, which cannot be reused because it resolves the
+/// declaration through the removed handshake.
+pub(in crate::checks) fn embedded_resource_declared(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    if declares(context, "resources") != Some(false) {
+        return;
+    }
+    for exchange in context.exchanges_for("tools/call") {
+        let embedded = exchange
+            .result
+            .and_then(|result| result.get("content"))
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|blocks| {
+                blocks.iter().any(|block| {
+                    block.get("type").and_then(serde_json::Value::as_str) == Some("resource")
+                })
+            });
+        if embedded {
+            sink.push(
+                Some(exchange.response.seq),
+                format!(
+                    "a `tools/call` result embeds a resource while the `{DISCOVER}` result \
+                     declared no `resources` capability"
                 ),
             );
         }

@@ -8,8 +8,6 @@
 //! contract while the list — which grows with every extracted area — lives on
 //! its own.
 
-#[cfg(feature = "draft-2026-07-28")]
-use super::draft;
 use super::{Check, base, lifecycle, negotiation, prompts, resources, tools, transport, utilities};
 
 /// One registration row. The list is long and perfectly uniform, so the literal
@@ -21,8 +19,8 @@ macro_rules! check {
     };
 }
 
-/// Every check implemented by this build, in stable order.
-pub static ALL: &[Check] = &[
+/// The `2025-11-25` half of the inventory.
+const SHIPPED: &[Check] = &[
     check!("base.request-id-type", base::request_id_type),
     check!("base.request-id-not-null", base::request_id_not_null),
     check!("base.request-id-unique", base::request_id_unique),
@@ -149,305 +147,39 @@ pub static ALL: &[Check] = &[
         utilities::completion_capability_declared
     ),
     check!("pagination.cursor-opacity", utilities::cursor_opacity),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "base.result-type-present",
-        draft::envelope::result_type_present
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "base.request-id-unique-in-flight",
-        draft::envelope::request_id_unique_in_flight
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "base.error-code-legacy-subrange",
-        draft::envelope::error_code_legacy_subrange
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "base.error-code-reserved-subrange",
-        draft::envelope::error_code_reserved_subrange
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "base.error-code-withdrawn",
-        draft::envelope::error_code_withdrawn
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "base.error-code-application-range",
-        draft::envelope::error_code_application_range
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "meta.required-request-fields",
-        draft::meta::required_request_fields
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "meta.missing-required-field-rejected",
-        draft::meta::missing_required_field_rejected
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "meta.missing-required-field-http-status",
-        draft::meta::missing_required_field_http_status
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "meta.missing-capability-error",
-        draft::meta::missing_capability_error
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "meta.missing-capability-http-status",
-        draft::meta::missing_capability_http_status
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "meta.no-undeclared-capability-reliance",
-        draft::meta::no_undeclared_capability_reliance
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "meta.subscription-id-present",
-        draft::meta::subscription_id_present
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "meta.trace-context-format",
-        draft::meta::trace_context_format
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.protocol-version-header-present",
-        draft::transport::protocol_version_header_present
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.protocol-version-header-matches-body",
-        draft::transport::protocol_version_header_matches_body
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.request-metadata-headers",
-        draft::transport::request_metadata_headers
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.client-no-responses",
-        draft::transport::client_no_responses
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.no-independent-server-requests",
-        draft::transport::no_independent_server_requests
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.accel-buffering-header",
-        draft::transport::accel_buffering_header
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.no-messages-after-cancellation",
-        draft::transport::no_messages_after_cancellation
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.version-mismatch-rejected",
-        draft::transport::version_mismatch_rejected
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.invalid-param-header-rejected",
-        draft::transport::invalid_param_header_rejected
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.header-mismatch-status",
-        draft::transport::header_mismatch_status
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.header-body-match-validated",
-        draft::transport::header_body_match_validated
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.unsupported-version-error",
-        draft::transport::unsupported_version_error
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.unsupported-version-status",
-        draft::transport::unsupported_version_status
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.unknown-method-404",
-        draft::transport::unknown_method_404
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.header-value-encoding",
-        draft::transport::header_value_encoding
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.sentinel-marker-case",
-        draft::transport::sentinel_marker_case
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.sentinel-pattern-encoded",
-        draft::transport::sentinel_pattern_encoded
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.x-mcp-header-mirrored",
-        draft::transport::x_mcp_header_mirrored
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.x-mcp-header-name-valid",
-        draft::transport::x_mcp_header_name_valid
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!("discover.implemented", draft::discovery::implemented),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "discover.dual-era-probe-first",
-        draft::discovery::dual_era_probe_first
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "versioning.retry-uses-supported-version",
-        draft::versioning::retry_uses_supported_version
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "versioning.extension-identifier-format",
-        draft::versioning::extension_identifier_format
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "versioning.initialize-error-names-versions",
-        draft::versioning::initialize_error_names_versions
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.cancel-notification-references-request",
-        draft::transport::cancel_notification_references_request
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "transport.no-messages-after-cancel-notification",
-        draft::transport::no_messages_after_cancel_notification
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "mrtr.input-required-supported-methods",
-        draft::mrtr::input_required_supported_methods
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "mrtr.input-request-methods",
-        draft::mrtr::input_request_methods
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "mrtr.input-required-has-content",
-        draft::mrtr::input_required_has_content
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "mrtr.retry-carries-input-responses",
-        draft::mrtr::retry_carries_input_responses
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "mrtr.request-state-echoed",
-        draft::mrtr::request_state_echoed
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "mrtr.no-unsolicited-request-state",
-        draft::mrtr::no_unsolicited_request_state
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!("mrtr.retry-id-differs", draft::mrtr::retry_id_differs),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "mrtr.request-state-scoped-to-retry",
-        draft::mrtr::request_state_scoped_to_retry
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "mrtr.missing-input-reasked",
-        draft::mrtr::missing_input_reasked
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "subscriptions.only-requested-notifications",
-        draft::subscriptions::only_requested_notifications
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "subscriptions.acknowledgment-first",
-        draft::subscriptions::acknowledgment_first
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "subscriptions.graceful-close-result-empty",
-        draft::subscriptions::graceful_close_result_empty
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "caching.hints-on-cacheable-results",
-        draft::caching::hints_on_cacheable_results
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!("caching.ttl-non-negative", draft::caching::ttl_non_negative),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "caching.page-scope-consistent",
-        draft::caching::page_scope_consistent
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "capabilities.completions-declared",
-        draft::capabilities::completions_declared
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "capabilities.logging-declared",
-        draft::capabilities::logging_declared
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!("logging.level-requested", draft::logging::level_requested),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "logging.not-on-subscription",
-        draft::logging::not_on_subscription
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "logging.invalid-level-rejected",
-        draft::logging::invalid_level_rejected
-    ),
-    #[cfg(feature = "draft-2026-07-28")]
-    check!(
-        "pagination.invalid-cursor-rejected",
-        draft::pagination::invalid_cursor_rejected
-    ),
 ];
+
+/// Concatenates the two halves at compile time, so each may live in its own file
+/// while `ALL` stays one `&[Check]` — the shape every caller and the coverage
+/// invariants read. `Check` is `Copy`, which is what makes the const loop legal.
+const fn concatenated<const N: usize>(first: &[Check], second: &[Check]) -> [Check; N] {
+    let mut out = [first[0]; N];
+    let mut index = 0;
+    while index < first.len() {
+        out[index] = first[index];
+        index += 1;
+    }
+    let mut offset = 0;
+    while offset < second.len() {
+        out[first.len() + offset] = second[offset];
+        offset += 1;
+    }
+    out
+}
+
+/// The backing storage for [`ALL`].
+static EVERY: [Check; SHIPPED.len() + draft_rows::DRAFT.len()] =
+    concatenated(SHIPPED, draft_rows::DRAFT);
+
+/// Every check implemented by this build, in stable order.
+pub static ALL: &[Check] = &EVERY;
 /// Looks up a check by its stable ID.
 #[must_use]
 pub fn find(id: &str) -> Option<&'static Check> {
     ALL.iter().find(|check| check.id == id)
 }
+
+mod draft_rows;
 
 #[cfg(test)]
 mod planned;

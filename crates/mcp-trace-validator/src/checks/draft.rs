@@ -17,6 +17,7 @@ pub(super) mod caching;
 pub(super) mod capabilities;
 pub(super) mod discovery;
 pub(super) mod envelope;
+pub(super) mod features;
 pub(super) mod logging;
 pub(super) mod meta;
 pub(super) mod mrtr;
