@@ -597,6 +597,7 @@ verifies **412 quotes across both revisions with none drifted**, and the
 | Lib tests | 247, up from 145 |
 | Draft corpus | 2 conforming sessions + 72 violation traces, each byte-pinned |
 | `PLANNED` ledger | empty — nothing names a check that does not exist |
+| Mutation gate | **260 mutants, 253 caught, 0 missed** (7 unviable) over this pass's diff |
 
 ### First: upstream had not moved
 
@@ -735,6 +736,14 @@ The two hazards from the last handover both recurred, and a third joins them:
   `context.initialize()`.
 - **A check that bundles adjacent rules makes every requirement naming it
   imprecise.** It happened once more, on TRAN-074/VERS-001.
+- **The equivalent-mutant shape recurs.** Three of the five mutants this pass
+  missed were `<` versus `<=` or `>` versus `>=` between two events that can
+  never share a `seq` — a server result and a client request, a notification and
+  a response. The construction keeps arising because "the most recent X before
+  Y" is a natural way to write these checks, and it is always better expressed
+  as one ordered pass that flips state at X. That is the third and fourth time
+  this repository has hit it; expect a fifth.
+
 - **New:** run `cargo xtask ci`, not `cargo clippy --all-features`. The repo
   lints in three feature modes, and a `#[cfg]`-gated item that becomes unused
   with the feature *off* is invisible to the all-features run — which is how an
