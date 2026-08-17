@@ -403,8 +403,19 @@ pub static ALL: &[Check] = &[
         "subscriptions.graceful-close-result-empty",
         draft::subscriptions::graceful_close_result_empty
     ),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!(
+        "caching.hints-on-cacheable-results",
+        draft::caching::hints_on_cacheable_results
+    ),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!("caching.ttl-non-negative", draft::caching::ttl_non_negative),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!(
+        "caching.page-scope-consistent",
+        draft::caching::page_scope_consistent
+    ),
 ];
-
 /// Looks up a check by its stable ID.
 #[must_use]
 pub fn find(id: &str) -> Option<&'static Check> {

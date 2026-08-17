@@ -1,0 +1,247 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "CACH-001",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#cacheable-results",
+        "quote": "Servers MUST include caching hints on results with `resultType: \"complete\"` returned by the following operations: `server/discover`; `tools/list`; `prompts/list`; `resources/list`; `resources/templates/list`; `resources/read`"
+      },
+      "checks": [
+        "caching.hints-on-cacheable-results"
+      ]
+    },
+    {
+      "id": "CACH-002",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#cache-key",
+        "quote": "Clients MUST NOT serve a cached response for a request whose method or parameters differ from the request that produced it."
+      },
+      "exclusion": "Binds which cached response a client serves itself, and a cache hit is precisely the case where nothing reaches the wire. Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead."
+    },
+    {
+      "id": "CACH-003",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#cache-key",
+        "quote": "Results produced by retrying a request through the multi round-trip requests mechanism&mdash;that is, requests carrying `inputResponses` or `requestState`&mdash;MUST NOT be cached, as they depend on inputs that are not part of the cache key."
+      },
+      "exclusion": "The prohibited act is caching, which happens inside the client and produces no message. Its server-side shadow is honoured by CACH-001's check rather than left implicit: a `complete` result answering a request that carried `inputResponses` or `requestState` is not required to carry caching hints, because the specification does not ask a server to advertise freshness for a result nobody may cache."
+    },
+    {
+      "id": "CACH-004",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#time-to-live-ttl-field",
+        "quote": "If `ttlMs` is `0`, the response SHOULD be considered immediately stale."
+      },
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still \u2014 they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-005",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#time-to-live-ttl-field",
+        "quote": "If `ttlMs` is positive, the client SHOULD consider the result fresh for that many milliseconds after receiving the response."
+      },
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still \u2014 they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-006",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#time-to-live-ttl-field",
+        "quote": "If `ttlMs` is absent, clients SHOULD assume a default of `0` (immediately stale) and rely on their own caching heuristics or notifications."
+      },
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still \u2014 they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-007",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#time-to-live-ttl-field",
+        "quote": "If `ttlMs` is negative, clients SHOULD ignore it and treat it as `0`."
+      },
+      "exclusion": "What a client concludes from a negative `ttlMs` stays inside it. The value itself is judged on the other side of the exchange: CACH-008 forbids a server from sending one."
+    },
+    {
+      "id": "CACH-008",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#time-to-live-ttl-field",
+        "quote": "Servers MUST provide a `ttlMs` value that is `>= 0`."
+      },
+      "checks": [
+        "caching.ttl-non-negative"
+      ]
+    },
+    {
+      "id": "CACH-009",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#freshness-calculation",
+        "quote": "Once the TTL expires, the response is stale and the client SHOULD re-fetch on next access."
+      },
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still \u2014 they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-010",
+      "level": "SHOULD NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#freshness-calculation",
+        "quote": "Clients SHOULD NOT treat TTL as a polling interval that triggers automatic background refetches."
+      },
+      "exclusion": "Forbids a *reason* for sending requests, not the requests themselves: a poll and a genuine need look identical on the wire. Distinguishing them would mean inferring intent from inter-request timing, which checks may not consult."
+    },
+    {
+      "id": "CACH-011",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#freshness-calculation",
+        "quote": "Implementations that do choose to poll MUST apply jitter and backoff."
+      },
+      "exclusion": "Both the antecedent (this client is polling) and the obligation (its intervals are jittered and backed off) are properties of a request *schedule*, measurable only in elapsed time \u2014 which checks may not consult (LIFE-015) \u2014 and only across a run far longer than one recorded session."
+    },
+    {
+      "id": "CACH-012",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#interaction-with-pagination",
+        "quote": "When a cached page expires, the client SHOULD re-fetch that page using its cursor."
+      },
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still \u2014 they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-013",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#interaction-with-pagination",
+        "quote": "Clients that require a consistent snapshot of the full list SHOULD re-fetch from the beginning (without a cursor)."
+      },
+      "exclusion": "The antecedent is a client requirement \u2014 that this client needs a consistent snapshot \u2014 which nothing on the wire declares. A client that paginates from a cursor is equally consistent with not needing one."
+    },
+    {
+      "id": "CACH-014",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#interaction-with-pagination",
+        "quote": "If a cursor becomes invalid (e.g., the server returns an error for a previously valid cursor), the client SHOULD discard all cached pages and re-fetch from the beginning."
+      },
+      "exclusion": "Discarding a cache is invisible, and the visible half \u2014 re-fetching from the beginning \u2014 is indistinguishable from an ordinary new list request. Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead."
+    },
+    {
+      "id": "CACH-015",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#interaction-with-pagination",
+        "quote": "Servers MUST apply the same `cacheScope` to all response pages for a given list request."
+      },
+      "checks": [
+        "caching.page-scope-consistent"
+      ]
+    },
+    {
+      "id": "CACH-016",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#interaction-with-pagination",
+        "quote": "For example, if the first page of a `tools/list` response has `cacheScope: \"private\"`, all subsequent pages for that request MUST also be `\"private\"`."
+      },
+      "checks": [
+        "caching.page-scope-consistent"
+      ]
+    },
+    {
+      "id": "CACH-017",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#security-considerations",
+        "quote": "Servers MUST be aware that responses with a `\"public\"` `cacheScope` may be shared between callers even if the Result is coming from an authenticated endpoint."
+      },
+      "exclusion": "Requires awareness. A server that has understood the sharing consequence and one that has not send the same bytes; what the clause is really asking for is the judgement CACH-018 then makes concrete, and that is excluded for its own reason."
+    },
+    {
+      "id": "CACH-018",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#security-considerations",
+        "quote": "MUST apply appropriate per-primitive access controls, and MUST NOT rely on `cacheScope` alone to prevent unauthorized access to primitives."
+      },
+      "exclusion": "Access control happens before a response is composed, inside the server: a trace shows what one caller was given, never what a different caller would have been refused. Whether `cacheScope` was *relied upon* for that decision is a fact about the server's code."
+    }
+  ]
+}

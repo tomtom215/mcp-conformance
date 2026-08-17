@@ -8,7 +8,8 @@
     "basic/transports/stdio": "basic/transports/stdio.mdx",
     "basic/transports/streamable-http": "basic/transports/streamable-http.mdx",
     "basic/versioning": "basic/versioning.mdx",
-    "server/discover": "server/discover.mdx"
+    "server/discover": "server/discover.mdx",
+    "server/utilities/caching": "server/utilities/caching.mdx"
   },
   "out_of_scope": {
     "architecture/index": "No RFC 2119 keyword instances on the page (verified 2026-08-06 against the published text).",

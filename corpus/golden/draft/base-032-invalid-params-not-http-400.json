@@ -1,10 +1,10 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 81,
+    "pass": 85,
     "fail": 3,
     "warn": 0,
-    "excluded": 97,
+    "excluded": 111,
     "unsupported": 0,
     "not_applicable": 0
   },
@@ -1041,6 +1041,110 @@
       "level": "MUST",
       "outcome": "excluded",
       "exclusion": "The obligation begins after a re-established connection, which is a second session: the evidence would have to span two recordings, and nothing in either identifies the other as its predecessor. Same boundary as TRAN-127, which excludes the restart that precedes it."
+    },
+    {
+      "id": "CACH-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "CACH-002",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds which cached response a client serves itself, and a cache hit is precisely the case where nothing reaches the wire. Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead."
+    },
+    {
+      "id": "CACH-003",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "The prohibited act is caching, which happens inside the client and produces no message. Its server-side shadow is honoured by CACH-001's check rather than left implicit: a `complete` result answering a request that carried `inputResponses` or `requestState` is not required to carry caching hints, because the specification does not ask a server to advertise freshness for a result nobody may cache."
+    },
+    {
+      "id": "CACH-004",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still — they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-005",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still — they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-006",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still — they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-007",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "What a client concludes from a negative `ttlMs` stays inside it. The value itself is judged on the other side of the exchange: CACH-008 forbids a server from sending one."
+    },
+    {
+      "id": "CACH-008",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "CACH-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still — they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-010",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Forbids a *reason* for sending requests, not the requests themselves: a poll and a genuine need look identical on the wire. Distinguishing them would mean inferring intent from inter-request timing, which checks may not consult."
+    },
+    {
+      "id": "CACH-011",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Both the antecedent (this client is polling) and the obligation (its intervals are jittered and backed off) are properties of a request *schedule*, measurable only in elapsed time — which checks may not consult (LIFE-015) — and only across a run far longer than one recorded session."
+    },
+    {
+      "id": "CACH-012",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still — they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-013",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The antecedent is a client requirement — that this client needs a consistent snapshot — which nothing on the wire declares. A client that paginates from a cursor is equally consistent with not needing one."
+    },
+    {
+      "id": "CACH-014",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Discarding a cache is invisible, and the visible half — re-fetching from the beginning — is indistinguishable from an ordinary new list request. Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead."
+    },
+    {
+      "id": "CACH-015",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "CACH-016",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "CACH-017",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Requires awareness. A server that has understood the sharing consequence and one that has not send the same bytes; what the clause is really asking for is the judgement CACH-018 then makes concrete, and that is excluded for its own reason."
+    },
+    {
+      "id": "CACH-018",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Access control happens before a response is composed, inside the server: a trace shows what one caller was given, never what a different caller would have been refused. Whether `cacheScope` was *relied upon* for that decision is a fact about the server's code."
     }
   ]
 }

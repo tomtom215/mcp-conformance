@@ -1,9 +1,9 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 85,
+    "pass": 86,
     "fail": 2,
-    "warn": 1,
+    "warn": 0,
     "excluded": 111,
     "unsupported": 0,
     "not_applicable": 0
@@ -246,19 +246,7 @@
     {
       "id": "BASE-030",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "meta.required-request-fields",
-          "seq": 0,
-          "detail": "request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`"
-        },
-        {
-          "check": "meta.required-request-fields",
-          "seq": 0,
-          "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-031",
@@ -735,14 +723,7 @@
     {
       "id": "VERS-008",
       "level": "SHOULD",
-      "outcome": "warn",
-      "findings": [
-        {
-          "check": "versioning.initialize-error-names-versions",
-          "seq": 1,
-          "detail": "the error refusing `initialize` names no protocol version, leaving a legacy client — which has no fall-forward mechanism — nothing to surface"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "TRAN-110",
@@ -865,19 +846,7 @@
     {
       "id": "MRTR-002",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "meta.required-request-fields",
-          "seq": 0,
-          "detail": "request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`"
-        },
-        {
-          "check": "meta.required-request-fields",
-          "seq": 0,
-          "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "MRTR-003",
@@ -1127,12 +1096,26 @@
     {
       "id": "CACH-015",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "caching.page-scope-consistent",
+          "seq": 3,
+          "detail": "this `tools/list` page declares cacheScope \"public\" while the page at seq 1 in the same request declared \"private\""
+        }
+      ]
     },
     {
       "id": "CACH-016",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "caching.page-scope-consistent",
+          "seq": 3,
+          "detail": "this `tools/list` page declares cacheScope \"public\" while the page at seq 1 in the same request declared \"private\""
+        }
+      ]
     },
     {
       "id": "CACH-017",
