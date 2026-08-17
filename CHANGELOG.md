@@ -98,9 +98,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   clauses by construction, so demanding a clean report would mean demanding a
   probe that probes nothing; instead every finding is listed in
   [`conformance/probe-baseline.json`](conformance/probe-baseline.json) with a
-  hand-written reason, and the gate holds the set in both directions. Across
-  all three captures **109 of the 124 judgeable clauses are now evidenced**, up
-  from 92.
+  hand-written reason, and the gate holds the set in both directions. It has
+  since worked both ways: the two server defects it found went into the ledger,
+  and when they were fixed the gate refused the change until their entries were
+  retired. Across all three captures **109 of the 124 judgeable clauses are now
+  evidenced**, up from 92, and all ten rejection clauses the probe exercises
+  pass.
 
 - **`draft-capture` records the same session over Streamable HTTP too, from
   the server's end.** `corpus/draft/captured/reference-host-2026-07-28-http.jsonl`
@@ -121,11 +124,17 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   both transports.** `--protocol-version 2026-07-28` selects it: no
   `initialize`, no sessions, `server/discover` for capability advertisement,
   per-request `_meta` required, and SEP-2549 caching hints on cacheable
-  results. `StatelessEnvelope` now also rejects a log level outside RFC 5424's
-  eight and a cursor this server never issued — both were live `MUST`/`SHOULD`
-  failures until the probe session asked for them, and both are enforced on
-  stdio only, an asymmetry `conformance/probe-baseline.json` records as the
-  open defect it is. The official suite's `2026-07-28` scenarios pass **23/23**
+  results. It now also rejects a log level outside RFC 5424's eight and a cursor
+  it never issued — both were live `MUST`/`SHOULD` failures until the probe
+  session asked for them. Both rules are enforced on **both transports through
+  one implementation**: `server::stateless::rules` reads them off the request's
+  JSON, the stdio envelope calls it, and an axum layer calls the same function
+  before rmcp parses a POST body. That layer exists because
+  `StreamableHttpService` takes an `S: ServerHandler` while an envelope must
+  implement `Service` to see a request before dispatch, so the wrapper stdio
+  uses cannot be installed on HTTP; writing the rule twice instead would have
+  reintroduced exactly the divergence it fixes. The official suite's
+  `2026-07-28` scenarios pass **23/23**
   against it, and this workspace's own registry reports **0 fail** on the
   conforming captured sessions over HTTP *and* over stdio — 59 clauses judged and passing on the HTTP
   capture, 56 on the stdio one, the rest *not observed* because those sessions

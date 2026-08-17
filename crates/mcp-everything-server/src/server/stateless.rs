@@ -34,27 +34,28 @@
 //! handler answers it with the version refusal that tells a legacy client
 //! something useful.
 //!
-//! **It wraps both transports, and the revision decides whether it enforces.**
-//! rmcp's HTTP layer covers the envelope's required *keys*, and nothing covers
-//! the last two rules on either transport — a level it cannot decode reads as
-//! "no level asked", and a cursor nobody looks at is a cursor nobody rejects.
-//! Both were live `MUST` failures until a probe session asked for them. At
-//! `2025-11-25` every rule here is skipped: the envelope does not exist at that
-//! revision and `resources/subscribe`-era cursors are a different question.
+//! **The last two rules are shared, not duplicated.** rmcp's HTTP layer covers
+//! the envelope's required *keys* on that transport, but nothing anywhere
+//! covered the log level or the cursor — a level rmcp cannot decode reads as
+//! "no level asked", and a cursor no handler inspects is a cursor nobody
+//! rejects — so both were live failures until a probe session asked for them.
+//! They live in the private `rules` module, over the request's JSON, and the
+//! Streamable HTTP layer calls the same function: two transports, one
+//! implementation, no way for them to disagree. At `2025-11-25` every rule
+//! here is skipped.
 
 use std::borrow::Cow;
 
 use rmcp::model::{
-    ClientNotification, ClientRequest, ErrorData as McpError, LoggingLevel, ProtocolVersion,
-    RequestMetaObject, ServerInfo, ServerResult,
+    ClientNotification, ClientRequest, ErrorData as McpError, ProtocolVersion, RequestMetaObject,
+    ServerInfo, ServerResult,
 };
 use rmcp::service::{NotificationContext, RequestContext};
 use rmcp::{RoleServer, Service};
 
 use super::ServedRevision;
 
-/// The `_meta` key a request asks for log messages with.
-const LOG_LEVEL: &str = "io.modelcontextprotocol/logLevel";
+pub(crate) mod rules;
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
@@ -111,54 +112,13 @@ impl<S: Service<RoleServer>> StatelessEnvelope<S> {
         if !supported.contains(&version) {
             return Some(McpError::unsupported_protocol_version(version, &supported));
         }
-        if let Some(fault) = log_level_fault(meta) {
-            return Some(fault);
-        }
-        cursor_fault(request)
+        // The last two rules read the request's JSON, because the HTTP layer
+        // that also enforces them holds bytes rather than a decoded request
+        // and one implementation is the only way the two transports can be
+        // relied on to answer the same adversarial request the same way. One
+        // `to_value` per request is what that costs here.
+        rules::fault(&serde_json::to_value(request).ok()?)
     }
-}
-
-/// LOG-010: a level outside RFC 5424's eight draws `-32602`.
-///
-/// Read from the raw `_meta` value rather than through rmcp's
-/// `RequestMetaObject::log_level`, which decodes into `LoggingLevel` and
-/// answers `None` for *both* "absent" and "not a level". Those are opposite
-/// cases: the first asks for no logs, the second is the malformed request this
-/// clause exists to reject, and a server that cannot tell them apart silently
-/// serves the second.
-fn log_level_fault(meta: &RequestMetaObject) -> Option<McpError> {
-    let asked = meta.0.get(LOG_LEVEL)?;
-    if serde_json::from_value::<LoggingLevel>(asked.clone()).is_ok() {
-        return None;
-    }
-    Some(McpError::invalid_params(
-        format!("`{LOG_LEVEL}` is {asked}, which is not one of the eight RFC 5424 levels"),
-        Some(serde_json::json!({ "field": LOG_LEVEL })),
-    ))
-}
-
-/// PAGE-011: a cursor this server never issued draws `-32602`.
-///
-/// This server issues none: every catalogue it serves fits in one page, so no
-/// result of its own has ever carried a `nextCursor`. That makes *any* cursor
-/// presented to it one it did not issue — fabricated, modified, or carried
-/// over from another server — which is exactly what the clause forbids
-/// honouring. A server that paginated would compare against what it had
-/// issued; this one can answer from the stronger fact that it issued nothing.
-fn cursor_fault(request: &ClientRequest) -> Option<McpError> {
-    let cursor = match request {
-        ClientRequest::ListToolsRequest(request) => request.params.as_ref()?.cursor.as_ref(),
-        ClientRequest::ListPromptsRequest(request) => request.params.as_ref()?.cursor.as_ref(),
-        ClientRequest::ListResourcesRequest(request) => request.params.as_ref()?.cursor.as_ref(),
-        ClientRequest::ListResourceTemplatesRequest(request) => {
-            request.params.as_ref()?.cursor.as_ref()
-        }
-        _ => None,
-    }?;
-    Some(McpError::invalid_params(
-        format!("cursor {cursor:?} was not issued by this server, which paginates nothing"),
-        Some(serde_json::json!({ "cursor": cursor })),
-    ))
 }
 
 /// The `-32602` a malformed envelope draws (BASE-031).

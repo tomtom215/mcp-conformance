@@ -1,13 +1,13 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 53,
+    "pass": 54,
     "fail": 10,
-    "warn": 4,
+    "warn": 2,
     "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 57
+    "not_observed": 58
   },
   "requirements": [
     {
@@ -1284,14 +1284,7 @@
     {
       "id": "PAGE-011",
       "level": "SHOULD",
-      "outcome": "warn",
-      "findings": [
-        {
-          "check": "pagination.invalid-cursor-rejected",
-          "seq": 27,
-          "detail": "`tools/list` presented the cursor \"fabricated-by-the-probe\", which this session never issued, and the server answered with a result rather than -32602"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "LOG-006",
@@ -1317,14 +1310,7 @@
     {
       "id": "LOG-010",
       "level": "SHOULD",
-      "outcome": "warn",
-      "findings": [
-        {
-          "check": "logging.invalid-level-rejected",
-          "seq": 23,
-          "detail": "the request declared log level \"chatty\", which is not one of the eight RFC 5424 levels, and drew a result rather than -32602"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "LOG-011",
@@ -1397,7 +1383,7 @@
     {
       "id": "TOOL-022",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-023",

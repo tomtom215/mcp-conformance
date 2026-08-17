@@ -1,6 +1,6 @@
 {
   "_policy": "The probe session (`cargo xtask draft-capture`, probe leg) sends deliberately malformed requests so the specification's rejection clauses have traffic to judge. It is not a conforming client, so its recording cannot be held to a clean verdict the way the other captures are — the client-side clauses it breaks are the faults under test. This file is what it is held to instead: every finding the probe draws must be listed here with a reason, and every listed finding must still occur. An unexpected finding is a new defect or a regression; an expected one that stopped occurring is either a fix that should retire its entry in the same change, or a check that quietly stopped firing. Both fail the gate. Entries are hand-written and never blessed: a generated file cannot carry the reason, and the reason is the point.",
-  "_reading": "`fault: probe` is the probe doing its job — the malformed request is the fixture, and the client-side clause it breaks is the one under test. `fault: server` is an open defect in this workspace, and each says what would close it.",
+  "_reading": "`fault: probe` is the probe doing its job — the malformed request is the fixture, and the client-side clause it breaks is the one under test. There are no `fault: server` entries: the two this file carried (LOG-010, PAGE-011) were closed on 2026-08-17 by enforcing both rules on Streamable HTTP as well as stdio, and the gate required their entries retired in the same change. An entry with `fault: server` is an open defect, and each must say what would close it.",
   "expected": [
     {
       "requirement": "BASE-030",
@@ -50,7 +50,7 @@
     {
       "requirement": "PAGE-010",
       "fault": "probe",
-      "why": "One probe presents a cursor no server issued, which is precisely what the client-side opacity clause forbids. It is the antecedent of PAGE-011, the server-side rule below."
+      "why": "One probe presents a cursor no server issued, which is precisely what the client-side opacity clause forbids. It is the antecedent of PAGE-011, the server-side rule it exists to exercise — and PAGE-011 now passes on this recording, which is the whole point of sending it."
     },
     {
       "requirement": "DISC-002",
@@ -61,16 +61,6 @@
       "requirement": "TRAN-128",
       "fault": "probe",
       "why": "The stdio binding's restatement of DISC-002, sharing its check; see above."
-    },
-    {
-      "requirement": "PAGE-011",
-      "fault": "server",
-      "why": "OPEN DEFECT. The server honoured a cursor it never issued, answering `tools/list` with a full result instead of `-32602`. `StatelessEnvelope` rejects it on stdio, but that wrapper cannot be installed on the HTTP transport: `StreamableHttpService` takes an `S: ServerHandler`, rmcp blanket-impls `Service<RoleServer>` for every `ServerHandler`, and an envelope must implement `Service` to see a request before dispatch — so it is not itself a `ServerHandler`. Closing it needs the rule in an axum layer beside the Host/Origin policy, or hand-written `list_tools`/`list_prompts` in place of rmcp's macro-generated pair."
-    },
-    {
-      "requirement": "LOG-010",
-      "fault": "server",
-      "why": "OPEN DEFECT, and the same root cause as PAGE-011. The server served a request naming log level `\"chatty\"` instead of rejecting it with `-32602`: rmcp decodes an unrecognized level to `None`, which is indistinguishable from `absent`, so the request reads as one asking for no logs. `StatelessEnvelope` tells the two apart and rejects on stdio; the HTTP transport has no such hook for the reason recorded under PAGE-011."
     }
   ]
 }

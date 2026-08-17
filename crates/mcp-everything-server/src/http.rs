@@ -32,6 +32,8 @@ use rmcp::transport::streamable_http_server::session::local::LocalSessionManager
 use crate::policy::HttpSecurityPolicy;
 use crate::server::{EverythingServer, ServedRevision};
 
+mod envelope;
+
 /// Path the MCP endpoint is served under, matching the ecosystem default.
 pub const MCP_PATH: &str = "/mcp";
 
@@ -41,10 +43,12 @@ pub const MCP_PATH: &str = "/mcp";
 /// Pass [`ServedRevision::default`] for the `2025-11-25` surface this crate
 /// has always served.
 pub fn router(policy: HttpSecurityPolicy, revision: ServedRevision) -> Router {
-    mcp_router(&policy, revision).layer(middleware::from_fn_with_state(
-        Arc::new(policy),
-        enforce_policy,
-    ))
+    mcp_router(&policy, revision)
+        .layer(middleware::from_fn_with_state(revision, envelope::enforce))
+        .layer(middleware::from_fn_with_state(
+            Arc::new(policy),
+            enforce_policy,
+        ))
 }
 
 /// [`router`], with the trace tap installed inside the policy layer: only
@@ -56,7 +60,11 @@ pub fn router_tapped(
     revision: ServedRevision,
     tap: Arc<crate::tap::Tap>,
 ) -> Router {
+    // Envelope enforcement inside the tap, so a rejection it issues is
+    // recorded: a capture that showed the request and not the refusal would be
+    // evidence of the server ignoring it.
     mcp_router(&policy, revision)
+        .layer(middleware::from_fn_with_state(revision, envelope::enforce))
         .layer(middleware::from_fn_with_state(tap, crate::tap::tap_layer))
         .layer(middleware::from_fn_with_state(
             Arc::new(policy),
@@ -93,10 +101,9 @@ fn mcp_router(policy: &HttpSecurityPolicy, revision: ServedRevision) -> Router {
     // every `ServerHandler`, so a wrapper that implements `Service` directly —
     // which is what an envelope must do to see the request before dispatch —
     // is not itself a `ServerHandler` and cannot be handed here. rmcp's own
-    // tower layer covers the envelope's required keys on this transport; the
-    // two rules it does not cover (an undecodable log level, an unissued
-    // cursor) are enforced on stdio only, and `conformance/probe-baseline.json`
-    // records that asymmetry as the open defect it is.
+    // tower layer covers the envelope's required keys on this transport, and
+    // the two rules it does not cover are enforced by [`envelope::enforce`]
+    // above, calling the same function the stdio envelope calls.
     let service = StreamableHttpService::new(
         move || Ok(EverythingServer::serving(revision)),
         Arc::new(LocalSessionManager::default()),

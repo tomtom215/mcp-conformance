@@ -310,6 +310,13 @@ the gate holds the set in both directions: a finding not in the ledger is a new
 defect or a regression, and a listed finding that stopped occurring is either a
 fix that should retire its entry or a check that quietly stopped firing.
 
+**It has already worked in both directions.** The first probe run drew two
+server-side findings — the server served a request naming log level
+`"chatty"`, and honoured a cursor it never issued — which went into the ledger
+as open defects. When they were fixed, the gate refused the change until their
+entries were retired, which is the half of a ratchet that is easy to leave
+out. All ten rejection clauses the probe exercises now pass.
+
 **Its provenance is weaker than the pair above, and deliberately labelled so.**
 Both ends of this session are ours: the official suite drives servers over
 `--url` only, so there is no third-party client for stdio to be recorded
