@@ -5,8 +5,9 @@
 //! reports into `corpus/README.md`, and verify the coverage claims the
 //! user-facing Markdown makes in prose.
 //!
-//! ADR-0001 forbids hand-maintained counts in prose, and this is the second
-//! place they accumulate. [`coverage`](crate::coverage) already makes the
+//! ADR-0001's "one fact, one place, many links" rule is why counts in this
+//! repository are projections rather than prose, and this is the second place
+//! they had accumulated by hand. [`coverage`](crate::coverage) already makes the
 //! per-area table a projection of the registry; what it cannot reach is *what
 //! the captures evidence*, which is a property of the committed golden reports
 //! rather than of the registry. Those numbers were kept by hand until this
