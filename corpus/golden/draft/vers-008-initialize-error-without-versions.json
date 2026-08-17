@@ -2,8 +2,8 @@
   "revision": "2026-07-28",
   "totals": {
     "pass": 56,
-    "fail": 2,
-    "warn": 0,
+    "fail": 1,
+    "warn": 1,
     "excluded": 71,
     "unsupported": 0,
     "not_applicable": 0
@@ -268,14 +268,7 @@
     {
       "id": "BASE-032",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "meta.missing-required-field-http-status",
-          "seq": 1,
-          "detail": "missing required `_meta` field: error -32602 was returned with HTTP 200, not 400"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-033",
@@ -742,7 +735,14 @@
     {
       "id": "VERS-008",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "versioning.initialize-error-names-versions",
+          "seq": 1,
+          "detail": "the error refusing `initialize` names no protocol version, leaving a legacy client — which has no fall-forward mechanism — nothing to surface"
+        }
+      ]
     }
   ]
 }

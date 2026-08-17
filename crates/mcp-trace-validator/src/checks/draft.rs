@@ -17,6 +17,7 @@ pub(super) mod discovery;
 pub(super) mod envelope;
 pub(super) mod meta;
 pub(super) mod transport;
+pub(super) mod versioning;
 
 #[cfg(test)]
 mod testkit;

@@ -3,6 +3,7 @@
   "in_scope": {
     "basic/index": "basic/index.mdx",
     "basic/transports/streamable-http": "basic/transports/streamable-http.mdx",
+    "basic/versioning": "basic/versioning.mdx",
     "server/discover": "server/discover.mdx"
   },
   "out_of_scope": {

@@ -1,8 +1,8 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 56,
-    "fail": 2,
+    "pass": 57,
+    "fail": 1,
     "warn": 0,
     "excluded": 71,
     "unsupported": 0,
@@ -246,19 +246,7 @@
     {
       "id": "BASE-030",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "meta.required-request-fields",
-          "seq": 0,
-          "detail": "request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`"
-        },
-        {
-          "check": "meta.required-request-fields",
-          "seq": 0,
-          "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-031",
@@ -268,14 +256,7 @@
     {
       "id": "BASE-032",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "meta.missing-required-field-http-status",
-          "seq": 1,
-          "detail": "missing required `_meta` field: error -32602 was returned with HTTP 200, not 400"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-033",
@@ -719,7 +700,14 @@
     {
       "id": "VERS-004",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "versioning.extension-identifier-format",
+          "seq": 0,
+          "detail": "client capabilities extension identifier \"ui\" has no prefix; the prefix is optional in a `_meta` key but mandatory for an extension identifier"
+        }
+      ]
     },
     {
       "id": "VERS-005",

@@ -1,9 +1,9 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 56,
-    "fail": 2,
-    "warn": 0,
+    "pass": 57,
+    "fail": 0,
+    "warn": 1,
     "excluded": 71,
     "unsupported": 0,
     "not_applicable": 0
@@ -246,19 +246,7 @@
     {
       "id": "BASE-030",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "meta.required-request-fields",
-          "seq": 0,
-          "detail": "request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`"
-        },
-        {
-          "check": "meta.required-request-fields",
-          "seq": 0,
-          "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-031",
@@ -268,14 +256,7 @@
     {
       "id": "BASE-032",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "meta.missing-required-field-http-status",
-          "seq": 1,
-          "detail": "missing required `_meta` field: error -32602 was returned with HTTP 200, not 400"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-033",
@@ -709,7 +690,14 @@
     {
       "id": "VERS-002",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "versioning.retry-uses-supported-version",
+          "seq": 2,
+          "detail": "the request declares protocol version \"1899-01-01\", which the `supported` list in the -32022 at seq 1 does not offer (\"2026-07-28\")"
+        }
+      ]
     },
     {
       "id": "VERS-003",

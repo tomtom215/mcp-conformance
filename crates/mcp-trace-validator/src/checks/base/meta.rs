@@ -44,7 +44,7 @@ pub(in crate::checks) fn meta_key_format(context: &TraceContext<'_>, sink: &mut 
 /// `label(.label)*/` prefix (labels start with a letter, end with a letter or
 /// digit, interior letters/digits/hyphens) and a name that, unless empty,
 /// begins and ends alphanumeric with `-`/`_`/`.`/alphanumerics between.
-fn validate_meta_key(key: &str) -> Result<(), String> {
+pub(in crate::checks) fn validate_meta_key(key: &str) -> Result<(), String> {
     let (prefix, name) = match key.split_once('/') {
         Some((prefix, name)) => (Some(prefix), name),
         None => (None, key),

@@ -202,6 +202,42 @@ fn a_malformed_envelope_must_draw_invalid_params() {
 }
 
 #[test]
+fn a_legacy_initialize_is_outside_the_rejection_rule() {
+    // `basic/versioning`'s compatibility matrix makes the code implementation-
+    // defined for exactly this exchange — `initialize` is both an unknown method
+    // and a request without the `_meta` envelope — so a server answering -32601
+    // has picked one of the two applicable rules and conforms. Every legacy →
+    // modern capture is this exchange, so getting it wrong would put a MUST
+    // failure on all of them.
+    let check = "meta.missing-required-field-rejected";
+    let handshake = trace(&[
+        client(
+            0,
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}"#,
+        ),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"x"}}"#,
+        ),
+    ]);
+    assert!(findings_for(check, &handshake).is_empty());
+
+    // The exemption is by method, not a blanket amnesty: any other method with
+    // the same defect is still reported.
+    let other = trace(&[
+        client(
+            0,
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"protocolVersion":"2025-11-25"}}"#,
+        ),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"x"}}"#,
+        ),
+    ]);
+    assert_eq!(findings_for(check, &other).len(), 1);
+}
+
+#[test]
 fn the_missing_capability_error_must_list_what_was_missing() {
     let check = "meta.missing-capability-error";
 

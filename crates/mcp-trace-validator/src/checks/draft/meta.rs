@@ -33,6 +33,10 @@ const MISSING_CAPABILITY_CODE: i64 = -32021;
 /// JSON-RPC `Invalid params`, which a malformed `_meta` envelope draws.
 const INVALID_PARAMS: i64 = -32602;
 
+/// The handshake this revision removed. A request for it is the previous era's
+/// opener, not a `2026-07-28` request with a malformed envelope.
+const LEGACY_HANDSHAKE: &str = "initialize";
+
 /// The `_meta` object of a message's `params`, when present.
 fn params_meta(payload: &Value) -> Option<&serde_json::Map<String, Value>> {
     payload.get("params")?.get("_meta")?.as_object()
@@ -91,6 +95,18 @@ pub(in crate::checks) fn missing_required_field_rejected(
     let malformed: BTreeMap<String, u64> = client_requests(context)
         .filter_map(|(seq, id, payload)| {
             let id = id?;
+            // The one exchange the specification takes out of this rule: a legacy
+            // `initialize` arriving at a modern server. `basic/versioning`'s
+            // compatibility matrix states that there "the exact code is
+            // implementation-defined (`initialize` is an unknown method and the
+            // request also lacks the required `_meta` fields)" — two rules apply
+            // and the specification declines to pick, so a server answering
+            // `-32601` conforms. Without this, every cross-era capture would
+            // carry a MUST failure the specification has explicitly waived. The
+            // client's own defect is still reported, by BASE-030.
+            if payload.get("method").and_then(Value::as_str) == Some(LEGACY_HANDSHAKE) {
+                return None;
+            }
             let meta = params_meta(payload);
             let complete = REQUIRED_REQUEST_FIELDS
                 .iter()

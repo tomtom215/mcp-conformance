@@ -280,9 +280,7 @@ fn corpus_falsifies_every_check() {
 /// the revision — there would be nothing to project and nothing to judge.
 #[cfg(feature = "draft-2026-07-28")]
 mod draft {
-    use super::{
-        assert_falsifies_its_named_requirement, check_golden, trace_files, validate_file,
-    };
+    use super::{assert_falsifies_its_named_requirement, check_golden, trace_files, validate_file};
     use mcp_conformance_core::requirement::Registry;
     use mcp_conformance_core::requirement::RegistrySet;
     use mcp_trace_validator::report::Verdict;

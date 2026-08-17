@@ -18,7 +18,7 @@ use crate::context::TraceContext;
 
 mod meta;
 
-pub(super) use meta::meta_key_format;
+pub(super) use meta::{meta_key_format, validate_meta_key};
 
 /// Human name of a JSON value's type, for finding details.
 fn type_name(value: &Value) -> &'static str {

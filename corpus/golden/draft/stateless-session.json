@@ -1,10 +1,10 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 53,
+    "pass": 58,
     "fail": 0,
     "warn": 0,
-    "excluded": 68,
+    "excluded": 71,
     "unsupported": 0,
     "not_applicable": 0
   },
@@ -681,6 +681,49 @@
       "level": "SHOULD NOT",
       "outcome": "excluded",
       "exclusion": "Binds what the client does with `serverInfo` after reading it — behaviour changes and security decisions are internal reasoning, and a trace records the messages, not the inferences drawn from them. Same boundary as BASE-022's icon-consumer clauses."
+    },
+    {
+      "id": "VERS-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "VERS-002",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "VERS-003",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "VERS-004",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "VERS-005",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Both permitted responses are defined by the extension, not by this specification: what \"core protocol behavior\" looks like for a given extension, and which error is \"appropriate\", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour — the same architectural boundary that leaves the JSON Schema clauses to BASE-073."
+    },
+    {
+      "id": "VERS-006",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds an extension's documentation, not either party's messages. The subject is not even a session participant: no recorded trace can be evidence about whether a document exists."
+    },
+    {
+      "id": "VERS-007",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The cached value is the era determination — client-internal state, and the clause's horizon is the server process or origin, which outlives the recorded session. The one wire-visible candidate, a repeated probe, is not evidence: the clause's own \"re-probing if the cached assumption later fails\" permits it."
+    },
+    {
+      "id": "VERS-008",
+      "level": "SHOULD",
+      "outcome": "pass"
     }
   ]
 }

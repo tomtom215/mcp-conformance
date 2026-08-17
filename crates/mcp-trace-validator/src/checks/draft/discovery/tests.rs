@@ -43,7 +43,10 @@ fn a_session_that_never_probes_is_not_judged() {
     // silence would fail every session that simply never asked.
     let no_probe = trace(&[
         request(0, 1, "tools/list", true),
-        server(1, r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
+        ),
     ]);
     assert!(findings_for(IMPLEMENTED, &no_probe).is_empty());
 }
@@ -98,7 +101,10 @@ fn only_a_server_sent_error_answers_a_probe() {
     // without the direction filter this would report the server for it.
     let client_error = trace(&[
         probe(0),
-        client(1, r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"x"}}"#),
+        client(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"x"}}"#,
+        ),
     ]);
     assert!(findings_for(IMPLEMENTED, &client_error).is_empty());
 }
@@ -122,7 +128,10 @@ fn a_modern_only_client_is_not_asked_to_probe() {
     // clients, not SHOULD — a different sentence, on a different page.
     let modern = trace(&[
         request(0, 1, "tools/list", true),
-        server(1, r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
+        ),
     ]);
     assert!(findings_for(PROBE_FIRST, &modern).is_empty());
 }
@@ -181,7 +190,10 @@ fn initialize_first_with_a_later_modern_request_is_reported() {
     // The fallback done backwards: handshake first, modern retry after.
     let backwards = trace(&[
         request(0, 1, "initialize", false),
-        server(1, r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"x"}}"#),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"x"}}"#,
+        ),
         request(2, 2, "tools/list", true),
     ]);
     let findings = findings_for(PROBE_FIRST, &backwards);
@@ -191,7 +203,10 @@ fn initialize_first_with_a_later_modern_request_is_reported() {
 
 #[test]
 fn a_session_with_no_client_requests_is_not_judged() {
-    let quiet = trace(&[server(0, r#"{"jsonrpc":"2.0","method":"notifications/message"}"#)]);
+    let quiet = trace(&[server(
+        0,
+        r#"{"jsonrpc":"2.0","method":"notifications/message"}"#,
+    )]);
     assert!(findings_for(PROBE_FIRST, &quiet).is_empty());
     assert!(findings_for(IMPLEMENTED, &quiet).is_empty());
 }

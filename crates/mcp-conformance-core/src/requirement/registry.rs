@@ -51,6 +51,7 @@ const AREAS_2026_07_28: &[&str] = &[
     include_str!("../../registry/2026-07-28/transport-http-headers.json"),
     include_str!("../../registry/2026-07-28/transport-http-compat.json"),
     include_str!("../../registry/2026-07-28/discover.json"),
+    include_str!("../../registry/2026-07-28/versioning.json"),
 ];
 
 /// A complete requirement registry for one protocol revision.

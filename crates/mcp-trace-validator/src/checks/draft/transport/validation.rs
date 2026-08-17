@@ -16,8 +16,8 @@ use serde_json::Value;
 use super::super::super::FindingSink;
 use super::super::http_status_for;
 use super::{
-    Match, Post, compare, designations_by_tool, header_safe, mirrors, posts, posts_by_message,
-    sentinel_payload,
+    META_PROTOCOL_VERSION, Match, Post, compare, designations_by_tool, header_safe, mirrors, posts,
+    posts_by_message, sentinel_payload,
 };
 use crate::context::TraceContext;
 
@@ -197,7 +197,7 @@ pub(in crate::checks) fn unsupported_version_error(
     unsupported_version_answer(context, sink);
 }
 
-/// The answer side: `-32022` lists the supported versions and carries HTTP 400.
+/// The shape side: `-32022` lists the versions the server does implement.
 fn unsupported_version_shape(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, _, _) in context.messages() {
         if answer_code(event) != Some(UNSUPPORTED_VERSION) {
@@ -221,6 +221,24 @@ fn unsupported_version_shape(context: &TraceContext<'_>, sink: &mut FindingSink)
                 ),
             );
         }
+    }
+}
+
+/// `TRAN-074`, the HTTP half: an `UnsupportedProtocolVersionError` rides a 400.
+///
+/// Split from [`unsupported_version_error`] because that rule is stated twice —
+/// on the transport page *with* the status (TRAN-074) and on `basic/versioning`
+/// *without* it (VERS-001). One check covering both would attribute a wrong
+/// HTTP status to VERS-001, whose quote says nothing about statuses, since the
+/// engine reports a check's finding against every requirement naming it.
+pub(in crate::checks) fn unsupported_version_status(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    for (event, _, _) in context.messages() {
+        if answer_code(event) != Some(UNSUPPORTED_VERSION) {
+            continue;
+        }
         if let Some((status_seq, status)) = http_status_for(context, event.seq)
             && status != 400
         {
@@ -243,16 +261,21 @@ fn unsupported_version_shape(context: &TraceContext<'_>, sink: &mut FindingSink)
 /// assumption about which versions it ought to implement. Applied to the whole
 /// trace, not just what follows discovery: which versions a server implements is
 /// a property of the server, not of when the client asked.
+///
+/// The requested version is read from the request's own `_meta`, not from the
+/// POST that carried it. Both say the same thing — `Post::body_protocol_version`
+/// reads that same field — but going through the POST made the obligation
+/// invisible on stdio, where there is no POST and the clause still binds:
+/// `basic/versioning` states it for every transport.
 fn unsupported_version_answer(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let Some(supported) = declared_versions(context) else {
         return;
     };
-    let by_message = posts_by_message(context);
     for exchange in context.exchanges() {
-        let Some(post) = by_message.get(&exchange.request.seq) else {
-            continue;
-        };
-        let Some(requested) = post.body_protocol_version() else {
+        let Some(requested) = exchange
+            .params
+            .and_then(|params| params.get("_meta")?.get(META_PROTOCOL_VERSION)?.as_str())
+        else {
             continue;
         };
         if supported.contains(requested) {
@@ -263,10 +286,10 @@ fn unsupported_version_answer(context: &TraceContext<'_>, sink: &mut FindingSink
             sink.push(
                 Some(exchange.response.seq),
                 format!(
-                    "the POST at seq {} requested protocol version {requested:?}, which the \
+                    "the request at seq {} declared protocol version {requested:?}, which the \
                      server's own `supportedVersions` omits; it answered with {} instead of \
                      {UNSUPPORTED_VERSION}",
-                    post.seq,
+                    exchange.request.seq,
                     answer_label(code)
                 ),
             );
