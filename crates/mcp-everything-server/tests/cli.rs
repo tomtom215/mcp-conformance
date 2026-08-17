@@ -56,6 +56,85 @@ fn stdio_serves_a_real_initialize_handshake() {
 }
 
 #[test]
+fn protocol_version_flag_selects_the_surface_the_binary_serves() {
+    // The flag's wiring, end to end through the real binary: the library tests
+    // build the HTTP router directly, so a flag parsed but never threaded to
+    // `EverythingServer` would pass every one of them. `server/discover`'s
+    // version list is the shortest proof, and it takes the whole path — CLI,
+    // router, transport, handler.
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+        .args([
+            "--transport",
+            "http",
+            "--bind",
+            "127.0.0.1:0",
+            "--protocol-version",
+            "2026-07-28",
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("binary spawns");
+    let mut reader = BufReader::new(child.stderr.take().unwrap());
+    let mut line = String::new();
+    reader.read_line(&mut line).expect("readiness line");
+    let addr = line
+        .trim()
+        .strip_prefix("listening on ")
+        .unwrap_or_else(|| panic!("unexpected readiness line: {line:?}"))
+        .to_owned();
+
+    // `server/discover` carries the `_meta` envelope like every other request
+    // at this revision: the transport rejects it with -32602 otherwise, which
+    // is itself part of what the flag switches on.
+    let body = r#"{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}"#;
+    let request = format!(
+        "POST /mcp HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nAccept: application/json, text/event-stream\r\nMCP-Protocol-Version: 2026-07-28\r\nMcp-Method: server/discover\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let mut stream = std::net::TcpStream::connect(&addr).expect("connect");
+    std::io::Write::write_all(&mut stream, request.as_bytes()).expect("send");
+    let mut response = String::new();
+    std::io::Read::read_to_string(&mut stream, &mut response).expect("read");
+
+    assert!(
+        response.contains(r#""supportedVersions":["2026-07-28"]"#),
+        "the served revision reaches the wire: {response}"
+    );
+
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+/// The stateless surface is HTTP-only here, and the binary says so rather than
+/// starting a server that cannot serve it.
+#[test]
+fn the_stateless_revision_over_stdio_is_an_invocation_error() {
+    let output = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+        .args(["--transport", "stdio", "--protocol-version", "2026-07-28"])
+        .output()
+        .expect("binary runs");
+    assert_eq!(output.status.code(), Some(2), "clap's usage exit code");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("requires --transport http"),
+        "the message names the fix: {stderr}"
+    );
+}
+
+#[test]
+fn an_unknown_protocol_version_is_an_invocation_error() {
+    // The revisions this binary can serve are a closed set, so a typo must be
+    // a usage error at startup rather than a server quietly serving the
+    // default and a capture that looks like the wrong revision on purpose.
+    let output = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+        .args(["--transport", "stdio", "--protocol-version", "2026-07-29"])
+        .output()
+        .expect("binary runs");
+    assert_eq!(output.status.code(), Some(2), "clap's usage exit code");
+}
+
+#[test]
 fn help_exits_zero_and_documents_the_transport_flag() {
     let output = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
         .arg("--help")

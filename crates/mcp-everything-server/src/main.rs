@@ -103,6 +103,24 @@ async fn main() -> ExitCode {
         eprintln!("mcp-everything-server: --tap-dir requires --transport http");
         return ExitCode::from(2);
     }
+    if revision.is_stateless() && matches!(cli.transport, Transport::Stdio) {
+        // Refused rather than served badly. rmcp's stdio server is built
+        // around the handshake — `serve()` waits for an `initialize` before it
+        // dispatches anything — so this combination would answer the refusal
+        // this revision owes a legacy client and then exit, which is not a
+        // server. `serve_directly` would skip the handshake, but the
+        // per-request `_meta` enforcement that makes the stateless surface
+        // *conformant* lives in rmcp's HTTP layer and reads HTTP headers;
+        // reproducing it for stdio would be new protocol logic with no
+        // independent client to validate it against (the official suite drives
+        // servers over `--url` only). An unverified conformance claim is the
+        // one thing this binary must not ship.
+        eprintln!(
+            "mcp-everything-server: --protocol-version 2026-07-28 requires --transport http \
+             (the stateless surface is not served over stdio here; see the crate README)"
+        );
+        return ExitCode::from(2);
+    }
     match cli.transport {
         Transport::Stdio => serve_stdio(revision).await,
         Transport::Http => {

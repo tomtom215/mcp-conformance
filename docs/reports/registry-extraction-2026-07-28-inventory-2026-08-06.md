@@ -901,9 +901,24 @@ not captured; no implementation here serves the stateless surface end to end"
 — is closed. Every one of the 124 judged clauses now has a real recording of a
 conforming implementation behind it, produced by a client nobody here wrote.
 
+### Known gap: the stateless surface is HTTP-only
+
+`--protocol-version 2026-07-28 --transport stdio` is **refused at startup**, not
+served. rmcp's stdio server is built around the handshake (`serve()` waits for
+an `initialize` before dispatching), and while `serve_directly` would skip it,
+the per-request `_meta` enforcement that makes the stateless surface conformant
+lives in rmcp's HTTP layer and reads HTTP headers. Reproducing it for stdio
+would be new protocol logic with no independent client to validate it against —
+the official suite drives servers over `--url` only, with no stdio mode — so
+shipping it would be an unverified conformance claim on a transport the
+registry judges with fifteen clauses. Refusing is the honest answer until
+either rmcp grows a stateless stdio server or the suite grows a stdio driver.
+
 ### For the next session
 
 - The `2026-07-28` feature is still off by default, deliberately.
+- **Stateless stdio** (above) is the largest remaining gap in the server, and
+  it is blocked on an external dependency rather than on effort.
 - `json_response` is left at rmcp's default, so stateless responses are SSE.
   Both framings are conformant; the JSON one is one config field away if a
   capture of it is ever wanted.
