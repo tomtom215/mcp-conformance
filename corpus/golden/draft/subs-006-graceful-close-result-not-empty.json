@@ -1,9 +1,9 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 83,
-    "fail": 1,
-    "warn": 0,
+    "pass": 82,
+    "fail": 0,
+    "warn": 2,
     "excluded": 97,
     "unsupported": 0,
     "not_applicable": 0
@@ -942,14 +942,7 @@
     {
       "id": "MRTR-020",
       "level": "MUST NOT",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "mrtr.request-state-scoped-to-retry",
-          "seq": 2,
-          "detail": "`prompts/get` carries the `requestState` issued for a `tools/call` request; it affects only that request's retry"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "MRTR-021",
@@ -1005,12 +998,26 @@
     {
       "id": "SUBS-005",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "subscriptions.graceful-close-result-empty",
+          "seq": 2,
+          "detail": "the `subscriptions/listen` response carries `delivered`; a graceful closure's result is empty"
+        }
+      ]
     },
     {
       "id": "SUBS-006",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "subscriptions.graceful-close-result-empty",
+          "seq": 2,
+          "detail": "the `subscriptions/listen` response carries `delivered`; a graceful closure's result is empty"
+        }
+      ]
     },
     {
       "id": "SUBS-007",

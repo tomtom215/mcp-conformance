@@ -942,14 +942,7 @@
     {
       "id": "MRTR-020",
       "level": "MUST NOT",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "mrtr.request-state-scoped-to-retry",
-          "seq": 2,
-          "detail": "`prompts/get` carries the `requestState` issued for a `tools/call` request; it affects only that request's retry"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "MRTR-021",
@@ -988,7 +981,14 @@
     {
       "id": "SUBS-002",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "subscriptions.acknowledgment-first",
+          "seq": 1,
+          "detail": "subscription 1 opened with `notifications/tools/list_changed`; `notifications/subscriptions/acknowledged` must be its first message"
+        }
+      ]
     },
     {
       "id": "SUBS-003",

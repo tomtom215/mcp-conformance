@@ -3,6 +3,7 @@
   "in_scope": {
     "basic/index": "basic/index.mdx",
     "basic/patterns/mrtr": "basic/patterns/mrtr.mdx",
+    "basic/patterns/subscriptions": "basic/patterns/subscriptions.mdx",
     "basic/transports/index": "basic/transports/index.mdx",
     "basic/transports/stdio": "basic/transports/stdio.mdx",
     "basic/transports/streamable-http": "basic/transports/streamable-http.mdx",

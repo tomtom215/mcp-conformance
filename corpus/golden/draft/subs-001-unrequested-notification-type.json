@@ -942,14 +942,7 @@
     {
       "id": "MRTR-020",
       "level": "MUST NOT",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "mrtr.request-state-scoped-to-retry",
-          "seq": 2,
-          "detail": "`prompts/get` carries the `requestState` issued for a `tools/call` request; it affects only that request's retry"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "MRTR-021",
@@ -983,7 +976,14 @@
     {
       "id": "SUBS-001",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "subscriptions.only-requested-notifications",
+          "seq": 2,
+          "detail": "subscription 1 was sent `notifications/prompts/list_changed`, which its filter did not set `promptsListChanged`"
+        }
+      ]
     },
     {
       "id": "SUBS-002",

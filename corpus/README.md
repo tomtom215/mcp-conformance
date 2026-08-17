@@ -161,6 +161,9 @@ falsifies exactly the requirement it is named for.
 | `tran-097-header-body-mismatch-accepted.jsonl` | `Mcp-Param-Region: us-east1` against `arguments.region = "us-west1"`, answered with a result (TRAN-097, TRAN-100 — one rule stated in two sections) |
 | `tran-098-header-mismatch-without-400.jsonl` | `HeaderMismatch` returned with HTTP 500 rather than 400 (TRAN-098, TRAN-102 — one rule stated in two sections) |
 | `tran-074-unsupported-version-without-400.jsonl` | `-32022` returned with HTTP 200 rather than 400 (TRAN-074). The status half of that clause had no trace of its own until `transport.unsupported-version-status` was split out; it had been riding the kills of the sibling rules it was bundled with. |
+| `subs-001-unrequested-notification-type.jsonl` | A `prompts/list_changed` on a subscription whose filter asked only for tools-list changes (SUBS-001) |
+| `subs-002-notification-before-acknowledgment.jsonl` | A notification ahead of `notifications/subscriptions/acknowledged` on the same subscription id (SUBS-002) |
+| `subs-006-graceful-close-result-not-empty.jsonl` | A graceful-closure response carrying `delivered` alongside `resultType` (SUBS-006, and SUBS-005 — one rule stated in the cancellation list and again under Graceful Closure) |
 | `mrtr-004-input-required-on-unsupported-method.jsonl` | `input_required` answering a `resources/list`, which is not one of the three requests that may draw one (MRTR-004) |
 | `mrtr-006-input-request-unknown-method.jsonl` | `inputRequests` asking for `tools/list`, which is not an ElicitRequest, CreateMessageRequest or ListRootsRequest (MRTR-006) |
 | `mrtr-011-input-required-empty.jsonl` | `input_required` carrying neither `inputRequests` nor `requestState`, opening a round that cannot be completed (MRTR-011) |

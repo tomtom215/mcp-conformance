@@ -56,6 +56,7 @@ const AREAS_2026_07_28: &[&str] = &[
     include_str!("../../registry/2026-07-28/transport-stdio.json"),
     include_str!("../../registry/2026-07-28/mrtr-server.json"),
     include_str!("../../registry/2026-07-28/mrtr-client.json"),
+    include_str!("../../registry/2026-07-28/subscriptions.json"),
 ];
 
 /// A complete requirement registry for one protocol revision.

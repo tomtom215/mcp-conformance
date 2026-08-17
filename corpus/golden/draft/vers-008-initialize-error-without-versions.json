@@ -1,10 +1,10 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 77,
+    "pass": 81,
     "fail": 2,
     "warn": 1,
-    "excluded": 94,
+    "excluded": 97,
     "unsupported": 0,
     "not_applicable": 0
   },
@@ -1003,6 +1003,44 @@
       "level": "MUST",
       "outcome": "excluded",
       "exclusion": "A pointer back to MRTR-007 and MRTR-008 rather than a new rule, and it inherits their reason: the state is an opaque blob, so no check can tell a validated one from an unvalidated one."
+    },
+    {
+      "id": "SUBS-001",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "SUBS-002",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "SUBS-003",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Comparing two things it already has and reacting well to the difference: both the comparison and \"gracefully\" are inside the client, and a client that never looked sends exactly the messages one that did would. The server's side of the same exchange — honouring only what was requested — is SUBS-001 and is checked."
+    },
+    {
+      "id": "SUBS-004",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The client's own demultiplexing, which produces no message — the same clause TRAN-122 states from the stdio page, with the same reason. The wire-visible half, that the server tags every notification with `io.modelcontextprotocol/subscriptionId`, is BASE-039 and is checked."
+    },
+    {
+      "id": "SUBS-005",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "SUBS-006",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "SUBS-007",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The obligation begins after a re-established connection, which is a second session: the evidence would have to span two recordings, and nothing in either identifies the other as its predecessor. Same boundary as TRAN-127, which excludes the restart that precedes it."
     }
   ]
 }

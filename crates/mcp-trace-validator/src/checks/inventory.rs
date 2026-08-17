@@ -388,6 +388,21 @@ pub static ALL: &[Check] = &[
         "mrtr.missing-input-reasked",
         draft::mrtr::missing_input_reasked
     ),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!(
+        "subscriptions.only-requested-notifications",
+        draft::subscriptions::only_requested_notifications
+    ),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!(
+        "subscriptions.acknowledgment-first",
+        draft::subscriptions::acknowledgment_first
+    ),
+    #[cfg(feature = "draft-2026-07-28")]
+    check!(
+        "subscriptions.graceful-close-result-empty",
+        draft::subscriptions::graceful_close_result_empty
+    ),
 ];
 
 /// Looks up a check by its stable ID.
