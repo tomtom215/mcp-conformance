@@ -193,7 +193,7 @@ mod tests {
         checks::find("lifecycle.negotiated-capabilities-only")
             .unwrap()
             .run(&context)
-        .findings
+            .findings
             .into_iter()
             .map(|finding| finding.detail)
             .collect()

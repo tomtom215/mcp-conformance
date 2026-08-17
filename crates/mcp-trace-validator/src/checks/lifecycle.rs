@@ -326,7 +326,8 @@ mod tests {
         let context = TraceContext::new(&events);
         let findings = crate::checks::find("lifecycle.initialize-params")
             .expect("check exists")
-            .run(&context).findings;
+            .run(&context)
+            .findings;
         assert_eq!(findings.len(), 3, "{findings:?}");
         assert!(
             findings[0]
@@ -361,7 +362,7 @@ mod tests {
             crate::checks::find("lifecycle.initialize-result-shape")
                 .expect("check registered")
                 .run(&context)
-        .findings
+                .findings
         };
 
         // Complete shape: no findings.
@@ -388,7 +389,7 @@ mod tests {
             crate::checks::find("lifecycle.initialize-result-shape")
                 .unwrap()
                 .run(&context)
-        .findings
+                .findings
                 .is_empty()
         );
     }

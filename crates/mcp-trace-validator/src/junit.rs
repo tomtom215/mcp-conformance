@@ -35,7 +35,8 @@ use crate::report::{Outcome, Report};
 pub fn render(report: &Report) -> String {
     let totals = report.totals;
     let failures = totals.fail;
-    let skipped = totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
+    let skipped =
+        totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
     let tests = totals.pass + totals.fail + totals.warn + skipped;
 
     let mut out = String::new();

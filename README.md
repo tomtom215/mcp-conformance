@@ -118,7 +118,7 @@ in CI — the numbers cannot drift from the data:
 | PAGE | 5 | 1 | 4 | 0 |
 | **Total** | **140** | **52** | **88** | **33** |
 
-Revision `2025-11-25`: 140 requirements — 52 judged by 48 distinct trace checks (every check falsified by a committed violation trace), 88 carrying documented exclusions explaining why a recorded trace cannot judge them. A requirement is reported *pass* only when the session actually carried something it binds to: capability-gated clauses report *not-applicable* when the capability was never negotiated, and any clause whose subject matter never appeared reports *not-observed*. Neither is a pass.
+Revision `2025-11-25`: 140 requirements — 52 judged by 48 distinct trace checks (every check falsified by a committed violation trace, and every check examining a real subject on at least one of them), 88 carrying documented exclusions explaining why a recorded trace cannot judge them. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
 <!-- coverage:end -->
 
 A requirement gated on a capability that was never negotiated is reported

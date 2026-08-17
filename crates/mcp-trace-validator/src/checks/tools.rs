@@ -268,7 +268,7 @@ mod tests {
         checks::find(check)
             .unwrap()
             .run(&context)
-        .findings
+            .findings
             .into_iter()
             .map(|finding| finding.detail)
             .collect()

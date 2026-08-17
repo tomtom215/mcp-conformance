@@ -100,9 +100,9 @@ struct AreaRow {
     gated: u32,
 }
 
-fn render(registry: &Registry) -> String {
+/// One row per area, in registry order, plus the distinct checks they name.
+fn area_rows<'a>(registry: &'a Registry, distinct_checks: &mut BTreeSet<&'a str>) -> Vec<AreaRow> {
     let mut rows: Vec<AreaRow> = Vec::new();
-    let mut distinct_checks: BTreeSet<&str> = BTreeSet::new();
     for requirement in registry.requirements() {
         let area = requirement.id.area();
         if rows.last().is_none_or(|row| row.area != area) {
@@ -116,9 +116,15 @@ fn render(registry: &Registry) -> String {
         }
         if let Some(row) = rows.last_mut() {
             row.requirements += 1;
-            tally(row, requirement, &mut distinct_checks);
+            tally(row, requirement, distinct_checks);
         }
     }
+    rows
+}
+
+fn render(registry: &Registry) -> String {
+    let mut distinct_checks: BTreeSet<&str> = BTreeSet::new();
+    let rows = area_rows(registry, &mut distinct_checks);
 
     let mut out = String::new();
     out.push_str("| Area | Requirements | Checked | Excluded | Capability-gated |\n");
@@ -149,10 +155,13 @@ fn render(registry: &Registry) -> String {
     let _ = writeln!(
         out,
         "\nRevision `{}`: {} requirements — {} judged by {} distinct trace checks (every \
-         check falsified by a committed violation trace), {} carrying documented \
-         exclusions explaining why a recorded trace cannot judge them. Capability-gated \
-         requirements report *not-applicable* (never a vacuous pass) for sessions that \
-         did not negotiate the capability.",
+         check falsified by a committed violation trace, and every check examining a \
+         real subject on at least one of them), {} carrying documented exclusions \
+         explaining why a recorded trace cannot judge them. A requirement is reported \
+         *pass* only where the session carried something it binds to: a capability-gated \
+         clause the session never negotiated reports *not-applicable*, and a clause \
+         whose subject matter never appeared reports *not-observed*. Neither is a \
+         vacuous pass.",
         registry.revision(),
         totals.requirements,
         totals.checked,
