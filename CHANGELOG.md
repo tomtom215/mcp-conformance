@@ -198,6 +198,14 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Changed
 
+- **Breaking (pre-1.0):** `mcp_everything_server::http::router` and
+  `http::router_tapped` take a `ServedRevision`. Pass
+  `ServedRevision::default()` (or `ServedRevision::V2025_11_25`) for the
+  behaviour these functions had. The revision is named at the call site rather
+  than defaulted silently because it is the single most important fact about a
+  conformance server, and a reader of `router(policy)` could not tell which one
+  was being served.
+
 - **M2.5 Phase 0: the registry can describe two revisions, and the `2025-11-25`
   surface provably did not move.** All 140 embedded entries are now bounded
   `applies: {removed: "2026-07-28"}`, and `RegistrySet::builtin()` describes the
