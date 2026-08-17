@@ -597,7 +597,7 @@ verifies **412 quotes across both revisions with none drifted**, and the
 | Lib tests | 247, up from 145 |
 | Draft corpus | 2 conforming sessions + 72 violation traces, each byte-pinned |
 | `PLANNED` ledger | empty — nothing names a check that does not exist |
-| Mutation gate | **260 mutants, 253 caught, 0 missed** (7 unviable) over this pass's diff |
+| Mutation gate | **270 mutants, 263 caught, 0 missed** (7 unviable) over this pass's diff |
 
 ### First: upstream had not moved
 
@@ -750,13 +750,29 @@ misfiring on real traffic moves the golden.
 ### What is *not* done
 
 - **The captured half is one recording, and only its client is independent.**
-  The server on the other end is ours, and it implements `2025-11-25`, so the
-  capture exercises the checks against *non-conformant* server behaviour rather
-  than conformant. A conforming `2026-07-28` server would exercise the pass
-  paths on real traffic too. rmcp 3.1.2 ships the surface needed to build one
-  (`DiscoverResult`, `subscriptions/listen`, MRTR, `requestState`), so this is
-  now buildable work rather than a blocked dependency — and it is the single
-  highest-value thing left.
+  The server on the other end is ours and implements `2025-11-25`, so the
+  capture exercises the checks against *non-conformant* server behaviour. The
+  server-side clauses that pass on it largely pass by abstention rather than by
+  observing correct behaviour.
+
+  What it would take to close that, verified against rmcp 3.1.2's source rather
+  than estimated:
+
+  | Piece | Cost |
+  |---|---|
+  | Stateless routing (no sessions) | Configuration: `StreamableHttpServerConfig::legacy_session_mode = false` |
+  | Per-request `_meta` enforcement | Configuration: `stateless_protocol_metadata_required = true` |
+  | `server/discover` | Free — rmcp's `ServerHandler` has a default `discover()` returning `DiscoverResult::from_server_info` |
+  | `resultType` on every result | Free — rmcp models it and strips it only for legacy peers (`strip_result_type_for_legacy_peer`) |
+  | Advertising only `2026-07-28` | One `supported_protocol_versions` override |
+  | **Caching hints (`ttlMs`, `cacheScope`) on the six cacheable operations** | **Not free** — handler-level, per result type |
+  | **MRTR, `subscriptions/listen` behaviour** | **Not free** — rmcp ships the types, the server still has to use them |
+
+  So a *substantially* conforming server is close to configuration, and a
+  *fully* conforming one is handler work across the feature surface. Both are
+  ordinary work rather than a blocked dependency — which is the correction that
+  matters, because the previous entry here filed the whole thing as gated on a
+  milestone.
 - **The feature is still off by default.** Nothing about `2026-07-28` reaches a
   default build, which is deliberate while the revision is new.
 - **Expansion candidates stay out of scope**, unchanged and for the reasons
