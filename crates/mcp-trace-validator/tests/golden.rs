@@ -183,9 +183,12 @@ fn every_golden_belongs_to_a_living_trace() {
     // corpus is byte-pinned on the same terms as the shipped one, so a stranded
     // draft golden is as much a defect as a stranded shipped one.
     for (subdirs, golden_dir) in [
-        (["good", "violations"], corpus_root().join("golden")),
         (
-            ["draft/good", "draft/violations"],
+            ["good", "violations"].as_slice(),
+            corpus_root().join("golden"),
+        ),
+        (
+            ["draft/good", "draft/violations", "draft/captured"].as_slice(),
             corpus_root().join("golden/draft"),
         ),
     ] {
@@ -216,7 +219,13 @@ fn every_trace_has_a_provenance_ledger_row() {
     // unlike commit messages); a trace without a row is an undocumented fixture.
     let ledger = fs::read_to_string(corpus_root().join("README.md"))
         .expect("corpus/README.md exists and is the provenance ledger");
-    for subdir in ["good", "violations", "draft/good", "draft/violations"] {
+    for subdir in [
+        "good",
+        "violations",
+        "draft/good",
+        "draft/violations",
+        "draft/captured",
+    ] {
         for trace_path in trace_files(subdir) {
             let name = trace_path
                 .file_name()
@@ -329,6 +338,30 @@ mod draft {
                 trace_path.display()
             );
             assert_falsifies_its_named_requirement(&trace_path, &report);
+            check_golden(&trace_path, &report);
+        }
+    }
+
+    #[test]
+    fn captured_traces_match_goldens() {
+        // The corpus's independent half: sessions this repository did not write,
+        // recorded off the wire from an implementation that is not ours. Every
+        // other draft fixture is hand-authored, which means it can only ever
+        // confirm the author's reading of the specification — a check that is
+        // wrong in the same way the author is wrong passes its unit tests and
+        // its corpus alike. These traces are the cross-check that reading
+        // cannot provide.
+        //
+        // No verdict is asserted, deliberately. A captured session is whatever
+        // the implementations actually did, and the ones recorded here are a
+        // `2025-11-25` server driven by the official suite's `2026-07-28`
+        // scenarios, so real non-conformance is the expected content. What is
+        // pinned is the *report*: which requirements fire, on which events, with
+        // which detail. A check that starts misfiring on real traffic — the
+        // failure mode authored fixtures are blindest to — moves this golden.
+        let registry = draft_registry();
+        for trace_path in trace_files("draft/captured") {
+            let report = validate_file(&registry, &trace_path);
             check_golden(&trace_path, &report);
         }
     }

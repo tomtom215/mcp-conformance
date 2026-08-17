@@ -81,9 +81,14 @@ pub(crate) fn run(bless: bool) -> ExitCode {
         return ExitCode::FAILURE;
     };
 
-    // The tap is irrelevant here (nothing replays these sessions), but
-    // `start_server` owns the readiness handshake, so reuse it and give the
-    // recordings their own scratch directory.
+    // The tap is the *point* of running this, not a side effect. Until
+    // 2026-08-17 it recorded nothing here — it keyed every exchange on
+    // `Mcp-Session-Id` and `2026-07-28` has no sessions — so these runs threw
+    // away the only independently-generated traffic of the revision this
+    // workspace can obtain. The recording now lands in
+    // `target/draft-readiness/tap/001-stateless.jsonl`; the committed copy of
+    // one such capture is `corpus/draft/captured/`, which the golden suite
+    // re-validates on every `cargo test`.
     let tap_dir = results_dir.join("tap");
     let Some((mut server, address)) = crate::conformance::start_server(&root, &tap_dir) else {
         return ExitCode::FAILURE;

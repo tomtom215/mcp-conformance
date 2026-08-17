@@ -10,6 +10,9 @@ Fixtures for the golden-corpus tests (`crates/mcp-trace-validator/tests/golden.r
   named after the requirement whose check they exist to kill.
 - **`draft/{good,violations}/`** — the same two kinds for revision `2026-07-28`,
   judged against that revision's registry behind the `draft-2026-07-28` feature.
+- **`draft/captured/`** — sessions recorded off the wire from implementations
+  this repository did not write. No verdict is asserted for them; their whole
+  report is byte-pinned instead. See *Captured versus authored* below.
 - **`golden/`** — the byte-pinned expected report for every trace, with
   `golden/draft/` holding the `2026-07-28` corpus's. Regenerate only via
   `cargo xtask bless` and review the diff like code.
@@ -29,6 +32,23 @@ harness enforces the attribution by name
 defect re-routed to a different requirement cannot re-bless silently. A stem
 that does not begin with a requirement ID fails the suite loudly.
 
+## Captured versus authored
+
+Everything in `good/`, `violations/` and `draft/{good,violations}/` is
+**authored**: hand-written to exercise one clause. That is what makes them
+precise, and it is also their limit — an authored fixture can only ever confirm
+its author's reading of the specification. A check that is wrong in the same way
+the author is wrong passes its unit tests and its corpus alike, and neither
+notices.
+
+`draft/captured/` exists to close that gap. Its traces are real recordings of
+traffic between implementations neither of which was written to satisfy these
+checks, so they can disagree with us — and when they do, the disagreement is
+information rather than a test failure. Their goldens are pinned without any
+pass/fail expectation, because a real implementation is whatever it actually is;
+what the golden protects is *which requirements fire, on which events, with what
+detail*. A check that starts misfiring on real traffic moves it.
+
 ## Provenance ledger
 
 Every trace's origin, in one reviewable place that survives history rewrites (the
@@ -38,8 +58,10 @@ synthetic sessions** (no third-party traffic, no recorded production data),
 written against the `2025-11-25` spec text fetched live from
 modelcontextprotocol.io on 2026-06-09 (re-verified clause-by-clause against the
 live text on 2026-06-11) and validated against the embedded registry
-at the commit that introduced them. Traces produced by capture tooling (roadmap
-M3) will record the capturing implementation and revision here.
+at the commit that introduced them.
+
+Traces under `draft/captured/` are the exception and record their own origin
+below: the implementations on both ends, the tool that recorded them, and when.
 
 ### `good/`
 
@@ -108,7 +130,40 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 | `tran-026-http-post-batch.jsonl` | TRAN-026 (a batch array POSTed after a clean handshake) |
 | `tran-029-content-type-unexpected.jsonl` | TRAN-029, TRAN-040 (shared `transport.success-content-type` check) |
 
-### `2026-07-28` (`corpus/draft/`)
+### `2026-07-28` captured (`corpus/draft/captured/`)
+
+| Field | Value |
+|---|---|
+| Trace | `official-suite-2026-07-28-scenarios.jsonl` |
+| Client | The **official MCP conformance suite**, `0.2.0-alpha.9`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` holds) |
+| Server | This workspace's `mcp-everything-server`, which implements **`2025-11-25`** — so genuine non-conformance at `2026-07-28` is the expected content, not a defect in the recording |
+| Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-08-17 |
+| Contents | 91 events across 22 POST exchanges — `server/discover`, `tools/list`, `tools/call`, `completion/complete`, `resources/{list,read}`, `prompts/{list,get}`, progress notifications — every request carrying the revision's per-request `_meta` envelope, and no `initialize` anywhere |
+
+**What it found, and why each finding is real.** Judged by the `2026-07-28`
+registry it reports 121 pass, 2 fail, 1 warn, 148 excluded. All three findings
+were checked against the recorded bytes:
+
+- **TRAN-058** — all 22 client POSTs carry only `accept`, `content-type`,
+  `host`, `mcp-protocol-version` and `origin`. The revision requires the
+  request-metadata headers (`Mcp-Method`, and `Mcp-Name` where the method
+  defines one). This is a finding about the *official suite's client*, not about
+  our server.
+- **TRAN-068** — all 22 SSE responses carry `content-type: text/event-stream`
+  and nothing else; `X-Accel-Buffering: no` is absent.
+- **CACH-001** — the `complete` results carry no `ttlMs`.
+
+The last two are our `2025-11-25` server being held to a revision it does not
+implement, which is the correct answer. **No finding was a false positive**, and
+121 requirements passed on traffic nobody here authored — which is the only
+evidence the authored fixtures cannot supply.
+
+Regenerate with `cargo xtask draft-readiness` and copy
+`target/draft-readiness/tap/001-stateless.jsonl`; the ephemeral port in the
+`host` header changes per run, so re-copying is a deliberate act with a golden
+diff, not something to do casually.
+
+### `2026-07-28` authored (`corpus/draft/`)
 
 Fixtures for the in-progress revision, judged by the `2026-07-28` registry
 behind the `draft-2026-07-28` feature. Hand-authored rather than captured: no
