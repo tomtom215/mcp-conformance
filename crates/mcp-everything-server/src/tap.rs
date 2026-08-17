@@ -70,7 +70,7 @@ use sse::SseSplitter;
 /// redaction-by-construction posture).
 ///
 /// [05-security-model.md]: https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/05-security-model.md
-pub const RECORDED_HEADERS: [&str; 7] = [
+pub const RECORDED_HEADERS: [&str; 10] = [
     "host",
     "origin",
     "accept",
@@ -78,7 +78,29 @@ pub const RECORDED_HEADERS: [&str; 7] = [
     "mcp-session-id",
     "mcp-protocol-version",
     "last-event-id",
+    // SEP-2243's request metadata headers and SEP-2570's streaming hint, all
+    // read by `2026-07-28` checks. Absent from this list until 2026-08-17,
+    // which made the tap report a conforming exchange as a violating one: the
+    // client sent `Mcp-Method`, the recording dropped it, and
+    // `transport.request-metadata-headers` reported the clause it proves.
+    "mcp-method",
+    "mcp-name",
+    "x-accel-buffering",
 ];
+
+/// Header-name prefixes recorded in addition to [`RECORDED_HEADERS`].
+///
+/// SEP-2243 lets a tool designate an argument for a header of its own naming
+/// (`x-mcp-header` in the tool's `inputSchema`), which the client sends as
+/// `Mcp-Param-<name>`. The set of such names is defined by whatever server the
+/// tap sits in front of, so it cannot be enumerated here — a prefix is the
+/// only allowlist shape that can cover it.
+///
+/// This does not widen what a recording exposes. Every `Mcp-Param-*` value is
+/// by definition a copy of an argument in the `tools/call` body the tap
+/// already records verbatim; the prefix cannot match `authorization` or
+/// `cookie`, and no other header may use it.
+pub const RECORDED_HEADER_PREFIXES: [&str; 1] = ["mcp-param-"];
 
 /// The session-id header of the streamable HTTP transport (`2025-11-25`
 /// basic/transports §session management).
