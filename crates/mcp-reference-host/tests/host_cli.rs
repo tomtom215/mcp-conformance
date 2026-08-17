@@ -15,6 +15,7 @@ use std::process::Command;
 
 use mcp_everything_server::http::router;
 use mcp_everything_server::policy::HttpSecurityPolicy;
+use mcp_everything_server::server::ServedRevision;
 
 /// Serves the everything-server app on an OS-assigned loopback port from a
 /// background thread with its own runtime (the spawned binary needs a live
@@ -27,7 +28,7 @@ fn serve_everything() -> String {
             .build()
             .expect("runtime");
         runtime.block_on(async move {
-            let app = router(HttpSecurityPolicy::default());
+            let app = router(HttpSecurityPolicy::default(), ServedRevision::V2025_11_25);
             let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
                 .await
                 .expect("bind");

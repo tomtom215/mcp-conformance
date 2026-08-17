@@ -9,6 +9,13 @@
 //! and rmcp's own transport-level `allowed_hosts` check — kept in sync from
 //! the same policy — backstops it. The `dns-rebinding-protection` scenario
 //! and TRAN-002/007/008's tests exercise the outer layer.
+//!
+//! The [`ServedRevision`] passed to each builder decides how requests are
+//! *routed*, not only what the handler answers. `2026-07-28` removed sessions
+//! (SEP-2575) and moved the protocol version onto every request, so the
+//! stateless mode turns rmcp's legacy session routing off and its per-request
+//! metadata requirement on — together, because either alone is a shape the
+//! specification does not describe.
 
 use std::sync::Arc;
 
@@ -23,26 +30,33 @@ use rmcp::transport::streamable_http_server::StreamableHttpService;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 
 use crate::policy::HttpSecurityPolicy;
-use crate::server::EverythingServer;
+use crate::server::{EverythingServer, ServedRevision};
 
 /// Path the MCP endpoint is served under, matching the ecosystem default.
 pub const MCP_PATH: &str = "/mcp";
 
 /// Builds the complete HTTP application: policy middleware wrapping the
-/// streamable HTTP MCP service at [`MCP_PATH`].
-pub fn router(policy: HttpSecurityPolicy) -> Router {
-    mcp_router(&policy).layer(middleware::from_fn_with_state(
+/// streamable HTTP MCP service at [`MCP_PATH`], serving `revision`.
+///
+/// Pass [`ServedRevision::default`] for the `2025-11-25` surface this crate
+/// has always served.
+pub fn router(policy: HttpSecurityPolicy, revision: ServedRevision) -> Router {
+    mcp_router(&policy, revision).layer(middleware::from_fn_with_state(
         Arc::new(policy),
         enforce_policy,
     ))
 }
 
-/// [`router`], with the session trace tap installed inside the policy layer:
-/// only policy-admitted traffic can form sessions, so only sessions are
-/// recorded (the tap module documents this boundary).
+/// [`router`], with the trace tap installed inside the policy layer: only
+/// policy-admitted traffic reaches the MCP service, so only admitted traffic
+/// is recorded (the tap module documents this boundary).
 #[cfg(feature = "tap")]
-pub fn router_tapped(policy: HttpSecurityPolicy, tap: Arc<crate::tap::Tap>) -> Router {
-    mcp_router(&policy)
+pub fn router_tapped(
+    policy: HttpSecurityPolicy,
+    revision: ServedRevision,
+    tap: Arc<crate::tap::Tap>,
+) -> Router {
+    mcp_router(&policy, revision)
         .layer(middleware::from_fn_with_state(tap, crate::tap::tap_layer))
         .layer(middleware::from_fn_with_state(
             Arc::new(policy),
@@ -51,8 +65,8 @@ pub fn router_tapped(policy: HttpSecurityPolicy, tap: Arc<crate::tap::Tap>) -> R
 }
 
 /// The MCP service mounted at [`MCP_PATH`], with rmcp's transport-level host
-/// check mirrored from `policy`.
-fn mcp_router(policy: &HttpSecurityPolicy) -> Router {
+/// check mirrored from `policy` and its routing set from `revision`.
+fn mcp_router(policy: &HttpSecurityPolicy, revision: ServedRevision) -> Router {
     // Mirror the policy into rmcp's transport-level host check so the two
     // layers cannot disagree: an empty list is rmcp's "allow all", matching
     // the policy's explicit dangerous opt-out. (Field assignment because the
@@ -63,8 +77,18 @@ fn mcp_router(policy: &HttpSecurityPolicy) -> Router {
     } else {
         policy.allowed_hosts().to_vec()
     };
+    // Sessions off and per-request metadata on, together. rmcp already serves
+    // a request that *negotiated* `2026-07-28` statelessly whatever this says,
+    // so the first flag is about the requests that negotiated nothing: with it
+    // on, a client may still open a legacy session against a server that only
+    // speaks the stateless revision. The second is what makes the mode
+    // enforcing rather than merely permissive — a request arriving without
+    // `MCP-Protocol-Version` or without `_meta.io.modelcontextprotocol/…` is
+    // rejected before dispatch instead of being read as the 2025-03-26 default.
+    config.legacy_session_mode = !revision.is_stateless();
+    config.stateless_protocol_metadata_required = revision.is_stateless();
     let service = StreamableHttpService::new(
-        || Ok(EverythingServer::new()),
+        move || Ok(EverythingServer::serving(revision)),
         Arc::new(LocalSessionManager::default()),
         config,
     );

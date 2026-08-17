@@ -17,6 +17,7 @@ use std::process::ExitCode;
 use clap::{Parser, ValueEnum};
 use mcp_everything_server::EverythingServer;
 use mcp_everything_server::policy::HttpSecurityPolicy;
+use mcp_everything_server::server::ServedRevision;
 use rmcp::ServiceExt as _;
 use rmcp::transport::stdio;
 
@@ -27,6 +28,10 @@ struct Cli {
     /// Transport to serve on.
     #[arg(long, value_enum, default_value_t = Transport::Stdio)]
     transport: Transport,
+    /// Protocol revision to serve. `2026-07-28` is stateless (SEP-2575): no
+    /// `initialize`, no sessions, per-request `_meta` required.
+    #[arg(long, value_enum, default_value_t = Revision::default())]
+    protocol_version: Revision,
     /// Bind address for the HTTP transport.
     #[arg(long, default_value = "127.0.0.1:0")]
     bind: SocketAddr,
@@ -54,9 +59,38 @@ enum Transport {
     Http,
 }
 
+/// The CLI spelling of [`ServedRevision`].
+///
+/// A separate enum rather than `#[derive(ValueEnum)]` on the library type:
+/// the library deliberately carries no clap dependency (ADR-0005), and the
+/// value names here are the wire identifiers a user would type, not Rust
+/// identifiers. [`ServedRevision`] is `#[non_exhaustive]`, so a revision added
+/// upstream that this binary has not been taught to name is a compile error
+/// here — which is the outcome to want.
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+enum Revision {
+    /// Sessions and `initialize`; the surface the conformance registry judges.
+    #[default]
+    #[value(name = "2025-11-25")]
+    V20251125,
+    /// Stateless: `server/discover`, per-request `_meta`, caching hints.
+    #[value(name = "2026-07-28")]
+    V20260728,
+}
+
+impl From<Revision> for ServedRevision {
+    fn from(revision: Revision) -> Self {
+        match revision {
+            Revision::V20251125 => Self::V2025_11_25,
+            Revision::V20260728 => Self::V2026_07_28,
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
     let cli = Cli::parse();
+    let revision = ServedRevision::from(cli.protocol_version);
     let policy = if cli.dangerously_allow_any_host {
         HttpSecurityPolicy::default().dangerously_allow_any_host()
     } else if cli.allowed_hosts.is_empty() {
@@ -70,22 +104,23 @@ async fn main() -> ExitCode {
         return ExitCode::from(2);
     }
     match cli.transport {
-        Transport::Stdio => serve_stdio().await,
+        Transport::Stdio => serve_stdio(revision).await,
         Transport::Http => {
             #[cfg(feature = "tap")]
             if let Some(dir) = cli.tap_dir {
-                return serve_http_tapped(cli.bind, policy, dir).await;
+                return serve_http_tapped(cli.bind, policy, revision, dir).await;
             }
-            serve_http(cli.bind, policy).await
+            serve_http(cli.bind, policy, revision).await
         }
     }
 }
 
-/// [`serve_http`] with the session trace tap installed.
+/// [`serve_http`] with the trace tap installed.
 #[cfg(feature = "tap")]
 async fn serve_http_tapped(
     bind: SocketAddr,
     policy: HttpSecurityPolicy,
+    revision: ServedRevision,
     dir: std::path::PathBuf,
 ) -> ExitCode {
     let tap = match mcp_everything_server::tap::Tap::new(dir) {
@@ -95,12 +130,12 @@ async fn serve_http_tapped(
             return ExitCode::FAILURE;
         }
     };
-    let app = mcp_everything_server::http::router_tapped(policy, tap);
+    let app = mcp_everything_server::http::router_tapped(policy, revision, tap);
     serve_app(bind, app).await
 }
 
-async fn serve_stdio() -> ExitCode {
-    let service = match EverythingServer::new().serve(stdio()).await {
+async fn serve_stdio(revision: ServedRevision) -> ExitCode {
+    let service = match EverythingServer::serving(revision).serve(stdio()).await {
         Ok(service) => service,
         Err(error) => {
             eprintln!("mcp-everything-server: failed to start on stdio: {error}");
@@ -116,8 +151,12 @@ async fn serve_stdio() -> ExitCode {
     }
 }
 
-async fn serve_http(bind: SocketAddr, policy: HttpSecurityPolicy) -> ExitCode {
-    let app = mcp_everything_server::http::router(policy);
+async fn serve_http(
+    bind: SocketAddr,
+    policy: HttpSecurityPolicy,
+    revision: ServedRevision,
+) -> ExitCode {
+    let app = mcp_everything_server::http::router(policy, revision);
     serve_app(bind, app).await
 }
 

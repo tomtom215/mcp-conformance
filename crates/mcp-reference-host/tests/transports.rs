@@ -20,6 +20,7 @@
 
 use mcp_everything_server::http::router;
 use mcp_everything_server::policy::HttpSecurityPolicy;
+use mcp_everything_server::server::ServedRevision;
 use mcp_reference_host::capture::{CaptureTransport, RecordingTransport};
 use mcp_reference_host::handler::HostHandler;
 use mcp_reference_host::run::{CallPolicy, PlannedCall, RunPlan, StopReason, run};
@@ -30,7 +31,7 @@ use tokio_util::sync::CancellationToken;
 /// Serves the everything-server app on an OS-assigned loopback port,
 /// returning its MCP endpoint URL.
 async fn serve_everything() -> String {
-    let app = router(HttpSecurityPolicy::default());
+    let app = router(HttpSecurityPolicy::default(), ServedRevision::V2025_11_25);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback");

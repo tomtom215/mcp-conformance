@@ -10,11 +10,19 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use mcp_everything_server::http::router;
 use mcp_everything_server::policy::HttpSecurityPolicy;
+use mcp_everything_server::server::ServedRevision;
 use tower::ServiceExt as _;
 
 const INITIALIZE: &str = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"http-test","version":"0.0.0"}}}"#;
+
+/// The app under test, at the revision this file is about: every assertion
+/// below is a `2025-11-25` one — an `initialize` exchange, a session-scoped
+/// `MCP-Protocol-Version` rule — so the revision is named here once rather
+/// than repeated at a dozen call sites.
+fn router(policy: HttpSecurityPolicy) -> axum::Router {
+    mcp_everything_server::http::router(policy, ServedRevision::V2025_11_25)
+}
 
 fn mcp_post(host: Option<&str>, origin: Option<&str>) -> Request<Body> {
     let mut builder = Request::builder()

@@ -22,6 +22,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use mcp_everything_server::http::router_tapped;
 use mcp_everything_server::policy::HttpSecurityPolicy;
+use mcp_everything_server::server::ServedRevision;
 use mcp_everything_server::tap::Tap;
 use tower::ServiceExt as _;
 
@@ -40,7 +41,14 @@ fn tap_dir(test: &str) -> PathBuf {
 fn tapped_app(test: &str) -> (Router, PathBuf) {
     let dir = tap_dir(test);
     let tap = Tap::new(dir.clone()).expect("tap directory");
-    (router_tapped(HttpSecurityPolicy::default(), tap), dir)
+    (
+        router_tapped(
+            HttpSecurityPolicy::default(),
+            ServedRevision::V2025_11_25,
+            tap,
+        ),
+        dir,
+    )
 }
 
 /// A loopback `/mcp` POST carrying `body`, plus any extra headers.
