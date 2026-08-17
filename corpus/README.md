@@ -194,8 +194,18 @@ golden diff, not something to do casually.
 | Client | This workspace's `mcp-reference-host`, on rmcp's stateless client lifecycle |
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-17 |
-| Contents | 55 events: `server/discover`, a 17-tool sweep, and four MRTR rounds (three elicitations and one sampling) |
+| Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep, and four MRTR rounds (three elicitations and one sampling) |
 | Our verdict | **124 pass, 0 fail, 0 warn**, 148 excluded |
+
+**It is the only capture that exercises `subscriptions/listen`.** The official
+suite drives no subscription, so in the two HTTP captures the four judged
+`SUBS` clauses pass without evidence — nothing in those sessions could have
+violated a rule about a stream they never opened. Their rows read identically
+to this one's, and only this one is backed by an acknowledgment, a filter the
+server narrowed, four tagged notifications and an empty graceful-closure
+result. The report format does not currently distinguish "checked and clean"
+from "nothing to check" outside the capability gate (ADR-0006), which is a
+reporting limitation worth knowing when comparing these three files.
 
 **Its provenance is weaker than the pair above, and deliberately labelled so.**
 Both ends of this session are ours: the official suite drives servers over

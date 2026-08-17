@@ -305,11 +305,20 @@ pub(crate) fn all_tools(revision: ServedRevision) -> ToolRouter<EverythingServer
 
 /// Tools whose protocol feature `2026-07-28` removed.
 ///
-/// URL-mode elicitation and its `notifications/elicitation/complete`
-/// completion are gone at that revision (register 1.5d, Minor #11), so a
-/// server serving it must not offer a tool whose whole behaviour is that
-/// round trip. Listing it and then answering an error would break this
-/// crate's one standing rule — advertise only what is implemented — and
-/// listing it and *performing* it would put a removed notification on the
-/// wire.
-const RETIRED_AT_2026_07_28: [&str; 1] = ["test_url_elicitation"];
+/// Both would put a message on the wire that the revision has no place for,
+/// and listing either while answering an error would break this crate's one
+/// standing rule — advertise only what is implemented.
+///
+/// - `test_url_elicitation`: URL-mode elicitation and its
+///   `notifications/elicitation/complete` completion are gone (register 1.5d,
+///   Minor #11), and that round trip is the tool's entire behaviour.
+/// - `test_list_changed`: it broadcasts the three `list_changed` notifications
+///   outside any subscription, which is the model `subscriptions/listen`
+///   replaced — the page's own words are that it "replaces the former
+///   `resources/subscribe` RPC and the HTTP GET endpoint". At this revision
+///   those notifications belong to a subscription and carry its id
+///   (BASE-039); broadcast, they are uncorrelatable on stdio, where one
+///   channel carries everything. The capability is still exercised, by the
+///   subscription's own announcement in [`crate::subscriptions`], which sends
+///   exactly those three types through the mechanism the revision defines.
+const RETIRED_AT_2026_07_28: [&str; 2] = ["test_url_elicitation", "test_list_changed"];

@@ -68,6 +68,20 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `clientCapabilities` with `-32602` naming the field, and one naming a version
   this server does not serve with `-32022` carrying `data.supported`.
 
+  **`subscriptions/listen`** is implemented too — the long-lived stream that
+  replaced `resources/subscribe` and the HTTP GET endpoint. The server
+  acknowledges the subset of the requested filter it can actually serve
+  (narrowing resource URIs to ones it has), announces every accepted category
+  on the stream with the subscription's id attached, and then ends the
+  subscription itself, which is what emits the empty final result the graceful
+  closure clauses describe. Ending it is a decision made against evidence
+  rather than convenience: client cancellation does not produce that result
+  (rmcp suppresses the response for a cancelled request, verified on the wire),
+  so a stream that ends only when the client says so would leave both closure
+  clauses unexercised by any recording. This server's catalogues are
+  compile-time constants, so once the announcements are out there is nothing
+  further it could send.
+
   Server-to-client requests go by **SEP-2322's MRTR pattern** at this revision:
   `elicitation/create` and `sampling/createMessage` are returned inside an
   `input_required` result and the client retries the original call with its

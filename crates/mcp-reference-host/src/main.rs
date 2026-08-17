@@ -24,6 +24,7 @@ use mcp_reference_host::handler::HostHandler;
 use mcp_reference_host::run::{RunPlan, RunReport, StopReason, run};
 use mcp_reference_host::scenario::{ScenarioPlan, plan_for};
 use mcp_reference_host::script::InteractionScript;
+use mcp_reference_host::subscribe;
 use rmcp::model::ProtocolVersion;
 use rmcp::service::{ClientLifecycleMode, ClientServiceExt as _};
 use rmcp::transport::Transport;
@@ -64,6 +65,10 @@ struct Cli {
     /// Cap the run at this many turns, overriding the scenario plan's.
     #[arg(long, value_name = "N")]
     turn_limit: Option<u32>,
+    /// Open a `subscriptions/listen` stream before the tool loop and drain it
+    /// to its end. `2026-07-28` only — the method does not exist before it.
+    #[arg(long)]
+    subscribe: bool,
     /// Protocol revision to speak. `2026-07-28` uses the stateless lifecycle:
     /// `server/discover` instead of `initialize`, and a `_meta` envelope on
     /// every request.
@@ -140,10 +145,12 @@ async fn dispatch(cli: Cli) -> ExitCode {
             let transport = mcp_reference_host::connect::streamable_http(&url);
             match cli.trace_dir {
                 Some(dir) => match recording(transport, CaptureTransport::StreamableHttp, &dir) {
-                    Ok(transport) => agent_run(transport, script, plan, lifecycle.clone()).await,
+                    Ok(transport) => {
+                        agent_run(transport, script, plan, lifecycle.clone(), cli.subscribe).await
+                    }
                     Err(code) => code,
                 },
-                None => agent_run(transport, script, plan, lifecycle.clone()).await,
+                None => agent_run(transport, script, plan, lifecycle.clone(), cli.subscribe).await,
             }
         }
         (ScenarioPlan::Agent { script, plan }, None, Some(command)) => {
@@ -156,10 +163,12 @@ async fn dispatch(cli: Cli) -> ExitCode {
             };
             match cli.trace_dir {
                 Some(dir) => match recording(transport, CaptureTransport::Stdio, &dir) {
-                    Ok(transport) => agent_run(transport, script, plan, lifecycle.clone()).await,
+                    Ok(transport) => {
+                        agent_run(transport, script, plan, lifecycle.clone(), cli.subscribe).await
+                    }
                     Err(code) => code,
                 },
-                None => agent_run(transport, script, plan, lifecycle.clone()).await,
+                None => agent_run(transport, script, plan, lifecycle.clone(), cli.subscribe).await,
             }
         }
         (ScenarioPlan::Agent { .. }, None, None) => {
@@ -255,6 +264,7 @@ async fn agent_run(
     script: InteractionScript,
     plan: RunPlan,
     lifecycle: ClientLifecycleMode,
+    subscribe: bool,
 ) -> ExitCode {
     let handler = HostHandler::new(script);
     let client = match handler
@@ -268,6 +278,10 @@ async fn agent_run(
             return ExitCode::FAILURE;
         }
     };
+    if subscribe && !drained(&client).await {
+        let _ = client.cancel().await;
+        return ExitCode::FAILURE;
+    }
     let report = run(&client, &plan, &CancellationToken::new()).await;
     render(&report);
     let clean_shutdown = client.cancel().await.is_ok();
@@ -275,6 +289,35 @@ async fn agent_run(
         ExitCode::SUCCESS
     } else {
         ExitCode::FAILURE
+    }
+}
+
+/// Drives one subscription to its end, reporting what it carried.
+///
+/// Before the tool loop rather than after: the loop ends by disconnecting, and
+/// a subscription still open at that moment would end abruptly — which is a
+/// different clause from the graceful closure this is here to exercise.
+async fn drained<S: rmcp::service::Service<rmcp::service::RoleClient>>(
+    client: &rmcp::service::RunningService<rmcp::service::RoleClient, S>,
+) -> bool {
+    // The URIs the reference server publishes and one it does not, so the
+    // acknowledgment in a recording shows the server narrowing the filter
+    // rather than leaving that to be assumed.
+    let filter = subscribe::everything("test://static-text", "test://not-a-resource");
+    match subscribe::drain(client, filter).await {
+        Ok(report) => {
+            eprintln!(
+                "mcp-reference-host: subscription acknowledged [{}], received [{}], ended {}",
+                report.acknowledged.join(", "),
+                report.notifications.join(", "),
+                report.ended
+            );
+            true
+        }
+        Err(error) => {
+            eprintln!("mcp-reference-host: subscription failed: {error}");
+            false
+        }
     }
 }
 

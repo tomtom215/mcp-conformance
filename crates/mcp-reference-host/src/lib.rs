@@ -45,3 +45,4 @@ pub mod retry;
 pub mod run;
 pub mod scenario;
 pub mod script;
+pub mod subscribe;

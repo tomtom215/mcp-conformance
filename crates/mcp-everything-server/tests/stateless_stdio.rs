@@ -83,6 +83,26 @@ impl Server {
         answers
     }
 
+    /// Reads everything a subscription produced: the notifications, in
+    /// arrival order, and the final `subscriptions/listen` response.
+    ///
+    /// Ordering matters here in a way it does not for independent requests —
+    /// SUBS-002 is about *which message came first* — so this keeps the
+    /// sequence rather than keying by id.
+    fn subscription(&mut self, id: u64) -> (Vec<Value>, Value) {
+        let mut notifications = Vec::new();
+        loop {
+            let mut line = String::new();
+            let read = self.stdout.read_line(&mut line).expect("read");
+            assert_ne!(read, 0, "the stream closed with no final result");
+            let message: Value = serde_json::from_str(&line).expect("one JSON line");
+            if message["id"].as_u64() == Some(id) && message.get("method").is_none() {
+                return (notifications, message);
+            }
+            notifications.push(message);
+        }
+    }
+
     /// Sends one request and returns its answer.
     fn exchange(&mut self, message: &str, id: u64) -> Value {
         self.send(message);
@@ -274,24 +294,6 @@ fn a_retry_missing_the_requested_input_is_asked_again() {
 }
 
 #[test]
-fn a_removed_feature_is_not_offered() {
-    // URL-mode elicitation and its completion notification are gone at this
-    // revision, so the tool whose whole behaviour is that round trip must not
-    // be listed — advertising it and erroring would break the crate's one
-    // standing rule.
-    let mut server = Server::start();
-    let answer = server.exchange(&request(1, "tools/list", ""), 1);
-    let tools = answer["result"]["tools"].as_array().expect("tools");
-    assert!(!tools.is_empty(), "{answer}");
-    assert!(
-        !tools
-            .iter()
-            .any(|tool| tool["name"] == "test_url_elicitation"),
-        "{answer}"
-    );
-}
-
-#[test]
 fn logging_rides_only_a_request_that_asked_for_it() {
     // LOG-008 is a MUST NOT and the default is silence: `logging/setLevel` is
     // gone, so a request that named no level gets nothing.
@@ -324,4 +326,103 @@ fn logging_rides_only_a_request_that_asked_for_it() {
         logs > 0,
         "a request that asked for info-level logs got none"
     );
+}
+
+/// The subscription id a notification carries, if any.
+fn subscription_id(notification: &Value) -> Option<u64> {
+    notification["params"]["_meta"]["io.modelcontextprotocol/subscriptionId"].as_u64()
+}
+
+#[test]
+fn a_subscription_acknowledges_first_and_closes_gracefully() {
+    // The whole lifecycle in one exchange, because the clauses are about the
+    // *sequence*: acknowledgment first (SUBS-002), then only what was asked
+    // for (SUBS-001), then an empty final result (SUBS-005, SUBS-006).
+    let mut server = Server::start();
+    let listen = r#"{"jsonrpc":"2.0","id":7,"method":"subscriptions/listen","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}},"notifications":{"toolsListChanged":true,"resourceSubscriptions":["test://static-text","test://not-a-resource"]}}}"#;
+    server.send(listen);
+    let (notifications, closed) = server.subscription(7);
+
+    let methods: Vec<&str> = notifications
+        .iter()
+        .map(|notification| notification["method"].as_str().expect("a method"))
+        .collect();
+    assert_eq!(
+        methods,
+        [
+            "notifications/subscriptions/acknowledged",
+            "notifications/tools/list_changed",
+            "notifications/resources/updated",
+        ],
+        "the acknowledgment is first, and nothing unrequested follows: {notifications:?}"
+    );
+
+    // BASE-039: every one of them names the subscription, which on stdio is
+    // the only way a client can tell which stream a message belongs to.
+    for notification in &notifications {
+        assert_eq!(
+            subscription_id(notification),
+            Some(7),
+            "untagged: {notification}"
+        );
+    }
+
+    // SUBS-003's premise: the acknowledgment reports what the server will
+    // actually send, which is not everything that was asked for.
+    let acknowledged = &notifications[0]["params"]["notifications"];
+    assert_eq!(acknowledged["toolsListChanged"], true, "{acknowledged}");
+    assert_eq!(
+        acknowledged["resourceSubscriptions"],
+        json!(["test://static-text"]),
+        "a resource this server does not have must not be acknowledged: {acknowledged}"
+    );
+
+    // SUBS-005/006: an empty result — nothing beyond `resultType` and the
+    // `_meta` naming the subscription.
+    let result = closed["result"].as_object().expect("a result object");
+    let mut keys: Vec<&str> = result.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(keys, ["_meta", "resultType"], "{closed}");
+    assert_eq!(result["resultType"], "complete", "{closed}");
+    assert_eq!(
+        result["_meta"]["io.modelcontextprotocol/subscriptionId"], 7,
+        "{closed}"
+    );
+}
+
+#[test]
+fn a_subscription_that_asked_for_nothing_receives_nothing() {
+    // SUBS-001 from the other side: an empty filter is not a shorthand for
+    // "everything", which is the failure mode a default-on server would have.
+    let mut server = Server::start();
+    let listen = r#"{"jsonrpc":"2.0","id":1,"method":"subscriptions/listen","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}},"notifications":{}}}"#;
+    server.send(listen);
+    let (notifications, closed) = server.subscription(1);
+    let methods: Vec<&str> = notifications
+        .iter()
+        .map(|notification| notification["method"].as_str().expect("a method"))
+        .collect();
+    assert_eq!(
+        methods,
+        ["notifications/subscriptions/acknowledged"],
+        "only the acknowledgment: {notifications:?}"
+    );
+    assert_eq!(closed["result"]["resultType"], "complete", "{closed}");
+}
+
+#[test]
+fn the_tools_that_belong_to_the_older_model_are_not_offered() {
+    // `test_list_changed` broadcasts the three `list_changed` notifications
+    // outside any subscription — the model `subscriptions/listen` replaced.
+    // At this revision they belong to a subscription and carry its id, which
+    // is what the announcement above delivers.
+    let mut server = Server::start();
+    let answer = server.exchange(&request(1, "tools/list", ""), 1);
+    let tools = answer["result"]["tools"].as_array().expect("tools");
+    for retired in ["test_url_elicitation", "test_list_changed"] {
+        assert!(
+            !tools.iter().any(|tool| tool["name"] == retired),
+            "{retired} must not be listed: {answer}"
+        );
+    }
 }

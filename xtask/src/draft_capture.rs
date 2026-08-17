@@ -19,10 +19,12 @@
 //! would use — the lifecycle, the envelope, and the MRTR retry loop are rmcp's
 //! code, not ours.
 //!
-//! The flags below are the capture's definition, not an operator's taste:
-//! sweeping every tool means meeting `test_error_handling`, whose whole job is
+//! The flags below are the capture's definition, not an operator's taste.
+//! Sweeping every tool means meeting `test_error_handling`, whose whole job is
 //! to return an error result, so the run needs a budget the suite's scenarios
-//! deliberately do not have.
+//! deliberately do not have; and `--subscribe` is there because
+//! `subscriptions/listen` is a long-lived request rather than a tool, so no
+//! sweep of the tool list would ever reach it.
 //!
 //! Like `conformance` and `draft-readiness` this is orchestration — it spawns
 //! processes and speaks a real transport, which `cargo test` never does.
@@ -148,6 +150,11 @@ fn record(root: &Path, results: &Path) -> Result<PathBuf, String> {
         .args(["--protocol-version", REVISION])
         .args(["--error-budget", ERROR_BUDGET])
         .args(["--turn-limit", TURN_LIMIT])
+        // `subscriptions/listen` is the one `2026-07-28` feature no tool call
+        // reaches: it is a long-lived request, not a tool, so a sweep of the
+        // tool list would record everything about this server except the
+        // mechanism the revision introduced to replace `resources/subscribe`.
+        .arg("--subscribe")
         .arg("--trace-dir")
         .arg(results)
         .current_dir(root)

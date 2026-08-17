@@ -341,6 +341,17 @@ impl ServerHandler for EverythingServer {
             })
     }
 
+    fn accepted_subscription_filter(
+        &self,
+        requested: &rmcp::model::SubscriptionFilter,
+    ) -> Option<rmcp::model::SubscriptionFilter> {
+        crate::subscriptions::accepted(self.revision, requested)
+    }
+
+    async fn listen(&self, context: rmcp::service::SubscriptionContext) -> Result<(), McpError> {
+        crate::subscriptions::run(context).await
+    }
+
     async fn subscribe(
         &self,
         request: SubscribeRequestParams,

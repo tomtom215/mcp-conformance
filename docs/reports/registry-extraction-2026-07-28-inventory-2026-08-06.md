@@ -980,17 +980,85 @@ servers over `--url` only. What it still supplies is that neither end was
 written to satisfy these checks, and that the lifecycle, the envelope and the
 MRTR retry loop producing every byte are rmcp's code.
 
+## Addendum 10 (2026-08-17): `subscriptions/listen`, and a tool that outlived its model
+
+The last unimplemented `2026-07-28` feature is implemented and captured. Its
+four judged clauses — SUBS-001, SUBS-002, SUBS-005, SUBS-006 — are now backed
+by a recording of a real stream rather than by authored fixtures alone.
+
+### What it took
+
+Almost nothing, and that is worth recording: rmcp owns most of the pattern.
+`ServerHandler::accepted_subscription_filter` decides what a server will serve
+and `listen` runs the stream; the SDK sends the acknowledgment before calling
+`listen` (SUBS-002), its `SubscriptionSink::send` refuses any category the
+accepted filter does not carry (SUBS-001), and returning `Ok(())` emits the
+empty final result (SUBS-005/006). What was left was two decisions no SDK can
+make: which categories this server can honestly serve, and what the stream does
+once open.
+
+The first narrows resource URIs to ones this server actually has — acknowledging
+`file:///anything` would promise updates for a resource it has never heard of,
+and SUBS-003 exists so a client can notice that difference.
+
+The second was a real choice, made against evidence. **Client cancellation does
+not produce the final result** — rmcp suppresses the response for a cancelled
+request, verified on the wire — so a stream that ends only when the client says
+so leaves both closure clauses permanently unexercised by any capture. This
+server therefore announces everything the filter covers and then ends the
+subscription itself, which is the clauses' own case (server-initiated
+teardown). That is honest for *this* server specifically: its tool, prompt and
+resource catalogues are compile-time constants, so once the announcements are
+out there is nothing further it could ever send. A server with real change to
+report would hold the stream open and close it at shutdown, and the module says
+so where the decision is made.
+
+### What the capture found: `test_list_changed`
+
+The first recording with a subscription in it failed **BASE-039** — a server
+notification with no `io.modelcontextprotocol/subscriptionId`. The offender was
+`test_list_changed`, which broadcasts the three `list_changed` notifications
+through the peer, outside any subscription.
+
+That is a defect, not a check being over-eager. The subscriptions page opens by
+saying `subscriptions/listen` "replaces the former `resources/subscribe` RPC
+and the HTTP GET endpoint": at this revision those notifications belong to a
+subscription and carry its id, and broadcast they are uncorrelatable on stdio,
+where one channel carries everything. The tool is retired at `2026-07-28`
+alongside `test_url_elicitation`, and its capability is exercised instead by the
+subscription's own announcement — which sends exactly those three types through
+the mechanism the revision defines.
+
+**Three captures, three different feature sets, and only the stdio one reached
+this.** The official suite drives no subscription and no `test_list_changed`
+sweep; the defect was reachable only by a capture that opened a stream and then
+called a tool.
+
+### A reporting limitation, stated rather than papered over
+
+The two HTTP captures report SUBS-001/002/005/006 as `pass` while containing no
+subscription at all. Those passes are not wrong — a server that never opened a
+stream cannot have violated a rule about one — but they carry no evidence, and
+their rows are indistinguishable from the stdio capture's, which do. The
+outcome lattice models "not applicable" only for the capability gate
+(ADR-0006); it has no way to say "this clause's antecedent never occurred".
+Modelling that would touch every requirement, every golden and the agreement
+baseline, so it is recorded here and in `corpus/README.md` as a known
+limitation rather than changed in passing. A reader comparing the three
+captures needs to know which rows are backed by traffic.
+
 ### For the next session
 
 - The `2026-07-28` feature is still off by default, deliberately.
-- **`subscriptions/listen` is the last unimplemented `2026-07-28` feature.** Its
-  seven clauses are curated and checked, and the corpus fixtures for them are
-  authored; nothing in this workspace serves the stream yet. It is the next
-  thing a capture would cover that no capture covers today.
+- **The `2026-07-28` server surface is now feature-complete** against the
+  fifteen in-scope pages: discovery, the `_meta` envelope, caching hints, MRTR,
+  per-request logging, and subscriptions, over both transports.
 - The MRTR implementation asks for one input per call, because that is what the
   interactive tools need. A server asking for several at once would exercise
   MRTR-005's uniqueness clause, which is currently excluded for want of a
   falsifier.
+- The reporting limitation above is the largest remaining credibility gap in
+  the report format, and it predates this revision's work.
 - `json_response` is left at rmcp's default, so stateless responses are SSE.
   Both framings are conformant; the JSON one is one config field away if a
   capture of it is ever wanted.
