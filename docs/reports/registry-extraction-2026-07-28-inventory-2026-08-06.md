@@ -707,13 +707,56 @@ incomplete retry as evidence the missing input was necessary, and
 `pagination.invalid-cursor-rejected` treats "never issued in this session" as
 the witness for "invalid".
 
+### The corpus is no longer purely authored — and why that mattered
+
+An authored corpus can only ever confirm its author's reading of the
+specification. A check that is wrong in the same way the author is wrong passes
+its unit tests *and* its corpus, and neither notices. For a tool whose output is
+a conformance claim about someone else's implementation, that is the weakest
+point in the whole design, and it was initially filed here as an acceptable
+limitation to be closed by roadmap M3. That was wrong: the blocker was not
+"no implementation exists", it was a defect in our own capture path.
+
+**The tap could not record this revision at all.** It keyed every exchange on
+`Mcp-Session-Id` and returned early without one — and `2026-07-28` removes the
+session concept outright (SEP-2575), so *every* exchange of the revision took
+that branch. It failed silently: an empty trace directory, indistinguishable
+from a server nobody talked to. `cargo xtask draft-readiness` had been driving
+the official suite's `2026-07-28` scenarios against a tapped server and
+discarding every byte; the task's own comment described its tap as
+"irrelevant here", which read as a design choice and was a symptom.
+
+With that fixed, the independent cross-check exists:
+`corpus/draft/captured/official-suite-2026-07-28-scenarios.jsonl` is the
+official suite `0.2.0-alpha.9` driving its `2026-07-28` scenario set, 91 events
+over 22 POST exchanges, recorded off the wire. Judged by the registry it reports
+**121 pass, 2 fail, 1 warn, 148 excluded**, and every finding was checked
+against the recorded bytes:
+
+| Finding | Verified as |
+|---|---|
+| TRAN-058 | Real — all 22 POSTs carry no `Mcp-Method`. A defect in the *official suite's client*, not ours. |
+| TRAN-068 | Real — all 22 SSE responses lack `X-Accel-Buffering: no`. |
+| CACH-001 | Real — the `complete` results carry no `ttlMs`. |
+
+The last two are our `2025-11-25` server held to a revision it does not
+implement, which is the correct answer. **No false positives**, and 121
+requirements passed on traffic nobody in this repository authored.
+
+`captured_traces_match_goldens` asserts no verdict — a real implementation is
+whatever it is — and byte-pins the report instead, so a check that starts
+misfiring on real traffic moves the golden.
+
 ### What is *not* done
 
-- **The suite still measures the everything-server against `2025-11-25`.** The
-  registry describes `2026-07-28` fully, but no implementation in this workspace
-  serves the stateless surface end to end, so the `2026-07-28` corpus remains
-  hand-authored rather than captured. `cargo xtask draft-readiness` is the
-  existing measurement of that gap.
+- **The captured half is one recording, and only its client is independent.**
+  The server on the other end is ours, and it implements `2025-11-25`, so the
+  capture exercises the checks against *non-conformant* server behaviour rather
+  than conformant. A conforming `2026-07-28` server would exercise the pass
+  paths on real traffic too. rmcp 3.1.2 ships the surface needed to build one
+  (`DiscoverResult`, `subscriptions/listen`, MRTR, `requestState`), so this is
+  now buildable work rather than a blocked dependency — and it is the single
+  highest-value thing left.
 - **The feature is still off by default.** Nothing about `2026-07-28` reaches a
   default build, which is deliberate while the revision is new.
 - **Expansion candidates stay out of scope**, unchanged and for the reasons
@@ -722,11 +765,11 @@ the witness for "invalid".
 
 ### For the next session
 
-The extraction loop is finished, so the next work is a different shape: making
-the corpus *captured* rather than authored. That needs an implementation of the
-stateless surface, which is roadmap M3's territory, and it is the only remaining
-way to raise confidence in these 124 checks beyond what unit tests and
-hand-built traces already give.
+The extraction loop is finished and the corpus now has an independent half. The
+next work is to make that half *conformant* as well as real: stand up a
+`2026-07-28` server on rmcp 3.1.2's stateless surface, drive it, and capture a
+session where the pass paths are exercised by an implementation nobody here
+wrote. That is the remaining way to raise confidence in these 124 checks.
 
 The two hazards from the last handover both recurred, and a third joins them:
 

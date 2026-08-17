@@ -54,11 +54,33 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   trace kills each check", which cannot see a finding that has drifted onto a
   neighbouring requirement.
 
+- **The `2026-07-28` corpus is no longer purely authored.**
+  `corpus/draft/captured/` holds a real recording — the official MCP conformance
+  suite `0.2.0-alpha.9` driving its `2026-07-28` scenarios, captured off the
+  wire — and the golden suite re-validates it on every run. An authored fixture
+  can only confirm its author's reading of the specification; this is the
+  cross-check that reading cannot provide. Judged by the registry it reports
+  121 pass, 2 fail, 1 warn, and all three findings were verified against the
+  recorded bytes as real (one of them a defect in the *suite's* client, not
+  ours) — no false positives.
+
 - **`tools/extract-clauses.py --verify`** runs `spec-drift`'s comparison offline
   over a committed registry directory — the fast inner loop while curating a
   page, reproducing the network gate exactly.
 
 ### Fixed
+
+- **The session trace tap could not record protocol revision `2026-07-28` at
+  all, and said nothing.** It keyed every exchange on `Mcp-Session-Id` and
+  returned early without one — and that revision removes the session concept
+  outright (SEP-2575), so every exchange of it took that branch. The failure was
+  silent: an empty trace directory, indistinguishable from a server nobody
+  talked to. `cargo xtask draft-readiness` had been driving the official suite's
+  `2026-07-28` scenarios against a tapped server and discarding every byte.
+  Sessionless exchanges are now recorded to a per-run `stateless` trace; this
+  also recovers `2025-11-25` exchanges that never formed a session (a rejected
+  `initialize`, a request refused before one existed), which were being lost the
+  same way.
 
 - **Five capability checks would have reported vacuous passes at `2026-07-28`.**
   Every feature page states "Servers that support X MUST declare the X
