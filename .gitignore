@@ -43,3 +43,8 @@ fuzz/corpus/*/*
 
 # mdBook rendered output (the book sources under book/src are tracked)
 /book/book/
+
+# Python bytecode: `tools/extract-clauses.py` is importable (its `--verify` mode
+# reuses the same normalizer the extraction path does), so running it as a module
+# leaves a cache directory behind.
+__pycache__/

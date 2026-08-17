@@ -39,6 +39,7 @@ fn capability_error(data: &str) -> String {
     ])
 }
 
+/// A `tools/call` declaring `capabilities`, answered by an `input_required`
 /// result asking for `method`.
 fn asks_for(capabilities: &str, method: &str) -> String {
     trace(&[

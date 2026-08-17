@@ -41,13 +41,34 @@ fn validate_file(registry: &Registry, trace_path: &Path) -> Report {
     engine::validate(registry, &events)
 }
 
+/// Whether a trace belongs to the `2026-07-28` corpus (`corpus/draft/…`).
+fn is_draft(trace_path: &Path) -> bool {
+    trace_path
+        .components()
+        .any(|component| component.as_os_str() == "draft")
+}
+
+/// The committed report for a trace: `corpus/golden/<stem>.json`, and
+/// `corpus/golden/draft/<stem>.json` for the `2026-07-28` corpus.
+///
+/// The revisions get separate directories rather than one keyed by stem. Both
+/// corpora name traces after requirement ids, but the ids are drawn from
+/// *different* registries — `base-045-…` is one clause at `2025-11-25` and
+/// another at `2026-07-28` — so a shared directory would let one revision's
+/// golden silently answer for the other revision's trace.
+fn golden_path(trace_path: &Path) -> PathBuf {
+    let stem = trace_path.file_stem().unwrap().to_string_lossy();
+    let dir = corpus_root().join("golden");
+    let dir = if is_draft(trace_path) {
+        dir.join("draft")
+    } else {
+        dir
+    };
+    dir.join(format!("{stem}.json"))
+}
+
 fn check_golden(trace_path: &Path, report: &Report) {
-    let stem = trace_path
-        .file_stem()
-        .unwrap()
-        .to_string_lossy()
-        .into_owned();
-    let golden_path = corpus_root().join("golden").join(format!("{stem}.json"));
+    let golden_path = golden_path(trace_path);
     let mut rendered = serde_json::to_string_pretty(report).unwrap();
     rendered.push('\n');
 
@@ -55,6 +76,10 @@ fn check_golden(trace_path: &Path, report: &Report) {
     // the exact value "1" blesses, so `BLESS=0 cargo test` does not silently
     // overwrite goldens.
     if std::env::var("BLESS").is_ok_and(|value| value == "1") {
+        if let Some(parent) = golden_path.parent() {
+            fs::create_dir_all(parent)
+                .unwrap_or_else(|error| panic!("cannot create {}: {error}", parent.display()));
+        }
         fs::write(&golden_path, &rendered)
             .unwrap_or_else(|error| panic!("cannot write {}: {error}", golden_path.display()));
         return;
@@ -102,57 +127,87 @@ fn violation_traces_fail_and_match_goldens() {
             "{} is in violations/ but produced no findings",
             trace_path.display()
         );
-        // Attribution, not just failure: the trace `area-nnn-…` exists to
-        // falsify requirement AREA-NNN and must keep doing so by name. A
-        // refactor that re-routes the defect to some other requirement —
-        // while another trace happens to keep the orphaned check covered —
-        // would otherwise re-bless cleanly and be visible only to a human
-        // reading the golden diff.
-        let stem = trace_path
-            .file_stem()
-            .unwrap()
-            .to_string_lossy()
-            .into_owned();
-        let id = stem
-            .split('-')
-            .take(2)
-            .collect::<Vec<_>>()
-            .join("-")
-            .to_uppercase();
-        let row = report
-            .requirements
-            .iter()
-            .find(|row| row.id == id)
-            .unwrap_or_else(|| panic!("{stem}: no report row for {id}"));
-        assert!(
-            matches!(row.outcome, Outcome::Fail | Outcome::Warn) && !row.findings.is_empty(),
-            "{stem} must falsify {id} by name; got outcome {:?} with {} finding(s)",
-            row.outcome,
-            row.findings.len()
-        );
+        assert_falsifies_its_named_requirement(&trace_path, &report);
         check_golden(&trace_path, &report);
     }
+}
+
+/// Attribution, not just failure: the trace `area-nnn-…` exists to falsify
+/// requirement AREA-NNN and must keep doing so by name.
+///
+/// A refactor that re-routes the defect to some other requirement — while
+/// another trace happens to keep the orphaned check covered — would otherwise
+/// re-bless cleanly and be visible only to a human reading the golden diff.
+/// That is not hypothetical: splitting a check that bundled its neighbours'
+/// rules (`transport.header-value-encoding`, 2026-08-08) moved findings
+/// between requirements exactly this way, and only hand-reading caught it.
+fn assert_falsifies_its_named_requirement(trace_path: &Path, report: &Report) {
+    let stem = trace_path
+        .file_stem()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    let id = stem
+        .split('-')
+        .take(2)
+        .collect::<Vec<_>>()
+        .join("-")
+        .to_uppercase();
+    let row = report
+        .requirements
+        .iter()
+        .find(|row| row.id == id)
+        .unwrap_or_else(|| panic!("{stem}: no report row for {id}"));
+    assert!(
+        matches!(row.outcome, Outcome::Fail | Outcome::Warn) && !row.findings.is_empty(),
+        "{stem} must falsify {id} by name; got outcome {:?} with {} finding(s)",
+        row.outcome,
+        row.findings.len()
+    );
 }
 
 #[test]
 fn every_golden_belongs_to_a_living_trace() {
     // Goldens are written per trace; deleting or renaming a trace must not
     // strand its golden as unreviewed dead weight that still looks load-bearing.
-    let traces: BTreeSet<String> = ["good", "violations"]
-        .iter()
-        .flat_map(|subdir| trace_files(subdir))
-        .map(|path| path.file_stem().unwrap().to_string_lossy().into_owned())
-        .collect();
-    let goldens: BTreeSet<String> = fs::read_dir(corpus_root().join("golden"))
-        .expect("golden directory")
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
-        .map(|path| path.file_stem().unwrap().to_string_lossy().into_owned())
-        .collect();
-    assert_eq!(
-        goldens, traces,
-        "left: golden files; right: traces — every golden needs its trace and every trace its golden"
-    );
+    //
+    // Not under `BLESS=1`: blessing is exactly when the two sets are being
+    // reconciled, and tests within a binary run concurrently, so a golden for a
+    // newly added trace may not be on disk when this reads the directory. The
+    // ordinary (unblessed) run — the one CI makes — is where the invariant binds.
+    if std::env::var("BLESS").is_ok_and(|value| value == "1") {
+        return;
+    }
+    //
+    // Both revisions, each against its own golden directory: the `2026-07-28`
+    // corpus is byte-pinned on the same terms as the shipped one, so a stranded
+    // draft golden is as much a defect as a stranded shipped one.
+    for (subdirs, golden_dir) in [
+        (["good", "violations"], corpus_root().join("golden")),
+        (
+            ["draft/good", "draft/violations"],
+            corpus_root().join("golden/draft"),
+        ),
+    ] {
+        let traces: BTreeSet<String> = subdirs
+            .iter()
+            .flat_map(|subdir| trace_files(subdir))
+            .map(|path| path.file_stem().unwrap().to_string_lossy().into_owned())
+            .collect();
+        let goldens: BTreeSet<String> = fs::read_dir(&golden_dir)
+            .unwrap_or_else(|error| panic!("cannot read {}: {error}", golden_dir.display()))
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
+            .map(|path| path.file_stem().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            goldens,
+            traces,
+            "left: golden files in {}; right: traces — every golden needs its trace \
+             and every trace its golden",
+            golden_dir.display()
+        );
+    }
 }
 
 #[test]
@@ -225,9 +280,12 @@ fn corpus_falsifies_every_check() {
 /// the revision — there would be nothing to project and nothing to judge.
 #[cfg(feature = "draft-2026-07-28")]
 mod draft {
-    use super::{trace_files, validate_file};
+    use super::{
+        assert_falsifies_its_named_requirement, check_golden, trace_files, validate_file,
+    };
     use mcp_conformance_core::requirement::Registry;
     use mcp_conformance_core::requirement::RegistrySet;
+    use mcp_trace_validator::report::Verdict;
 
     fn draft_registry() -> Registry {
         RegistrySet::builtin()
@@ -252,6 +310,28 @@ mod draft {
                 "{} should conform: {failures:#?}",
                 trace_path.display()
             );
+            check_golden(&trace_path, &report);
+        }
+    }
+
+    #[test]
+    fn draft_violation_traces_fail_and_match_goldens() {
+        // The `2025-11-25` contract, applied to this revision: a violation trace
+        // must fail *the requirement it is named after*, and its whole report is
+        // byte-pinned. Until this existed the draft corpus was held only to
+        // `corpus_falsifies_every_check` — "some trace kills each check" — which
+        // cannot see a finding that has drifted onto a neighbouring requirement.
+        let registry = draft_registry();
+        for trace_path in trace_files("draft/violations") {
+            let report = validate_file(&registry, &trace_path);
+            assert_ne!(
+                report.verdict(),
+                Verdict::Pass,
+                "{} is in draft/violations/ but produced no findings",
+                trace_path.display()
+            );
+            assert_falsifies_its_named_requirement(&trace_path, &report);
+            check_golden(&trace_path, &report);
         }
     }
 }

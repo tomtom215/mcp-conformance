@@ -32,9 +32,15 @@ hand; this tool does not guess them.
 
 Usage:
     python3 tools/extract-clauses.py <spec-root> <page> [<page> ...]
+    python3 tools/extract-clauses.py --verify <spec-root> <registry-dir>
 
 where <spec-root> holds `<page>.mdx` files fetched from
 docs/specification/<revision>/ in the modelcontextprotocol repository.
+
+`--verify` runs `cargo xtask spec-drift`'s comparison offline against those
+same files, over a committed registry directory — the fast inner loop while
+curating a page. It is a convenience, not a substitute: the gate fetches the
+*published* text, so only the gate can see the spec change underneath us.
 """
 import json
 import re
@@ -184,29 +190,6 @@ def clauses(body):
     return out
 
 
-def main():
-    spec_root = Path(sys.argv[1])
-    pages = sys.argv[2:]
-    result = {}
-    for page in pages:
-        f = spec_root / (page + ".mdx")
-        text = strip_frontmatter_and_code(f.read_text())
-        entries = []
-        for anchor, body in sections(text):
-            for level, quote in clauses(body):
-                entries.append({
-                    "section": f"{page}#{anchor}" if anchor else page,
-                    "level": level,
-                    "quote": quote,
-                })
-        result[page] = entries
-    json.dump(result, sys.stdout, indent=2)
-
-
-if __name__ == "__main__":
-    main()
-
-
 def quote_present(page_normalized, quote):
     """Exact port of `spec_drift.rs::quote_present`, including the intro-colon path."""
     relaxed = page_normalized.replace("; ", " ")
@@ -221,3 +204,82 @@ def quote_present(page_normalized, quote):
         if (intro + ":") in relaxed and all(f and f in relaxed for f in items.split("; ")):
             return True
     return False
+
+
+def extract(spec_root, pages):
+    result = {}
+    for page in pages:
+        f = spec_root / (page + ".mdx")
+        text = strip_frontmatter_and_code(f.read_text())
+        entries = []
+        for anchor, body in sections(text):
+            for level, quote in clauses(body):
+                entries.append({
+                    "section": f"{page}#{anchor}" if anchor else page,
+                    "level": level,
+                    "quote": quote,
+                })
+        result[page] = entries
+    return result
+
+
+def verify(spec_root, registry_dir):
+    """`spec-drift` offline: every committed quote re-checked against local pages.
+
+    The same two directions the gate enforces (every cited page listed in
+    `sources.json`, every listed page cited) plus the per-quote check, run
+    without network or a build. This is the curation loop's inner gate; the
+    network `cargo xtask spec-drift` remains the authority, and disagreeing
+    with it is a bug in this port, which is why `normalize`/`quote_present`
+    above are shared with the extraction path rather than re-implemented.
+
+    NOTE: `"resources.json"` ends with `"sources.json"` — the manifest is
+    excluded by basename, never by suffix (see the module docstring)."""
+    sources = json.loads((registry_dir / "sources.json").read_text())
+    in_scope = sources["in_scope"]
+    by_page, quotes = {}, 0
+    for path in sorted(registry_dir.glob("*.json")):
+        if path.name == "sources.json":
+            continue
+        for req in json.loads(path.read_text())["requirements"]:
+            page = req["source"]["section"].split("#")[0]
+            by_page.setdefault(page, []).append((req["id"], req["source"]["quote"]))
+    failures = []
+    for page in sorted(set(by_page) - set(in_scope)):
+        failures.append(f"{page}: cited by registry entries, absent from sources.json in_scope")
+    for page in sorted(set(in_scope) - set(by_page)):
+        failures.append(f"{page}: listed in_scope, cited by no registry entry")
+    for page, entries in sorted(by_page.items()):
+        if page not in in_scope:
+            continue
+        text = (spec_root / in_scope[page]).read_text()
+        page_normalized = normalize(text)
+        drifted = 0
+        for req_id, quote in entries:
+            quotes += 1
+            if not quote_present(page_normalized, quote):
+                failures.append(f"{req_id}: quote not found on {page}:\n    {quote!r}")
+                drifted += 1
+        print(f"{page}: {len(entries)} quote(s), {drifted} drifted", file=sys.stderr)
+    for failure in failures:
+        print(f"drift: {failure}", file=sys.stderr)
+    print(f"{quotes} quote(s) checked, {len(failures)} problem(s)", file=sys.stderr)
+    return 1 if failures else 0
+
+
+def main():
+    argv = sys.argv[1:]
+    if argv and argv[0] == "--verify":
+        if len(argv) != 3:
+            print(__doc__, file=sys.stderr)
+            return 2
+        return verify(Path(argv[1]), Path(argv[2]))
+    if len(argv) < 2:
+        print(__doc__, file=sys.stderr)
+        return 2
+    json.dump(extract(Path(argv[0]), argv[1:]), sys.stdout, indent=2)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

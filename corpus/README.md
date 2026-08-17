@@ -8,17 +8,26 @@ Fixtures for the golden-corpus tests (`crates/mcp-trace-validator/tests/golden.r
 - **`good/`** — sessions that must validate with verdict `pass`.
 - **`violations/`** — single-issue sessions, each falsifying at least one check;
   named after the requirement whose check they exist to kill.
-- **`golden/`** — the byte-pinned expected report for every trace. Regenerate only
-  via `cargo xtask bless` and review the diff like code.
+- **`draft/{good,violations}/`** — the same two kinds for revision `2026-07-28`,
+  judged against that revision's registry behind the `draft-2026-07-28` feature.
+- **`golden/`** — the byte-pinned expected report for every trace, with
+  `golden/draft/` holding the `2026-07-28` corpus's. Regenerate only via
+  `cargo xtask bless` and review the diff like code.
+
+The revisions keep separate golden directories because both name traces after
+requirement IDs drawn from their *own* registry: `base-045-…` is one clause at
+`2025-11-25` and a different one at `2026-07-28`, so a shared directory would
+let one revision's golden answer for the other's trace.
 
 ## Violation naming contract
 
 A violation trace is named `area-nnn-<slug>.jsonl` and **must** produce a
 Fail/Warn row with findings for exactly requirement `AREA-NNN` — the golden
 harness enforces the attribution by name
-(`violation_traces_fail_and_match_goldens`), so a defect re-routed to a
-different requirement cannot re-bless silently. A stem that does not begin
-with a requirement ID fails the suite loudly.
+(`violation_traces_fail_and_match_goldens`, and
+`draft::draft_violation_traces_fail_and_match_goldens` for `draft/`), so a
+defect re-routed to a different requirement cannot re-bless silently. A stem
+that does not begin with a requirement ID fails the suite loudly.
 
 ## Provenance ledger
 
