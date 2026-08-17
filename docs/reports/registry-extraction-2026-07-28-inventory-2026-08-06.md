@@ -914,24 +914,83 @@ The conformance and draft-readiness numbers are the load-bearing ones here:
 they are what proves the `2025-11-25` surface did not move while the new mode
 was added.
 
-### Known gap: the stateless surface is HTTP-only
+## Addendum 9 (2026-08-17): stdio too — and it found three defects HTTP could not
 
-`--protocol-version 2026-07-28 --transport stdio` is **refused at startup**, not
-served. rmcp's stdio server is built around the handshake (`serve()` waits for
-an `initialize` before dispatching), and while `serve_directly` would skip it,
-the per-request `_meta` enforcement that makes the stateless surface conformant
-lives in rmcp's HTTP layer and reads HTTP headers. Reproducing it for stdio
-would be new protocol logic with no independent client to validate it against —
-the official suite drives servers over `--url` only, with no stdio mode — so
-shipping it would be an unverified conformance claim on a transport the
-registry judges with fifteen clauses. Refusing is the honest answer until
-either rmcp grows a stateless stdio server or the suite grows a stdio driver.
+Addendum 8 closed with stateless stdio filed as blocked on an external
+dependency. That was wrong, and the correction is worth more than the feature:
+the blocker was stated as "reproducing rmcp's per-request enforcement would be
+unverified protocol logic", but writing the enforcement down turned it into
+three clauses with names — and clauses with names are testable.
+
+### What it took
+
+| Piece | How |
+|---|---|
+| Serving without a handshake | `serve_directly`, rmcp's entry point for a peer with no negotiated state |
+| The `_meta` envelope | `StatelessEnvelope`, a `Service` wrapper: BASE-031's `-32602` naming the missing field, VERS-001's `-32022` carrying `data.supported`, `initialize` passed through to the handler's version refusal |
+| Driving it | `mcp-reference-host --protocol-version 2026-07-28`, which is rmcp's `ClientLifecycleMode::Discover` — probe, select a version, then a `_meta` envelope per request |
+
+### What the capture found
+
+The first stdio recording judged **118 pass, 6 fail**. Every failure was real,
+and none of them could have appeared in an HTTP capture:
+
+- **TRAN-060/066/119/120 and MRTR-001** — the interactive tools still sent
+  `elicitation/create` and `sampling/createMessage` as independent
+  server-to-client requests. `2026-07-28` forbids that on both transports and
+  replaces it with SEP-2322's MRTR pattern: the server *returns* an
+  `input_required` result carrying `inputRequests`, and the client retries the
+  original call with its answers. Implemented in `interactive/mrtr.rs`, with
+  the legacy mechanism kept live for `2025-11-25` — the suite's elicitation and
+  sampling scenarios drive it, and they still score 40/40.
+- **LOG-008** — the logging tool emitted `notifications/message` for a request
+  that had not asked for them. `logging/setLevel` is gone at this revision; a
+  client asks per request, in `_meta`, and silence is the default.
+
+**The official suite's `2026-07-28` scenarios exercise no interactive tool and
+no logging tool.** An HTTP-only corpus would have shipped all six defects with
+a clean 124/124 next to them. That is the case for capturing both transports
+rather than treating one as representative, and it is now a committed artifact
+rather than an argument.
+
+### Two more defects, found by implementing against our own checks
+
+- **`meta.missing-capability-error` required an array.** BASE-035's quote says
+  `data.requiredCapabilities` "lists the missing capabilities", and the check
+  read that as a JSON array. The schema types it as `ClientCapabilities` — an
+  object. The check would have reported a conforming server, which is the worst
+  thing a conformance check can do. Corrected against the schema, with the
+  array case now pinned as a *violation*.
+- **Three capability gates read `peer.peer_info()`**, which is `None` for every
+  stateless stdio request. A client that declared `elicitation` in the envelope
+  the server was reading would have been refused anyway. They now read
+  `RequestContext::client_capabilities`, which resolves the request first and
+  falls back to session state only when a session exists.
+
+### Where the surfaces now stand
+
+| | `2025-11-25` | `2026-07-28` HTTP | `2026-07-28` stdio |
+|---|---|---|---|
+| Official suite | 40/40 | 23/23 | no stdio driver exists |
+| This registry, on a capture | agreement green | 124 pass, 0 fail | 124 pass, 0 fail |
+
+The stdio capture's provenance is weaker than the HTTP pair's and is labelled
+so in `corpus/README.md`: both ends are ours, because the official suite drives
+servers over `--url` only. What it still supplies is that neither end was
+written to satisfy these checks, and that the lifecycle, the envelope and the
+MRTR retry loop producing every byte are rmcp's code.
 
 ### For the next session
 
 - The `2026-07-28` feature is still off by default, deliberately.
-- **Stateless stdio** (above) is the largest remaining gap in the server, and
-  it is blocked on an external dependency rather than on effort.
+- **`subscriptions/listen` is the last unimplemented `2026-07-28` feature.** Its
+  seven clauses are curated and checked, and the corpus fixtures for them are
+  authored; nothing in this workspace serves the stream yet. It is the next
+  thing a capture would cover that no capture covers today.
+- The MRTR implementation asks for one input per call, because that is what the
+  interactive tools need. A server asking for several at once would exercise
+  MRTR-005's uniqueness clause, which is currently excluded for want of a
+  falsifier.
 - `json_response` is left at rmcp's default, so stateless responses are SSE.
   Both framings are conformant; the JSON one is one config field away if a
   capture of it is ever wanted.

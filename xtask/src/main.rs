@@ -68,6 +68,7 @@ mod coverage;
 mod cross_arch;
 mod deferrals;
 mod docs_links;
+mod draft_capture;
 mod draft_readiness;
 mod local_gates;
 mod minimal_versions;
@@ -105,6 +106,7 @@ fn main() -> ExitCode {
         Some("version-sync") => exit_if(version_sync::run()),
         Some("changelog-links") => exit_if(changelog_links::run()),
         Some("conformance") => conformance::run(),
+        Some("draft-capture") => draft_capture::run(std::env::var_os("BLESS").is_some()),
         Some("draft-readiness") => draft_readiness::run(std::env::var_os("BLESS").is_some()),
         Some(other) => {
             eprintln!("unknown task {other:?}\n{USAGE}");
@@ -158,7 +160,7 @@ fn run_ci() -> ExitCode {
     outcome
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants            diff-scoped mutation gate vs origin/main (the PR gate, locally)\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  changelog-links    every CHANGELOG version heading has a link def; Unreleased base current\n  draft-readiness    measure the everything server against the official runner's\n                     2026-07-28 scenarios; ratchets against a committed\n                     baseline (BLESS=1 to re-record)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants            diff-scoped mutation gate vs origin/main (the PR gate, locally)\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  changelog-links    every CHANGELOG version heading has a link def; Unreleased base current\n  draft-capture      record a 2026-07-28 stdio session (reference host against the\n                     everything server) and judge it; BLESS=1 to refresh the\n                     committed copy in corpus/draft/captured/\n  draft-readiness    measure the everything server against the official runner's\n                     2026-07-28 scenarios; ratchets against a committed\n                     baseline (BLESS=1 to re-record)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {

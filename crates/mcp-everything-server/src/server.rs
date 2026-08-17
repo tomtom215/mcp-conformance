@@ -97,7 +97,7 @@ impl EverythingServer {
     #[must_use]
     pub fn serving(revision: ServedRevision) -> Self {
         Self {
-            tool_router: crate::tools::all_tools(),
+            tool_router: crate::tools::all_tools(revision),
             prompt_router: Self::prompt_router_all(),
             subscriptions: Arc::new(Mutex::new(HashSet::new())),
             log_level: Arc::new(Mutex::new(logging::default_level())),
@@ -117,8 +117,34 @@ impl EverythingServer {
         caching::applied(self.revision, result)
     }
 
-    /// Whether a message at `candidate` level passes the current threshold.
-    pub(crate) fn log_permits(&self, candidate: LoggingLevel) -> bool {
+    /// Whether a message at `candidate` level may be emitted while answering
+    /// `context`.
+    ///
+    /// Two mechanisms, one per revision, and the difference is a `MUST NOT`
+    /// rather than a preference. `2025-11-25` carries a session threshold set
+    /// by `logging/setLevel`, so anything at or above it is permitted for the
+    /// whole session. `2026-07-28` removed that method: a client asks by
+    /// putting `io.modelcontextprotocol/logLevel` in a *request's* `_meta`,
+    /// and LOG-008 forbids emitting `notifications/message` for a request that
+    /// did not (`server/utilities/logging#per-request-log-level`). So at the
+    /// newer revision silence is the default and the request is the only thing
+    /// that can lift it — a session threshold would be a threshold nobody set.
+    pub(crate) fn log_permits(
+        &self,
+        context: &RequestContext<RoleServer>,
+        candidate: LoggingLevel,
+    ) -> bool {
+        self.log_permitted_for(context.meta.log_level(), candidate)
+    }
+
+    /// [`Self::log_permits`], with the request's asked-for level already read.
+    ///
+    /// Split so the rule is testable: building a `RequestContext` needs a live
+    /// peer, and the peer has no bearing on the decision.
+    fn log_permitted_for(&self, asked: Option<LoggingLevel>, candidate: LoggingLevel) -> bool {
+        if self.revision.is_stateless() {
+            return asked.is_some_and(|asked| logging::permits(asked, candidate));
+        }
         let threshold = self.log_level.lock().map_or_else(
             // A poisoned lock means a panicked writer; failing open keeps
             // diagnostics flowing exactly when something is going wrong.

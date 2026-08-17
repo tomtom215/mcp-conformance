@@ -108,10 +108,10 @@ fn subscription_set_is_capped_against_unbounded_growth() {
 #[test]
 fn log_threshold_starts_permissive_and_tightens() {
     let server = EverythingServer::new();
-    assert!(server.log_permits(LoggingLevel::Debug));
+    assert!(server.log_permitted_for(None, LoggingLevel::Debug));
     *server.log_level.lock().unwrap() = LoggingLevel::Error;
-    assert!(!server.log_permits(LoggingLevel::Info));
-    assert!(server.log_permits(LoggingLevel::Critical));
+    assert!(!server.log_permitted_for(None, LoggingLevel::Info));
+    assert!(server.log_permitted_for(None, LoggingLevel::Critical));
 }
 
 #[test]
@@ -145,4 +145,31 @@ fn only_the_stateless_mode_narrows_the_advertised_versions() {
             .as_ref(),
         [ProtocolVersion::V_2026_07_28]
     );
+}
+
+#[test]
+fn the_stateless_revision_logs_only_for_a_request_that_asked() {
+    // LOG-008 is a MUST NOT, and the default is silence: `logging/setLevel` is
+    // gone at this revision, so a session threshold would be one nobody set.
+    let server = EverythingServer::serving(ServedRevision::V2026_07_28);
+    assert!(
+        !server.log_permitted_for(None, LoggingLevel::Critical),
+        "a request that asked for nothing gets nothing, at any level"
+    );
+    assert!(server.log_permitted_for(Some(LoggingLevel::Info), LoggingLevel::Info));
+    assert!(server.log_permitted_for(Some(LoggingLevel::Info), LoggingLevel::Error));
+    assert!(
+        !server.log_permitted_for(Some(LoggingLevel::Error), LoggingLevel::Info),
+        "and the level it asked for still filters"
+    );
+}
+
+#[test]
+fn the_legacy_revision_ignores_a_per_request_level() {
+    // The field is a `2026-07-28` addition. Honouring it at `2025-11-25` would
+    // let a client silently bypass the threshold `logging/setLevel` set, which
+    // is the mechanism that revision actually defines.
+    let server = EverythingServer::new();
+    *server.log_level.lock().unwrap() = LoggingLevel::Error;
+    assert!(!server.log_permitted_for(Some(LoggingLevel::Debug), LoggingLevel::Info));
 }

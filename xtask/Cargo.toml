@@ -17,7 +17,13 @@ homepage.workspace = true
 # Passthrough so `cargo xtask spec-drift` can verify the in-progress revision's
 # quotes: without it the registry set does not describe `2026-07-28`, and the gate
 # reports the revision as skipped rather than silently verifying nothing.
-draft-2026-07-28 = ["mcp-conformance-core/draft-2026-07-28"]
+# Both, not just the registry: `draft-capture` judges its recording with the
+# validator, and a registry describing clauses whose checks were not compiled
+# in reports them unsupported rather than judged.
+draft-2026-07-28 = [
+    "mcp-conformance-core/draft-2026-07-28",
+    "mcp-trace-validator/draft-2026-07-28",
+]
 
 [dependencies]
 mcp-conformance-core.workspace = true

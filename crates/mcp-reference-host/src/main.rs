@@ -55,6 +55,15 @@ struct Cli {
     /// wedge the runner forever (measured against suite 0.1.16).
     #[arg(long, default_value_t = 25)]
     deadline_secs: u64,
+    /// Let the run continue past this many errors. Overrides the scenario
+    /// plan's budget, which is `0` because the suite's scenarios judge a
+    /// clean run; a recording sweeping every tool meets `test_error_handling`,
+    /// whose whole job is to return one.
+    #[arg(long, value_name = "N")]
+    error_budget: Option<u32>,
+    /// Cap the run at this many turns, overriding the scenario plan's.
+    #[arg(long, value_name = "N")]
+    turn_limit: Option<u32>,
     /// Protocol revision to speak. `2026-07-28` uses the stateless lifecycle:
     /// `server/discover` instead of `initialize`, and a `_meta` envelope on
     /// every request.
@@ -120,6 +129,7 @@ async fn dispatch(cli: Cli) -> ExitCode {
 
     let url = cli.url.or(cli.positional_url);
     let lifecycle = ClientLifecycleMode::from(cli.protocol_version);
+    let plan = overridden(plan, cli.error_budget, cli.turn_limit);
     match (plan, url, cli.server_cmd) {
         (ScenarioPlan::SseRetry, Some(url), _) => sse_retry(&url).await,
         (ScenarioPlan::SseRetry, None, _) => {
@@ -164,6 +174,30 @@ async fn dispatch(cli: Cli) -> ExitCode {
             ExitCode::from(2)
         }
     }
+}
+
+/// `plan` with the operator's bounds applied, when they gave any.
+///
+/// The scenario table's bounds are a *contract* with the official suite, so
+/// they are the default and never rewritten in place; an override is for a run
+/// the suite does not define — a recording sweeping every tool, where meeting
+/// `test_error_handling` is the point rather than a failure.
+fn overridden(
+    plan: ScenarioPlan,
+    error_budget: Option<u32>,
+    turn_limit: Option<u32>,
+) -> ScenarioPlan {
+    let ScenarioPlan::Agent { script, mut plan } = plan else {
+        // `sse-retry` runs its own dance with no plan to bound.
+        return plan;
+    };
+    if let Some(error_budget) = error_budget {
+        plan.error_budget = error_budget;
+    }
+    if let Some(turn_limit) = turn_limit {
+        plan.turn_limit = turn_limit;
+    }
+    ScenarioPlan::Agent { script, plan }
 }
 
 /// The sse-retry scenario: the host's own compliant resumption dance

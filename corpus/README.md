@@ -150,7 +150,10 @@ two reports is attributable to that one change.
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
 `resources/{list,read}`, `prompts/{list,get}` and progress notifications; every
 request carries the revision's per-request `_meta` envelope and its SEP-2243
-metadata headers, and neither carries an `initialize` anywhere.
+metadata headers, and neither carries an `initialize` anywhere. Their
+`tools/list` results differ by one entry, which is the point of recording both:
+`test_url_elicitation` is listed by the legacy server and not by the stateless
+one, because URL-mode elicitation is a feature `2026-07-28` removed.
 
 **The one finding.** CACH-001 — the legacy server's `complete` results carry no
 `ttlMs`, on `resources/list` and three `resources/read`s. That is our
@@ -184,6 +187,40 @@ Regenerate both with `cargo xtask draft-readiness` and copy
 in the `host` header changes per run, so re-copying is a deliberate act with a
 golden diff, not something to do casually.
 
+#### The stdio capture
+
+| Field | `reference-host-2026-07-28-stdio.jsonl` |
+|---|---|
+| Client | This workspace's `mcp-reference-host`, on rmcp's stateless client lifecycle |
+| Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
+| Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-17 |
+| Contents | 55 events: `server/discover`, a 17-tool sweep, and four MRTR rounds (three elicitations and one sampling) |
+| Our verdict | **124 pass, 0 fail, 0 warn**, 148 excluded |
+
+**Its provenance is weaker than the pair above, and deliberately labelled so.**
+Both ends of this session are ours: the official suite drives servers over
+`--url` only, so there is no third-party client for stdio to be recorded
+against. What it still supplies that an authored fixture cannot is that neither
+end was written to satisfy these checks, and that the machinery producing every
+byte — the stateless lifecycle, the `_meta` envelope, the MRTR retry loop — is
+rmcp's, not this repository's.
+
+It is also the only capture that judges a *verdict* rather than pinning a
+report. `cargo xtask draft-capture` fails on any finding, because a finding in
+a session where both ends are ours is a defect here rather than news about
+somebody else's code. Regenerate with `BLESS=1 cargo xtask draft-capture`
+(which rewrites this file) followed by `cargo xtask bless`.
+
+**What it caught.** The first recording of this session reported six failures
+the HTTP captures could not: TRAN-060/066/119/120 and MRTR-001, because the
+interactive tools still sent `elicitation/create` and `sampling/createMessage`
+as independent server-to-client requests — the mechanism SEP-2322 replaced —
+and LOG-008, because the logging tool emitted `notifications/message` for a
+request that had not asked for them. The official suite's `2026-07-28`
+scenarios exercise no interactive tool and no logging tool, so an HTTP-only
+corpus would have shipped both defects. That is the argument for capturing both
+transports rather than treating one as representative.
+
 ### `2026-07-28` authored (`corpus/draft/`)
 
 Fixtures for the in-progress revision, judged by the `2026-07-28` registry
@@ -206,7 +243,7 @@ falsifies exactly the requirement it is named for.
 | `base-031-malformed-meta-answered-with-result.jsonl` | Server answers a `_meta`-incomplete request with a result instead of `-32602` (BASE-031) |
 | `base-032-invalid-params-not-http-400.jsonl` | `-32602` returned with HTTP 200 rather than 400 (BASE-032) |
 | `base-034-input-request-for-undeclared-capability.jsonl` | Server returns `input_required` asking for `elicitation/create` the request never declared (BASE-034) |
-| `base-035-missing-capability-error-without-list.jsonl` | `-32021` carries no `data.requiredCapabilities` (BASE-035) |
+| `base-035-missing-capability-error-without-capabilities.jsonl` | `-32021` carries no `data.requiredCapabilities` (BASE-035) |
 | `base-036-missing-capability-not-http-400.jsonl` | `-32021` returned with HTTP 500 rather than 400 (BASE-036) |
 | `base-039-subscription-notification-untagged.jsonl` | Notification on a `subscriptions/listen` stream with no `io.modelcontextprotocol/subscriptionId` (BASE-039) |
 | `base-040-malformed-traceparent.jsonl` | `traceparent` that is not W3C Trace Context shaped (BASE-040) |

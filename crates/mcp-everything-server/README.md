@@ -41,14 +41,13 @@ server scenarios (pinned suite 0.1.16, enforced in CI via
   with `-32022` naming the versions it does speak, rather than negotiated into
   a handshake that leads nowhere. The suite's `2026-07-28` scenarios pass
   **23/23** against this mode, and the repository's own requirement registry
-  judges **124 clauses pass, 0 fail** on a captured session of it. HTTP only:
-  `--protocol-version 2026-07-28 --transport stdio` is refused at startup
-  rather than served badly, because rmcp's stdio server is built around the
-  handshake this revision removes, and the per-request enforcement that makes
-  the surface conformant lives in its HTTP layer. Reproducing that for stdio
-  would be new protocol logic with no independent client to validate it
-  against — the official suite drives servers over `--url` only — and an
-  unverified conformance claim is the one thing this crate must not ship.
+  judges **124 clauses pass, 0 fail** on captured sessions of it over both
+  transports. Server-to-client requests go by SEP-2322's MRTR pattern at this
+  revision — `elicitation/create` and `sampling/createMessage` are *returned*
+  inside an `input_required` result and the client retries — because the
+  revision forbids sending them independently. `logging/setLevel` is gone with
+  it: log notifications ride only requests whose `_meta` asked for them.
+  `test_url_elicitation` is not listed at all, its feature having been removed.
 - A binary serving both transports: `mcp-everything-server --transport stdio`
   or `--transport http` (`--bind` for the address; policy overrides via
   `--allowed-host` / `--dangerously-allow-any-host`; `--protocol-version` for

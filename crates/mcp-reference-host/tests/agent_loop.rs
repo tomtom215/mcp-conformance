@@ -327,12 +327,29 @@ async fn listing_failure_spends_the_budget_and_the_budget_decides() {
     // run stops exhausted; with budget it is recorded and tolerated (there is
     // simply nothing to call). Kills the comparison and accounting mutants in
     // the resolve-failure arm, which no happy path can reach.
-    let (client, _) = connect(InteractionScript::default()).await;
-    let peer = client.peer().clone();
-    client.cancel().await.expect("clean shutdown");
+    // The *server* is what goes away, not the client: `run` now takes the
+    // running service (it must, to drive MRTR rounds), so the way to make
+    // discovery fail is to leave the host connected to a transport whose far
+    // end has hung up.
+    let (server_io, client_io) = tokio::io::duplex(4096);
+    let server = tokio::spawn(async move {
+        if let Ok(server) = EverythingServer::new().serve(server_io).await {
+            let _ = server.waiting().await;
+        }
+    });
+    let client = HostHandler::new(InteractionScript::default())
+        .serve(client_io)
+        .await
+        .expect("host initializes");
+    server.abort();
+    // Awaited, not just signalled: `abort` schedules the task's future to be
+    // dropped, and it is that drop which closes the duplex's server end.
+    // Without the await, `tools/list` races the teardown and sometimes gets a
+    // real answer — a turn the assertions below say did not happen.
+    let _ = server.await;
 
     let exhausted = run(
-        &peer,
+        &client,
         &RunPlan {
             turn_limit: 5,
             error_budget: 0,
@@ -352,7 +369,7 @@ async fn listing_failure_spends_the_budget_and_the_budget_decides() {
     assert!(exhausted.outcomes[0].result.is_err());
 
     let tolerated = run(
-        &peer,
+        &client,
         &RunPlan {
             turn_limit: 5,
             error_budget: 1,

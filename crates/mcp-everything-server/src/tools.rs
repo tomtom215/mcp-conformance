@@ -19,7 +19,7 @@ use rmcp::model::{CallToolResult, ContentBlock, ResourceContents, Tool};
 use rmcp::{ErrorData, tool, tool_router};
 
 use crate::fixtures::{TINY_PNG_BASE64, TINY_WAV_BASE64};
-use crate::server::EverythingServer;
+use crate::server::{EverythingServer, ServedRevision};
 
 /// Name of the JSON Schema 2020-12 keyword-preservation tool (SEP-1613); the
 /// `json-schema-2020-12` scenario looks it up by exactly this name.
@@ -290,9 +290,26 @@ pub(crate) fn json_schema_2020_12_route() -> ToolRoute<EverythingServer> {
 
 /// Combines every tool router the server exposes; [`EverythingServer::new`]
 /// is the single caller, so the tool inventory has one assembly point.
-pub(crate) fn all_tools() -> ToolRouter<EverythingServer> {
+pub(crate) fn all_tools(revision: ServedRevision) -> ToolRouter<EverythingServer> {
     let routed = EverythingServer::tool_router_basic()
         + EverythingServer::tool_router_notifying()
         + EverythingServer::tool_router_interactive();
-    routed.with_route(json_schema_2020_12_route())
+    let mut routed = routed.with_route(json_schema_2020_12_route());
+    for tool in RETIRED_AT_2026_07_28 {
+        if revision.is_stateless() {
+            routed.remove_route(tool);
+        }
+    }
+    routed
 }
+
+/// Tools whose protocol feature `2026-07-28` removed.
+///
+/// URL-mode elicitation and its `notifications/elicitation/complete`
+/// completion are gone at that revision (register 1.5d, Minor #11), so a
+/// server serving it must not offer a tool whose whole behaviour is that
+/// round trip. Listing it and then answering an error would break this
+/// crate's one standing rule — advertise only what is implemented — and
+/// listing it and *performing* it would put a removed notification on the
+/// wire.
+const RETIRED_AT_2026_07_28: [&str; 1] = ["test_url_elicitation"];

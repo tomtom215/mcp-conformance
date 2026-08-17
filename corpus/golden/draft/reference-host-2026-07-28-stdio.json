@@ -1,8 +1,8 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 122,
-    "fail": 2,
+    "pass": 124,
+    "fail": 0,
     "warn": 0,
     "excluded": 148,
     "unsupported": 0,
@@ -272,26 +272,12 @@
     {
       "id": "BASE-035",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "meta.missing-capability-error",
-          "seq": 2,
-          "detail": "error -32021 has `data.requiredCapabilities` that is not a `ClientCapabilities` object"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-036",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "meta.missing-capability-http-status",
-          "seq": 1,
-          "detail": "missing required client capability: error -32021 was returned with HTTP 500, not 400"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-037",

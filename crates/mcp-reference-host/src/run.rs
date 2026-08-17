@@ -9,7 +9,7 @@
 //! (02-architecture.md: no "the loop usually terminates").
 
 use rmcp::model::CallToolRequestParams;
-use rmcp::service::{Peer, RoleClient};
+use rmcp::service::{Peer, RoleClient, RunningService, Service};
 use serde_json::{Map, Value};
 use tokio_util::sync::CancellationToken;
 
@@ -80,12 +80,26 @@ pub struct RunReport {
     pub outcomes: Vec<CallOutcome>,
 }
 
-/// Runs `plan` against the connected server behind `peer` until a stop
+/// Runs `plan` against the connected server behind `client` until a stop
 /// condition fires.
+///
+/// Takes the running service rather than its [`Peer`],
+/// and the difference is protocol-visible: `RunningService::call_tool` drives
+/// SEP-2322's MRTR rounds — on an `input_required` result it fulfils the
+/// server's `inputRequests` through this host's own handler and retries,
+/// echoing the `requestState` — while `Peer::call_tool` answers a single round
+/// and reports anything else as an unexpected response. At `2026-07-28` that
+/// is the *only* way a server can ask for sampling or elicitation, so a host
+/// on the peer method cannot complete an interactive call at all.
 ///
 /// Listing failures (under [`CallPolicy::EachDiscoveredToolOnce`]) count
 /// against the error budget like any other error.
-pub async fn run(peer: &Peer<RoleClient>, plan: &RunPlan, cancel: &CancellationToken) -> RunReport {
+pub async fn run<S: Service<RoleClient>>(
+    client: &RunningService<RoleClient, S>,
+    plan: &RunPlan,
+    cancel: &CancellationToken,
+) -> RunReport {
+    let peer: &Peer<RoleClient> = client.peer();
     let mut report = RunReport {
         turns: 0,
         errors: 0,
@@ -116,7 +130,7 @@ pub async fn run(peer: &Peer<RoleClient>, plan: &RunPlan, cancel: &CancellationT
         let PlannedCall { tool, arguments } = call;
         let mut params = CallToolRequestParams::new(tool.clone());
         params.arguments = arguments;
-        let outcome = peer.call_tool(params).await;
+        let outcome = client.call_tool(params).await;
         report.turns += 1;
 
         let result = judge_outcome(outcome, &mut report.errors);

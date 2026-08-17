@@ -277,7 +277,7 @@
         {
           "check": "meta.missing-capability-error",
           "seq": 1,
-          "detail": "error -32021 has no `data.requiredCapabilities` listing the missing capabilities"
+          "detail": "error -32021 has no `data.requiredCapabilities` naming the missing capabilities"
         }
       ]
     },

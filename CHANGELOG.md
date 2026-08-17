@@ -54,13 +54,28 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   trace kills each check", which cannot see a finding that has drifted onto a
   neighbouring requirement.
 
-- **`mcp-everything-server` serves the `2026-07-28` stateless surface.**
-  `--protocol-version 2026-07-28` selects it: no `initialize`, no sessions,
-  `server/discover` for capability advertisement, per-request `_meta` required
-  at the transport, and SEP-2549 caching hints on cacheable results. The
-  official suite's `2026-07-28` scenarios pass **23/23** against it and this
-  workspace's own registry judges **124 clauses pass, 0 fail** on a captured
-  session. The revision is chosen when the server is built (`ServedRevision`),
+- **`mcp-everything-server` serves the `2026-07-28` stateless surface, over
+  both transports.** `--protocol-version 2026-07-28` selects it: no
+  `initialize`, no sessions, `server/discover` for capability advertisement,
+  per-request `_meta` required, and SEP-2549 caching hints on cacheable
+  results. The official suite's `2026-07-28` scenarios pass **23/23** against
+  it, and this workspace's own registry judges **124 clauses pass, 0 fail** on
+  captured sessions over HTTP *and* over stdio.
+
+  stdio needed the enforcement rmcp performs inside its HTTP tower layer and
+  that a header-less transport has nobody to do: `StatelessEnvelope` supplies
+  it, rejecting a request whose `_meta` lacks `protocolVersion` or
+  `clientCapabilities` with `-32602` naming the field, and one naming a version
+  this server does not serve with `-32022` carrying `data.supported`.
+
+  Server-to-client requests go by **SEP-2322's MRTR pattern** at this revision:
+  `elicitation/create` and `sampling/createMessage` are returned inside an
+  `input_required` result and the client retries the original call with its
+  answers, because the revision forbids sending them independently on either
+  transport. `logging/setLevel` is gone with it — log notifications ride only
+  requests whose `_meta` asked for them — and `test_url_elicitation` is not
+  listed at all, its feature having been removed. The `2025-11-25` mechanisms
+  are untouched and still score 40/40 on the pinned suite. The revision is chosen when the server is built (`ServedRevision`),
   so the `2025-11-25` surface has no new branch to take and is unchanged byte
   for byte — the `draft-readiness` baseline for that mode is identical to the
   one committed before this work.
@@ -93,6 +108,16 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   cannot separate the two servers, which is exactly the gap a requirement
   registry fills.
 
+  A third capture, `reference-host-2026-07-28-stdio.jsonl`, records the same
+  server over stdio (`cargo xtask draft-capture`). Its provenance is weaker and
+  labelled so — the official suite drives servers over `--url` only, so both
+  ends are this workspace's — but it is the capture that earned its keep: the
+  first recording of it found **six real defects** in the stateless server that
+  no HTTP capture could reach, because the suite's `2026-07-28` scenarios
+  exercise no interactive tool and no logging tool. Five were the pre-MRTR
+  mechanism (TRAN-060/066/119/120, MRTR-001) and one was logging without being
+  asked (LOG-008).
+
 - **`tools/extract-clauses.py --verify`** runs `spec-drift`'s comparison offline
   over a committed registry directory — the fast inner loop while curating a
   page, reproducing the network gate exactly.
@@ -110,6 +135,25 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   also recovers `2025-11-25` exchanges that never formed a session (a rejected
   `initialize`, a request refused before one existed), which were being lost the
   same way.
+
+- **`meta.missing-capability-error` demanded a shape the schema does not
+  define.** BASE-035's quote says a `-32021` carries `data.requiredCapabilities`
+  that "lists the missing capabilities", and the check read "lists" as a JSON
+  array. The `2026-07-28` schema types the field as `ClientCapabilities` — the
+  same nested object a client sends in its `_meta` — so a conforming server was
+  reported for using it, which is the worst failure mode a conformance check
+  has. Corrected against the schema; the array shape is now itself a violation
+  fixture.
+
+- **Three interactive tools resolved client capabilities through the
+  handshake.** They read `peer.peer_info()`, which is `None` for every request
+  on a stateless stdio server, so a client that declared `elicitation` in the
+  `_meta` envelope the server was reading would have been refused anyway. They
+  now read `RequestContext::client_capabilities`, which resolves the request
+  first and falls back to session state only when a session exists — one call
+  site, correct at both revisions. At `2026-07-28` the refusal is SEP-2021's
+  `-32021` carrying `data.requiredCapabilities`; the `2025-11-25` refusal is
+  unchanged.
 
 - **The tap dropped the headers four `2026-07-28` clauses are judged by, and
   the validator reported the clauses they prove.** Its recording allowlist held
