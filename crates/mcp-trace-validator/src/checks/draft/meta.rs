@@ -19,8 +19,12 @@ use super::http_status_for;
 use crate::context::TraceContext;
 use mcp_conformance_core::trace::Direction;
 
+mod trace_context;
+
 #[cfg(test)]
 mod tests;
+
+pub(in crate::checks) use trace_context::trace_context_format;
 
 /// Fields `2026-07-28` requires in every client request's `_meta`.
 const REQUIRED_REQUEST_FIELDS: &[&str] = &[
@@ -83,17 +87,13 @@ pub(in crate::checks) fn required_request_fields(
     }
 }
 
-/// `BASE-031`: a request missing a required `_meta` field must draw `-32602`.
+/// Client requests whose `_meta` is missing a required field, by id text.
 ///
-/// Falsified when the server answered such a request with a *result*, or with
-/// some other error code — both of which the trace shows directly. A request
-/// left unanswered inside the recording is not reported: the session may simply
-/// have ended before the answer.
-pub(in crate::checks) fn missing_required_field_rejected(
-    context: &TraceContext<'_>,
-    sink: &mut FindingSink,
-) {
-    let malformed: BTreeMap<String, u64> = client_requests(context)
+/// Shared by `BASE-031` (what such a request must draw) and `BASE-032` (what
+/// HTTP status that answer must ride), because both clauses are about the
+/// *same* request and neither binds a `-32602` raised for any other reason.
+fn malformed_requests(context: &TraceContext<'_>) -> BTreeMap<String, u64> {
+    client_requests(context)
         .filter_map(|(seq, id, payload)| {
             let id = id?;
             // The one exchange the specification takes out of this rule: a legacy
@@ -114,7 +114,20 @@ pub(in crate::checks) fn missing_required_field_rejected(
                 .all(|field| meta.is_some_and(|meta| meta.contains_key(*field)));
             (!complete).then(|| (id.to_string(), seq))
         })
-        .collect();
+        .collect()
+}
+
+/// `BASE-031`: a request missing a required `_meta` field must draw `-32602`.
+///
+/// Falsified when the server answered such a request with a *result*, or with
+/// some other error code — both of which the trace shows directly. A request
+/// left unanswered inside the recording is not reported: the session may simply
+/// have ended before the answer.
+pub(in crate::checks) fn missing_required_field_rejected(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    let malformed = malformed_requests(context);
     if malformed.is_empty() {
         return;
     }
@@ -156,24 +169,43 @@ pub(in crate::checks) fn missing_required_field_rejected(
 
 /// Reports every server error carrying `code` whose HTTP response status is not
 /// `400` — the shared body of `BASE-032` and `BASE-036`.
+///
+/// `answering` narrows which errors of that code the clause reaches, by the id
+/// of the request each answers. `BASE-036` passes `None`: `-32021` has exactly
+/// one cause, so every one of them is its subject. `BASE-032` passes the
+/// malformed-request set, because its `-32602` is not the only `-32602` a
+/// conforming server emits — this revision *replaced* `-32002` with it, so a
+/// resource-not-found now carries the same code, and the clause says nothing
+/// about that answer's HTTP status.
 fn http_status_for_error(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
     code: i64,
     clause: &str,
+    answering: Option<&BTreeMap<String, u64>>,
 ) {
     for (event, _, _) in context.messages() {
         if !matches!(event.direction, Direction::ServerToClient) {
             continue;
         }
-        let matches_code = event
-            .message_payload()
-            .and_then(|payload| payload.get("error"))
+        let Some(payload) = event.message_payload() else {
+            continue;
+        };
+        let matches_code = payload
+            .get("error")
             .and_then(|error| error.get("code"))
             .and_then(Value::as_i64)
             == Some(code);
         if !matches_code {
             continue;
+        }
+        if let Some(answering) = answering {
+            let answers_a_subject = payload
+                .get("id")
+                .is_some_and(|id| answering.contains_key(&id.to_string()));
+            if !answers_a_subject {
+                continue;
+            }
         }
         // Only judged when the recording actually carries HTTP framing; on stdio
         // there is no status to check, and a trace without one evidences nothing.
@@ -195,11 +227,18 @@ pub(in crate::checks) fn missing_required_field_http_status(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
+    // Narrowed to the errors this clause is about. Before the enriched HTTP
+    // capture carried one, every `-32602` in every recording *was* a malformed
+    // envelope, so the difference could not show; a server answering a
+    // resource-not-found `-32602` with anything but 400 would have been
+    // reported for a clause that does not bind it.
+    let malformed = malformed_requests(context);
     http_status_for_error(
         context,
         sink,
         INVALID_PARAMS,
         "missing required `_meta` field",
+        Some(&malformed),
     );
 }
 
@@ -213,6 +252,7 @@ pub(in crate::checks) fn missing_capability_http_status(
         sink,
         MISSING_CAPABILITY_CODE,
         "missing required client capability",
+        None,
     );
 }
 
@@ -407,91 +447,4 @@ pub(in crate::checks) fn subscription_id_present(
             );
         }
     }
-}
-
-/// `BASE-040`: `traceparent` and `tracestate`/`baggage` follow their W3C formats.
-///
-/// Only the `traceparent` grammar is fixed enough to judge from a trace: version
-/// `00`, a 32-hex trace id that is not all zeroes, a 16-hex parent id that is not
-/// all zeroes, and 2 hex flags. `tracestate` and `baggage` are list formats whose
-/// members are vendor-defined, so only their gross shape is checked.
-pub(in crate::checks) fn trace_context_format(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    for (event, _, _) in context.messages() {
-        let Some(payload) = event.message_payload() else {
-            continue;
-        };
-        for envelope in ["params", "result"] {
-            let meta = payload
-                .get(envelope)
-                .and_then(|member| member.get("_meta"))
-                .and_then(Value::as_object);
-            let Some(meta) = meta else { continue };
-            // The subject is a trace-context field that is actually present:
-            // the clause binds their format, not their use.
-            if let Some(value) = meta.get("traceparent") {
-                sink.examined();
-                if let Err(reason) = validate_traceparent(value) {
-                    sink.push(
-                        Some(event.seq),
-                        format!("{envelope}._meta.traceparent {reason}"),
-                    );
-                }
-            }
-            for key in ["tracestate", "baggage"] {
-                if let Some(value) = meta.get(key) {
-                    sink.examined();
-                    if !value.is_string() {
-                        sink.push(
-                            Some(event.seq),
-                            format!("{envelope}._meta.{key} is not a string"),
-                        );
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// The W3C Trace Context `traceparent` grammar, version `00`.
-fn validate_traceparent(value: &Value) -> Result<(), String> {
-    let Some(text) = value.as_str() else {
-        return Err("is not a string".to_owned());
-    };
-    let parts: Vec<&str> = text.split('-').collect();
-    let [version, trace_id, parent_id, flags] = parts.as_slice() else {
-        return Err(format!(
-            "is {text:?}; W3C Trace Context requires four `-`-separated fields"
-        ));
-    };
-    let hex = |s: &str| {
-        s.chars()
-            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
-    };
-    if version.len() != 2 || !hex(version) {
-        return Err(format!(
-            "has version {version:?}; expected two lowercase hex digits"
-        ));
-    }
-    if trace_id.len() != 32 || !hex(trace_id) {
-        return Err(format!(
-            "has trace-id {trace_id:?}; expected 32 lowercase hex digits"
-        ));
-    }
-    if trace_id.bytes().all(|b| b == b'0') {
-        return Err("has an all-zero trace-id, which W3C Trace Context forbids".to_owned());
-    }
-    if parent_id.len() != 16 || !hex(parent_id) {
-        return Err(format!(
-            "has parent-id {parent_id:?}; expected 16 lowercase hex digits"
-        ));
-    }
-    if parent_id.bytes().all(|b| b == b'0') {
-        return Err("has an all-zero parent-id, which W3C Trace Context forbids".to_owned());
-    }
-    if flags.len() != 2 || !hex(flags) {
-        return Err(format!(
-            "has flags {flags:?}; expected two lowercase hex digits"
-        ));
-    }
-    Ok(())
 }

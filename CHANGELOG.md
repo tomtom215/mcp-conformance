@@ -54,6 +54,45 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   trace kills each check", which cannot see a finding that has drifted onto a
   neighbouring requirement.
 
+- **The stdio capture drives the whole server surface, not just its tools.**
+  `mcp-reference-host --sweep` walks what the server itself advertises —
+  `resources/list`, `resources/templates/list`, a read of every resource named
+  plus one substituted template URI, `prompts/list` and a `prompts/get` for
+  each prompt with its declared arguments supplied, and
+  `completion/complete` — and `--log-level` puts
+  `io.modelcontextprotocol/logLevel` in each tool call's `_meta`, which is the
+  client-side half of the mechanism that replaced `logging/setLevel`. The
+  sweep is discovery-driven rather than scripted, so it is worth pointing at an
+  implementation that is not ours.
+
+  One step is a deliberate miss: a read of a URI the catalog does not contain.
+  Asking for something absent is conforming client behaviour, and the error it
+  draws is the only way a recording can carry the error-shape and error-code
+  clauses at all — which is how the `-32002` defect above was found on the
+  first run.
+
+  The committed stdio capture now evidences **77 of the 124 judgeable clauses,
+  up from 56**, with no new findings: the error-code partition
+  (`BASE-052`…`BASE-060`), logging (`LOG-007`/`008`/`009`), prompts
+  (`PROM-012`/`013`/`016`/`018`/`020`), resources
+  (`RES-012`/`013`/`018`/`022`/`023`) and `COMP-007` are judged on real traffic
+  where they previously reported *not observed*.
+
+- **`draft-capture` records the same session over Streamable HTTP too, from
+  the server's end.** `corpus/draft/captured/reference-host-2026-07-28-http.jsonl`
+  is the identical sweep driven over HTTP and recorded by the server's tap
+  rather than the host's transport wrapper — deliberately, because the host's
+  recorder sits at rmcp's `Transport` seam and carries protocol messages only
+  (redaction by construction), so a host-side HTTP recording would report the
+  twenty-four Streamable HTTP clauses *not observed* exactly like the stdio
+  one. The tap sits above the transport and sees status lines and headers.
+
+  At **89 of the 124 judgeable clauses, 0 fail** it is the best-covered capture
+  in the corpus, and the pair is now genuinely complementary: same session,
+  both ends, one file each, so every difference between the two reports is
+  attributable to the transport. `corpus/README.md` records what each capture's
+  remaining not-observed rows are and why.
+
 - **`mcp-everything-server` serves the `2026-07-28` stateless surface, over
   both transports.** `--protocol-version 2026-07-28` selects it: no
   `initialize`, no sessions, `server/discover` for capability advertisement,
@@ -141,6 +180,42 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   page, reproducing the network gate exactly.
 
 ### Fixed
+
+- **The reference server answered a missing resource with a code
+  `2026-07-28` withdrew.** `resources/read` for a URI it does not serve drew
+  `-32002`, which `basic/index#error-codes` lists under "Implementations of
+  this protocol version **MUST NOT** emit these codes" and replaces with
+  `-32602`. The code is now chosen by served revision: `-32602` at
+  `2026-07-28`, `-32002` at `2025-11-25`, where it remains correct and is what
+  the official suite's `resources-read-*` scenarios expect. Nothing had ever
+  caught it because no captured session had ever asked for a resource that
+  does not exist.
+
+- **The reference host recorded a reply ahead of the request that drew it.**
+  `RecordingTransport` assigned `seq` when the inner transport's *send future*
+  completed, and that future is `'static` — rmcp may hold, spawn, or poll it
+  late, so a reply could be received and recorded while the request's send was
+  still pending. `seq` is a trace's only ordering authority, so every
+  correlation check read the pair as the server answering an id nobody asked:
+  a phantom `BASE-046` MUST failure on roughly one capture in three. Outbound
+  messages are now recorded as they are handed to the transport. The cost is
+  stated rather than hidden — a message whose send then fails is in the trace
+  although it never reached the wire, which happens only when the transport is
+  dying and misrepresents one message instead of reordering every concurrent
+  exchange.
+
+- **`BASE-032` was judged more broadly than the clause it quotes.** "On HTTP,
+  the response status **MUST** be `400 Bad Request`" binds the answer to *a
+  request missing a required `_meta` field*, and the check flagged any `-32602`
+  whose status was not 400. That is not the same set at this revision: the spec
+  replaced `-32002` with `-32602`, so a conforming server now answers
+  resource-not-found with the same code, and the clause says nothing about
+  *that* answer's status. Judged broadly, the check would report a conforming
+  implementation for a clause that does not bind it. It now narrows to the
+  errors answering a malformed request, which is the set `BASE-031` already
+  computed. Nothing in the corpus could have caught this before: every
+  `-32602` in every recording *was* a malformed envelope until the enriched
+  HTTP capture carried one that was not.
 
 - **A clause a session never came near was reported as a `pass`.** This was the
   single largest correctness defect in the report. A check that ran, found

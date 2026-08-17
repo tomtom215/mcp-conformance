@@ -8,7 +8,14 @@
 //! that order, so every run ends for a reason the report names
 //! (02-architecture.md: no "the loop usually terminates").
 
-use rmcp::model::CallToolRequestParams;
+// SEP-2577 forward-deprecates Logging, and rmcp 3.x carries the attribute, so
+// naming `LoggingLevel` fires it on correct code: the level a request asks for
+// is how `2026-07-28` *replaced* `logging/setLevel`, and it is the only way a
+// recording can carry the logging clauses at all. Scoped to this module rather
+// than the crate, matching `mcp-everything-server`'s two module-level allows —
+// a blanket allow would also hide a deprecation that genuinely matters.
+#![allow(deprecated)]
+use rmcp::model::{CallToolRequestParams, LoggingLevel, RequestMetaObject};
 use rmcp::service::{Peer, RoleClient, RunningService, Service};
 use serde_json::{Map, Value};
 use tokio_util::sync::CancellationToken;
@@ -23,6 +30,16 @@ pub struct RunPlan {
     pub error_budget: u32,
     /// Which calls to make.
     pub calls: CallPolicy,
+    /// The minimum log level to ask each call for, in
+    /// `_meta.io.modelcontextprotocol/logLevel`.
+    ///
+    /// `None` asks for nothing, which is what the suite's scenarios want and
+    /// what `2026-07-28` treats as "emit no `notifications/message` for this
+    /// request" (LOG-008). A recording sets it, because a server's logging
+    /// clauses are unjudgeable against a session that never asked to see a log
+    /// line — and asking is the client-side half of the mechanism that
+    /// replaced `logging/setLevel`.
+    pub log_level: Option<LoggingLevel>,
 }
 
 /// Deterministic call selection.
@@ -130,6 +147,15 @@ pub async fn run<S: Service<RoleClient>>(
         let PlannedCall { tool, arguments } = call;
         let mut params = CallToolRequestParams::new(tool.clone());
         params.arguments = arguments;
+        // Set before the call so rmcp's own `_meta` injection (protocol
+        // version, client capabilities) *extends* this map rather than
+        // replacing it — both end up on the wire, which is the shape the
+        // revision requires.
+        if let Some(level) = plan.log_level {
+            let mut meta = RequestMetaObject::new();
+            meta.set_log_level(level);
+            params.meta = Some(meta);
+        }
         let outcome = client.call_tool(params).await;
         report.turns += 1;
 

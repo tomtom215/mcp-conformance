@@ -18,6 +18,7 @@
 //! byte; the newer revision is opt-in precisely so none of those move when it
 //! gains a feature.
 
+use rmcp::ErrorData as McpError;
 use rmcp::model::ProtocolVersion;
 
 /// The protocol revision an [`EverythingServer`](super::EverythingServer)
@@ -109,6 +110,34 @@ impl ServedRevision {
     pub const fn emits_caching_hints(self) -> bool {
         matches!(self, Self::V2026_07_28)
     }
+
+    /// The error answering a `resources/read` for a URI this server does not
+    /// serve.
+    ///
+    /// The code differs by revision because `2026-07-28` **withdrew** the one
+    /// `2025-11-25` uses. `basic/index#error-codes` lists it among the codes
+    /// "Implementations of this protocol version **MUST NOT** emit", and names
+    /// the replacement in the same line:
+    ///
+    /// > `-32002` — resource not found (2025-11-25 and earlier; replaced by
+    /// > `-32602`).
+    ///
+    /// So a server serving the newer revision answers `-32602` (Invalid
+    /// params) — the URI it was handed names nothing — while one serving
+    /// `2025-11-25` keeps `-32002`, which is correct there and is what the
+    /// official suite's `resources-read-*` scenarios expect.
+    ///
+    /// `data.uri` rides both, because a client that asked for several
+    /// resources needs to know which one is missing.
+    #[must_use]
+    pub fn resource_not_found(self, uri: &str) -> McpError {
+        let data = Some(serde_json::json!({ "uri": uri }));
+        if self.is_stateless() {
+            McpError::invalid_params("resource not found", data)
+        } else {
+            McpError::resource_not_found("resource not found", data)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -157,6 +186,35 @@ mod tests {
         assert!(
             stateless.contains("server/discover"),
             "and it names the probe that replaced the handshake"
+        );
+    }
+
+    #[test]
+    fn a_missing_resource_draws_the_code_its_revision_permits() {
+        // -32002 is withdrawn at 2026-07-28 (`basic/index#error-codes` lists
+        // it under "MUST NOT emit these codes" and names -32602 as the
+        // replacement), so the same absence has to answer differently
+        // depending on which revision this server is serving. Nothing but a
+        // recording that actually asks for a missing resource can catch this,
+        // which is why the enriched capture asks for one.
+        assert_eq!(
+            ServedRevision::V2025_11_25
+                .resource_not_found("test://gone")
+                .code,
+            rmcp::model::ErrorCode::RESOURCE_NOT_FOUND
+        );
+        assert_eq!(
+            ServedRevision::V2026_07_28
+                .resource_not_found("test://gone")
+                .code,
+            rmcp::model::ErrorCode::INVALID_PARAMS
+        );
+        // Either way the client is told *which* URI was missing.
+        assert_eq!(
+            ServedRevision::V2026_07_28
+                .resource_not_found("test://gone")
+                .data,
+            Some(serde_json::json!({ "uri": "test://gone" }))
         );
     }
 

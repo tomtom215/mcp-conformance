@@ -200,8 +200,8 @@ golden diff, not something to do casually.
 | Client | This workspace's `mcp-reference-host`, on rmcp's stateless client lifecycle |
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-17 |
-| Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep, and four MRTR rounds (three elicitations and one sampling) |
-| Our verdict | **56 pass, 0 fail, 0 warn**, 68 not observed, 148 excluded |
+| Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all four prompts, `completion/complete`, and one read of a URI the catalog does not contain |
+| Our verdict | **77 pass, 0 fail, 0 warn**, 47 not observed, 148 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -211,15 +211,77 @@ notifications and an empty graceful-closure result. The same holds for the MRTR
 clauses. In the two HTTP captures every one of those rows now reads **not
 observed**; here they read `pass`.
 
+**Two defects were found by enriching it, and neither could have been found any other way.** Until the session read a resource the catalog does not have, nothing in this workspace had ever exercised the server's not-found path at this revision — and it answered `-32002`, which `2026-07-28` withdraws outright (`basic/index#error-codes` lists it under "Implementations of this protocol version **MUST NOT** emit these codes" and names `-32602` as the replacement). The second was ours: the host's recorder assigned `seq` when the *send future* completed rather than when the message was handed to the transport, so a reply received while that future was still pending landed in the trace ahead of its own request. That reads as the server answering an id nobody asked, and it failed `BASE-046` on roughly one capture in three. Both are fixed, both have regression tests, and both are the argument for driving more traffic rather than more fixtures.
+
 That asymmetry is the reason to keep all three, and it used to be invisible.
 Until the vacuous-pass fix, those rows read identically across the three files
 — `pass` everywhere, whether or not the session had opened a stream — and this
 paragraph recorded that as a known reporting limitation. It is a limitation no
 longer: every check counts the subjects it examined, so a clause with nothing
 to look at reports `not-observed`. Read in the other direction, the captures
-are complementary rather than redundant: the HTTP pair evidences PROM-016 and
-RES-018, which this session never exercises, and this one evidences the
-subscription and MRTR clauses, which theirs never do.
+are complementary rather than redundant: the HTTP pair evidences the transport
+header and status clauses, which no stdio recording can carry, and this one
+evidences the subscription, MRTR, prompts, resources, logging, completion and
+error-code clauses, which theirs never reach.
+
+**What the 47 not-observed rows still are, and why.** Twenty-four are
+Streamable HTTP clauses (`TRAN-057`…`TRAN-102`) that a stdio recording
+structurally cannot carry. Nine are server *rejection* rules — `BASE-031`,
+`BASE-032`, `BASE-035`, `BASE-036`, `VERS-001`, `VERS-002`, `VERS-008`,
+`LOG-010`, `PAGE-011` — reachable only by a client that deliberately sends
+something malformed, which this session does not: it is the conforming
+capture, and a probe session is a separate recording with a separate expected
+report. Four need surface this server does not have (`CACH-015`/`CACH-016` and
+`PAGE-010` need a catalog large enough to paginate; `TOOL-033`/`TOOL-034` need
+an `x-mcp-header` designation; `PROM-017` needs a prompt carrying audio).
+`TOOL-022` is the interesting one: rmcp's client caches `tools/list` under the
+server's own `ttlMs`, so a second listing never reaches the wire — a
+conforming client cannot exercise the deterministic-order clause within the
+TTL, which is a property of the caching feature working rather than a gap to
+close. The rest (`TRAN-123`/`TRAN-124` cancellation, `MRTR-024`,
+`DISC-002`, `BASE-040`, `BASE-047`) are reachable and not yet driven.
+
+**Across all four captures, 92 of the 124 judgeable clauses are evidenced by
+at least one recording.** The 32 that are not divide into three groups, and
+naming them is the point of counting: fifteen are server *rejection* rules
+(`BASE-031`/`032`/`035`/`036`, `LOG-010`, `PAGE-011`,
+`TRAN-073`/`074`/`075`/`096`/`098`/`102`, `VERS-001`/`002`/`008`) that need a
+probe session — a client that deliberately sends something malformed, whose
+expected report is not a clean one; seven need server surface this reference
+does not have (pagination for `CACH-015`/`016` and `PAGE-010`, an
+`x-mcp-header` designation for `TOOL-033`/`034` and `TRAN-079`/`080`, a prompt
+carrying audio for `PROM-017`); and six are conforming client behaviour simply
+not driven yet (`BASE-040`'s `traceparent`, `DISC-002`'s dual-era probe,
+cancellation for `TRAN-070`/`123`/`124`, and `MRTR-024`'s shortfall retry).
+None of the three is a defect; all three are work, and the first is the one
+worth doing next.
+
+#### The HTTP capture of the same session
+
+| Field | `reference-host-2026-07-28-http.jsonl` |
+|---|---|
+| Client | The same `mcp-reference-host`, driving the identical session over Streamable HTTP |
+| Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
+| Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-08-17 |
+| Contents | 151 events — the stdio session's 81 messages plus 70 `http` events carrying status and headers |
+| Our verdict | **90 pass, 0 fail, 0 warn**, 34 not observed, 148 excluded |
+
+**Recorded by the server, not the host, and that is the whole point.** The
+host's recorder sits at rmcp's `Transport` seam, which carries protocol
+messages and nothing else — redaction by construction, and no HTTP framing to
+record even if it wanted to. So a host-side HTTP recording would report the
+twenty-four Streamable HTTP clauses as *not observed* exactly like the stdio
+one. The server's tap sits above the transport and sees the status line and
+the conformance-relevant headers, which is why this leg is the only recording
+in the corpus that can bear on them at all. Same session, both ends, one file
+each: the difference between the two reports is attributable to the transport
+and to nothing else.
+
+At 90 of the 124 judgeable clauses it is the best-covered capture here. Its 34
+not-observed rows are the server-rejection rules a conforming client never
+triggers, the pagination and `x-mcp-header` clauses this server's surface does
+not reach, and `TOOL-022` (rmcp's client caches `tools/list` under the
+server's own `ttlMs`, so a second listing never reaches the wire).
 
 **Its provenance is weaker than the pair above, and deliberately labelled so.**
 Both ends of this session are ours: the official suite drives servers over

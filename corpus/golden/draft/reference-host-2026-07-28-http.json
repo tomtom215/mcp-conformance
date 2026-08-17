@@ -1,13 +1,13 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 77,
+    "pass": 89,
     "fail": 0,
     "warn": 0,
     "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 47
+    "not_observed": 35
   },
   "requirements": [
     {
@@ -371,17 +371,17 @@
     {
       "id": "TRAN-057",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-058",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-059",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-060",
@@ -403,7 +403,7 @@
     {
       "id": "TRAN-063",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-064",
@@ -431,7 +431,7 @@
     {
       "id": "TRAN-068",
       "level": "SHOULD",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-069",
@@ -447,12 +447,12 @@
     {
       "id": "TRAN-071",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-072",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-073",
@@ -478,7 +478,7 @@
     {
       "id": "TRAN-077",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-078",
@@ -529,12 +529,12 @@
     {
       "id": "TRAN-086",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-087",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-088",
@@ -545,7 +545,7 @@
     {
       "id": "TRAN-089",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-090",
@@ -562,7 +562,7 @@
     {
       "id": "TRAN-092",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-093",
@@ -590,7 +590,7 @@
     {
       "id": "TRAN-097",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-098",
@@ -606,7 +606,7 @@
     {
       "id": "TRAN-100",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-101",
@@ -771,12 +771,12 @@
     {
       "id": "TRAN-117",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-118",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-119",

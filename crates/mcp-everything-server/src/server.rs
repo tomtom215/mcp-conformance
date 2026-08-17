@@ -333,12 +333,9 @@ impl ServerHandler for EverythingServer {
         // nothing else. See `call_tool` for the same seam on the tools side.
         resources::read(&request.uri)
             .map(|result| self.cached(result).into())
-            .ok_or_else(|| {
-                McpError::resource_not_found(
-                    "resource not found",
-                    Some(serde_json::json!({ "uri": request.uri })),
-                )
-            })
+            // Revision-aware: `2026-07-28` withdrew -32002 and named -32602 as
+            // its replacement, so the code cannot be a constant here.
+            .ok_or_else(|| self.revision.resource_not_found(&request.uri))
     }
 
     fn accepted_subscription_filter(

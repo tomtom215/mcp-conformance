@@ -1,15 +1,25 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! `cargo xtask draft-capture` — record a `2026-07-28` stdio session and judge
-//! it.
+//! `cargo xtask draft-capture` — record two `2026-07-28` sessions, one per
+//! transport, and judge both.
 //!
-//! The `2026-07-28` HTTP captures come from `draft-readiness`, where the
-//! official runner supplies the client. stdio has no such runner — the suite
-//! drives servers over `--url` only — so the client here is this workspace's
-//! own `mcp-reference-host`, speaking rmcp's stateless lifecycle
-//! (`server/discover`, then a `_meta` envelope per request, and MRTR rounds
-//! driven by rmcp).
+//! The client in each is this workspace's own `mcp-reference-host`, speaking
+//! rmcp's stateless lifecycle (`server/discover`, then a `_meta` envelope per
+//! request, and MRTR rounds driven by rmcp). The official runner cannot supply
+//! it: the suite drives servers over `--url` only, so stdio has no runner at
+//! all, and over HTTP its scenarios exercise a fixed feature set rather than
+//! the surface a registry judges.
+//!
+//! **The two legs are recorded by different ends, and that is the point.**
+//! stdio is recorded by the *host*, whose `Transport` seam carries protocol
+//! messages and nothing else — redaction by construction, and no HTTP framing
+//! to record even if there were any. HTTP is recorded by the *server's tap*,
+//! which sits above the transport and sees status lines and headers, so its
+//! recording is the only one that can bear on the twenty-four Streamable HTTP
+//! clauses (`TRAN-057`…`TRAN-102`) at all. Driving the same session both ways
+//! and recording it from both ends is what makes the pair complementary
+//! instead of redundant.
 //!
 //! **That is a weaker provenance than the HTTP captures**, and the corpus
 //! ledger says so where the trace is recorded rather than only here: both ends
@@ -19,12 +29,19 @@
 //! would use — the lifecycle, the envelope, and the MRTR retry loop are rmcp's
 //! code, not ours.
 //!
-//! The flags below are the capture's definition, not an operator's taste.
-//! Sweeping every tool means meeting `test_error_handling`, whose whole job is
-//! to return an error result, so the run needs a budget the suite's scenarios
-//! deliberately do not have; and `--subscribe` is there because
-//! `subscriptions/listen` is a long-lived request rather than a tool, so no
-//! sweep of the tool list would ever reach it.
+//! The flags below are the capture's definition, not an operator's taste, and
+//! each buys clauses no other flag reaches:
+//!
+//! - the error budget, because sweeping every tool meets `test_error_handling`,
+//!   whose whole job is to return an error result;
+//! - `--subscribe`, because `subscriptions/listen` is a long-lived request
+//!   rather than a tool, so no sweep of the tool list would ever reach it;
+//! - `--sweep`, because the tool list is a fraction of the surface — without it
+//!   the prompts, resources, templates, completion and error-code clauses have
+//!   no traffic to judge and report *not observed*;
+//! - `--log-level`, because `2026-07-28` requires a server to stay silent for a
+//!   request that did not ask, so a recording that never asks cannot tell a
+//!   conforming server from one with no logging at all.
 //!
 //! Like `conformance` and `draft-readiness` this is orchestration — it spawns
 //! processes and speaks a real transport, which `cargo test` never does.
@@ -47,16 +64,31 @@ const REVISION: &str = "2026-07-28";
 /// `target/draft-readiness/` so no run can be mistaken for another's.
 const RESULTS_DIR: &str = "target/draft-capture";
 
-/// The committed copy, relative to the workspace root.
-const COMMITTED: &str = "corpus/draft/captured/reference-host-2026-07-28-stdio.jsonl";
+/// The committed stdio copy, relative to the workspace root.
+const COMMITTED_STDIO: &str = "corpus/draft/captured/reference-host-2026-07-28-stdio.jsonl";
 
-/// How many error *results* the sweep tolerates.
+/// The committed Streamable HTTP copy.
+const COMMITTED_HTTP: &str = "corpus/draft/captured/reference-host-2026-07-28-http.jsonl";
+
+/// How many error *results* the tool loop tolerates.
 ///
 /// `test_error_handling` returns one by design, and a capture that stopped
 /// there would omit every tool after it alphabetically — including
 /// `test_sampling`, the one that exercises an MRTR sampling round. Four is
 /// slack for that one plus room to notice if the number grows.
+///
+/// The feature sweep's own expected failure — the read of a URI the catalog
+/// does not contain — is not counted here: the sweep records every step and
+/// bounds nothing, because its errors are evidence rather than a budget.
 const ERROR_BUDGET: &str = "4";
+
+/// The level every request asks for logs at.
+///
+/// `debug` is the floor of RFC 5424's eight, so it admits every message the
+/// server might emit; a recording exists to carry what there is, not to filter
+/// it. Asking is also the whole client-side half of the mechanism that
+/// replaced `logging/setLevel` at this revision.
+const LOG_LEVEL: &str = "debug";
 
 /// Turn cap, above the tool count so the sweep is not silently truncated.
 const TURN_LIMIT: &str = "32";
@@ -68,38 +100,79 @@ pub(crate) fn run(bless: bool) -> ExitCode {
         eprintln!("xtask: draft-capture — {message}");
         return ExitCode::FAILURE;
     }
-    let trace = match record(&root, &results) {
+    // Both legs run even when the first fails to judge clean: a defect that
+    // shows on one transport and not the other is exactly what the pair
+    // exists to show, and stopping at the first would hide the comparison.
+    let stdio = leg(&root, &results, Leg::Stdio, bless);
+    let http = leg(&root, &results, Leg::Http, bless);
+    if stdio && http {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
+
+/// Which transport a leg records, and where its committed copy lives.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Leg {
+    /// Recorded by the host, at the `Transport` seam: messages only.
+    Stdio,
+    /// Recorded by the server's tap: messages plus HTTP status and headers.
+    Http,
+}
+
+impl Leg {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Stdio => "stdio",
+            Self::Http => "http",
+        }
+    }
+
+    const fn committed(self) -> &'static str {
+        match self {
+            Self::Stdio => COMMITTED_STDIO,
+            Self::Http => COMMITTED_HTTP,
+        }
+    }
+}
+
+/// Records one leg, judges it, and refreshes its committed copy when blessing.
+fn leg(root: &Path, results: &Path, leg: Leg, bless: bool) -> bool {
+    let results = results.join(leg.name());
+    let trace = match record(root, &results, leg) {
         Ok(trace) => trace,
         Err(message) => {
-            eprintln!("xtask: draft-capture — {message}");
-            return ExitCode::FAILURE;
+            eprintln!("xtask: draft-capture — {} — {message}", leg.name());
+            return false;
         }
     };
-    match judge(&trace) {
-        Err(message) => {
-            eprintln!("xtask: draft-capture — {message}");
-            ExitCode::FAILURE
-        }
-        Ok(()) if bless => match std::fs::copy(&trace, root.join(COMMITTED)) {
-            Ok(_) => {
-                eprintln!(
-                    "xtask: draft-capture — committed copy refreshed ({COMMITTED}); \
-                     re-bless the goldens with `cargo xtask bless`"
-                );
-                ExitCode::SUCCESS
-            }
-            Err(error) => {
-                eprintln!("xtask: draft-capture — cannot update {COMMITTED}: {error}");
-                ExitCode::FAILURE
-            }
-        },
-        Ok(()) => {
+    if let Err(message) = judge(&trace, leg) {
+        eprintln!("xtask: draft-capture — {} — {message}", leg.name());
+        return false;
+    }
+    if !bless {
+        eprintln!(
+            "xtask: draft-capture — {} — recording at {} judges clean; BLESS=1 to \
+             replace the committed copy",
+            leg.name(),
+            trace.display()
+        );
+        return true;
+    }
+    let committed = leg.committed();
+    match std::fs::copy(&trace, root.join(committed)) {
+        Ok(_) => {
             eprintln!(
-                "xtask: draft-capture — recording at {} judges clean; BLESS=1 to replace \
-                 the committed copy",
-                trace.display()
+                "xtask: draft-capture — {} — committed copy refreshed ({committed}); \
+                 re-bless the goldens with `cargo xtask bless`",
+                leg.name()
             );
-            ExitCode::SUCCESS
+            true
+        }
+        Err(error) => {
+            eprintln!("xtask: draft-capture — cannot update {committed}: {error}");
+            false
         }
     }
 }
@@ -130,31 +203,70 @@ fn prepare(root: &Path, results: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Drives one session and returns the trace it wrote.
-fn record(root: &Path, results: &Path) -> Result<PathBuf, String> {
-    let binary = |name: &str| {
-        root.join(format!(
-            "target/debug/{name}{}",
-            std::env::consts::EXE_SUFFIX
-        ))
-        .display()
-        .to_string()
-    };
-    let server = format!(
-        "{} --transport stdio --protocol-version {REVISION}",
-        binary("mcp-everything-server")
-    );
-    eprintln!("xtask: draft-capture — {REVISION} host against {server}");
-    let status = Command::new(binary("mcp-reference-host"))
-        .args(["--server-cmd", &server])
-        .args(["--protocol-version", REVISION])
-        .args(["--error-budget", ERROR_BUDGET])
-        .args(["--turn-limit", TURN_LIMIT])
+/// Drives one session over `leg`'s transport and returns the trace it wrote.
+///
+/// stdio spawns the server as a child of the host and takes the host's own
+/// recording. HTTP spawns the server first, on an OS-assigned port, and takes
+/// the *server's* tap instead — the host's `Transport` seam carries no headers
+/// by construction, so a host-side HTTP recording would judge the transport
+/// clauses on evidence it structurally cannot hold.
+fn record(root: &Path, results: &Path, leg: Leg) -> Result<PathBuf, String> {
+    std::fs::create_dir_all(results)
+        .map_err(|error| format!("cannot create {}: {error}", results.display()))?;
+    match leg {
+        Leg::Stdio => record_stdio(root, results),
+        Leg::Http => record_http(root, results),
+    }
+}
+
+/// The freshly built binary of `name`.
+fn binary(root: &Path, name: &str) -> String {
+    root.join(format!(
+        "target/debug/{name}{}",
+        std::env::consts::EXE_SUFFIX
+    ))
+    .display()
+    .to_string()
+}
+
+/// The host's arguments that define the capture, shared by both legs.
+///
+/// One list rather than two, because the whole value of the pair is that the
+/// *session* is the same and only the transport differs; a flag that reached
+/// one leg and not the other would make every difference between the two
+/// reports ambiguous.
+fn session_args() -> Vec<&'static str> {
+    vec![
+        "--protocol-version",
+        REVISION,
+        "--error-budget",
+        ERROR_BUDGET,
+        "--turn-limit",
+        TURN_LIMIT,
         // `subscriptions/listen` is the one `2026-07-28` feature no tool call
         // reaches: it is a long-lived request, not a tool, so a sweep of the
         // tool list would record everything about this server except the
         // mechanism the revision introduced to replace `resources/subscribe`.
-        .arg("--subscribe")
+        "--subscribe",
+        // The rest of the surface: prompts, resources, templates, completion,
+        // and the one read that draws an error. Without it the recording
+        // evidences the tool clauses and almost nothing else.
+        "--sweep",
+        "--log-level",
+        LOG_LEVEL,
+    ]
+}
+
+/// stdio: the host spawns the server and records at its own transport seam.
+fn record_stdio(root: &Path, results: &Path) -> Result<PathBuf, String> {
+    let server = format!(
+        "{} --transport stdio --protocol-version {REVISION}",
+        binary(root, "mcp-everything-server")
+    );
+    eprintln!("xtask: draft-capture — stdio — host against {server}");
+    let status = Command::new(binary(root, "mcp-reference-host"))
+        .args(["--server-cmd", &server])
+        .args(session_args())
         .arg("--trace-dir")
         .arg(results)
         .current_dir(root)
@@ -163,9 +275,38 @@ fn record(root: &Path, results: &Path) -> Result<PathBuf, String> {
     if !status.success() {
         return Err(format!("the host exited {status}; no capture taken"));
     }
-    // One run, one file; naming it here would duplicate the host's own
-    // convention (scenario + pid), which is the thing that keeps concurrent
-    // runs from colliding.
+    sole_trace(results)
+}
+
+/// HTTP: the server is spawned first and taps its own side of the wire.
+fn record_http(root: &Path, results: &Path) -> Result<PathBuf, String> {
+    let (mut server, address) = crate::conformance::start_server(root, results, REVISION)
+        .ok_or_else(|| "the server did not come up on HTTP".to_owned())?;
+    let url = format!("http://{address}/mcp");
+    eprintln!("xtask: draft-capture — http — host against {url}");
+    let status = Command::new(binary(root, "mcp-reference-host"))
+        .args(["--url", &url])
+        .args(session_args())
+        .current_dir(root)
+        .status();
+    // The server is killed either way: a host that failed mid-session must not
+    // leave a listener holding the port for the next run.
+    let _ = server.kill();
+    let _ = server.wait();
+    let status = status.map_err(|error| format!("cannot run the reference host: {error}"))?;
+    if !status.success() {
+        return Err(format!("the host exited {status}; no capture taken"));
+    }
+    sole_trace(results)
+}
+
+/// The one trace a leg wrote into `results`.
+///
+/// Named by whichever recorder produced it — the host uses scenario + pid, the
+/// tap uses its own sequence — so this reads the directory rather than
+/// duplicating either convention, which is what keeps concurrent runs from
+/// colliding.
+fn sole_trace(results: &Path) -> Result<PathBuf, String> {
     let mut traces: Vec<PathBuf> = std::fs::read_dir(results)
         .map_err(|error| format!("cannot read {}: {error}", results.display()))?
         .filter_map(|entry| entry.ok().map(|entry| entry.path()))
@@ -174,7 +315,7 @@ fn record(root: &Path, results: &Path) -> Result<PathBuf, String> {
     traces.sort();
     traces
         .pop()
-        .ok_or_else(|| format!("the host wrote no trace into {}", results.display()))
+        .ok_or_else(|| format!("nothing was recorded into {}", results.display()))
 }
 
 /// Fails unless every judged clause of the revision passes.
@@ -184,7 +325,7 @@ fn record(root: &Path, results: &Path) -> Result<PathBuf, String> {
 /// one is different because both ends are this workspace's: the recording is
 /// evidence about our own server, so a finding in it is a defect to fix rather
 /// than news about somebody else's code.
-fn judge(trace: &Path) -> Result<(), String> {
+fn judge(trace: &Path, leg: Leg) -> Result<(), String> {
     let document = std::fs::read_to_string(trace)
         .map_err(|error| format!("cannot read {}: {error}", trace.display()))?;
     let events = mcp_trace_validator::reader::parse_trace(
@@ -207,9 +348,17 @@ fn judge(trace: &Path) -> Result<(), String> {
         .map(|row| row.id.as_str())
         .collect();
     let counts = report.totals;
+    // `not observed` is named because it is the honest denominator: a capture
+    // that passes 77 of the 124 judgeable clauses has evidenced 77, and the
+    // number is the one to watch when the session is enriched.
     eprintln!(
-        "xtask: draft-capture — {} pass, {} fail, {} warn, {} excluded",
-        counts.pass, counts.fail, counts.warn, counts.excluded
+        "xtask: draft-capture — {} — {} pass, {} fail, {} warn, {} not observed, {} excluded",
+        leg.name(),
+        counts.pass,
+        counts.fail,
+        counts.warn,
+        counts.not_observed,
+        counts.excluded
     );
     if failed.is_empty() {
         Ok(())

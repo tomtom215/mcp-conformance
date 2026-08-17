@@ -19,6 +19,24 @@
 //! holds by construction. A recording failure is reported to stderr and the
 //! exchange continues unrecorded — capture is diagnostics, never the thing
 //! that takes the host down.
+//!
+//! **An outbound message is recorded as it is handed to the inner transport,
+//! not when that transport reports the send complete.** [`Transport::send`]
+//! returns a `'static` future the caller may hold, spawn, or poll late, so
+//! rmcp can receive and hand us a *reply* while the send future for the
+//! request is still pending. Recording at completion therefore wrote the
+//! response ahead of its request, and `seq` is the trace's only ordering
+//! authority: every correlation check — response-id matching, cancellation
+//! windows, cursor provenance — reads a reply-before-request pair as a
+//! protocol violation by the server. It cost this workspace a phantom
+//! `BASE-046` failure on one capture in three before it was found.
+//!
+//! The cost of the fix is stated rather than hidden: a message whose send
+//! then *fails* is in the trace although it never reached the wire. That is a
+//! strictly smaller error — it happens only when the transport is dying, and
+//! it misrepresents one message instead of reordering every concurrent
+//! exchange — and the failure is reported on stderr where an operator sees
+//! it.
 
 use std::io::Write as _;
 use std::path::Path;
@@ -120,20 +138,29 @@ impl<T: Transport<RoleClient> + Send> Transport<RoleClient> for RecordingTranspo
         item: TxJsonRpcMessage<RoleClient>,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send + 'static {
         // Serialize before sending (the value is moved into the inner
-        // transport); record only once the inner send succeeded.
-        let payload = serde_json::to_value(&item).ok();
-        let recorder = Arc::clone(&self.recorder);
+        // transport), and record here — synchronously, before the item is
+        // handed over — so the request is ordered ahead of any reply it
+        // draws. See this module's header for why completion is too late.
+        match serde_json::to_value(&item) {
+            Ok(payload) => self
+                .recorder
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .record("client-to-server", &payload),
+            Err(_) => eprintln!(
+                "mcp-reference-host: trace capture skipped an unserializable outbound message"
+            ),
+        }
         let sending = self.inner.send(item);
         async move {
-            sending.await?;
-            match payload {
-                Some(payload) => recorder
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner)
-                    .record("client-to-server", &payload),
-                None => eprintln!(
-                    "mcp-reference-host: trace capture skipped an unserializable outbound message"
-                ),
+            if let Err(error) = sending.await {
+                // The line is already in the trace; say so, rather than
+                // leaving an operator to wonder why a recorded request was
+                // never answered.
+                eprintln!(
+                    "mcp-reference-host: an outbound message was recorded but its send failed"
+                );
+                return Err(error);
             }
             Ok(())
         }
@@ -253,6 +280,91 @@ mod tests {
         )
         .expect("captured trace parses through the validator's reader");
         assert_eq!(events.len(), 2);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// A transport whose `send` future only completes when told to, standing
+    /// in for the real thing: rmcp holds these futures and may poll them late,
+    /// which is precisely the window a reply can arrive in.
+    struct DeferredSend {
+        gate: Arc<tokio::sync::Notify>,
+        queue: std::collections::VecDeque<RxJsonRpcMessage<RoleClient>>,
+    }
+
+    impl Transport<RoleClient> for DeferredSend {
+        type Error = std::io::Error;
+        fn send(
+            &mut self,
+            item: TxJsonRpcMessage<RoleClient>,
+        ) -> impl Future<Output = Result<(), Self::Error>> + Send + 'static {
+            let value = serde_json::to_value(&item).unwrap();
+            if let Some(id) = value.get("id").cloned() {
+                self.queue.push_back(
+                    serde_json::from_value(serde_json::json!({
+                        "jsonrpc": "2.0", "id": id, "result": {"late": true},
+                    }))
+                    .unwrap(),
+                );
+            }
+            let gate = Arc::clone(&self.gate);
+            async move {
+                gate.notified().await;
+                Ok(())
+            }
+        }
+        async fn receive(&mut self) -> Option<RxJsonRpcMessage<RoleClient>> {
+            self.queue.pop_front()
+        }
+        async fn close(&mut self) -> Result<(), Self::Error> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn a_request_is_recorded_before_the_reply_it_draws() {
+        // The regression this pins cost a phantom BASE-046 failure on roughly
+        // one capture in three: `seq` was assigned when the *send future*
+        // completed, so a reply received while that future was still pending
+        // landed in the trace ahead of its own request — which every
+        // correlation check reads as the server answering an id nobody asked.
+        let dir = std::env::temp_dir().join(format!("host-order-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("session.jsonl");
+        let gate = Arc::new(tokio::sync::Notify::new());
+        let inner = DeferredSend {
+            gate: Arc::clone(&gate),
+            queue: std::collections::VecDeque::new(),
+        };
+        let mut transport =
+            RecordingTransport::create(inner, CaptureTransport::Stdio, &path).unwrap();
+
+        let request: TxJsonRpcMessage<RoleClient> =
+            serde_json::from_value(serde_json::json!({"jsonrpc":"2.0","id":9,"method":"ping"}))
+                .unwrap();
+        // Hold the send future unfinished, exactly as a busy transport does…
+        let sending = transport.send(request);
+        // …and take delivery of the reply while it is still pending.
+        let received = transport.receive().await.expect("the reply arrives first");
+        assert_eq!(
+            serde_json::to_value(&received).unwrap()["result"]["late"],
+            true
+        );
+        gate.notify_one();
+        sending.await.unwrap();
+
+        let text = std::fs::read_to_string(&path).unwrap();
+        let lines: Vec<serde_json::Value> = text
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(lines.len(), 2, "{text}");
+        assert_eq!(
+            lines[0]["payload"]["method"], "ping",
+            "the request is first"
+        );
+        assert_eq!(lines[0]["seq"], 0);
+        assert_eq!(lines[1]["payload"]["result"]["late"], true);
+        assert_eq!(lines[1]["seq"], 1);
         let _ = std::fs::remove_dir_all(dir);
     }
 
