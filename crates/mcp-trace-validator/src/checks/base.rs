@@ -214,7 +214,14 @@ pub(super) fn result_field(context: &TraceContext<'_>, sink: &mut FindingSink) {
             continue;
         }
         sink.examined();
-        if !object.contains_key("result") && !object.contains_key("error") {
+        // One member, not both, and the classifier is why. A message reaching
+        // here is `Invalid` with an `id` and no `method`, and `classify`'s own
+        // table leaves exactly two ways for that to happen: it carries *both*
+        // `result` and `error` (ambiguous) or *neither* (this clause's
+        // finding). The two tests can therefore never disagree, so asking both
+        // is a condition no trace can vary independently — dead weight that
+        // reads as thoroughness. The mutation gate found it.
+        if !object.contains_key("result") {
             sink.push(
                 Some(event.seq),
                 "response-shaped message (id present, no method) carries no result field"
@@ -271,6 +278,29 @@ mod tests {
     }
 
     const INIT: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}"#;
+
+    #[test]
+    fn a_response_shaped_message_is_judged_on_its_result_member_alone() {
+        // The two cases `classify` can hand this check, and the reason it only
+        // asks about `result`: an id-bearing, method-less message that it
+        // called `Invalid` carries both members or neither.
+        let neither = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1}}"#;
+        let findings = run_check("base.result-field", neither);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(
+            findings[0].detail.contains("no result field"),
+            "{findings:?}"
+        );
+
+        // Both: ambiguous, and BASE-006's business rather than this clause's —
+        // whatever else is wrong with it, a `result` member is present.
+        let both = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{},"error":{"code":-1,"message":"x"}}}"#;
+        assert!(run_check("base.result-field", both).is_empty());
+
+        // A well-formed result classifies as `Result` and never reaches here.
+        let clean = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{}}}"#;
+        assert!(run_check("base.result-field", clean).is_empty());
+    }
 
     #[test]
     fn result_response_with_null_id_gets_the_null_detail() {

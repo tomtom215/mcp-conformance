@@ -4,8 +4,10 @@
 //! Tests for the pure parts: template substitution, argument synthesis, and
 //! the report's accounting.
 //!
-//! [`run`] itself needs a live server and gets one in `tests/sweep.rs`, where
-//! the whole non-tool surface is driven end to end.
+//! [`run`] itself needs a live server and gets one in `tests/sweep.rs`, which
+//! drives the whole non-tool surface against the real everything server and
+//! asserts each step by name — a count would pass while the wrong one was
+//! missing.
 
 use super::*;
 

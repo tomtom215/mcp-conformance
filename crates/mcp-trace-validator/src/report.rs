@@ -322,13 +322,21 @@ mod tests {
             "{text}"
         );
         // A not-observed row says so in words, like every other non-judged
-        // outcome: "NOBS" alone tells an operator nothing about *why*.
-        assert!(text.contains("NOBS  PAGE-002 (MUST)"), "{text}");
+        // outcome: "NOBS" alone tells an operator nothing about *why*. Pinned
+        // as the two lines *together*, and counted: asserting only that the
+        // sentence appears somewhere passes just as well when it is attached
+        // to every row except the one it describes.
         assert!(
             text.contains(
-                "not observed: the session carried none of the traffic this clause binds to"
+                "  NOBS  PAGE-002 (MUST)\n        not observed: the session carried none of \
+                 the traffic this clause binds to\n"
             ),
             "{text}"
+        );
+        assert_eq!(
+            text.matches("not observed:").count(),
+            1,
+            "exactly the not-observed row carries the reason: {text}"
         );
         // The whole line, anchored at both ends: a `contains` of a prefix would
         // pass while a new outcome went unnamed and the counts stopped summing

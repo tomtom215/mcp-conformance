@@ -5,7 +5,10 @@
 //! subscription's contents are named.
 //!
 //! [`drain`] itself needs a live server, and gets one in
-//! `tests/subscriptions.rs`, where the whole lifecycle is driven end to end.
+//! `tests/subscriptions.rs`, which drives the whole lifecycle against the real
+//! stateless server: the server narrowing the filter to what it can serve,
+//! every acknowledged category arriving, and the stream ending on the server's
+//! own initiative rather than by the client giving up.
 
 use super::*;
 
