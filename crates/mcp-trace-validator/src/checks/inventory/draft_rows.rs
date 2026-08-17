@@ -12,6 +12,7 @@ use super::Check;
 #[cfg(feature = "draft-2026-07-28")]
 use crate::checks::draft;
 
+#[cfg(feature = "draft-2026-07-28")]
 macro_rules! check {
     ($id:literal, $run:path) => {
         Check { id: $id, run: $run }

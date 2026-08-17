@@ -4,9 +4,10 @@
 # `2026-07-28` registry extraction: the quote-verified clause inventory
 
 **Date:** 2026-08-06
-**Status:** input to roadmap M2.5 line 2. The inventory is complete and
-verified; the per-clause curation it feeds is **not** done. This report says
-exactly where the boundary is, so nobody mistakes one for the other.
+**Status:** roadmap M2.5 line 2 is **complete** as of 2026-08-17 — all fifteen
+in-scope pages are curated, 272 entries, 0 unsupported. See Addendum 7 for the
+finished state; the body below is the record of how it got there, kept because
+the reasoning is the reviewable part.
 
 ---
 
@@ -578,3 +579,163 @@ finished areas:
   imprecise**, because the engine attributes a finding to all of them. Share a
   check only where the clauses state one rule across several sections
   (Addendum 6, the six-way split).
+
+---
+
+## Addendum 7 (2026-08-17): the extraction is complete — 15 of 15 pages
+
+All fifteen in-scope pages of `2026-07-28` are curated. The revision's registry
+is **272 entries — 124 judged / 0 unsupported / 148 excluded**, `spec-drift`
+verifies **412 quotes across both revisions with none drifted**, and the
+`2025-11-25` surface is still byte-identical to `Registry::builtin_2025_11_25()`.
+
+| | |
+|---|---|
+| Pages entered | **15 of 15** |
+| `2026-07-28` registry | 272 entries — 124 judged, 0 unsupported, 148 excluded |
+| Implemented checks | 119 (48 shipped + 71 for this revision) |
+| Lib tests | 247, up from 145 |
+| Draft corpus | 2 conforming sessions + 72 violation traces, each byte-pinned |
+| `PLANNED` ledger | empty — nothing names a check that does not exist |
+
+### First: upstream had not moved
+
+The `2026-07-28` tree in `modelcontextprotocol/modelcontextprotocol` has not
+been touched since the revision was published; the last commit under
+`docs/specification/2026-07-28/` is dated 2026-07-28. Every quote already in the
+registry still verified before any new work started. `rmcp` is current at 3.1.2.
+The dependency floor is unchanged.
+
+### The corpus contract was weaker than it was documented to be
+
+`corpus/draft/` was described as being "held to the same contract as the
+`2025-11-25` one" and was not. Violation traces there were covered only by
+`corpus_falsifies_every_check` — "*some* trace kills each check" — which cannot
+see a finding that has drifted onto a neighbouring requirement, and their
+reports were not pinned at all. That is precisely the defect class the
+2026-08-08 pass found by hand when splitting
+`transport.header-value-encoding`.
+
+`draft_violation_traces_fail_and_match_goldens` now applies the shipped
+corpus's name-attribution assertion and byte-pins every report, with goldens in
+`corpus/golden/draft/`. All 33 traces that existed at the time passed unchanged
+— the attribution was already right, it just was not enforced.
+
+### Six defects found, five of which were live
+
+1. **Five capability checks would have reported vacuous passes.** Every feature
+   page states "Servers that support X MUST declare the X capability", and the
+   `2025-11-25` checks for it resolve declarations through
+   `support::server_capability`, which abstains unless the trace carries an
+   `initialize` **result**. This revision has no `initialize`. Reused as-is, each
+   would have inspected nothing and reported `pass` — the TRAN-071 failure mode,
+   five times over, on the one clause every feature page repeats.
+   `checks/draft/capabilities.rs` reads the `server/discover` result instead.
+2. **`transport.unsupported-version-error` bundled an HTTP status into a rule
+   stated without one.** TRAN-074 says "400 Bad Request *and* an
+   `UnsupportedProtocolVersionError` listing its supported versions"; VERS-001
+   states the same rule with no status. One check covering both would have
+   reported a wrong status against a clause that never mentions statuses. Split
+   into `transport.unsupported-version-{error,status}`.
+3. **Splitting it exposed a rule no trace had ever falsified.** The HTTP-400
+   half had been riding the kills of the rules it was bundled with;
+   `corpus_falsifies_every_check` could not tell the difference. It now has its
+   own trace.
+4. **`meta.missing-required-field-rejected` reported a conforming server.**
+   BASE-031 requires `-32602` for a request missing `_meta` fields, and a legacy
+   `initialize` reaching a modern server is missing them by definition — but
+   `basic/versioning`'s compatibility matrix states that for exactly that
+   exchange "the exact code is implementation-defined". The check was failing
+   every cross-era capture. `initialize` is now outside the rule, by method.
+5. **`transport.client-no-responses` filtered on Streamable HTTP** and would
+   have been inert for the stdio clause that states the same rule. The filter is
+   gone: the revision removed server-initiated requests, so there is nothing on
+   any binding for a client response to answer.
+6. **`transport.no-messages-after-cancellation` anchors on a transport close**,
+   which is HTTP's cancellation signal. stdio signals with
+   `notifications/cancelled`, so a separate check reads that instead of the
+   existing one being pointed at a clause it cannot see.
+
+Two invariants earned their keep without being changed: the good-session test
+caught both conforming sessions serving tools and resources without declaring
+them once the capability clauses landed, and caught a `resources/read` answering
+with an empty `contents` array once RES-022 did.
+
+### Where the 148 exclusions concentrate, and why
+
+They are not spread evenly, and the clustering is the argument for their
+honesty. `requestState` is opaque *by design*, so everything MRTR asks a server
+to do with it — integrity-protect, validate, put a principal and a TTL inside,
+consume once — is invisible to a recording carrying only the blob (10
+exclusions). Caching is mostly about what a *client* does with a hint, and a
+cache hit is exactly the case where nothing reaches the wire (14). Elapsed time
+is not available to checks (LIFE-015), which takes every freshness, rate-limit,
+jitter and "promptly" clause. Host-OS actions — `stderr`, process exit, stream
+closure — are outside the trace vocabulary (LIFE-014). And a family of clauses
+requires classifying the *meaning* of arbitrary JSON — credentials, PII,
+"sensitive" parameters, "relevant" context — which `mcp-conformance-core` has no
+engine for, the same boundary BASE-073 draws for JSON Schema.
+
+Two exclusions are worth singling out because they look checkable and are not:
+`inputRequests` keys "MUST be unique" (MRTR-005) is destroyed at parse time — a
+duplicate JSON key is collapsed before any check sees it — and TRAN-129 forbids
+keying a fallback to one specific error code, which is a property of the
+client's *decision function*: a session exercises one code and one outcome, and
+no number of sessions settles what it would have done with another.
+
+### Where a judgement was made rather than a rule mechanically applied
+
+Four checks are narrower than a literal reading, each because a literal reading
+would report conforming implementations. Each says so in its own doc comment:
+
+- `meta.missing-required-field-rejected` exempts `initialize` (defect 4 above).
+- `caching.hints-on-cacheable-results` exempts results produced by an MRTR
+  retry: CACH-003 forbids caching them, and the page's own words for interim
+  results — "not cacheable and carry no caching hints" — give the principle.
+  Without it, CACH-001 and CACH-003 would contradict each other.
+- `discover.dual-era-probe-first` fires only when the session witnesses *both*
+  eras; a legacy-only client does not match the clause's antecedent, and judging
+  it would report every legacy capture as a client defect.
+- `mrtr.*` treats a request carrying `inputResponses` or `requestState` as the
+  only kind of retry, so an ordinary follow-up request is never judged as a
+  half-finished one.
+
+Two checks report with a stated assumption rather than abstaining, both at
+SHOULD (warn) level: `mrtr.missing-input-reasked` reads an error answering an
+incomplete retry as evidence the missing input was necessary, and
+`pagination.invalid-cursor-rejected` treats "never issued in this session" as
+the witness for "invalid".
+
+### What is *not* done
+
+- **The suite still measures the everything-server against `2025-11-25`.** The
+  registry describes `2026-07-28` fully, but no implementation in this workspace
+  serves the stateless surface end to end, so the `2026-07-28` corpus remains
+  hand-authored rather than captured. `cargo xtask draft-readiness` is the
+  existing measurement of that gap.
+- **The feature is still off by default.** Nothing about `2026-07-28` reaches a
+  default build, which is deliberate while the revision is new.
+- **Expansion candidates stay out of scope**, unchanged and for the reasons
+  `sources.json` records: full OAuth, the client-feature pages, and
+  `basic/patterns/{cancellation,progress,index}`.
+
+### For the next session
+
+The extraction loop is finished, so the next work is a different shape: making
+the corpus *captured* rather than authored. That needs an implementation of the
+stateless surface, which is roadmap M3's territory, and it is the only remaining
+way to raise confidence in these 124 checks beyond what unit tests and
+hand-built traces already give.
+
+The two hazards from the last handover both recurred, and a third joins them:
+
+- **A reused `2025-11-25` check can be vacuous here.** It happened five more
+  times, all on the capability clause. Read a candidate to the bottom, and
+  specifically look for `support::server_capability` and anything touching
+  `context.initialize()`.
+- **A check that bundles adjacent rules makes every requirement naming it
+  imprecise.** It happened once more, on TRAN-074/VERS-001.
+- **New:** run `cargo xtask ci`, not `cargo clippy --all-features`. The repo
+  lints in three feature modes, and a `#[cfg]`-gated item that becomes unused
+  with the feature *off* is invisible to the all-features run — which is how an
+  unused macro and an unused re-export reached the end of this session's work.
