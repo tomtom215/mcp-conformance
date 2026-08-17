@@ -76,7 +76,12 @@ impl<S: Service<RoleServer>> StatelessEnvelope<S> {
         let (Some(version), Some(_)) = (meta.protocol_version(), meta.client_capabilities()) else {
             return Some(missing("io.modelcontextprotocol/protocolVersion"));
         };
-        let supported = self.0.supported_protocol_versions();
+        // This service's own answer, not the inner one's. They are the same
+        // list — the impl below delegates — but going through the seam means
+        // the version this gate refuses against is the version this service
+        // *advertises*, with one place for the two to be defined and none for
+        // them to disagree.
+        let supported = self.supported_protocol_versions();
         if !supported.contains(&version) {
             return Some(McpError::unsupported_protocol_version(version, &supported));
         }

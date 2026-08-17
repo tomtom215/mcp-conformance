@@ -215,3 +215,47 @@ async fn serve_app(bind: SocketAddr, app: axum::Router) -> ExitCode {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_stopped_service_reports_which_way_it_stopped() {
+        // The one place a serve failure becomes an exit code, and the only
+        // caller that can distinguish them: every other test here asserts a
+        // *clean* shutdown, so a `waited` that reported success unconditionally
+        // would pass all of them while hiding every transport error the binary
+        // can hit.
+        assert_eq!(
+            waited(Ok::<(), std::io::Error>(())),
+            ExitCode::SUCCESS,
+            "a service that stopped cleanly exits 0"
+        );
+        assert_eq!(
+            waited(Err::<(), &str>("transport closed unexpectedly")),
+            ExitCode::FAILURE,
+            "a serve error is exit 1, the documented transport-failure code"
+        );
+    }
+
+    #[test]
+    fn the_cli_revision_maps_to_the_served_one() {
+        // The mapping is the flag's entire meaning; a wrong arm would serve
+        // the other revision silently, and every wire test would still pass
+        // because they all pass the flag they expect to be honoured.
+        assert_eq!(
+            ServedRevision::from(Revision::V20251125),
+            ServedRevision::V2025_11_25
+        );
+        assert_eq!(
+            ServedRevision::from(Revision::V20260728),
+            ServedRevision::V2026_07_28
+        );
+        assert_eq!(
+            ServedRevision::from(Revision::default()),
+            ServedRevision::default(),
+            "and the CLI default is the library default, not a second opinion"
+        );
+    }
+}
