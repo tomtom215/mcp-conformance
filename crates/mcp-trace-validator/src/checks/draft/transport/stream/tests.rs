@@ -27,7 +27,7 @@ fn close(seq: u64) -> String {
 }
 
 #[test]
-fn only_a_client_sent_response_over_this_transport_is_reported() {
+fn only_a_client_sent_response_is_reported_on_any_binding() {
     let check = "transport.client-no-responses";
 
     // The violation: a client POSTing a result.
@@ -43,8 +43,8 @@ fn only_a_client_sent_response_over_this_transport_is_reported() {
     ));
     assert_eq!(findings_for(check, &trace(&lines)).len(), 1);
 
-    // A *server* response is the normal case and must not be reported — the
-    // direction filter and the transport filter are both load-bearing.
+    // A *server* response is the normal case and must not be reported: the
+    // direction filter is the one that carries this clause.
     let mut lines = call(0);
     lines.push(server(
         2,
@@ -68,12 +68,16 @@ fn only_a_client_sent_response_over_this_transport_is_reported() {
     ));
     assert!(findings_for(check, &trace(&lines)).is_empty());
 
-    // The same client response over stdio belongs to the stdio clauses.
+    // The same client response over stdio is reported too. Both binding pages
+    // state the rule — TRAN-060 for POSTs, TRAN-119 for stdio writes — and it is
+    // one rule, because the revision left nothing anywhere for a client response
+    // to answer. Scoping this to Streamable HTTP would have made it inspect
+    // nothing on a stdio capture and report TRAN-119 as a vacuous pass.
     let stdio = [
         r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":9,"result":{}}}"#,
     ]
     .join("\n");
-    assert!(findings_for(check, &stdio).is_empty());
+    assert_eq!(findings_for(check, &stdio).len(), 1);
 }
 
 #[test]

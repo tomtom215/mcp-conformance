@@ -396,6 +396,16 @@ pub static ALL: &[Check] = &[
         id: "versioning.initialize-error-names-versions",
         run: draft::versioning::initialize_error_names_versions,
     },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "transport.cancel-notification-references-request",
+        run: draft::transport::cancel_notification_references_request,
+    },
+    #[cfg(feature = "draft-2026-07-28")]
+    Check {
+        id: "transport.no-messages-after-cancel-notification",
+        run: draft::transport::no_messages_after_cancel_notification,
+    },
 ];
 
 /// Looks up a check by its stable ID.

@@ -277,14 +277,7 @@
     {
       "id": "BASE-036",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "meta.missing-capability-http-status",
-          "seq": 1,
-          "detail": "missing required client capability: error -32021 was returned with HTTP 500, not 400"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-037",
@@ -809,7 +802,14 @@
     {
       "id": "TRAN-123",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.cancel-notification-references-request",
+          "seq": 1,
+          "detail": "`notifications/cancelled` carries no `params.requestId`, so it names no request to cancel"
+        }
+      ]
     },
     {
       "id": "TRAN-124",

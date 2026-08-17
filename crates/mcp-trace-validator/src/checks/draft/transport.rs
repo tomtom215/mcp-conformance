@@ -24,6 +24,7 @@ use crate::context::TraceContext;
 use mcp_conformance_core::trace::{Direction, EventBody, TransportKind};
 
 mod headers;
+mod stdio;
 mod stream;
 mod validation;
 
@@ -34,6 +35,9 @@ pub(in crate::checks) use headers::{
     header_value_encoding, protocol_version_header_matches_body, protocol_version_header_present,
     request_metadata_headers, sentinel_marker_case, sentinel_pattern_encoded,
     x_mcp_header_mirrored, x_mcp_header_name_valid,
+};
+pub(in crate::checks) use stdio::{
+    cancel_notification_references_request, no_messages_after_cancel_notification,
 };
 pub(in crate::checks) use stream::{
     accel_buffering_header, client_no_responses, no_independent_server_requests,

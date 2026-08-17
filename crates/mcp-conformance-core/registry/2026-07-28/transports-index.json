@@ -1,0 +1,70 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "TRAN-110",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/index#messages",
+        "quote": "JSON-RPC messages MUST be UTF-8 encoded."
+      },
+      "exclusion": "Restates TRAN-001 at 2025-11-25, whose exclusion this project already argued and which holds unchanged: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because capture tooling drops undecodable bytes. Violations surface as capture-time parse failures, not trace findings."
+    },
+    {
+      "id": "TRAN-111",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/index#messages",
+        "quote": "A binding MUST deliver client-sent requests and notifications to the server, and server-sent responses and notifications to the client."
+      },
+      "exclusion": "A delivery obligation, and a trace is a record of what arrived: a message the binding failed to deliver is absent from it, and an absent message is indistinguishable from one never sent. The clause's converse — that no other direction exists — is a separate sentence and is enforced where it is stated: TRAN-060 and TRAN-118 for client responses, TRAN-066 and TRAN-120 for server-initiated requests."
+    },
+    {
+      "id": "TRAN-112",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/index#custom-transports",
+        "quote": "Implementers who choose to support custom transports MUST preserve the JSON-RPC message format, the message patterns, and the per-request metadata model."
+      },
+      "exclusion": "No custom transport can appear in a trace: `TransportKind` admits `stdio` and `streamable-http` only, so the clause's subject has no representation in the format this engine reads. What it requires preserved is exactly what the rest of this registry checks for the two standard bindings, against which a custom transport's capture would have to be relabelled first."
+    },
+    {
+      "id": "TRAN-113",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/index#custom-transports",
+        "quote": "Custom transports SHOULD document their connection establishment, message framing, and cancellation patterns to aid interoperability."
+      },
+      "exclusion": "Binds a transport's documentation, not its messages. Same class as VERS-006: the artefact the clause requires is a document, and no session can be evidence about whether one exists."
+    },
+    {
+      "id": "TRAN-114",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/index#custom-transports",
+        "quote": "Custom transports that run over a reliable bidirectional byte stream (e.g., Unix domain sockets or TCP) SHOULD reuse the stdio framing rather than defining a new one: the stdio binding is just newline-delimited JSON-RPC over a byte stream, and only its process-lifecycle rules are specific to standard streams."
+      },
+      "exclusion": "Binds the design of a transport that cannot be recorded as itself (see TRAN-112), and the property it asks for — which framing was reused — is settled before any message exists. Restated on the stdio page as TRAN-121, with the same reason."
+    }
+  ]
+}

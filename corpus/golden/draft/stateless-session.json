@@ -1,10 +1,10 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 58,
+    "pass": 65,
     "fail": 0,
     "warn": 0,
-    "excluded": 71,
+    "excluded": 84,
     "unsupported": 0,
     "not_applicable": 0
   },
@@ -724,6 +724,119 @@
       "id": "VERS-008",
       "level": "SHOULD",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-110",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Restates TRAN-001 at 2025-11-25, whose exclusion this project already argued and which holds unchanged: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because capture tooling drops undecodable bytes. Violations surface as capture-time parse failures, not trace findings."
+    },
+    {
+      "id": "TRAN-111",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "A delivery obligation, and a trace is a record of what arrived: a message the binding failed to deliver is absent from it, and an absent message is indistinguishable from one never sent. The clause's converse — that no other direction exists — is a separate sentence and is enforced where it is stated: TRAN-060 and TRAN-118 for client responses, TRAN-066 and TRAN-120 for server-initiated requests."
+    },
+    {
+      "id": "TRAN-112",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "No custom transport can appear in a trace: `TransportKind` admits `stdio` and `streamable-http` only, so the clause's subject has no representation in the format this engine reads. What it requires preserved is exactly what the rest of this registry checks for the two standard bindings, against which a custom transport's capture would have to be relabelled first."
+    },
+    {
+      "id": "TRAN-113",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds a transport's documentation, not its messages. Same class as VERS-006: the artefact the clause requires is a document, and no session can be evidence about whether one exists."
+    },
+    {
+      "id": "TRAN-114",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds the design of a transport that cannot be recorded as itself (see TRAN-112), and the property it asks for — which framing was reused — is settled before any message exists. Restated on the stdio page as TRAN-121, with the same reason."
+    },
+    {
+      "id": "TRAN-115",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Restates TRAN-002 at 2025-11-25 verbatim, and its exclusion holds unchanged: framing is enforced at capture time, the JSON Lines trace format cannot represent an embedded-newline violation, and a parseable trace is evidence the rule held."
+    },
+    {
+      "id": "TRAN-116",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-003 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-117",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-118",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-119",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-120",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-121",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The same clause as TRAN-114, stated from the stdio page's side: a custom transport has no representation in the trace format, and which framing it reused is settled before any message exists."
+    },
+    {
+      "id": "TRAN-122",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Binds the client's own correlation of notifications it received — bookkeeping inside the client, which produces no message. The wire-visible half of the same mechanism, that the server tags each notification with `io.modelcontextprotocol/subscriptionId`, is BASE-039 and is checked."
+    },
+    {
+      "id": "TRAN-123",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-124",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-125",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Stream closure, process waits and forced termination are host-OS actions outside the trace event vocabulary — the same reason LIFE-014 excludes the 2025-11-25 shutdown sequence. A `transport-close` lifecycle event records that the transport ended, not which party closed which stream or what it did next."
+    },
+    {
+      "id": "TRAN-126",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Both the trigger (stdin closing, or a read returning EOF) and the response (process exit) are host-OS events the trace vocabulary does not carry, and \"promptly\" is a duration — checks may not consult time, the same limit LIFE-015 records."
+    },
+    {
+      "id": "TRAN-127",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Process supervision: the antecedent is an unexpected exit and the obligation is to launch a new process, neither of which is a message. A restart also begins a new session, so the evidence would have to span two traces, and nothing in one identifies the other as its successor."
+    },
+    {
+      "id": "TRAN-128",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-129",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds the client's decision function, not any message it sends. A session exhibits one probe answered by one error code and one decision taken; whether the client would have fallen back on a *different* code is a property of code paths that session never exercised, and no number of traces settles it."
     }
   ]
 }

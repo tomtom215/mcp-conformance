@@ -21,12 +21,18 @@ use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, Transpor
 #[cfg(test)]
 mod tests;
 
-/// `TRAN-060`: clients do not POST JSON-RPC responses.
+/// `TRAN-060` and `TRAN-119`: clients do not send JSON-RPC responses.
+///
+/// Judged on every binding, not just Streamable HTTP. Both binding pages state
+/// the rule — "The client **MUST NOT** write JSON-RPC _responses_" on stdio,
+/// and the POST form on HTTP — and it is one rule, because the revision removed
+/// server-initiated requests outright: there is nothing on any transport for a
+/// client response to answer. The earlier HTTP-only filter would have made this
+/// silently vacuous for the stdio clause, reporting `pass` on a trace it never
+/// inspected.
 pub(in crate::checks) fn client_no_responses(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, _, _) in context.messages() {
-        if event.direction != Direction::ClientToServer
-            || event.transport != TransportKind::StreamableHttp
-        {
+        if event.direction != Direction::ClientToServer {
             continue;
         }
         let Some(payload) = event.message_payload() else {
@@ -38,7 +44,8 @@ pub(in crate::checks) fn client_no_responses(context: &TraceContext<'_>, sink: &
         if is_response {
             sink.push(
                 Some(event.seq),
-                "client POSTed a JSON-RPC response, which 2026-07-28 forbids on this transport"
+                "client sent a JSON-RPC response; 2026-07-28 removed server-initiated \
+                 requests, so there is nothing for one to answer"
                     .to_owned(),
             );
         }
