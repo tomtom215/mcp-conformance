@@ -177,6 +177,19 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `corpus_falsifies_every_check` — that one proves a check can fail, this one
   proves its pass can mean something.
 
+  Reviewing the golden diff caught one more: `LIFE-004` and `LIFE-005` state
+  the same rule about the same window from the two sides, and were reported
+  differently on 52 traces where both held — an accident of who happened to
+  send a request in that window. A prohibition on an element *existing* inside
+  a window counts the window, not the element, because sending nothing through
+  it is what compliance looks like there. The distinction is recorded on the
+  counting rule; every other prohibition in the tree is property-shaped and was
+  already counting correctly.
+
+  The decision, its alternatives, and the shape of the outcome are recorded in
+  [ADR-0012](docs/plan/decisions/0012-not-observed-outcome.md), which extends
+  ADR-0006's argument past the capability gate it had been implemented for.
+
 - **The session trace tap could not record protocol revision `2026-07-28` at
   all, and said nothing.** It keyed every exchange on `Mcp-Session-Id` and
   returned early without one — and that revision removes the session concept

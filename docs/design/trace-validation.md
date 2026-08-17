@@ -133,6 +133,8 @@ is a score rather than a verdict. The totals name every outcome — pass / fail 
 warn / not-applicable / not-observed / excluded / unsupported — so a reader can
 see what was actually exercised, and check that the counts sum to the
 registry's size.
+(The decision, and the counting rule's edge cases:
+[ADR-0012](../plan/decisions/0012-not-observed-outcome.md).)
 
 ## 6. Calibration: the agreement check
 
