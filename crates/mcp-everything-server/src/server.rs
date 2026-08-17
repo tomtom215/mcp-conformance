@@ -194,15 +194,7 @@ impl ServerHandler for EverythingServer {
             env!("CARGO_PKG_VERSION"),
         ))
         .with_protocol_version(self.revision.protocol_version())
-        .with_instructions(
-            "Reference server for MCP conformance testing: every advertised \
-             capability is implemented and exercised by the official suite. \
-             Tools include echo, add, and the suite's test_* contract; \
-             resources test://static-text, test://static-binary, and the \
-             test://template/{id}/data template; four test_* prompts; \
-             logging/setLevel; completion/complete."
-                .to_owned(),
-        )
+        .with_instructions(self.revision.instructions().to_owned())
     }
 
     async fn initialize(

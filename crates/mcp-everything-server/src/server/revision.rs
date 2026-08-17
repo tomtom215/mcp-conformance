@@ -61,6 +61,41 @@ impl ServedRevision {
         matches!(self, Self::V2026_07_28)
     }
 
+    /// The `instructions` this revision's server offers a client.
+    ///
+    /// Two strings rather than one with a conditional tail, because they are
+    /// prose read by a model deciding what to call: the `2025-11-25` text names
+    /// `logging/setLevel`, and that method does not exist at `2026-07-28` —
+    /// SEP-2577 moved the level onto each request's `_meta`. A shared string
+    /// would have to name it for both or neither, and either way the server
+    /// would be describing a surface it does not have. Nothing judges this
+    /// field; it is accurate because a reference implementation's guidance
+    /// being wrong is its own defect.
+    #[must_use]
+    pub const fn instructions(self) -> &'static str {
+        match self {
+            Self::V2025_11_25 => {
+                "Reference server for MCP conformance testing: every advertised \
+                 capability is implemented and exercised by the official suite. \
+                 Tools include echo, add, and the suite's test_* contract; \
+                 resources test://static-text, test://static-binary, and the \
+                 test://template/{id}/data template; four test_* prompts; \
+                 logging/setLevel; completion/complete."
+            }
+            Self::V2026_07_28 => {
+                "Reference server for MCP conformance testing, serving the \
+                 stateless 2026-07-28 surface: no initialize, no sessions, and \
+                 every request carrying its own _meta. Probe server/discover \
+                 for capabilities. Tools include echo, add, and the suite's \
+                 test_* contract; resources test://static-text, \
+                 test://static-binary, and the test://template/{id}/data \
+                 template; four test_* prompts; completion/complete. Log level \
+                 rides each request's _meta at this revision; there is no \
+                 logging/setLevel."
+            }
+        }
+    }
+
     /// Whether results this revision defines caching hints for should carry
     /// them (SEP-2549's `ttlMs` and `cacheScope`).
     ///
@@ -98,6 +133,30 @@ mod tests {
         assert_eq!(
             ServedRevision::V2026_07_28.protocol_version(),
             ProtocolVersion::V_2026_07_28
+        );
+    }
+
+    #[test]
+    fn the_instructions_do_not_offer_a_method_the_revision_removed() {
+        // A model reads this field to decide what to call. `logging/setLevel`
+        // is gone at 2026-07-28 (SEP-2577 moved the level onto each request's
+        // `_meta`), so naming it there would be the reference implementation
+        // handing out a wrong answer.
+        // Offered, in the list of what this server answers…
+        assert!(
+            ServedRevision::V2025_11_25
+                .instructions()
+                .contains("; logging/setLevel;")
+        );
+        // …and at the newer revision, named only to say it is gone. Denying it
+        // beats omitting it: a client that knows the method from the older
+        // revision is exactly the one that needs telling.
+        let stateless = ServedRevision::V2026_07_28.instructions();
+        assert!(!stateless.contains("; logging/setLevel;"));
+        assert!(stateless.contains("there is no logging/setLevel"));
+        assert!(
+            stateless.contains("server/discover"),
+            "and it names the probe that replaced the handshake"
         );
     }
 
