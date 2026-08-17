@@ -118,13 +118,32 @@ fn retries<'a>(context: &'a TraceContext<'_>) -> Vec<Retry<'a>> {
         .collect()
 }
 
-/// The round a retry answers: the most recent one recorded before it.
-fn round_for<'a>(rounds: &[Round<'a>], retry: &Retry<'_>) -> Option<Round<'a>> {
-    rounds
-        .iter()
-        .filter(|round| round.seq < retry.seq)
-        .max_by_key(|round| round.seq)
-        .copied()
+/// Each retry paired with the round it answers: the most recent one before it.
+///
+/// One ordered pass rather than a `round.seq < retry.seq` comparison. A round is
+/// a server *result* and a retry a client *request*, so no two can share a `seq`
+/// — which makes `<` and `<=` indistinguishable by construction, a difference no
+/// trace could ever exhibit and therefore no test could ever catch. Walking the
+/// messages in order states the intent directly instead.
+fn retries_with_rounds<'a>(context: &'a TraceContext<'_>) -> Vec<(Retry<'a>, Option<Round<'a>>)> {
+    let rounds: BTreeMap<u64, Round<'a>> = rounds(context)
+        .into_iter()
+        .map(|round| (round.seq, round))
+        .collect();
+    let retries: BTreeMap<u64, Retry<'a>> = retries(context)
+        .into_iter()
+        .map(|retry| (retry.seq, retry))
+        .collect();
+    let mut latest: Option<Round<'a>> = None;
+    let mut out = Vec::new();
+    for (event, _, _) in context.messages() {
+        if let Some(round) = rounds.get(&event.seq) {
+            latest = Some(*round);
+        } else if let Some(retry) = retries.get(&event.seq) {
+            out.push((*retry, latest));
+        }
+    }
+    out
 }
 
 /// `MRTR-004`: `InputRequiredResult` answers only the three supported requests.
@@ -198,9 +217,8 @@ pub(in crate::checks) fn retry_carries_input_responses(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let rounds = rounds(context);
-    for retry in retries(context) {
-        let Some(round) = round_for(&rounds, &retry) else {
+    for (retry, round) in retries_with_rounds(context) {
+        let Some(round) = round else {
             continue;
         };
         for key in missing_keys(&round, &retry) {
@@ -239,9 +257,8 @@ fn missing_keys(round: &Round<'_>, retry: &Retry<'_>) -> Vec<String> {
 /// changed value is the only wire-visible form of "modified" — inspecting and
 /// parsing leave no trace — so a finding here is a true finding for all three.
 pub(in crate::checks) fn request_state_echoed(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    let rounds = rounds(context);
-    for retry in retries(context) {
-        let Some(round) = round_for(&rounds, &retry) else {
+    for (retry, round) in retries_with_rounds(context) {
+        let Some(round) = round else {
             continue;
         };
         let Some(issued) = round.state else { continue };
@@ -272,12 +289,11 @@ pub(in crate::checks) fn no_unsolicited_request_state(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let rounds = rounds(context);
-    for retry in retries(context) {
+    for (retry, round) in retries_with_rounds(context) {
         if retry.state.is_none() {
             continue;
         }
-        let issued = round_for(&rounds, &retry).and_then(|round| round.state);
+        let issued = round.and_then(|round| round.state);
         if issued.is_none() {
             sink.push(
                 Some(retry.seq),
@@ -291,9 +307,8 @@ pub(in crate::checks) fn no_unsolicited_request_state(
 
 /// `MRTR-019`: the retry is a new request, with a new id.
 pub(in crate::checks) fn retry_id_differs(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    let rounds = rounds(context);
-    for retry in retries(context) {
-        let Some(round) = round_for(&rounds, &retry) else {
+    for (retry, round) in retries_with_rounds(context) {
+        let Some(round) = round else {
             continue;
         };
         let (origin_seq, origin_id, _) = round.origin;
@@ -353,15 +368,12 @@ pub(in crate::checks) fn request_state_scoped_to_retry(
 /// request rather than failing it, which is why the error is treated as
 /// evidence that it could not.
 pub(in crate::checks) fn missing_input_reasked(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    let rounds = rounds(context);
+    let paired: BTreeMap<u64, (Retry<'_>, Option<Round<'_>>)> = retries_with_rounds(context)
+        .into_iter()
+        .map(|(retry, round)| (retry.seq, (retry, round)))
+        .collect();
     for exchange in context.exchanges() {
-        let Some(retry) = retries(context)
-            .into_iter()
-            .find(|retry| retry.seq == exchange.request.seq)
-        else {
-            continue;
-        };
-        let Some(round) = round_for(&rounds, &retry) else {
+        let Some((retry, Some(round))) = paired.get(&exchange.request.seq).copied() else {
             continue;
         };
         let missing = missing_keys(&round, &retry);

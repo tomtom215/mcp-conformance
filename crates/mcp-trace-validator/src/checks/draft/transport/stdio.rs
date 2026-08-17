@@ -103,7 +103,13 @@ pub(in crate::checks) fn no_messages_after_cancel_notification(
 ) {
     // Request id (canonical text) → the progress token it opted into, if any.
     let mut tokens: BTreeMap<String, String> = BTreeMap::new();
-    // Cancelled request id → the seq of the notification that cancelled it.
+    // Cancelled request id → the seq of the notification that cancelled it. An
+    // id enters this map at the cancellation and is judged only for what comes
+    // *after*, which is the ordering the clause states — expressed by when the
+    // entry appears rather than by comparing sequence numbers later. A
+    // cancellation is a client notification and the messages judged are
+    // server-sent, so `seq > cancelled_at` and `seq >= cancelled_at` would be
+    // the same rule, and no trace could tell them apart.
     let mut cancelled: BTreeMap<String, u64> = BTreeMap::new();
     for event in context.events() {
         if let Some((method, params)) = client_notification(event) {
@@ -171,14 +177,12 @@ fn report_if_cancelled(
         let Some(&cancelled_at) = cancelled.get(&id) else {
             continue;
         };
-        if event.seq > cancelled_at {
-            sink.push(
-                Some(event.seq),
-                format!(
-                    "server sent {what} for request {id}, which the client cancelled at \
-                     seq {cancelled_at}"
-                ),
-            );
-        }
+        sink.push(
+            Some(event.seq),
+            format!(
+                "server sent {what} for request {id}, which the client cancelled at \
+                 seq {cancelled_at}"
+            ),
+        );
     }
 }

@@ -175,6 +175,24 @@ fn another_subscriptions_traffic_may_interleave_ahead_of_the_acknowledgment() {
 }
 
 #[test]
+fn a_second_subscriptions_notification_does_not_open_this_one() {
+    // The first tagged message per *id*, not the first message that happens to
+    // follow the listen request: subscription 1's ordinary notification arrives
+    // between subscription 2's request and its acknowledgment, and neither is at
+    // fault.
+    let session = trace(&[
+        listen(0, 1, r#"{"toolsListChanged":true}"#),
+        ack(1, 1),
+        listen(2, 2, r#"{"promptsListChanged":true}"#),
+        notify(3, 1, "notifications/tools/list_changed", ""),
+        ack(4, 2),
+        notify(5, 2, "notifications/prompts/list_changed", ""),
+    ]);
+    assert!(findings_for(ACK_FIRST, &session).is_empty());
+    assert!(findings_for(ONLY_REQUESTED, &session).is_empty());
+}
+
+#[test]
 fn a_subscription_with_nothing_on_it_yet_is_not_reported() {
     // A recording that ends before the acknowledgment arrives is not evidence
     // that it never did.

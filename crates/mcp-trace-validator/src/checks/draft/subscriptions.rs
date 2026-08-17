@@ -15,9 +15,9 @@
 //! does with what it received (compare the filter, demultiplex the stream), and
 //! one begins after a reconnection, which is a second recording.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use mcp_conformance_core::trace::Direction;
+use mcp_conformance_core::trace::{Direction, TraceEvent};
 use serde_json::{Map, Value};
 
 use super::super::FindingSink;
@@ -94,21 +94,24 @@ fn subscriptions<'a>(context: &'a TraceContext<'_>) -> BTreeMap<String, Subscrip
 fn tagged<'a>(context: &'a TraceContext<'_>) -> Vec<(u64, String, Option<&'a str>, &'a Value)> {
     context
         .messages()
-        .filter_map(|(event, _, _)| {
-            if event.direction != Direction::ServerToClient {
-                return None;
-            }
-            let payload = event.message_payload()?;
-            let params = payload.get("params").or_else(|| payload.get("result"))?;
-            let id = params.get("_meta")?.get(SUBSCRIPTION_ID)?;
-            Some((
-                event.seq,
-                id.to_string(),
-                payload.get("method").and_then(Value::as_str),
-                params,
-            ))
-        })
+        .filter_map(|(event, _, _)| tagged_message(event))
         .collect()
+}
+
+/// The subscription tag one server message carries, if any.
+fn tagged_message(event: &TraceEvent) -> Option<(u64, String, Option<&str>, &Value)> {
+    if event.direction != Direction::ServerToClient {
+        return None;
+    }
+    let payload = event.message_payload()?;
+    let params = payload.get("params").or_else(|| payload.get("result"))?;
+    let id = params.get("_meta")?.get(SUBSCRIPTION_ID)?;
+    Some((
+        event.seq,
+        id.to_string(),
+        payload.get("method").and_then(Value::as_str),
+        params,
+    ))
 }
 
 /// `SUBS-001`: only the notification types the filter asked for.
@@ -176,26 +179,38 @@ fn unrequested(
 /// did. What is falsifiable is a *first* tagged message that is something else.
 pub(in crate::checks) fn acknowledgment_first(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let subscriptions = subscriptions(context);
-    let tagged = tagged(context);
-    for (id, subscription) in &subscriptions {
-        let first = tagged
+    // One ordered pass, deciding each subscription at its first tagged message.
+    // The alternative — filtering the tagged messages by `tag == id && seq >
+    // listen.seq` — carried two comparisons a trace can never exercise: a
+    // subscription's messages are server-sent and its `subscriptions/listen` is
+    // client-sent, so no two share a `seq`, making `>` and `>=` the same rule.
+    let mut open: BTreeMap<String, u64> = BTreeMap::new();
+    let mut decided: BTreeSet<String> = BTreeSet::new();
+    for (event, _, _) in context.messages() {
+        if let Some((id, subscription)) = subscriptions
             .iter()
-            .filter(|(seq, tag, _, _)| tag == id && *seq > subscription.seq)
-            .min_by_key(|(seq, _, _, _)| *seq);
-        let Some((seq, _, method, _)) = first else {
+            .find(|(_, subscription)| subscription.seq == event.seq)
+        {
+            open.insert(id.clone(), subscription.seq);
+            continue;
+        }
+        let Some((seq, id, method, _)) = tagged_message(event) else {
             continue;
         };
+        if !open.contains_key(&id) || !decided.insert(id.clone()) {
+            continue;
+        }
         match method {
             Some(ACKNOWLEDGED) => {}
             Some(other) => sink.push(
-                Some(*seq),
+                Some(seq),
                 format!(
                     "subscription {id} opened with `{other}`; `{ACKNOWLEDGED}` must be its \
                      first message"
                 ),
             ),
             None => sink.push(
-                Some(*seq),
+                Some(seq),
                 format!(
                     "subscription {id} was closed by its `{LISTEN}` response before any \
                      `{ACKNOWLEDGED}` was sent"

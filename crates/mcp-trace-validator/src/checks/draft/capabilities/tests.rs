@@ -70,6 +70,21 @@ fn a_session_that_never_probed_is_not_judged() {
 }
 
 #[test]
+fn a_capability_set_false_or_null_is_not_declared() {
+    // Both halves of the declaration test are load-bearing and neither implies
+    // the other: `null` is null but is not `false`, and `false` is not null.
+    for declaration in [r#"{"logging":false}"#, r#"{"logging":null}"#] {
+        let mut lines = discovered(declaration);
+        lines.push(logged(2));
+        assert_eq!(
+            findings_for(LOGGING, &trace(&lines)).len(),
+            1,
+            "declaration {declaration}"
+        );
+    }
+}
+
+#[test]
 fn logging_is_judged_by_the_notification_it_emits() {
     let mut undeclared = discovered("{}");
     undeclared.push(logged(2));
