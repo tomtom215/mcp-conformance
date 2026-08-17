@@ -901,6 +901,19 @@ not captured; no implementation here serves the stateless surface end to end"
 — is closed. Every one of the 124 judged clauses now has a real recording of a
 conforming implementation behind it, produced by a client nobody here wrote.
 
+### Gates
+
+Every gate ran against the finished branch: `cargo xtask ci` green in all three
+feature modes; `cargo xtask conformance` **40/40** on the pinned `2025-11-25`
+suite with the agreement check green over four sessions; `cargo xtask
+spec-drift` **412 quotes across two revisions, 0 drifted**; the diff-scoped
+mutation gate **301 mutants — 288 caught, 13 unviable, 0 missed**; the full
+test suite green.
+
+The conformance and draft-readiness numbers are the load-bearing ones here:
+they are what proves the `2025-11-25` surface did not move while the new mode
+was added.
+
 ### Known gap: the stateless surface is HTTP-only
 
 `--protocol-version 2026-07-28 --transport stdio` is **refused at startup**, not
