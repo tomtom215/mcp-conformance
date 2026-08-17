@@ -1,10 +1,10 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 63,
-    "fail": 1,
+    "pass": 77,
+    "fail": 2,
     "warn": 1,
-    "excluded": 84,
+    "excluded": 94,
     "unsupported": 0,
     "not_applicable": 0
   },
@@ -856,6 +856,153 @@
       "level": "MUST NOT",
       "outcome": "excluded",
       "exclusion": "Binds the client's decision function, not any message it sends. A session exhibits one probe answered by one error code and one decision taken; whether the client would have fallen back on a *different* code is a property of code paths that session never exercised, and no number of traces settles it."
+    },
+    {
+      "id": "MRTR-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-002",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "meta.required-request-fields",
+          "seq": 0,
+          "detail": "request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`"
+        },
+        {
+          "check": "meta.required-request-fields",
+          "seq": 0,
+          "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
+        }
+      ]
+    },
+    {
+      "id": "MRTR-003",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-004",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-005",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "JSON object members are unique by the time any check runs: a duplicate key is collapsed by the parser that reads the trace, so a violation cannot survive into the events a check sees. The same reason TRAN-110 and TRAN-115 exclude — the defect is destroyed at parse time, not judged and passed."
+    },
+    {
+      "id": "MRTR-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-007",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "A disposition toward an input, not an act: a server that treats state as trusted and one that treats it as hostile send the same messages until the state is actually tampered with, and even then what differs is the server's internal decision. The consequences the clause draws from it — integrity protection and rejection — are MRTR-008, excluded for their own reasons."
+    },
+    {
+      "id": "MRTR-008",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Both halves are invisible on the wire. `requestState` is opaque by construction — the specification's own examples range over base64 JSON, encrypted JWTs and serialized binary — so no check can tell an HMAC-protected blob from an unprotected one. The antecedent is worse still: whether the state influences authorization is a fact about the server's code. Verified instead by the implementation's own tests, where the key is available."
+    },
+    {
+      "id": "MRTR-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Names three fields that live *inside* the integrity-protected payload, which is opaque and generally encrypted — the trace carries the blob, never its contents. Two of the three also bind time and identity: expiry is a duration, which checks may not consult (LIFE-015), and the authenticated principal is not in the message."
+    },
+    {
+      "id": "MRTR-010",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The clause's own words put the obligation server-side, and its antecedent — that this server's states are single-use — is a property of the server's design that no message declares. A trace showing one state presented twice would still not distinguish a violated invariant from a server for which none was ever claimed."
+    },
+    {
+      "id": "MRTR-011",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-012",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-013",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-014",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Forbids an assumption. Its wire-visible consequence would be a server that breaks when a client declines to retry, and a conforming session never exhibits that: the client either retries, which tells us nothing about the assumption, or does not, and the trace simply ends."
+    },
+    {
+      "id": "MRTR-015",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-016",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-017",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-018",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-019",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-020",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-021",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds an act of validation, whose outcome is the only thing that reaches the wire — and a server that validated and accepted is indistinguishable from one that never looked. The outcomes the specification does pin are separate clauses: MRTR-023 for what a rejection may ignore, MRTR-024 for what a shortfall must draw."
+    },
+    {
+      "id": "MRTR-022",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The antecedent is not identifiable from a trace: nothing in an exchange says whether the server met a protocol error, so an error response and a completed result are equally consistent with the clause. \"Appropriate\" is also unbounded — the clause names no code — and the shape an error must have regardless is BASE-052's, which is checked."
+    },
+    {
+      "id": "MRTR-023",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Requires an absence of consequence: a server that ignored an unexpected field and one that never read it produce identical sessions. The only failing form would be a server that rejected the request *because* of the extra field, and no error response says that was the reason."
+    },
+    {
+      "id": "MRTR-024",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-025",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "A pointer back to MRTR-007 and MRTR-008 rather than a new rule, and it inherits their reason: the state is an opaque blob, so no check can tell a validated one from an unvalidated one."
     }
   ]
 }

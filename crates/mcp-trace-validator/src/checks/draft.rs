@@ -16,6 +16,7 @@ use crate::context::TraceContext;
 pub(super) mod discovery;
 pub(super) mod envelope;
 pub(super) mod meta;
+pub(super) mod mrtr;
 pub(super) mod transport;
 pub(super) mod versioning;
 

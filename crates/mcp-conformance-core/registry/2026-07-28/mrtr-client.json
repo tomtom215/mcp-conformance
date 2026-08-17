@@ -1,0 +1,162 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "MRTR-015",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "If a client receives an `InputRequiredResult` that contains the `inputRequests` field, the client MUST construct the requested inputs before retrying the original request."
+      },
+      "checks": [
+        "mrtr.retry-carries-input-responses"
+      ]
+    },
+    {
+      "id": "MRTR-016",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "If an `InputRequiredResult` contains the `requestState` field, the client MUST echo back the exact value of that field when retrying the original request."
+      },
+      "checks": [
+        "mrtr.request-state-echoed"
+      ]
+    },
+    {
+      "id": "MRTR-017",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "Clients MUST NOT inspect, parse, modify, or make any assumptions about the `requestState` contents."
+      },
+      "checks": [
+        "mrtr.request-state-echoed"
+      ]
+    },
+    {
+      "id": "MRTR-018",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "If the `InputRequiredResult` does not contain a `requestState` field, the client MUST NOT include one in the retry."
+      },
+      "checks": [
+        "mrtr.no-unsolicited-request-state"
+      ]
+    },
+    {
+      "id": "MRTR-019",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "The JSON-RPC `id` MUST be different between the initial request and the retry, as they are independent requests."
+      },
+      "checks": [
+        "mrtr.retry-id-differs"
+      ]
+    },
+    {
+      "id": "MRTR-020",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "They MUST NOT be used for any other request that the client may be sending in parallel."
+      },
+      "checks": [
+        "mrtr.request-state-scoped-to-retry"
+      ]
+    },
+    {
+      "id": "MRTR-021",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#error-handling",
+        "quote": "Servers SHOULD validate that the data provided by the client is a valid `InputResponses` object and that the information inside can be correctly parsed."
+      },
+      "exclusion": "Binds an act of validation, whose outcome is the only thing that reaches the wire — and a server that validated and accepted is indistinguishable from one that never looked. The outcomes the specification does pin are separate clauses: MRTR-023 for what a rejection may ignore, MRTR-024 for what a shortfall must draw."
+    },
+    {
+      "id": "MRTR-022",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#error-handling",
+        "quote": "Protocol errors (malformed JSON, invalid schema, internal server errors) SHOULD return a JSON-RPC error response with an appropriate error code and message."
+      },
+      "exclusion": "The antecedent is not identifiable from a trace: nothing in an exchange says whether the server met a protocol error, so an error response and a completed result are equally consistent with the clause. \"Appropriate\" is also unbounded — the clause names no code — and the shape an error must have regardless is BASE-052's, which is checked."
+    },
+    {
+      "id": "MRTR-023",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#error-handling",
+        "quote": "If additional, unexpected parameters are provided in the `InputResponses` object, the server SHOULD ignore any information it does not recognize or need."
+      },
+      "exclusion": "Requires an absence of consequence: a server that ignored an unexpected field and one that never read it produce identical sessions. The only failing form would be a server that rejected the request *because* of the extra field, and no error response says that was the reason."
+    },
+    {
+      "id": "MRTR-024",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#error-handling",
+        "quote": "If the client fails to send all the information requested in a previous `InputRequests`, and the missing information is necessary for the server to process the request, the server SHOULD respond with a new `InputRequiredResult` requesting the missing information again, rather than returning an error."
+      },
+      "checks": [
+        "mrtr.missing-input-reasked"
+      ]
+    },
+    {
+      "id": "MRTR-025",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#security-considerations",
+        "quote": "Servers MUST validate request state as described in the server requirements above."
+      },
+      "exclusion": "A pointer back to MRTR-007 and MRTR-008 rather than a new rule, and it inherits their reason: the state is an opaque blob, so no check can tell a validated one from an unvalidated one."
+    }
+  ]
+}
