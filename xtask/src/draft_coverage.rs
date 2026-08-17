@@ -132,7 +132,7 @@ fn verify(
     }
     // Bound before the `&&`, so a stale table never hides a wrong claim: an
     // operator fixing one wants to see both in the same run.
-    let claims_ok = claims::check(root, summary);
+    let claims_ok = claims::check(root, captures, summary);
     let ok = table_ok && claims_ok;
     if ok {
         eprintln!(
@@ -175,6 +175,10 @@ pub(crate) struct Capture {
     pass: u32,
     fail: u32,
     warn: u32,
+    /// Clauses the registry documents as unjudgeable from a trace. Not part of
+    /// any coverage arithmetic — carried because the verdict rows in
+    /// `corpus/README.md` quote it, so the claim check has to know it.
+    excluded: u32,
     observed: BTreeSet<String>,
     not_observed: BTreeSet<String>,
 }
@@ -241,6 +245,7 @@ fn tally(name: String, report: &GoldenReport) -> Capture {
         pass: 0,
         fail: 0,
         warn: 0,
+        excluded: 0,
         observed: BTreeSet::new(),
         not_observed: BTreeSet::new(),
     };
@@ -251,6 +256,10 @@ fn tally(name: String, report: &GoldenReport) -> Capture {
             "warn" => capture.warn += 1,
             "not-observed" => {
                 capture.not_observed.insert(row.id.clone());
+                continue;
+            }
+            "excluded" => {
+                capture.excluded += 1;
                 continue;
             }
             _ => continue,

@@ -253,7 +253,7 @@ probe, `MRTR-024`, `BASE-040`, `BASE-047`, and `VERS-004`.
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-08-17 |
 | Contents | 151 events — the stdio session's 81 messages plus 70 `http` events carrying status and headers |
-| Our verdict | **90 pass, 0 fail, 0 warn**, 34 not observed, 148 excluded |
+| Our verdict | **89 pass, 0 fail, 0 warn**, 35 not observed, 148 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol

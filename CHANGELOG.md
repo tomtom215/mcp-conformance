@@ -195,12 +195,13 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   that reading cannot provide, and the matched pair is what makes every
   difference between the two reports attributable to the one variable.
 
-  The legacy server scores **123 pass, 1 fail** (CACH-001: no `ttlMs` on
+  The legacy server scores **58 pass, 1 fail** (CACH-001: no `ttlMs` on
   cacheable results, the correct answer for a server held to a revision it does
-  not implement); the stateless server scores **124 pass, 0 fail**. The
-  official runner scores both **23/23** — its scenarios exercise features and
-  cannot separate the two servers, which is exactly the gap a requirement
-  registry fills.
+  not implement); the stateless server scores **59 pass, 0 fail**. Both leave
+  65 clauses *not observed* — these scenarios exercise features, and the
+  revision's rejection rules, subscriptions and MRTR rounds are not among them.
+  The official runner scores both **23/23**: it cannot separate the two
+  servers, which is exactly the gap a requirement registry fills.
 
   A third capture, `reference-host-2026-07-28-stdio.jsonl`, records the same
   server over stdio (`cargo xtask draft-capture`). Its provenance is weaker and
@@ -222,10 +223,14 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
   A table alone cannot stop a sentence in another file from disagreeing with
   it, which is how these numbers drifted in the first place, so the same task
-  parses every "N of the M judgeable clauses" claim in the shipped Markdown and
-  requires it to name a real pair: the denominator must be the judgeable total,
-  and the numerator must be either the union or some capture's own judged
-  count. `CHANGELOG.md` is read only above its first released heading — a
+  reads the prose too. Every "N of the M judgeable clauses" claim must name a
+  real pair — the denominator the judgeable total, the numerator either the
+  union or some capture's own judged count — and every quoted verdict
+  ("58 pass, 1 fail, 0 warn, 65 not observed, 148 excluded") must be a tuple
+  some committed report actually produced. Verdicts are read per table cell, so
+  a two-column comparison row is two claims, and fenced code blocks are skipped
+  because sample CLI output illustrates a format rather than asserting
+  anything. `CHANGELOG.md` is read only above its first released heading — a
   shipped release's numbers were true when written and are not rewritten to
   match today's corpus.
 
@@ -289,22 +294,27 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `-32602` in every recording *was* a malformed envelope until the enriched
   HTTP capture carried one that was not.
 
-- **Six coverage counts in shipped documentation were wrong, every one of them
-  overstating.** `crates/mcp-everything-server/README.md` reported the
-  *judgeable total* as a pass count — "124 clauses pass, 0 fail" where the
-  conforming captures evidence 91 — which is the same vacuous-pass accounting
-  the fix above removed from the report, surviving in prose. `corpus/README.md`
-  wrote the HTTP capture up at 90 judged and 34 not observed where the report
-  says 89 and 35; called 23 Streamable HTTP clauses "twenty-four"; called six
-  surface-limited clauses "Four" and then listed six; and split the fifteen
-  unevidenced clauses "Seven … Eight" where the split is 8 and 7, with
-  `PAGE-010` listed among them although the probe session judges it.
-  `README.md` and this file attributed the 109-clause union to three captures
-  when it takes all five — the official runner's two are what reach `TOOL-022`.
+- **Nine coverage counts in shipped documentation were wrong, every one of
+  them overstating.** Three were the vacuous-pass accounting surviving in prose
+  after the report itself was fixed: `crates/mcp-everything-server/README.md`
+  reported the *judgeable total* as a pass count — "124 clauses pass, 0 fail"
+  where the conforming captures evidence 91 — and this file scored the two
+  official-suite captures at 123 and 124 passes where the reports say
+  58 pass, 1 fail and 59 pass, 0 fail, with 65 clauses not observed on each.
 
-  All six are corrected against the reports, and `cargo xtask draft-coverage
-  --check` is why they cannot recur: it fails on each of them, which is how
-  they were found.
+  The rest were arithmetic. `corpus/README.md` wrote the HTTP capture up at 90
+  pass and 34 not observed where the report says 89 and 35 — twice, once in the
+  verdict row and once in the prose beneath it; called 23 Streamable HTTP
+  clauses "twenty-four"; called six surface-limited clauses "Four" and then
+  listed six; and split the fifteen unevidenced clauses "Seven … Eight" where
+  the split is 8 and 7, with `PAGE-010` listed among them although the probe
+  session judges it. `README.md` and this file attributed the 109-clause union
+  to three captures when it takes all five — the official runner's two are what
+  reach `TOOL-022`.
+
+  All nine are corrected against the reports, and `cargo xtask draft-coverage
+  --check` is why they cannot recur: it fails on every one of them, which is
+  how the last three were found.
 
 - **A clause a session never came near was reported as a `pass`.** This was the
   single largest correctness defect in the report. A check that ran, found
