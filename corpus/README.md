@@ -241,20 +241,16 @@ TTL, which is a property of the caching feature working rather than a gap to
 close. The rest (`TRAN-123`/`TRAN-124` cancellation, `MRTR-024`,
 `DISC-002`, `BASE-040`, `BASE-047`) are reachable and not yet driven.
 
-**Across all four captures, 92 of the 124 judgeable clauses are evidenced by
-at least one recording.** The 32 that are not divide into three groups, and
-naming them is the point of counting: fifteen are server *rejection* rules
-(`BASE-031`/`032`/`035`/`036`, `LOG-010`, `PAGE-011`,
-`TRAN-073`/`074`/`075`/`096`/`098`/`102`, `VERS-001`/`002`/`008`) that need a
-probe session — a client that deliberately sends something malformed, whose
-expected report is not a clean one; seven need server surface this reference
-does not have (pagination for `CACH-015`/`016` and `PAGE-010`, an
-`x-mcp-header` designation for `TOOL-033`/`034` and `TRAN-079`/`080`, a prompt
-carrying audio for `PROM-017`); and six are conforming client behaviour simply
-not driven yet (`BASE-040`'s `traceparent`, `DISC-002`'s dual-era probe,
-cancellation for `TRAN-070`/`123`/`124`, and `MRTR-024`'s shortfall retry).
-None of the three is a defect; all three are work, and the first is the one
-worth doing next.
+**Across all five captures, 109 of the 124 judgeable clauses are evidenced by
+at least one recording.** The probe session closed the largest group — the
+rejection rules — and what remains divides in two. Seven need server surface
+this reference does not have: pagination for `CACH-015`/`016` and `PAGE-010`,
+an `x-mcp-header` designation for `TOOL-033`/`034` and `TRAN-079`/`080`/`096`,
+and a prompt carrying audio for `PROM-017`. Eight are conforming client
+behaviour simply not driven yet: `BASE-040`'s `traceparent`, `BASE-047`,
+`VERS-004`'s extension identifiers, cancellation for
+`TRAN-070`/`123`/`124`, and `MRTR-024`'s shortfall retry. Neither group is a
+defect; both are work.
 
 #### The HTTP capture of the same session
 
@@ -282,6 +278,37 @@ not-observed rows are the server-rejection rules a conforming client never
 triggers, the pagination and `x-mcp-header` clauses this server's surface does
 not reach, and `TOOL-022` (rmcp's client caches `tools/list` under the
 server's own `ttlMs`, so a second listing never reaches the wire).
+
+#### The probe session
+
+| Field | `probe-2026-07-28-http.jsonl` |
+|---|---|
+| Client | `mcp-reference-host --probe`: nine hand-built HTTP requests, each wrong on purpose |
+| Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
+| Recorded by | The server's tap, during `cargo xtask draft-capture`, 2026-08-17 |
+| Contents | A `_meta` envelope missing a required field; an unimplemented protocol version and the retry after it; a header/body version mismatch; an unknown method; a log level outside RFC 5424's eight; a fabricated cursor; a tool needing a capability the request never declared; and the removed `initialize` handshake |
+| Our verdict | Judged against [`conformance/probe-baseline.json`](../conformance/probe-baseline.json), not for cleanliness |
+
+**A conforming client cannot exercise a rejection rule.** Fifteen clauses of
+this revision say what a server owes a request it must *not* serve, and every
+one of them reported *not observed* on every recording here, because nothing
+had ever sent such a request. This file is that request, nine times over.
+
+The probes are built outside rmcp, and that is the point rather than a
+shortcut: rmcp's client is what makes the other captures trustworthy — it
+builds the `_meta` envelope, mirrors the SEP-2243 headers, and will not emit an
+ill-formed request — so it is structurally incapable of being the probe. The
+bytes here are the fixture.
+
+**Its verdict is a ledger, not a pass.** The probe breaks client-side clauses
+by construction: `BASE-030` because its first request omits a required `_meta`
+field, `TRAN-071`/`TRAN-072` because two probes are about exactly those
+headers, `PAGE-010` because a fabricated cursor is a fabricated cursor.
+Demanding a clean report would mean demanding a probe that probes nothing. So
+every finding is listed in `conformance/probe-baseline.json` with a reason, and
+the gate holds the set in both directions: a finding not in the ledger is a new
+defect or a regression, and a listed finding that stopped occurring is either a
+fix that should retire its entry or a check that quietly stopped firing.
 
 **Its provenance is weaker than the pair above, and deliberately labelled so.**
 Both ends of this session are ours: the official suite drives servers over

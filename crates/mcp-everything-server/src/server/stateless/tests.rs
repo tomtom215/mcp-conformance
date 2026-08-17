@@ -16,7 +16,10 @@ use crate::server::{EverythingServer, ServedRevision};
 
 /// A gate over a server serving the stateless revision.
 fn gate() -> StatelessEnvelope<EverythingServer> {
-    StatelessEnvelope(EverythingServer::serving(ServedRevision::V2026_07_28))
+    StatelessEnvelope::new(
+        ServedRevision::V2026_07_28,
+        EverythingServer::serving(ServedRevision::V2026_07_28),
+    )
 }
 
 /// A client request, from the JSON a client would have sent.
@@ -222,7 +225,7 @@ fn the_wrapper_reports_the_inner_service_rather_than_itself() {
     // wrapper answering for itself would advertise a server nobody wrote — and
     // `fault` refuses versions against exactly this list, so a wrong answer
     // here is a wrong refusal on the wire.
-    let wrapped = StatelessEnvelope(Recorder::default());
+    let wrapped = StatelessEnvelope::new(ServedRevision::V2026_07_28, Recorder::default());
     assert_eq!(
         rmcp::Service::get_info(&wrapped).server_info.name,
         "recorder"
@@ -243,9 +246,12 @@ async fn a_notification_reaches_the_inner_service() {
     let notified = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let (server_io, mut client_io) = tokio::io::duplex(4096);
     let service = rmcp::service::serve_directly(
-        StatelessEnvelope(Recorder {
-            notified: std::sync::Arc::clone(&notified),
-        }),
+        StatelessEnvelope::new(
+            ServedRevision::V2026_07_28,
+            Recorder {
+                notified: std::sync::Arc::clone(&notified),
+            },
+        ),
         server_io,
         None,
     );

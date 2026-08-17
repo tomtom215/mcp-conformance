@@ -162,7 +162,11 @@ async fn serve_stdio(revision: ServedRevision) -> ExitCode {
 /// There is no readiness line and nothing to bind: over stdio the server is
 /// ready when the process is, and stdout belongs to the protocol.
 async fn serve_stdio_stateless(server: EverythingServer) -> ExitCode {
-    let service = serve_directly(StatelessEnvelope(server), stdio(), None);
+    let service = serve_directly(
+        StatelessEnvelope::new(ServedRevision::V2026_07_28, server),
+        stdio(),
+        None,
+    );
     waited(service.waiting().await)
 }
 

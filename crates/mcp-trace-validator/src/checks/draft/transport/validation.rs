@@ -244,8 +244,25 @@ pub(in crate::checks) fn unsupported_version_status(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
+    let handshakes = legacy_handshake_ids(context);
     for (event, _, _) in context.messages() {
         if answer_code(event) != Some(UNSUPPORTED_VERSION) {
+            continue;
+        }
+        // The clause's antecedent is a version requested *in the header*
+        // (`#protocol-version-header`), and the removed handshake carries
+        // none — a `2025-11-25` client has no such header to send. So a
+        // `-32022` answering an `initialize` is outside this rule, the same
+        // carve-out `basic/versioning` makes for the error *code* there
+        // ("the exact code is implementation-defined"); it would be
+        // incoherent to leave the code open and mandate one code's status.
+        // What a modern-only server owes that client is VERS-008's, and it
+        // is judged separately.
+        if event
+            .message_payload()
+            .and_then(|payload| payload.get("id"))
+            .is_some_and(|id| handshakes.contains(&id.to_string()))
+        {
             continue;
         }
         let Some((status_seq, status)) = http_status_for(context, event.seq) else {
@@ -309,6 +326,20 @@ fn unsupported_version_answer(context: &TraceContext<'_>, sink: &mut FindingSink
             );
         }
     }
+}
+
+/// The ids of `initialize` requests the client sent — the removed handshake.
+fn legacy_handshake_ids(context: &TraceContext<'_>) -> BTreeSet<String> {
+    context
+        .messages()
+        .filter_map(|(event, _, _)| {
+            let payload = event.message_payload()?;
+            if payload.get("method")?.as_str()? != "initialize" {
+                return None;
+            }
+            Some(payload.get("id")?.to_string())
+        })
+        .collect()
 }
 
 /// The protocol versions a `server/discover` result in the trace declared.

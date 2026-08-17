@@ -78,6 +78,30 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   (`RES-012`/`013`/`018`/`022`/`023`) and `COMP-007` are judged on real traffic
   where they previously reported *not observed*.
 
+- **A probe session: deliberately malformed requests, so the rejection clauses
+  have traffic to judge.** Fifteen `2026-07-28` clauses say what a server owes
+  a request it must *not* serve, and every one reported *not observed* on every
+  recording, because a conforming client cannot exercise a rejection rule.
+  `mcp-reference-host --probe` sends nine hand-built HTTP requests — an
+  envelope missing a required field, an unimplemented protocol version and the
+  retry after it, a header/body version mismatch, an unknown method, a log
+  level outside RFC 5424's eight, a fabricated cursor, a tool needing an
+  undeclared capability, and the removed `initialize` handshake — captured by
+  the server's tap as `corpus/draft/captured/probe-2026-07-28-http.jsonl`.
+
+  The probes are built outside rmcp deliberately: rmcp's client is what makes
+  the other captures trustworthy — it builds the `_meta` envelope, mirrors the
+  SEP-2243 headers, and will not emit an ill-formed request — so it is
+  structurally incapable of being the probe.
+
+  Its verdict is a ledger rather than a pass. The probe breaks client-side
+  clauses by construction, so demanding a clean report would mean demanding a
+  probe that probes nothing; instead every finding is listed in
+  [`conformance/probe-baseline.json`](conformance/probe-baseline.json) with a
+  hand-written reason, and the gate holds the set in both directions. Across
+  all three captures **109 of the 124 judgeable clauses are now evidenced**, up
+  from 92.
+
 - **`draft-capture` records the same session over Streamable HTTP too, from
   the server's end.** `corpus/draft/captured/reference-host-2026-07-28-http.jsonl`
   is the identical sweep driven over HTTP and recorded by the server's tap
@@ -97,9 +121,13 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   both transports.** `--protocol-version 2026-07-28` selects it: no
   `initialize`, no sessions, `server/discover` for capability advertisement,
   per-request `_meta` required, and SEP-2549 caching hints on cacheable
-  results. The official suite's `2026-07-28` scenarios pass **23/23** against
-  it, and this workspace's own registry reports **0 fail** on captured sessions
-  over HTTP *and* over stdio — 59 clauses judged and passing on the HTTP
+  results. `StatelessEnvelope` now also rejects a log level outside RFC 5424's
+  eight and a cursor this server never issued — both were live `MUST`/`SHOULD`
+  failures until the probe session asked for them, and both are enforced on
+  stdio only, an asymmetry `conformance/probe-baseline.json` records as the
+  open defect it is. The official suite's `2026-07-28` scenarios pass **23/23**
+  against it, and this workspace's own registry reports **0 fail** on the
+  conforming captured sessions over HTTP *and* over stdio — 59 clauses judged and passing on the HTTP
   capture, 56 on the stdio one, the rest *not observed* because those sessions
   never carried the traffic they bind to. (Those two counts read 124 apiece
   until the vacuous-pass fix below; the sessions have not changed, only what
@@ -203,6 +231,24 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   although it never reached the wire, which happens only when the transport is
   dying and misrepresents one message instead of reordering every concurrent
   exchange.
+
+- **The capture harness truncated its own recordings.** It killed the tapped
+  server the moment the client exited — but the server answers a request and
+  *then* taps it, so the last line raced the kill. The probe capture lost its
+  final response, and with it `TRAN-074`'s outcome; the HTTP capture lost a
+  clause too, and both moved between runs. The harness now waits for the
+  recording to stop growing before killing, which made three consecutive runs
+  byte-identical where they had disagreed.
+
+- **`TRAN-074` was judged more broadly than the clause it quotes**, and the
+  truncation above had been hiding it. The clause is stated under
+  `#protocol-version-header` and its antecedent is a version requested *in that
+  header*, which the removed `initialize` handshake cannot carry — a
+  `2025-11-25` client has no such header to send. `basic/versioning` already
+  leaves the error *code* for a legacy `initialize` implementation-defined, so
+  mandating one chosen code's HTTP status there is incoherent; what that client
+  is owed is `VERS-008`, judged separately. The check now exempts it, by the
+  same carve-out the registry documents for `BASE-031`.
 
 - **`BASE-032` was judged more broadly than the clause it quotes.** "On HTTP,
   the response status **MUST** be `400 Bad Request`" binds the answer to *a

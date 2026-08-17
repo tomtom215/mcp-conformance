@@ -270,3 +270,47 @@ fn method_not_found_must_ride_a_404() {
     .join("\n");
     assert!(findings_for(check, &stdio).is_empty());
 }
+
+#[test]
+fn the_removed_handshake_is_outside_the_status_rule() {
+    // TRAN-074 is stated under `#protocol-version-header`, and its antecedent
+    // is a version requested *in that header* — which a `2025-11-25` client
+    // has none of. `basic/versioning` leaves the error *code* for a legacy
+    // `initialize` implementation-defined, so mandating one chosen code's HTTP
+    // status there would be incoherent. What that client is owed is VERS-008's
+    // clause, judged separately.
+    let handshake = trace(&[
+        post(0, r#"{"mcp-method":"initialize"}"#),
+        client(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"legacy","version":"0"}}}"#,
+        ),
+        status(2, 200),
+        server(
+            3,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32022,"message":"x","data":{"supported":["2026-07-28"]}}}"#,
+        ),
+    ]);
+    assert!(
+        findings_for("transport.unsupported-version-status", &handshake).is_empty(),
+        "{handshake}"
+    );
+    // A request that *did* name a version in its envelope is still bound.
+    let requested = trace(&[
+        post(0, r#"{"mcp-method":"tools/list"}"#),
+        client(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"1999-01-01","io.modelcontextprotocol/clientCapabilities":{}}}}"#,
+        ),
+        status(2, 200),
+        server(
+            3,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32022,"message":"x","data":{"supported":["2026-07-28"]}}}"#,
+        ),
+    ]);
+    assert_eq!(
+        findings_for("transport.unsupported-version-status", &requested).len(),
+        1,
+        "{requested}"
+    );
+}

@@ -29,10 +29,12 @@ use std::process::ExitCode;
 use clap::{Parser, ValueEnum};
 use mcp_reference_host::capture::{CaptureTransport, RecordingTransport};
 use mcp_reference_host::handler::HostHandler;
-use mcp_reference_host::run::{RunPlan, RunReport, StopReason, run};
+use mcp_reference_host::run::{RunPlan, StopReason, run};
 use mcp_reference_host::scenario::{ScenarioPlan, plan_for};
 use mcp_reference_host::script::InteractionScript;
 use mcp_reference_host::{subscribe, sweep};
+
+mod render;
 use rmcp::model::{LoggingLevel, ProtocolVersion};
 use rmcp::service::{ClientLifecycleMode, ClientServiceExt as _};
 use rmcp::transport::Transport;
@@ -77,6 +79,12 @@ struct Cli {
     /// to its end. `2026-07-28` only — the method does not exist before it.
     #[arg(long)]
     subscribe: bool,
+    /// Send the probe session instead of a normal run: deliberately malformed
+    /// requests, one per rejection clause, so a recording carries what the
+    /// server does when it must refuse. Requires `--url`; the probes are raw
+    /// HTTP, which is the point — rmcp's client will not emit one.
+    #[arg(long, conflicts_with_all = ["server_cmd", "sweep", "subscribe"])]
+    probe: bool,
     /// After the tool loop, drive the rest of the server's surface: prompts,
     /// resources, templates, completion, and one read of a URI the catalog
     /// does not contain. A recording without this evidences the tool clauses
@@ -185,6 +193,13 @@ async fn dispatch(cli: Cli) -> ExitCode {
     );
 
     let url = cli.url.or(cli.positional_url);
+    if cli.probe {
+        let Some(url) = url else {
+            eprintln!("mcp-reference-host: --probe needs a server URL");
+            return ExitCode::from(2);
+        };
+        return render::probe(&url).await;
+    }
     let lifecycle = ClientLifecycleMode::from(cli.protocol_version);
     let plan = overridden(plan, cli.error_budget, cli.turn_limit, cli.log_level);
     let extras = Extras {
@@ -400,12 +415,12 @@ async fn agent_run(
         return ExitCode::FAILURE;
     }
     let report = run(&client, &plan, &CancellationToken::new()).await;
-    render(&report);
+    render::run(&report);
     if extras.sweep {
         // After the loop, not before: the sweep reads resources the tools may
         // have changed, and a recording is easier to follow when the
         // discovery-driven half sits on one side of the tool calls.
-        render_sweep(&sweep::run(client.peer()).await);
+        render::sweep(&sweep::run(client.peer()).await);
     }
     let clean_shutdown = client.cancel().await.is_ok();
     if report.stop == StopReason::Completed && clean_shutdown {
@@ -440,39 +455,6 @@ async fn drained<S: rmcp::service::Service<rmcp::service::RoleClient>>(
         Err(error) => {
             eprintln!("mcp-reference-host: subscription failed: {error}");
             false
-        }
-    }
-}
-
-/// The sweep record, one line per step, on stderr.
-///
-/// Errors are printed but not counted against the exit code: the sweep ends
-/// with a read that is *meant* to fail, and a host that exited non-zero for it
-/// would make the capture harness fail on its own design.
-fn render_sweep(report: &sweep::SweepReport) {
-    eprintln!(
-        "mcp-reference-host: swept {} step(s), {} drew errors",
-        report.steps.len(),
-        report.errors()
-    );
-    for step in &report.steps {
-        match &step.outcome {
-            Ok(summary) => eprintln!("  ok   {}: {summary}", step.what),
-            Err(error) => eprintln!("  err  {}: {error}", step.what),
-        }
-    }
-}
-
-/// The run record, one line per call, on stderr.
-fn render(report: &RunReport) {
-    eprintln!(
-        "mcp-reference-host: {:?} after {} turn(s), {} error(s)",
-        report.stop, report.turns, report.errors
-    );
-    for outcome in &report.outcomes {
-        match &outcome.result {
-            Ok(text) => eprintln!("  ok   {}: {text}", outcome.tool),
-            Err(error) => eprintln!("  err  {}: {error}", outcome.tool),
         }
     }
 }

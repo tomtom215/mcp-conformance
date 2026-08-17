@@ -87,6 +87,16 @@ fn mcp_router(policy: &HttpSecurityPolicy, revision: ServedRevision) -> Router {
     // rejected before dispatch instead of being read as the 2025-03-26 default.
     config.legacy_session_mode = !revision.is_stateless();
     config.stateless_protocol_metadata_required = revision.is_stateless();
+    // Not wrapped in `StatelessEnvelope`, and the reason is a type bound
+    // rather than a judgement: `StreamableHttpService` takes an
+    // `S: ServerHandler`, and rmcp blanket-impls `Service<RoleServer>` for
+    // every `ServerHandler`, so a wrapper that implements `Service` directly —
+    // which is what an envelope must do to see the request before dispatch —
+    // is not itself a `ServerHandler` and cannot be handed here. rmcp's own
+    // tower layer covers the envelope's required keys on this transport; the
+    // two rules it does not cover (an undecodable log level, an unissued
+    // cursor) are enforced on stdio only, and `conformance/probe-baseline.json`
+    // records that asymmetry as the open defect it is.
     let service = StreamableHttpService::new(
         move || Ok(EverythingServer::serving(revision)),
         Arc::new(LocalSessionManager::default()),
