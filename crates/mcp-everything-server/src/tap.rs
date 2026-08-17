@@ -20,7 +20,7 @@
 //!   security-policy layer, so policy rejections (403s) never reach it. What
 //!   does reach it is recorded whether or not it names a session: `2026-07-28`
 //!   removes sessions outright, and an exchange with no `Mcp-Session-Id` goes
-//!   to the run's [`STATELESS_TRACE`] file rather than being dropped.
+//!   to the run's `stateless` trace file rather than being dropped.
 //! - **Write-behind, in order.** Events flow over a bounded channel to one
 //!   writer task that appends each line and flushes before taking the next.
 //!   Durability is per *written* record: everything the writer has flushed
