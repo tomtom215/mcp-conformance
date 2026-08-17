@@ -13,39 +13,86 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
-- **The `2026-07-28` registry judges two of its fifteen in-scope pages, and
-  nothing in it is aspirational.** `basic/index` (57 clauses) and
-  `basic/transports/streamable-http` (60) are entered by the same
+- **The `2026-07-28` registry is complete: all fifteen in-scope pages, 272
+  entries, nothing aspirational.** Every page is entered by the same
   per-requirement method as `2025-11-25` — live fetch, verbatim quote, then a
-  named check or an exclusion whose reason is specific to that clause. The
-  result is **117 entries: 51 judged, 0 unsupported, 66 excluded**, behind the
-  off-by-default `draft-2026-07-28` feature, with `spec-drift` verifying all
-  257 quotes across both revisions and both a passing and a violating corpus
-  trace behind every judged clause. The `2025-11-25` registry is untouched at
-  140 entries, and a test asserts the byte-equality rather than assuming it.
+  named check or an exclusion whose reason is specific to that clause — giving
+  **272 entries: 124 judged, 0 unsupported, 148 excluded**, behind the
+  off-by-default `draft-2026-07-28` feature. `spec-drift` verifies **412 quotes
+  across both revisions**, and every judged clause has both a conforming and a
+  violating trace behind it. The `2025-11-25` registry is untouched at 140
+  entries, and a test asserts the byte-equality rather than assuming it.
 
-  Thirty-two checks are new, all feature-gated: six for the message envelope
-  (`resultType`, in-flight id reuse, the four error-code partition rules),
-  eight for the per-request `_meta` envelope the stateless rework introduced,
-  and eighteen for Streamable HTTP — request metadata headers, the Base64
-  value-encoding rules, `x-mcp-header` mirroring and annotation validity, the
-  server-side rejection clauses, and the response-stream rules. Judging Base64
-  sentinel values needed a decoder; it is ~25 lines beside the existing
-  validator rather than a new dependency, so the judgment surface stays
-  `serde`-only.
+  Seventy-one checks are new, all feature-gated, covering the revision's new
+  machinery as well as its restatements: the stateless `_meta` envelope, the
+  error-code partition, Streamable HTTP's header and rejection rules, stdio's
+  notification-based cancellation, `server/discover`, version negotiation and
+  extension identifiers, Multi Round-Trip Requests, `subscriptions/listen`,
+  caching hints, per-request logging, and this revision's capability
+  declarations. Judging Base64 sentinel values needed a decoder; it is ~25 lines
+  beside the existing validator rather than a new dependency, so the judgment
+  surface stays `serde`-only.
 
-  Two boundaries are the specification's, not ours: notification POSTs are
-  unjudged because the revision states their header requirements are undefined,
-  and the `x-mcp-header` reachability clauses stay excluded because deciding
-  them needs a JSON Schema engine, not a session.
+  Boundaries are the specification's, not ours: notification POSTs are unjudged
+  because the revision states their header requirements are undefined, and the
+  clauses needing a JSON Schema engine stay excluded. The 148 exclusions
+  concentrate where a recording genuinely cannot reach — `requestState` is
+  opaque by design, a cache hit puts nothing on the wire, elapsed time is not
+  available to checks, host-OS actions are outside the trace vocabulary, and
+  classifying whether a payload holds a credential or PII is not a structural
+  question.
 
   Each check carries unit tests alongside its corpus pair, because the two
   answer different questions — "does this check ever fire?" and "does it fire on
   exactly the right thing?" — and only the second scales with the number of
-  branches a check has. The diff-scoped mutation gate is the arbiter: 356
-  mutants over the new code, 356 caught.
+  branches a check has.
+
+- **The `2026-07-28` corpus is held to the shipped corpus's contract.** Its
+  violation traces are now name-attributed (each must falsify the requirement it
+  is named after) and byte-pinned against goldens in `corpus/golden/draft/`,
+  matching `corpus/violations/`. Previously they were covered only by "some
+  trace kills each check", which cannot see a finding that has drifted onto a
+  neighbouring requirement.
+
+- **`tools/extract-clauses.py --verify`** runs `spec-drift`'s comparison offline
+  over a committed registry directory — the fast inner loop while curating a
+  page, reproducing the network gate exactly.
 
 ### Fixed
+
+- **Five capability checks would have reported vacuous passes at `2026-07-28`.**
+  Every feature page states "Servers that support X MUST declare the X
+  capability", and the `2025-11-25` checks for it resolve declarations through a
+  helper that abstains unless the trace carries an `initialize` **result** — a
+  message this revision does not have. Reused as-is, each would have inspected
+  nothing and reported `pass`. `checks/draft/capabilities.rs` reads this
+  revision's declaration surface, the `server/discover` result, instead.
+
+- **`transport.unsupported-version-error` bundled an HTTP status into a rule
+  stated without one.** TRAN-074 requires "400 Bad Request *and* an
+  `UnsupportedProtocolVersionError` listing its supported versions", while
+  `basic/versioning` states the same rule with no status; one check covering
+  both would have reported a wrong status against a clause that never mentions
+  statuses, since the engine attributes a finding to every requirement naming
+  the check. Split into `transport.unsupported-version-{error,status}` — which
+  exposed that the HTTP-400 half had never been falsified by any trace on its
+  own, and now is. Its obligation side also read the requested version out of
+  the POST rather than the request's own `_meta`, making the rule invisible on
+  stdio, where `basic/versioning` states it just as plainly.
+
+- **`meta.missing-required-field-rejected` reported a conforming server.** It
+  requires `-32602` for a request missing `_meta` fields, and a legacy
+  `initialize` reaching a modern server is missing them by definition — but
+  `basic/versioning`'s compatibility matrix states that for exactly that
+  exchange "the exact code is implementation-defined". Every cross-era capture
+  would have carried a MUST failure the specification has waived. `initialize`
+  is now outside that rule, by method; the client's own defect is still
+  reported.
+
+- **`transport.client-no-responses` filtered on Streamable HTTP**, so it would
+  have been inert for the stdio clause stating the same rule. The revision
+  removed server-initiated requests, so there is nothing on any binding for a
+  client response to answer, and the filter is gone.
 
 - **`meta.missing-required-field-http-status` and
   `meta.missing-capability-http-status` could not fail on a real capture.**
