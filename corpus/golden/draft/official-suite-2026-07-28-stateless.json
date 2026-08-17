@@ -1,8 +1,8 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 123,
-    "fail": 1,
+    "pass": 124,
+    "fail": 0,
     "warn": 0,
     "excluded": 148,
     "unsupported": 0,
@@ -1014,29 +1014,7 @@
     {
       "id": "CACH-001",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 54,
-          "detail": "the `complete` result of `resources/list` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 58,
-          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 62,
-          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 66,
-          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "CACH-002",

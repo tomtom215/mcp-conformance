@@ -8,9 +8,16 @@
 //! `docs/plan/01-ecosystem-context.md` rows 1.5a–1.5f as a *list of changes*.
 //! A list says what will be different; it does not say how much work the
 //! migration is. This task answers that with a number: it drives the official
-//! runner's **`2026-07-28` scenario set** against the current `2025-11-25`
-//! server and records the score against a committed baseline
+//! runner's **`2026-07-28` scenario set** against the everything server and
+//! records the score against a committed baseline
 //! (`conformance/draft-readiness.json`).
+//!
+//! Two legs, one per [`SERVED_REVISIONS`] entry, because the server now has a
+//! `2026-07-28` mode of its own. The legacy leg is the migration-distance
+//! measurement this task was built for. The stateless leg measures the new
+//! mode against the same scenarios, which is the only number that says
+//! anything about the new code — and its recording is the workspace's one
+//! captured session of a *conforming* stateless server.
 //!
 //! The revision itself shipped on 2026-07-28 (register 1.5h), so "draft" in
 //! this task's name now describes the *scenarios*, not the specification: they
@@ -75,46 +82,38 @@ const RESULTS_DIR: &str = "target/draft-readiness";
 /// ([ADR-0006](../../docs/plan/decisions/0006-capability-gated-applicability.md)).
 pub(super) type Scenario = BTreeMap<String, String>;
 
+/// The server modes measured, by the `--protocol-version` each is started with.
+///
+/// Two legs, not one, since the server gained a `2026-07-28` mode: the legacy
+/// leg answers "how far is the migration", which is what this task was built to
+/// measure, and the stateless leg answers "and how much does the new mode
+/// actually get right" — a question the first leg cannot reach, because a
+/// server implementing the older revision fails the newer scenarios for reasons
+/// that say nothing about the newer code. Scenario keys are prefixed with the
+/// revision served, so one baseline holds both and a change in either is news.
+const SERVED_REVISIONS: [&str; 2] = ["2025-11-25", "2026-07-28"];
+
 pub(crate) fn run(bless: bool) -> ExitCode {
     let root = crate::workspace_root();
     let Some(results_dir) = prepare(&root) else {
         return ExitCode::FAILURE;
     };
 
-    // The tap is the *point* of running this, not a side effect. Until
-    // 2026-08-17 it recorded nothing here — it keyed every exchange on
-    // `Mcp-Session-Id` and `2026-07-28` has no sessions — so these runs threw
-    // away the only independently-generated traffic of the revision this
-    // workspace can obtain. The recording now lands in
-    // `target/draft-readiness/tap/001-stateless.jsonl`; the committed copy of
-    // one such capture is `corpus/draft/captured/`, which the golden suite
-    // re-validates on every `cargo test`.
-    let tap_dir = results_dir.join("tap");
-    let Some((mut server, address)) = crate::conformance::start_server(&root, &tap_dir) else {
-        return ExitCode::FAILURE;
-    };
-
-    let ran = run_draft_suite(&root, &results_dir, &address);
-    let _ = server.kill();
-    let _ = server.wait();
-    if !ran {
-        return ExitCode::FAILURE;
+    let mut measured: BTreeMap<String, Scenario> = BTreeMap::new();
+    for revision in SERVED_REVISIONS {
+        let leg = results_dir.join(revision);
+        match measure(&root, &leg, revision) {
+            Ok(scores) => measured.extend(
+                scores
+                    .into_iter()
+                    .map(|(scenario, checks)| (format!("{revision}/{scenario}"), checks)),
+            ),
+            Err(message) => {
+                eprintln!("xtask: draft-readiness — {message}");
+                return ExitCode::FAILURE;
+            }
+        }
     }
-
-    let measured = match collect(&results_dir) {
-        Ok(scores) if scores.is_empty() => {
-            eprintln!(
-                "xtask: draft-readiness — the runner wrote no scenario results; \
-                 treating as a harness failure rather than a score of zero"
-            );
-            return ExitCode::FAILURE;
-        }
-        Ok(scores) => scores,
-        Err(message) => {
-            eprintln!("xtask: draft-readiness — {message}");
-            return ExitCode::FAILURE;
-        }
-    };
     report(&measured);
 
     if bless {
@@ -137,6 +136,39 @@ pub(crate) fn run(bless: bool) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Drives one leg: a server serving `revision`, the runner against it, and the
+/// scores it wrote into `leg`.
+///
+/// The tap is the *point* of running this, not a side effect. Until 2026-08-17
+/// it recorded nothing at all here — it keyed every exchange on
+/// `Mcp-Session-Id` and `2026-07-28` has no sessions — so these runs threw away
+/// the only independently-generated traffic of the revision this workspace can
+/// obtain. Each leg's recording now lands in
+/// `target/draft-readiness/<revision>/tap/001-stateless.jsonl`, and both are
+/// committed under `corpus/draft/captured/`, where the golden suite
+/// re-validates them on every `cargo test`.
+fn measure(root: &Path, leg: &Path, revision: &str) -> Result<BTreeMap<String, Scenario>, String> {
+    let tap_dir = leg.join("tap");
+    let (mut server, address) = crate::conformance::start_server(root, &tap_dir, revision)
+        .ok_or_else(|| format!("the {revision} server did not start"))?;
+    let ran = run_draft_suite(root, leg, &address);
+    let _ = server.kill();
+    let _ = server.wait();
+    if !ran {
+        return Err(format!(
+            "the runner did not run against the {revision} server"
+        ));
+    }
+    let scores = collect(leg)?;
+    if scores.is_empty() {
+        return Err(format!(
+            "the runner wrote no scenario results for the {revision} server; treating as a \
+             harness failure rather than a score of zero"
+        ));
+    }
+    Ok(scores)
 }
 
 /// Builds the server and clears the previous run's artifacts, yielding the
@@ -288,20 +320,29 @@ fn is_timestamp(candidate: &str) -> bool {
 /// Prints the measured picture: passing checks, failing checks, and the
 /// informational ones kept separate from both.
 fn report(measured: &BTreeMap<String, Scenario>) {
-    let tally = |wanted: &str| -> usize {
-        measured
-            .values()
-            .flat_map(BTreeMap::values)
-            .filter(|status| status.as_str() == wanted)
-            .count()
-    };
-    let (passing, failing, informational) = (tally(SUCCESS), tally(FAILURE), tally(INFO));
-    eprintln!(
-        "xtask: draft-readiness — {passing} passing, {failing} failing, {informational} \
-         informational across {} scenario(s) at spec {DRAFT_SPEC_VERSION} \
-         (suite {DRAFT_SUITE_VERSION})",
-        measured.len()
-    );
+    // Per leg, because the aggregate is meaningless: one number that mixes a
+    // server being held to a revision it does not implement with a server that
+    // does implement it describes neither.
+    for revision in SERVED_REVISIONS {
+        let leg: Vec<&Scenario> = measured
+            .iter()
+            .filter(|(scenario, _)| scenario.starts_with(&format!("{revision}/")))
+            .map(|(_, checks)| checks)
+            .collect();
+        let tally = |wanted: &str| -> usize {
+            leg.iter()
+                .flat_map(|checks| checks.values())
+                .filter(|status| status.as_str() == wanted)
+                .count()
+        };
+        let (passing, failing, informational) = (tally(SUCCESS), tally(FAILURE), tally(INFO));
+        eprintln!(
+            "xtask: draft-readiness — server serving {revision}: {passing} passing, \
+             {failing} failing, {informational} informational across {} scenario(s) at \
+             spec {DRAFT_SPEC_VERSION} (suite {DRAFT_SUITE_VERSION})",
+            leg.len()
+        );
+    }
     for (scenario, checks) in measured {
         for (check, status) in checks {
             if status != SUCCESS {

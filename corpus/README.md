@@ -132,36 +132,57 @@ causes (a malformed notification also fails lifecycle accounting, for example).
 
 ### `2026-07-28` captured (`corpus/draft/captured/`)
 
-| Field | Value |
-|---|---|
-| Trace | `official-suite-2026-07-28-scenarios.jsonl` |
-| Client | The **official MCP conformance suite**, `0.2.0-alpha.9`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` holds) |
-| Server | This workspace's `mcp-everything-server`, which implements **`2025-11-25`** — so genuine non-conformance at `2026-07-28` is the expected content, not a defect in the recording |
-| Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-08-17 |
-| Contents | 91 events across 22 POST exchanges — `server/discover`, `tools/list`, `tools/call`, `completion/complete`, `resources/{list,read}`, `prompts/{list,get}`, progress notifications — every request carrying the revision's per-request `_meta` envelope, and no `initialize` anywhere |
+Two recordings of **the same client driving the same scenarios**, differing in
+one variable: which revision the server was serving. That is what makes the pair
+worth committing — a single capture shows what one implementation does, while a
+matched pair shows what the *revision* costs, and every difference between the
+two reports is attributable to that one change.
 
-**What it found, and why each finding is real.** Judged by the `2026-07-28`
-registry it reports 121 pass, 2 fail, 1 warn, 148 excluded. All three findings
-were checked against the recorded bytes:
+| Field | `official-suite-2026-07-28-scenarios.jsonl` | `official-suite-2026-07-28-stateless.jsonl` |
+|---|---|---|
+| Client | The **official MCP conformance suite**, `0.2.0-alpha.9`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` holds) | The same client, the same scenarios, the same run |
+| Server | `mcp-everything-server` serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode |
+| Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-08-17 | same run, second leg |
+| Contents | 91 events / 22 POST exchanges | 91 events / 22 POST exchanges |
+| Our verdict | 123 pass, **1 fail**, 0 warn, 148 excluded | **124 pass, 0 fail, 0 warn**, 148 excluded |
+| The official runner's verdict | 23/23 | 23/23 |
 
-- **TRAN-058** — all 22 client POSTs carry only `accept`, `content-type`,
-  `host`, `mcp-protocol-version` and `origin`. The revision requires the
-  request-metadata headers (`Mcp-Method`, and `Mcp-Name` where the method
-  defines one). This is a finding about the *official suite's client*, not about
-  our server.
-- **TRAN-068** — all 22 SSE responses carry `content-type: text/event-stream`
-  and nothing else; `X-Accel-Buffering: no` is absent.
-- **CACH-001** — the `complete` results carry no `ttlMs`.
+Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
+`resources/{list,read}`, `prompts/{list,get}` and progress notifications; every
+request carries the revision's per-request `_meta` envelope and its SEP-2243
+metadata headers, and neither carries an `initialize` anywhere.
 
-The last two are our `2025-11-25` server being held to a revision it does not
-implement, which is the correct answer. **No finding was a false positive**, and
-121 requirements passed on traffic nobody here authored — which is the only
-evidence the authored fixtures cannot supply.
+**The one finding.** CACH-001 — the legacy server's `complete` results carry no
+`ttlMs`, on `resources/list` and three `resources/read`s. That is our
+`2025-11-25` server being held to a revision it does not implement, which is the
+correct answer, and the stateless capture is the control that proves the check
+reports the server rather than the recording.
 
-Regenerate with `cargo xtask draft-readiness` and copy
-`target/draft-readiness/tap/001-stateless.jsonl`; the ephemeral port in the
-`host` header changes per run, so re-copying is a deliberate act with a golden
-diff, not something to do casually.
+**Two findings that used to be here were ours, not the implementations'.** An
+earlier version of this pair reported TRAN-058 (client POSTs missing
+`Mcp-Method`/`Mcp-Name`) and TRAN-068 (SSE responses missing
+`X-Accel-Buffering: no`). Both were artifacts of the tap's recording allowlist,
+which predated SEP-2243 and did not record those headers — the client sent them
+(rmcp's transport rejects a `2026-07-28` request without `Mcp-Method` before
+dispatch, and the suite scored 23/23) and the server sent them (rmcp sets
+`X-Accel-Buffering` on every SSE response it builds). The allowlist was
+extended; both clauses now pass on both captures. The lesson is recorded rather
+than quietly fixed: **a check can only be as honest as the recording it reads,
+and a capture path that silently drops evidence manufactures findings against
+conforming implementations.**
+
+**Why the runner's 23/23 and our 123-vs-124 are both right.** The suite's
+`2026-07-28` scenarios exercise features — list a thing, call a thing, read a
+thing — and a `2025-11-25` server answers all of them, because rmcp serves a
+per-request-versioned POST whichever revision the handler advertises. The
+registry here judges 124 clauses of the specification's prose instead, so it
+sees the one place the two servers actually differ. Neither instrument is wrong;
+they are measuring different things, and this pair is the evidence for that.
+
+Regenerate both with `cargo xtask draft-readiness` and copy
+`target/draft-readiness/<revision>/tap/001-stateless.jsonl`; the ephemeral port
+in the `host` header changes per run, so re-copying is a deliberate act with a
+golden diff, not something to do casually.
 
 ### `2026-07-28` authored (`corpus/draft/`)
 

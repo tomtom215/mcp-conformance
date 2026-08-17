@@ -1,69 +1,132 @@
 {
-  "_policy": "Measured by `cargo xtask draft-readiness`: the status of every check the official runner's 2026-07-28 scenarios report against the 2025-11-25 everything server. The gate fails on ANY change — a lost pass is a migration regression, a gained one is progress that gets recorded deliberately (BLESS=1) in the commit that earned it. Statuses are verbatim: INFO is the runner's informational outcome and is neither a pass nor a failure. This is NOT a conformance claim about the 2026-07-28 revision: the text shipped on 2026-07-28 (register 1.5h), but the requirement registry does not describe that revision yet (roadmap M2.5 line 2), and these scenarios come from a pre-release suite, so the check set itself can still move.",
+  "_policy": "Measured by `cargo xtask draft-readiness`: the status of every check the official runner's 2026-07-28 scenarios report against the everything server, once per revision the server can serve. Scenario keys are `<served revision>/<scenario>`: the 2025-11-25 leg measures migration distance, the 2026-07-28 leg measures the server's own stateless mode. The gate fails on ANY change — a lost pass is a regression, a gained one is progress that gets recorded deliberately (BLESS=1) in the commit that earned it. Statuses are verbatim: INFO is the runner's informational outcome and is neither a pass nor a failure. Passing the runner is not the same as conforming: these scenarios come from a pre-release suite, so the check set itself can still move, and the runner judges a subset of what the registry in this workspace judges.",
   "failing": 0,
   "informational": 0,
-  "passing": 23,
+  "passing": 46,
   "scenarios": {
-    "completion-complete": {
+    "2025-11-25/completion-complete": {
       "completion-complete": "SUCCESS"
     },
-    "dns-rebinding-protection": {
+    "2025-11-25/dns-rebinding-protection": {
       "localhost-host-rebinding-rejected": "SUCCESS",
       "localhost-host-valid-accepted": "SUCCESS"
     },
-    "prompts-get-embedded-resource": {
+    "2025-11-25/prompts-get-embedded-resource": {
       "prompts-get-embedded-resource": "SUCCESS"
     },
-    "prompts-get-simple": {
+    "2025-11-25/prompts-get-simple": {
       "prompts-get-simple": "SUCCESS"
     },
-    "prompts-get-with-args": {
+    "2025-11-25/prompts-get-with-args": {
       "prompts-get-with-args": "SUCCESS"
     },
-    "prompts-get-with-image": {
+    "2025-11-25/prompts-get-with-image": {
       "prompts-get-with-image": "SUCCESS"
     },
-    "prompts-list": {
+    "2025-11-25/prompts-list": {
       "prompts-list": "SUCCESS"
     },
-    "resources-list": {
+    "2025-11-25/resources-list": {
       "resources-list": "SUCCESS"
     },
-    "resources-read-binary": {
+    "2025-11-25/resources-read-binary": {
       "resources-read-binary": "SUCCESS"
     },
-    "resources-read-text": {
+    "2025-11-25/resources-read-text": {
       "resources-read-text": "SUCCESS"
     },
-    "resources-templates-read": {
+    "2025-11-25/resources-templates-read": {
       "resources-templates-read": "SUCCESS"
     },
-    "server-sse-multiple-streams": {
+    "2025-11-25/server-sse-multiple-streams": {
       "server-accepts-multiple-post-streams": "SUCCESS",
       "server-sse-streams-functional": "SUCCESS"
     },
-    "tools-call-audio": {
+    "2025-11-25/tools-call-audio": {
       "tools-call-audio": "SUCCESS"
     },
-    "tools-call-embedded-resource": {
+    "2025-11-25/tools-call-embedded-resource": {
       "tools-call-embedded-resource": "SUCCESS"
     },
-    "tools-call-error": {
+    "2025-11-25/tools-call-error": {
       "tools-call-error": "SUCCESS"
     },
-    "tools-call-image": {
+    "2025-11-25/tools-call-image": {
       "tools-call-image": "SUCCESS"
     },
-    "tools-call-mixed-content": {
+    "2025-11-25/tools-call-mixed-content": {
       "tools-call-mixed-content": "SUCCESS"
     },
-    "tools-call-simple-text": {
+    "2025-11-25/tools-call-simple-text": {
       "tools-call-simple-text": "SUCCESS"
     },
-    "tools-call-with-progress": {
+    "2025-11-25/tools-call-with-progress": {
       "tools-call-with-progress": "SUCCESS"
     },
-    "tools-list": {
+    "2025-11-25/tools-list": {
+      "tools-list": "SUCCESS",
+      "tools-name-format": "SUCCESS"
+    },
+    "2026-07-28/completion-complete": {
+      "completion-complete": "SUCCESS"
+    },
+    "2026-07-28/dns-rebinding-protection": {
+      "localhost-host-rebinding-rejected": "SUCCESS",
+      "localhost-host-valid-accepted": "SUCCESS"
+    },
+    "2026-07-28/prompts-get-embedded-resource": {
+      "prompts-get-embedded-resource": "SUCCESS"
+    },
+    "2026-07-28/prompts-get-simple": {
+      "prompts-get-simple": "SUCCESS"
+    },
+    "2026-07-28/prompts-get-with-args": {
+      "prompts-get-with-args": "SUCCESS"
+    },
+    "2026-07-28/prompts-get-with-image": {
+      "prompts-get-with-image": "SUCCESS"
+    },
+    "2026-07-28/prompts-list": {
+      "prompts-list": "SUCCESS"
+    },
+    "2026-07-28/resources-list": {
+      "resources-list": "SUCCESS"
+    },
+    "2026-07-28/resources-read-binary": {
+      "resources-read-binary": "SUCCESS"
+    },
+    "2026-07-28/resources-read-text": {
+      "resources-read-text": "SUCCESS"
+    },
+    "2026-07-28/resources-templates-read": {
+      "resources-templates-read": "SUCCESS"
+    },
+    "2026-07-28/server-sse-multiple-streams": {
+      "server-accepts-multiple-post-streams": "SUCCESS",
+      "server-sse-streams-functional": "SUCCESS"
+    },
+    "2026-07-28/tools-call-audio": {
+      "tools-call-audio": "SUCCESS"
+    },
+    "2026-07-28/tools-call-embedded-resource": {
+      "tools-call-embedded-resource": "SUCCESS"
+    },
+    "2026-07-28/tools-call-error": {
+      "tools-call-error": "SUCCESS"
+    },
+    "2026-07-28/tools-call-image": {
+      "tools-call-image": "SUCCESS"
+    },
+    "2026-07-28/tools-call-mixed-content": {
+      "tools-call-mixed-content": "SUCCESS"
+    },
+    "2026-07-28/tools-call-simple-text": {
+      "tools-call-simple-text": "SUCCESS"
+    },
+    "2026-07-28/tools-call-with-progress": {
+      "tools-call-with-progress": "SUCCESS"
+    },
+    "2026-07-28/tools-list": {
       "tools-list": "SUCCESS",
       "tools-name-format": "SUCCESS"
     }
