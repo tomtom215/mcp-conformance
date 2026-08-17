@@ -216,11 +216,29 @@ pub(crate) fn msrv_clippy_gate() -> bool {
     }
 }
 
-/// `cargo xtask mutants` — the exact diff-scoped mutation gate CI runs on
-/// PRs, computed against `origin/main`, so "run the gates" includes the one
-/// that catches untested code. Not part of `ci` (minutes, not seconds);
-/// offered as its own task.
-pub(crate) fn mutants_gate() -> bool {
+/// `cargo xtask mutants [--jobs N]` — the exact diff-scoped mutation gate CI
+/// runs on PRs, computed against `origin/main`, so "run the gates" includes
+/// the one that catches untested code. Not part of `ci` (minutes, not
+/// seconds); offered as its own task.
+///
+/// `--jobs` is the only argument accepted, and the reason it is the only one
+/// is that it changes how *fast* a fixed set of mutants is judged and nothing
+/// else: not which mutants exist, not which tests run, not how a verdict is
+/// reached. Every other cargo-mutants flag would make this task something
+/// other than the gate, which is the whole point of the task existing. The
+/// default is cargo-mutants' own — one job — because parallel test runs
+/// compete for the machine, and a mutant that is merely *slow* under
+/// contention is reported as a timeout rather than as caught. `.cargo/
+/// mutants.toml` buys headroom for that (3× multiplier, 30s floor); raising
+/// `--jobs` spends it.
+pub(crate) fn mutants_gate(extra: &[String]) -> bool {
+    let jobs = match jobs(extra) {
+        Ok(jobs) => jobs,
+        Err(error) => {
+            eprintln!("xtask: mutants — {error}");
+            return false;
+        }
+    };
     let root = crate::workspace_root();
     let available = Command::new("cargo")
         .args(["mutants", "--version"])
@@ -240,13 +258,21 @@ pub(crate) fn mutants_gate() -> bool {
         DiffOutcome::Empty => return true,
         DiffOutcome::Failed => return false,
     };
+    let parallel = jobs
+        .as_ref()
+        .map_or_else(String::new, |n| format!(" --jobs {n}"));
     eprintln!(
-        "xtask: mutants — cargo mutants --workspace --no-shuffle --in-diff {} -- --all-features",
+        "xtask: mutants — cargo mutants --workspace --no-shuffle --in-diff {}{parallel} -- --all-features",
         diff_path.display()
     );
-    match Command::new("cargo")
+    let mut command = Command::new("cargo");
+    command
         .args(["mutants", "--workspace", "--no-shuffle", "--in-diff"])
-        .arg(&diff_path)
+        .arg(&diff_path);
+    if let Some(jobs) = &jobs {
+        command.args(["--jobs", jobs]);
+    }
+    match command
         .args(["--", "--all-features"])
         .current_dir(&root)
         .status()
@@ -263,6 +289,26 @@ pub(crate) fn mutants_gate() -> bool {
             eprintln!("xtask: cannot run cargo mutants: {error}");
             false
         }
+    }
+}
+
+/// The `--jobs N` value, when the task was given one.
+///
+/// Fails closed on anything else: a typo'd flag that were silently ignored
+/// would run the gate at a parallelism the operator did not ask for and
+/// report it as though they had.
+fn jobs(extra: &[String]) -> Result<Option<String>, String> {
+    match extra {
+        [] => Ok(None),
+        [flag, count] if flag == "--jobs" => match count.parse::<u32>() {
+            Ok(parsed) if parsed >= 1 => Ok(Some(count.clone())),
+            _ => Err(format!(
+                "--jobs takes a positive whole number of parallel jobs, not {count:?}"
+            )),
+        },
+        _ => Err(format!(
+            "usage: cargo xtask mutants [--jobs N]; got {extra:?}"
+        )),
     }
 }
 
@@ -370,6 +416,28 @@ pub(crate) fn file_size_gate() -> bool {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
+
+    #[test]
+    fn the_mutation_gate_takes_a_jobs_count_and_nothing_else() {
+        assert_eq!(jobs(&[]), Ok(None), "the default is cargo-mutants' own");
+        assert_eq!(
+            jobs(&["--jobs".to_owned(), "4".to_owned()]),
+            Ok(Some("4".to_owned()))
+        );
+        // Fails closed rather than running at a parallelism nobody asked for.
+        for wrong in [
+            vec!["--jobs".to_owned()],
+            vec!["--jobs".to_owned(), "0".to_owned()],
+            vec!["--jobs".to_owned(), "many".to_owned()],
+            vec!["--jobs".to_owned(), "-1".to_owned()],
+            vec!["-j".to_owned(), "4".to_owned()],
+            vec!["--list".to_owned()],
+            vec!["--jobs".to_owned(), "4".to_owned(), "--list".to_owned()],
+        ] {
+            assert!(jobs(&wrong).is_err(), "{wrong:?} was accepted");
+        }
+    }
+
     use super::*;
 
     #[test]

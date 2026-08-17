@@ -55,7 +55,11 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
 Additionally enforced in CI: `cargo package --workspace --exclude xtask --locked`
 (publishability) and diff-scoped mutation testing (`cargo mutants --in-diff`)
 on PRs. The standard is **zero surviving mutants in every shipped crate**
-(xtask is excluded via `.cargo/mutants.toml`).
+(xtask is excluded via `.cargo/mutants.toml`). Run it locally with
+`cargo xtask mutants`, which issues exactly the invocation CI does;
+`--jobs N` is the only argument it accepts, and raising it spends the timeout
+headroom `.cargo/mutants.toml` reserves — a mutant merely slowed by
+contention is reported as a timeout, not as caught.
 
 ## Working on checks and the corpus
 
