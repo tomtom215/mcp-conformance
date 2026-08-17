@@ -1,13 +1,13 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 17,
+    "pass": 18,
     "fail": 0,
     "warn": 1,
     "excluded": 88,
     "unsupported": 0,
     "not_applicable": 10,
-    "not_observed": 24
+    "not_observed": 23
   },
   "requirements": [
     {
@@ -165,7 +165,7 @@
     {
       "id": "LIFE-005",
       "level": "SHOULD NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "LIFE-006",

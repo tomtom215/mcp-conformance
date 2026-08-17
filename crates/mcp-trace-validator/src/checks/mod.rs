@@ -113,6 +113,17 @@ impl FindingSink {
     /// session without one gave the clause nothing to bind to. The difference
     /// is what separates "complied with" from "never came up", and reporting
     /// the second as the first states evidence the trace does not carry.
+    ///
+    /// **Prohibitions come in two shapes, and they count differently.** Where
+    /// a clause forbids an element from having some property ("notifications
+    /// MUST NOT include an ID"), the element is the subject: no notifications,
+    /// nothing judged. Where it forbids the element from *existing at all*
+    /// inside a window ("the server SHOULD NOT send requests before
+    /// `initialized`"), the **window** is the subject, because sending nothing
+    /// through a window the trace shows is exactly what compliance looks like.
+    /// Counting the forbidden element there would report every clean session
+    /// as unjudged — and, worse, report two clauses of identical shape
+    /// differently depending on which party happened to send something.
     pub const fn examined(&mut self) {
         self.subjects = self.subjects.saturating_add(1);
     }

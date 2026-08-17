@@ -63,7 +63,7 @@ MCP trace validation — revision 2025-11-25
   ...
   FAIL  LIFE-001 (MUST)
         seq 0: first message is a "tools/list" request, expected "initialize"
-totals: 10 pass, 1 fail, 1 warn, 88 excluded, 0 unsupported, 14 not applicable, 26 not observed
+totals: 11 pass, 1 fail, 1 warn, 88 excluded, 0 unsupported, 14 not applicable, 25 not observed
 verdict: fail
 ```
 
@@ -152,13 +152,13 @@ registry, addressed to the offending event:
 ```text
   FAIL  BASE-003 (MUST NOT)
         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
-totals: 15 pass, 1 fail, 0 warn, 88 excluded, 0 unsupported, 6 not applicable, 30 not observed
+totals: 16 pass, 1 fail, 0 warn, 88 excluded, 0 unsupported, 6 not applicable, 29 not observed
 verdict: fail
 ```
 <!-- ANCHOR_END: trace-example -->
 
 The six not-applicable rows are the capability-gated requirements this session
-never negotiated (the resources and prompts clauses), and the thirty
+never negotiated (the resources and prompts clauses), and the twenty-nine
 not-observed rows are the clauses whose subject matter never appeared —
 nothing was paginated, no binary content was sent, no error was returned.
 Neither is reported as a pass. [`corpus/`](corpus) holds complete annotated

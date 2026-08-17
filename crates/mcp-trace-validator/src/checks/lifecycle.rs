@@ -134,10 +134,14 @@ pub(super) fn client_requests_before_init_response(
         ) {
             continue;
         }
+        // The subject is the window, not the request. This clause forbids a
+        // request *existing* here, so sending none through a window the trace
+        // actually shows is observable compliance — counting only requests
+        // would report the compliant case as unjudged.
+        sink.examined();
         let MessageKind::Request { method, .. } = kind else {
             continue;
         };
-        sink.examined();
         if *method != "initialize" && *method != "ping" {
             sink.push(
                 Some(event.seq),
@@ -163,10 +167,13 @@ pub(super) fn server_requests_before_initialized(
         if event.direction != Direction::ServerToClient || phase == Phase::Ready {
             continue;
         }
+        // The window is the subject, as in `LIFE-004` above: a server that
+        // answered the handshake and asked for nothing has complied where the
+        // trace could have shown otherwise.
+        sink.examined();
         let MessageKind::Request { method, .. } = kind else {
             continue;
         };
-        sink.examined();
         if *method != "ping" {
             sink.push(
                 Some(event.seq),
