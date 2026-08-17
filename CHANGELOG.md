@@ -54,15 +54,44 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   trace kills each check", which cannot see a finding that has drifted onto a
   neighbouring requirement.
 
-- **The `2026-07-28` corpus is no longer purely authored.**
-  `corpus/draft/captured/` holds a real recording — the official MCP conformance
-  suite `0.2.0-alpha.9` driving its `2026-07-28` scenarios, captured off the
-  wire — and the golden suite re-validates it on every run. An authored fixture
-  can only confirm its author's reading of the specification; this is the
-  cross-check that reading cannot provide. Judged by the registry it reports
-  121 pass, 2 fail, 1 warn, and all three findings were verified against the
-  recorded bytes as real (one of them a defect in the *suite's* client, not
-  ours) — no false positives.
+- **`mcp-everything-server` serves the `2026-07-28` stateless surface.**
+  `--protocol-version 2026-07-28` selects it: no `initialize`, no sessions,
+  `server/discover` for capability advertisement, per-request `_meta` required
+  at the transport, and SEP-2549 caching hints on cacheable results. The
+  official suite's `2026-07-28` scenarios pass **23/23** against it and this
+  workspace's own registry judges **124 clauses pass, 0 fail** on a captured
+  session. The revision is chosen when the server is built (`ServedRevision`),
+  so the `2025-11-25` surface has no new branch to take and is unchanged byte
+  for byte — the `draft-readiness` baseline for that mode is identical to the
+  one committed before this work.
+
+  One piece was a correctness decision rather than configuration: `initialize`
+  is **refused** with `-32022` carrying `data.supported`. rmcp's default
+  negotiates an unsupported version down to the server's own and answers with a
+  *result*, which would leave a legacy client believing it had connected to a
+  server that then rejects every request it sends. The refusal is what VERS-001
+  requires of a version refusal and the diagnostic VERS-008 asks a modern-only
+  server to give.
+
+  *Breaking (pre-1.0):* `http::router` and `http::router_tapped` take a
+  `ServedRevision`. A conformance server's revision is the most important fact
+  about it, so it is named at the call site rather than defaulted silently.
+
+- **The `2026-07-28` corpus is no longer purely authored, and now has a
+  control.** `corpus/draft/captured/` holds two real recordings — the official
+  MCP conformance suite `0.2.0-alpha.9` driving its `2026-07-28` scenarios
+  against both server modes, same client, same scenarios, same run — and the
+  golden suite re-validates both on every run. An authored fixture can only
+  confirm its author's reading of the specification; this is the cross-check
+  that reading cannot provide, and the matched pair is what makes every
+  difference between the two reports attributable to the one variable.
+
+  The legacy server scores **123 pass, 1 fail** (CACH-001: no `ttlMs` on
+  cacheable results, the correct answer for a server held to a revision it does
+  not implement); the stateless server scores **124 pass, 0 fail**. The
+  official runner scores both **23/23** — its scenarios exercise features and
+  cannot separate the two servers, which is exactly the gap a requirement
+  registry fills.
 
 - **`tools/extract-clauses.py --verify`** runs `spec-drift`'s comparison offline
   over a committed registry directory — the fast inner loop while curating a
@@ -81,6 +110,22 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   also recovers `2025-11-25` exchanges that never formed a session (a rejected
   `initialize`, a request refused before one existed), which were being lost the
   same way.
+
+- **The tap dropped the headers four `2026-07-28` clauses are judged by, and
+  the validator reported the clauses they prove.** Its recording allowlist held
+  seven header names, chosen when `2025-11-25` was the only revision it
+  recorded, and did not include SEP-2243's `Mcp-Method`, `Mcp-Name` and
+  `Mcp-Param-*` or SEP-2570's `X-Accel-Buffering`. Both sides of the recorded
+  exchange were conforming and both were reported: rmcp's transport *rejects* a
+  `2026-07-28` request that arrives without `Mcp-Method`, and rmcp sets
+  `X-Accel-Buffering: no` on every SSE response it builds. TRAN-058 and
+  TRAN-068 were findings about the recording, not about any implementation —
+  and one of them had been written up in `corpus/README.md` as a defect in the
+  official suite's client. The allowlist now carries those names plus a
+  `mcp-param-` prefix arm, since those header names are chosen by a tool's
+  `x-mcp-header` annotation and cannot be enumerated. Recording them widens
+  nothing: every value is a copy of an argument already recorded verbatim in
+  the body, and the prefix cannot match `authorization` or `cookie`.
 
 - **Five capability checks would have reported vacuous passes at `2026-07-28`.**
   Every feature page states "Servers that support X MUST declare the X

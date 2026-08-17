@@ -807,3 +807,106 @@ The two hazards from the last handover both recurred, and a third joins them:
   lints in three feature modes, and a `#[cfg]`-gated item that becomes unused
   with the feature *off* is invisible to the all-features run — which is how an
   unused macro and an unused re-export reached the end of this session's work.
+
+## Addendum 8 (2026-08-17): the conforming server exists, and it is captured
+
+The previous addendum closed with the remaining work stated as a cost table:
+stand up a `2026-07-28` server on rmcp 3.1.2's stateless surface, drive it,
+capture it. That is done, and doing it found a second capture-fidelity defect
+that had been reporting conforming implementations as violating ones.
+
+### What was built
+
+`mcp-everything-server --protocol-version 2026-07-28`. The revision is chosen
+when the server is constructed (`ServedRevision`), not per request:
+
+| Piece | How |
+|---|---|
+| Stateless routing | `legacy_session_mode = false` and `stateless_protocol_metadata_required = true`, set together — either alone is a shape the specification does not describe |
+| `server/discover` | rmcp's default `discover()`, plus caching hints |
+| Version advertisement | `supported_protocol_versions` narrowed to `2026-07-28`; the legacy mode keeps rmcp's full list verbatim |
+| `initialize` | **Refused** with `-32022` carrying `data.supported` (see below) |
+| Caching hints | `ttlMs` + `cacheScope` on the four cacheable results this crate builds; rmcp's handler macros already emit their own on `tools/list` and `prompts/list` |
+
+The cost table was accurate except in one place it could not have anticipated.
+rmcp's default `initialize` does not *refuse* an unsupported version — it
+negotiates down to the server's own and answers with a **result**. A
+stateless-only server would therefore complete a handshake that leads nowhere:
+the client believes it is connected, and every subsequent request is rejected
+for want of per-request metadata it does not know to send. Overriding
+`initialize` to refuse with `-32022` is what VERS-001 requires of a version
+refusal and what VERS-008 asks a modern-only server to give a legacy client,
+and it is the only piece of this work that was a correctness decision rather
+than configuration.
+
+Hints key off the **served** revision, never the negotiated version of the
+request in hand. `draft-readiness` drives `2026-07-28` requests at the legacy
+server on every run, so keying off the request would have moved a committed
+ratchet as a side effect of adding a mode nobody enabled.
+
+### The second capture defect
+
+The first capture of the new server judged **122 pass, 1 fail, 1 warn**. Both
+non-passes were ours:
+
+- **TRAN-058** — "client POSTs lack `Mcp-Method`". rmcp's transport *rejects* a
+  `2026-07-28` request without that header, before dispatch, with `-32020`. The
+  official suite scored 23/23 against this server, so it sent the header on
+  every POST.
+- **TRAN-068** — "SSE responses lack `X-Accel-Buffering: no`". rmcp sets that
+  header on every SSE response it builds (`server_side_http.rs`).
+
+Both were sent; neither was recorded. The tap's allowlist held seven header
+names chosen when `2025-11-25` was the only revision it recorded, and four
+`2026-07-28` clauses are proved or falsified by headers absent from it. The
+allowlist now carries `mcp-method`, `mcp-name`, `x-accel-buffering` and a
+`mcp-param-` prefix arm — a prefix because those names are chosen by a tool's
+`x-mcp-header` annotation and cannot be enumerated.
+
+This is the same class as the sessionless-drop defect fixed earlier on this
+branch, and worse in kind. An empty trace directory is at least visibly empty.
+A trace missing a header reads as a complete recording of a violating client,
+and it had already been written up in `corpus/README.md` as a finding about the
+official suite. **The general lesson: a check is only as honest as the
+recording it reads, and the recording is part of the judgment surface.** It
+should be reviewed whenever a clause's evidence lives somewhere the tap has not
+had to look before.
+
+### What the captures show
+
+`cargo xtask draft-readiness` now runs both server modes and commits both
+recordings. Same client, same scenarios, same run; one variable.
+
+| | Legacy server | Stateless server |
+|---|---|---|
+| Official runner | 23/23 | 23/23 |
+| This registry | 123 pass, **1 fail**, 0 warn, 148 excluded | **124 pass, 0 fail, 0 warn**, 148 excluded |
+
+The one finding is CACH-001 against the legacy server — no `ttlMs` on cacheable
+results — which is the correct answer for a server held to a revision it does
+not implement. The stateless capture is the control that proves the check
+reports the server rather than the recording.
+
+**The runner cannot tell the two servers apart.** Its `2026-07-28` scenarios
+exercise features, and rmcp answers a per-request-versioned POST whichever
+revision the handler advertises, so both score 23/23. The registry here judges
+124 clauses of the specification's prose and sees the one place they differ.
+That is the clearest evidence yet for why this workspace exists, and it is now
+a committed artifact rather than an argument.
+
+### What this closes
+
+The limitation filed at the end of the last session — "the corpus is authored,
+not captured; no implementation here serves the stateless surface end to end"
+— is closed. Every one of the 124 judged clauses now has a real recording of a
+conforming implementation behind it, produced by a client nobody here wrote.
+
+### For the next session
+
+- The `2026-07-28` feature is still off by default, deliberately.
+- `json_response` is left at rmcp's default, so stateless responses are SSE.
+  Both framings are conformant; the JSON one is one config field away if a
+  capture of it is ever wanted.
+- The suite pin is still `0.2.0-alpha.9`, now two alphas behind. The
+  `suite-0-2-0-stable-pin-bump` deferral governs that move; both legs of the
+  ratchet re-measure when it happens.

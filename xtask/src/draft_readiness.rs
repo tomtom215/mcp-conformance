@@ -31,14 +31,15 @@
 //! roadmap cannot silently drift in either direction, the same contract the
 //! coverage manifest already has.
 //!
-//! Deliberately **not** part of `cargo xtask conformance`: that task judges the
-//! server against the revision the registry implements and reconciles the
-//! runner's verdicts with our validator's. Here the runner speaks a revision
-//! the registry does not describe yet, so there is nothing to reconcile
-//! against — replaying these sessions through a `2025-11-25` registry would
-//! produce a verdict about the wrong specification. This task therefore runs
-//! the runner leg only, and the failures it records are expected findings, not
-//! build breakage.
+//! Deliberately **not** part of `cargo xtask conformance`: that task drives the
+//! pinned `2025-11-25` suite and reconciles its verdicts with our validator's,
+//! check by check. This one drives a *pre-release* suite whose check set can
+//! still move, so a disagreement here is as likely to be the suite settling as
+//! a defect, and folding it into the agreement gate would make a released
+//! pin's verdict hostage to an alpha's. The reconciliation still happens — the
+//! two recordings this task takes are committed to `corpus/draft/captured/`,
+//! where the golden suite replays them through the `2026-07-28` registry on
+//! every `cargo test`. It is simply a separate reckoning from this one.
 //!
 //! Like `conformance`, this is orchestration: it may use the network (npm for
 //! the runner) and real sockets, which `cargo test` never does.

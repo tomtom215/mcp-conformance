@@ -28,7 +28,7 @@ pub(super) fn recorded_headers(headers: &HeaderMap) -> BTreeMap<String, String> 
         .filter_map(|name| header_value(headers, name).map(|value| ((*name).to_owned(), value)));
     let prefixed = headers
         .keys()
-        .map(|name| name.as_str())
+        .map(axum::http::HeaderName::as_str)
         .filter(|name| {
             RECORDED_HEADER_PREFIXES
                 .iter()
