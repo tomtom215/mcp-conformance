@@ -1,0 +1,66 @@
+{
+  "_policy": "The probe session (`cargo xtask draft-capture`, probe leg) sends deliberately malformed requests so the specification's rejection clauses have traffic to judge. It is not a conforming client, so its recording cannot be held to a clean verdict the way the other captures are — the client-side clauses it breaks are the faults under test. This file is what it is held to instead: every finding the probe draws must be listed here with a reason, and every listed finding must still occur. An unexpected finding is a new defect or a regression; an expected one that stopped occurring is either a fix that should retire its entry in the same change, or a check that quietly stopped firing. Both fail the gate. Entries are hand-written and never blessed: a generated file cannot carry the reason, and the reason is the point.",
+  "_reading": "`fault: probe` is the probe doing its job — the malformed request is the fixture, and the client-side clause it breaks is the one under test. There are no `fault: server` entries: the two this file carried (LOG-010, PAGE-011) were closed on 2026-08-17 by enforcing both rules on Streamable HTTP as well as stdio, and the gate required their entries retired in the same change. An entry with `fault: server` is an open defect, and each must say what would close it.",
+  "expected": [
+    {
+      "requirement": "BASE-030",
+      "fault": "probe",
+      "why": "The first probe omits `io.modelcontextprotocol/clientCapabilities` from its `_meta`. That omission is the fixture: BASE-031 and BASE-032 — what the server must answer, and with which HTTP status — have no other way to be exercised, and both pass on this recording."
+    },
+    {
+      "requirement": "MRTR-002",
+      "fault": "probe",
+      "why": "The same one malformed request. MRTR-002, COMP-006, PAGE-006, TOOL-016, RES-011 and PROM-011 restate the required-envelope rule on their own feature pages and share `meta.required-request-fields` by design, so one fixture fires all seven."
+    },
+    {
+      "requirement": "COMP-006",
+      "fault": "probe",
+      "why": "The same one malformed request; see MRTR-002."
+    },
+    {
+      "requirement": "PAGE-006",
+      "fault": "probe",
+      "why": "The same one malformed request; see MRTR-002."
+    },
+    {
+      "requirement": "TOOL-016",
+      "fault": "probe",
+      "why": "The same one malformed request; see MRTR-002."
+    },
+    {
+      "requirement": "RES-011",
+      "fault": "probe",
+      "why": "The same one malformed request; see MRTR-002."
+    },
+    {
+      "requirement": "PROM-011",
+      "fault": "probe",
+      "why": "The same one malformed request; see MRTR-002."
+    },
+    {
+      "requirement": "TRAN-071",
+      "fault": "probe",
+      "why": "The legacy-handshake probe sends no `MCP-Protocol-Version` header, because a `2025-11-25` client has none to send — the header is this revision's invention. Sending one would be probing a client that does not exist, and VERS-008 (what a modern-only server owes that client) would go untested."
+    },
+    {
+      "requirement": "TRAN-072",
+      "fault": "probe",
+      "why": "One probe deliberately disagrees between its `MCP-Protocol-Version` header and its body's `_meta` version. That disagreement is the antecedent of TRAN-073 and TRAN-098 — a server must reject it with `HeaderMismatch` under HTTP 400 — and both pass on this recording."
+    },
+    {
+      "requirement": "PAGE-010",
+      "fault": "probe",
+      "why": "One probe presents a cursor no server issued, which is precisely what the client-side opacity clause forbids. It is the antecedent of PAGE-011, the server-side rule it exists to exercise — and PAGE-011 now passes on this recording, which is the whole point of sending it."
+    },
+    {
+      "requirement": "DISC-002",
+      "fault": "probe",
+      "why": "The session shows both eras — a legacy `initialize` and modern `_meta` requests — and does not open with `server/discover`. That is the dual-era antecedent, and it is unavoidable here: probing what a modern server owes a legacy handshake means sending one, in a session that also sends modern requests."
+    },
+    {
+      "requirement": "TRAN-128",
+      "fault": "probe",
+      "why": "The stdio binding's restatement of DISC-002, sharing its check; see above."
+    }
+  ]
+}

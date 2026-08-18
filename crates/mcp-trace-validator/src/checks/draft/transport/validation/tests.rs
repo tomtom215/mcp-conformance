@@ -151,7 +151,7 @@ fn an_unsupported_version_is_judged_against_what_the_server_declared() {
 }
 
 #[test]
-fn the_unsupported_version_error_must_list_the_versions_and_carry_a_400() {
+fn the_unsupported_version_error_must_list_the_versions() {
     let check = "transport.unsupported-version-error";
 
     let without_list = trace(&[
@@ -188,13 +188,60 @@ fn the_unsupported_version_error_must_list_the_versions_and_carry_a_400() {
     ]);
     assert!(findings_for(check, &complete).is_empty());
 
-    // An empty list is not a list of supported versions, and a non-400 status
-    // is its own finding on top.
-    let empty_and_200 = complete
-        .replace(r#"["2026-07-28"]"#, "[]")
-        .replace(r#""status":400"#, r#""status":200"#);
-    let findings = findings_for(check, &empty_and_200);
-    assert_eq!(findings.len(), 2, "{findings:?}");
+    // An empty list is not a list of supported versions.
+    let empty = complete.replace(r#"["2026-07-28"]"#, "[]");
+    let findings = findings_for(check, &empty);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+
+    // The HTTP status belongs to the sibling check now, and this one must stay
+    // silent about it: VERS-001 states the same rule *without* a status, and
+    // shares this check. A 200 here would be reported against that clause.
+    let wrong_status = complete.replace(r#""status":400"#, r#""status":200"#);
+    let on_status = findings_for(check, &wrong_status);
+    assert!(on_status.is_empty(), "{on_status:?}");
+}
+
+#[test]
+fn the_unsupported_version_error_must_carry_a_400() {
+    let check = "transport.unsupported-version-status";
+    let answered = |status_code: u16| {
+        trace(&[
+            post(
+                0,
+                r#"{"mcp-protocol-version":"2026-07-28","mcp-method":"tools/list"}"#,
+            ),
+            client(
+                1,
+                &format!(r#"{{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{{{META}}}}}"#),
+            ),
+            status(2, status_code),
+            server(
+                3,
+                r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32022,"message":"x","data":{"supported":["2026-07-28"]}}}"#,
+            ),
+        ])
+    };
+    let findings = findings_for(check, &answered(200));
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].contains("HTTP 200"), "{findings:?}");
+    assert!(findings_for(check, &answered(400)).is_empty());
+
+    // A different error code is not this clause's business.
+    let other_code = answered(200).replace("-32022", "-32602");
+    assert!(findings_for(check, &other_code).is_empty());
+
+    // stdio carries no status, so there is nothing to judge — not a violation.
+    let no_http = trace(&[
+        client(
+            0,
+            &format!(r#"{{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{{{META}}}}}"#),
+        ),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32022,"message":"x","data":{"supported":["2026-07-28"]}}}"#,
+        ),
+    ]);
+    assert!(findings_for(check, &no_http).is_empty());
 }
 
 #[test]
@@ -222,4 +269,48 @@ fn method_not_found_must_ride_a_404() {
     ]
     .join("\n");
     assert!(findings_for(check, &stdio).is_empty());
+}
+
+#[test]
+fn the_removed_handshake_is_outside_the_status_rule() {
+    // TRAN-074 is stated under `#protocol-version-header`, and its antecedent
+    // is a version requested *in that header* — which a `2025-11-25` client
+    // has none of. `basic/versioning` leaves the error *code* for a legacy
+    // `initialize` implementation-defined, so mandating one chosen code's HTTP
+    // status there would be incoherent. What that client is owed is VERS-008's
+    // clause, judged separately.
+    let handshake = trace(&[
+        post(0, r#"{"mcp-method":"initialize"}"#),
+        client(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"legacy","version":"0"}}}"#,
+        ),
+        status(2, 200),
+        server(
+            3,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32022,"message":"x","data":{"supported":["2026-07-28"]}}}"#,
+        ),
+    ]);
+    assert!(
+        findings_for("transport.unsupported-version-status", &handshake).is_empty(),
+        "{handshake}"
+    );
+    // A request that *did* name a version in its envelope is still bound.
+    let requested = trace(&[
+        post(0, r#"{"mcp-method":"tools/list"}"#),
+        client(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"1999-01-01","io.modelcontextprotocol/clientCapabilities":{}}}}"#,
+        ),
+        status(2, 200),
+        server(
+            3,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32022,"message":"x","data":{"supported":["2026-07-28"]}}}"#,
+        ),
+    ]);
+    assert_eq!(
+        findings_for("transport.unsupported-version-status", &requested).len(),
+        1,
+        "{requested}"
+    );
 }

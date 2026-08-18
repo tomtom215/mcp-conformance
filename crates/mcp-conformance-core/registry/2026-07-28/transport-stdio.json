@@ -1,0 +1,214 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "TRAN-115",
+      "level": "MUST NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio",
+        "quote": "Messages are delimited by newlines, and MUST NOT contain embedded newlines."
+      },
+      "exclusion": "Restates TRAN-002 at 2025-11-25 verbatim, and its exclusion holds unchanged: framing is enforced at capture time, the JSON Lines trace format cannot represent an embedded-newline violation, and a parseable trace is evidence the rule held."
+    },
+    {
+      "id": "TRAN-116",
+      "level": "SHOULD NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio",
+        "quote": "The client MAY capture, forward, or ignore the server's `stderr` output and SHOULD NOT assume `stderr` output indicates error conditions."
+      },
+      "exclusion": "Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-003 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-117",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio",
+        "quote": "The server MUST NOT write anything to its `stdout` that is not a valid MCP message."
+      },
+      "checks": [
+        "transport.stdio-server-output-valid"
+      ]
+    },
+    {
+      "id": "TRAN-118",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio",
+        "quote": "The client MUST NOT write anything to the server's `stdin` that is not a valid MCP message."
+      },
+      "checks": [
+        "transport.stdio-client-input-valid"
+      ]
+    },
+    {
+      "id": "TRAN-119",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio#sending-messages",
+        "quote": "The client MUST NOT write JSON-RPC responses."
+      },
+      "checks": [
+        "transport.client-no-responses"
+      ]
+    },
+    {
+      "id": "TRAN-120",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio#receiving-messages",
+        "quote": "The server MUST NOT write JSON-RPC requests to `stdout`."
+      },
+      "checks": [
+        "transport.no-independent-server-requests"
+      ]
+    },
+    {
+      "id": "TRAN-121",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio",
+        "quote": "Custom transports built on such streams SHOULD reuse this framing and the message rules on this page; only the subprocess-specific aspects (launch, `stderr`, shutdown by closing the stream, process restart) need channel-specific equivalents."
+      },
+      "exclusion": "The same clause as TRAN-114, stated from the stdio page's side: a custom transport has no representation in the trace format, and which framing it reused is settled before any message exists."
+    },
+    {
+      "id": "TRAN-122",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio#receiving-messages",
+        "quote": "Clients MUST correlate these using the `io.modelcontextprotocol/subscriptionId` field in `meta`; see [`SubscriptionsListenRequest`][subscriptions-listen-request]."
+      },
+      "exclusion": "Binds the client's own correlation of notifications it received — bookkeeping inside the client, which produces no message. The wire-visible half of the same mechanism, that the server tags each notification with `io.modelcontextprotocol/subscriptionId`, is BASE-039 and is checked."
+    },
+    {
+      "id": "TRAN-123",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio#cancellation",
+        "quote": "To cancel an in-flight request, the client MUST send a `notifications/cancelled` notification referencing the request's ID."
+      },
+      "checks": [
+        "transport.cancel-notification-references-request"
+      ]
+    },
+    {
+      "id": "TRAN-124",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio#cancellation",
+        "quote": "Servers SHOULD stop work on a cancelled request as soon as practical and MUST NOT send any further messages for it."
+      },
+      "checks": [
+        "transport.no-messages-after-cancel-notification"
+      ]
+    },
+    {
+      "id": "TRAN-125",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio#shutdown",
+        "quote": "The client SHOULD initiate shutdown by: Closing the input stream to the child process (the server); Waiting for the server to exit; If the server does not exit within a reasonable time, forcibly terminating the process using the mechanism appropriate for the operating system."
+      },
+      "exclusion": "Stream closure, process waits and forced termination are host-OS actions outside the trace event vocabulary — the same reason LIFE-014 excludes the 2025-11-25 shutdown sequence. A `transport-close` lifecycle event records that the transport ended, not which party closed which stream or what it did next."
+    },
+    {
+      "id": "TRAN-126",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio#shutdown",
+        "quote": "Servers SHOULD exit promptly when their standard input is closed or reads return end-of-file."
+      },
+      "exclusion": "Both the trigger (stdin closing, or a read returning EOF) and the response (process exit) are host-OS events the trace vocabulary does not carry, and \"promptly\" is a duration — checks may not consult time, the same limit LIFE-015 records."
+    },
+    {
+      "id": "TRAN-127",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio#unexpected-termination",
+        "quote": "If the server process exits unexpectedly, the client SHOULD restart it."
+      },
+      "exclusion": "Process supervision: the antecedent is an unexpected exit and the obligation is to launch a new process, neither of which is a message. A restart also begins a new session, so the evidence would have to span two traces, and nothing in one identifies the other as its successor."
+    },
+    {
+      "id": "TRAN-128",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio#backward-compatibility",
+        "quote": "A client that supports both modern (per-request-metadata) MCP versions and a legacy version that requires an `initialize` handshake SHOULD probe with [`server/discover`][server-discover] before sending any other request, setting its preferred modern version in `meta`."
+      },
+      "checks": [
+        "discover.dual-era-probe-first"
+      ]
+    },
+    {
+      "id": "TRAN-129",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio#backward-compatibility",
+        "quote": "The fallback MUST NOT be keyed to one specific error code: legacy servers respond to unknown pre-`initialize` requests with implementation-defined errors (commonly `-32601` or `-32602`) or not at all."
+      },
+      "exclusion": "Binds the client's decision function, not any message it sends. A session exhibits one probe answered by one error code and one decision taken; whether the client would have fallen back on a *different* code is a property of code paths that session never exercised, and no number of traces settles it."
+    }
+  ]
+}

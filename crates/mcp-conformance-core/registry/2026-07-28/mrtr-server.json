@@ -1,0 +1,203 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "MRTR-001",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr",
+        "quote": "Servers MUST send server-to-client requests (such as `roots/list`, `sampling/createMessage`, or `elicitation/create`) using the MRTR pattern."
+      },
+      "checks": [
+        "transport.no-independent-server-requests"
+      ]
+    },
+    {
+      "id": "MRTR-002",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`."
+      },
+      "checks": [
+        "meta.required-request-fields"
+      ]
+    },
+    {
+      "id": "MRTR-003",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#inputrequiredresult",
+        "quote": "Clients MUST NOT inspect, parse, modify, or make any assumptions about its contents."
+      },
+      "checks": [
+        "mrtr.request-state-echoed"
+      ]
+    },
+    {
+      "id": "MRTR-004",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#supported-requests",
+        "quote": "Servers MUST NOT send `InputRequiredResult` responses on any other client requests."
+      },
+      "checks": [
+        "mrtr.input-required-supported-methods"
+      ]
+    },
+    {
+      "id": "MRTR-005",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "`inputRequests` keys are server assigned identifiers and MUST be unique within the scope of the request."
+      },
+      "exclusion": "JSON object members are unique by the time any check runs: a duplicate key is collapsed by the parser that reads the trace, so a violation cannot survive into the events a check sees. The same reason TRAN-110 and TRAN-115 exclude — the defect is destroyed at parse time, not judged and passed."
+    },
+    {
+      "id": "MRTR-006",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "`inputRequests` values are request objects that MUST be one of `ElicitRequest`, `CreateMessageRequest`, or `ListRootsRequest`"
+      },
+      "checks": [
+        "mrtr.input-request-methods"
+      ]
+    },
+    {
+      "id": "MRTR-007",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "If a client request contains a `requestState` field, servers MUST treat `requestState` as an attacker-controlled input."
+      },
+      "exclusion": "A disposition toward an input, not an act: a server that treats state as trusted and one that treats it as hostile send the same messages until the state is actually tampered with, and even then what differs is the server's internal decision. The consequences the clause draws from it — integrity protection and rejection — are MRTR-008, excluded for their own reasons."
+    },
+    {
+      "id": "MRTR-008",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "If `requestState` influences authorization, resource access, or business logic, servers MUST protect its integrity (e.g. HMAC or AEAD) and MUST reject state that fails verification."
+      },
+      "exclusion": "Both halves are invisible on the wire. `requestState` is opaque by construction — the specification's own examples range over base64 JSON, encrypted JWTs and serialized binary — so no check can tell an HMAC-protected blob from an unprotected one. The antecedent is worse still: whether the state influences authorization is a fact about the server's code. Verified instead by the implementation's own tests, where the key is available."
+    },
+    {
+      "id": "MRTR-009",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "To prevent replay, servers SHOULD include the following inside the integrity-protected `requestState` payload and verify each on receipt: the authenticated principal, rejecting state presented by a different principal. a short expiry (TTL), rejecting state presented after it lapses; an identifier for the originating request, e.g. the method name and a digest of its salient parameters, rejecting state presented on a request that does not match."
+      },
+      "exclusion": "Names three fields that live *inside* the integrity-protected payload, which is opaque and generally encrypted — the trace carries the blob, never its contents. Two of the three also bind time and identity: expiry is a duration, which checks may not consult (LIFE-015), and the authenticated principal is not in the message."
+    },
+    {
+      "id": "MRTR-010",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "Servers for which a given `requestState` must be consumed at most once (e.g., one-time redemptions) MUST enforce that invariant server-side."
+      },
+      "exclusion": "The clause's own words put the obligation server-side, and its antecedent — that this server's states are single-use — is a property of the server's design that no message declares. A trace showing one state presented twice would still not distinguish a violated invariant from a server for which none was ever claimed."
+    },
+    {
+      "id": "MRTR-011",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "Servers MUST include at least one of `inputRequests` or `requestState` in every `InputRequiredResult` response."
+      },
+      "checks": [
+        "mrtr.input-required-has-content"
+      ]
+    },
+    {
+      "id": "MRTR-012",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "Servers MUST NOT send an `inputRequests` that the client has not declared support for in its capabilities."
+      },
+      "checks": [
+        "meta.no-undeclared-capability-reliance"
+      ]
+    },
+    {
+      "id": "MRTR-013",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "For example, if a client does not declare support for `elicitation`, the server MUST NOT include any `elicitation/create` requests in the `inputRequests` field."
+      },
+      "checks": [
+        "meta.no-undeclared-capability-reliance"
+      ]
+    },
+    {
+      "id": "MRTR-014",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "Servers MUST NOT assume that clients will fulfill the `inputRequests` or retry the original request."
+      },
+      "exclusion": "Forbids an assumption. Its wire-visible consequence would be a server that breaks when a client declines to retry, and a conforming session never exhibits that: the client either retries, which tells us nothing about the assumption, or does not, and the trace simply ends."
+    }
+  ]
+}

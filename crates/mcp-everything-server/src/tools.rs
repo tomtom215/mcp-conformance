@@ -19,7 +19,7 @@ use rmcp::model::{CallToolResult, ContentBlock, ResourceContents, Tool};
 use rmcp::{ErrorData, tool, tool_router};
 
 use crate::fixtures::{TINY_PNG_BASE64, TINY_WAV_BASE64};
-use crate::server::EverythingServer;
+use crate::server::{EverythingServer, ServedRevision};
 
 /// Name of the JSON Schema 2020-12 keyword-preservation tool (SEP-1613); the
 /// `json-schema-2020-12` scenario looks it up by exactly this name.
@@ -290,9 +290,35 @@ pub(crate) fn json_schema_2020_12_route() -> ToolRoute<EverythingServer> {
 
 /// Combines every tool router the server exposes; [`EverythingServer::new`]
 /// is the single caller, so the tool inventory has one assembly point.
-pub(crate) fn all_tools() -> ToolRouter<EverythingServer> {
+pub(crate) fn all_tools(revision: ServedRevision) -> ToolRouter<EverythingServer> {
     let routed = EverythingServer::tool_router_basic()
         + EverythingServer::tool_router_notifying()
         + EverythingServer::tool_router_interactive();
-    routed.with_route(json_schema_2020_12_route())
+    let mut routed = routed.with_route(json_schema_2020_12_route());
+    for tool in RETIRED_AT_2026_07_28 {
+        if revision.is_stateless() {
+            routed.remove_route(tool);
+        }
+    }
+    routed
 }
+
+/// Tools whose protocol feature `2026-07-28` removed.
+///
+/// Both would put a message on the wire that the revision has no place for,
+/// and listing either while answering an error would break this crate's one
+/// standing rule — advertise only what is implemented.
+///
+/// - `test_url_elicitation`: URL-mode elicitation and its
+///   `notifications/elicitation/complete` completion are gone (register 1.5d,
+///   Minor #11), and that round trip is the tool's entire behaviour.
+/// - `test_list_changed`: it broadcasts the three `list_changed` notifications
+///   outside any subscription, which is the model `subscriptions/listen`
+///   replaced — the page's own words are that it "replaces the former
+///   `resources/subscribe` RPC and the HTTP GET endpoint". At this revision
+///   those notifications belong to a subscription and carry its id
+///   (BASE-039); broadcast, they are uncorrelatable on stdio, where one
+///   channel carries everything. The capability is still exercised, by the
+///   subscription's own announcement in [`crate::subscriptions`], which sends
+///   exactly those three types through the mechanism the revision defines.
+const RETIRED_AT_2026_07_28: [&str; 2] = ["test_url_elicitation", "test_list_changed"];

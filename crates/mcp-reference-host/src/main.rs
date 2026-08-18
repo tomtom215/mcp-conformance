@@ -15,16 +15,28 @@
 //! Diagnostics go to stderr; stdout stays silent (suite runs capture it, and
 //! a future stdout report format must not have to fight old noise).
 
+// SEP-2577 forward-deprecates Logging, and rmcp 3.x carries the attribute, so
+// naming `LoggingLevel` fires it on correct code: the level a request asks for
+// is how `2026-07-28` *replaced* `logging/setLevel`, and it is the only way a
+// recording can carry the logging clauses at all. Scoped to this module rather
+// than the crate, matching `mcp-everything-server`'s two module-level allows —
+// a blanket allow would also hide a deprecation that genuinely matters.
+#![allow(deprecated)]
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use mcp_reference_host::capture::{CaptureTransport, RecordingTransport};
 use mcp_reference_host::handler::HostHandler;
-use mcp_reference_host::run::{RunPlan, RunReport, StopReason, run};
+use mcp_reference_host::run::{RunPlan, StopReason, run};
 use mcp_reference_host::scenario::{ScenarioPlan, plan_for};
 use mcp_reference_host::script::InteractionScript;
-use rmcp::ServiceExt as _;
+use mcp_reference_host::{subscribe, sweep};
+
+mod render;
+use rmcp::model::{LoggingLevel, ProtocolVersion};
+use rmcp::service::{ClientLifecycleMode, ClientServiceExt as _};
 use rmcp::transport::Transport;
 use tokio_util::sync::CancellationToken;
 
@@ -54,6 +66,106 @@ struct Cli {
     /// wedge the runner forever (measured against suite 0.1.16).
     #[arg(long, default_value_t = 25)]
     deadline_secs: u64,
+    /// Let the run continue past this many errors. Overrides the scenario
+    /// plan's budget, which is `0` because the suite's scenarios judge a
+    /// clean run; a recording sweeping every tool meets `test_error_handling`,
+    /// whose whole job is to return one.
+    #[arg(long, value_name = "N")]
+    error_budget: Option<u32>,
+    /// Cap the run at this many turns, overriding the scenario plan's.
+    #[arg(long, value_name = "N")]
+    turn_limit: Option<u32>,
+    /// Open a `subscriptions/listen` stream before the tool loop and drain it
+    /// to its end. `2026-07-28` only — the method does not exist before it.
+    #[arg(long)]
+    subscribe: bool,
+    /// Send the probe session instead of a normal run: deliberately malformed
+    /// requests, one per rejection clause, so a recording carries what the
+    /// server does when it must refuse. Requires `--url`; the probes are raw
+    /// HTTP, which is the point — rmcp's client will not emit one.
+    #[arg(long, conflicts_with_all = ["server_cmd", "sweep", "subscribe"])]
+    probe: bool,
+    /// After the tool loop, drive the rest of the server's surface: prompts,
+    /// resources, templates, completion, and one read of a URI the catalog
+    /// does not contain. A recording without this evidences the tool clauses
+    /// and nothing else.
+    #[arg(long)]
+    sweep: bool,
+    /// Ask every tool call for log messages at this level or above, through
+    /// `_meta.io.modelcontextprotocol/logLevel`. Omitted, the request asks for
+    /// none — which `2026-07-28` requires a server to honour by staying
+    /// silent, so a recording that never asks cannot judge the logging clauses.
+    #[arg(long, value_name = "LEVEL")]
+    log_level: Option<LogLevel>,
+    /// Protocol revision to speak. `2026-07-28` uses the stateless lifecycle:
+    /// `server/discover` instead of `initialize`, and a `_meta` envelope on
+    /// every request.
+    #[arg(long, value_enum, default_value_t = Revision::default())]
+    protocol_version: Revision,
+}
+
+/// The revision the host speaks, as a CLI value.
+///
+/// A separate enum from rmcp's [`ProtocolVersion`] because the choice here is
+/// not "which version string" but "which lifecycle": `2026-07-28` removed the
+/// handshake, so the two options differ in the messages the host sends before
+/// it can send anything else.
+/// The eight RFC 5424 severities, as a CLI value.
+///
+/// Spelled out rather than deriving on rmcp's [`LoggingLevel`]: that type is
+/// `#[non_exhaustive]` and carries no `ValueEnum`, and the CLI's accepted set
+/// is a contract with whoever scripts a capture.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum LogLevel {
+    Debug,
+    Info,
+    Notice,
+    Warning,
+    Error,
+    Critical,
+    Alert,
+    Emergency,
+}
+
+impl From<LogLevel> for LoggingLevel {
+    fn from(level: LogLevel) -> Self {
+        match level {
+            LogLevel::Debug => Self::Debug,
+            LogLevel::Info => Self::Info,
+            LogLevel::Notice => Self::Notice,
+            LogLevel::Warning => Self::Warning,
+            LogLevel::Error => Self::Error,
+            LogLevel::Critical => Self::Critical,
+            LogLevel::Alert => Self::Alert,
+            LogLevel::Emergency => Self::Emergency,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+enum Revision {
+    /// The `initialize` handshake.
+    #[default]
+    #[value(name = "2025-11-25")]
+    V20251125,
+    /// Stateless: `server/discover`, then a `_meta` envelope per request.
+    #[value(name = "2026-07-28")]
+    V20260728,
+}
+
+impl From<Revision> for ClientLifecycleMode {
+    fn from(revision: Revision) -> Self {
+        match revision {
+            Revision::V20251125 => Self::Initialize,
+            // Only this revision, not a preference list: the host is asked to
+            // exercise the stateless surface, and a list that could fall back
+            // would quietly record a legacy session instead when the server
+            // does not serve it.
+            Revision::V20260728 => Self::Discover {
+                preferred_versions: vec![ProtocolVersion::V_2026_07_28],
+            },
+        }
+    }
 }
 
 #[tokio::main]
@@ -81,50 +193,149 @@ async fn dispatch(cli: Cli) -> ExitCode {
     );
 
     let url = cli.url.or(cli.positional_url);
+    if cli.probe {
+        let Some(url) = url else {
+            eprintln!("mcp-reference-host: --probe needs a server URL");
+            return ExitCode::from(2);
+        };
+        return render::probe(&url).await;
+    }
+    let lifecycle = ClientLifecycleMode::from(cli.protocol_version);
+    let plan = overridden(plan, cli.error_budget, cli.turn_limit, cli.log_level);
+    let extras = Extras {
+        subscribe: cli.subscribe,
+        sweep: cli.sweep,
+    };
     match (plan, url, cli.server_cmd) {
         (ScenarioPlan::SseRetry, Some(url), _) => sse_retry(&url).await,
         (ScenarioPlan::SseRetry, None, _) => {
             eprintln!("mcp-reference-host: the sse-retry scenario needs a server URL");
             ExitCode::from(2)
         }
-        (ScenarioPlan::Agent { script, plan }, Some(url), None) => {
-            let transport = mcp_reference_host::connect::streamable_http(&url);
-            match cli.trace_dir {
-                Some(dir) => match recording(transport, CaptureTransport::StreamableHttp, &dir) {
-                    Ok(transport) => agent_run(transport, script, plan).await,
-                    Err(code) => code,
-                },
-                None => agent_run(transport, script, plan).await,
-            }
-        }
-        (ScenarioPlan::Agent { script, plan }, None, Some(command)) => {
-            let transport = match mcp_reference_host::connect::child_process(&command) {
-                Ok(transport) => transport,
-                Err(error) => {
-                    eprintln!("mcp-reference-host: cannot spawn {command:?}: {error}");
-                    return ExitCode::FAILURE;
-                }
+        (ScenarioPlan::Agent { script, plan }, url, server_cmd) => {
+            let session = Session {
+                script,
+                plan,
+                lifecycle,
+                extras,
             };
-            match cli.trace_dir {
-                Some(dir) => match recording(transport, CaptureTransport::Stdio, &dir) {
-                    Ok(transport) => agent_run(transport, script, plan).await,
-                    Err(code) => code,
-                },
-                None => agent_run(transport, script, plan).await,
-            }
+            agent_over(url, server_cmd, cli.trace_dir, session).await
         }
-        (ScenarioPlan::Agent { .. }, None, None) => {
+    }
+}
+
+/// Connects the agent session over whichever transport the invocation named.
+///
+/// The two real transports differ only in how they are built and what the
+/// trace calls them; keeping the arms adjacent is what stops one of them
+/// silently missing an option the other gained.
+async fn agent_over(
+    url: Option<String>,
+    server_cmd: Option<String>,
+    trace_dir: Option<PathBuf>,
+    session: Session,
+) -> ExitCode {
+    match (url, server_cmd) {
+        (Some(url), None) => {
+            let transport = mcp_reference_host::connect::streamable_http(&url);
+            recorded(
+                transport,
+                CaptureTransport::StreamableHttp,
+                trace_dir,
+                session,
+            )
+            .await
+        }
+        (None, Some(command)) => match mcp_reference_host::connect::child_process(&command) {
+            Ok(transport) => recorded(transport, CaptureTransport::Stdio, trace_dir, session).await,
+            Err(error) => {
+                eprintln!("mcp-reference-host: cannot spawn {command:?}: {error}");
+                ExitCode::FAILURE
+            }
+        },
+        (None, None) => {
             eprintln!(
                 "mcp-reference-host: pass a server URL (positional or --url) or --server-cmd"
             );
             ExitCode::from(2)
         }
-        (ScenarioPlan::Agent { .. }, Some(_), Some(_)) => {
+        (Some(_), Some(_)) => {
             // clap's conflicts_with already rejects this; kept as defense.
             eprintln!("mcp-reference-host: --url and --server-cmd are mutually exclusive");
             ExitCode::from(2)
         }
     }
+}
+
+/// Everything a run needs beyond its transport.
+///
+/// One struct because the four always travel together and neither transport
+/// arm varies them; splitting them across an argument list only gave the two
+/// arms more to keep in step.
+struct Session {
+    script: InteractionScript,
+    plan: RunPlan,
+    lifecycle: ClientLifecycleMode,
+    extras: Extras,
+}
+
+/// Runs `session` over `transport`, wrapping it in the recorder when the
+/// operator asked for a trace.
+async fn recorded<T: Transport<rmcp::service::RoleClient> + 'static>(
+    transport: T,
+    kind: CaptureTransport,
+    trace_dir: Option<PathBuf>,
+    session: Session,
+) -> ExitCode {
+    match trace_dir {
+        Some(dir) => match recording(transport, kind, &dir) {
+            Ok(transport) => agent_run(transport, session).await,
+            Err(code) => code,
+        },
+        None => agent_run(transport, session).await,
+    }
+}
+
+/// `plan` with the operator's bounds applied, when they gave any.
+///
+/// The scenario table's bounds are a *contract* with the official suite, so
+/// they are the default and never rewritten in place; an override is for a run
+/// the suite does not define — a recording sweeping every tool, where meeting
+/// `test_error_handling` is the point rather than a failure.
+fn overridden(
+    plan: ScenarioPlan,
+    error_budget: Option<u32>,
+    turn_limit: Option<u32>,
+    log_level: Option<LogLevel>,
+) -> ScenarioPlan {
+    let ScenarioPlan::Agent { script, mut plan } = plan else {
+        // `sse-retry` runs its own dance with no plan to bound.
+        return plan;
+    };
+    if let Some(error_budget) = error_budget {
+        plan.error_budget = error_budget;
+    }
+    if let Some(turn_limit) = turn_limit {
+        plan.turn_limit = turn_limit;
+    }
+    // Left `None` unless asked: the suite's scenarios judge a session that
+    // requested no logs, and a host that asked anyway would change what the
+    // server under test emits during a scenario nobody wrote for it.
+    plan.log_level = log_level.map(Into::into);
+    ScenarioPlan::Agent { script, plan }
+}
+
+/// What a run does either side of the tool loop.
+///
+/// Bundled rather than passed as two `bool`s: at the call sites they are
+/// adjacent and identically typed, which is exactly where an argument swap
+/// stops being a compile error.
+#[derive(Debug, Clone, Copy)]
+struct Extras {
+    /// Drain one `subscriptions/listen` stream before the loop.
+    subscribe: bool,
+    /// Drive the non-tool surface after it.
+    sweep: bool,
 }
 
 /// The sse-retry scenario: the host's own compliant resumption dance
@@ -179,19 +390,38 @@ fn recording<T>(
 /// Connects over `transport`, runs the bounded loop, and reports.
 async fn agent_run(
     transport: impl Transport<rmcp::service::RoleClient> + 'static,
-    script: InteractionScript,
-    plan: RunPlan,
+    session: Session,
 ) -> ExitCode {
+    let Session {
+        script,
+        plan,
+        lifecycle,
+        extras,
+    } = session;
     let handler = HostHandler::new(script);
-    let client = match handler.clone().serve(transport).await {
+    let client = match handler
+        .clone()
+        .serve_with_lifecycle(transport, lifecycle)
+        .await
+    {
         Ok(client) => client,
         Err(error) => {
             eprintln!("mcp-reference-host: initialization failed: {error}");
             return ExitCode::FAILURE;
         }
     };
+    if extras.subscribe && !drained(&client).await {
+        let _ = client.cancel().await;
+        return ExitCode::FAILURE;
+    }
     let report = run(&client, &plan, &CancellationToken::new()).await;
-    render(&report);
+    render::run(&report);
+    if extras.sweep {
+        // After the loop, not before: the sweep reads resources the tools may
+        // have changed, and a recording is easier to follow when the
+        // discovery-driven half sits on one side of the tool calls.
+        render::sweep(&sweep::run(client.peer()).await);
+    }
     let clean_shutdown = client.cancel().await.is_ok();
     if report.stop == StopReason::Completed && clean_shutdown {
         ExitCode::SUCCESS
@@ -200,16 +430,31 @@ async fn agent_run(
     }
 }
 
-/// The run record, one line per call, on stderr.
-fn render(report: &RunReport) {
-    eprintln!(
-        "mcp-reference-host: {:?} after {} turn(s), {} error(s)",
-        report.stop, report.turns, report.errors
-    );
-    for outcome in &report.outcomes {
-        match &outcome.result {
-            Ok(text) => eprintln!("  ok   {}: {text}", outcome.tool),
-            Err(error) => eprintln!("  err  {}: {error}", outcome.tool),
+/// Drives one subscription to its end, reporting what it carried.
+///
+/// Before the tool loop rather than after: the loop ends by disconnecting, and
+/// a subscription still open at that moment would end abruptly — which is a
+/// different clause from the graceful closure this is here to exercise.
+async fn drained<S: rmcp::service::Service<rmcp::service::RoleClient>>(
+    client: &rmcp::service::RunningService<rmcp::service::RoleClient, S>,
+) -> bool {
+    // The URIs the reference server publishes and one it does not, so the
+    // acknowledgment in a recording shows the server narrowing the filter
+    // rather than leaving that to be assumed.
+    let filter = subscribe::everything("test://static-text", "test://not-a-resource");
+    match subscribe::drain(client, filter).await {
+        Ok(report) => {
+            eprintln!(
+                "mcp-reference-host: subscription acknowledged [{}], received [{}], ended {}",
+                report.acknowledged.join(", "),
+                report.notifications.join(", "),
+                report.ended
+            );
+            true
+        }
+        Err(error) => {
+            eprintln!("mcp-reference-host: subscription failed: {error}");
+            false
         }
     }
 }

@@ -61,16 +61,17 @@ pub(super) fn write(path: &Path, measured: &BTreeMap<String, Scenario>) -> Resul
     };
     let document = serde_json::json!({
         "_policy": "Measured by `cargo xtask draft-readiness`: the status of every check the \
-                    official runner's 2026-07-28 scenarios report against the \
-                    2025-11-25 everything server. The gate fails on ANY change — a lost pass \
-                    is a migration regression, a gained one is progress that gets recorded \
-                    deliberately (BLESS=1) in the commit that earned it. Statuses are verbatim: \
-                    INFO is the runner's informational outcome and is neither a pass nor a \
-                    failure. This is NOT a conformance claim about the 2026-07-28 revision: the \
-                    text shipped on 2026-07-28 (register 1.5h), but the requirement registry \
-                    does not describe that revision yet (roadmap M2.5 line 2), and these \
-                    scenarios come from a pre-release suite, so the check set itself can \
-                    still move.",
+                    official runner's 2026-07-28 scenarios report against the everything \
+                    server, once per revision the server can serve. Scenario keys are \
+                    `<served revision>/<scenario>`: the 2025-11-25 leg measures migration \
+                    distance, the 2026-07-28 leg measures the server's own stateless mode. \
+                    The gate fails on ANY change — a lost pass is a regression, a gained one \
+                    is progress that gets recorded deliberately (BLESS=1) in the commit that \
+                    earned it. Statuses are verbatim: INFO is the runner's informational \
+                    outcome and is neither a pass nor a failure. Passing the runner is not the \
+                    same as conforming: these scenarios come from a pre-release suite, so the \
+                    check set itself can still move, and the runner judges a subset of what \
+                    the registry in this workspace judges.",
         "suite": DRAFT_SUITE_VERSION,
         "spec": DRAFT_SPEC_VERSION,
         "passing": tally(SUCCESS),

@@ -19,8 +19,12 @@ use super::http_status_for;
 use crate::context::TraceContext;
 use mcp_conformance_core::trace::Direction;
 
+mod trace_context;
+
 #[cfg(test)]
 mod tests;
+
+pub(in crate::checks) use trace_context::trace_context_format;
 
 /// Fields `2026-07-28` requires in every client request's `_meta`.
 const REQUIRED_REQUEST_FIELDS: &[&str] = &[
@@ -32,6 +36,10 @@ const REQUIRED_REQUEST_FIELDS: &[&str] = &[
 const MISSING_CAPABILITY_CODE: i64 = -32021;
 /// JSON-RPC `Invalid params`, which a malformed `_meta` envelope draws.
 const INVALID_PARAMS: i64 = -32602;
+
+/// The handshake this revision removed. A request for it is the previous era's
+/// opener, not a `2026-07-28` request with a malformed envelope.
+const LEGACY_HANDSHAKE: &str = "initialize";
 
 /// The `_meta` object of a message's `params`, when present.
 fn params_meta(payload: &Value) -> Option<&serde_json::Map<String, Value>> {
@@ -65,6 +73,7 @@ pub(in crate::checks) fn required_request_fields(
         if id.is_none() {
             continue; // a notification, not a request
         }
+        sink.examined();
         let meta = params_meta(payload);
         for field in REQUIRED_REQUEST_FIELDS {
             let present = meta.is_some_and(|meta| meta.contains_key(*field));
@@ -78,6 +87,36 @@ pub(in crate::checks) fn required_request_fields(
     }
 }
 
+/// Client requests whose `_meta` is missing a required field, by id text.
+///
+/// Shared by `BASE-031` (what such a request must draw) and `BASE-032` (what
+/// HTTP status that answer must ride), because both clauses are about the
+/// *same* request and neither binds a `-32602` raised for any other reason.
+fn malformed_requests(context: &TraceContext<'_>) -> BTreeMap<String, u64> {
+    client_requests(context)
+        .filter_map(|(seq, id, payload)| {
+            let id = id?;
+            // The one exchange the specification takes out of this rule: a legacy
+            // `initialize` arriving at a modern server. `basic/versioning`'s
+            // compatibility matrix states that there "the exact code is
+            // implementation-defined (`initialize` is an unknown method and the
+            // request also lacks the required `_meta` fields)" — two rules apply
+            // and the specification declines to pick, so a server answering
+            // `-32601` conforms. Without this, every cross-era capture would
+            // carry a MUST failure the specification has explicitly waived. The
+            // client's own defect is still reported, by BASE-030.
+            if payload.get("method").and_then(Value::as_str) == Some(LEGACY_HANDSHAKE) {
+                return None;
+            }
+            let meta = params_meta(payload);
+            let complete = REQUIRED_REQUEST_FIELDS
+                .iter()
+                .all(|field| meta.is_some_and(|meta| meta.contains_key(*field)));
+            (!complete).then(|| (id.to_string(), seq))
+        })
+        .collect()
+}
+
 /// `BASE-031`: a request missing a required `_meta` field must draw `-32602`.
 ///
 /// Falsified when the server answered such a request with a *result*, or with
@@ -88,16 +127,7 @@ pub(in crate::checks) fn missing_required_field_rejected(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let malformed: BTreeMap<String, u64> = client_requests(context)
-        .filter_map(|(seq, id, payload)| {
-            let id = id?;
-            let meta = params_meta(payload);
-            let complete = REQUIRED_REQUEST_FIELDS
-                .iter()
-                .all(|field| meta.is_some_and(|meta| meta.contains_key(*field)));
-            (!complete).then(|| (id.to_string(), seq))
-        })
-        .collect();
+    let malformed = malformed_requests(context);
     if malformed.is_empty() {
         return;
     }
@@ -114,6 +144,9 @@ pub(in crate::checks) fn missing_required_field_rejected(
         let Some(&request_seq) = malformed.get(&id.to_string()) else {
             continue;
         };
+        // The subject is an *answer* to a malformed request; one the recording
+        // never saw answered settles nothing.
+        sink.examined();
         match payload.get("error").and_then(|error| error.get("code")) {
             Some(code) if code.as_i64() == Some(INVALID_PARAMS) => {}
             Some(code) => sink.push(
@@ -136,30 +169,51 @@ pub(in crate::checks) fn missing_required_field_rejected(
 
 /// Reports every server error carrying `code` whose HTTP response status is not
 /// `400` — the shared body of `BASE-032` and `BASE-036`.
+///
+/// `answering` narrows which errors of that code the clause reaches, by the id
+/// of the request each answers. `BASE-036` passes `None`: `-32021` has exactly
+/// one cause, so every one of them is its subject. `BASE-032` passes the
+/// malformed-request set, because its `-32602` is not the only `-32602` a
+/// conforming server emits — this revision *replaced* `-32002` with it, so a
+/// resource-not-found now carries the same code, and the clause says nothing
+/// about that answer's HTTP status.
 fn http_status_for_error(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
     code: i64,
     clause: &str,
+    answering: Option<&BTreeMap<String, u64>>,
 ) {
     for (event, _, _) in context.messages() {
         if !matches!(event.direction, Direction::ServerToClient) {
             continue;
         }
-        let matches_code = event
-            .message_payload()
-            .and_then(|payload| payload.get("error"))
+        let Some(payload) = event.message_payload() else {
+            continue;
+        };
+        let matches_code = payload
+            .get("error")
             .and_then(|error| error.get("code"))
             .and_then(Value::as_i64)
             == Some(code);
         if !matches_code {
             continue;
         }
+        if let Some(answering) = answering {
+            let answers_a_subject = payload
+                .get("id")
+                .is_some_and(|id| answering.contains_key(&id.to_string()));
+            if !answers_a_subject {
+                continue;
+            }
+        }
         // Only judged when the recording actually carries HTTP framing; on stdio
         // there is no status to check, and a trace without one evidences nothing.
-        if let Some((status_seq, status)) = http_status_for(context, event.seq)
-            && status != 400
-        {
+        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+            continue;
+        };
+        sink.examined();
+        if status != 400 {
             sink.push(
                 Some(status_seq),
                 format!("{clause}: error {code} was returned with HTTP {status}, not 400"),
@@ -173,11 +227,18 @@ pub(in crate::checks) fn missing_required_field_http_status(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
+    // Narrowed to the errors this clause is about. Before the enriched HTTP
+    // capture carried one, every `-32602` in every recording *was* a malformed
+    // envelope, so the difference could not show; a server answering a
+    // resource-not-found `-32602` with anything but 400 would have been
+    // reported for a clause that does not bind it.
+    let malformed = malformed_requests(context);
     http_status_for_error(
         context,
         sink,
         INVALID_PARAMS,
         "missing required `_meta` field",
+        Some(&malformed),
     );
 }
 
@@ -191,15 +252,30 @@ pub(in crate::checks) fn missing_capability_http_status(
         sink,
         MISSING_CAPABILITY_CODE,
         "missing required client capability",
+        None,
     );
 }
 
-/// `BASE-035`: a `-32021` must carry `data.requiredCapabilities` listing what
+/// `BASE-035`: a `-32021` must carry `data.requiredCapabilities` naming what
 /// was missing.
 ///
 /// The trace cannot show that the server *needed* a capability, so the positive
 /// direction is out of reach; what it can show is a `-32021` whose shape does
-/// not carry the list the clause requires.
+/// not carry what the clause requires.
+///
+/// The clause's word is "lists", and this check read that as a JSON array until
+/// 2026-08-17. The schema disagrees, and the schema is the authority:
+/// `MissingRequiredClientCapabilityError.error.data.requiredCapabilities` is
+/// typed [`ClientCapabilities`][schema] — the same nested object a client sends
+/// in its `_meta`, carrying the *shape* of what is missing rather than a list of
+/// names. Judged as an array, this check reported a conforming server, which is
+/// the worst thing a conformance check can do; it now requires an object.
+///
+/// An empty object is still reported. `{}` declares nothing missing, so it
+/// leaves the client with no more information than an error carrying no `data`
+/// at all — the very thing the clause exists to prevent.
+///
+/// [schema]: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2026-07-28/schema.ts
 pub(in crate::checks) fn missing_capability_error(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
@@ -214,17 +290,18 @@ pub(in crate::checks) fn missing_capability_error(
         if error.get("code").and_then(Value::as_i64) != Some(MISSING_CAPABILITY_CODE) {
             continue;
         }
+        sink.examined();
         match error
             .get("data")
             .and_then(|data| data.get("requiredCapabilities"))
         {
-            Some(list) if list.is_array() => {
-                if list.as_array().is_some_and(Vec::is_empty) {
+            Some(required) if required.is_object() => {
+                if required.as_object().is_some_and(serde_json::Map::is_empty) {
                     sink.push(
                         Some(event.seq),
                         format!(
                             "error {MISSING_CAPABILITY_CODE} carries an empty \
-                             `data.requiredCapabilities`; it must list the missing capabilities"
+                             `data.requiredCapabilities`; it must name the missing capabilities"
                         ),
                     );
                 }
@@ -233,14 +310,14 @@ pub(in crate::checks) fn missing_capability_error(
                 Some(event.seq),
                 format!(
                     "error {MISSING_CAPABILITY_CODE} has `data.requiredCapabilities` \
-                     that is not an array"
+                     that is not a `ClientCapabilities` object"
                 ),
             ),
             None => sink.push(
                 Some(event.seq),
                 format!(
                     "error {MISSING_CAPABILITY_CODE} has no `data.requiredCapabilities` \
-                     listing the missing capabilities"
+                     naming the missing capabilities"
                 ),
             ),
         }
@@ -302,6 +379,9 @@ pub(in crate::checks) fn no_undeclared_capability_reliance(
                 "roots/list" => "roots",
                 _ => continue,
             };
+            // The subject is an input request of a kind a capability governs;
+            // the revision's other input kinds need none.
+            sink.examined();
             if !declared.iter().any(|name| name == needed) {
                 sink.push(
                     Some(event.seq),
@@ -325,14 +405,13 @@ pub(in crate::checks) fn subscription_id_present(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let listening = context.messages().any(|(_, _, _)| false)
-        || context.messages().any(|(event, _, _)| {
-            event
-                .message_payload()
-                .and_then(|payload| payload.get("method"))
-                .and_then(Value::as_str)
-                == Some("subscriptions/listen")
-        });
+    let listening = context.messages().any(|(event, _, _)| {
+        event
+            .message_payload()
+            .and_then(|payload| payload.get("method"))
+            .and_then(Value::as_str)
+            == Some("subscriptions/listen")
+    });
     if !listening {
         return;
     }
@@ -355,6 +434,7 @@ pub(in crate::checks) fn subscription_id_present(
         {
             continue;
         }
+        sink.examined();
         let tagged = params_meta(payload)
             .is_some_and(|meta| meta.contains_key("io.modelcontextprotocol/subscriptionId"));
         if !tagged {
@@ -367,87 +447,4 @@ pub(in crate::checks) fn subscription_id_present(
             );
         }
     }
-}
-
-/// `BASE-040`: `traceparent` and `tracestate`/`baggage` follow their W3C formats.
-///
-/// Only the `traceparent` grammar is fixed enough to judge from a trace: version
-/// `00`, a 32-hex trace id that is not all zeroes, a 16-hex parent id that is not
-/// all zeroes, and 2 hex flags. `tracestate` and `baggage` are list formats whose
-/// members are vendor-defined, so only their gross shape is checked.
-pub(in crate::checks) fn trace_context_format(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    for (event, _, _) in context.messages() {
-        let Some(payload) = event.message_payload() else {
-            continue;
-        };
-        for envelope in ["params", "result"] {
-            let meta = payload
-                .get(envelope)
-                .and_then(|member| member.get("_meta"))
-                .and_then(Value::as_object);
-            let Some(meta) = meta else { continue };
-            if let Some(value) = meta.get("traceparent")
-                && let Err(reason) = validate_traceparent(value)
-            {
-                sink.push(
-                    Some(event.seq),
-                    format!("{envelope}._meta.traceparent {reason}"),
-                );
-            }
-            for key in ["tracestate", "baggage"] {
-                if let Some(value) = meta.get(key)
-                    && !value.is_string()
-                {
-                    sink.push(
-                        Some(event.seq),
-                        format!("{envelope}._meta.{key} is not a string"),
-                    );
-                }
-            }
-        }
-    }
-}
-
-/// The W3C Trace Context `traceparent` grammar, version `00`.
-fn validate_traceparent(value: &Value) -> Result<(), String> {
-    let Some(text) = value.as_str() else {
-        return Err("is not a string".to_owned());
-    };
-    let parts: Vec<&str> = text.split('-').collect();
-    let [version, trace_id, parent_id, flags] = parts.as_slice() else {
-        return Err(format!(
-            "is {text:?}; W3C Trace Context requires four `-`-separated fields"
-        ));
-    };
-    let hex = |s: &str| {
-        s.chars()
-            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
-    };
-    if version.len() != 2 || !hex(version) {
-        return Err(format!(
-            "has version {version:?}; expected two lowercase hex digits"
-        ));
-    }
-    if trace_id.len() != 32 || !hex(trace_id) {
-        return Err(format!(
-            "has trace-id {trace_id:?}; expected 32 lowercase hex digits"
-        ));
-    }
-    if trace_id.bytes().all(|b| b == b'0') {
-        return Err("has an all-zero trace-id, which W3C Trace Context forbids".to_owned());
-    }
-    if parent_id.len() != 16 || !hex(parent_id) {
-        return Err(format!(
-            "has parent-id {parent_id:?}; expected 16 lowercase hex digits"
-        ));
-    }
-    if parent_id.bytes().all(|b| b == b'0') {
-        return Err("has an all-zero parent-id, which W3C Trace Context forbids".to_owned());
-    }
-    if flags.len() != 2 || !hex(flags) {
-        return Err(format!(
-            "has flags {flags:?}; expected two lowercase hex digits"
-        ));
-    }
-    Ok(())
 }

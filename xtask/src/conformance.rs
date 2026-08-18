@@ -91,7 +91,7 @@ pub(crate) fn run() -> ExitCode {
         );
         return ExitCode::FAILURE;
     }
-    let Some((mut server, address)) = start_server(&root, &tap_dir) else {
+    let Some((mut server, address)) = start_server(&root, &tap_dir, SPEC_VERSION) else {
         return ExitCode::FAILURE;
     };
     let outcome = run_suite(&root, &results_dir, &address, &suite);
@@ -164,13 +164,17 @@ fn await_tap_quiescence(tap_dir: &Path) {
 /// [`READINESS_TIMEOUT`] so a wedged spawn fails the task instead of hanging
 /// it, and the rest of the child's stderr is drained (and forwarded) so a
 /// chatty server can never fill the pipe and deadlock against it.
-pub(crate) fn start_server(root: &Path, tap_dir: &Path) -> Option<(std::process::Child, String)> {
+pub(crate) fn start_server(
+    root: &Path,
+    tap_dir: &Path,
+    revision: &str,
+) -> Option<(std::process::Child, String)> {
     let binary = root.join(format!(
         "target/debug/mcp-everything-server{}",
         std::env::consts::EXE_SUFFIX
     ));
     eprintln!(
-        "xtask: conformance — starting {} on 127.0.0.1:0 (tap: {})",
+        "xtask: conformance — starting {} on 127.0.0.1:0 serving {revision} (tap: {})",
         binary.display(),
         tap_dir.display()
     );
@@ -179,6 +183,8 @@ pub(crate) fn start_server(root: &Path, tap_dir: &Path) -> Option<(std::process:
         .arg("http")
         .arg("--bind")
         .arg("127.0.0.1:0")
+        .arg("--protocol-version")
+        .arg(revision)
         .arg("--tap-dir")
         .arg(tap_dir)
         .current_dir(root)

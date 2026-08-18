@@ -1,0 +1,61 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "DISC-001",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/discover",
+        "quote": "`server/discover` lets a client query a server's supported protocol versions, capabilities, and identity before sending any other requests. Servers MUST implement it."
+      },
+      "checks": [
+        "discover.implemented"
+      ]
+    },
+    {
+      "id": "DISC-002",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/discover#when-to-call",
+        "quote": "A client that supports both modern (per-request `meta`) and legacy (`initialize` handshake) servers SHOULD send `server/discover` first; see stdio: Backward Compatibility for the fallback rules."
+      },
+      "checks": [
+        "discover.dual-era-probe-first"
+      ]
+    },
+    {
+      "id": "DISC-003",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/discover#discoverresult",
+        "quote": "`meta['io.modelcontextprotocol/serverInfo']`: Name and version of the server software. Servers SHOULD include this field."
+      },
+      "exclusion": "The same clause as BASE-037, restated for one result type: BASE-037 is the general rule for `serverInfo` in every result and carries the escape hatch \"unless specifically configured not to do so\". A restatement in the DiscoverResult field list does not withdraw that exemption, so an absent `serverInfo` here is still either non-compliance or the configured-off case, and the trace cannot tell which."
+    },
+    {
+      "id": "DISC-004",
+      "level": "SHOULD NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/discover#discoverresult",
+        "quote": "`serverInfo` is self-reported by the server and is not verified by the protocol. It is intended for display, logging, and debugging. Clients SHOULD NOT use it to change their behavior, and SHOULD NOT rely on it for security decisions."
+      },
+      "exclusion": "Binds what the client does with `serverInfo` after reading it — behaviour changes and security decisions are internal reasoning, and a trace records the messages, not the inferences drawn from them. Same boundary as BASE-022's icon-consumer clauses."
+    }
+  ]
+}

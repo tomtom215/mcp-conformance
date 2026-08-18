@@ -74,6 +74,7 @@ pub(in crate::checks) fn result_type_present(context: &TraceContext<'_>, sink: &
         let Some(result) = payload.get("result") else {
             continue;
         };
+        sink.examined();
         if result.get("resultType").is_none() {
             sink.push(
                 Some(event.seq),
@@ -121,6 +122,9 @@ pub(in crate::checks) fn request_id_unique_in_flight(
             id.to_string(),
         );
         if payload.get("method").is_some() {
+            // The subject is a request bearing an id; a response only clears
+            // one, and a session with no identified requests tests nothing.
+            sink.examined();
             if !outstanding.insert(key) {
                 sink.push(
                     Some(event.seq),
@@ -143,6 +147,7 @@ pub(in crate::checks) fn error_code_legacy_subrange(
     sink: &mut FindingSink,
 ) {
     for (seq, code) in error_codes(context) {
+        sink.examined();
         if LEGACY_RANGE.contains(&code) {
             sink.push(
                 Some(seq),
@@ -162,6 +167,7 @@ pub(in crate::checks) fn error_code_reserved_subrange(
     sink: &mut FindingSink,
 ) {
     for (seq, code) in error_codes(context) {
+        sink.examined();
         if RESERVED_RANGE.contains(&code) && !DEFINED_RESERVED.contains(&code) {
             sink.push(
                 Some(seq),
@@ -177,6 +183,7 @@ pub(in crate::checks) fn error_code_reserved_subrange(
 /// `BASE-058`: codes withdrawn by this revision stay reserved and unusable.
 pub(in crate::checks) fn error_code_withdrawn(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (seq, code) in error_codes(context) {
+        sink.examined();
         if let Some((_, meaning)) = WITHDRAWN.iter().find(|(withdrawn, _)| *withdrawn == code) {
             sink.push(
                 Some(seq),
@@ -198,6 +205,7 @@ pub(in crate::checks) fn error_code_application_range(
     sink: &mut FindingSink,
 ) {
     for (seq, code) in error_codes(context) {
+        sink.examined();
         let accounted_for = STANDARD.contains(&code)
             || DEFINED_RESERVED.contains(&code)
             || LEGACY_RANGE.contains(&code)

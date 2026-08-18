@@ -58,7 +58,8 @@
         "quote": "If the server does not implement the requested protocol version (whether the version is unknown to the server, or is a known version the server has chosen not to support), it MUST respond with `400 Bad Request` and an [`UnsupportedProtocolVersionError`][unsupported-version] listing its supported versions."
       },
       "checks": [
-        "transport.unsupported-version-error"
+        "transport.unsupported-version-error",
+        "transport.unsupported-version-status"
       ]
     },
     {

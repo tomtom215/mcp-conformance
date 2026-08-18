@@ -3,16 +3,11 @@
 
 //! Tests for the `_meta`-envelope clauses.
 //!
-//! The W3C `traceparent` grammar is the dense part: four fixed-width fields with
-//! two all-zero prohibitions, and a corpus trace can only ever break one of
-//! them. Each field is pinned here at both its length and its alphabet.
+//! The trace-context keys have their own module and their own tests; what is
+//! here is the protocol's own `_meta` fields — the required envelope, what a
+//! missing one must draw, and the HTTP status that answer rides.
 
-use super::validate_traceparent;
-use crate::checks::draft::testkit::{META, client, findings_for, post, server, status, trace};
-use serde_json::json;
-
-/// The W3C Trace Context specification's own example value.
-const VALID: &str = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+use crate::checks::draft::testkit::{META, client, findings_for, server, status, trace};
 
 /// A request whose `_meta` omits `clientCapabilities`, answered by `answer`.
 fn incomplete_envelope(answer: &str) -> String {
@@ -39,6 +34,7 @@ fn capability_error(data: &str) -> String {
     ])
 }
 
+/// A `tools/call` declaring `capabilities`, answered by an `input_required`
 /// result asking for `method`.
 fn asks_for(capabilities: &str, method: &str) -> String {
     trace(&[
@@ -68,91 +64,6 @@ fn listening(notification: &str) -> String {
         ),
         server(1, notification),
     ])
-}
-
-#[test]
-fn the_traceparent_grammar_is_pinned_field_by_field() {
-    assert!(validate_traceparent(&json!(VALID)).is_ok());
-
-    let rejected = [
-        // Wrong field count, either way.
-        "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7",
-        "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-extra",
-        // Version: two lowercase hex digits.
-        "0-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
-        "0g-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
-        "0A-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
-        // Trace id: 32 lowercase hex digits, never all zero.
-        "00-4bf92f3577b34da6a3ce929d0e0e473-00f067aa0ba902b7-01",
-        "00-4BF92F3577B34DA6A3CE929D0E0E4736-00f067aa0ba902b7-01",
-        "00-4bf92f3577b34da6a3ce929d0e0e473z-00f067aa0ba902b7-01",
-        "00-00000000000000000000000000000000-00f067aa0ba902b7-01",
-        // Parent id: 16 lowercase hex digits, never all zero.
-        "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b-01",
-        "00-4bf92f3577b34da6a3ce929d0e0e4736-00F067AA0BA902B7-01",
-        "00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01",
-        // Flags: two lowercase hex digits.
-        "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1",
-        "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0g",
-    ];
-    for value in rejected {
-        assert!(
-            validate_traceparent(&json!(value)).is_err(),
-            "{value:?} should be rejected"
-        );
-    }
-
-    // A non-string is reported as such rather than parsed.
-    assert!(validate_traceparent(&json!(42)).is_err());
-    assert!(validate_traceparent(&json!(null)).is_err());
-}
-
-#[test]
-fn trace_context_is_read_from_both_envelopes_and_only_when_present() {
-    let check = "meta.trace-context-format";
-
-    // A malformed `traceparent` in request params.
-    let request_side = trace(&[
-        post(0, r#"{"mcp-method":"ping"}"#),
-        client(
-            1,
-            r#"{"jsonrpc":"2.0","id":1,"method":"ping","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"traceparent":"nope"}}}"#,
-        ),
-    ]);
-    assert_eq!(findings_for(check, &request_side).len(), 1);
-
-    // And in a result envelope, which is the other half of the clause.
-    let result_side = trace(&[
-        post(0, r#"{"mcp-method":"ping"}"#),
-        client(
-            1,
-            &format!(r#"{{"jsonrpc":"2.0","id":1,"method":"ping","params":{{{META}}}}}"#),
-        ),
-        server(
-            2,
-            r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","_meta":{"traceparent":"nope"}}}"#,
-        ),
-    ]);
-    assert_eq!(findings_for(check, &result_side).len(), 1);
-
-    // A valid one, and an envelope carrying none at all, are both silent.
-    let valid = request_side.replace("nope", VALID);
-    assert!(findings_for(check, &valid).is_empty());
-    let absent = trace(&[
-        post(0, r#"{"mcp-method":"ping"}"#),
-        client(
-            1,
-            &format!(r#"{{"jsonrpc":"2.0","id":1,"method":"ping","params":{{{META}}}}}"#),
-        ),
-    ]);
-    assert!(findings_for(check, &absent).is_empty());
-
-    // `tracestate` and `baggage` are vendor-defined lists: only their gross
-    // shape is judged, so a string passes and a non-string does not.
-    let bad_state = request_side.replace(r#""traceparent":"nope""#, r#""tracestate":42"#);
-    assert_eq!(findings_for(check, &bad_state).len(), 1);
-    let good_state = request_side.replace(r#""traceparent":"nope""#, r#""baggage":"k=v""#);
-    assert!(findings_for(check, &good_state).is_empty());
 }
 
 #[test]
@@ -201,15 +112,54 @@ fn a_malformed_envelope_must_draw_invalid_params() {
 }
 
 #[test]
-fn the_missing_capability_error_must_list_what_was_missing() {
+fn a_legacy_initialize_is_outside_the_rejection_rule() {
+    // `basic/versioning`'s compatibility matrix makes the code implementation-
+    // defined for exactly this exchange — `initialize` is both an unknown method
+    // and a request without the `_meta` envelope — so a server answering -32601
+    // has picked one of the two applicable rules and conforms. Every legacy →
+    // modern capture is this exchange, so getting it wrong would put a MUST
+    // failure on all of them.
+    let check = "meta.missing-required-field-rejected";
+    let handshake = trace(&[
+        client(
+            0,
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}"#,
+        ),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"x"}}"#,
+        ),
+    ]);
+    assert!(findings_for(check, &handshake).is_empty());
+
+    // The exemption is by method, not a blanket amnesty: any other method with
+    // the same defect is still reported.
+    let other = trace(&[
+        client(
+            0,
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"protocolVersion":"2025-11-25"}}"#,
+        ),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"x"}}"#,
+        ),
+    ]);
+    assert_eq!(findings_for(check, &other).len(), 1);
+}
+
+#[test]
+fn the_missing_capability_error_must_name_what_was_missing() {
     let check = "meta.missing-capability-error";
 
-    // Absent, empty, and wrongly-typed lists are each their own finding.
+    // Absent, empty, and wrongly-typed each their own finding. The array case
+    // is here because this check once *required* it: the schema types
+    // `requiredCapabilities` as a `ClientCapabilities` object, so an array is
+    // as malformed as a bare string.
     assert_eq!(findings_for(check, &capability_error("")).len(), 1);
     assert_eq!(
         findings_for(
             check,
-            &capability_error(r#","data":{"requiredCapabilities":[]}"#)
+            &capability_error(r#","data":{"requiredCapabilities":{}}"#)
         )
         .len(),
         1
@@ -222,12 +172,22 @@ fn the_missing_capability_error_must_list_what_was_missing() {
         .len(),
         1
     );
-
-    // A populated array is what the clause asks for.
-    assert!(
+    assert_eq!(
         findings_for(
             check,
             &capability_error(r#","data":{"requiredCapabilities":["elicitation"]}"#)
+        )
+        .len(),
+        1,
+        "an array is not a ClientCapabilities object"
+    );
+
+    // The shape the schema defines, and the shape rmcp's
+    // `ErrorData::missing_required_client_capability` produces.
+    assert!(
+        findings_for(
+            check,
+            &capability_error(r#","data":{"requiredCapabilities":{"elicitation":{}}}"#)
         )
         .is_empty()
     );
@@ -347,15 +307,21 @@ fn subscription_tagging_binds_only_listen_streams_and_only_untagged_notification
 #[test]
 fn the_http_status_clauses_judge_only_their_own_error_code() {
     // Both share one helper, so the code each passes is the only thing that
-    // distinguishes them.
-    for (check, code) in [
-        ("meta.missing-required-field-http-status", -32602),
-        ("meta.missing-capability-http-status", -32021),
+    // distinguishes them. The `-32602` leg rides an *incomplete* envelope
+    // because that is the only `-32602` BASE-032 binds; see the test below.
+    const INCOMPLETE: &str = r#""_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}"#;
+    for (check, code, meta) in [
+        (
+            "meta.missing-required-field-http-status",
+            -32602,
+            INCOMPLETE,
+        ),
+        ("meta.missing-capability-http-status", -32021, META),
     ] {
         let document = trace(&[
             client(
                 0,
-                &format!(r#"{{"jsonrpc":"2.0","id":1,"method":"ping","params":{{{META}}}}}"#),
+                &format!(r#"{{"jsonrpc":"2.0","id":1,"method":"ping","params":{{{meta}}}}}"#),
             ),
             status(1, 500),
             server(
@@ -372,4 +338,42 @@ fn the_http_status_clauses_judge_only_their_own_error_code() {
         let other = document.replace(&code.to_string(), "-32700");
         assert!(findings_for(check, &other).is_empty(), "{check}");
     }
+}
+
+#[test]
+fn the_status_clause_binds_only_the_malformed_envelope_that_drew_the_error() {
+    // `2026-07-28` *replaced* `-32002` with `-32602`, so a conforming server
+    // now answers resource-not-found with the same code a malformed envelope
+    // draws — and BASE-032 says nothing about that answer's HTTP status. Until
+    // the enriched HTTP capture carried one, every `-32602` in every recording
+    // was a malformed envelope and the difference could not show; judged
+    // broadly, this check reported a conforming server for a clause that does
+    // not bind it.
+    let well_formed = trace(&[
+        client(
+            0,
+            &format!(
+                r#"{{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{{{META},"uri":"test://gone"}}}}"#
+            ),
+        ),
+        status(1, 404),
+        server(
+            2,
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"resource not found"}}"#,
+        ),
+    ]);
+    assert!(
+        findings_for("meta.missing-required-field-http-status", &well_formed).is_empty(),
+        "a -32602 that answers a well-formed request is not this clause's subject"
+    );
+    // The same status, against a request that *was* malformed, still fails.
+    let malformed = well_formed.replace(
+        r#""io.modelcontextprotocol/clientCapabilities":{}"#,
+        r#""unrelated":{}"#,
+    );
+    assert_eq!(
+        findings_for("meta.missing-required-field-http-status", &malformed).len(),
+        1,
+        "{malformed}"
+    );
 }

@@ -17,18 +17,21 @@ use crate::context::TraceContext;
 /// during initialization:" — successfully serving prompts traffic is the observable
 /// form of support.
 pub(super) fn capability_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    if server_capability(context, &["prompts"]) != Some(false) {
-        return;
-    }
+    // The subject is an answered prompts exchange, declaration or not; a
+    // session that never touched prompts leaves this clause untested.
+    let declared = server_capability(context, &["prompts"]) != Some(false);
     for exchange in context.exchanges() {
         if matches!(exchange.method, "prompts/list" | "prompts/get") && exchange.result.is_some() {
-            sink.push(
-                Some(exchange.response.seq),
-                format!(
-                    "server answered {:?} without declaring the prompts capability",
-                    exchange.method
-                ),
-            );
+            sink.examined();
+            if !declared {
+                sink.push(
+                    Some(exchange.response.seq),
+                    format!(
+                        "server answered {:?} without declaring the prompts capability",
+                        exchange.method
+                    ),
+                );
+            }
         }
     }
 }
@@ -120,6 +123,7 @@ pub(super) fn arguments_validated(context: &TraceContext<'_>, sink: &mut Finding
         let Some(required) = declared.get(name) else {
             continue;
         };
+        sink.examined();
         let supplied = params.get("arguments");
         let missing: Vec<&str> = required
             .iter()
@@ -158,6 +162,7 @@ fn binary_content_encoding(context: &TraceContext<'_>, sink: &mut FindingSink, k
         if content.get("type").and_then(Value::as_str) != Some(kind) {
             continue;
         }
+        sink.examined();
         let data_valid = content
             .get("data")
             .and_then(Value::as_str)
@@ -191,6 +196,7 @@ pub(super) fn embedded_resource_shape(context: &TraceContext<'_>, sink: &mut Fin
         if content.get("type").and_then(Value::as_str) != Some("resource") {
             continue;
         }
+        sink.examined();
         let Some(resource) = content.get("resource") else {
             sink.push(
                 Some(seq),
@@ -245,6 +251,7 @@ mod tests {
         checks::find(check)
             .unwrap()
             .run(&context)
+            .findings
             .into_iter()
             .map(|finding| finding.detail)
             .collect()

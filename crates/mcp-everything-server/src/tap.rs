@@ -16,9 +16,11 @@
 //! - **Redaction by construction.** Only the conformance-relevant headers in
 //!   [`RECORDED_HEADERS`] are recorded; everything else (including any
 //!   credential-bearing header) is never captured in the first place.
-//! - **Sessions only.** The tap sits inside the security-policy layer, so
-//!   policy rejections (403s) never reach it — they never form sessions and
-//!   are the runner's and the corpus's concern, not the tap's.
+//! - **Every admitted exchange, session or not.** The tap sits inside the
+//!   security-policy layer, so policy rejections (403s) never reach it. What
+//!   does reach it is recorded whether or not it names a session: `2026-07-28`
+//!   removes sessions outright, and an exchange with no `Mcp-Session-Id` goes
+//!   to the run's `stateless` trace file rather than being dropped.
 //! - **Write-behind, in order.** Events flow over a bounded channel to one
 //!   writer task that appends each line and flushes before taking the next.
 //!   Durability is per *written* record: everything the writer has flushed
@@ -32,13 +34,14 @@
 //!   waits for tap quiescence before stopping the server, so gate runs read
 //!   complete traces.
 //! - **Sessions are trusted to be distinct.** Files are keyed by the
-//!   server-assigned `Mcp-Session-Id`; a client that fabricates another
-//!   session's ID would interleave into that session's file. The tap is
-//!   diagnostics for runs this repository drives (the official runner over
-//!   loopback), not a forensic recorder against adversarial clients — the
-//!   security boundary lives in the policy layer in front of it.
+//!   server-assigned `Mcp-Session-Id` where there is one; a client that
+//!   fabricates another session's ID would interleave into that session's file,
+//!   and sessionless exchanges share one file per run because the wire offers
+//!   no finer identity once sessions are gone. The tap is diagnostics for runs
+//!   this repository drives (the official runner over loopback), not a forensic
+//!   recorder against adversarial clients — the security boundary lives in the
+//!   policy layer in front of it.
 
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -48,12 +51,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::body::Body;
 use axum::extract::State;
-use axum::http::{HeaderMap, Method, Request};
+use axum::http::{Method, Request};
 use axum::middleware::Next;
 use axum::response::Response;
 use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent};
 use tokio_stream::StreamExt as _;
 
+mod headers;
 mod sse;
 
 use sse::SseSplitter;
@@ -66,7 +70,7 @@ use sse::SseSplitter;
 /// redaction-by-construction posture).
 ///
 /// [05-security-model.md]: https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/05-security-model.md
-pub const RECORDED_HEADERS: [&str; 7] = [
+pub const RECORDED_HEADERS: [&str; 10] = [
     "host",
     "origin",
     "accept",
@@ -74,11 +78,54 @@ pub const RECORDED_HEADERS: [&str; 7] = [
     "mcp-session-id",
     "mcp-protocol-version",
     "last-event-id",
+    // SEP-2243's request metadata headers and SEP-2570's streaming hint, all
+    // read by `2026-07-28` checks. Absent from this list until 2026-08-17,
+    // which made the tap report a conforming exchange as a violating one: the
+    // client sent `Mcp-Method`, the recording dropped it, and
+    // `transport.request-metadata-headers` reported the clause it proves.
+    "mcp-method",
+    "mcp-name",
+    "x-accel-buffering",
 ];
+
+/// Header-name prefixes recorded in addition to [`RECORDED_HEADERS`].
+///
+/// SEP-2243 lets a tool designate an argument for a header of its own naming
+/// (`x-mcp-header` in the tool's `inputSchema`), which the client sends as
+/// `Mcp-Param-<name>`. The set of such names is defined by whatever server the
+/// tap sits in front of, so it cannot be enumerated here — a prefix is the
+/// only allowlist shape that can cover it.
+///
+/// This does not widen what a recording exposes. Every `Mcp-Param-*` value is
+/// by definition a copy of an argument in the `tools/call` body the tap
+/// already records verbatim; the prefix cannot match `authorization` or
+/// `cookie`, and no other header may use it.
+pub const RECORDED_HEADER_PREFIXES: [&str; 1] = ["mcp-param-"];
 
 /// The session-id header of the streamable HTTP transport (`2025-11-25`
 /// basic/transports §session management).
 const SESSION_ID_HEADER: &str = "mcp-session-id";
+
+/// The trace identity for exchanges that carry no session id.
+///
+/// `2026-07-28` removes the session concept outright (SEP-2575) — every request
+/// is standalone and carries its own context in `_meta` — so *every* exchange of
+/// that revision arrives with no `Mcp-Session-Id`. Until 2026-08-17 the tap
+/// dropped those on the floor and returned early, which made the capture path
+/// structurally unable to record the revision at all, and did it **silently**:
+/// the trace directory simply stayed empty, which is indistinguishable from a
+/// server that was never talked to. That is the single reason the `2026-07-28`
+/// corpus had to be hand-authored.
+///
+/// A `2025-11-25` exchange can be sessionless too — a rejected `initialize`, or
+/// a request refused before a session existed — and those were being lost for
+/// the same reason. They are exactly the exchanges a conformance capture wants.
+///
+/// The grouping is the server run, because once sessions are gone that is the
+/// only identity the wire offers. Concurrent stateless clients therefore
+/// interleave in one trace; the recording is still faithful (every event is
+/// real and in capture order) and the reader is told so in `corpus/README.md`.
+const STATELESS_TRACE: &str = "stateless";
 
 /// Largest request/response body the tap will buffer for recording. The
 /// suite's payloads are kilobytes; anything larger is passed through
@@ -188,6 +235,7 @@ impl Tap {
 /// Per-file writer state: the open handle and the next sequence number.
 mod writer;
 
+use headers::{header_value, recorded_headers};
 use writer::write_loop;
 
 /// The middleware: records the request exchange and, for SSE responses,
@@ -215,11 +263,12 @@ pub async fn tap_layer(
         .await;
 
     // The session this exchange belongs to: the response names it on
-    // initialize; every later exchange names it on the request.
+    // initialize; every later exchange names it on the request. Exchanges that
+    // name none are recorded too, under STATELESS_TRACE.
     let response_session = header_value(response.headers(), SESSION_ID_HEADER);
-    let Some(session_id) = response_session.or(request_session) else {
-        return response; // Sessionless exchange (e.g. rejected init): out of tap scope.
-    };
+    let session_id = response_session
+        .or(request_session)
+        .unwrap_or_else(|| STATELESS_TRACE.to_owned());
 
     if request_payload.is_none() && !bytes.is_empty() {
         // GET and DELETE bodies are legitimately empty; a non-empty body that
@@ -352,38 +401,6 @@ async fn record_json(tap: &Arc<Tap>, session_id: &str, response: Response) -> Re
     }
 }
 
-/// The allowlisted subset of `headers`, lowercased.
-fn recorded_headers(headers: &HeaderMap) -> BTreeMap<String, String> {
-    RECORDED_HEADERS
-        .iter()
-        .filter_map(|name| header_value(headers, name).map(|value| ((*name).to_owned(), value)))
-        .collect()
-}
-
-/// A header's value as UTF-8, combining repeated field lines.
-///
-/// HTTP permits a field to appear on multiple lines, semantically equivalent
-/// to one comma-joined value (RFC 9110 §5.3). Recording only the first line
-/// (`HeaderMap::get`) would misrepresent, e.g., an `Accept` split across two
-/// lines — and the validator's `transport.client-accept-header` check reads
-/// exactly this recorded value, so a lossy capture would manufacture a false
-/// finding. We record the faithful combination instead. Returns `None` when
-/// the field is absent or any line is non-UTF-8 (the latter never recorded
-/// rather than recorded partially).
-fn header_value(headers: &HeaderMap, name: &str) -> Option<String> {
-    let mut lines = headers.get_all(name).iter().peekable();
-    lines.peek()?;
-    let mut combined = String::new();
-    for value in lines {
-        let text = value.to_str().ok()?;
-        if !combined.is_empty() {
-            combined.push_str(", ");
-        }
-        combined.push_str(text);
-    }
-    Some(combined)
-}
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
@@ -446,43 +463,5 @@ mod tests {
             "the non-exhaustive marker shows fields are elided: {rendered}"
         );
         let _ = std::fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn recorded_headers_is_an_allowlist() {
-        let mut headers = HeaderMap::new();
-        headers.insert("authorization", "Bearer secret".parse().unwrap());
-        headers.insert("cookie", "id=1".parse().unwrap());
-        headers.insert("host", "localhost:1234".parse().unwrap());
-        headers.insert("mcp-session-id", "abc".parse().unwrap());
-        let recorded = recorded_headers(&headers);
-        assert_eq!(recorded.len(), 2);
-        assert_eq!(recorded["host"], "localhost:1234");
-        assert_eq!(recorded["mcp-session-id"], "abc");
-        assert!(!recorded.contains_key("authorization"));
-    }
-
-    #[test]
-    fn header_value_combines_repeated_field_lines() {
-        // An Accept split across two lines must record as the comma-joined
-        // value, exactly as HTTP semantics combine them — otherwise the
-        // validator's accept-header check would see only the first line and
-        // manufacture a false finding on a perfectly legal request.
-        let mut headers = HeaderMap::new();
-        headers.append("accept", "application/json".parse().unwrap());
-        headers.append("accept", "text/event-stream".parse().unwrap());
-        assert_eq!(
-            header_value(&headers, "accept").as_deref(),
-            Some("application/json, text/event-stream")
-        );
-        // And through the allowlist path, so recording is faithful end to end.
-        let recorded = recorded_headers(&headers);
-        assert_eq!(recorded["accept"], "application/json, text/event-stream");
-    }
-
-    #[test]
-    fn header_value_is_none_for_absent_fields() {
-        let headers = HeaderMap::new();
-        assert_eq!(header_value(&headers, "accept"), None);
     }
 }

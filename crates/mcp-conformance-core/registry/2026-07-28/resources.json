@@ -1,0 +1,186 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "RES-011",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`."
+      },
+      "checks": [
+        "meta.required-request-fields"
+      ]
+    },
+    {
+      "id": "RES-012",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#capabilities",
+        "quote": "Servers that support resources MUST declare the `resources` capability:"
+      },
+      "checks": [
+        "capabilities.resources-declared"
+      ]
+    },
+    {
+      "id": "RES-013",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#capabilities",
+        "quote": "Servers that declare the `resources` capability MUST respond to `resources/list` requests with the set of resources currently available to the requesting client."
+      },
+      "checks": [
+        "capabilities.resources-list-implemented"
+      ]
+    },
+    {
+      "id": "RES-014",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#capabilities",
+        "quote": "This set MAY be empty and MAY change over time (see List Changed Notification), but MUST NOT vary per-connection or as a side effect of other requests on the connection."
+      },
+      "exclusion": "Binds the set across *connections* and across other requests \u2014 two properties that need more than one session, or a second request whose effect on the first is invisible. A single recording shows one list at one moment."
+    },
+    {
+      "id": "RES-015",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#list-changed-notification",
+        "quote": "When the list of available resources changes, servers that declared the `listChanged` capability SHOULD send a notification:"
+      },
+      "exclusion": "The antecedent is that the underlying set changed, which happens inside the server and reaches the wire only as the notification the clause is asking for. A session with no notification is equally consistent with a list that never changed."
+    },
+    {
+      "id": "RES-016",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#https",
+        "quote": "Servers SHOULD use this scheme only when the client is able to fetch and load the resource directly from the web on its own\u2014that is, it doesn't need to read the resource via the MCP server."
+      },
+      "exclusion": "Turns on whether the client can fetch the resource itself, which is a fact about the client and its network, not about any message. The server's choice of scheme is visible; the condition that licenses it is not."
+    },
+    {
+      "id": "RES-017",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#https",
+        "quote": "For other use cases, servers SHOULD prefer to use another URI scheme, or define a custom one, even if the server will itself be downloading resource contents over the internet."
+      },
+      "exclusion": "Design guidance about which scheme to prefer, resolved before a URI is ever minted. Whether \"other use cases\" applies is the server author's judgement, and RES-018 checks the only part a trace can hold the result to: that a custom scheme is well-formed."
+    },
+    {
+      "id": "RES-018",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#custom-uri-schemes",
+        "quote": "Custom URI schemes MUST be in accordance with RFC3986, taking the above guidance in to account."
+      },
+      "checks": [
+        "resources.uri-scheme-rfc3986"
+      ]
+    },
+    {
+      "id": "RES-019",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#error-handling",
+        "quote": "If the requested resource does not exist, servers MUST return a JSON-RPC error with code `-32602` (Invalid Params)."
+      },
+      "exclusion": "The antecedent \u2014 that the requested resource does not exist \u2014 is the server's own knowledge. An error and a result are both consistent with the clause, because nothing on the wire says which case the server was in. The one shape the clause rules out explicitly is checked, as RES-022."
+    },
+    {
+      "id": "RES-020",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#error-handling",
+        "quote": "Servers SHOULD return `-32603` for internal errors."
+      },
+      "exclusion": "\"Internal errors\" names a class of server-side failure that no message declares membership of. Every error code is consistent with the clause unless the trace says what went wrong, and it never does."
+    },
+    {
+      "id": "RES-021",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#error-handling",
+        "quote": "For backwards compatibility, clients SHOULD also accept `-32002` as a resource not found error, as earlier protocol versions used this code."
+      },
+      "exclusion": "Binds how a client interprets an error it received. Note the direction: BASE-058 forbids a `2026-07-28` *server* from emitting `-32002`, and this asks clients to keep accepting it from older ones \u2014 neither contradicts the other, and neither is visible in what the client sends."
+    },
+    {
+      "id": "RES-022",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#error-handling",
+        "quote": "Servers MUST NOT return an empty `contents` array for a non-existent resource."
+      },
+      "checks": [
+        "resources.read-contents-non-empty"
+      ]
+    },
+    {
+      "id": "RES-023",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/resources#security-considerations",
+        "quote": "Servers MUST validate all resource URIs Access controls SHOULD be implemented for sensitive resources Binary data MUST be properly encoded Resource permissions SHOULD be checked before operations Servers MUST sanitize file paths to prevent directory traversal attacks when serving `file://` resources"
+      },
+      "checks": [
+        "resources.blob-base64"
+      ]
+    }
+  ]
+}

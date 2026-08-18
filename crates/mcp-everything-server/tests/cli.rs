@@ -15,16 +15,57 @@
 use std::io::{BufRead as _, BufReader, Write as _};
 use std::process::{Command, Stdio};
 
+/// The `2026-07-28` `_meta` envelope every request carries.
+const ENVELOPE: &str = r#""_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}"#;
+
+/// A spawned server, killed and reaped when it leaves scope — **including
+/// while a panic unwinds**.
+///
+/// Every test here kills its child on the happy path, which is exactly the
+/// path that does not need it: a failing assertion returns by unwinding, and
+/// the explicit `kill()` below it never runs. The leak is invisible in a green
+/// run and unbounded in a red one — one orphaned listener per failing test,
+/// per run, holding a loopback port until the machine is rebooted. The
+/// mutation gate makes that concrete: it fails these tests on purpose, once
+/// per mutant.
+struct ServerProcess(std::process::Child);
+
+impl std::ops::Deref for ServerProcess {
+    type Target = std::process::Child;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for ServerProcess {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Drop for ServerProcess {
+    fn drop(&mut self) {
+        // Both ignored: the child may already be dead (a test that killed it
+        // itself, or one that asserts on its exit status), and a reaped child
+        // is the outcome this wants either way.
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
 #[test]
 fn stdio_serves_a_real_initialize_handshake() {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
-        .arg("--transport")
-        .arg("stdio")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("binary spawns");
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .arg("--transport")
+            .arg("stdio")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("binary spawns"),
+    );
 
     let mut stdin = child.stdin.take().unwrap();
     let stdout = child.stdout.take().unwrap();
@@ -56,6 +97,168 @@ fn stdio_serves_a_real_initialize_handshake() {
 }
 
 #[test]
+fn protocol_version_flag_selects_the_surface_the_binary_serves() {
+    // The flag's wiring, end to end through the real binary: the library tests
+    // build the HTTP router directly, so a flag parsed but never threaded to
+    // `EverythingServer` would pass every one of them. `server/discover`'s
+    // version list is the shortest proof, and it takes the whole path — CLI,
+    // router, transport, handler.
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args([
+                "--transport",
+                "http",
+                "--bind",
+                "127.0.0.1:0",
+                "--protocol-version",
+                "2026-07-28",
+            ])
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("binary spawns"),
+    );
+    let mut reader = BufReader::new(child.stderr.take().unwrap());
+    let mut line = String::new();
+    reader.read_line(&mut line).expect("readiness line");
+    let addr = line
+        .trim()
+        .strip_prefix("listening on ")
+        .unwrap_or_else(|| panic!("unexpected readiness line: {line:?}"))
+        .to_owned();
+
+    // `server/discover` carries the `_meta` envelope like every other request
+    // at this revision: the transport rejects it with -32602 otherwise, which
+    // is itself part of what the flag switches on.
+    let body = r#"{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}"#;
+    let request = format!(
+        "POST /mcp HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nAccept: application/json, text/event-stream\r\nMCP-Protocol-Version: 2026-07-28\r\nMcp-Method: server/discover\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let mut stream = std::net::TcpStream::connect(&addr).expect("connect");
+    std::io::Write::write_all(&mut stream, request.as_bytes()).expect("send");
+    let mut response = String::new();
+    std::io::Read::read_to_string(&mut stream, &mut response).expect("read");
+
+    assert!(
+        response.contains(r#""supportedVersions":["2026-07-28"]"#),
+        "the served revision reaches the wire: {response}"
+    );
+
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+/// The stateless surface over stdio, end to end through the real binary.
+///
+/// `serve` cannot reach this path — it waits for an `initialize` that this
+/// revision removed — so what is pinned is that the binary took the
+/// `serve_directly` route *and* installed the envelope gate on it: one request
+/// with the envelope is answered, one without it is refused.
+#[test]
+fn the_stateless_revision_is_served_over_stdio() {
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args(["--transport", "stdio", "--protocol-version", "2026-07-28"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("binary spawns"),
+    );
+    let mut stdin = child.stdin.take().unwrap();
+    let mut reader = BufReader::new(child.stdout.take().unwrap());
+
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{{{ENVELOPE}}}}}"#
+    )
+    .expect("write discover");
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{{}}}}"#
+    )
+    .expect("write a request with no envelope");
+
+    // Correlated by id, not by arrival order: a stateless server has no
+    // reason to answer two independent requests in the order it read them,
+    // and this one does not.
+    let mut answers = std::collections::BTreeMap::new();
+    for _ in 0..2 {
+        let mut line = String::new();
+        reader.read_line(&mut line).expect("an answer");
+        let answer: serde_json::Value = serde_json::from_str(&line).expect("one JSON line");
+        answers.insert(answer["id"].as_u64().expect("an id"), answer);
+    }
+    assert_eq!(
+        answers[&1]["result"]["supportedVersions"],
+        serde_json::json!(["2026-07-28"]),
+        "{:?}",
+        answers[&1]
+    );
+    assert_eq!(answers[&2]["error"]["code"], -32602, "{:?}", answers[&2]);
+
+    drop(stdin);
+    let status = child.wait().expect("child exits");
+    assert!(status.success(), "clean shutdown after stdin EOF: {status}");
+}
+
+#[test]
+fn an_unknown_protocol_version_is_an_invocation_error() {
+    // The revisions this binary can serve are a closed set, so a typo must be
+    // a usage error at startup rather than a server quietly serving the
+    // default and a capture that looks like the wrong revision on purpose.
+    let output = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+        .args(["--transport", "stdio", "--protocol-version", "2026-07-29"])
+        .output()
+        .expect("binary runs");
+    assert_eq!(output.status.code(), Some(2), "clap's usage exit code");
+}
+
+/// The guard's whole point, tested the way it will be used: a panicking
+/// assertion must still leave no server behind.
+///
+/// Asserted on the socket rather than on the pid, because that is the resource
+/// the leak actually holds and it is the same check on every platform. `Drop`
+/// waits for the child, so by the time `catch_unwind` returns the process is
+/// reaped and the listener is gone — no polling needed.
+#[test]
+fn a_panicking_test_leaves_no_server_behind() {
+    let addr = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+    let captured = std::sync::Arc::clone(&addr);
+    let panicked = std::panic::catch_unwind(move || {
+        let mut child = ServerProcess(
+            Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+                .args(["--transport", "http", "--bind", "127.0.0.1:0"])
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::piped())
+                .spawn()
+                .expect("binary spawns"),
+        );
+        let mut reader = BufReader::new(child.stderr.take().unwrap());
+        let mut line = String::new();
+        reader.read_line(&mut line).expect("readiness line");
+        let listening = line
+            .trim()
+            .strip_prefix("listening on ")
+            .expect("readiness line")
+            .to_owned();
+        std::net::TcpStream::connect(&listening).expect("the server is up before the panic");
+        *captured.lock().unwrap() = listening;
+        panic!("what a failing assertion does");
+    });
+    assert!(panicked.is_err(), "the closure must have unwound");
+
+    let listening = addr.lock().unwrap().clone();
+    assert!(!listening.is_empty(), "the server did start");
+    assert!(
+        std::net::TcpStream::connect(&listening).is_err(),
+        "a server that outlived the panic is still listening on {listening}"
+    );
+}
+
+#[test]
 fn help_exits_zero_and_documents_the_transport_flag() {
     let output = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
         .arg("--help")
@@ -77,13 +280,15 @@ fn unknown_flags_exit_with_the_clap_usage_code() {
 
 #[test]
 fn http_transport_binds_and_enforces_the_403_policy() {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
-        .args(["--transport", "http", "--bind", "127.0.0.1:0"])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("binary spawns");
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args(["--transport", "http", "--bind", "127.0.0.1:0"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("binary spawns"),
+    );
 
     let stderr = child.stderr.take().unwrap();
     let mut reader = BufReader::new(stderr);
@@ -117,13 +322,15 @@ fn http_transport_binds_and_enforces_the_403_policy() {
 /// passes `--bind` explicitly and would never notice a widened default.
 #[test]
 fn default_bind_is_loopback() {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
-        .args(["--transport", "http"])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("binary spawns");
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args(["--transport", "http"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("binary spawns"),
+    );
 
     let stderr = child.stderr.take().unwrap();
     let mut reader = BufReader::new(stderr);
@@ -176,14 +383,16 @@ fn tap_dir_with_stdio_is_rejected_before_serving() {
 fn tap_dir_with_http_serves_and_records_the_session() {
     let dir = std::env::temp_dir().join(format!("cli-tap-http-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    let mut child = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
-        .args(["--transport", "http", "--bind", "127.0.0.1:0", "--tap-dir"])
-        .arg(&dir)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("binary spawns");
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args(["--transport", "http", "--bind", "127.0.0.1:0", "--tap-dir"])
+            .arg(&dir)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("binary spawns"),
+    );
 
     let stderr = child.stderr.take().unwrap();
     let mut reader = BufReader::new(stderr);
@@ -290,15 +499,17 @@ fn assert_valid_trace_prefix(path: &std::path::Path) {
 /// raw socket, and waits until the tap's writer has demonstrably persisted
 /// its first bytes. Returns the child, address, and session id.
 #[cfg(feature = "tap")]
-fn spawn_initialized_tapped_server(dir: &std::path::Path) -> (std::process::Child, String, String) {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
-        .args(["--transport", "http", "--bind", "127.0.0.1:0", "--tap-dir"])
-        .arg(dir)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("binary spawns");
+fn spawn_initialized_tapped_server(dir: &std::path::Path) -> (ServerProcess, String, String) {
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args(["--transport", "http", "--bind", "127.0.0.1:0", "--tap-dir"])
+            .arg(dir)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("binary spawns"),
+    );
     let stderr = child.stderr.take().unwrap();
     let mut reader = BufReader::new(stderr);
     let mut line = String::new();
@@ -393,14 +604,16 @@ fn tap_survives_sigkill_with_a_parseable_prefix() {
 fn tap_notes_unrecordable_request_bodies_exactly_once() {
     let dir = std::env::temp_dir().join(format!("cli-tap-note-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    let mut child = Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
-        .args(["--transport", "http", "--bind", "127.0.0.1:0", "--tap-dir"])
-        .arg(&dir)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("binary spawns");
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args(["--transport", "http", "--bind", "127.0.0.1:0", "--tap-dir"])
+            .arg(&dir)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("binary spawns"),
+    );
     let stderr = child.stderr.take().unwrap();
     let mut reader = BufReader::new(stderr);
     let mut line = String::new();

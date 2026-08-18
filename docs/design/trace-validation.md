@@ -108,16 +108,33 @@ earlier fuzz target asserted representational identity instead and survived only
 until a fuzzer first generated `-0.0`. Determinism is a property you have to
 *test as a fixpoint*, not assume.
 
-## 5. Applicability: not-applicable is not pass
+## 5. A pass has to be earned: not-applicable and not-observed
 
 A requirement gated on a capability that was never negotiated is reported as
 **not-applicable**, never as passed. Inflating a pass rate with vacuous checks —
 counting "the server correctly did nothing about a feature it never advertised"
 as a win — is precisely how a conformance tool loses credibility. The capability
 matrix is a pure function from the negotiated capability sets to the active
-requirement subset; the report distinguishes pass / fail / warn / not-applicable
-/ excluded as separate totals so a reader can see what was actually exercised.
+requirement subset.
 (The decision and its rationale: [ADR-0006](../plan/decisions/0006-capability-gated-applicability.md).)
+
+The capability gate is only the *declared* half of that argument, and the
+undeclared half is larger. A clause can be perfectly applicable — the capability
+was negotiated, the check ran — and still have had nothing to look at, because
+the session never sent a message it binds to. Every check therefore counts the
+**subjects** it considered: trace elements that, with different content, could
+have produced a finding, counted after the filters that define the clause's
+scope and before the condition that makes an element a violation. A requirement
+whose checks found no subject and reported no finding is **not-observed**.
+
+The difference is the whole point. A trace that opens a connection and stops
+has complied with nothing, and a report that credits it with a hundred passes
+is a score rather than a verdict. The totals name every outcome — pass / fail /
+warn / not-applicable / not-observed / excluded / unsupported — so a reader can
+see what was actually exercised, and check that the counts sum to the
+registry's size.
+(The decision, and the counting rule's edge cases:
+[ADR-0012](../plan/decisions/0012-not-observed-outcome.md).)
 
 ## 6. Calibration: the agreement check
 

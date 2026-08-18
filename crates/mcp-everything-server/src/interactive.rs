@@ -21,18 +21,24 @@
 #![allow(deprecated)]
 use std::collections::BTreeMap;
 
+use rmcp::handler::server::tool::{InputResponses, RequestState};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{
-    BooleanSchema, CallToolResult, ConstTitle, ContentBlock, CreateMessageRequestParams,
-    ElicitRequestParams, ElicitationSchema, EnumSchema, ErrorData, IntegerSchema, LegacyEnumSchema,
-    MultiSelectEnumSchema, NumberSchema, PrimitiveSchemaDefinition, SamplingMessage,
-    SingleSelectEnumSchema, StringSchema, TitledItems, TitledMultiSelectEnumSchema,
-    TitledSingleSelectEnumSchema,
+    BooleanSchema, CallToolResponse, CallToolResult, ConstTitle, ContentBlock,
+    CreateMessageRequestParams, ElicitRequestParams, ElicitationSchema, EnumSchema, ErrorData,
+    IntegerSchema, LegacyEnumSchema, MultiSelectEnumSchema, NumberSchema,
+    PrimitiveSchemaDefinition, SamplingMessage, SingleSelectEnumSchema, StringSchema, TitledItems,
+    TitledMultiSelectEnumSchema, TitledSingleSelectEnumSchema,
 };
 use rmcp::service::RequestContext;
 use rmcp::{RoleServer, tool, tool_router};
 
-use crate::server::EverythingServer;
+use crate::server::{EverythingServer, ServedRevision};
+
+mod capability;
+mod mrtr;
+use capability::Required;
+use mrtr::{Ask, Interaction, Round};
 
 /// Arguments for `test_sampling`.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -61,41 +67,35 @@ impl EverythingServer {
     pub async fn test_sampling(
         &self,
         Parameters(SamplingArgs { prompt }): Parameters<SamplingArgs>,
+        RequestState(state): RequestState,
+        InputResponses(responses): InputResponses,
         context: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, ErrorData> {
-        let supported = context
-            .peer
-            .peer_info()
-            .is_some_and(|info| info.capabilities.sampling.is_some());
-        if !supported {
-            return Err(ErrorData::invalid_request(
-                "client does not support sampling (no sampling capability advertised)",
-                None,
-            ));
-        }
-        let result = context
-            .peer
-            .create_message(CreateMessageRequestParams::new(
+    ) -> Result<CallToolResponse, ErrorData> {
+        capability::require(&context, self.revision(), Required::Sampling)?;
+        let round = Round {
+            tool: "test_sampling",
+            state,
+            responses,
+        };
+        let answer = match mrtr::ask(
+            &context,
+            self.revision(),
+            round,
+            Ask::Sample(CreateMessageRequestParams::new(
                 vec![SamplingMessage::user_text(prompt)],
                 100,
-            ))
-            .await
-            .map_err(|error| {
-                ErrorData::internal_error(
-                    "sampling/createMessage failed",
-                    Some(serde_json::json!({ "error": error.to_string() })),
-                )
-            })?;
-        let text = result
-            .message
-            .content
-            .into_vec()
-            .into_iter()
-            .find_map(|content| content.as_text().map(|t| t.text.clone()))
-            .unwrap_or_else(|| "(non-text response)".to_owned());
+            )),
+        )
+        .await?
+        {
+            Interaction::Answered(answer) => answer,
+            Interaction::Deferred(deferred) => return Ok(deferred.into()),
+        };
         Ok(CallToolResult::success(vec![ContentBlock::text(format!(
-            "LLM response: {text}"
-        ))]))
+            "LLM response: {}",
+            sampled_text(&answer)
+        ))])
+        .into())
     }
 
     /// `tools-call-elicitation`: requests user input with the scenario's
@@ -109,8 +109,15 @@ impl EverythingServer {
     pub async fn test_elicitation(
         &self,
         Parameters(ElicitationArgs { message }): Parameters<ElicitationArgs>,
+        RequestState(state): RequestState,
+        InputResponses(responses): InputResponses,
         context: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, ErrorData> {
+    ) -> Result<CallToolResponse, ErrorData> {
+        let round = Round {
+            tool: "test_elicitation",
+            state,
+            responses,
+        };
         let schema = ElicitationSchema::builder()
             .required_property(
                 "username",
@@ -126,7 +133,15 @@ impl EverythingServer {
             )
             .build()
             .map_err(invalid_schema)?;
-        elicit(&context, message, schema, "User response").await
+        elicit(
+            &context,
+            self.revision(),
+            round,
+            message,
+            schema,
+            "User response",
+        )
+        .await
     }
 
     /// `elicitation-sep1034-defaults`: every primitive type carrying a
@@ -139,8 +154,15 @@ impl EverythingServer {
     #[tool(description = "Elicitation with SEP-1034 default values for all primitive types")]
     pub async fn test_elicitation_sep1034_defaults(
         &self,
+        RequestState(state): RequestState,
+        InputResponses(responses): InputResponses,
         context: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, ErrorData> {
+    ) -> Result<CallToolResponse, ErrorData> {
+        let round = Round {
+            tool: "test_elicitation_sep1034_defaults",
+            state,
+            responses,
+        };
         let status = EnumSchema::builder(vec![
             "active".to_owned(),
             "inactive".to_owned(),
@@ -171,6 +193,8 @@ impl EverythingServer {
             .map_err(invalid_schema)?;
         elicit(
             &context,
+            self.revision(),
+            round,
             "Please confirm or adjust the prefilled values".to_owned(),
             schema,
             "Elicitation completed",
@@ -189,11 +213,20 @@ impl EverythingServer {
     #[tool(description = "Elicitation with SEP-1330 enum schema variants")]
     pub async fn test_elicitation_sep1330_enums(
         &self,
+        RequestState(state): RequestState,
+        InputResponses(responses): InputResponses,
         context: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, ErrorData> {
+    ) -> Result<CallToolResponse, ErrorData> {
+        let round = Round {
+            tool: "test_elicitation_sep1330_enums",
+            state,
+            responses,
+        };
         let schema = sep1330_schema();
         elicit(
             &context,
+            self.revision(),
+            round,
             "Please choose from the enum variants".to_owned(),
             schema,
             "Elicitation completed",
@@ -221,16 +254,7 @@ impl EverythingServer {
         // Server-unique id: URL elicitations are completed *by id*, and a
         // process-wide counter keeps concurrent calls distinct.
         static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-        let supported = context
-            .peer
-            .peer_info()
-            .is_some_and(|info| info.capabilities.elicitation.is_some());
-        if !supported {
-            return Err(ErrorData::invalid_request(
-                "client does not support elicitation (no elicitation capability advertised)",
-                None,
-            ));
-        }
+        capability::require(&context, self.revision(), Required::Elicitation)?;
         let elicitation_id = format!(
             "url-elic-{}",
             NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
@@ -378,48 +402,61 @@ fn multi_select_variants() -> BTreeMap<String, PrimitiveSchemaDefinition> {
     }
 }
 
-/// Shared elicitation flow: capability check, raw `elicitation/create`,
+/// Shared elicitation flow: capability check, the revision's round trip,
 /// result formatting (`<prefix>: action=…, content=…`).
 async fn elicit(
     context: &RequestContext<RoleServer>,
+    revision: ServedRevision,
+    round: Round,
     message: String,
     schema: ElicitationSchema,
     prefix: &str,
-) -> Result<CallToolResult, ErrorData> {
-    let supported = context
-        .peer
-        .peer_info()
-        .is_some_and(|info| info.capabilities.elicitation.is_some());
-    if !supported {
-        return Err(ErrorData::invalid_request(
-            "client does not support elicitation (no elicitation capability advertised)",
-            None,
-        ));
-    }
-    let result = context
-        .peer
-        .create_elicitation(ElicitRequestParams::FormElicitationParams {
+) -> Result<CallToolResponse, ErrorData> {
+    capability::require(context, revision, Required::Elicitation)?;
+    let answer = match mrtr::ask(
+        context,
+        revision,
+        round,
+        Ask::Elicit(ElicitRequestParams::FormElicitationParams {
             meta: None,
             message,
             requested_schema: schema,
-        })
-        .await
-        .map_err(|error| {
-            ErrorData::internal_error(
-                "elicitation/create failed",
-                Some(serde_json::json!({ "error": error.to_string() })),
-            )
-        })?;
-    let action = serde_json::to_value(result.action)
-        .ok()
-        .and_then(|value| value.as_str().map(ToOwned::to_owned))
-        .unwrap_or_else(|| "unknown".to_owned());
-    let reply = result
-        .content
-        .map_or_else(|| "null".to_owned(), |value| value.to_string());
-    Ok(CallToolResult::success(vec![ContentBlock::text(format!(
-        "{prefix}: action={action}, content={reply}"
-    ))]))
+        }),
+    )
+    .await?
+    {
+        Interaction::Answered(answer) => answer,
+        Interaction::Deferred(deferred) => return Ok(deferred.into()),
+    };
+    Ok(CallToolResult::success(vec![ContentBlock::text(elicited_text(prefix, &answer))]).into())
+}
+
+/// `<prefix>: action=…, content=…` from an elicitation result.
+///
+/// Reads the client's answer as JSON rather than as a typed `ElicitResult`,
+/// because that is the only shape an MRTR retry has: `inputResponses` is a map
+/// of opaque JSON. The legacy path serializes its typed result through the
+/// same function, so the two eras cannot drift into different wording — which
+/// they would if each formatted from its own type.
+fn elicited_text(prefix: &str, answer: &serde_json::Value) -> String {
+    let action = answer
+        .get("action")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("unknown");
+    let content = answer
+        .get("content")
+        .filter(|content| !content.is_null())
+        .map_or_else(|| "null".to_owned(), ToString::to_string);
+    format!("{prefix}: action={action}, content={content}")
+}
+
+/// The first text block of a sampling result, however it arrived.
+fn sampled_text(answer: &serde_json::Value) -> String {
+    answer
+        .pointer("/content/text")
+        .or_else(|| answer.pointer("/content/0/text"))
+        .and_then(serde_json::Value::as_str)
+        .map_or_else(|| "(non-text response)".to_owned(), ToOwned::to_owned)
 }
 
 /// Maps schema-builder validation failures into protocol errors.
@@ -432,51 +469,4 @@ fn invalid_schema(message: impl AsRef<str>) -> ErrorData {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn invalid_schema_carries_the_failure_payload() {
-        let error = invalid_schema("boom");
-        assert_eq!(error.code, rmcp::model::ErrorCode::INTERNAL_ERROR);
-        assert_eq!(error.message, "elicitation schema construction failed");
-        assert_eq!(error.data, Some(serde_json::json!({ "message": "boom" })));
-    }
-
-    /// The true wire shape, asserted at serialization: the duplex round-trip
-    /// cannot check `enumNames` because rmcp's client-side untagged
-    /// `EnumSchema` deserialization matches the legacy form as `Untitled`
-    /// first and silently drops the field (upstream-filing candidate).
-    #[test]
-    fn sep1330_serializes_all_five_variants_to_the_wire() {
-        let schema = serde_json::to_value(sep1330_schema()).unwrap();
-        let props = &schema["properties"];
-        assert_eq!(props["untitledSingle"]["type"], "string");
-        assert_eq!(
-            props["untitledSingle"]["enum"],
-            serde_json::json!(["option1", "option2", "option3"])
-        );
-        assert_eq!(
-            props["titledSingle"]["oneOf"][0],
-            serde_json::json!({"const": "value1", "title": "First Option"})
-        );
-        assert_eq!(
-            props["legacyEnum"]["enum"],
-            serde_json::json!(["opt1", "opt2", "opt3"])
-        );
-        assert_eq!(
-            props["legacyEnum"]["enumNames"],
-            serde_json::json!(["Option One", "Option Two", "Option Three"])
-        );
-        assert_eq!(props["untitledMulti"]["type"], "array");
-        assert_eq!(
-            props["untitledMulti"]["items"]["enum"],
-            serde_json::json!(["option1", "option2", "option3"])
-        );
-        assert_eq!(props["titledMulti"]["type"], "array");
-        assert_eq!(
-            props["titledMulti"]["items"]["anyOf"][0],
-            serde_json::json!({"const": "value1", "title": "First Choice"})
-        );
-    }
-}
+mod tests;

@@ -4,8 +4,16 @@
 # ADR 0006: Capability-Gated Applicability and the `not-applicable` Outcome
 
 **Date:** 2026-06-09
-**Status:** Accepted
+**Status:** Accepted (extended by [ADR-0012](0012-not-observed-outcome.md), 2026-08-17)
 **Author:** Tom F.
+
+> **2026-08-17.** This ADR's reasoning — that a clause the session never
+> exercised must not be reported as passed — was implemented only for the
+> capability gate. [ADR-0012](0012-not-observed-outcome.md) applies it to every
+> clause, adding the `not-observed` outcome for a requirement whose checks found
+> no subject to judge. Nothing decided below changes; `not-applicable` still
+> answers "the clause does not bind this session", and `not-observed` answers
+> the different question "it binds, and the session never exercised it".
 
 ---
 

@@ -21,24 +21,32 @@ use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, Transpor
 #[cfg(test)]
 mod tests;
 
-/// `TRAN-060`: clients do not POST JSON-RPC responses.
+/// `TRAN-060` and `TRAN-119`: clients do not send JSON-RPC responses.
+///
+/// Judged on every binding, not just Streamable HTTP. Both binding pages state
+/// the rule — "The client **MUST NOT** write JSON-RPC _responses_" on stdio,
+/// and the POST form on HTTP — and it is one rule, because the revision removed
+/// server-initiated requests outright: there is nothing on any transport for a
+/// client response to answer. The earlier HTTP-only filter would have made this
+/// silently vacuous for the stdio clause, reporting `pass` on a trace it never
+/// inspected.
 pub(in crate::checks) fn client_no_responses(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, _, _) in context.messages() {
-        if event.direction != Direction::ClientToServer
-            || event.transport != TransportKind::StreamableHttp
-        {
+        if event.direction != Direction::ClientToServer {
             continue;
         }
         let Some(payload) = event.message_payload() else {
             continue;
         };
+        sink.examined();
         let is_response = payload.get("id").is_some()
             && payload.get("method").is_none()
             && (payload.get("result").is_some() || payload.get("error").is_some());
         if is_response {
             sink.push(
                 Some(event.seq),
-                "client POSTed a JSON-RPC response, which 2026-07-28 forbids on this transport"
+                "client sent a JSON-RPC response; 2026-07-28 removed server-initiated \
+                 requests, so there is nothing for one to answer"
                     .to_owned(),
             );
         }
@@ -62,6 +70,7 @@ pub(in crate::checks) fn no_independent_server_requests(
         let Some(payload) = event.message_payload() else {
             continue;
         };
+        sink.examined();
         if let Some(method) = payload.get("method").and_then(Value::as_str)
             && payload.get("id").is_some_and(|id| !id.is_null())
         {
@@ -91,7 +100,11 @@ pub(in crate::checks) fn accel_buffering_header(
         let is_sse = headers
             .get("content-type")
             .is_some_and(|value| value.starts_with("text/event-stream"));
-        if is_sse && headers.get("x-accel-buffering").map(String::as_str) != Some("no") {
+        if !is_sse {
+            continue; // Only an event stream can be buffered by a proxy.
+        }
+        sink.examined();
+        if headers.get("x-accel-buffering").map(String::as_str) != Some("no") {
             sink.push(
                 Some(event.seq),
                 "SSE response does not carry `X-Accel-Buffering: no`".to_owned(),
@@ -175,6 +188,9 @@ fn report_after_close(
     else {
         return;
     };
+    // The subject is a server message carrying an id *after* the close: before
+    // one, nothing is forbidden, and a session with no close is untested.
+    sink.examined();
     if outstanding.contains(&id.to_string()) {
         sink.push(
             Some(event.seq),

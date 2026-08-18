@@ -56,6 +56,7 @@ pub fn plan_for(scenario: Option<&str>) -> ScenarioPlan {
                 turn_limit: 0,
                 error_budget: 0,
                 calls: CallPolicy::Scripted(Vec::new()),
+                log_level: None,
             },
         },
         Some("sse-retry") => ScenarioPlan::SseRetry,
@@ -70,6 +71,7 @@ pub fn plan_for(scenario: Option<&str>) -> ScenarioPlan {
                 turn_limit: 16,
                 error_budget: 0,
                 calls: CallPolicy::EachDiscoveredToolOnce,
+                log_level: None,
             },
         },
     }

@@ -35,7 +35,8 @@ use crate::report::{Outcome, Report};
 pub fn render(report: &Report) -> String {
     let totals = report.totals;
     let failures = totals.fail;
-    let skipped = totals.excluded + totals.unsupported + totals.not_applicable;
+    let skipped =
+        totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
     let tests = totals.pass + totals.fail + totals.warn + skipped;
 
     let mut out = String::new();
@@ -100,7 +101,10 @@ fn render_row(out: &mut String, report: &Report, row: &crate::report::Requiremen
             }
             out.push_str("</system-out>\n    </testcase>\n");
         }
-        Outcome::Excluded | Outcome::Unsupported | Outcome::NotApplicable => {
+        Outcome::Excluded
+        | Outcome::Unsupported
+        | Outcome::NotApplicable
+        | Outcome::NotObserved => {
             let _ = writeln!(
                 out,
                 r#"    <testcase classname="{classname}" name="{name}"><skipped message="{}"/></testcase>"#,
@@ -110,13 +114,16 @@ fn render_row(out: &mut String, report: &Report, row: &crate::report::Requiremen
     }
 }
 
-/// The `<skipped>` message for the three non-judged outcomes.
+/// The `<skipped>` message for the four non-judged outcomes.
 fn skip_reason(row: &crate::report::RequirementReport) -> String {
     match row.outcome {
         Outcome::Excluded => row
             .exclusion
             .clone()
             .unwrap_or_else(|| "excluded".to_owned()),
+        Outcome::NotObserved => {
+            "the session carried none of the traffic this clause binds to".to_owned()
+        }
         Outcome::NotApplicable => format!(
             "not applicable: capability {} was not declared in this session",
             row.capability.as_deref().unwrap_or("(unknown)")
@@ -254,12 +261,13 @@ mod tests {
         }
     }
 
-    #[test]
-    fn skip_accounting_and_location_text_are_exact() {
+    /// A report carrying every non-judged outcome — excluded, unsupported,
+    /// not-applicable AND not-observed — because the sum is where they are easy
+    /// to forget: `not_observed` was rendered as a `<skipped>` row while being
+    /// left out of the `skipped=` attribute, so the counts disagreed with the
+    /// body.
+    fn every_skip_variant() -> Report {
         use crate::report::{Finding, Totals};
-        // Hand-built report with excluded, unsupported, AND not-applicable rows:
-        // pins the skipped sum (excluded + unsupported + not_applicable), the
-        // per-variant skip messages, and the failure-body location text.
         let mut failed = bare_row("AAAA-001", Outcome::Fail);
         failed.findings = vec![Finding {
             check: "area.some-check".to_owned(),
@@ -274,7 +282,7 @@ mod tests {
         unsupported.missing_checks = vec!["future.check".to_owned()];
         let mut not_applicable = bare_row("AAAA-005", Outcome::NotApplicable);
         not_applicable.capability = Some("server.tools".to_owned());
-        let report = Report {
+        Report {
             revision: "2025-11-25".to_owned(),
             totals: Totals {
                 pass: 0,
@@ -283,24 +291,46 @@ mod tests {
                 excluded: 2,
                 unsupported: 1,
                 not_applicable: 1,
+                not_observed: 1,
             },
-            requirements: vec![failed, excluded_a, excluded_b, unsupported, not_applicable],
-        };
-        let xml = render(&report);
-        // skipped = excluded + unsupported + not_applicable, no other arithmetic.
+            requirements: vec![
+                failed,
+                excluded_a,
+                excluded_b,
+                unsupported,
+                not_applicable,
+                bare_row("AAAA-006", Outcome::NotObserved),
+            ],
+        }
+    }
+
+    #[test]
+    fn skip_accounting_and_location_text_are_exact() {
+        // Pins the skipped sum, the per-variant messages, and the failure-body
+        // location text.
+        let xml = render(&every_skip_variant());
+        // skipped = excluded + unsupported + not_applicable + not_observed,
+        // and `tests` counts every row exactly once.
         assert!(
-            xml.contains(r#"<testsuites tests="5" failures="1" skipped="4">"#),
+            xml.contains(r#"<testsuites tests="6" failures="1" skipped="5">"#),
             "{xml}"
         );
+        assert_eq!(xml.matches("<testcase").count(), 6, "{xml}");
         assert!(
             xml.contains(
                 r#"<skipped message="not applicable: capability server.tools was not declared in this session"/>"#
             ),
             "{xml}"
         );
-        // The two skip variants carry their own distinct messages.
+        // Each skip variant carries its own distinct message.
         assert!(
             xml.contains(r#"<skipped message="not judgeable from traces"/>"#),
+            "{xml}"
+        );
+        assert!(
+            xml.contains(
+                r#"<skipped message="the session carried none of the traffic this clause binds to"/>"#
+            ),
             "{xml}"
         );
         assert!(

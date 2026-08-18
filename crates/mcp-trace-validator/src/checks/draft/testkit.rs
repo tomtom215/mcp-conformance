@@ -31,6 +31,7 @@ pub(super) fn findings_for(check: &str, trace: &str) -> Vec<String> {
     checks::find(check)
         .expect("check is registered")
         .run(&context)
+        .findings
         .into_iter()
         .map(|finding| finding.detail)
         .collect()

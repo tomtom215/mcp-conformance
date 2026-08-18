@@ -47,18 +47,22 @@ fn call_results<'a>(
 /// successfully serving tools traffic, or emitting the tools list-changed
 /// notification, is the observable form of supporting tools.
 pub(super) fn capability_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    if server_capability(context, &["tools"]) != Some(false) {
-        return;
-    }
+    // The subject is an answered `tools/*` exchange — the observable form of
+    // supporting tools — whether or not the declaration is there. A session
+    // that never exercised tools has nothing to judge and says so.
+    let declared = server_capability(context, &["tools"]) != Some(false);
     for exchange in context.exchanges() {
         if exchange.method.starts_with("tools/") && exchange.result.is_some() {
-            sink.push(
-                Some(exchange.response.seq),
-                format!(
-                    "server answered {:?} without declaring the tools capability",
-                    exchange.method
-                ),
-            );
+            sink.examined();
+            if !declared {
+                sink.push(
+                    Some(exchange.response.seq),
+                    format!(
+                        "server answered {:?} without declaring the tools capability",
+                        exchange.method
+                    ),
+                );
+            }
         }
     }
 }
@@ -68,9 +72,11 @@ pub(super) fn capability_declared(context: &TraceContext<'_>, sink: &mut Finding
 /// shape lists the member; this clause constrains its type).
 pub(super) fn input_schema_object(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (seq, tool) in listed_tools(context) {
-        if let Some(schema) = tool.get("inputSchema")
-            && !schema.is_object()
-        {
+        let Some(schema) = tool.get("inputSchema") else {
+            continue;
+        };
+        sink.examined();
+        if !schema.is_object() {
             sink.push(
                 Some(seq),
                 format!(
@@ -85,14 +91,16 @@ pub(super) fn input_schema_object(context: &TraceContext<'_>, sink: &mut Finding
 /// `TOOL-005`: tool names should be 1–128 characters long, inclusive.
 pub(super) fn name_length(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (seq, tool) in listed_tools(context) {
-        if let Some(name) = tool.get("name").and_then(Value::as_str) {
-            let length = name.chars().count();
-            if !(1..=128).contains(&length) {
-                sink.push(
-                    Some(seq),
-                    format!("tool name {name:?} is {length} characters long, expected 1 to 128"),
-                );
-            }
+        let Some(name) = tool.get("name").and_then(Value::as_str) else {
+            continue; // A tool object without a string name is BASE's finding.
+        };
+        sink.examined();
+        let length = name.chars().count();
+        if !(1..=128).contains(&length) {
+            sink.push(
+                Some(seq),
+                format!("tool name {name:?} is {length} characters long, expected 1 to 128"),
+            );
         }
     }
 }
@@ -102,19 +110,21 @@ pub(super) fn name_length(context: &TraceContext<'_>, sink: &mut FindingSink) {
 /// special characters.
 pub(super) fn name_charset(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (seq, tool) in listed_tools(context) {
-        if let Some(name) = tool.get("name").and_then(Value::as_str) {
-            let offenders: String = name
-                .chars()
-                .filter(|c| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.')))
-                .collect();
-            if !offenders.is_empty() {
-                sink.push(
-                    Some(seq),
-                    format!(
-                        "tool name {name:?} contains characters outside A-Z, a-z, 0-9, underscore, hyphen, and dot: {offenders:?}"
-                    ),
-                );
-            }
+        let Some(name) = tool.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        sink.examined();
+        let offenders: String = name
+            .chars()
+            .filter(|c| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.')))
+            .collect();
+        if !offenders.is_empty() {
+            sink.push(
+                Some(seq),
+                format!(
+                    "tool name {name:?} contains characters outside A-Z, a-z, 0-9, underscore, hyphen, and dot: {offenders:?}"
+                ),
+            );
         }
     }
 }
@@ -133,9 +143,11 @@ pub(super) fn name_unique(context: &TraceContext<'_>, sink: &mut FindingSink) {
         };
         let mut seen = std::collections::BTreeSet::new();
         for tool in tools {
-            if let Some(name) = tool.get("name").and_then(Value::as_str)
-                && !seen.insert(name)
-            {
+            let Some(name) = tool.get("name").and_then(Value::as_str) else {
+                continue;
+            };
+            sink.examined();
+            if !seen.insert(name) {
                 sink.push(
                     Some(exchange.response.seq),
                     format!("tool name {name:?} appears more than once in this tools/list result"),
@@ -148,13 +160,17 @@ pub(super) fn name_unique(context: &TraceContext<'_>, sink: &mut FindingSink) {
 /// `TOOL-009`: servers returning embedded resources in tool results should declare
 /// the `resources` capability.
 pub(super) fn embedded_resource_capability(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    if server_capability(context, &["resources"]) != Some(false) {
-        return;
-    }
+    // The subject is a result that actually embedded a resource; a session
+    // whose tools never returned one leaves this clause untested.
+    let declared = server_capability(context, &["resources"]) != Some(false);
     for (seq, name, result) in call_results(context) {
         let embedded = content_items(result)
             .any(|item| item.get("type").and_then(Value::as_str) == Some("resource"));
-        if embedded {
+        if !embedded {
+            continue;
+        }
+        sink.examined();
+        if !declared {
             sink.push(
                 Some(seq),
                 format!(
@@ -173,6 +189,7 @@ pub(super) fn structured_content_text(context: &TraceContext<'_>, sink: &mut Fin
         if result.get("structuredContent").is_none() {
             continue;
         }
+        sink.examined();
         let has_text = content_items(result)
             .any(|item| item.get("type").and_then(Value::as_str) == Some("text"));
         if !has_text {
@@ -207,6 +224,7 @@ pub(super) fn output_schema_structured_result(context: &TraceContext<'_>, sink: 
         if result.get("isError").and_then(Value::as_bool) == Some(true) {
             continue; // Execution errors legitimately carry no structured result.
         }
+        sink.examined();
         if !result
             .get("structuredContent")
             .is_some_and(Value::is_object)
@@ -250,6 +268,7 @@ mod tests {
         checks::find(check)
             .unwrap()
             .run(&context)
+            .findings
             .into_iter()
             .map(|finding| finding.detail)
             .collect()

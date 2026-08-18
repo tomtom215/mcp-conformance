@@ -1,0 +1,104 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "SUBS-001",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/subscriptions#opening-a-stream",
+        "quote": "The server MUST NOT send notification types the client has not explicitly requested."
+      },
+      "checks": [
+        "subscriptions.only-requested-notifications"
+      ]
+    },
+    {
+      "id": "SUBS-002",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/subscriptions#acknowledgment",
+        "quote": "The server MUST send `notifications/subscriptions/acknowledged` as the first message carrying the subscription's ID in `meta` under `io.modelcontextprotocol/subscriptionId`, and MUST NOT send any notification on the subscription before it."
+      },
+      "checks": [
+        "subscriptions.acknowledgment-first"
+      ]
+    },
+    {
+      "id": "SUBS-003",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/subscriptions#acknowledgment",
+        "quote": "The client SHOULD check the acknowledged filter against what it requested and handle any unsupported types gracefully."
+      },
+      "exclusion": "Comparing two things it already has and reacting well to the difference: both the comparison and \"gracefully\" are inside the client, and a client that never looked sends exactly the messages one that did would. The server's side of the same exchange — honouring only what was requested — is SUBS-001 and is checked."
+    },
+    {
+      "id": "SUBS-004",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/subscriptions#receiving-notifications",
+        "quote": "On stdio, where all messages share a single channel, clients MUST use this field to correlate notifications with their originating subscription."
+      },
+      "exclusion": "The client's own demultiplexing, which produces no message — the same clause TRAN-122 states from the stdio page, with the same reason. The wire-visible half, that the server tags every notification with `io.modelcontextprotocol/subscriptionId`, is BASE-039 and is checked."
+    },
+    {
+      "id": "SUBS-005",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/subscriptions#cancellation",
+        "quote": "The server tears it down (e.g., during shutdown) — it SHOULD send the empty `subscriptions/listen` response to signal a graceful end (see Graceful Closure), then close the stream."
+      },
+      "checks": [
+        "subscriptions.graceful-close-result-empty"
+      ]
+    },
+    {
+      "id": "SUBS-006",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/subscriptions#graceful-closure",
+        "quote": "When the server ends a subscription on its own initiative (for example, during shutdown), it SHOULD respond to the original `subscriptions/listen` request with an empty result before closing the stream."
+      },
+      "checks": [
+        "subscriptions.graceful-close-result-empty"
+      ]
+    },
+    {
+      "id": "SUBS-007",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/subscriptions#graceful-closure",
+        "quote": "On stdio, if the connection is terminated and then re-established, the client MUST re-send `subscriptions/listen` to re-establish its subscriptions — the server holds no subscription state across reconnections."
+      },
+      "exclusion": "The obligation begins after a re-established connection, which is a second session: the evidence would have to span two recordings, and nothing in either identifies the other as its predecessor. Same boundary as TRAN-127, which excludes the restart that precedes it."
+    }
+  ]
+}

@@ -45,10 +45,12 @@ impl EverythingServer {
         &self,
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, ErrorData> {
-        // logging/setLevel filtering happens at the emission site: a
-        // threshold above info silences these (the scenario's "filter
-        // subsequent log notifications" requirement).
-        let permitted = self.log_permits(LoggingLevel::Info);
+        // Filtering happens at the emission site, against whichever mechanism
+        // the served revision defines: a `logging/setLevel` threshold above
+        // info silences these at `2025-11-25` (the scenario's "filter
+        // subsequent log notifications" requirement), and at `2026-07-28` only
+        // a request that asked for info in its `_meta` gets them at all.
+        let permitted = self.log_permits(&context, LoggingLevel::Info);
         let log = |message: &'static str| {
             let peer = context.peer.clone();
             async move {

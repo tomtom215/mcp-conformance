@@ -16,8 +16,8 @@ use serde_json::Value;
 use super::super::super::FindingSink;
 use super::super::http_status_for;
 use super::{
-    Match, Post, compare, designations_by_tool, header_safe, mirrors, posts, posts_by_message,
-    sentinel_payload,
+    META_PROTOCOL_VERSION, Match, Post, compare, designations_by_tool, header_safe, mirrors, posts,
+    posts_by_message, sentinel_payload,
 };
 use crate::context::TraceContext;
 
@@ -75,9 +75,13 @@ pub(in crate::checks) fn header_mismatch_status(
         if answer_code(event) != Some(HEADER_MISMATCH) {
             continue;
         }
-        if let Some((status_seq, status)) = http_status_for(context, event.seq)
-            && status != 400
-        {
+        // Only judged where the recording carries HTTP framing; on stdio there
+        // is no status to hold the error against.
+        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+            continue;
+        };
+        sink.examined();
+        if status != 400 {
             sink.push(
                 Some(status_seq),
                 format!(
@@ -103,6 +107,9 @@ fn rejected_for(
         let Some(reason) = fault(post) else {
             continue;
         };
+        // The subject is a POST that actually carried the fault; a session whose
+        // POSTs were all well-formed never puts the rejection rule to the test.
+        sink.examined();
         let code = answer_code(exchange.response);
         if code != Some(HEADER_MISMATCH) {
             sink.push(
@@ -173,6 +180,7 @@ pub(in crate::checks) fn header_body_match_validated(
             let Some(sent) = post.headers.get(&mirror.header) else {
                 continue;
             };
+            sink.examined();
             if compare(sent, &mirror.value) == Match::Mismatch {
                 sink.push(
                     Some(exchange.response.seq),
@@ -197,12 +205,13 @@ pub(in crate::checks) fn unsupported_version_error(
     unsupported_version_answer(context, sink);
 }
 
-/// The answer side: `-32022` lists the supported versions and carries HTTP 400.
+/// The shape side: `-32022` lists the versions the server does implement.
 fn unsupported_version_shape(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, _, _) in context.messages() {
         if answer_code(event) != Some(UNSUPPORTED_VERSION) {
             continue;
         }
+        sink.examined();
         let lists_versions = event
             .message_payload()
             .and_then(|payload| payload.get("error"))
@@ -221,9 +230,46 @@ fn unsupported_version_shape(context: &TraceContext<'_>, sink: &mut FindingSink)
                 ),
             );
         }
-        if let Some((status_seq, status)) = http_status_for(context, event.seq)
-            && status != 400
+    }
+}
+
+/// `TRAN-074`, the HTTP half: an `UnsupportedProtocolVersionError` rides a 400.
+///
+/// Split from [`unsupported_version_error`] because that rule is stated twice —
+/// on the transport page *with* the status (TRAN-074) and on `basic/versioning`
+/// *without* it (VERS-001). One check covering both would attribute a wrong
+/// HTTP status to VERS-001, whose quote says nothing about statuses, since the
+/// engine reports a check's finding against every requirement naming it.
+pub(in crate::checks) fn unsupported_version_status(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    let handshakes = legacy_handshake_ids(context);
+    for (event, _, _) in context.messages() {
+        if answer_code(event) != Some(UNSUPPORTED_VERSION) {
+            continue;
+        }
+        // The clause's antecedent is a version requested *in the header*
+        // (`#protocol-version-header`), and the removed handshake carries
+        // none — a `2025-11-25` client has no such header to send. So a
+        // `-32022` answering an `initialize` is outside this rule, the same
+        // carve-out `basic/versioning` makes for the error *code* there
+        // ("the exact code is implementation-defined"); it would be
+        // incoherent to leave the code open and mandate one code's status.
+        // What a modern-only server owes that client is VERS-008's, and it
+        // is judged separately.
+        if event
+            .message_payload()
+            .and_then(|payload| payload.get("id"))
+            .is_some_and(|id| handshakes.contains(&id.to_string()))
         {
+            continue;
+        }
+        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+            continue;
+        };
+        sink.examined();
+        if status != 400 {
             sink.push(
                 Some(status_seq),
                 format!(
@@ -243,35 +289,57 @@ fn unsupported_version_shape(context: &TraceContext<'_>, sink: &mut FindingSink)
 /// assumption about which versions it ought to implement. Applied to the whole
 /// trace, not just what follows discovery: which versions a server implements is
 /// a property of the server, not of when the client asked.
+///
+/// The requested version is read from the request's own `_meta`, not from the
+/// POST that carried it. Both say the same thing — `Post::body_protocol_version`
+/// reads that same field — but going through the POST made the obligation
+/// invisible on stdio, where there is no POST and the clause still binds:
+/// `basic/versioning` states it for every transport.
 fn unsupported_version_answer(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let Some(supported) = declared_versions(context) else {
         return;
     };
-    let by_message = posts_by_message(context);
     for exchange in context.exchanges() {
-        let Some(post) = by_message.get(&exchange.request.seq) else {
-            continue;
-        };
-        let Some(requested) = post.body_protocol_version() else {
+        let Some(requested) = exchange
+            .params
+            .and_then(|params| params.get("_meta")?.get(META_PROTOCOL_VERSION)?.as_str())
+        else {
             continue;
         };
         if supported.contains(requested) {
             continue;
         }
+        // The subject is a request naming a version the server's own list omits;
+        // a session that only ever asked for supported ones is untested here.
+        sink.examined();
         let code = answer_code(exchange.response);
         if code != Some(UNSUPPORTED_VERSION) {
             sink.push(
                 Some(exchange.response.seq),
                 format!(
-                    "the POST at seq {} requested protocol version {requested:?}, which the \
+                    "the request at seq {} declared protocol version {requested:?}, which the \
                      server's own `supportedVersions` omits; it answered with {} instead of \
                      {UNSUPPORTED_VERSION}",
-                    post.seq,
+                    exchange.request.seq,
                     answer_label(code)
                 ),
             );
         }
     }
+}
+
+/// The ids of `initialize` requests the client sent — the removed handshake.
+fn legacy_handshake_ids(context: &TraceContext<'_>) -> BTreeSet<String> {
+    context
+        .messages()
+        .filter_map(|(event, _, _)| {
+            let payload = event.message_payload()?;
+            if payload.get("method")?.as_str()? != "initialize" {
+                return None;
+            }
+            Some(payload.get("id")?.to_string())
+        })
+        .collect()
 }
 
 /// The protocol versions a `server/discover` result in the trace declared.
@@ -301,9 +369,11 @@ pub(in crate::checks) fn unknown_method_404(context: &TraceContext<'_>, sink: &m
         if answer_code(event) != Some(METHOD_NOT_FOUND) {
             continue;
         }
-        if let Some((status_seq, status)) = http_status_for(context, event.seq)
-            && status != 404
-        {
+        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+            continue;
+        };
+        sink.examined();
+        if status != 404 {
             sink.push(
                 Some(status_seq),
                 format!(

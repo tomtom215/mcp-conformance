@@ -22,6 +22,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use mcp_everything_server::http::router_tapped;
 use mcp_everything_server::policy::HttpSecurityPolicy;
+use mcp_everything_server::server::ServedRevision;
 use mcp_everything_server::tap::Tap;
 use tower::ServiceExt as _;
 
@@ -40,7 +41,14 @@ fn tap_dir(test: &str) -> PathBuf {
 fn tapped_app(test: &str) -> (Router, PathBuf) {
     let dir = tap_dir(test);
     let tap = Tap::new(dir.clone()).expect("tap directory");
-    (router_tapped(HttpSecurityPolicy::default(), tap), dir)
+    (
+        router_tapped(
+            HttpSecurityPolicy::default(),
+            ServedRevision::V2025_11_25,
+            tap,
+        ),
+        dir,
+    )
 }
 
 /// A loopback `/mcp` POST carrying `body`, plus any extra headers.
@@ -471,21 +479,39 @@ async fn tap_output_parses_and_validates_through_the_real_validator() {
 }
 
 #[tokio::test]
-async fn sessionless_exchanges_are_not_recorded() {
+async fn sessionless_exchanges_are_recorded_under_the_stateless_trace() {
+    // Until 2026-08-17 the tap returned early on any exchange with no
+    // `Mcp-Session-Id`, and this test asserted the directory stayed empty. That
+    // made the capture path structurally unable to record `2026-07-28`, which
+    // removes the session concept outright — every exchange of that revision
+    // lands here — and it failed silently, leaving an empty directory that
+    // looks exactly like a server nobody talked to.
+    //
+    // The old assertion also passed for the wrong reason: it counted the
+    // directory immediately, before the writer task had flushed, so it would
+    // have held even once the recording started. This one waits, the way every
+    // other recording assertion in this file does.
     let (app, dir) = tapped_app("sessionless");
-    // A GET without a session id never forms a session; whatever the MCP
-    // service answers, the tap must record nothing.
     let request = Request::builder()
-        .method("GET")
+        .method("POST")
         .uri("/mcp")
         .header("host", "localhost:8080")
-        .header("accept", "text/event-stream")
-        .body(Body::empty())
+        .header("content-type", "application/json")
+        .header("accept", "application/json, text/event-stream")
+        .header("mcp-protocol-version", "2026-07-28")
+        .body(Body::from(
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}"#,
+        ))
         .unwrap();
     let _ = app.clone().oneshot(request).await.unwrap();
 
-    let recorded = std::fs::read_dir(&dir).map_or(0, Iterator::count);
-    assert_eq!(recorded, 0, "no session, no trace file");
+    let events = read_trace(&dir, "stateless", 2).await;
+    assert_eq!(events[0]["kind"], "http", "{events:#?}");
+    assert_eq!(events[0]["direction"], "client-to-server", "{events:#?}");
+    assert_eq!(
+        events[1]["payload"]["method"], "tools/list",
+        "the request message is recorded, not just its headers: {events:#?}"
+    );
 
     let _ = std::fs::remove_dir_all(dir);
 }

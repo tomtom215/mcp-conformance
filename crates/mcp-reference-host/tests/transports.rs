@@ -20,6 +20,7 @@
 
 use mcp_everything_server::http::router;
 use mcp_everything_server::policy::HttpSecurityPolicy;
+use mcp_everything_server::server::ServedRevision;
 use mcp_reference_host::capture::{CaptureTransport, RecordingTransport};
 use mcp_reference_host::handler::HostHandler;
 use mcp_reference_host::run::{CallPolicy, PlannedCall, RunPlan, StopReason, run};
@@ -30,7 +31,7 @@ use tokio_util::sync::CancellationToken;
 /// Serves the everything-server app on an OS-assigned loopback port,
 /// returning its MCP endpoint URL.
 async fn serve_everything() -> String {
-    let app = router(HttpSecurityPolicy::default());
+    let app = router(HttpSecurityPolicy::default(), ServedRevision::V2025_11_25);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback");
@@ -63,6 +64,7 @@ async fn http_transport_completes_a_scripted_loop() {
                 arguments: serde_json::json!({"a": 19, "b": 23}).as_object().cloned(),
             },
         ]),
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::Completed, "{report:?}");
@@ -96,6 +98,7 @@ async fn captured_http_session_validates_through_the_real_engine() {
             tool: "test_elicitation_sep1034_defaults".to_owned(),
             arguments: None,
         }]),
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::Completed, "{report:?}");

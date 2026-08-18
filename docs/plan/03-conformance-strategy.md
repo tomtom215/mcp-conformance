@@ -134,16 +134,22 @@ informational SHOULD warning on the suite's version-compat probe.
   so it is signal to read, never a gate.
 - **Measure** the next revision separately and *gate* it: `DRAFT_SUITE_VERSION` in
   `xtask/src/draft_readiness.rs` pins an exact alpha (`0.2.0-alpha.9`) and runs the
-  runner's `2026-07-28` scenarios against the current server, ratcheting every check's
-  status against `conformance/draft-readiness.json`. Floating and pinned are not
+  runner's `2026-07-28` scenarios against the server once per revision the server can
+  serve, ratcheting every check's status against `conformance/draft-readiness.json`. Floating and pinned are not
   interchangeable here: a tracking job wants the newest thing upstream has, a ratchet
   wants an input that cannot move underneath it, so the two are different jobs on
   different pins rather than one job with a compromise. Both pins move together when the
   `0.2.0` line stabilizes (deferral `suite-0-2-0-stable-pin-bump`), the draft one with a
   `BLESS=1` re-measurement in the same commit.
-- The `draft` suite runs only under the `draft-2026-07-28` feature until the spec finalizes.
-  The readiness ratchet above is *not* that: it never involves the validator or the
-  registry, so it makes no claim about a revision the registry does not describe.
+- The `draft` suite runs only under the `draft-2026-07-28` feature. The readiness ratchet
+  above is *not* that: it records the runner's verdicts and nothing else. The registry's
+  verdict on the same traffic is taken separately — each leg's session is captured to
+  `corpus/draft/captured/`, where the golden suite replays it through the `2026-07-28`
+  registry on every `cargo test`. Keeping the two apart matters because they disagree,
+  usefully: the runner scores 23/23 against a `2025-11-25` server *and* a `2026-07-28`
+  one, while the registry separates them (123 pass / 1 fail against the first, 124 / 0
+  against the second). Folding the alpha's verdicts into the agreement gate would make a
+  released pin's outcome hostage to a pre-release check set.
 
 ## Supporting rmcp's path to Tier 1
 

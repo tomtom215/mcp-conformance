@@ -22,6 +22,14 @@
 //!   the SSE `retry` field is a server-named delay, which is exactly
 //!   [`retry::RetryPolicy::delay_honoring_retry_after`] — and `resume` is
 //!   where that becomes load-bearing.
+//! - `probe` (feature `http`) — the deliberately malformed requests, sent
+//!   outside rmcp because rmcp's client is what makes the other captures
+//!   trustworthy and therefore cannot emit one. Every rejection clause the
+//!   registry judges is unobservable without it.
+//! - [`sweep`] — the non-tool surface, driven from what the server itself
+//!   advertises: prompts, resources, templates, completion, and one read of a
+//!   URI the catalog does not contain, whose error response is the only way a
+//!   recording carries the error-code clauses.
 //! - [`capture`] — host-side trace capture: a `Transport` wrapper recording
 //!   every message as a validator-ready trace, redaction by construction
 //!   (the seam never sees headers).
@@ -40,8 +48,12 @@ pub mod capture;
 pub mod connect;
 pub mod handler;
 #[cfg(feature = "http")]
+pub mod probe;
+#[cfg(feature = "http")]
 pub mod resume;
 pub mod retry;
 pub mod run;
 pub mod scenario;
 pub mod script;
+pub mod subscribe;
+pub mod sweep;

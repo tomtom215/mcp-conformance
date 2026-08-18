@@ -89,11 +89,21 @@ fn build_row(requirement: &Requirement, context: &TraceContext<'_>) -> Requireme
                 row.outcome = Outcome::NotApplicable;
                 row.capability = Some(gate.as_str().to_owned());
             } else {
+                // One check finding something to judge is enough: requirements
+                // sharing several checks are observed if any of them had a
+                // subject, and only a requirement none of them could bind to
+                // reports "not observed".
+                let mut observed = false;
                 for check in resolved {
-                    row.findings.extend(check.run(context));
+                    let outcome = check.run(context);
+                    observed |= outcome.subjects > 0;
+                    row.findings.extend(outcome.findings);
                 }
-                row.outcome =
-                    classify_outcome(requirement.level.is_error(), row.findings.is_empty());
+                row.outcome = if row.findings.is_empty() && !observed {
+                    Outcome::NotObserved
+                } else {
+                    classify_outcome(requirement.level.is_error(), row.findings.is_empty())
+                };
             }
         }
         // Verification is #[non_exhaustive]; a future arm must be handled
@@ -131,6 +141,7 @@ const fn tally(totals: &mut Totals, outcome: Outcome) {
         Outcome::Excluded => totals.excluded += 1,
         Outcome::Unsupported => totals.unsupported += 1,
         Outcome::NotApplicable => totals.not_applicable += 1,
+        Outcome::NotObserved => totals.not_observed += 1,
     }
 }
 
@@ -145,7 +156,7 @@ const fn classify_outcome(is_error_level: bool, clean: bool) -> Outcome {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::reader::{Limits, parse_trace};
@@ -191,6 +202,21 @@ mod tests {
             report.render_human()
         );
         assert_eq!(report.totals.unsupported, 0);
+        // A bare handshake exercises almost nothing, and the report says so
+        // rather than crediting the session with clauses it never approached.
+        // PAGE-002 is the plainest case: no listing was ever paginated, so no
+        // cursor was ever presented for the opacity rule to bind to.
+        let pagination = report
+            .requirements
+            .iter()
+            .find(|row| row.id == "PAGE-002")
+            .expect("the 2025-11-25 registry carries PAGE-002");
+        assert_eq!(
+            pagination.outcome,
+            Outcome::NotObserved,
+            "{}",
+            report.render_human()
+        );
         assert_eq!(
             usize::try_from(
                 report.totals.pass
@@ -199,6 +225,7 @@ mod tests {
                     + report.totals.excluded
                     + report.totals.unsupported
                     + report.totals.not_applicable
+                    + report.totals.not_observed
             )
             .unwrap(),
             registry.requirements().len(),

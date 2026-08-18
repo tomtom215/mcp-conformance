@@ -28,6 +28,7 @@ or when the reasoning would otherwise live only in someone's head.
 | [0009](0009-reference-host-on-rmcp-client.md) | Reference Host on rmcp's Client Surface, Scripted Interaction as Data | Accepted (amended 2026-06-12) |
 | [0010](0010-deferral-ledger-and-scheduled-reverification.md) | Claims Expire — the Deferral Ledger and Scheduled Re-Verification Gates | Accepted |
 | [0011](0011-rmcp-pin-holds-at-1-7.md) | The rmcp Pin Holds at 1.7 Until Both the Spec Text and rmcp 3.0 Are Final | Accepted |
+| [0012](0012-not-observed-outcome.md) | Subject Counting and the `not-observed` Outcome | Accepted (extends 0006's argument beyond the capability gate) |
 
 ## Process
 

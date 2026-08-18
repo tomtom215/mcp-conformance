@@ -50,6 +50,20 @@ const AREAS_2026_07_28: &[&str] = &[
     include_str!("../../registry/2026-07-28/transport-http-version.json"),
     include_str!("../../registry/2026-07-28/transport-http-headers.json"),
     include_str!("../../registry/2026-07-28/transport-http-compat.json"),
+    include_str!("../../registry/2026-07-28/discover.json"),
+    include_str!("../../registry/2026-07-28/versioning.json"),
+    include_str!("../../registry/2026-07-28/transports-index.json"),
+    include_str!("../../registry/2026-07-28/transport-stdio.json"),
+    include_str!("../../registry/2026-07-28/mrtr-server.json"),
+    include_str!("../../registry/2026-07-28/mrtr-client.json"),
+    include_str!("../../registry/2026-07-28/subscriptions.json"),
+    include_str!("../../registry/2026-07-28/caching.json"),
+    include_str!("../../registry/2026-07-28/completion.json"),
+    include_str!("../../registry/2026-07-28/pagination.json"),
+    include_str!("../../registry/2026-07-28/logging.json"),
+    include_str!("../../registry/2026-07-28/tools.json"),
+    include_str!("../../registry/2026-07-28/resources.json"),
+    include_str!("../../registry/2026-07-28/prompts.json"),
 ];
 
 /// A complete requirement registry for one protocol revision.

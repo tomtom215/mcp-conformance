@@ -38,6 +38,7 @@ fn stdio_messages_valid(
         if event.transport != TransportKind::Stdio || event.direction != direction {
             continue;
         }
+        sink.examined();
         if let MessageKind::Invalid { reason } = kind {
             sink.push(
                 Some(event.seq),
@@ -58,6 +59,7 @@ pub(super) fn http_post_single_message(context: &TraceContext<'_>, sink: &mut Fi
         {
             continue;
         }
+        sink.examined();
         if let MessageKind::Invalid { reason } = kind {
             sink.push(
                 Some(event.seq),
@@ -87,15 +89,17 @@ fn http_headers<'a>(
 /// `TRAN-011`: session IDs must contain only visible ASCII (0x21–0x7E).
 pub(super) fn session_id_visible_ascii(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (seq, headers) in http_headers(context, Direction::ServerToClient) {
-        if let Some(session_id) = headers.get("mcp-session-id")
-            && !session_id.bytes().all(|byte| (0x21..=0x7E).contains(&byte))
-        {
+        let Some(session_id) = headers.get("mcp-session-id") else {
+            continue;
+        };
+        sink.examined();
+        if !session_id.bytes().all(|byte| (0x21..=0x7E).contains(&byte)) {
             sink.push(
                     Some(seq),
                     format!(
-                        "session ID {session_id:?} contains characters outside visible ASCII (0x21-0x7E)"
-                    ),
-                );
+                    "session ID {session_id:?} contains characters outside visible ASCII (0x21-0x7E)"
+                ),
+            );
         }
     }
 }
@@ -119,6 +123,7 @@ pub(super) fn session_id_echoed(context: &TraceContext<'_>, sink: &mut FindingSi
         if seq < assigned_seq {
             continue;
         }
+        sink.examined();
         match headers.get("mcp-session-id") {
             None => sink.push(
                 Some(seq),
@@ -147,6 +152,7 @@ pub(super) fn protocol_version_header(context: &TraceContext<'_>, sink: &mut Fin
         if seq <= negotiated_seq {
             continue; // Initialization traffic itself precedes "subsequent requests".
         }
+        sink.examined();
         if !headers.contains_key("mcp-protocol-version") {
             sink.push(
                 Some(seq),
@@ -166,15 +172,19 @@ pub(super) fn protocol_version_negotiated(context: &TraceContext<'_>, sink: &mut
         if seq <= negotiated_seq {
             continue;
         }
-        if let Some(sent) = headers.get("mcp-protocol-version")
-            && sent != negotiated
-        {
+        // The subject is a request that *sent* the header; one that omitted it
+        // is the neighbouring clause's finding, not this one's.
+        let Some(sent) = headers.get("mcp-protocol-version") else {
+            continue;
+        };
+        sink.examined();
+        if sent != negotiated {
             sink.push(
                     Some(seq),
                     format!(
-                        "client sent MCP-Protocol-Version {sent:?}, but {negotiated:?} was negotiated at seq {negotiated_seq}"
-                    ),
-                );
+                    "client sent MCP-Protocol-Version {sent:?}, but {negotiated:?} was negotiated at seq {negotiated_seq}"
+                ),
+            );
         }
     }
 }
@@ -198,6 +208,7 @@ fn negotiated_version<'a>(context: &TraceContext<'a>) -> Option<(u64, &'a str)> 
 /// that omission is sound for every recorded request.
 pub(super) fn client_accept_header(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (seq, headers) in http_headers(context, Direction::ClientToServer) {
+        sink.examined();
         match headers.get("accept") {
             None => sink.push(
                 Some(seq),
@@ -234,6 +245,7 @@ pub(super) fn success_content_type(context: &TraceContext<'_>, sink: &mut Findin
         else {
             continue;
         };
+        sink.examined();
         match headers.get("content-type") {
             None => sink.push(
                 Some(event.seq),
@@ -272,6 +284,7 @@ mod tests {
         checks::find(check)
             .unwrap()
             .run(&context)
+            .findings
             .into_iter()
             .map(|finding| finding.detail)
             .collect()

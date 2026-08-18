@@ -1,0 +1,1536 @@
+{
+  "revision": "2026-07-28",
+  "totals": {
+    "pass": 30,
+    "fail": 2,
+    "warn": 0,
+    "excluded": 148,
+    "unsupported": 0,
+    "not_applicable": 0,
+    "not_observed": 92
+  },
+  "requirements": [
+    {
+      "id": "BASE-041",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The umbrella clause the BASE area mechanizes requirement-by-requirement; it has no observable beyond its constituents. Same role as BASE-012 at 2025-11-25, widened by this revision from 'base protocol and lifecycle management' to 'base protocol, versioning, and the message patterns'."
+    },
+    {
+      "id": "BASE-042",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-043",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-044",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-045",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-046",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-047",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-048",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-049",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The client's set of supported `ResultType` values is internal state assembled from the core protocol plus its advertised extensions; a trace shows the values a server sent, never the set the client was willing to accept."
+    },
+    {
+      "id": "BASE-050",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "What a client 'considers invalid' is internal judgment. The observable consequence — a client refusing to proceed — is client conduct after receipt, outside a server-side trace, and indistinguishable from any other reason it stopped."
+    },
+    {
+      "id": "BASE-051",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The backward-compatibility rule binds the client's *interpretation* of an absent field, which leaves no wire artifact: the trace records that `resultType` was absent, not that the client read it as `complete`."
+    },
+    {
+      "id": "BASE-052",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-053",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-054",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-055",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-056",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "What a receiver assumes about a legacy code's meaning is internal; only conduct following from the assumption could surface, and attributing it requires the assumption. Same boundary as BASE-025 for reserved `_meta` keys."
+    },
+    {
+      "id": "BASE-057",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-058",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-059",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Client-side acceptance of a legacy code is internal handling; the trace records the `-32002` a server sent, not whether the client honoured it. The emitting side is judged by BASE-058."
+    },
+    {
+      "id": "BASE-060",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-061",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by `base.result-id-matches` and `base.error-id-matches`. Same reasoning as BASE-011 at 2025-11-25."
+    },
+    {
+      "id": "BASE-062",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-063",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Reliance is internal reasoning. A server that answers correctly may or may not have consulted prior requests, and one that errors may have done so for any reason; the trace shows the answer, not the inference behind it. The adjacent observable is that every request carries its own context, judged by BASE-030."
+    },
+    {
+      "id": "BASE-064",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Preparedness is a property of the server's implementation, not of any session it took part in; a trace that happens to interleave conversations evidences capability, while one that does not evidences nothing."
+    },
+    {
+      "id": "BASE-065",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Falsifying this needs a server refusing an operation *because* it arrived on a different connection — two correlated connections in one recording, which the trace vocabulary does not span: each recorded session is one transport."
+    },
+    {
+      "id": "BASE-066",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Process lifetime is host-OS conduct outside the trace event vocabulary — `transport-open`/`close`/`abort` record that a transport ended, not what the client tied its lifetime to. Same boundary as LIFE-014 at 2025-11-25."
+    },
+    {
+      "id": "BASE-067",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Which state 'needs to span multiple requests' is server-internal; the trace shows the arguments a client passed, not whether they carried everything the server required. A violation surfaces only as the server failing for some other stated reason."
+    },
+    {
+      "id": "BASE-068",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, which `sources.json` records as out of scope for the same reason it is at 2025-11-25."
+    },
+    {
+      "id": "BASE-069",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Dialect support is validation behavior inside each implementation; a trace shows schemas exchanged, not which dialects the receiver could handle. Same reasoning as BASE-013 at 2025-11-25."
+    },
+    {
+      "id": "BASE-070",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Dialect support and validation are behavior inside each implementation; a trace shows schemas exchanged, not how the receiver processed them. Same reasoning as BASE-013/BASE-014 at 2025-11-25."
+    },
+    {
+      "id": "BASE-071",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Graceful handling is receiver conduct; the trace would show an error, but not that it was raised for an unsupported dialect rather than any other malformed-schema reason. Same reasoning as BASE-015 at 2025-11-25."
+    },
+    {
+      "id": "BASE-072",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Documentation is a property of the project, not of any session. Same reasoning as BASE-016 at 2025-11-25."
+    },
+    {
+      "id": "BASE-073",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Full dialect validation requires a JSON Schema engine, a dependency `mcp-conformance-core` deliberately excludes (serde-family only, 02-architecture.md). Same reasoning as BASE-017 at 2025-11-25."
+    },
+    {
+      "id": "BASE-074",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Whether an implementation dereferenced a `$ref` is an outbound fetch to a third party, not an MCP message; nothing in the recorded session distinguishes a resolved reference from an unresolved one."
+    },
+    {
+      "id": "BASE-075",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The default state of an opt-in mode, its allowlist, timeouts and logging are all implementation configuration; none appears in an MCP session."
+    },
+    {
+      "id": "BASE-076",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Rejection happens inside the receiver's schema validation; the trace shows the schema that was sent, not what the receiver did with an unresolvable reference."
+    },
+    {
+      "id": "BASE-077",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Depth caps, subschema counts and time budgets are validator-internal resource policy, invisible in the messages exchanged."
+    },
+    {
+      "id": "BASE-025",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "What an implementation assumes is internal; only conduct that follows from an assumption could surface, and attributing it requires the assumption. Same clause and same reasoning as BASE-018 at 2025-11-25."
+    },
+    {
+      "id": "BASE-026",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-027",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-028",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether a syntactically valid prefix is reverse-DNS for its author cannot be decided without knowing the author's domain. Same clause and same reasoning as BASE-021 at 2025-11-25."
+    },
+    {
+      "id": "BASE-029",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-030",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-031",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-032",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-033",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The clause's own escape hatch defeats the check: an absent `clientInfo` is either non-compliance or the configured-off case the clause permits, and a trace cannot distinguish them. The adjacent observable — that a *present* value is well-formed — belongs to the key-format checks on BASE-026/027/029."
+    },
+    {
+      "id": "BASE-034",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-035",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-036",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-037",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Same escape hatch as BASE-033, mirrored to the server: an absent `serverInfo` is either non-compliance or the configured-off case the clause permits, and the trace cannot tell which."
+    },
+    {
+      "id": "BASE-038",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Self-reported identity is advisory; whether a peer let it change behavior or drive a security decision is internal reasoning with no wire footprint, the same boundary BASE-025 draws for reserved-key assumptions."
+    },
+    {
+      "id": "BASE-039",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-040",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-078",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Icon rendering support is client-internal capability with no wire footprint; the conditional premise (that the client renders icons) is equally invisible. Same reasoning as BASE-022 at 2025-11-25."
+    },
+    {
+      "id": "BASE-079",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Extends the same client-internal rendering-support premise as the MUST above it; neither the support nor its absence reaches the wire."
+    },
+    {
+      "id": "BASE-080",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The umbrella for consumer-side icon hygiene (fetch policy, size limits, origin checks) — all consumer-internal conduct after the recorded session ends. Same reasoning as BASE-023 at 2025-11-25."
+    },
+    {
+      "id": "BASE-081",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Rejection is client-side handling after receipt; the trace records the icon metadata served, not what the client did with it. Same reasoning as BASE-024 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-050",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Endpoint topology — how many paths a server exposes and which methods each accepts — is deployment configuration; a recorded session shows one endpoint being used, never the set that exists. Same reasoning as TRAN-006 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-051",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Origin validation is server-internal policy applied before any MCP message; the trace records admitted sessions, not the requests a policy refused. Same reasoning as TRAN-002 at 2025-11-25; the everything server's policy middleware is tested directly in http_policy.rs."
+    },
+    {
+      "id": "TRAN-052",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "A refused request never becomes an MCP session, so the 403 it drew is outside what the tap records. Same reasoning as TRAN-007 at 2025-11-25; enforced in code and covered by the server's own policy tests."
+    },
+    {
+      "id": "TRAN-053",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Bind address is process configuration with no wire footprint. Same reasoning as TRAN-008 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-054",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Authentication sits in front of the protocol; the authorization specification is out of scope for this registry for the reason `sources.json` records. Same reasoning as TRAN-009 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-055",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Whether each message was carried by its own POST is HTTP framing the trace summarizes rather than reproduces: `kind: http` events record status and headers, not the request/connection boundary each message rode on. Same reasoning as TRAN-024 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-056",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The HTTP method used is not recorded — the trace's `kind: http` events carry status and headers, not the verb. Same reasoning as TRAN-049 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-057",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-058",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-059",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-060",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-061",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "A `202 Accepted` carries no body and answers a notification, which has no id to correlate it with; the trace records the status but cannot tie it to the message it accepted. Same reasoning as TRAN-027 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-062",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Which inputs a server declines to accept, and why, is server-internal admission policy; a declined request produces no MCP message to judge. Same reasoning as TRAN-028 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-063",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-064",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Client support for both response shapes is internal capability: a session that received one shape evidences nothing about the other. Same reasoning as TRAN-030 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-065",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Relatedness is semantic. A notification carries no id tying it to a request, so the trace cannot decide whether it 'relates to' the originating one. Same reasoning as TRAN-035 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-066",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-067",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Stream termination after the final response is SSE framing; the trace records messages and transport lifecycle, not whether the stream closed promptly afterwards. Same reasoning as TRAN-036 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-068",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-069",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "How a server *treats* a closed stream is internal: cancellation is a decision, and the trace shows only that the transport ended. The observable consequence — messages sent afterwards — is TRAN-071's business."
+    },
+    {
+      "id": "TRAN-070",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-071",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-072",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-073",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-074",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-075",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-076",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Whether a server supports header-less clients is its own policy; a trace shows how it answered one request, not the policy behind it. The rejection shape, when it happens, is judged by TRAN-073."
+    },
+    {
+      "id": "TRAN-077",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-078",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Client support for `x-mcp-header` is internal capability. Its observable consequence — mirroring designated values into headers — is the next clause and is checked there."
+    },
+    {
+      "id": "TRAN-079",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-080",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-081",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Reachability of a property from the schema root, and the safe-integer bound on its value, require walking the tool's JSON Schema — a JSON Schema engine `mcp-conformance-core` deliberately excludes (02-architecture.md), the same boundary BASE-073 draws."
+    },
+    {
+      "id": "TRAN-082",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "The forbidden keyword chain is a JSON Schema traversal, which core has no engine to perform; see the sibling clause above."
+    },
+    {
+      "id": "TRAN-083",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it."
+    },
+    {
+      "id": "TRAN-084",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The excluded tool is absent from a list the *client* assembles for its own consumer — a data structure that never reaches the wire."
+    },
+    {
+      "id": "TRAN-085",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Logging is client-internal diagnostics with no wire footprint."
+    },
+    {
+      "id": "TRAN-086",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-087",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-088",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "A descriptive clause explaining why names are carried encoded, not an independent obligation; the encoding rule itself is checked on the clauses above."
+    },
+    {
+      "id": "TRAN-089",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-090",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Decoding is what a receiver does internally before comparison; the trace shows the encoded value on the wire and the outcome, never the decode step."
+    },
+    {
+      "id": "TRAN-091",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Same internal-decode boundary as the clause above: only the comparison's outcome reaches the wire, and that is judged by TRAN-097."
+    },
+    {
+      "id": "TRAN-092",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-093",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The umbrella introducing the client's `tools/call` construction steps; each step is a clause of its own above, and the umbrella has no observable beyond them."
+    },
+    {
+      "id": "TRAN-094",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether a client re-fetched `tools/list` after a `HeaderMismatch` is recovery conduct; a later `tools/list` in the same recording is equally consistent with any other reason for calling it."
+    },
+    {
+      "id": "TRAN-095",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Intermediary behavior: a forwarding proxy is not a party to the MCP session, and the trace records the endpoints, not the hops between them."
+    },
+    {
+      "id": "TRAN-096",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-097",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-098",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-099",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Case-insensitive comparison is internal string handling. The trace lowercases header names on read (`EventBody::Http`), so a capture cannot even preserve the casing a party compared against."
+    },
+    {
+      "id": "TRAN-100",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-101",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Numeric-versus-string comparison is internal; only the comparison's verdict reaches the wire, and that is judged by TRAN-097."
+    },
+    {
+      "id": "TRAN-102",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-103",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Same internal-decode boundary as the earlier decode clauses: the wire shows the encoded value and the outcome, not the decoding in between."
+    },
+    {
+      "id": "TRAN-104",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Intermediary behavior; see the forwarding clause above. An intermediary's HTTP error never becomes an MCP message in this session."
+    },
+    {
+      "id": "TRAN-105",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Intermediary policy enforcement, outside the recorded session's endpoints."
+    },
+    {
+      "id": "TRAN-106",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Intermediary rejection policy, outside the recorded session's endpoints."
+    },
+    {
+      "id": "TRAN-107",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Whether the client inspected a `400` body before falling back is internal reasoning; a subsequent fallback request is equally consistent with either."
+    },
+    {
+      "id": "TRAN-108",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The umbrella introducing the backward-compatibility response table; each response it prescribes is a clause of its own, and the umbrella adds no separate observable."
+    },
+    {
+      "id": "TRAN-109",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Adopting or migrating away from a transport is a project decision, not a property of any session."
+    },
+    {
+      "id": "DISC-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "DISC-002",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "DISC-003",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The same clause as BASE-037, restated for one result type: BASE-037 is the general rule for `serverInfo` in every result and carries the escape hatch \"unless specifically configured not to do so\". A restatement in the DiscoverResult field list does not withdraw that exemption, so an absent `serverInfo` here is still either non-compliance or the configured-off case, and the trace cannot tell which."
+    },
+    {
+      "id": "DISC-004",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds what the client does with `serverInfo` after reading it — behaviour changes and security decisions are internal reasoning, and a trace records the messages, not the inferences drawn from them. Same boundary as BASE-022's icon-consumer clauses."
+    },
+    {
+      "id": "VERS-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "VERS-002",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "VERS-003",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "VERS-004",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "VERS-005",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Both permitted responses are defined by the extension, not by this specification: what \"core protocol behavior\" looks like for a given extension, and which error is \"appropriate\", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour — the same architectural boundary that leaves the JSON Schema clauses to BASE-073."
+    },
+    {
+      "id": "VERS-006",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds an extension's documentation, not either party's messages. The subject is not even a session participant: no recorded trace can be evidence about whether a document exists."
+    },
+    {
+      "id": "VERS-007",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The cached value is the era determination — client-internal state, and the clause's horizon is the server process or origin, which outlives the recorded session. The one wire-visible candidate, a repeated probe, is not evidence: the clause's own \"re-probing if the cached assumption later fails\" permits it."
+    },
+    {
+      "id": "VERS-008",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-110",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Restates TRAN-001 at 2025-11-25, whose exclusion this project already argued and which holds unchanged: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because capture tooling drops undecodable bytes. Violations surface as capture-time parse failures, not trace findings."
+    },
+    {
+      "id": "TRAN-111",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "A delivery obligation, and a trace is a record of what arrived: a message the binding failed to deliver is absent from it, and an absent message is indistinguishable from one never sent. The clause's converse — that no other direction exists — is a separate sentence and is enforced where it is stated: TRAN-060 and TRAN-118 for client responses, TRAN-066 and TRAN-120 for server-initiated requests."
+    },
+    {
+      "id": "TRAN-112",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "No custom transport can appear in a trace: `TransportKind` admits `stdio` and `streamable-http` only, so the clause's subject has no representation in the format this engine reads. What it requires preserved is exactly what the rest of this registry checks for the two standard bindings, against which a custom transport's capture would have to be relabelled first."
+    },
+    {
+      "id": "TRAN-113",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds a transport's documentation, not its messages. Same class as VERS-006: the artefact the clause requires is a document, and no session can be evidence about whether one exists."
+    },
+    {
+      "id": "TRAN-114",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds the design of a transport that cannot be recorded as itself (see TRAN-112), and the property it asks for — which framing was reused — is settled before any message exists. Restated on the stdio page as TRAN-121, with the same reason."
+    },
+    {
+      "id": "TRAN-115",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Restates TRAN-002 at 2025-11-25 verbatim, and its exclusion holds unchanged: framing is enforced at capture time, the JSON Lines trace format cannot represent an embedded-newline violation, and a parseable trace is evidence the rule held."
+    },
+    {
+      "id": "TRAN-116",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-003 at 2025-11-25."
+    },
+    {
+      "id": "TRAN-117",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-118",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-119",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-120",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-121",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The same clause as TRAN-114, stated from the stdio page's side: a custom transport has no representation in the trace format, and which framing it reused is settled before any message exists."
+    },
+    {
+      "id": "TRAN-122",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Binds the client's own correlation of notifications it received — bookkeeping inside the client, which produces no message. The wire-visible half of the same mechanism, that the server tags each notification with `io.modelcontextprotocol/subscriptionId`, is BASE-039 and is checked."
+    },
+    {
+      "id": "TRAN-123",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-124",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-125",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Stream closure, process waits and forced termination are host-OS actions outside the trace event vocabulary — the same reason LIFE-014 excludes the 2025-11-25 shutdown sequence. A `transport-close` lifecycle event records that the transport ended, not which party closed which stream or what it did next."
+    },
+    {
+      "id": "TRAN-126",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Both the trigger (stdin closing, or a read returning EOF) and the response (process exit) are host-OS events the trace vocabulary does not carry, and \"promptly\" is a duration — checks may not consult time, the same limit LIFE-015 records."
+    },
+    {
+      "id": "TRAN-127",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Process supervision: the antecedent is an unexpected exit and the obligation is to launch a new process, neither of which is a message. A restart also begins a new session, so the evidence would have to span two traces, and nothing in one identifies the other as its successor."
+    },
+    {
+      "id": "TRAN-128",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-129",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds the client's decision function, not any message it sends. A session exhibits one probe answered by one error code and one decision taken; whether the client would have fallen back on a *different* code is a property of code paths that session never exercised, and no number of traces settles it."
+    },
+    {
+      "id": "MRTR-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-002",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-003",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-004",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-005",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "JSON object members are unique by the time any check runs: a duplicate key is collapsed by the parser that reads the trace, so a violation cannot survive into the events a check sees. The same reason TRAN-110 and TRAN-115 exclude — the defect is destroyed at parse time, not judged and passed."
+    },
+    {
+      "id": "MRTR-006",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-007",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "A disposition toward an input, not an act: a server that treats state as trusted and one that treats it as hostile send the same messages until the state is actually tampered with, and even then what differs is the server's internal decision. The consequences the clause draws from it — integrity protection and rejection — are MRTR-008, excluded for their own reasons."
+    },
+    {
+      "id": "MRTR-008",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Both halves are invisible on the wire. `requestState` is opaque by construction — the specification's own examples range over base64 JSON, encrypted JWTs and serialized binary — so no check can tell an HMAC-protected blob from an unprotected one. The antecedent is worse still: whether the state influences authorization is a fact about the server's code. Verified instead by the implementation's own tests, where the key is available."
+    },
+    {
+      "id": "MRTR-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Names three fields that live *inside* the integrity-protected payload, which is opaque and generally encrypted — the trace carries the blob, never its contents. Two of the three also bind time and identity: expiry is a duration, which checks may not consult (LIFE-015), and the authenticated principal is not in the message."
+    },
+    {
+      "id": "MRTR-010",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The clause's own words put the obligation server-side, and its antecedent — that this server's states are single-use — is a property of the server's design that no message declares. A trace showing one state presented twice would still not distinguish a violated invariant from a server for which none was ever claimed."
+    },
+    {
+      "id": "MRTR-011",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-012",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-013",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-014",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Forbids an assumption. Its wire-visible consequence would be a server that breaks when a client declines to retry, and a conforming session never exhibits that: the client either retries, which tells us nothing about the assumption, or does not, and the trace simply ends."
+    },
+    {
+      "id": "MRTR-015",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-016",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-017",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-018",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-019",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-020",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-021",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds an act of validation, whose outcome is the only thing that reaches the wire — and a server that validated and accepted is indistinguishable from one that never looked. The outcomes the specification does pin are separate clauses: MRTR-023 for what a rejection may ignore, MRTR-024 for what a shortfall must draw."
+    },
+    {
+      "id": "MRTR-022",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The antecedent is not identifiable from a trace: nothing in an exchange says whether the server met a protocol error, so an error response and a completed result are equally consistent with the clause. \"Appropriate\" is also unbounded — the clause names no code — and the shape an error must have regardless is BASE-052's, which is checked."
+    },
+    {
+      "id": "MRTR-023",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Requires an absence of consequence: a server that ignored an unexpected field and one that never read it produce identical sessions. The only failing form would be a server that rejected the request *because* of the extra field, and no error response says that was the reason."
+    },
+    {
+      "id": "MRTR-024",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-025",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "A pointer back to MRTR-007 and MRTR-008 rather than a new rule, and it inherits their reason: the state is an opaque blob, so no check can tell a validated one from an unvalidated one."
+    },
+    {
+      "id": "SUBS-001",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SUBS-002",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SUBS-003",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Comparing two things it already has and reacting well to the difference: both the comparison and \"gracefully\" are inside the client, and a client that never looked sends exactly the messages one that did would. The server's side of the same exchange — honouring only what was requested — is SUBS-001 and is checked."
+    },
+    {
+      "id": "SUBS-004",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The client's own demultiplexing, which produces no message — the same clause TRAN-122 states from the stdio page, with the same reason. The wire-visible half, that the server tags every notification with `io.modelcontextprotocol/subscriptionId`, is BASE-039 and is checked."
+    },
+    {
+      "id": "SUBS-005",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SUBS-006",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SUBS-007",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The obligation begins after a re-established connection, which is a second session: the evidence would have to span two recordings, and nothing in either identifies the other as its predecessor. Same boundary as TRAN-127, which excludes the restart that precedes it."
+    },
+    {
+      "id": "CACH-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "CACH-002",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds which cached response a client serves itself, and a cache hit is precisely the case where nothing reaches the wire. Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead."
+    },
+    {
+      "id": "CACH-003",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "The prohibited act is caching, which happens inside the client and produces no message. Its server-side shadow is honoured by CACH-001's check rather than left implicit: a `complete` result answering a request that carried `inputResponses` or `requestState` is not required to carry caching hints, because the specification does not ask a server to advertise freshness for a result nobody may cache."
+    },
+    {
+      "id": "CACH-004",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still — they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-005",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still — they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-006",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still — they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-007",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "What a client concludes from a negative `ttlMs` stays inside it. The value itself is judged on the other side of the exchange: CACH-008 forbids a server from sending one."
+    },
+    {
+      "id": "CACH-008",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "CACH-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still — they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-010",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Forbids a *reason* for sending requests, not the requests themselves: a poll and a genuine need look identical on the wire. Distinguishing them would mean inferring intent from inter-request timing, which checks may not consult."
+    },
+    {
+      "id": "CACH-011",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Both the antecedent (this client is polling) and the obligation (its intervals are jittered and backed off) are properties of a request *schedule*, measurable only in elapsed time — which checks may not consult (LIFE-015) — and only across a run far longer than one recorded session."
+    },
+    {
+      "id": "CACH-012",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead. The freshness rules are worse still — they are stated in terms of elapsed time, and checks may not consult time (LIFE-015)."
+    },
+    {
+      "id": "CACH-013",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The antecedent is a client requirement — that this client needs a consistent snapshot — which nothing on the wire declares. A client that paginates from a cursor is equally consistent with not needing one."
+    },
+    {
+      "id": "CACH-014",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Discarding a cache is invisible, and the visible half — re-fetching from the beginning — is indistinguishable from an ordinary new list request. Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead."
+    },
+    {
+      "id": "CACH-015",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CACH-016",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CACH-017",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Requires awareness. A server that has understood the sharing consequence and one that has not send the same bytes; what the clause is really asking for is the judgement CACH-018 then makes concrete, and that is excluded for its own reason."
+    },
+    {
+      "id": "CACH-018",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Access control happens before a response is composed, inside the server: a trace shows what one caller was given, never what a different caller would have been refused. Whether `cacheScope` was *relied upon* for that decision is a fact about the server's code."
+    },
+    {
+      "id": "COMP-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "COMP-007",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "COMP-008",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Each row's antecedent is a server-side determination — that this prompt name is invalid, that a required argument is missing — and a trace shows the answer without the reason for it. An exchange ending in `-32602` and one ending in a result are equally consistent with the clause, because nothing on the wire says which case the server was in."
+    },
+    {
+      "id": "COMP-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Four quality properties, none of them a message shape: relevance ordering has no wire-observable definition, fuzzy matching is an algorithm choice, rate limiting is measured in elapsed time (LIFE-015), and validation that accepts leaves no trace."
+    },
+    {
+      "id": "COMP-010",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Debouncing and caching are timing and cache-hit properties, both invisible for the reasons CACH-010 and CACH-002 record; \"gracefully\" describes what the client does after the response arrives, which is not a message."
+    },
+    {
+      "id": "COMP-011",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Security properties of an implementation, not of an exchange. A trace shows one completion answered for one caller; whether a different caller would have been refused, and whether the suggestions disclosed something they should not, are facts about the server's data and policy rather than about the message."
+    },
+    {
+      "id": "PAGE-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PAGE-007",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Forbids an assumption. A client that assumed a fixed page size and one that did not send identical requests — the assumption only shows in how the client interprets what comes back, which is not on the wire."
+    },
+    {
+      "id": "PAGE-008",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Cursor stability is a property across time and sessions — the same cursor presented later must still resolve — which one recording cannot exhibit. The graceful half is stated concretely by PAGE-011, and that is where it is judged."
+    },
+    {
+      "id": "PAGE-009",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Both bind how a client reads a result it already has. Stopping because `nextCursor` was absent and stopping for any other reason produce the same session: no further request."
+    },
+    {
+      "id": "PAGE-010",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PAGE-011",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "LOG-006",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds an adoption decision and a migration plan, neither of which is a message. A server that uses the feature is not thereby a *new* implementation, and a trace carries nothing that dates the code sending it."
+    },
+    {
+      "id": "LOG-007",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "capabilities.logging-declared",
+          "seq": 3,
+          "detail": "server emitted `notifications/message` while its `server/discover` result declared no `logging` capability"
+        }
+      ]
+    },
+    {
+      "id": "LOG-008",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "LOG-009",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "LOG-010",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "LOG-011",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Rate limiting is measured in elapsed time (LIFE-015); \"relevant context\", \"consistent\" logger names and \"sensitive\" information are judgements about the meaning of the payload, which this engine does not model — the same boundary BASE-073 draws for JSON Schema."
+    },
+    {
+      "id": "LOG-012",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Requires classifying the *meaning* of arbitrary JSON. Whether a string is a credential, a person's identity, or an internal detail that aids an attacker cannot be decided structurally, and a checker that guessed would report conforming servers while missing real leaks."
+    },
+    {
+      "id": "LOG-013",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Four operational practices of an implementation. Access control and monitoring happen outside the session entirely, and validation that accepts leaves nothing behind — the same reason MRTR-021 excludes."
+    },
+    {
+      "id": "TOOL-016",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-017",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds the application's user interface — what it shows, when it asks, whether a person is there. None of it is a message, and MCP deliberately does not mandate an interaction model."
+    },
+    {
+      "id": "TOOL-018",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds the application's user interface — what it shows, when it asks, whether a person is there. None of it is a message, and MCP deliberately does not mandate an interaction model."
+    },
+    {
+      "id": "TOOL-019",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "capabilities.tools-declared",
+          "seq": 4,
+          "detail": "server answered `tools/call` while its `server/discover` result declared no `tools` capability"
+        }
+      ]
+    },
+    {
+      "id": "TOOL-020",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-021",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds the set across *connections* and across other requests — two properties that need more than one session, or a second request whose effect on the first is invisible. A single recording shows one list at one moment."
+    },
+    {
+      "id": "TOOL-022",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-023",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-024",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The antecedent is that the underlying set changed, which happens inside the server and reaches the wire only as the notification the clause is asking for."
+    },
+    {
+      "id": "TOOL-025",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-026",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "\"Consider untrusted\" is a disposition toward data already received, and \"trusted servers\" is the client's own configuration. Neither reaches the wire."
+    },
+    {
+      "id": "TOOL-027",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-028",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "States how names are to be *compared*, not how they may be spelled. Two implementations differing on case sensitivity send identical messages until they disagree about a collision, and TOOL-030 already judges the collision."
+    },
+    {
+      "id": "TOOL-029",
+      "level": "SHOULD NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-030",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-031",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds a client aggregating *several* servers. One recorded session is one server, so the collision the clause is about cannot appear in it, and neither can the disambiguation strategy."
+    },
+    {
+      "id": "TOOL-032",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Forbids relying on `serverInfo` for disambiguation — a client-side decision about data it holds. Binds what the client does with what it received; the reasoning leaves no message behind."
+    },
+    {
+      "id": "TOOL-033",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-034",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-035",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The client filtering its own copy of a list it already received. A tool excluded from the client's view is still in the server's `tools/list` result on the wire, so the trace shows nothing either way."
+    },
+    {
+      "id": "TOOL-036",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds the client's log, which is not part of the session."
+    },
+    {
+      "id": "TOOL-037",
+      "level": "SHOULD NOT",
+      "outcome": "excluded",
+      "exclusion": "Requires deciding whether a parameter is sensitive — a judgement about the *meaning* of a name and its values, which this engine does not model. Same boundary as LOG-012."
+    },
+    {
+      "id": "TOOL-038",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-039",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-040",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-041",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Validation performed inside the client, against a schema this engine has no JSON Schema evaluator for by deliberate architectural choice — the boundary BASE-073 draws. A client that validated and one that did not send the same messages."
+    },
+    {
+      "id": "TOOL-042",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds what the client hands to a language model, which is downstream of the session entirely."
+    },
+    {
+      "id": "TOOL-043",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "Four operational properties of the server — input validation, access control, rate limiting, output sanitization. A trace shows one call answered for one caller; whether another would have been refused, and whether the output was sanitized, are facts about the server's code and data."
+    },
+    {
+      "id": "TOOL-044",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Six client-side practices — confirmation prompts, showing inputs, validating results, `$ref` resolution, timeouts, audit logs. Each happens inside the client or in its UI; none is a message."
+    },
+    {
+      "id": "RES-011",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "RES-012",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-013",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-014",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds the set across *connections* and across other requests — two properties that need more than one session, or a second request whose effect on the first is invisible. A single recording shows one list at one moment."
+    },
+    {
+      "id": "RES-015",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The antecedent is that the underlying set changed, which happens inside the server and reaches the wire only as the notification the clause is asking for. A session with no notification is equally consistent with a list that never changed."
+    },
+    {
+      "id": "RES-016",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Turns on whether the client can fetch the resource itself, which is a fact about the client and its network, not about any message. The server's choice of scheme is visible; the condition that licenses it is not."
+    },
+    {
+      "id": "RES-017",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Design guidance about which scheme to prefer, resolved before a URI is ever minted. Whether \"other use cases\" applies is the server author's judgement, and RES-018 checks the only part a trace can hold the result to: that a custom scheme is well-formed."
+    },
+    {
+      "id": "RES-018",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-019",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "The antecedent — that the requested resource does not exist — is the server's own knowledge. An error and a result are both consistent with the clause, because nothing on the wire says which case the server was in. The one shape the clause rules out explicitly is checked, as RES-022."
+    },
+    {
+      "id": "RES-020",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "\"Internal errors\" names a class of server-side failure that no message declares membership of. Every error code is consistent with the clause unless the trace says what went wrong, and it never does."
+    },
+    {
+      "id": "RES-021",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Binds how a client interprets an error it received. Note the direction: BASE-058 forbids a `2026-07-28` *server* from emitting `-32002`, and this asks clients to keep accepting it from older ones — neither contradicts the other, and neither is visible in what the client sends."
+    },
+    {
+      "id": "RES-022",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-023",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-011",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-012",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-013",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-014",
+      "level": "MUST NOT",
+      "outcome": "excluded",
+      "exclusion": "Binds the set across *connections* and across other requests — two properties that need more than one session, or a second request whose effect on the first is invisible. A single recording shows one list at one moment."
+    },
+    {
+      "id": "PROM-015",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "The antecedent is that the underlying set changed, which happens inside the server and reaches the wire only as the notification the clause is asking for. A session with no notification is equally consistent with a list that never changed."
+    },
+    {
+      "id": "PROM-016",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-017",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-018",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-019",
+      "level": "SHOULD",
+      "outcome": "excluded",
+      "exclusion": "Each row's antecedent is a server-side determination — an invalid prompt name, a missing required argument — and the trace shows the answer without the reason. Same shape as COMP-008."
+    },
+    {
+      "id": "PROM-020",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-021",
+      "level": "MUST",
+      "outcome": "excluded",
+      "exclusion": "\"Carefully validate to prevent injection attacks\" is a property of the server's handling, not of the message: a prompt that was validated and one that was not look identical when both are accepted. What a trace can hold an implementation to is the concrete shape rules, PROM-016 through PROM-020."
+    }
+  ]
+}

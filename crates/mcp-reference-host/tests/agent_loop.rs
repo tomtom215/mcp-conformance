@@ -50,6 +50,7 @@ async fn scripted_plan_completes_with_pinned_outcomes() {
             call("echo", &serde_json::json!({"message": "hi"})),
             call("add", &serde_json::json!({"a": 2, "b": 3})),
         ]),
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::Completed);
@@ -79,6 +80,7 @@ async fn turn_limit_stops_the_loop_mid_plan() {
             call("echo", &serde_json::json!({"message": "two"})),
             call("echo", &serde_json::json!({"message": "three"})),
         ]),
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::TurnLimit);
@@ -97,6 +99,7 @@ async fn protocol_errors_exhaust_the_budget() {
             call("no-such-tool", &serde_json::json!({})),
             call("echo", &serde_json::json!({"message": "never reached"})),
         ]),
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::ErrorBudgetExhausted);
@@ -116,6 +119,7 @@ async fn in_band_tool_errors_count_against_the_budget_too() {
         turn_limit: 10,
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![call("test_error_handling", &serde_json::json!({}))]),
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::ErrorBudgetExhausted);
@@ -138,6 +142,7 @@ async fn a_budget_tolerates_exactly_its_count() {
             call("no-such-tool", &serde_json::json!({})),
             call("echo", &serde_json::json!({"message": "recovered"})),
         ]),
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(
@@ -159,6 +164,7 @@ async fn cancellation_wins_before_any_call() {
         turn_limit: 10,
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![call("echo", &serde_json::json!({"message": "no"}))]),
+        log_level: None,
     };
     let report = run(&client, &plan, &cancel).await;
     assert_eq!(report.stop, StopReason::Cancelled);
@@ -182,6 +188,7 @@ async fn sep1034_defaults_round_trip_through_a_real_elicitation() {
             "test_elicitation_sep1034_defaults",
             &serde_json::json!({}),
         )]),
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::Completed, "{report:?}");
@@ -214,6 +221,7 @@ async fn url_elicitation_round_trips_consent_and_completion() {
         turn_limit: 1,
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![call("test_url_elicitation", &serde_json::json!({}))]),
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::Completed, "{report:?}");
@@ -247,6 +255,7 @@ async fn url_elicitation_decline_sends_no_completion() {
         turn_limit: 1,
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![call("test_url_elicitation", &serde_json::json!({}))]),
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::Completed, "{report:?}");
@@ -272,6 +281,7 @@ async fn sampling_is_answered_from_the_script() {
             "test_sampling",
             &serde_json::json!({"prompt": "Say hello"}),
         )]),
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::Completed, "{report:?}");
@@ -295,6 +305,7 @@ async fn discovery_policy_calls_every_tool_with_synthesized_arguments() {
         turn_limit: 64,
         error_budget: 16,
         calls: CallPolicy::EachDiscoveredToolOnce,
+        log_level: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::Completed, "{report:?}");
@@ -327,16 +338,34 @@ async fn listing_failure_spends_the_budget_and_the_budget_decides() {
     // run stops exhausted; with budget it is recorded and tolerated (there is
     // simply nothing to call). Kills the comparison and accounting mutants in
     // the resolve-failure arm, which no happy path can reach.
-    let (client, _) = connect(InteractionScript::default()).await;
-    let peer = client.peer().clone();
-    client.cancel().await.expect("clean shutdown");
+    // The *server* is what goes away, not the client: `run` now takes the
+    // running service (it must, to drive MRTR rounds), so the way to make
+    // discovery fail is to leave the host connected to a transport whose far
+    // end has hung up.
+    let (server_io, client_io) = tokio::io::duplex(4096);
+    let server = tokio::spawn(async move {
+        if let Ok(server) = EverythingServer::new().serve(server_io).await {
+            let _ = server.waiting().await;
+        }
+    });
+    let client = HostHandler::new(InteractionScript::default())
+        .serve(client_io)
+        .await
+        .expect("host initializes");
+    server.abort();
+    // Awaited, not just signalled: `abort` schedules the task's future to be
+    // dropped, and it is that drop which closes the duplex's server end.
+    // Without the await, `tools/list` races the teardown and sometimes gets a
+    // real answer — a turn the assertions below say did not happen.
+    let _ = server.await;
 
     let exhausted = run(
-        &peer,
+        &client,
         &RunPlan {
             turn_limit: 5,
             error_budget: 0,
             calls: CallPolicy::EachDiscoveredToolOnce,
+            log_level: None,
         },
         &CancellationToken::new(),
     )
@@ -352,11 +381,12 @@ async fn listing_failure_spends_the_budget_and_the_budget_decides() {
     assert!(exhausted.outcomes[0].result.is_err());
 
     let tolerated = run(
-        &peer,
+        &client,
         &RunPlan {
             turn_limit: 5,
             error_budget: 1,
             calls: CallPolicy::EachDiscoveredToolOnce,
+            log_level: None,
         },
         &CancellationToken::new(),
     )

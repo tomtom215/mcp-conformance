@@ -49,6 +49,7 @@ pub const READINESS_LINE_PREFIX: &str = "listening on ";
 pub mod prompts;
 pub mod resources;
 pub mod server;
+pub mod subscriptions;
 #[cfg(feature = "tap")]
 pub mod tap;
 pub mod tools;

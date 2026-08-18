@@ -15,11 +15,21 @@ use std::process::Command;
 
 use mcp_everything_server::http::router;
 use mcp_everything_server::policy::HttpSecurityPolicy;
+use mcp_everything_server::server::ServedRevision;
 
 /// Serves the everything-server app on an OS-assigned loopback port from a
 /// background thread with its own runtime (the spawned binary needs a live
 /// server for the whole run, independent of this test's executor).
 fn serve_everything() -> String {
+    serve(ServedRevision::V2025_11_25)
+}
+
+/// [`serve_everything`], at the revision the stateless phases need.
+fn serve_stateless() -> String {
+    serve(ServedRevision::V2026_07_28)
+}
+
+fn serve(revision: ServedRevision) -> String {
     let (sender, receiver) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -27,7 +37,7 @@ fn serve_everything() -> String {
             .build()
             .expect("runtime");
         runtime.block_on(async move {
-            let app = router(HttpSecurityPolicy::default());
+            let app = router(HttpSecurityPolicy::default(), revision);
             let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
                 .await
                 .expect("bind");
@@ -169,4 +179,91 @@ fn missing_url_and_command_is_an_invocation_error() {
         stderr.contains("--server-cmd") && stderr.contains("URL"),
         "the rejection names both fixes: {stderr}"
     );
+}
+
+/// The stateless phases of a capture, driven through the binary.
+///
+/// `--subscribe` and `--sweep` each add a phase to `agent_run` whose only
+/// observable from outside is what it writes to stderr, and the run record is
+/// the contract: `xtask draft-capture` reads these lines, and a phase that
+/// silently did nothing would still exit zero.
+#[test]
+fn the_subscribe_and_sweep_phases_both_run_and_report() {
+    let url = serve_stateless();
+    let output = Command::new(env!("CARGO_BIN_EXE_mcp-reference-host"))
+        .args(["--url", &url])
+        .args(["--protocol-version", "2026-07-28"])
+        .args(["--error-budget", "4"])
+        .args(["--turn-limit", "32"])
+        .args(["--log-level", "debug"])
+        .arg("--subscribe")
+        .arg("--sweep")
+        .output()
+        .expect("binary runs");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+
+    // The subscription phase: the acknowledgment names what the server agreed
+    // to serve, and the stream ended on the server's initiative.
+    assert!(
+        stderr.contains("subscription acknowledged [toolsListChanged"),
+        "the subscribe phase must run and report: {stderr}"
+    );
+    assert!(stderr.contains("ended graceful"), "{stderr}");
+
+    // The sweep phase: a step count, and the one deliberate failure.
+    assert!(
+        stderr.contains("swept 12 step(s), 1 drew errors"),
+        "the sweep phase must run and report: {stderr}"
+    );
+    assert!(
+        stderr.contains("resources/read test://no-such-resource"),
+        "including the read that is meant to fail: {stderr}"
+    );
+    // And the tool loop still ran, with the log level asked for.
+    assert!(stderr.contains("Completed after"), "{stderr}");
+}
+
+/// The probe session, driven through the binary.
+///
+/// `--probe` replaces the run entirely, so nothing else in this file covers
+/// it: a probe that sent no requests would exit zero and print a plausible
+/// line, which is exactly the failure the count guards.
+#[test]
+fn the_probe_sends_every_request_and_reports_what_each_drew() {
+    let url = serve_stateless();
+    let output = Command::new(env!("CARGO_BIN_EXE_mcp-reference-host"))
+        .args(["--url", &url])
+        .arg("--probe")
+        .output()
+        .expect("binary runs");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "the probe exits clean: {stderr}");
+    assert!(
+        stderr.contains("probed 9 malformed request(s)"),
+        "every probe is sent: {stderr}"
+    );
+    // The answers, not just the count: these are the clauses the probe exists
+    // to give traffic to, and each line is one of them being exercised.
+    for expected in [
+        "HTTP 400 [BASE-031, BASE-032]",
+        "HTTP 404 [TRAN-075]",
+        "HTTP 400 [LOG-010]",
+        "HTTP 400 [PAGE-011]",
+    ] {
+        assert!(
+            stderr.contains(expected),
+            "{expected} missing from {stderr}"
+        );
+    }
+}
+
+/// `--probe` needs a URL, and says so rather than probing nothing.
+#[test]
+fn probe_without_a_url_is_an_invocation_error() {
+    let output = Command::new(env!("CARGO_BIN_EXE_mcp-reference-host"))
+        .arg("--probe")
+        .output()
+        .expect("binary runs");
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
 }

@@ -13,39 +13,437 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
-- **The `2026-07-28` registry judges two of its fifteen in-scope pages, and
-  nothing in it is aspirational.** `basic/index` (57 clauses) and
-  `basic/transports/streamable-http` (60) are entered by the same
+- **The `2026-07-28` registry is complete: all fifteen in-scope pages, 272
+  entries, nothing aspirational.** Every page is entered by the same
   per-requirement method as `2025-11-25` — live fetch, verbatim quote, then a
-  named check or an exclusion whose reason is specific to that clause. The
-  result is **117 entries: 51 judged, 0 unsupported, 66 excluded**, behind the
-  off-by-default `draft-2026-07-28` feature, with `spec-drift` verifying all
-  257 quotes across both revisions and both a passing and a violating corpus
-  trace behind every judged clause. The `2025-11-25` registry is untouched at
-  140 entries, and a test asserts the byte-equality rather than assuming it.
+  named check or an exclusion whose reason is specific to that clause — giving
+  **272 entries: 124 judged, 0 unsupported, 148 excluded**, behind the
+  off-by-default `draft-2026-07-28` feature. `spec-drift` verifies **412 quotes
+  across both revisions**, and every judged clause has both a conforming and a
+  violating trace behind it. The `2025-11-25` registry is untouched at 140
+  entries, and a test asserts the byte-equality rather than assuming it.
 
-  Thirty-two checks are new, all feature-gated: six for the message envelope
-  (`resultType`, in-flight id reuse, the four error-code partition rules),
-  eight for the per-request `_meta` envelope the stateless rework introduced,
-  and eighteen for Streamable HTTP — request metadata headers, the Base64
-  value-encoding rules, `x-mcp-header` mirroring and annotation validity, the
-  server-side rejection clauses, and the response-stream rules. Judging Base64
-  sentinel values needed a decoder; it is ~25 lines beside the existing
-  validator rather than a new dependency, so the judgment surface stays
-  `serde`-only.
+  Seventy-one checks are new, all feature-gated, covering the revision's new
+  machinery as well as its restatements: the stateless `_meta` envelope, the
+  error-code partition, Streamable HTTP's header and rejection rules, stdio's
+  notification-based cancellation, `server/discover`, version negotiation and
+  extension identifiers, Multi Round-Trip Requests, `subscriptions/listen`,
+  caching hints, per-request logging, and this revision's capability
+  declarations. Judging Base64 sentinel values needed a decoder; it is ~25 lines
+  beside the existing validator rather than a new dependency, so the judgment
+  surface stays `serde`-only.
 
-  Two boundaries are the specification's, not ours: notification POSTs are
-  unjudged because the revision states their header requirements are undefined,
-  and the `x-mcp-header` reachability clauses stay excluded because deciding
-  them needs a JSON Schema engine, not a session.
+  Boundaries are the specification's, not ours: notification POSTs are unjudged
+  because the revision states their header requirements are undefined, and the
+  clauses needing a JSON Schema engine stay excluded. The 148 exclusions
+  concentrate where a recording genuinely cannot reach — `requestState` is
+  opaque by design, a cache hit puts nothing on the wire, elapsed time is not
+  available to checks, host-OS actions are outside the trace vocabulary, and
+  classifying whether a payload holds a credential or PII is not a structural
+  question.
 
   Each check carries unit tests alongside its corpus pair, because the two
   answer different questions — "does this check ever fire?" and "does it fire on
   exactly the right thing?" — and only the second scales with the number of
-  branches a check has. The diff-scoped mutation gate is the arbiter: 356
-  mutants over the new code, 356 caught.
+  branches a check has.
+
+- **The `2026-07-28` corpus is held to the shipped corpus's contract.** Its
+  violation traces are now name-attributed (each must falsify the requirement it
+  is named after) and byte-pinned against goldens in `corpus/golden/draft/`,
+  matching `corpus/violations/`. Previously they were covered only by "some
+  trace kills each check", which cannot see a finding that has drifted onto a
+  neighbouring requirement.
+
+- **The stdio capture drives the whole server surface, not just its tools.**
+  `mcp-reference-host --sweep` walks what the server itself advertises —
+  `resources/list`, `resources/templates/list`, a read of every resource named
+  plus one substituted template URI, `prompts/list` and a `prompts/get` for
+  each prompt with its declared arguments supplied, and
+  `completion/complete` — and `--log-level` puts
+  `io.modelcontextprotocol/logLevel` in each tool call's `_meta`, which is the
+  client-side half of the mechanism that replaced `logging/setLevel`. The
+  sweep is discovery-driven rather than scripted, so it is worth pointing at an
+  implementation that is not ours.
+
+  One step is a deliberate miss: a read of a URI the catalog does not contain.
+  Asking for something absent is conforming client behaviour, and the error it
+  draws is the only way a recording can carry the error-shape and error-code
+  clauses at all — which is how the `-32002` defect above was found on the
+  first run.
+
+  The committed stdio capture now evidences **77 of the 124 judgeable clauses,
+  up from 56**, with no new findings: the error-code partition
+  (`BASE-052`…`BASE-060`), logging (`LOG-007`/`008`/`009`), prompts
+  (`PROM-012`/`013`/`016`/`018`/`020`), resources
+  (`RES-012`/`013`/`018`/`022`/`023`) and `COMP-007` are judged on real traffic
+  where they previously reported *not observed*.
+
+- **A probe session: deliberately malformed requests, so the rejection clauses
+  have traffic to judge.** Fifteen `2026-07-28` clauses say what a server owes
+  a request it must *not* serve, and every one reported *not observed* on every
+  recording, because a conforming client cannot exercise a rejection rule.
+  `mcp-reference-host --probe` sends nine hand-built HTTP requests — an
+  envelope missing a required field, an unimplemented protocol version and the
+  retry after it, a header/body version mismatch, an unknown method, a log
+  level outside RFC 5424's eight, a fabricated cursor, a tool needing an
+  undeclared capability, and the removed `initialize` handshake — captured by
+  the server's tap as `corpus/draft/captured/probe-2026-07-28-http.jsonl`.
+
+  The probes are built outside rmcp deliberately: rmcp's client is what makes
+  the other captures trustworthy — it builds the `_meta` envelope, mirrors the
+  SEP-2243 headers, and will not emit an ill-formed request — so it is
+  structurally incapable of being the probe.
+
+  Its verdict is a ledger rather than a pass. The probe breaks client-side
+  clauses by construction, so demanding a clean report would mean demanding a
+  probe that probes nothing; instead every finding is listed in
+  [`conformance/probe-baseline.json`](conformance/probe-baseline.json) with a
+  hand-written reason, and the gate holds the set in both directions. It has
+  since worked both ways: the two server defects it found went into the ledger,
+  and when they were fixed the gate refused the change until their entries were
+  retired. Across all five captures **109 of the 124 judgeable clauses are now
+  evidenced**, up from 92, and all ten rejection clauses the probe exercises
+  pass.
+
+- **`draft-capture` records the same session over Streamable HTTP too, from
+  the server's end.** `corpus/draft/captured/reference-host-2026-07-28-http.jsonl`
+  is the identical sweep driven over HTTP and recorded by the server's tap
+  rather than the host's transport wrapper — deliberately, because the host's
+  recorder sits at rmcp's `Transport` seam and carries protocol messages only
+  (redaction by construction), so a host-side HTTP recording would report the
+  Streamable HTTP clauses *not observed* exactly like the stdio
+  one. The tap sits above the transport and sees status lines and headers.
+
+  At **89 of the 124 judgeable clauses, 0 fail** it is the best-covered capture
+  in the corpus, and the pair is now genuinely complementary: same session,
+  both ends, one file each, so every difference between the two reports is
+  attributable to the transport. `corpus/README.md` records what each capture's
+  remaining not-observed rows are and why.
+
+- **`mcp-everything-server` serves the `2026-07-28` stateless surface, over
+  both transports.** `--protocol-version 2026-07-28` selects it: no
+  `initialize`, no sessions, `server/discover` for capability advertisement,
+  per-request `_meta` required, and SEP-2549 caching hints on cacheable
+  results. It now also rejects a log level outside RFC 5424's eight and a cursor
+  it never issued — both were live `MUST`/`SHOULD` failures until the probe
+  session asked for them. Both rules are enforced on **both transports through
+  one implementation**: `server::stateless::rules` reads them off the request's
+  JSON, the stdio envelope calls it, and an axum layer calls the same function
+  before rmcp parses a POST body. That layer exists because
+  `StreamableHttpService` takes an `S: ServerHandler` while an envelope must
+  implement `Service` to see a request before dispatch, so the wrapper stdio
+  uses cannot be installed on HTTP; writing the rule twice instead would have
+  reintroduced exactly the divergence it fixes. The official suite's
+  `2026-07-28` scenarios pass **23/23**
+  against it, and this workspace's own registry reports **0 fail** on the
+  conforming captured sessions over HTTP *and* over stdio — 59 clauses judged and passing on the HTTP
+  capture, 56 on the stdio one, the rest *not observed* because those sessions
+  never carried the traffic they bind to. (Those two counts read 124 apiece
+  until the vacuous-pass fix below; the sessions have not changed, only what
+  the report is willing to claim about them.)
+
+  stdio needed the enforcement rmcp performs inside its HTTP tower layer and
+  that a header-less transport has nobody to do: `StatelessEnvelope` supplies
+  it, rejecting a request whose `_meta` lacks `protocolVersion` or
+  `clientCapabilities` with `-32602` naming the field, and one naming a version
+  this server does not serve with `-32022` carrying `data.supported`.
+
+  **`subscriptions/listen`** is implemented too — the long-lived stream that
+  replaced `resources/subscribe` and the HTTP GET endpoint. The server
+  acknowledges the subset of the requested filter it can actually serve
+  (narrowing resource URIs to ones it has), announces every accepted category
+  on the stream with the subscription's id attached, and then ends the
+  subscription itself, which is what emits the empty final result the graceful
+  closure clauses describe. Ending it is a decision made against evidence
+  rather than convenience: client cancellation does not produce that result
+  (rmcp suppresses the response for a cancelled request, verified on the wire),
+  so a stream that ends only when the client says so would leave both closure
+  clauses unexercised by any recording. This server's catalogues are
+  compile-time constants, so once the announcements are out there is nothing
+  further it could send.
+
+  Server-to-client requests go by **SEP-2322's MRTR pattern** at this revision:
+  `elicitation/create` and `sampling/createMessage` are returned inside an
+  `input_required` result and the client retries the original call with its
+  answers, because the revision forbids sending them independently on either
+  transport. `logging/setLevel` is gone with it — log notifications ride only
+  requests whose `_meta` asked for them — and `test_url_elicitation` is not
+  listed at all, its feature having been removed. The `2025-11-25` mechanisms
+  are untouched and still score 40/40 on the pinned suite. The revision is chosen when the server is built (`ServedRevision`),
+  so the `2025-11-25` surface has no new branch to take and is unchanged byte
+  for byte — the `draft-readiness` baseline for that mode is identical to the
+  one committed before this work.
+
+  One piece was a correctness decision rather than configuration: `initialize`
+  is **refused** with `-32022` carrying `data.supported`. rmcp's default
+  negotiates an unsupported version down to the server's own and answers with a
+  *result*, which would leave a legacy client believing it had connected to a
+  server that then rejects every request it sends. The refusal is what VERS-001
+  requires of a version refusal and the diagnostic VERS-008 asks a modern-only
+  server to give.
+
+  *Breaking (pre-1.0):* `http::router` and `http::router_tapped` take a
+  `ServedRevision`. A conformance server's revision is the most important fact
+  about it, so it is named at the call site rather than defaulted silently.
+
+- **The `2026-07-28` corpus is no longer purely authored, and now has a
+  control.** `corpus/draft/captured/` holds two real recordings — the official
+  MCP conformance suite `0.2.0-alpha.9` driving its `2026-07-28` scenarios
+  against both server modes, same client, same scenarios, same run — and the
+  golden suite re-validates both on every run. An authored fixture can only
+  confirm its author's reading of the specification; this is the cross-check
+  that reading cannot provide, and the matched pair is what makes every
+  difference between the two reports attributable to the one variable.
+
+  The legacy server scores **58 pass, 1 fail** (CACH-001: no `ttlMs` on
+  cacheable results, the correct answer for a server held to a revision it does
+  not implement); the stateless server scores **59 pass, 0 fail**. Both leave
+  65 clauses *not observed* — these scenarios exercise features, and the
+  revision's rejection rules, subscriptions and MRTR rounds are not among them.
+  The official runner scores both **23/23**: it cannot separate the two
+  servers, which is exactly the gap a requirement registry fills.
+
+  A third capture, `reference-host-2026-07-28-stdio.jsonl`, records the same
+  server over stdio (`cargo xtask draft-capture`). Its provenance is weaker and
+  labelled so — the official suite drives servers over `--url` only, so both
+  ends are this workspace's — but it is the capture that earned its keep: the
+  first recording of it found **six real defects** in the stateless server that
+  no HTTP capture could reach, because the suite's `2026-07-28` scenarios
+  exercise no interactive tool and no logging tool. Five were the pre-MRTR
+  mechanism (TRAN-060/066/119/120, MRTR-001) and one was logging without being
+  asked (LOG-008).
+
+- **`cargo xtask draft-coverage`: what the captures evidence is now a
+  projection, not prose.** ADR-0001 forbids hand-maintained counts, and the
+  per-capture coverage numbers were the one place they had accumulated. The new
+  task generates `corpus/README.md`'s per-capture table — judged, pass, fail,
+  warn, not observed, plus the union and the clauses no capture reaches — from
+  the committed golden reports, and `--check` (a step of `cargo xtask ci`)
+  fails when the committed block has drifted.
+
+  A table alone cannot stop a sentence in another file from disagreeing with
+  it, which is how these numbers drifted in the first place, so the same task
+  reads the prose too. Every "N of the M judgeable clauses" claim must name a
+  real pair — the denominator the judgeable total, the numerator either the
+  union or some capture's own judged count — and every quoted verdict
+  ("58 pass, 1 fail, 0 warn, 65 not observed, 148 excluded") must be a tuple
+  some committed report actually produced. Verdicts are read per table cell, so
+  a two-column comparison row is two claims, and fenced code blocks are skipped
+  because sample CLI output illustrates a format rather than asserting
+  anything. `CHANGELOG.md` is read only above its first released heading — a
+  shipped release's numbers were true when written and are not rewritten to
+  match today's corpus.
+
+- **`tools/extract-clauses.py --verify`** runs `spec-drift`'s comparison offline
+  over a committed registry directory — the fast inner loop while curating a
+  page, reproducing the network gate exactly.
 
 ### Fixed
+
+- **The reference server answered a missing resource with a code
+  `2026-07-28` withdrew.** `resources/read` for a URI it does not serve drew
+  `-32002`, which `basic/index#error-codes` lists under "Implementations of
+  this protocol version **MUST NOT** emit these codes" and replaces with
+  `-32602`. The code is now chosen by served revision: `-32602` at
+  `2026-07-28`, `-32002` at `2025-11-25`, where it remains correct and is what
+  the official suite's `resources-read-*` scenarios expect. Nothing had ever
+  caught it because no captured session had ever asked for a resource that
+  does not exist.
+
+- **The reference host recorded a reply ahead of the request that drew it.**
+  `RecordingTransport` assigned `seq` when the inner transport's *send future*
+  completed, and that future is `'static` — rmcp may hold, spawn, or poll it
+  late, so a reply could be received and recorded while the request's send was
+  still pending. `seq` is a trace's only ordering authority, so every
+  correlation check read the pair as the server answering an id nobody asked:
+  a phantom `BASE-046` MUST failure on roughly one capture in three. Outbound
+  messages are now recorded as they are handed to the transport. The cost is
+  stated rather than hidden — a message whose send then fails is in the trace
+  although it never reached the wire, which happens only when the transport is
+  dying and misrepresents one message instead of reordering every concurrent
+  exchange.
+
+- **The capture harness truncated its own recordings.** It killed the tapped
+  server the moment the client exited — but the server answers a request and
+  *then* taps it, so the last line raced the kill. The probe capture lost its
+  final response, and with it `TRAN-074`'s outcome; the HTTP capture lost a
+  clause too, and both moved between runs. The harness now waits for the
+  recording to stop growing before killing, which made three consecutive runs
+  byte-identical where they had disagreed.
+
+- **`TRAN-074` was judged more broadly than the clause it quotes**, and the
+  truncation above had been hiding it. The clause is stated under
+  `#protocol-version-header` and its antecedent is a version requested *in that
+  header*, which the removed `initialize` handshake cannot carry — a
+  `2025-11-25` client has no such header to send. `basic/versioning` already
+  leaves the error *code* for a legacy `initialize` implementation-defined, so
+  mandating one chosen code's HTTP status there is incoherent; what that client
+  is owed is `VERS-008`, judged separately. The check now exempts it, by the
+  same carve-out the registry documents for `BASE-031`.
+
+- **`BASE-032` was judged more broadly than the clause it quotes.** "On HTTP,
+  the response status **MUST** be `400 Bad Request`" binds the answer to *a
+  request missing a required `_meta` field*, and the check flagged any `-32602`
+  whose status was not 400. That is not the same set at this revision: the spec
+  replaced `-32002` with `-32602`, so a conforming server now answers
+  resource-not-found with the same code, and the clause says nothing about
+  *that* answer's status. Judged broadly, the check would report a conforming
+  implementation for a clause that does not bind it. It now narrows to the
+  errors answering a malformed request, which is the set `BASE-031` already
+  computed. Nothing in the corpus could have caught this before: every
+  `-32602` in every recording *was* a malformed envelope until the enriched
+  HTTP capture carried one that was not.
+
+- **Nine coverage counts in shipped documentation were wrong, every one of
+  them overstating.** Three were the vacuous-pass accounting surviving in prose
+  after the report itself was fixed: `crates/mcp-everything-server/README.md`
+  reported the *judgeable total* as a pass count — "124 clauses pass, 0 fail"
+  where the conforming captures evidence 91 — and this file scored the two
+  official-suite captures at 123 and 124 passes where the reports say
+  58 pass, 1 fail and 59 pass, 0 fail, with 65 clauses not observed on each.
+
+  The rest were arithmetic. `corpus/README.md` wrote the HTTP capture up at 90
+  pass and 34 not observed where the report says 89 and 35 — twice, once in the
+  verdict row and once in the prose beneath it; called 23 Streamable HTTP
+  clauses "twenty-four"; called six surface-limited clauses "Four" and then
+  listed six; and split the fifteen unevidenced clauses "Seven … Eight" where
+  the split is 8 and 7, with `PAGE-010` listed among them although the probe
+  session judges it. `README.md` and this file attributed the 109-clause union
+  to three captures when it takes all five — the official runner's two are what
+  reach `TOOL-022`.
+
+  All nine are corrected against the reports, and `cargo xtask draft-coverage
+  --check` is why they cannot recur: it fails on every one of them, which is
+  how the last three were found.
+
+- **A clause a session never came near was reported as a `pass`.** This was the
+  single largest correctness defect in the report. A check that ran, found
+  nothing to look at, and returned no findings was classified exactly like one
+  that examined real traffic and found it conforming — so a trace that opened a
+  connection and stopped scored a hundred-odd passes, and the difference
+  between "this server complied" and "this session never tested it" was
+  invisible. ADR-0006 had already refused this accounting for capability-gated
+  clauses; it applied everywhere else too, and did not.
+
+  Every check now counts the *subjects* it considered — trace elements that,
+  with different content, could have produced a finding — counted after the
+  filters that define the clause's scope and before the condition that makes an
+  element a violation. A requirement whose checks found no subject and reported
+  no finding is `not-observed`, rendered `NOBS` in text, `not-observed` in JSON
+  and the multi-revision table, and `<skipped>` in JUnit with its own reason.
+  `totals:` now names every outcome, so the counts visibly sum to the
+  registry's size.
+
+  **Verdicts do not move.** Across all 130 golden reports the only outcome
+  transition is `pass` → `not-observed`: no finding appeared, disappeared, or
+  changed requirement. What changed is the arithmetic every claim rested on —
+  the conforming `2025-11-25` sessions report 15–35 passes where they reported
+  38–52, and the `2026-07-28` captures 56–59 where they reported 124. Those
+  earlier numbers were not measurements of conformance; they were counts of
+  checks that had nothing to say.
+
+  Two accounting defects fell out of the same change and are fixed with it:
+  JUnit's `skipped=` attribute and `tests=` count omitted the new outcome while
+  the body rendered it, and the human `totals:` line omitted it entirely, so
+  neither summed to the registry's size. `checks_count_their_subjects` in the
+  golden suite now holds the line: every registered check must examine at least
+  one subject on at least one committed trace, which is the other half of
+  `corpus_falsifies_every_check` — that one proves a check can fail, this one
+  proves its pass can mean something.
+
+  Reviewing the golden diff caught one more: `LIFE-004` and `LIFE-005` state
+  the same rule about the same window from the two sides, and were reported
+  differently on 52 traces where both held — an accident of who happened to
+  send a request in that window. A prohibition on an element *existing* inside
+  a window counts the window, not the element, because sending nothing through
+  it is what compliance looks like there. The distinction is recorded on the
+  counting rule; every other prohibition in the tree is property-shaped and was
+  already counting correctly.
+
+  The decision, its alternatives, and the shape of the outcome are recorded in
+  [ADR-0012](docs/plan/decisions/0012-not-observed-outcome.md), which extends
+  ADR-0006's argument past the capability gate it had been implemented for.
+
+- **The session trace tap could not record protocol revision `2026-07-28` at
+  all, and said nothing.** It keyed every exchange on `Mcp-Session-Id` and
+  returned early without one — and that revision removes the session concept
+  outright (SEP-2575), so every exchange of it took that branch. The failure was
+  silent: an empty trace directory, indistinguishable from a server nobody
+  talked to. `cargo xtask draft-readiness` had been driving the official suite's
+  `2026-07-28` scenarios against a tapped server and discarding every byte.
+  Sessionless exchanges are now recorded to a per-run `stateless` trace; this
+  also recovers `2025-11-25` exchanges that never formed a session (a rejected
+  `initialize`, a request refused before one existed), which were being lost the
+  same way.
+
+- **`meta.missing-capability-error` demanded a shape the schema does not
+  define.** BASE-035's quote says a `-32021` carries `data.requiredCapabilities`
+  that "lists the missing capabilities", and the check read "lists" as a JSON
+  array. The `2026-07-28` schema types the field as `ClientCapabilities` — the
+  same nested object a client sends in its `_meta` — so a conforming server was
+  reported for using it, which is the worst failure mode a conformance check
+  has. Corrected against the schema; the array shape is now itself a violation
+  fixture.
+
+- **Three interactive tools resolved client capabilities through the
+  handshake.** They read `peer.peer_info()`, which is `None` for every request
+  on a stateless stdio server, so a client that declared `elicitation` in the
+  `_meta` envelope the server was reading would have been refused anyway. They
+  now read `RequestContext::client_capabilities`, which resolves the request
+  first and falls back to session state only when a session exists — one call
+  site, correct at both revisions. At `2026-07-28` the refusal is SEP-2021's
+  `-32021` carrying `data.requiredCapabilities`; the `2025-11-25` refusal is
+  unchanged.
+
+- **The tap dropped the headers four `2026-07-28` clauses are judged by, and
+  the validator reported the clauses they prove.** Its recording allowlist held
+  seven header names, chosen when `2025-11-25` was the only revision it
+  recorded, and did not include SEP-2243's `Mcp-Method`, `Mcp-Name` and
+  `Mcp-Param-*` or SEP-2570's `X-Accel-Buffering`. Both sides of the recorded
+  exchange were conforming and both were reported: rmcp's transport *rejects* a
+  `2026-07-28` request that arrives without `Mcp-Method`, and rmcp sets
+  `X-Accel-Buffering: no` on every SSE response it builds. TRAN-058 and
+  TRAN-068 were findings about the recording, not about any implementation —
+  and one of them had been written up in `corpus/README.md` as a defect in the
+  official suite's client. The allowlist now carries those names plus a
+  `mcp-param-` prefix arm, since those header names are chosen by a tool's
+  `x-mcp-header` annotation and cannot be enumerated. Recording them widens
+  nothing: every value is a copy of an argument already recorded verbatim in
+  the body, and the prefix cannot match `authorization` or `cookie`.
+
+- **Five capability checks would have reported vacuous passes at `2026-07-28`.**
+  Every feature page states "Servers that support X MUST declare the X
+  capability", and the `2025-11-25` checks for it resolve declarations through a
+  helper that abstains unless the trace carries an `initialize` **result** — a
+  message this revision does not have. Reused as-is, each would have inspected
+  nothing and reported `pass`. `checks/draft/capabilities.rs` reads this
+  revision's declaration surface, the `server/discover` result, instead.
+
+- **`transport.unsupported-version-error` bundled an HTTP status into a rule
+  stated without one.** TRAN-074 requires "400 Bad Request *and* an
+  `UnsupportedProtocolVersionError` listing its supported versions", while
+  `basic/versioning` states the same rule with no status; one check covering
+  both would have reported a wrong status against a clause that never mentions
+  statuses, since the engine attributes a finding to every requirement naming
+  the check. Split into `transport.unsupported-version-{error,status}` — which
+  exposed that the HTTP-400 half had never been falsified by any trace on its
+  own, and now is. Its obligation side also read the requested version out of
+  the POST rather than the request's own `_meta`, making the rule invisible on
+  stdio, where `basic/versioning` states it just as plainly.
+
+- **`meta.missing-required-field-rejected` reported a conforming server.** It
+  requires `-32602` for a request missing `_meta` fields, and a legacy
+  `initialize` reaching a modern server is missing them by definition — but
+  `basic/versioning`'s compatibility matrix states that for exactly that
+  exchange "the exact code is implementation-defined". Every cross-era capture
+  would have carried a MUST failure the specification has waived. `initialize`
+  is now outside that rule, by method; the client's own defect is still
+  reported.
+
+- **`transport.client-no-responses` filtered on Streamable HTTP**, so it would
+  have been inert for the stdio clause stating the same rule. The revision
+  removed server-initiated requests, so there is nothing on any binding for a
+  client response to answer, and the filter is gone.
 
 - **`meta.missing-required-field-http-status` and
   `meta.missing-capability-http-status` could not fail on a real capture.**
@@ -83,6 +481,14 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   across several sections.
 
 ### Changed
+
+- **Breaking (pre-1.0):** `mcp_everything_server::http::router` and
+  `http::router_tapped` take a `ServedRevision`. Pass
+  `ServedRevision::default()` (or `ServedRevision::V2025_11_25`) for the
+  behaviour these functions had. The revision is named at the call site rather
+  than defaulted silently because it is the single most important fact about a
+  conformance server, and a reader of `router(policy)` could not tell which one
+  was being served.
 
 - **M2.5 Phase 0: the registry can describe two revisions, and the `2025-11-25`
   surface provably did not move.** All 140 embedded entries are now bounded

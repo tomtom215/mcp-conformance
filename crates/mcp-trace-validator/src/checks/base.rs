@@ -5,6 +5,10 @@
 //!
 //! These operate per message and rely on [`classify`]'s leniency: malformed messages
 //! are reported precisely rather than aborting the run.
+//!
+//! Two groups live in submodules because they carry machinery of their own:
+//! [`meta`] holds the `_meta` key grammar, and [`correlation`] the shared walk
+//! that answers `BASE-004` and `BASE-009` together.
 
 use std::collections::HashMap;
 
@@ -16,9 +20,16 @@ use serde_json::Value;
 use super::FindingSink;
 use crate::context::TraceContext;
 
+mod correlation;
 mod meta;
 
+pub(super) use correlation::{error_id_matches, result_id_matches};
 pub(super) use meta::meta_key_format;
+// The `_meta` key grammar is unchanged at `2026-07-28`, where VERS-004 reuses it
+// for extension identifiers — the function, not `base.meta-key-format`, which
+// reads envelope keys and would inspect no identifier at all.
+#[cfg(feature = "draft-2026-07-28")]
+pub(super) use meta::validate_meta_key;
 
 /// Human name of a JSON value's type, for finding details.
 fn type_name(value: &Value) -> &'static str {
@@ -49,16 +60,18 @@ fn id_is_string_or_integer(id: &Value) -> bool {
 /// `BASE-001`: "Requests MUST include a string or integer ID."
 pub(super) fn request_id_type(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Request { method, id } = kind
-            && !id_is_string_or_integer(id)
-        {
+        let MessageKind::Request { method, id } = kind else {
+            continue;
+        };
+        sink.examined();
+        if !id_is_string_or_integer(id) {
             sink.push(
                     Some(event.seq),
                     format!(
                         "request {method:?} carries {} as its id; the ID must be a string or an integer",
-                        type_name(id)
-                    ),
-                );
+                    type_name(id)
+                ),
+            );
         }
     }
 }
@@ -66,9 +79,11 @@ pub(super) fn request_id_type(context: &TraceContext<'_>, sink: &mut FindingSink
 /// `BASE-002`: "Unlike base JSON-RPC, the ID MUST NOT be `null`."
 pub(super) fn request_id_not_null(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Request { method, id } = kind
-            && id.is_null()
-        {
+        let MessageKind::Request { method, id } = kind else {
+            continue;
+        };
+        sink.examined();
+        if id.is_null() {
             sink.push(
                 Some(event.seq),
                 format!("request {method:?} carries a null id, which MCP forbids"),
@@ -86,6 +101,7 @@ pub(super) fn request_id_unique(context: &TraceContext<'_>, sink: &mut FindingSi
             if id.is_null() {
                 continue; // BASE-002's finding; don't double-report.
             }
+            sink.examined();
             let key = (event.direction, to_canonical_string(id));
             match first_use.get(&key) {
                 Some(previous) => sink.push(
@@ -103,149 +119,23 @@ pub(super) fn request_id_unique(context: &TraceContext<'_>, sink: &mut FindingSi
     }
 }
 
-/// Walks responses and reports those of the wanted flavor that match no outstanding
-/// request from the opposite party. Shared by `BASE-004` (results) and `BASE-009`
-/// (errors).
-///
-/// A request is answered exactly once, by a result XOR an error. Each flavor's pass
-/// therefore consumes the outstanding entry on *both* flavors — its own (flagging a
-/// mismatch) and the other's (silently, as that other response is the legitimate
-/// first answer). The consequence: a request answered by both a result and an error,
-/// in either order, leaves the *second* response with no outstanding request, and the
-/// pass for the second response's flavor flags it. Without the cross-flavor consume,
-/// each pass saw a clean 1-request→1-response and a double-answer slipped through.
-fn responses_match_requests(
-    context: &TraceContext<'_>,
-    sink: &mut FindingSink,
-    want_results: bool,
-) {
-    // Outstanding request ids per requesting party, canonical id -> request seq.
-    let mut outstanding: HashMap<(Direction, String), u64> = HashMap::new();
-    for (event, kind, _) in context.messages() {
-        match kind {
-            MessageKind::Request { id, .. } => {
-                if !id.is_null() {
-                    outstanding.insert((event.direction, to_canonical_string(id)), event.seq);
-                }
-            }
-            MessageKind::Result { id } => {
-                if want_results {
-                    check_response_id(
-                        event.seq,
-                        event.direction,
-                        *id,
-                        &mut outstanding,
-                        sink,
-                        "result",
-                    );
-                } else {
-                    // The other flavor's valid first answer: consume so a later
-                    // same-id error is seen as answering an already-answered request.
-                    consume_outstanding(event.direction, *id, &mut outstanding);
-                }
-            }
-            MessageKind::Error { id, .. } => {
-                // The null/absent-id condition is the spec's escape hatch ("except in
-                // error cases where the ID could not be read due a malformed request"),
-                // so a null/absent error id is neither flagged nor consumes anything.
-                if want_results {
-                    consume_outstanding(event.direction, *id, &mut outstanding);
-                } else if id.is_some_and(|id| !id.is_null()) {
-                    check_response_id(
-                        event.seq,
-                        event.direction,
-                        *id,
-                        &mut outstanding,
-                        sink,
-                        "error",
-                    );
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
-/// Removes the outstanding request a response answers, without flagging — the path
-/// for a response of the flavor a given pass does not judge. A null/absent id matches
-/// no request and removes nothing.
-fn consume_outstanding(
-    response_direction: Direction,
-    id: Option<&Value>,
-    outstanding: &mut HashMap<(Direction, String), u64>,
-) {
-    if let Some(id) = id.filter(|id| !id.is_null()) {
-        let requester = match response_direction {
-            Direction::ClientToServer => Direction::ServerToClient,
-            Direction::ServerToClient => Direction::ClientToServer,
-        };
-        outstanding.remove(&(requester, to_canonical_string(id)));
-    }
-}
-
-fn check_response_id(
-    seq: u64,
-    response_direction: Direction,
-    id: Option<&Value>,
-    outstanding: &mut HashMap<(Direction, String), u64>,
-    sink: &mut FindingSink,
-    flavor: &str,
-) {
-    let requester = match response_direction {
-        Direction::ClientToServer => Direction::ServerToClient,
-        Direction::ServerToClient => Direction::ClientToServer,
-    };
-    match id {
-        None => sink.push(
-            Some(seq),
-            format!("{flavor} response is missing its id; responses must echo the request id"),
-        ),
-        Some(id) if id.is_null() => sink.push(
-            Some(seq),
-            format!("{flavor} response carries a null id; responses must echo the request id"),
-        ),
-        Some(id) => {
-            let key = (requester, to_canonical_string(id));
-            if outstanding.remove(&key).is_none() {
-                sink.push(
-                    Some(seq),
-                    format!(
-                        "{flavor} response answers id {}, but that party has no outstanding request with that id (never sent, or already answered)",
-                        key.1
-                    ),
-                );
-            }
-        }
-    }
-}
-
-/// `BASE-004`: "Result responses MUST include the same ID as the request they
-/// correspond to."
-pub(super) fn result_id_matches(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    responses_match_requests(context, sink, true);
-}
-
-/// `BASE-009`: "Error responses MUST include the same ID as the request they correspond
-/// to (except in error cases where the ID could not be read due a malformed request)."
-pub(super) fn error_id_matches(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    responses_match_requests(context, sink, false);
-}
-
 /// `BASE-005`: "Notifications MUST NOT include an ID."
 ///
 /// A message in the reserved `notifications/` namespace that carries an `id`
 /// classifies structurally as a request; this check is what catches it.
 pub(super) fn notification_no_id(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Request { method, .. } = kind
-            && is_notification_method(method)
-        {
+        let MessageKind::Request { method, .. } = kind else {
+            continue;
+        };
+        sink.examined();
+        if is_notification_method(method) {
             sink.push(
                     Some(event.seq),
                     format!(
-                        "{method:?} is a notification method but the message carries an id; notifications must not include one"
-                    ),
-                );
+                    "{method:?} is a notification method but the message carries an id; notifications must not include one"
+                ),
+            );
         }
     }
 }
@@ -255,6 +145,7 @@ pub(super) fn notification_no_id(context: &TraceContext<'_>, sink: &mut FindingS
 pub(super) fn error_shape(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
         if let MessageKind::Error { error, .. } = kind {
+            sink.examined();
             let Some(object) = error.as_object() else {
                 sink.push(
                     Some(event.seq),
@@ -289,11 +180,16 @@ pub(super) fn error_shape(context: &TraceContext<'_>, sink: &mut FindingSink) {
 /// `BASE-007`: "Error codes MUST be integers."
 pub(super) fn error_code_integer(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if let MessageKind::Error { error, .. } = kind
-            && let Some(code) = error.get("code")
-            && !code.is_i64()
-            && !code.is_u64()
-        {
+        let MessageKind::Error { error, .. } = kind else {
+            continue;
+        };
+        // The subject is an error *carrying a code*: an error with none is
+        // BASE-006's finding, and this clause has nothing to judge there.
+        let Some(code) = error.get("code") else {
+            continue;
+        };
+        sink.examined();
+        if !code.is_i64() && !code.is_u64() {
             sink.push(
                 Some(event.seq),
                 format!("error code is {}, expected an integer", type_name(code)),
@@ -314,11 +210,18 @@ pub(super) fn result_field(context: &TraceContext<'_>, sink: &mut FindingSink) {
         let Some(object) = event.message_payload().and_then(Value::as_object) else {
             continue;
         };
-        if object.contains_key("id")
-            && !object.contains_key("method")
-            && !object.contains_key("result")
-            && !object.contains_key("error")
-        {
+        if !object.contains_key("id") || object.contains_key("method") {
+            continue;
+        }
+        sink.examined();
+        // One member, not both, and the classifier is why. A message reaching
+        // here is `Invalid` with an `id` and no `method`, and `classify`'s own
+        // table leaves exactly two ways for that to happen: it carries *both*
+        // `result` and `error` (ambiguous) or *neither* (this clause's
+        // finding). The two tests can therefore never disagree, so asking both
+        // is a condition no trace can vary independently — dead weight that
+        // reads as thoroughness. The mutation gate found it.
+        if !object.contains_key("result") {
             sink.push(
                 Some(event.seq),
                 "response-shaped message (id present, no method) carries no result field"
@@ -333,6 +236,7 @@ pub(super) fn result_field(context: &TraceContext<'_>, sink: &mut FindingSink) {
 /// and carries `"jsonrpc": "2.0"`.
 pub(super) fn jsonrpc_version(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
+        sink.examined();
         if let MessageKind::Invalid { reason } = kind {
             sink.push(
                 Some(event.seq),
@@ -370,10 +274,33 @@ mod tests {
     fn run_check(check_id: &str, trace: &str) -> Vec<Finding> {
         let events: Vec<TraceEvent> = parse_trace(trace, &Limits::default()).unwrap();
         let context = TraceContext::new(&events);
-        checks::find(check_id).unwrap().run(&context)
+        checks::find(check_id).unwrap().run(&context).findings
     }
 
     const INIT: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}"#;
+
+    #[test]
+    fn a_response_shaped_message_is_judged_on_its_result_member_alone() {
+        // The two cases `classify` can hand this check, and the reason it only
+        // asks about `result`: an id-bearing, method-less message that it
+        // called `Invalid` carries both members or neither.
+        let neither = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1}}"#;
+        let findings = run_check("base.result-field", neither);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(
+            findings[0].detail.contains("no result field"),
+            "{findings:?}"
+        );
+
+        // Both: ambiguous, and BASE-006's business rather than this clause's —
+        // whatever else is wrong with it, a `result` member is present.
+        let both = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{},"error":{"code":-1,"message":"x"}}}"#;
+        assert!(run_check("base.result-field", both).is_empty());
+
+        // A well-formed result classifies as `Result` and never reaches here.
+        let clean = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{}}}"#;
+        assert!(run_check("base.result-field", clean).is_empty());
+    }
 
     #[test]
     fn result_response_with_null_id_gets_the_null_detail() {

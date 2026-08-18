@@ -108,6 +108,7 @@ struct AggregateTotals {
     excluded: u32,
     unsupported: u32,
     not_applicable: u32,
+    not_observed: u32,
 }
 
 /// The reconciliation artifact written to `target/conformance/agreement.json`.
@@ -360,6 +361,7 @@ const fn accumulate(totals: &mut AggregateTotals, report: &Report) {
     totals.excluded += report.totals.excluded;
     totals.unsupported += report.totals.unsupported;
     totals.not_applicable += report.totals.not_applicable;
+    totals.not_observed += report.totals.not_observed;
 }
 
 /// Whether a baseline entry explains a failure.

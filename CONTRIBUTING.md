@@ -37,17 +37,29 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
 3. `cargo test --workspace` — also with `--no-default-features` and `--all-features`
 4. `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` — also with
    `--all-features` (feature-gated modules carry rustdoc too)
-5. The 500-line cap on source and registry files (`cargo xtask file-sizes`)
-6. `cargo deny --all-features check` when cargo-deny is installed — skipped
+5. `cargo clippy` on the MSRV toolchain — skipped **loudly** when clippy for
+   that toolchain is not installed (CI runs it regardless)
+6. The 500-line cap on source and registry files (`cargo xtask file-sizes`)
+7. `cargo deny --all-features check` when cargo-deny is installed — skipped
    **loudly** otherwise (`cargo install cargo-deny --locked` to run it locally;
    CI runs it regardless, so a dependency-policy violation will fail there)
-7. Every relative documentation link resolving (`cargo xtask docs-links`)
-8. The README coverage table in sync with the registry (`cargo xtask coverage --check`)
+8. Every relative documentation link resolving (`cargo xtask docs-links`)
+9. The README's crates.io version tracking the workspace version
+   (`cargo xtask version-sync`), and every `CHANGELOG` heading carrying its
+   reference definition (`cargo xtask changelog-links`)
+10. The README coverage table in sync with the registry (`cargo xtask coverage --check`)
+11. `corpus/README.md`'s per-capture coverage table in sync with the committed
+    golden reports, and every "N of the M judgeable clauses" claim in the
+    shipped Markdown agreeing with them (`cargo xtask draft-coverage --check`)
 
 Additionally enforced in CI: `cargo package --workspace --exclude xtask --locked`
 (publishability) and diff-scoped mutation testing (`cargo mutants --in-diff`)
 on PRs. The standard is **zero surviving mutants in every shipped crate**
-(xtask is excluded via `.cargo/mutants.toml`).
+(xtask is excluded via `.cargo/mutants.toml`). Run it locally with
+`cargo xtask mutants`, which issues exactly the invocation CI does;
+`--jobs N` is the only argument it accepts, and raising it spends the timeout
+headroom `.cargo/mutants.toml` reserves — a mutant merely slowed by
+contention is reported as a timeout, not as caught.
 
 ## Working on checks and the corpus
 
@@ -66,7 +78,15 @@ clause binds only after negotiation), implement the check, add corpus traces, th
 `cargo xtask bless` and **review the golden diff like code**. Every corpus trace
 needs a row in the provenance ledger, [`corpus/README.md`](corpus/README.md) — what
 produced it, against which revision (an invariant test fails without one). Update
-the README coverage table with `cargo xtask coverage`.
+the README coverage table with `cargo xtask coverage`, and — when a capture or a
+golden report changes — the corpus one with `cargo xtask draft-coverage`.
+
+Do not write a coverage count by hand. Per
+[ADR-0001](docs/plan/decisions/0001-plan-documentation-model.md)'s "one fact, one
+place" rule these numbers are projections of the data: the per-area table comes
+from the registry, the per-capture table from the committed golden reports, and
+any prose saying "N of the M judgeable clauses" is parsed and checked against
+them.
 
 ## Commits
 

@@ -8,8 +8,15 @@
 //! that order, so every run ends for a reason the report names
 //! (02-architecture.md: no "the loop usually terminates").
 
-use rmcp::model::CallToolRequestParams;
-use rmcp::service::{Peer, RoleClient};
+// SEP-2577 forward-deprecates Logging, and rmcp 3.x carries the attribute, so
+// naming `LoggingLevel` fires it on correct code: the level a request asks for
+// is how `2026-07-28` *replaced* `logging/setLevel`, and it is the only way a
+// recording can carry the logging clauses at all. Scoped to this module rather
+// than the crate, matching `mcp-everything-server`'s two module-level allows —
+// a blanket allow would also hide a deprecation that genuinely matters.
+#![allow(deprecated)]
+use rmcp::model::{CallToolRequestParams, LoggingLevel, RequestMetaObject};
+use rmcp::service::{Peer, RoleClient, RunningService, Service};
 use serde_json::{Map, Value};
 use tokio_util::sync::CancellationToken;
 
@@ -23,6 +30,16 @@ pub struct RunPlan {
     pub error_budget: u32,
     /// Which calls to make.
     pub calls: CallPolicy,
+    /// The minimum log level to ask each call for, in
+    /// `_meta.io.modelcontextprotocol/logLevel`.
+    ///
+    /// `None` asks for nothing, which is what the suite's scenarios want and
+    /// what `2026-07-28` treats as "emit no `notifications/message` for this
+    /// request" (LOG-008). A recording sets it, because a server's logging
+    /// clauses are unjudgeable against a session that never asked to see a log
+    /// line — and asking is the client-side half of the mechanism that
+    /// replaced `logging/setLevel`.
+    pub log_level: Option<LoggingLevel>,
 }
 
 /// Deterministic call selection.
@@ -80,12 +97,26 @@ pub struct RunReport {
     pub outcomes: Vec<CallOutcome>,
 }
 
-/// Runs `plan` against the connected server behind `peer` until a stop
+/// Runs `plan` against the connected server behind `client` until a stop
 /// condition fires.
+///
+/// Takes the running service rather than its [`Peer`],
+/// and the difference is protocol-visible: `RunningService::call_tool` drives
+/// SEP-2322's MRTR rounds — on an `input_required` result it fulfils the
+/// server's `inputRequests` through this host's own handler and retries,
+/// echoing the `requestState` — while `Peer::call_tool` answers a single round
+/// and reports anything else as an unexpected response. At `2026-07-28` that
+/// is the *only* way a server can ask for sampling or elicitation, so a host
+/// on the peer method cannot complete an interactive call at all.
 ///
 /// Listing failures (under [`CallPolicy::EachDiscoveredToolOnce`]) count
 /// against the error budget like any other error.
-pub async fn run(peer: &Peer<RoleClient>, plan: &RunPlan, cancel: &CancellationToken) -> RunReport {
+pub async fn run<S: Service<RoleClient>>(
+    client: &RunningService<RoleClient, S>,
+    plan: &RunPlan,
+    cancel: &CancellationToken,
+) -> RunReport {
+    let peer: &Peer<RoleClient> = client.peer();
     let mut report = RunReport {
         turns: 0,
         errors: 0,
@@ -116,7 +147,16 @@ pub async fn run(peer: &Peer<RoleClient>, plan: &RunPlan, cancel: &CancellationT
         let PlannedCall { tool, arguments } = call;
         let mut params = CallToolRequestParams::new(tool.clone());
         params.arguments = arguments;
-        let outcome = peer.call_tool(params).await;
+        // Set before the call so rmcp's own `_meta` injection (protocol
+        // version, client capabilities) *extends* this map rather than
+        // replacing it — both end up on the wire, which is the shape the
+        // revision requires.
+        if let Some(level) = plan.log_level {
+            let mut meta = RequestMetaObject::new();
+            meta.set_log_level(level);
+            params.meta = Some(meta);
+        }
+        let outcome = client.call_tool(params).await;
         report.turns += 1;
 
         let result = judge_outcome(outcome, &mut report.errors);

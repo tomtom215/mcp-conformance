@@ -44,6 +44,17 @@ pub enum Outcome {
     /// The requirement is gated on a capability this session never declared
     /// (ADR-0006); its checks were not run.
     NotApplicable,
+    /// Every covering check ran and found nothing to judge: this session
+    /// carried none of the traffic the clause binds to.
+    ///
+    /// Distinct from [`Self::Pass`], and the distinction is the whole point. A
+    /// clause about `subscriptions/listen` cannot be *complied with* by a
+    /// session that never opened a stream — there was no opportunity to break
+    /// it — so reporting `pass` states evidence the trace does not carry.
+    /// Distinct from [`Self::NotApplicable`] too: that one is the registry
+    /// saying the clause is gated on a capability nobody declared, this one is
+    /// the trace saying it had nothing to show.
+    NotObserved,
 }
 
 /// Aggregate counts, in report order. `excluded` and `unsupported` are first-class:
@@ -63,6 +74,8 @@ pub struct Totals {
     pub unsupported: u32,
     /// Requirements with outcome [`Outcome::NotApplicable`].
     pub not_applicable: u32,
+    /// Requirements with outcome [`Outcome::NotObserved`].
+    pub not_observed: u32,
 }
 
 /// One requirement's row in the report.
@@ -133,6 +146,7 @@ impl Report {
                 Outcome::Excluded => "EXCL",
                 Outcome::Unsupported => "UNSUP",
                 Outcome::NotApplicable => "N/A",
+                Outcome::NotObserved => "NOBS",
             };
             let _ = writeln!(out, "  {marker:<5} {} ({})", row.id, row.level);
             for finding in &row.findings {
@@ -157,17 +171,27 @@ impl Report {
                     "        not applicable: capability {capability} was not declared in this session"
                 );
             }
+            if row.outcome == Outcome::NotObserved {
+                let _ = writeln!(
+                    out,
+                    "        not observed: the session carried none of the traffic this clause binds to"
+                );
+            }
         }
         let totals = self.totals;
+        // Every outcome is named, so the counts sum to the registry's size — a
+        // reader can check the arithmetic, and a variant added without being
+        // rendered would show up as a line that no longer adds up.
         let _ = writeln!(
             out,
-            "totals: {} pass, {} fail, {} warn, {} excluded, {} unsupported, {} not applicable",
+            "totals: {} pass, {} fail, {} warn, {} excluded, {} unsupported, {} not applicable, {} not observed",
             totals.pass,
             totals.fail,
             totals.warn,
             totals.excluded,
             totals.unsupported,
-            totals.not_applicable
+            totals.not_applicable,
+            totals.not_observed
         );
         let _ = writeln!(out, "verdict: {}", self.verdict());
         out
@@ -220,7 +244,32 @@ impl fmt::Display for Verdict {
 mod tests {
     use super::*;
 
+    fn row(id: &str, level: &str, outcome: Outcome) -> RequirementReport {
+        RequirementReport {
+            id: id.to_owned(),
+            level: level.to_owned(),
+            outcome,
+            findings: vec![],
+            exclusion: None,
+            missing_checks: vec![],
+            capability: None,
+        }
+    }
+
+    /// One row of every outcome the renderer can produce, so the totals line
+    /// and the per-row text are pinned against the full set rather than a
+    /// convenient subset.
     fn sample() -> Report {
+        let mut failed = row("LIFE-001", "MUST", Outcome::Fail);
+        failed.findings = vec![Finding {
+            check: "lifecycle.first-interaction-initialize".to_owned(),
+            seq: Some(3),
+            detail: "first message is \"tools/list\", expected \"initialize\"".to_owned(),
+        }];
+        let mut excluded = row("TRAN-001", "MUST NOT", Outcome::Excluded);
+        excluded.exclusion = Some("enforced at capture time".to_owned());
+        let mut not_applicable = row("TOOL-001", "MUST", Outcome::NotApplicable);
+        not_applicable.capability = Some("server.tools".to_owned());
         Report {
             revision: "2025-11-25".to_owned(),
             totals: Totals {
@@ -230,49 +279,14 @@ mod tests {
                 excluded: 1,
                 unsupported: 0,
                 not_applicable: 1,
+                not_observed: 1,
             },
             requirements: vec![
-                RequirementReport {
-                    id: "BASE-001".to_owned(),
-                    level: "MUST".to_owned(),
-                    outcome: Outcome::Pass,
-                    findings: vec![],
-                    exclusion: None,
-                    missing_checks: vec![],
-                    capability: None,
-                },
-                RequirementReport {
-                    id: "LIFE-001".to_owned(),
-                    level: "MUST".to_owned(),
-                    outcome: Outcome::Fail,
-                    findings: vec![Finding {
-                        check: "lifecycle.first-interaction-initialize".to_owned(),
-                        seq: Some(3),
-                        detail: "first message is \"tools/list\", expected \"initialize\""
-                            .to_owned(),
-                    }],
-                    exclusion: None,
-                    missing_checks: vec![],
-                    capability: None,
-                },
-                RequirementReport {
-                    id: "TRAN-001".to_owned(),
-                    level: "MUST NOT".to_owned(),
-                    outcome: Outcome::Excluded,
-                    findings: vec![],
-                    exclusion: Some("enforced at capture time".to_owned()),
-                    missing_checks: vec![],
-                    capability: None,
-                },
-                RequirementReport {
-                    id: "TOOL-001".to_owned(),
-                    level: "MUST".to_owned(),
-                    outcome: Outcome::NotApplicable,
-                    findings: vec![],
-                    exclusion: None,
-                    missing_checks: vec![],
-                    capability: Some("server.tools".to_owned()),
-                },
+                row("BASE-001", "MUST", Outcome::Pass),
+                failed,
+                excluded,
+                not_applicable,
+                row("PAGE-002", "MUST", Outcome::NotObserved),
             ],
         }
     }
@@ -307,9 +321,30 @@ mod tests {
             ),
             "{text}"
         );
+        // A not-observed row says so in words, like every other non-judged
+        // outcome: "NOBS" alone tells an operator nothing about *why*. Pinned
+        // as the two lines *together*, and counted: asserting only that the
+        // sentence appears somewhere passes just as well when it is attached
+        // to every row except the one it describes.
         assert!(
             text.contains(
-                "totals: 1 pass, 1 fail, 0 warn, 1 excluded, 0 unsupported, 1 not applicable"
+                "  NOBS  PAGE-002 (MUST)\n        not observed: the session carried none of \
+                 the traffic this clause binds to\n"
+            ),
+            "{text}"
+        );
+        assert_eq!(
+            text.matches("not observed:").count(),
+            1,
+            "exactly the not-observed row carries the reason: {text}"
+        );
+        // The whole line, anchored at both ends: a `contains` of a prefix would
+        // pass while a new outcome went unnamed and the counts stopped summing
+        // to the registry's size.
+        assert!(
+            text.contains(
+                "\ntotals: 1 pass, 1 fail, 0 warn, 1 excluded, 0 unsupported, \
+                 1 not applicable, 1 not observed\n"
             ),
             "{text}"
         );

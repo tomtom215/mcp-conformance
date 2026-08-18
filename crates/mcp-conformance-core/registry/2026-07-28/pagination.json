@@ -1,0 +1,89 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "PAGE-006",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/pagination",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`."
+      },
+      "checks": [
+        "meta.required-request-fields"
+      ]
+    },
+    {
+      "id": "PAGE-007",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/pagination#pagination-model",
+        "quote": "The cursor is an opaque string token, representing a position in the result set; Page size is determined by the server, and clients MUST NOT assume a fixed page size"
+      },
+      "exclusion": "Forbids an assumption. A client that assumed a fixed page size and one that did not send identical requests \u2014 the assumption only shows in how the client interprets what comes back, which is not on the wire."
+    },
+    {
+      "id": "PAGE-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/pagination#implementation-guidelines",
+        "quote": "Servers SHOULD: Provide stable cursors; Handle invalid cursors gracefully"
+      },
+      "exclusion": "Cursor stability is a property across time and sessions \u2014 the same cursor presented later must still resolve \u2014 which one recording cannot exhibit. The graceful half is stated concretely by PAGE-011, and that is where it is judged."
+    },
+    {
+      "id": "PAGE-009",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/pagination#implementation-guidelines",
+        "quote": "Clients SHOULD: Treat a missing `nextCursor` as the end of results; Support both paginated and non-paginated flows"
+      },
+      "exclusion": "Both bind how a client reads a result it already has. Stopping because `nextCursor` was absent and stopping for any other reason produce the same session: no further request."
+    },
+    {
+      "id": "PAGE-010",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/pagination#implementation-guidelines",
+        "quote": "Clients MUST treat cursors as opaque tokens: Don't make assumptions about cursor format; Don't attempt to parse or modify cursors; Don't make any determination based on cursor value other than whether a non-null value was provided (e.g. an empty string is a valid cursor and thus MUST NOT be treated as the end of results)"
+      },
+      "checks": [
+        "pagination.cursor-opacity"
+      ]
+    },
+    {
+      "id": "PAGE-011",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/pagination#error-handling",
+        "quote": "Invalid cursors SHOULD result in an error with code -32602 (Invalid params)."
+      },
+      "checks": [
+        "pagination.invalid-cursor-rejected"
+      ]
+    }
+  ]
+}

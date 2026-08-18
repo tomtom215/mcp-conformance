@@ -170,6 +170,7 @@ const fn cell_token(outcome: Option<Outcome>) -> &'static str {
         Some(Outcome::Excluded) => "excluded",
         Some(Outcome::Unsupported) => "unsupported",
         Some(Outcome::NotApplicable) => "not-applicable",
+        Some(Outcome::NotObserved) => "not-observed",
     }
 }
 
