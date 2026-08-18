@@ -377,7 +377,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   being written, and 108 committed goldens flipped a row from `not-observed` to
   `pass`, every one of them `BASE-010` or `BASE-047` and nothing else.
 
-- **Three shipped clauses had a trace that killed their check and none that
+- **Fourteen judged clauses had a trace that killed their check and none that
   passed it.** `golden.rs` already required every check to have a violation
   trace and to find subjects somewhere. A check that fires on *everything* it
   examines satisfies both: its violation trace kills it, its subject count is
