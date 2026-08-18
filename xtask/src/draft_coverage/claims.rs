@@ -78,6 +78,13 @@ pub(super) const CLAIM_FILES: &[&str] = &[
     "docs/plan/06-roadmap.md",
     "docs/plan/07-ecosystem-engagement.md",
     "docs/plan/08-risk-register.md",
+    "book/src/introduction.md",
+    "book/src/architecture.md",
+    "book/src/trace-format.md",
+    "book/src/revisions.md",
+    "book/src/corpus.md",
+    "book/src/conformance-results.md",
+    "book/src/SUMMARY.md",
 ];
 
 /// How many documents the gate reads, for the success line: a count an
@@ -186,7 +193,11 @@ mod tests {
         let root = crate::workspace_root();
         // Top-level `docs/plan` only: `decisions/` are ADRs, dated by nature.
         let mut missed = Vec::new();
-        for (directory, pattern) in [("docs/plan", "*.md"), ("crates", "*/README.md")] {
+        for (directory, pattern) in [
+            ("docs/plan", "*.md"),
+            ("book/src", "*.md"),
+            ("crates", "*/README.md"),
+        ] {
             let Ok(entries) = glob(&root, directory, pattern) else {
                 panic!("cannot read {directory}");
             };

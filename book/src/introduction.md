@@ -6,7 +6,8 @@
 This is the reader's guide to **mcp-conformance**, an independent, trace-based
 conformance toolkit for the [Model Context Protocol](https://modelcontextprotocol.io)
 (MCP). It judges whether an MCP implementation conforms to a specific spec
-revision (`2025-11-25` today) — and, just as importantly, it is built so that an
+revision — `2025-11-25` by default, `2026-07-28` behind a feature flag, or both
+at once in a single pass — and, just as importantly, it is built so that an
 ecosystem with its own authoritative test suite has reason to trust the verdict.
 
 > **Status: pre-release.** The crates are published on crates.io at `0.x`;
@@ -51,6 +52,9 @@ source of truth, and every chapter links to the authoritative document behind it
   sessions, and the design trade-offs that follow.
 - **[The trace format](trace-format.md)** — the JSON Lines schema, with a worked
   example embedded from the README so it cannot drift.
+- **[Two revisions at once](revisions.md)** — how one trace is judged against
+  `2025-11-25` and `2026-07-28` together, and what a migration looks like when
+  it is measured instead of estimated.
 - **[The trace corpus](corpus.md)** — the golden good/violation fixtures and
   their provenance, embedded from `corpus/README.md`.
 - **[Conformance results](conformance-results.md)** — the published tier-gap

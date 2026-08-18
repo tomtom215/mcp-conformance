@@ -238,6 +238,30 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   over a committed registry directory — the fast inner loop while curating a
   page, reproducing the network gate exactly.
 
+- **The book has a chapter on `2026-07-28`, and its numbers are gated like
+  everything else's.** The mdBook said the toolkit judges "a specific spec
+  revision (`2025-11-25` today)" and stopped there — while its own corpus
+  chapter, embedded verbatim from `corpus/README.md`, described the second
+  registry's captures at length. A reader met the `2026-07-28` work without
+  ever being told it existed.
+
+  [Two revisions at once](book/src/revisions.md) is the missing chapter: why a
+  dated specification makes migration a measurement rather than an inventory,
+  what the two registries hold, and one conforming `2025-11-25` handshake judged
+  against both at once — `LIFE-001` reading `pass` then `absent` (a clause the
+  migration removes), `DISC-001` `absent` then `not-observed` (one it adds that
+  this session never exercised), `BASE-030` `absent` then `fail` (one it adds
+  that this session breaks), and `BASE-045` `absent` then `pass` (the narrowed
+  request-ID rule, which the trace satisfies). It also tabulates the four ways a
+  clause is not a pass — the report shows all four at once, and they mean
+  different things.
+
+  The example is executed by `book_examples.rs` against the real validator on
+  every `cargo test`, the sibling of the test that already pins the README's,
+  and the book joins the `draft-coverage` living set, so its "109 of the 124
+  judgeable clauses" and "41 passing / 0 failing" are checked against the
+  committed reports and the readiness baseline like any other document's.
+
 ### Fixed
 
 - **`*differs` marked every row of a multi-revision report, and its doc comment
