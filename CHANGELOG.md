@@ -264,6 +264,22 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The fuzz build left 71 of the validator's checks uncompiled, including the
+  ones its newest target exists to reach.** `fuzz/Cargo.toml` took both engine
+  crates without `draft-2026-07-28`, so every target fuzzed the `2025-11-25`
+  surface only — and `registry_set_multi`, whose whole subject is
+  multi-revision judgment, was fuzzing a build that answers `unsupported` for
+  every clause of the larger registry. Compounding the previous entry: the
+  target nothing ran would not have reached much had it run.
+
+  Both crates now carry the feature (`default-features = false` on the
+  validator still drops `cli`, which is what it was there for). Verified by
+  running it: `capabilities.resources-declared` appears in the fuzzer's own
+  recommended dictionary, which it could not have found before, and all four
+  targets survive ~10 million runs between them with no crash. `fuzz/Cargo.lock`
+  was still pinning the workspace crates at `0.3.0` and refreshes to `0.4.0`
+  here.
+
 - **The weekly drift gate verified 140 of the registry's 412 quotes and said it
   had covered both revisions.** `xtask`'s `draft-2026-07-28` feature was
   off by default, copying the library crates — where the opt-in is right,
