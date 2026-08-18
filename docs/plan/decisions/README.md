@@ -29,6 +29,7 @@ or when the reasoning would otherwise live only in someone's head.
 | [0010](0010-deferral-ledger-and-scheduled-reverification.md) | Claims Expire — the Deferral Ledger and Scheduled Re-Verification Gates | Accepted |
 | [0011](0011-rmcp-pin-holds-at-1-7.md) | The rmcp Pin Holds at 1.7 Until Both the Spec Text and rmcp 3.0 Are Final | Accepted |
 | [0012](0012-not-observed-outcome.md) | Subject Counting and the `not-observed` Outcome | Accepted (extends 0006's argument beyond the capability gate) |
+| [0013](0013-golden-report-format.md) | The Golden Report Format — Trace Facts and Registry Facts Are Pinned Separately | Accepted |
 
 ## Process
 

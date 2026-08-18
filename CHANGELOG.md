@@ -240,6 +240,17 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **`cargo xtask bless` regenerated 53 of the 132 golden reports and exited 0.**
+  It ran `cargo test -p mcp-trace-validator --test golden` with default
+  features, but all three `draft::` golden tests are gated on
+  `draft-2026-07-28`, which is not a default feature. Blessing therefore ran six
+  tests, refreshed the shipped goldens, left all 79 draft ones stale, and
+  reported success — a vacuous pass in the command whose whole job is
+  regenerating goldens. CI's own all-features test leg did catch the resulting
+  staleness, so nothing wrong shipped; what it caught was a failure `bless`
+  could not fix. The task now passes `--all-features`, so all three `draft::`
+  golden tests run.
+
 - **Two deferral rows sat expired, and three published claims had rotted behind
   them.** `cargo xtask deferrals --check` is a weekly scheduled gate, not a PR
   gate (ADR-0010, deliberately — an expiry should not block unrelated work), and
@@ -532,6 +543,33 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Changed
 
+- **Golden reports pin trace facts and registry facts separately, and the
+  corpus loses 79.8% of its bytes without losing a single assertion.** Every
+  golden pinned the full registry, so the `excluded` rows — whose outcome and
+  prose come from the registry alone, identically for every trace — were written
+  out once per trace: 88 rows in each of 53 shipped goldens, 148 in each of 79
+  draft ones, one distinct set per revision. That was 98,136 of the corpus's
+  165,145 lines, 59%, all copies, growing as traces × registry entries.
+
+  A golden now holds what the trace decided (the revision, the whole `totals`,
+  and every judged, not-observed, not-applicable and unsupported row, byte for
+  byte as before); `corpus/golden/exclusions/<revision>.json` holds what the
+  registry decided, once. Nothing stopped being pinned:
+  `assert_reconstructs_the_full_report` splices the two back together in
+  registry order on every trace, on every run, and asserts the result is the
+  live report — and reconstructing all 132 pre-change goldens from the new pair
+  reproduces each one byte for byte, so the only change to any golden is the
+  removal of rows no trace decided. `totals.excluded` stays in every file, so a
+  clause entering or leaving the excluded set still moves all 132.
+
+  Only `excluded` collapses. `not-observed` and `not-applicable` are per-trace
+  evidence — the shipped goldens carry 28 distinct not-observed sets and the
+  draft ones 67 — and `unsupported` is left in place deliberately: it means the
+  build is missing a check the registry names, which should scream from every
+  report rather than be tidied into a shared file. 165,145 lines become 68,199;
+  6.55 MB become 1.32 MB. See
+  [ADR-0013](docs/plan/decisions/0013-golden-report-format.md).
+
 - **The draft-readiness ratchet moves to suite `0.2.0-alpha.11`, and the runner
   can now tell the two servers apart — agreeing with this workspace's registry
   on the clause it found first.** `DRAFT_SUITE_VERSION` had sat on
@@ -569,7 +607,6 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   pre-release and moving, so holding it back does not keep the measurement
   stable — it makes it describe an older question. Six weeks on `alpha.9` cost
   exactly that.
-
 
 - **Breaking (pre-1.0):** `mcp_everything_server::http::router` and
   `http::router_tapped` take a `ServedRevision`. Pass

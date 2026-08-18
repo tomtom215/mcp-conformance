@@ -16,11 +16,42 @@ Fixtures for the golden-corpus tests (`crates/mcp-trace-validator/tests/golden.r
 - **`golden/`** — the byte-pinned expected report for every trace, with
   `golden/draft/` holding the `2026-07-28` corpus's. Regenerate only via
   `cargo xtask bless` and review the diff like code.
+- **`golden/exclusions/`** — one ledger per revision, holding the clauses that
+  revision's registry declines to judge from a trace, and why.
 
 The revisions keep separate golden directories because both name traces after
 requirement IDs drawn from their *own* registry: `base-045-…` is one clause at
 `2025-11-25` and a different one at `2026-07-28`, so a shared directory would
 let one revision's golden answer for the other's trace.
+
+## What a golden pins
+
+A report states two kinds of fact, and they are pinned separately
+([ADR-0013](../docs/plan/decisions/0013-golden-report-format.md)).
+
+`golden/<stem>.json` holds what the **trace** decided: the revision, the whole
+`totals`, and every `pass` / `fail` / `warn` / `not-observed` /
+`not-applicable` / `unsupported` row, in registry order.
+
+`golden/exclusions/<revision>.json` holds what the **registry** decided: the
+`excluded` rows, whose outcome and prose come from the registry alone and are
+identical for every trace judged against it — `engine::build_row` never consults
+the session for them. There were 88 such rows in each of the 53 shipped goldens
+and 148 in each of the 79 draft ones — one distinct set per revision, repeated
+132 times, and 59% of the corpus's 165,145 lines.
+
+Nothing stopped being pinned. Splicing a golden back together with its ledger
+reproduces the whole report, and `assert_reconstructs_the_full_report` proves it
+does on every trace, on every run — so a judged row that went missing, a ledger
+that drifted from its registry, or rows that interleave in any order but the
+registry's all fail the suite. `totals.excluded` stays in every golden as the
+per-trace tie back to the ledger: a clause entering or leaving the excluded set
+moves all 132 files, one line each.
+
+Only `excluded` collapses. `not-observed` and `not-applicable` are per-trace
+evidence — the 53 shipped goldens carry 28 distinct not-observed sets and the 79
+draft ones 67 — and collapsing them would delete exactly what makes the captures
+differentiate each other.
 
 ## Violation naming contract
 
@@ -47,7 +78,8 @@ checks, so they can disagree with us — and when they do, the disagreement is
 information rather than a test failure. Their goldens are pinned without any
 pass/fail expectation, because a real implementation is whatever it actually is;
 what the golden protects is *which requirements fire, on which events, with what
-detail*. A check that starts misfiring on real traffic moves it.
+detail*. A check that starts misfiring on real traffic moves it — which is
+precisely the half of the report that stays in the per-trace file.
 
 ## Provenance ledger
 
@@ -74,9 +106,10 @@ below: the implementations on both ends, the tool that recorded them, and when.
 
 ### `violations/`
 
-Each file injects exactly the violation its name states; `golden/` shows the full
-expected report, including any intrinsic secondary findings the injected defect
-causes (a malformed notification also fails lifecycle accounting, for example).
+Each file injects exactly the violation its name states; `golden/` shows every
+row the trace decided, including any intrinsic secondary findings the injected
+defect causes (a malformed notification also fails lifecycle accounting, for
+example).
 
 | Trace | Falsifies |
 |-------|-----------|

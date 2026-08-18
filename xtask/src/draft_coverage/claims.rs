@@ -411,6 +411,7 @@ totals: 11 pass, 1 fail, 1 warn, 88 excluded, 0 unsupported, 25 not observed
         let capture = super::super::tally(
             "c".to_owned(),
             &super::super::GoldenReport {
+                totals: super::super::GoldenTotals { excluded: 0 },
                 requirements: vec![],
             },
         );
