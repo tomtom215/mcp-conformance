@@ -160,8 +160,8 @@ informational SHOULD warning on the suite's version-compat probe.
   registry on every `cargo test`. Keeping the two apart matters because they have
   disagreed, usefully. Through `0.2.0-alpha.9` the runner scored 23/23 against a
   `2025-11-25` server *and* a `2026-07-28` one — it could not tell them apart — while the
-  registry separated them — 58 pass, 1 fail against the first and 59 pass, 0 fail
-  against the second, with 65 clauses not observed on each — the single failure
+  registry separated them — 59 pass, 1 fail against the first and 60 pass, 0 fail
+  against the second, with 64 clauses not observed on each — the single failure
   being CACH-001, no `ttlMs` on cacheable results.
   `alpha.11` closes that gap from the other side: its new `wire-schema-valid` check
   validates every message against the negotiated revision's JSON schema and fails the

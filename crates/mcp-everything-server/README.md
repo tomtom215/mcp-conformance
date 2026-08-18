@@ -43,7 +43,7 @@ server scenarios (pinned suite 0.1.16, enforced in CI via
   **41/41** against this mode at the pinned `0.2.0-alpha.11` (23/23 at the
   earlier `alpha.9` pin, before its `wire-schema-valid` check existed), and the
   repository's own requirement registry
-  evidences **109 of the 124 judgeable clauses** across five committed captures
+  evidences **110 of the 124 judgeable clauses** across five committed captures
   of it over both transports, with 0 fail on the conforming ones and everything
   the sessions never touched reported *not observed* rather than counted as a
   pass. Server-to-client requests go by SEP-2322's MRTR pattern at this

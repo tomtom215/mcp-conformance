@@ -71,7 +71,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   clauses at all — which is how the `-32002` defect above was found on the
   first run.
 
-  The committed stdio capture now evidences **77 of the 124 judgeable clauses,
+  The committed stdio capture now evidences **78 of the 124 judgeable clauses,
   up from 56**, with no new findings: the error-code partition
   (`BASE-052`…`BASE-060`), logging (`LOG-007`/`008`/`009`), prompts
   (`PROM-012`/`013`/`016`/`018`/`020`), resources
@@ -101,7 +101,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   hand-written reason, and the gate holds the set in both directions. It has
   since worked both ways: the two server defects it found went into the ledger,
   and when they were fixed the gate refused the change until their entries were
-  retired. Across all five captures **109 of the 124 judgeable clauses are now
+  retired. Across all five captures **110 of the 124 judgeable clauses are now
   evidenced**, up from 92, and all ten rejection clauses the probe exercises
   pass.
 
@@ -114,7 +114,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   Streamable HTTP clauses *not observed* exactly like the stdio
   one. The tap sits above the transport and sees status lines and headers.
 
-  At **89 of the 124 judgeable clauses, 0 fail** it is the best-covered capture
+  At **90 of the 124 judgeable clauses, 0 fail** it is the best-covered capture
   in the corpus, and the pair is now genuinely complementary: same session,
   both ends, one file each, so every difference between the two reports is
   attributable to the transport. `corpus/README.md` records what each capture's
@@ -195,10 +195,10 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   that reading cannot provide, and the matched pair is what makes every
   difference between the two reports attributable to the one variable.
 
-  The legacy server scores **58 pass, 1 fail** (CACH-001: no `ttlMs` on
+  The legacy server scores **59 pass, 1 fail** (CACH-001: no `ttlMs` on
   cacheable results, the correct answer for a server held to a revision it does
-  not implement); the stateless server scores **59 pass, 0 fail**. Both leave
-  65 clauses *not observed* — these scenarios exercise features, and the
+  not implement); the stateless server scores **60 pass, 0 fail**. Both leave
+  64 clauses *not observed* — these scenarios exercise features, and the
   revision's rejection rules, subscriptions and MRTR rounds are not among them.
   The official runner scores both **23/23**: it cannot separate the two
   servers, which is exactly the gap a requirement registry fills.
@@ -226,7 +226,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   reads the prose too. Every "N of the M judgeable clauses" claim must name a
   real pair — the denominator the judgeable total, the numerator either the
   union or some capture's own judged count — and every quoted verdict
-  ("58 pass, 1 fail, 0 warn, 65 not observed, 148 excluded") must be a tuple
+  (`58 pass, 1 fail, 0 warn, 65 not observed, 148 excluded`) must be a tuple
   some committed report actually produced. Verdicts are read per table cell, so
   a two-column comparison row is two claims, and fenced code blocks are skipped
   because sample CLI output illustrates a format rather than asserting
@@ -258,11 +258,51 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
   The example is executed by `book_examples.rs` against the real validator on
   every `cargo test`, the sibling of the test that already pins the README's,
-  and the book joins the `draft-coverage` living set, so its "109 of the 124
-  judgeable clauses" and "41 passing / 0 failing" are checked against the
-  committed reports and the readiness baseline like any other document's.
+  and the book joins the `draft-coverage` living set, so its clause count and
+  its readiness score are checked against the committed reports and the
+  readiness baseline like any other document's.
 
 ### Fixed
+
+- **`BASE-010` and `BASE-047` could report `fail` or `not observed` and never
+  `pass`.** "Result responses MUST include a `result` field" is judged by
+  `base.result-field`, which counted a message as a subject only when the
+  classifier had already rejected it. A well-formed result response is
+  classified `Result`, so it was skipped — and a session carrying dozens of them
+  reported the clause *not observed*, whose stated meaning is "the session
+  carried none of the traffic this clause binds to". That was plainly untrue,
+  and it is the inverse of the usual failure: the tool understating what it had
+  judged rather than overstating it.
+
+  Result responses are subjects now. Error responses still are not, because the
+  clause binds *result* responses and an error legitimately carries no `result`
+  member, and no finding changed — only which rows can reach `pass`. Capture
+  coverage went from 109 to **110 of the 124 judgeable clauses** without a trace
+  being written, and 108 committed goldens flipped a row from `not-observed` to
+  `pass`, every one of them `BASE-010` or `BASE-047` and nothing else.
+
+- **Three shipped clauses had a trace that killed their check and none that
+  passed it.** `golden.rs` already required every check to have a violation
+  trace and to find subjects somewhere. A check that fires on *everything* it
+  examines satisfies both: its violation trace kills it, its subject count is
+  non-zero, and no conforming trace ever exercises it. Nothing proved such a
+  check accepts a conforming session — which is what the corpus's shape makes
+  likely, since at `2026-07-28` there are 72 authored violation traces against 2
+  authored conforming ones. A violation trace is one message and one clause; a
+  conforming trace has to carry a whole plausible session, so violations
+  accumulate and passes do not.
+
+  `pass_coverage.rs` measures it: every judged clause with no `pass` on any
+  committed golden, against a ledger that says why, exact in both directions —
+  a clause that loses its passing evidence must be added, one that gains it must
+  be retired. It found `BASE-010`/`BASE-047` above on its first run.
+
+  `stdio-feature-session.jsonl` then closed the shipped revision's whole debt:
+  it now carries a well-formed `params._meta` key (`BASE-019`/`BASE-020`) and a
+  `tools/call` returning an embedded resource against a declared `resources`
+  capability (`TOOL-009`). Eleven `2026-07-28` rows remain, each naming the
+  conforming trace nobody has written — a paginated list, an annotated integer
+  argument in range, a dual-era client that actually probes, and so on.
 
 - **`*differs` marked every row of a multi-revision report, and its doc comment
   called those "the rows a migration review wants to look at first".** With the
@@ -389,8 +429,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
     does not re-scope. Recorded in the risk register with the evidence.
 
 - **The vacuous-pass arithmetic survived in the plan docs, because the gate that
-  swept it does not reach them.** The 2026-08-17 correction fixed "123 and 124
-  passes where the reports say 58 pass, 1 fail and 59 pass, 0 fail" in the
+  swept it does not reach them.** The 2026-08-17 correction fixed `123 and 124
+  passes where the reports say 58 pass, 1 fail and 59 pass, 0 fail` in the
   CLAIM_FILES `cargo xtask draft-coverage --check` parses. It stopped exactly
   there: [register row 1.5i](docs/plan/01-ecosystem-context.md),
   [03-conformance-strategy.md](docs/plan/03-conformance-strategy.md) and
@@ -472,8 +512,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   after the report itself was fixed: `crates/mcp-everything-server/README.md`
   reported the *judgeable total* as a pass count — "124 clauses pass, 0 fail"
   where the conforming captures evidence 91 — and this file scored the two
-  official-suite captures at 123 and 124 passes where the reports say
-  58 pass, 1 fail and 59 pass, 0 fail, with 65 clauses not observed on each.
+  official-suite captures at 123 and 124 passes where the reports then said
+  `58 pass, 1 fail` and `59 pass, 0 fail`, with 65 clauses not observed on each.
 
   The rest were arithmetic. `corpus/README.md` wrote the HTTP capture up at 90
   pass and 34 not observed where the report says 89 and 35 — twice, once in the
@@ -694,8 +734,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   required property 'cacheScope'` and `'ttlMs'`.
 
   That is **CACH-001**, the single clause the registry here had already flagged
-  against the legacy server — the two captures read 58 pass, 1 fail and
-  59 pass, 0 fail, with 65 clauses not observed on each — while the official
+  against the legacy server — the two captures read 59 pass, 1 fail and
+  60 pass, 0 fail, with 64 clauses not observed on each — while the official
   runner scored both servers an indistinguishable 23/23. The runner has now found it
   independently, six weeks later. The standing finding "the runner cannot
   distinguish the two servers" is superseded rather than deleted, in

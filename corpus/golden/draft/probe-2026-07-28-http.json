@@ -1,13 +1,13 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 54,
+    "pass": 55,
     "fail": 10,
     "warn": 2,
     "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 58
+    "not_observed": 57
   },
   "requirements": [
     {
@@ -38,7 +38,7 @@
     {
       "id": "BASE-047",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-048",

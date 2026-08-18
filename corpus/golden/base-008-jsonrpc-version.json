@@ -1,13 +1,13 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 15,
+    "pass": 16,
     "fail": 1,
     "warn": 0,
     "excluded": 88,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 22
+    "not_observed": 21
   },
   "requirements": [
     {
@@ -65,7 +65,7 @@
     {
       "id": "BASE-010",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-019",

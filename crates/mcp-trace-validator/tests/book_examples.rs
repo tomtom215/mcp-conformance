@@ -72,6 +72,39 @@ fn the_chapters_multi_revision_example_is_what_the_validator_prints() {
 }
 
 #[test]
+fn the_trace_format_chapter_counts_the_passes_the_example_earns() {
+    // The chapter embeds the README's example and then says in prose how many
+    // passes it earns. `readme_examples.rs` pins the totals line; nothing
+    // pinned the sentence, and it was three passes stale — a number in prose
+    // beside a number that is checked is the one that rots.
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../book/src/trace-format.md"
+    );
+    let chapter = std::fs::read_to_string(path).expect("the trace-format chapter exists");
+    let readme_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../README.md");
+    let readme = std::fs::read_to_string(readme_path).expect("the README exists");
+    let trace = fenced_blocks(&readme, "jsonl")
+        .pop()
+        .expect("the README shows the example trace");
+
+    let registry = mcp_conformance_core::requirement::Registry::builtin_2025_11_25().unwrap();
+    let events = parse_trace(&trace, &Limits::default()).expect("the README trace parses");
+    let passes = mcp_trace_validator::engine::validate(&registry, &events)
+        .totals
+        .pass;
+    let sentence = format!("{passes} passes");
+    assert!(
+        chapter.contains(&sentence),
+        "the chapter should say {sentence:?}: {}",
+        chapter
+            .lines()
+            .find(|line| line.contains("passes, not a hundred"))
+            .unwrap_or("(the sentence is gone entirely)")
+    );
+}
+
+#[test]
 fn the_four_outcomes_the_chapter_tabulates_all_occur_in_it() {
     // The page claims the side-by-side report is where `absent`, `excluded`,
     // `not-applicable` and `not-observed` appear at once and mean different
