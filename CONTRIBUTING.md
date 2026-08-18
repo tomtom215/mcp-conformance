@@ -75,9 +75,14 @@ Workflow: add the requirement to its area file under
 `crates/mcp-conformance-core/registry/2025-11-25/` (verbatim spec quote — the tests
 check the RFC 2119 keyword is present; gate it with a `capability` path when the
 clause binds only after negotiation), implement the check, add corpus traces, then
-`cargo xtask bless` and **review the golden diff like code**. Every corpus trace
-needs a row in the provenance ledger, [`corpus/README.md`](corpus/README.md) — what
-produced it, against which revision (an invariant test fails without one). Update
+`cargo xtask bless` and **review the golden diff like code**. A golden holds only
+what its trace decided; the clauses the registry declines to judge live once per
+revision in `corpus/golden/exclusions/`
+([ADR-0013](docs/plan/decisions/0013-golden-report-format.md)), so a check that
+takes over a previously excluded clause moves that ledger, `totals.excluded` in
+every golden, and the clause's new row in each. Every corpus trace needs a row in
+the provenance ledger, [`corpus/README.md`](corpus/README.md) — what produced it,
+against which revision (an invariant test fails without one). Update
 the README coverage table with `cargo xtask coverage`, and — when a capture or a
 golden report changes — the corpus one with `cargo xtask draft-coverage`.
 

@@ -87,8 +87,12 @@ content lands:
 | `draft` | `corpus/draft/` | `2026-07-28` RC behavior, behind the `draft-2026-07-28` feature |
 | `metadata`, `sep-NNN` | per-SEP directories | Tagged for SEP-2484 traceability |
 
-Each corpus entry is: the trace (`.jsonl`), the expected report (golden file), and a
-provenance note (what produced the trace, against which implementation and revision).
+Each corpus entry is: the trace (`.jsonl`), the expected report, and a provenance note
+(what produced the trace, against which implementation and revision). The expected report
+is pinned across two files — the trace's golden holds every row the trace decided, and
+`corpus/golden/exclusions/<revision>.json` holds the rows its registry decided, once per
+revision rather than once per trace ([ADR-0013](decisions/0013-golden-report-format.md));
+splicing them reproduces the whole report, and the golden suite asserts that it does.
 
 ## Calibration: the agreement check
 

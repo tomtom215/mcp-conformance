@@ -10,7 +10,8 @@
 //!   when installed, documentation links, coverage-table sync). The same commands
 //!   CONTRIBUTING.md lists, as code, so "run the gates" cannot drift from what CI
 //!   runs.
-//! - `bless` — regenerate the golden corpus reports (`BLESS=1` golden test run); review
+//! - `bless` — regenerate the golden corpus reports and the per-revision exclusion
+//!   ledgers (`BLESS=1` all-features golden test run); review
 //!   the diff like any other code change.
 //! - `coverage` — regenerate the README's requirement-coverage table from the embedded
 //!   registry; `coverage --check` verifies it instead (ADR-0001: no hand-kept counts).
@@ -171,7 +172,7 @@ fn run_ci() -> ExitCode {
     outcome
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports\n  coverage [--check] regenerate (or verify) the README coverage table\n  draft-coverage [--check] regenerate (or verify) corpus/README's per-capture\n                     coverage table, and verify every coverage claim in the\n                     shipped Markdown against the committed golden reports\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants [--jobs N] diff-scoped mutation gate vs origin/main (the PR gate,\n                     locally); --jobs is the only flag it accepts\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  changelog-links    every CHANGELOG version heading has a link def; Unreleased base current\n  draft-capture      record a 2026-07-28 stdio session (reference host against the\n                     everything server) and judge it; BLESS=1 to refresh the\n                     committed copy in corpus/draft/captured/\n  draft-readiness    measure the everything server against the official runner's\n                     2026-07-28 scenarios; ratchets against a committed\n                     baseline (BLESS=1 to re-record)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports + exclusion ledgers\n  coverage [--check] regenerate (or verify) the README coverage table\n  draft-coverage [--check] regenerate (or verify) corpus/README's per-capture\n                     coverage table, and verify every coverage claim in the\n                     shipped Markdown against the committed golden reports\n  file-sizes         verify the 500-line cap on source and registry files\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants [--jobs N] diff-scoped mutation gate vs origin/main (the PR gate,\n                     locally); --jobs is the only flag it accepts\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  changelog-links    every CHANGELOG version heading has a link def; Unreleased base current\n  draft-capture      record a 2026-07-28 stdio session (reference host against the\n                     everything server) and judge it; BLESS=1 to refresh the\n                     committed copy in corpus/draft/captured/\n  draft-readiness    measure the everything server against the official runner's\n                     2026-07-28 scenarios; ratchets against a committed\n                     baseline (BLESS=1 to re-record)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {
@@ -230,10 +231,23 @@ fn ci_steps() -> Vec<Step> {
     steps
 }
 
+/// `--all-features` is load-bearing, not tidiness: the three `draft::` golden
+/// tests are `#[cfg(feature = "draft-2026-07-28")]`, and `draft-2026-07-28` is
+/// not a default feature. Without the flag this ran six tests, regenerated the
+/// 53 `2025-11-25` goldens, left all 79 draft ones stale, and exited 0 — a
+/// blessing that silently did 40% of the job. CI's own all-features test leg
+/// then failed on goldens `cargo xtask bless` could not fix.
 fn bless_steps() -> Vec<Step> {
     vec![Step {
         name: "bless golden corpus".to_owned(),
-        args: vec!["test", "-p", "mcp-trace-validator", "--test", "golden"],
+        args: vec![
+            "test",
+            "-p",
+            "mcp-trace-validator",
+            "--all-features",
+            "--test",
+            "golden",
+        ],
         env: &[("BLESS", "1")],
     }]
 }

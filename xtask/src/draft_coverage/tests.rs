@@ -13,7 +13,14 @@
 use super::*;
 
 fn report(rows: &[(&str, &str)]) -> GoldenReport {
+    report_excluding(0, rows)
+}
+
+/// A golden with `excluded` in its totals — where the count now comes from,
+/// the rows themselves having moved to the revision's exclusion ledger.
+fn report_excluding(excluded: u32, rows: &[(&str, &str)]) -> GoldenReport {
     GoldenReport {
+        totals: GoldenTotals { excluded },
         requirements: rows
             .iter()
             .map(|(id, outcome)| GoldenRow {
@@ -26,27 +33,56 @@ fn report(rows: &[(&str, &str)]) -> GoldenReport {
 
 #[test]
 fn only_judged_outcomes_are_counted() {
-    // The three un-judgeable outcomes are the point: a clause the registry
-    // excludes, one whose check was not compiled in, and one gated on a
-    // capability the session never negotiated are all absent from both sets,
-    // so neither the numerator nor the denominator can be inflated by them.
+    // The un-judgeable outcomes are the point: a clause whose check was not
+    // compiled in, and one gated on a capability the session never negotiated,
+    // are absent from both sets, so neither the numerator nor the denominator
+    // can be inflated by them. The registry's exclusions are un-judgeable on
+    // the same terms and are not rows at all — the non-zero total here must not
+    // reach any count below.
     let capture = tally(
         "c".to_owned(),
-        &report(&[
-            ("BASE-001", "pass"),
-            ("BASE-002", "pass"),
-            ("BASE-003", "fail"),
-            ("BASE-004", "warn"),
-            ("BASE-005", "not-observed"),
-            ("BASE-006", "excluded"),
-            ("BASE-007", "unsupported"),
-            ("BASE-008", "not-applicable"),
-        ]),
+        &report_excluding(
+            3,
+            &[
+                ("BASE-001", "pass"),
+                ("BASE-002", "pass"),
+                ("BASE-003", "fail"),
+                ("BASE-004", "warn"),
+                ("BASE-005", "not-observed"),
+                ("BASE-007", "unsupported"),
+                ("BASE-008", "not-applicable"),
+            ],
+        ),
     );
     assert_eq!((capture.pass, capture.fail, capture.warn), (2, 1, 1));
     assert_eq!(capture.judged(), 4, "pass, fail and warn are all judged");
     assert_eq!(capture.not_observed.len(), 1);
     assert_eq!(capture.judgeable(), 5);
+    assert_eq!(capture.excluded, 3);
+}
+
+#[test]
+fn the_excluded_count_is_read_from_totals_and_not_from_rows() {
+    // A golden carries no `excluded` rows — the revision owns that set, in
+    // `corpus/golden/exclusions/` (ADR-0013). Counting rows would report 0 and
+    // every "148 excluded" verdict quoted in `corpus/README.md` would stop
+    // matching a committed report, silently, since the claim check treats an
+    // absent quote as nothing to disagree with.
+    let capture = tally(
+        "c".to_owned(),
+        &report_excluding(148, &[("BASE-001", "pass")]),
+    );
+    assert_eq!(capture.excluded, 148);
+    assert_eq!(
+        capture.judged(),
+        1,
+        "an exclusion is not a clause the capture evidenced"
+    );
+    assert_eq!(
+        tally("empty".to_owned(), &report(&[])).excluded,
+        0,
+        "and a revision that excludes nothing reports nothing"
+    );
 }
 
 #[test]
