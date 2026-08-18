@@ -40,7 +40,9 @@ server scenarios (pinned suite 0.1.16, enforced in CI via
   caching hints on cacheable results. An `initialize` sent to it is refused
   with `-32022` naming the versions it does speak, rather than negotiated into
   a handshake that leads nowhere. The suite's `2026-07-28` scenarios pass
-  **23/23** against this mode, and the repository's own requirement registry
+  **41/41** against this mode at the pinned `0.2.0-alpha.11` (23/23 at the
+  earlier `alpha.9` pin, before its `wire-schema-valid` check existed), and the
+  repository's own requirement registry
   evidences **109 of the 124 judgeable clauses** across five committed captures
   of it over both transports, with 0 fail on the conforming ones and everything
   the sessions never touched reported *not observed* rather than counted as a

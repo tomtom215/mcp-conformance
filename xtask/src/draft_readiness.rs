@@ -58,7 +58,7 @@ use std::process::{Command, ExitCode};
 /// but the pin is exact rather than the floating `alpha` dist-tag: a ratchet
 /// whose input can change under it is not a ratchet. Bumps are deliberate —
 /// re-measure, re-bless, and update register row 2.4 in the same commit.
-pub(super) const DRAFT_SUITE_VERSION: &str = "0.2.0-alpha.9";
+pub(super) const DRAFT_SUITE_VERSION: &str = "0.2.0-alpha.11";
 
 /// The revision under test — shipped 2026-07-28, but not one the registry
 /// describes yet (roadmap M2.5 line 2).

@@ -9,18 +9,18 @@
       "review_by": "2026-09-30"
     },
     {
-      "id": "rmcp-sse-resumption-upstream-filing",
-      "what": "Re-decided 2026-06-27 \u2014 do NOT file the 'add POST-path resumption' fix. The 2026-07-28 draft removes SSE stream resumability and Last-Event-ID from Streamable HTTP (register 1.5d Major #9, SEP-2575), so that fix is obsoleted by the spec. Re-scoped to the durable residue: assess whether rmcp's hang on early POST-stream close (instead of surfacing a re-issuable error, which the new text REQUIRES) is worth filing \u2014 judged against the FINAL spec text plus the draft suite's transport/sse scenarios",
-      "why": "The original premise (2025-11-25 requires the Last-Event-ID resumption rmcp lacks on the POST path) is being deleted by 2026-07-28; filing the add-resumption fix now would ask upstream to build a mechanism the next revision removes, while upstream is already implementing the removal (register 3.11). The re-scoped hang question cannot be verified until the final text ships (2026-07-28) and the draft suite scenarios stabilize",
-      "meanwhile": "Register rows 3.12 + 1.5d carry the reconciliation; the dossier (docs/reports/rmcp-sse-resumption-dossier.md) records that the spec removes the requirement and re-scopes to the hang. The 2025-11-25 mechanism remains exact \u2014 re-verified first-hand 2026-06-27 at rmcp head eb435c6 (raw_sse_to_jsonrpc l.303 'without reconnection logic'; POST arms l.778-779/803-804; SseAutoReconnectStream GET-only at l.584/720) \u2014 and the reference host still passes sse-retry 3/3, so the evidence is preserved if the decision reopens",
-      "review_by": "2026-09-01"
+      "id": "draft-suite-pin-currency",
+      "what": "Re-check DRAFT_SUITE_VERSION against the npm `alpha` dist-tag and bump it if it has moved, with a BLESS=1 re-measurement and a scenario diff review in the same commit",
+      "why": "New row 2026-08-18, opened by the failure it describes: the ratchet sat on 0.2.0-alpha.9 for six weeks while alpha.10 and alpha.11 shipped, and alpha.11 turned out to add a `wire-schema-valid` check that fails the 2025-11-25 leg on exactly the clause (CACH-001, missing ttlMs/cacheScope) this workspace's registry had already flagged. A readiness ratchet whose input is pre-release cannot be left to float \u2014 it would stop being a ratchet \u2014 but nor can it be left indefinitely: stale, it measures an old question and cannot see new checks. So the currency check is deliberate and dated rather than automatic",
+      "meanwhile": "The pin is exact, so nothing moves under the gate silently; the weekly suite-alpha job exercises the floating alpha tag at the registry's revision, but it does NOT drive the 2026-07-28 scenarios, so it cannot see draft scenario churn \u2014 that blind spot is what this row covers",
+      "review_by": "2026-10-01"
     },
     {
-      "id": "rust-sdk-902-offer-clock",
-      "what": "Re-check rust-sdk#902 (everything-server offer): respond, re-ping, or record the outcome when the R9 60-day clock runs out",
-      "why": "The offer was posted 2026-06-11; the risk register's R9 gives upstream 60 days before the offer is re-evaluated",
-      "meanwhile": "Risk R9 row; issue #9 tracks the conversation",
-      "review_by": "2026-08-10"
+      "id": "expired-deferral-notification",
+      "what": "Make a failing `claims-expire` job reach a human durably \u2014 most likely an `if: failure()` step that opens or updates a tracking issue naming the expired rows, rather than relying on GitHub's default scheduled-failure email to the workflow actor",
+      "why": "New row 2026-08-18, opened by evidence: two rows (`rust-sdk-902-offer-clock`, review-by 2026-08-10; `suite-0-2-0-stable-pin-bump`, review-by 2026-08-15) sat expired and were found by hand, not by anyone acting on the weekly job. ADR-0010's decision that this gate pages the schedule rather than the PR gate is NOT the defect and is not being revisited \u2014 an expiry should not block unrelated work. The defect is the last mile: a red weekly job notifies only by an email that is easy to miss, and the `claims-expire` job runs `spec-drift` too, so a network flake there looks the same from the outside as an expired ledger row. Deferred rather than built in the same commit as the re-decision because it needs `issues: write` on a workflow that is deliberately `contents: read`, plus a new pinned action dependency \u2014 a security-surface change that belongs in its own reviewed PR against 05-security-model, not as a rider on a ledger update",
+      "meanwhile": "The gate itself is correct and loud: `cargo xtask deferrals --check` names every expired row and fails; the two steps are separately named in the job so GitHub shows which one went red; GitHub's default scheduled-failure email still fires",
+      "review_by": "2026-11-01"
     },
     {
       "id": "register-90-day-sweep",
@@ -30,11 +30,25 @@
       "review_by": "2026-09-07"
     },
     {
+      "id": "rmcp-sse-resumption-upstream-filing",
+      "what": "Re-decided 2026-06-27 \u2014 do NOT file the 'add POST-path resumption' fix. The 2026-07-28 draft removes SSE stream resumability and Last-Event-ID from Streamable HTTP (register 1.5d Major #9, SEP-2575), so that fix is obsoleted by the spec. Re-scoped to the durable residue: assess whether rmcp's hang on early POST-stream close (instead of surfacing a re-issuable error, which the new text REQUIRES) is worth filing \u2014 judged against the FINAL spec text plus the draft suite's transport/sse scenarios",
+      "why": "The original premise (2025-11-25 requires the Last-Event-ID resumption rmcp lacks on the POST path) is being deleted by 2026-07-28; filing the add-resumption fix now would ask upstream to build a mechanism the next revision removes, while upstream is already implementing the removal (register 3.11). The re-scoped hang question cannot be verified until the final text ships (2026-07-28) and the draft suite scenarios stabilize",
+      "meanwhile": "Register rows 3.12 + 1.5d carry the reconciliation; the dossier (docs/reports/rmcp-sse-resumption-dossier.md) records that the spec removes the requirement and re-scopes to the hang. The 2025-11-25 mechanism remains exact \u2014 re-verified first-hand 2026-06-27 at rmcp head eb435c6 (raw_sse_to_jsonrpc l.303 'without reconnection logic'; POST arms l.778-779/803-804; SseAutoReconnectStream GET-only at l.584/720) \u2014 and the reference host still passes sse-retry 3/3, so the evidence is preserved if the decision reopens",
+      "review_by": "2026-09-01"
+    },
+    {
+      "id": "rust-sdk-902-offer-clock",
+      "what": "Re-decided 2026-08-18, the review-by having passed on 2026-08-10 \u2014 outcome recorded, not re-dated blind. rust-sdk#902 (the everything-server offer, posted 2026-06-11) is still OPEN with ZERO replies at 68 days: no comment, no assignee, no linked PR, labelled P2/enhancement. Next re-decision: re-ping, or record the offer as lapsed in 07-ecosystem-engagement backlog item 1. Posting upstream is a maintainer action (this repo's own pattern, issue #9), so the ledger records the state and the text; it does not post",
+      "why": "R9's trigger is TWO substantive offers unanswered for 60+ days, and only ONE is unanswered. The companion filing of the same day, rust-sdk#903 (enumNames dropped in the ElicitationSchema serde round-trip), was ANSWERED: closed and fixed by PR #905, merged 2026-06-20 \u2014 nine days, authored by an outside contributor and approved by a maintainer. So upstream does engage with well-formed filings; what is unanswered is the adoption *offer* specifically, which is a bigger ask than a bug report and sits behind their own SEP-implementation wave. R9 has NOT fired and M4's DoD does not re-scope yet",
+      "meanwhile": "Risk R9 row (trigger restated with the one-of-two count); issue #9 tracks the conversation; the rust-sdk#903 \u2192 #905 outcome is the standing evidence that filings land",
+      "review_by": "2026-10-16"
+    },
+    {
       "id": "suite-0-2-0-stable-pin-bump",
-      "what": "Bump the suite pin when the 0.2.0 line stabilizes (alpha.3 published 2026-06-12; register rows 2.4/2.16), refresh both expected-failures baselines and the agreement divergence ledger in the same change. 2026-07-26: there are now TWO suite pins to move together \u2014 xtask's SUITE_VERSION (0.1.16, the 2025-11-25 gate) and draft_readiness::DRAFT_SUITE_VERSION (0.2.0-alpha.9, the 2026-07-28 ratchet); the latter also needs BLESS=1 re-measurement in the same commit, since a suite bump changes the check set the baseline pins. Still nothing stable to bump to: latest stable is 0.1.16 (unchanged since 2026-03-30) and the alpha dist-tag has been quiet since 2026-07-01",
-      "why": "Pin bumps are deliberate PRs with a scenario diff review (03-conformance-strategy \u00a7Official-suite version policy)",
-      "meanwhile": "Weekly suite-alpha job runs the alpha dist-tag non-blocking; conformance#338's fix arrives with the bump and its baseline entry will go stale loudly",
-      "review_by": "2026-08-15"
+      "what": "Re-decided 2026-08-18, the review-by having passed on 2026-08-15. HALF OF THIS ROW IS NOW BUILT: the draft ratchet DRAFT_SUITE_VERSION moved 0.2.0-alpha.9 \u2192 0.2.0-alpha.11 with a BLESS=1 re-measurement and a scenario diff review in the same commit. What remains deferred is the STABLE pin only \u2014 xtask's SUITE_VERSION (0.1.16, the 2025-11-25 gate) \u2014 which bumps when a stable 0.2.0 exists, refreshing both expected-failures baselines and the agreement divergence ledger in the same change. The two pins are no longer coupled: 03-conformance-strategy now states their separate triggers, because holding a pre-release ratchet back does not keep its measurement stable, it makes it describe an older question",
+      "why": "There is still nothing stable to bump SUITE_VERSION to: npm `latest` is 0.1.16, published 2026-03-30 and unchanged for four and a half months (re-fetched 2026-08-18). Pin bumps are deliberate PRs with a scenario diff review (03-conformance-strategy \u00a7Official-suite version policy). The previous revision of this row claimed the alpha dist-tag had been 'quiet since 2026-07-01'; that was false by the next day \u2014 alpha.10 published 2026-07-27 and alpha.11 on 2026-08-07 \u2014 which is why this row no longer predicts upstream quiet and states only what was observed",
+      "meanwhile": "Weekly suite-alpha job runs the alpha dist-tag non-blocking at the registry's revision; the draft ratchet now pins alpha.11 and gates every check's status; conformance#338's fix arrives with the stable bump and its agreement-divergence entry will go stale loudly",
+      "review_by": "2026-10-15"
     }
   ]
 }

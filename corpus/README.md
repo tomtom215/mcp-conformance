@@ -173,12 +173,12 @@ two reports is attributable to that one change.
 
 | Field | `official-suite-2026-07-28-scenarios.jsonl` | `official-suite-2026-07-28-stateless.jsonl` |
 |---|---|---|
-| Client | The **official MCP conformance suite**, `0.2.0-alpha.9`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` holds) | The same client, the same scenarios, the same run |
+| Client | The **official MCP conformance suite**, `0.2.0-alpha.9`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` held when these were recorded; it moved to `0.2.0-alpha.11` on 2026-08-18, and re-recording is a deliberate act — see below) | The same client, the same scenarios, the same run |
 | Server | `mcp-everything-server` serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-08-17 | same run, second leg |
 | Contents | 91 events / 22 POST exchanges | 91 events / 22 POST exchanges |
 | Our verdict | 58 pass, **1 fail**, 0 warn, 65 not observed, 148 excluded | **59 pass, 0 fail, 0 warn**, 65 not observed, 148 excluded |
-| The official runner's verdict | 23/23 | 23/23 |
+| The official runner's verdict | 23/23 at `alpha.9`; **37 passing / 4 failing** at `alpha.11` | 23/23 at `alpha.9`; **41 passing / 0 failing** at `alpha.11` |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
 `resources/{list,read}`, `prompts/{list,get}` and progress notifications; every
@@ -207,13 +207,25 @@ than quietly fixed: **a check can only be as honest as the recording it reads,
 and a capture path that silently drops evidence manufactures findings against
 conforming implementations.**
 
-**Why the runner's 23/23 and our 58-vs-59 are both right.** The suite's
-`2026-07-28` scenarios exercise features — list a thing, call a thing, read a
-thing — and a `2025-11-25` server answers all of them, because rmcp serves a
-per-request-versioned POST whichever revision the handler advertises. The
-registry here judges the specification's prose instead, so it sees the one place
-the two servers actually differ. Neither instrument is wrong; they are measuring
-different things, and this pair is the evidence for that.
+**Why the runner's 23/23 and our 58-vs-59 were both right — and how the runner
+caught up.** The suite's `2026-07-28` scenarios exercise features — list a
+thing, call a thing, read a thing — and a `2025-11-25` server answers all of
+them, because rmcp serves a per-request-versioned POST whichever revision the
+handler advertises. At `0.2.0-alpha.9` that was the whole of the runner's
+reading, so it scored both servers 23/23. The registry here judges the
+specification's prose instead, so it saw the one place the two servers actually
+differ: CACH-001, no `ttlMs` on cacheable results.
+
+**`0.2.0-alpha.11` found the same thing, six weeks later.** Its new
+`wire-schema-valid` check validates every message against the negotiated
+revision's JSON schema, and it fails the `2025-11-25` leg's four resource
+scenarios for `must have required property 'cacheScope'` / `'ttlMs'` — that
+clause, independently. Re-measured, the legacy leg scores 37 passing / 4
+failing and the stateless leg 41 / 0, so the runner now separates the two
+servers it could not tell apart before. Neither instrument was wrong; they were
+measuring different things, and one of them saw this first. The pair is still
+the evidence for taking both readings — now with a worked example of the
+prose-level reading arriving earlier than the schema-level one.
 
 The 65 not-observed rows are the honest denominator: of the 124 clauses this
 revision's registry can judge, these sessions carried subject matter for 59.

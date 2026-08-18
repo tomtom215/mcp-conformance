@@ -263,6 +263,13 @@ jobs:
   # and the registry's verbatim quotes, both re-verified weekly. Failures
   # here page the schedule, not PRs — an expired deferral or a drifted quote
   # is a maintenance event, not a defect in unrelated work.
+  #
+  # 2026-08-18: that split is still right, but "pages the schedule" currently
+  # means GitHub's default scheduled-failure email and nothing else, and two
+  # rows expired unnoticed behind it. Making the failure durable (a tracking
+  # issue naming the expired rows) needs `issues: write` on a job that is
+  # deliberately `contents: read`, so it is its own change — deferral
+  # `expired-deferral-notification`, review-by 2026-11-01.
   claims-expire:
     name: Deferral ledger + spec-quote drift (ADR-0010)
     runs-on: ubuntu-latest
