@@ -48,3 +48,9 @@ fuzz/corpus/*/*
 # reuses the same normalizer the extraction path does), so running it as a module
 # leaves a cache directory behind.
 __pycache__/
+
+# cargo-mutants working directory. `cargo xtask mutants` is a documented local
+# workflow (CONTRIBUTING lists it), so every contributor who runs the gate ends
+# up with one of these; it holds per-run logs and the caught/missed/timeout
+# ledgers, all reproducible from the run itself.
+/mutants.out/
