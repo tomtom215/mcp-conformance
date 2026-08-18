@@ -23,7 +23,16 @@
 //! capture coverage from 109 to 110 of the 124 judgeable clauses without a single
 //! trace being written.
 //!
-//! The ledger below is exact in both directions: a clause that loses its passing
+//! It opened with fourteen rows and holds none. Closing the last of them turned
+//! up the shape worth remembering: for four clauses the conforming case *cannot*
+//! be a conforming trace. A `MUST NOT` is witnessed only by a session carrying a
+//! permitted message where the forbidden one would be; a server obliged to
+//! reject something is witnessed only by a client that sent the something; and a
+//! client that probes before falling back is witnessed only against a server
+//! that refused the probe. Each of those pass paths lives in a violation trace,
+//! which is not a compromise — it is where the antecedent actually occurs.
+//!
+//! The ledger is exact in both directions: a clause that loses its passing
 //! evidence must be added, and one that gains it must be retired. Reading the
 //! committed goldens rather than re-validating is deliberate — `golden.rs`
 //! already proves those files are what the engine produces, so this test asks a
@@ -42,35 +51,13 @@ use mcp_conformance_core::requirement::{Registry, Verification};
 /// Every row is a conforming trace nobody has written yet, not a defect — but a
 /// row is a debt, and the list is meant to shrink. Retiring one means adding a
 /// conforming trace that carries the clause's subject matter.
-const WITHOUT_A_PASSING_TRACE: &[(&str, &str)] = &[
-    // `2026-07-28`. The shipped revision has no rows: `stdio-feature-session`
-    // carries a conforming `_meta` key and a tool result embedding a resource,
-    // which was the whole of its debt.
-    (
-        "DISC-002",
-        "needs a dual-era client that probes with `server/discover` first; the \
-         corpus has the client that skips the probe, not the one that sends it",
-    ),
-    (
-        "TRAN-128",
-        "shares `discover.dual-era-probe-first` with DISC-002",
-    ),
-    (
-        "MRTR-024",
-        "needs a server that re-asks after a client's input shortfall; the \
-         authored round answers `-32602` instead, which is the violation",
-    ),
-    (
-        "PROM-017",
-        "needs a prompt carrying audio content, which this reference server does \
-         not serve",
-    ),
-    (
-        "TRAN-096",
-        "needs a server rejecting a malformed `Mcp-Param-{Name}` value; the \
-         authored trace is the server that accepts one",
-    ),
-];
+/// Judged clauses that no committed trace reports as passing, and why not.
+///
+/// Empty, and that is the point of it still existing: the list shrank from
+/// fourteen to nothing, and a row appearing again means a check has been added
+/// without a conforming trace, or one has lost the trace that proved it accepts
+/// conforming input.
+const WITHOUT_A_PASSING_TRACE: &[(&str, &str)] = &[];
 
 fn corpus_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../corpus")
@@ -190,13 +177,29 @@ fn id_is_shipped(id: &str) -> bool {
     judged_ids(&Registry::builtin_2025_11_25().unwrap()).contains(id)
 }
 
+/// The shape a row must have, checked whether or not any exist today.
+///
+/// It did not check the half its name claims — that the id is a clause this
+/// registry actually judges — and a row naming a typo'd or excluded id would
+/// have sat in the list forever looking like acknowledged debt while measuring
+/// nothing.
 #[test]
 fn every_ledger_row_names_a_judged_clause_and_gives_a_reason() {
-    let mut ids: Vec<&str> = WITHOUT_A_PASSING_TRACE.iter().map(|&(id, _)| id).collect();
-    let unique: BTreeSet<&str> = ids.iter().copied().collect();
-    assert_eq!(unique.len(), ids.len(), "duplicate ledger row");
-    ids.sort_unstable();
+    let judged: BTreeSet<String> = corpora()
+        .iter()
+        .flat_map(|(registry, _)| judged_ids(registry))
+        .collect();
+    let ids: BTreeSet<&str> = WITHOUT_A_PASSING_TRACE.iter().map(|&(id, _)| id).collect();
+    assert_eq!(
+        ids.len(),
+        WITHOUT_A_PASSING_TRACE.len(),
+        "duplicate ledger row"
+    );
     for &(id, reason) in WITHOUT_A_PASSING_TRACE {
+        assert!(
+            judged.contains(id),
+            "{id} is not a clause any built registry judges, so no trace could pass it"
+        );
         assert!(
             reason.len() > 30,
             "{id}'s row must say what conforming trace is missing, not just that one is"

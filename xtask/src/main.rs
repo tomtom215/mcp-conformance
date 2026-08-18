@@ -218,6 +218,17 @@ const FEATURE_MODES: [(&str, &[&str]); 3] = [
     ("all features", &["--all-features"]),
 ];
 
+/// What `ci.yml` sets workspace-wide, so every compile here is as strict as the
+/// one CI runs.
+///
+/// Missing it made the local test steps weaker than the gate they reproduce: an
+/// `unused_mut` that only default features could see was a *warning* under a
+/// local `cargo test` and a hard error in CI, and the difference cost three red
+/// runs. Clippy's own `-D warnings` happened to catch that one because it walks
+/// `--all-targets`; a warning rustc raises only while building tests would not
+/// have been caught at all.
+const DENY_WARNINGS: &[(&str, &str)] = &[("RUSTFLAGS", "-D warnings")];
+
 fn ci_steps() -> Vec<Step> {
     let mut steps = vec![Step {
         name: "format".to_owned(),
@@ -231,7 +242,7 @@ fn ci_steps() -> Vec<Step> {
         steps.push(Step {
             name: format!("clippy ({mode})"),
             args,
-            env: &[],
+            env: DENY_WARNINGS,
         });
     }
     for (mode, flags) in FEATURE_MODES {
@@ -240,7 +251,7 @@ fn ci_steps() -> Vec<Step> {
         steps.push(Step {
             name: format!("test ({mode})"),
             args,
-            env: &[],
+            env: DENY_WARNINGS,
         });
     }
     // Docs build twice: default features, then all features. Feature-gated

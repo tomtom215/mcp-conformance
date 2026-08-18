@@ -1,13 +1,13 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 29,
+    "pass": 31,
     "fail": 2,
     "warn": 0,
     "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 93
+    "not_observed": 91
   },
   "requirements": [
     {
@@ -280,7 +280,7 @@
     {
       "id": "DISC-002",
       "level": "SHOULD",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "VERS-001",
@@ -347,7 +347,7 @@
     {
       "id": "TRAN-128",
       "level": "SHOULD",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "MRTR-001",

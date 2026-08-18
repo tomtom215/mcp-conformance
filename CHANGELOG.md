@@ -264,6 +264,15 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **`cargo xtask ci` compiled less strictly than the CI it reproduces.** `ci.yml`
+  sets `RUSTFLAGS: -D warnings` for every job; the local task set it on the
+  rustdoc steps only, so its clippy and test steps were the one place a rustc
+  warning was not fatal. It cost three red runs on this branch: an `unused_mut`
+  only default features could see was a warning under a local `cargo test` and a
+  hard error in CI. Clippy's own `-D warnings` happened to catch that one
+  because it walks `--all-targets`; a warning raised only while building tests
+  would not have been caught at all. Both step groups now carry the flag.
+
 - **`cargo xtask mutants` silently skipped untracked source files.** It scopes
   itself with `git diff origin/main`, which cannot see a file git has never
   been told about — so a new module written and not yet added was never
@@ -404,12 +413,28 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `transport-close` (ordinary on Streamable HTTP, where every POST gets its own
   stream) rather than ending there.
 
-  Five rows remain, each naming the conforming trace nobody has written: a
-  dual-era client that actually probes (`DISC-002`/`TRAN-128`, whose pass path
-  needs a server that refuses the probe, so it can only live in a violation
-  trace), a server re-asking after an input shortfall (`MRTR-024`), a prompt
-  carrying audio (`PROM-017`), and a server rejecting a malformed
-  `Mcp-Param-{Name}` value (`TRAN-096`).
+  The ledger is now **empty**: every judged clause at both revisions has a
+  committed trace that passes it. Closing the last five turned up the shape
+  worth remembering — for four of them the conforming case cannot be a
+  conforming trace, so its evidence lives in a violation trace, which is not a
+  compromise but the only place the clause's antecedent occurs:
+
+  - `MRTR-024` (a server re-asking after a shortfall) needs a client that fell
+    short, which is `mrtr-015`'s own violation. The trace now runs one message
+    further, to the answer the clause is actually about.
+  - `PROM-017` (audio encoding) rides on `prom-012`, where a server serves
+    prompts it never declared — wrongly, but with well-formed content.
+  - `DISC-002`/`TRAN-128` (a dual-era client that probes first) can only be
+    witnessed against a server that refused the probe: that is `disc-001`, whose
+    client now falls back to `initialize` after the refusal.
+  - `TRAN-096` (a server rejecting an unencodable `Mcp-Param-{Name}`) needs a
+    client that sent one, so `tran-077-param-header-value-rejected.jsonl` is the
+    rejection counterpart of the accept-it violation — same fault, answered the
+    way the rule requires.
+
+  The empty list stays in place rather than being deleted. A row appearing again
+  means a check was added without a conforming trace, or one lost the trace that
+  proved it accepts conforming input.
 
 - **`*differs` marked every row of a multi-revision report, and its doc comment
   called those "the rows a migration review wants to look at first".** With the

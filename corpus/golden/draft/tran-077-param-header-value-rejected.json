@@ -1,13 +1,13 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 39,
-    "fail": 1,
+    "pass": 52,
+    "fail": 3,
     "warn": 0,
     "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 84
+    "not_observed": 69
   },
   "requirements": [
     {
@@ -48,37 +48,37 @@
     {
       "id": "BASE-052",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-053",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-054",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-055",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-057",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-058",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-060",
       "level": "SHOULD",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-062",
@@ -118,7 +118,7 @@
     {
       "id": "BASE-034",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "BASE-035",
@@ -143,17 +143,17 @@
     {
       "id": "TRAN-057",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-058",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-059",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-060",
@@ -163,7 +163,7 @@
     {
       "id": "TRAN-063",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-066",
@@ -183,12 +183,12 @@
     {
       "id": "TRAN-071",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-072",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-073",
@@ -208,62 +208,83 @@
     {
       "id": "TRAN-077",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.header-value-encoding",
+          "seq": 4,
+          "detail": "header `mcp-param-region` carries \" us-west1\" unencoded; a value that is not safely representable in ASCII must use the Base64 sentinel"
+        }
+      ]
     },
     {
       "id": "TRAN-079",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-080",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-086",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.header-value-encoding",
+          "seq": 4,
+          "detail": "header `mcp-param-region` carries \" us-west1\" unencoded; a value that is not safely representable in ASCII must use the Base64 sentinel"
+        }
+      ]
     },
     {
       "id": "TRAN-087",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.header-value-encoding",
+          "seq": 4,
+          "detail": "header `mcp-param-region` carries \" us-west1\" unencoded; a value that is not safely representable in ASCII must use the Base64 sentinel"
+        }
+      ]
     },
     {
       "id": "TRAN-089",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-092",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-096",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-097",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-098",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-100",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-102",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "DISC-001",
@@ -303,12 +324,12 @@
     {
       "id": "TRAN-117",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-118",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-119",
@@ -348,74 +369,67 @@
     {
       "id": "MRTR-003",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-004",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-006",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-011",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-012",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-013",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-015",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "mrtr.retry-carries-input-responses",
-          "seq": 2,
-          "detail": "the retry carries no `inputResponses[login]` for the input the `input_required` at seq 1 asked for"
-        }
-      ]
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-016",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-017",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-018",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-019",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-020",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-024",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "SUBS-001",
@@ -440,12 +454,12 @@
     {
       "id": "CACH-001",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "CACH-008",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "CACH-015",
@@ -525,32 +539,32 @@
     {
       "id": "TOOL-023",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-025",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TOOL-027",
       "level": "SHOULD",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TOOL-029",
       "level": "SHOULD NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TOOL-030",
       "level": "SHOULD",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TOOL-033",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TOOL-034",
