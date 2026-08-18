@@ -264,6 +264,17 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **`cargo xtask mutants` silently skipped untracked source files.** It scopes
+  itself with `git diff origin/main`, which cannot see a file git has never
+  been told about — so a new module written and not yet added was never
+  mutated, and the gate reported green over code it had not tested. CI is
+  unaffected: it runs on a checked-out branch where everything is committed,
+  which is precisely what makes the local run the one that can quietly differ
+  from the gate it claims to reproduce. It now names any untracked `.rs` file
+  under `crates/` and says they will not be mutated. Found by using it: this
+  branch's own `judgeable.rs` was skipped, and adding it took the run from 18
+  mutants to 48.
+
 - **Push and pull-request CI ran four of the offline gates, not all of them.**
   `ci.yml`'s `doc` job wrote out its own list — `coverage --check`,
   `file-sizes`, `docs-links`, `version-sync` — while `changelog-links` and
