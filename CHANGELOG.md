@@ -265,6 +265,23 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
     was answered and fixed in nine days. The count stands at one, so M4's DoD
     does not re-scope. Recorded in the risk register with the evidence.
 
+- **The vacuous-pass arithmetic survived in the plan docs, because the gate that
+  swept it does not reach them.** The 2026-08-17 correction fixed "123 and 124
+  passes where the reports say 58 pass, 1 fail and 59 pass, 0 fail" in the
+  CLAIM_FILES `cargo xtask draft-coverage --check` parses. It stopped exactly
+  there: [register row 1.5i](docs/plan/01-ecosystem-context.md),
+  [03-conformance-strategy.md](docs/plan/03-conformance-strategy.md) and
+  [06-roadmap.md](docs/plan/06-roadmap.md) are outside that set and still carried
+  the inflated pair — `pass + not-observed`, the very accounting
+  [ADR-0012](docs/plan/decisions/0012-not-observed-outcome.md) removed. All three
+  corrected, with the register row recording what it used to say and why.
+
+  It was found the right way: a CHANGELOG entry here quoted register row 1.5i,
+  and the claim gate rejected the verdict as one no committed report produced.
+  The lesson is the gate's boundary, not the arithmetic — a hand-kept number
+  outside the checked set drifts silently, and the checked set is currently seven
+  Markdown files.
+
   Two new rows open for what this exposed: `draft-suite-pin-currency` (the
   ratchet's input is pre-release and needs dated re-checking, since the weekly
   alpha job runs at the *registry's* revision and cannot see draft scenario
@@ -527,8 +544,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   required property 'cacheScope'` and `'ttlMs'`.
 
   That is **CACH-001**, the single clause the registry here had already flagged
-  against the legacy server (123 pass / 1 fail) while the official runner scored
-  both servers an indistinguishable 23/23. The runner has now found it
+  against the legacy server — the two captures read 58 pass, 1 fail and
+  59 pass, 0 fail, with 65 clauses not observed on each — while the official
+  runner scored both servers an indistinguishable 23/23. The runner has now found it
   independently, six weeks later. The standing finding "the runner cannot
   distinguish the two servers" is superseded rather than deleted, in
   [register row 1.5i](docs/plan/01-ecosystem-context.md) and
