@@ -1,13 +1,13 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 90,
+    "pass": 91,
     "fail": 0,
     "warn": 0,
     "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 34
+    "not_observed": 33
   },
   "requirements": [
     {
@@ -138,7 +138,7 @@
     {
       "id": "BASE-040",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-057",

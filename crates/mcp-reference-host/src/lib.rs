@@ -44,6 +44,7 @@
 //! The binary (`cli` feature) maps `MCP_CONFORMANCE_SCENARIO` to a plan and
 //! exits clean on success — the pinned suite's client-SUT contract.
 
+pub mod cancel;
 pub mod capture;
 pub mod connect;
 pub mod handler;

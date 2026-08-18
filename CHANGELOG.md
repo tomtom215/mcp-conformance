@@ -71,7 +71,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   clauses at all — which is how the `-32002` defect above was found on the
   first run.
 
-  The committed stdio capture now evidences **78 of the 124 judgeable clauses,
+  The committed stdio capture now evidences **81 of the 124 judgeable clauses,
   up from 56**, with no new findings: the error-code partition
   (`BASE-052`…`BASE-060`), logging (`LOG-007`/`008`/`009`), prompts
   (`PROM-012`/`013`/`016`/`018`/`020`), resources
@@ -101,7 +101,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   hand-written reason, and the gate holds the set in both directions. It has
   since worked both ways: the two server defects it found went into the ledger,
   and when they were fixed the gate refused the change until their entries were
-  retired. Across all five captures **110 of the 124 judgeable clauses are now
+  retired. Across all five captures **113 of the 124 judgeable clauses are now
   evidenced**, up from 92, and all ten rejection clauses the probe exercises
   pass.
 
@@ -114,7 +114,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   Streamable HTTP clauses *not observed* exactly like the stdio
   one. The tap sits above the transport and sees status lines and headers.
 
-  At **90 of the 124 judgeable clauses, 0 fail** it is the best-covered capture
+  At **91 of the 124 judgeable clauses, 0 fail** it is the best-covered capture
   in the corpus, and the pair is now genuinely complementary: same session,
   both ends, one file each, so every difference between the two reports is
   attributable to the transport. `corpus/README.md` records what each capture's
@@ -263,6 +263,35 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   readiness baseline like any other document's.
 
 ### Fixed
+
+- **The recording now carries a cancellation and a trace context, closing three
+  clauses no capture reached.** `BASE-040`, `TRAN-123` and `TRAN-124` had
+  nothing to judge in any committed session, because the reference host never
+  cancelled anything and never propagated a trace context. Two new flags —
+  `--cancel` and `--traceparent` — put both in the capture's definition, and
+  capture coverage moved from 110 to **113 of the 124 judgeable clauses**.
+
+  The cancellation is the interesting half. Both clauses are MUST NOTs, and a
+  MUST NOT is never witnessed by an absence: what the recording has to carry is
+  a cancellation followed by a message the server was still *allowed* to send.
+  The cancelled request is one the server has already answered, which is a
+  choice rather than a convenience — a byte-pinned golden cannot contain a
+  race, and cancelling an outstanding request is one, so the same session would
+  record two different traces on two runs. A late cancel is real client
+  behaviour, it names a real request, and it puts the server under exactly the
+  obligation the clause states.
+
+  **Three of the remaining eleven are now known to be unreachable this way, and
+  saying so is the result.** `VERS-004` judges the shape of an extension
+  identifier, so a capture would have to declare an extension this host does not
+  implement — lighting up a check by claiming a capability is the vacuous
+  evidence the corpus exists to avoid. `MRTR-024` is a server re-asking after a
+  client's shortfall, and a retry omitting requested input is the client
+  violation `MRTR-015` names: driving it would make the reference host
+  non-conforming, which is the one thing this capture may not be. `TRAN-070`
+  needs a response stream to close mid-session and the server's tap records no
+  lifecycle events at all, so it is a recording gap rather than a session gap.
+  All three are evidenced by authored traces instead, where the fault belongs.
 
 - **The fuzz build left 71 of the validator's checks uncompiled, including the
   ones its newest target exists to reach.** `fuzz/Cargo.toml` took both engine
@@ -425,8 +454,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   Result responses are subjects now. Error responses still are not, because the
   clause binds *result* responses and an error legitimately carries no `result`
   member, and no finding changed — only which rows can reach `pass`. Capture
-  coverage went from 109 to **110 of the 124 judgeable clauses** without a trace
-  being written, and 108 committed goldens flipped a row from `not-observed` to
+  coverage rose by one clause, 109 to 110, without a trace being written, and 108 committed goldens flipped a row from `not-observed` to
   `pass`, every one of them `BASE-010` or `BASE-047` and nothing else.
 
 - **Fourteen judged clauses had a trace that killed their check and none that

@@ -244,9 +244,9 @@ golden diff, not something to do casually.
 |---|---|
 | Client | This workspace's `mcp-reference-host`, on rmcp's stateless client lifecycle |
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
-| Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-17 |
-| Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all four prompts, `completion/complete`, and one read of a URI the catalog does not contain |
-| Our verdict | **78 pass, 0 fail, 0 warn**, 46 not observed, 148 excluded |
+| Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-18 |
+| Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all four prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
+| Our verdict | **81 pass, 0 fail, 0 warn**, 43 not observed, 148 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -296,9 +296,9 @@ probe, `MRTR-024`, `BASE-040`, `BASE-047`, and `VERS-004`.
 |---|---|
 | Client | The same `mcp-reference-host`, driving the identical session over Streamable HTTP |
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
-| Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-08-17 |
-| Contents | 151 events — the stdio session's 81 messages plus 70 `http` events carrying status and headers |
-| Our verdict | **90 pass, 0 fail, 0 warn**, 34 not observed, 148 excluded |
+| Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-08-18 |
+| Contents | 159 events — the stdio session's 85 messages plus 74 `http` events carrying status and headers |
+| Our verdict | **91 pass, 0 fail, 0 warn**, 33 not observed, 148 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -311,7 +311,7 @@ in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 90 of the 124 judgeable clauses it is the best-covered capture here. Its 34
+At 91 of the 124 judgeable clauses it is the best-covered capture here. Its 33
 not-observed rows are the server-rejection rules a conforming client never
 triggers, the pagination and `x-mcp-header` clauses this server's surface does
 not reach, and `TOOL-022` (rmcp's client caches `tools/list` under the
@@ -323,7 +323,7 @@ server's own `ttlMs`, so a second listing never reaches the wire).
 |---|---|
 | Client | `mcp-reference-host --probe`: nine hand-built HTTP requests, each wrong on purpose |
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
-| Recorded by | The server's tap, during `cargo xtask draft-capture`, 2026-08-17 |
+| Recorded by | The server's tap, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | A `_meta` envelope missing a required field; an unimplemented protocol version and the retry after it; a header/body version mismatch; an unknown method; a log level outside RFC 5424's eight; a fabricated cursor; a tool needing a capability the request never declared; and the removed `initialize` handshake |
 | Our verdict | Judged against [`conformance/probe-baseline.json`](../conformance/probe-baseline.json), not for cleanliness |
 
@@ -396,26 +396,41 @@ read as a specimen instead.
 | `official-suite-2026-07-28-scenarios` | 60 | 59 | 1 | 0 | 64 |
 | `official-suite-2026-07-28-stateless` | 60 | 60 | 0 | 0 | 64 |
 | `probe-2026-07-28-http` | 67 | 55 | 10 | 2 | 57 |
-| `reference-host-2026-07-28-http` | 90 | 90 | 0 | 0 | 34 |
-| `reference-host-2026-07-28-stdio` | 78 | 78 | 0 | 0 | 46 |
-| **Union** | **110** | | | | **14** |
+| `reference-host-2026-07-28-http` | 91 | 91 | 0 | 0 | 33 |
+| `reference-host-2026-07-28-stdio` | 81 | 81 | 0 | 0 | 43 |
+| **Union** | **113** | | | | **11** |
 
-Across all 5 captures, **110 of the 124 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 5 captures, **113 of the 124 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
-The 14 clauses no capture reaches: `BASE-040`, `CACH-015`, `CACH-016`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-096`, `TRAN-123`, `TRAN-124`, `VERS-004`.
+The 11 clauses no capture reaches: `CACH-015`, `CACH-016`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-096`, `VERS-004`.
 <!-- draft-coverage:end -->
 
-The probe session closed the largest group — the rejection rules — and what
-is left divides in two. Eight need server surface this reference does not
-have: pagination for `CACH-015`/`CACH-016`, an `x-mcp-header` designation for
-`TOOL-033`/`TOOL-034` and `TRAN-079`/`TRAN-080`/`TRAN-096`, and a prompt
-carrying audio for `PROM-017`. Six are conforming client behaviour simply
-not driven yet: `BASE-040`'s `traceparent`, `VERS-004`'s extension
-identifiers, cancellation for `TRAN-070`/`TRAN-123`/`TRAN-124`, and
-`MRTR-024`'s shortfall retry. Neither group is a defect; both are work.
+The probe session closed the largest group — the rejection rules — and the
+cancellation round closed the next. What is left divides in three, and only
+the first is ordinary backlog.
 
-`BASE-047` used to be a ninth. It left this list without a trace being
-written, because it was never a corpus gap: the check behind it counted only
+**Eight need server surface this reference does not have**: pagination for
+`CACH-015`/`CACH-016`, an `x-mcp-header` designation for `TOOL-033`/`TOOL-034`
+and `TRAN-079`/`TRAN-080`/`TRAN-096`, and a prompt carrying audio for
+`PROM-017`.
+
+**Two cannot be reached by a conforming host at all**, and saying so is more
+useful than closing them. `VERS-004` judges the shape of an extension
+identifier, so a capture would have to declare an extension — and this host
+implements none; declaring one to light up a check is precisely the vacuous
+evidence the corpus exists to avoid. `MRTR-024` is a server *re-asking* after
+a client's shortfall, and a retry that omits requested input is the client
+violation `MRTR-015` names: driving it would make the reference host
+non-conforming, which is the one thing this capture may not be. Both are
+evidenced by authored violation traces instead, where the fault belongs.
+
+**One is a recording gap rather than a session gap**: `TRAN-070` needs a
+response stream to close mid-session, and the server's tap records no
+lifecycle events at all, so no HTTP capture can carry one however the session
+is driven.
+
+`BASE-047` used to be on this list. It left without a trace being written,
+because it was never a corpus gap: the check behind it counted only
 malformed responses as subjects, so every capture full of well-formed results
 reported the clause *not observed* — the tool saying it had seen nothing to
 judge about a session that had carried dozens of them.

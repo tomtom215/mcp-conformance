@@ -74,6 +74,29 @@ fn completed_run_exits_zero_and_renders_the_record() {
 }
 
 #[test]
+fn the_cancellation_round_renders_what_it_cancelled_and_what_followed() {
+    // `render::cancel` is the only record of a phase whose whole product is a
+    // *recording*: the run's exit code is the same with or without it, so
+    // without this the renderer could be deleted and nothing would notice.
+    let url = serve_stateless();
+    let output = Command::new(env!("CARGO_BIN_EXE_mcp-reference-host"))
+        .env("MCP_CONFORMANCE_SCENARIO", "initialize")
+        .arg("--protocol-version")
+        .arg("2026-07-28")
+        .arg("--cancel")
+        .arg(&url)
+        .output()
+        .expect("binary runs");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert!(stderr.contains("cancelled echo"), "{stderr}");
+    assert!(
+        stderr.contains("the call after it"),
+        "the permitted message is the half the clause is about: {stderr}"
+    );
+}
+
+#[test]
 fn exhausted_error_budget_exits_one() {
     // The generic plan calls every tool once with a zero error budget;
     // test_error_handling fails by design, so the run must stop exhausted

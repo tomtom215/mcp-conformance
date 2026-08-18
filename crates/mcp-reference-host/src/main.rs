@@ -26,147 +26,27 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::{Parser, ValueEnum};
+use clap::Parser as _;
+use cli::{Cli, LogLevel};
 use mcp_reference_host::capture::{CaptureTransport, RecordingTransport};
 use mcp_reference_host::handler::HostHandler;
 use mcp_reference_host::run::{RunPlan, StopReason, run};
 use mcp_reference_host::scenario::{ScenarioPlan, plan_for};
 use mcp_reference_host::script::InteractionScript;
-use mcp_reference_host::{subscribe, sweep};
+use mcp_reference_host::{cancel, subscribe, sweep};
 
+/// The tool the cancellation round calls twice.
+///
+/// `echo` because it is the least interesting tool the server has: the round is
+/// about the cancellation and the message after it, and a tool that elicits or
+/// samples would put an MRTR exchange in the middle of the clause being shown.
+const CANCELLED_TOOL: &str = "echo";
+
+mod cli;
 mod render;
-use rmcp::model::{LoggingLevel, ProtocolVersion};
 use rmcp::service::{ClientLifecycleMode, ClientServiceExt as _};
 use rmcp::transport::Transport;
 use tokio_util::sync::CancellationToken;
-
-/// Reference MCP host: scripted client behavior, bounded loops, suite SUT.
-#[derive(Debug, Parser)]
-#[command(name = "mcp-reference-host", version, about, long_about = None)]
-struct Cli {
-    /// Streamable HTTP URL of the server. The official runner passes this as
-    /// the final positional argument; `--url` is the standalone spelling.
-    #[arg(long, conflicts_with = "server_cmd")]
-    url: Option<String>,
-    /// Spawn this stdio server as a child process (split on spaces, the same
-    /// convention the official runner applies to its `--command`).
-    #[arg(long, conflicts_with = "url")]
-    server_cmd: Option<String>,
-    /// Record the session as a validator-ready JSON Lines trace in this
-    /// directory (one file per run).
-    #[arg(long, value_name = "DIR")]
-    trace_dir: Option<PathBuf>,
-    /// The URL the official runner appends (equivalent to `--url`).
-    #[arg(value_name = "URL")]
-    positional_url: Option<String>,
-    /// Hard deadline for the whole run, in seconds. The host owns its own
-    /// exit: a server that never answers must produce a diagnostic and exit 1
-    /// here — the official runner's 30 s kill reaches only the `sh -c`
-    /// wrapper it spawns, and an orphaned host holding its pipes open would
-    /// wedge the runner forever (measured against suite 0.1.16).
-    #[arg(long, default_value_t = 25)]
-    deadline_secs: u64,
-    /// Let the run continue past this many errors. Overrides the scenario
-    /// plan's budget, which is `0` because the suite's scenarios judge a
-    /// clean run; a recording sweeping every tool meets `test_error_handling`,
-    /// whose whole job is to return one.
-    #[arg(long, value_name = "N")]
-    error_budget: Option<u32>,
-    /// Cap the run at this many turns, overriding the scenario plan's.
-    #[arg(long, value_name = "N")]
-    turn_limit: Option<u32>,
-    /// Open a `subscriptions/listen` stream before the tool loop and drain it
-    /// to its end. `2026-07-28` only — the method does not exist before it.
-    #[arg(long)]
-    subscribe: bool,
-    /// Send the probe session instead of a normal run: deliberately malformed
-    /// requests, one per rejection clause, so a recording carries what the
-    /// server does when it must refuse. Requires `--url`; the probes are raw
-    /// HTTP, which is the point — rmcp's client will not emit one.
-    #[arg(long, conflicts_with_all = ["server_cmd", "sweep", "subscribe"])]
-    probe: bool,
-    /// After the tool loop, drive the rest of the server's surface: prompts,
-    /// resources, templates, completion, and one read of a URI the catalog
-    /// does not contain. A recording without this evidences the tool clauses
-    /// and nothing else.
-    #[arg(long)]
-    sweep: bool,
-    /// Ask every tool call for log messages at this level or above, through
-    /// `_meta.io.modelcontextprotocol/logLevel`. Omitted, the request asks for
-    /// none — which `2026-07-28` requires a server to honour by staying
-    /// silent, so a recording that never asks cannot judge the logging clauses.
-    #[arg(long, value_name = "LEVEL")]
-    log_level: Option<LogLevel>,
-    /// Protocol revision to speak. `2026-07-28` uses the stateless lifecycle:
-    /// `server/discover` instead of `initialize`, and a `_meta` envelope on
-    /// every request.
-    #[arg(long, value_enum, default_value_t = Revision::default())]
-    protocol_version: Revision,
-}
-
-/// The revision the host speaks, as a CLI value.
-///
-/// A separate enum from rmcp's [`ProtocolVersion`] because the choice here is
-/// not "which version string" but "which lifecycle": `2026-07-28` removed the
-/// handshake, so the two options differ in the messages the host sends before
-/// it can send anything else.
-/// The eight RFC 5424 severities, as a CLI value.
-///
-/// Spelled out rather than deriving on rmcp's [`LoggingLevel`]: that type is
-/// `#[non_exhaustive]` and carries no `ValueEnum`, and the CLI's accepted set
-/// is a contract with whoever scripts a capture.
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum LogLevel {
-    Debug,
-    Info,
-    Notice,
-    Warning,
-    Error,
-    Critical,
-    Alert,
-    Emergency,
-}
-
-impl From<LogLevel> for LoggingLevel {
-    fn from(level: LogLevel) -> Self {
-        match level {
-            LogLevel::Debug => Self::Debug,
-            LogLevel::Info => Self::Info,
-            LogLevel::Notice => Self::Notice,
-            LogLevel::Warning => Self::Warning,
-            LogLevel::Error => Self::Error,
-            LogLevel::Critical => Self::Critical,
-            LogLevel::Alert => Self::Alert,
-            LogLevel::Emergency => Self::Emergency,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Default, ValueEnum)]
-enum Revision {
-    /// The `initialize` handshake.
-    #[default]
-    #[value(name = "2025-11-25")]
-    V20251125,
-    /// Stateless: `server/discover`, then a `_meta` envelope per request.
-    #[value(name = "2026-07-28")]
-    V20260728,
-}
-
-impl From<Revision> for ClientLifecycleMode {
-    fn from(revision: Revision) -> Self {
-        match revision {
-            Revision::V20251125 => Self::Initialize,
-            // Only this revision, not a preference list: the host is asked to
-            // exercise the stateless surface, and a list that could fall back
-            // would quietly record a legacy session instead when the server
-            // does not serve it.
-            Revision::V20260728 => Self::Discover {
-                preferred_versions: vec![ProtocolVersion::V_2026_07_28],
-            },
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -201,10 +81,17 @@ async fn dispatch(cli: Cli) -> ExitCode {
         return render::probe(&url).await;
     }
     let lifecycle = ClientLifecycleMode::from(cli.protocol_version);
-    let plan = overridden(plan, cli.error_budget, cli.turn_limit, cli.log_level);
+    let plan = overridden(
+        plan,
+        cli.error_budget,
+        cli.turn_limit,
+        cli.log_level,
+        cli.traceparent.clone(),
+    );
     let extras = Extras {
         subscribe: cli.subscribe,
         sweep: cli.sweep,
+        cancel: cli.cancel,
     };
     match (plan, url, cli.server_cmd) {
         (ScenarioPlan::SseRetry, Some(url), _) => sse_retry(&url).await,
@@ -307,6 +194,7 @@ fn overridden(
     error_budget: Option<u32>,
     turn_limit: Option<u32>,
     log_level: Option<LogLevel>,
+    trace_parent: Option<String>,
 ) -> ScenarioPlan {
     let ScenarioPlan::Agent { script, mut plan } = plan else {
         // `sse-retry` runs its own dance with no plan to bound.
@@ -322,6 +210,8 @@ fn overridden(
     // requested no logs, and a host that asked anyway would change what the
     // server under test emits during a scenario nobody wrote for it.
     plan.log_level = log_level.map(Into::into);
+    // Same rule, same reason: propagated only when the caller supplied one.
+    plan.trace_parent = trace_parent;
     ScenarioPlan::Agent { script, plan }
 }
 
@@ -336,6 +226,8 @@ struct Extras {
     subscribe: bool,
     /// Drive the non-tool surface after it.
     sweep: bool,
+    /// Cancel one answered call, then make another, after both.
+    cancel: bool,
 }
 
 /// The sse-retry scenario: the host's own compliant resumption dance
@@ -421,6 +313,12 @@ async fn agent_run(
         // have changed, and a recording is easier to follow when the
         // discovery-driven half sits on one side of the tool calls.
         render::sweep(&sweep::run(client.peer()).await);
+    }
+    if extras.cancel {
+        // Last, so the cancellation stands over nothing the other phases need:
+        // every server message after it is judged against the clause, and a
+        // sweep step arriving later would be judged for no reason.
+        render::cancel(&cancel::round(client.peer(), CANCELLED_TOOL).await);
     }
     let clean_shutdown = client.cancel().await.is_ok();
     if report.stop == StopReason::Completed && clean_shutdown {

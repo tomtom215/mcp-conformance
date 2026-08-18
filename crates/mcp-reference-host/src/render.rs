@@ -65,6 +65,21 @@ pub(crate) fn sweep(report: &SweepReport) {
     }
 }
 
+/// The cancellation round: what was cancelled, and what the server was still
+/// allowed to answer afterwards.
+pub(crate) fn cancel(outcome: &Result<mcp_reference_host::cancel::CancelReport, String>) {
+    match outcome {
+        Ok(report) => {
+            eprintln!("mcp-reference-host: cancelled {}", report.cancelled);
+            match &report.after {
+                Ok(summary) => eprintln!("  ok   the call after it: {summary}"),
+                Err(error) => eprintln!("  err  the call after it: {error}"),
+            }
+        }
+        Err(error) => eprintln!("mcp-reference-host: cancellation round failed: {error}"),
+    }
+}
+
 /// The run record, one line per call, on stderr.
 pub(crate) fn run(report: &RunReport) {
     eprintln!(

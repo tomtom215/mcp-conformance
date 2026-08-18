@@ -65,6 +65,7 @@ async fn http_transport_completes_a_scripted_loop() {
             },
         ]),
         log_level: None,
+        trace_parent: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::Completed, "{report:?}");
@@ -99,6 +100,7 @@ async fn captured_http_session_validates_through_the_real_engine() {
             arguments: None,
         }]),
         log_level: None,
+        trace_parent: None,
     };
     let report = run(&client, &plan, &CancellationToken::new()).await;
     assert_eq!(report.stop, StopReason::Completed, "{report:?}");
