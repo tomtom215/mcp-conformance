@@ -153,6 +153,14 @@ informational SHOULD warning on the suite's version-compat probe.
   diff review in the same commit. Holding at `alpha.9` for six weeks cost exactly what
   that argument predicts: `alpha.11` added a `wire-schema-valid` check that the ratchet
   had no way to see.
+- **Neither pin may fall behind unnoticed.** `cargo xtask suite-currency` asks npm what
+  the `latest` and `alpha` dist-tags currently point at and fails when either differs
+  from its pin. It runs in the weekly `claims-expire` job, so a red run files a tracking
+  issue (ADR-0010 §Amendment) rather than blocking an unrelated pull request. This
+  automates the *noticing* only; every sentence above about how a bump is made still
+  holds, and holding a pin deliberately remains a legitimate outcome — recorded where
+  the pin lives, not by leaving the gate red. Before this existed the re-check was a
+  dated line in the deferral ledger, and it had already missed two alpha releases.
 - The `draft` suite runs only under the `draft-2026-07-28` feature. The readiness ratchet
   above is *not* that: it records the runner's verdicts and nothing else. The registry's
   verdict on the same traffic is taken separately — each leg's session is captured to
@@ -160,8 +168,8 @@ informational SHOULD warning on the suite's version-compat probe.
   registry on every `cargo test`. Keeping the two apart matters because they have
   disagreed, usefully. Through `0.2.0-alpha.9` the runner scored 23/23 against a
   `2025-11-25` server *and* a `2026-07-28` one — it could not tell them apart — while the
-  registry separated them — 58 pass, 1 fail against the first and 59 pass, 0 fail
-  against the second, with 65 clauses not observed on each — the single failure
+  registry separated them — 59 pass, 1 fail against the first and 60 pass, 0 fail
+  against the second, with 64 clauses not observed on each — the single failure
   being CACH-001, no `ttlMs` on cacheable results.
   `alpha.11` closes that gap from the other side: its new `wire-schema-valid` check
   validates every message against the negotiated revision's JSON schema and fails the

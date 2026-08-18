@@ -40,6 +40,13 @@ pub struct RunPlan {
     /// line — and asking is the client-side half of the mechanism that
     /// replaced `logging/setLevel`.
     pub log_level: Option<LoggingLevel>,
+    /// The W3C Trace Context `traceparent` to carry in each call's `_meta`.
+    ///
+    /// Supplied rather than generated, because a client does not invent a trace
+    /// context — it propagates the one its caller handed it, and a host that
+    /// minted a fresh id per run would make every recording of the same session
+    /// differ. `None` sends none, which is what the suite's scenarios want.
+    pub trace_parent: Option<String>,
 }
 
 /// Deterministic call selection.
@@ -151,11 +158,7 @@ pub async fn run<S: Service<RoleClient>>(
         // version, client capabilities) *extends* this map rather than
         // replacing it — both end up on the wire, which is the shape the
         // revision requires.
-        if let Some(level) = plan.log_level {
-            let mut meta = RequestMetaObject::new();
-            meta.set_log_level(level);
-            params.meta = Some(meta);
-        }
+        params.meta = call_meta(plan);
         let outcome = client.call_tool(params).await;
         report.turns += 1;
 
@@ -170,6 +173,26 @@ pub async fn run<S: Service<RoleClient>>(
 
     report.stop = StopReason::Completed;
     report
+}
+
+/// The `_meta` a call carries, or `None` when the plan asks for neither field.
+///
+/// A function rather than an `if` in the loop, because the condition is an
+/// `or` and the loop cannot separate its arms: the capture sets both fields, so
+/// an `and` behaves identically there and nothing notices. Pulled out, each
+/// arm is one assertion.
+fn call_meta(plan: &RunPlan) -> Option<RequestMetaObject> {
+    if plan.log_level.is_none() && plan.trace_parent.is_none() {
+        return None;
+    }
+    let mut meta = RequestMetaObject::new();
+    if let Some(level) = plan.log_level {
+        meta.set_log_level(level);
+    }
+    if let Some(trace_parent) = plan.trace_parent.as_deref() {
+        meta.set_traceparent(trace_parent);
+    }
+    Some(meta)
 }
 
 /// Renders one call's outcome, counting protocol errors and in-band
@@ -323,6 +346,58 @@ fn resolve_local_refs<'a>(root: &'a Map<String, Value>, mut schema: &'a Value) -
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    fn plan(log_level: Option<LoggingLevel>, trace_parent: Option<&str>) -> RunPlan {
+        RunPlan {
+            turn_limit: 1,
+            error_budget: 0,
+            calls: CallPolicy::EachDiscoveredToolOnce,
+            log_level,
+            trace_parent: trace_parent.map(str::to_owned),
+        }
+    }
+
+    /// Each field alone must still produce a `_meta`, which is the arm the
+    /// capture cannot exercise: it sets both, so an `and` here would behave
+    /// identically on every recording and on every test that drives one.
+    #[test]
+    fn either_field_alone_is_enough_to_carry_a_meta() {
+        assert!(call_meta(&plan(None, None)).is_none(), "neither asked for");
+
+        let logging = call_meta(&plan(Some(LoggingLevel::Debug), None)).unwrap();
+        assert!(logging.get_traceparent().is_none(), "{logging:?}");
+        assert!(
+            serde_json::to_string(&logging)
+                .unwrap()
+                .contains("logLevel"),
+            "{logging:?}"
+        );
+
+        let traced = call_meta(&plan(
+            None,
+            Some("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),
+        ))
+        .unwrap();
+        assert_eq!(
+            traced.get_traceparent(),
+            Some("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01")
+        );
+        assert!(
+            !serde_json::to_string(&traced).unwrap().contains("logLevel"),
+            "{traced:?}"
+        );
+
+        let both = call_meta(&plan(
+            Some(LoggingLevel::Debug),
+            Some("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),
+        ))
+        .unwrap();
+        assert!(both.get_traceparent().is_some(), "{both:?}");
+        assert!(
+            serde_json::to_string(&both).unwrap().contains("logLevel"),
+            "{both:?}"
+        );
+    }
 
     #[test]
     fn synthesized_arguments_cover_required_properties_only() {

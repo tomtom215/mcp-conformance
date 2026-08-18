@@ -14,6 +14,13 @@ repository.workspace = true
 homepage.workspace = true
 
 [features]
+# NOT a default, deliberately, and not because the feature should be off: the
+# `cargo xtask` alias in `.cargo/config.toml` turns it on for every task run.
+# A package default would do it too and would be wrong — `cargo test
+# --workspace` unifies features across members, so xtask defaulting this on
+# drags the draft surface into the *default-features* test leg and collapses
+# the three-mode matrix to two. The alias reaches the tasks and nothing else.
+#
 # Passthrough so `cargo xtask spec-drift` can verify the in-progress revision's
 # quotes: without it the registry set does not describe `2026-07-28`, and the gate
 # reports the revision as skipped rather than silently verifying nothing.

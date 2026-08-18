@@ -1,0 +1,655 @@
+{
+  "revision": "2026-07-28",
+  "totals": {
+    "pass": 52,
+    "fail": 3,
+    "warn": 0,
+    "excluded": 148,
+    "unsupported": 0,
+    "not_applicable": 0,
+    "not_observed": 69
+  },
+  "requirements": [
+    {
+      "id": "BASE-042",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-043",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-044",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-045",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-046",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-047",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-048",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-052",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-053",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-054",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-055",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-057",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-058",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-060",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-062",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-026",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-027",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-029",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-030",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-031",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-032",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-034",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-035",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-036",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-039",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-040",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-057",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-058",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-059",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-060",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-063",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-066",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-068",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-070",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-071",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-072",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-073",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-074",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-075",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-077",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.header-value-encoding",
+          "seq": 4,
+          "detail": "header `mcp-param-region` carries \" us-west1\" unencoded; a value that is not safely representable in ASCII must use the Base64 sentinel"
+        }
+      ]
+    },
+    {
+      "id": "TRAN-079",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-080",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-086",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.header-value-encoding",
+          "seq": 4,
+          "detail": "header `mcp-param-region` carries \" us-west1\" unencoded; a value that is not safely representable in ASCII must use the Base64 sentinel"
+        }
+      ]
+    },
+    {
+      "id": "TRAN-087",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.header-value-encoding",
+          "seq": 4,
+          "detail": "header `mcp-param-region` carries \" us-west1\" unencoded; a value that is not safely representable in ASCII must use the Base64 sentinel"
+        }
+      ]
+    },
+    {
+      "id": "TRAN-089",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-092",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-096",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-097",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-098",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-100",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-102",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "DISC-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "DISC-002",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "VERS-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "VERS-002",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "VERS-003",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "VERS-004",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "VERS-008",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-117",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-118",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-119",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-120",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-123",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-124",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-128",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-002",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "MRTR-003",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-004",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-006",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-011",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-012",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-013",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-015",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-016",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-017",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-018",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-019",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-020",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "MRTR-024",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SUBS-001",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SUBS-002",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SUBS-005",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SUBS-006",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CACH-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "CACH-008",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "CACH-015",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CACH-016",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "COMP-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "COMP-007",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PAGE-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PAGE-010",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PAGE-011",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "LOG-007",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "LOG-008",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "LOG-009",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "LOG-010",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-016",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-019",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-020",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-022",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-023",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-025",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-027",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-029",
+      "level": "SHOULD NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-030",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-033",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-034",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-038",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-039",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-040",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-011",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "RES-012",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-013",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-018",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-022",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-023",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-011",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROM-012",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-013",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-016",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-017",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-018",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-020",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    }
+  ]
+}

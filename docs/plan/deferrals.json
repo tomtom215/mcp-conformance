@@ -9,20 +9,6 @@
       "review_by": "2026-09-30"
     },
     {
-      "id": "draft-suite-pin-currency",
-      "what": "Re-check DRAFT_SUITE_VERSION against the npm `alpha` dist-tag and bump it if it has moved, with a BLESS=1 re-measurement and a scenario diff review in the same commit",
-      "why": "New row 2026-08-18, opened by the failure it describes: the ratchet sat on 0.2.0-alpha.9 for six weeks while alpha.10 and alpha.11 shipped, and alpha.11 turned out to add a `wire-schema-valid` check that fails the 2025-11-25 leg on exactly the clause (CACH-001, missing ttlMs/cacheScope) this workspace's registry had already flagged. A readiness ratchet whose input is pre-release cannot be left to float \u2014 it would stop being a ratchet \u2014 but nor can it be left indefinitely: stale, it measures an old question and cannot see new checks. So the currency check is deliberate and dated rather than automatic",
-      "meanwhile": "The pin is exact, so nothing moves under the gate silently; the weekly suite-alpha job exercises the floating alpha tag at the registry's revision, but it does NOT drive the 2026-07-28 scenarios, so it cannot see draft scenario churn \u2014 that blind spot is what this row covers",
-      "review_by": "2026-10-01"
-    },
-    {
-      "id": "expired-deferral-notification",
-      "what": "Make a failing `claims-expire` job reach a human durably \u2014 most likely an `if: failure()` step that opens or updates a tracking issue naming the expired rows, rather than relying on GitHub's default scheduled-failure email to the workflow actor",
-      "why": "New row 2026-08-18, opened by evidence: two rows (`rust-sdk-902-offer-clock`, review-by 2026-08-10; `suite-0-2-0-stable-pin-bump`, review-by 2026-08-15) sat expired and were found by hand, not by anyone acting on the weekly job. ADR-0010's decision that this gate pages the schedule rather than the PR gate is NOT the defect and is not being revisited \u2014 an expiry should not block unrelated work. The defect is the last mile: a red weekly job notifies only by an email that is easy to miss, and the `claims-expire` job runs `spec-drift` too, so a network flake there looks the same from the outside as an expired ledger row. Deferred rather than built in the same commit as the re-decision because it needs `issues: write` on a workflow that is deliberately `contents: read`, plus a new pinned action dependency \u2014 a security-surface change that belongs in its own reviewed PR against 05-security-model, not as a rider on a ledger update",
-      "meanwhile": "The gate itself is correct and loud: `cargo xtask deferrals --check` names every expired row and fails; the two steps are separately named in the job so GitHub shows which one went red; GitHub's default scheduled-failure email still fires",
-      "review_by": "2026-11-01"
-    },
-    {
       "id": "register-90-day-sweep",
       "what": "Re-verify every register row dated 2026-06-09..12 in docs/plan/01-ecosystem-context.md before external use",
       "why": "The register's own maintenance rule 1: rows older than 90 days must be re-verified before citation",
@@ -47,7 +33,7 @@
       "id": "suite-0-2-0-stable-pin-bump",
       "what": "Re-decided 2026-08-18, the review-by having passed on 2026-08-15. HALF OF THIS ROW IS NOW BUILT: the draft ratchet DRAFT_SUITE_VERSION moved 0.2.0-alpha.9 \u2192 0.2.0-alpha.11 with a BLESS=1 re-measurement and a scenario diff review in the same commit. What remains deferred is the STABLE pin only \u2014 xtask's SUITE_VERSION (0.1.16, the 2025-11-25 gate) \u2014 which bumps when a stable 0.2.0 exists, refreshing both expected-failures baselines and the agreement divergence ledger in the same change. The two pins are no longer coupled: 03-conformance-strategy now states their separate triggers, because holding a pre-release ratchet back does not keep its measurement stable, it makes it describe an older question",
       "why": "There is still nothing stable to bump SUITE_VERSION to: npm `latest` is 0.1.16, published 2026-03-30 and unchanged for four and a half months (re-fetched 2026-08-18). Pin bumps are deliberate PRs with a scenario diff review (03-conformance-strategy \u00a7Official-suite version policy). The previous revision of this row claimed the alpha dist-tag had been 'quiet since 2026-07-01'; that was false by the next day \u2014 alpha.10 published 2026-07-27 and alpha.11 on 2026-08-07 \u2014 which is why this row no longer predicts upstream quiet and states only what was observed",
-      "meanwhile": "Weekly suite-alpha job runs the alpha dist-tag non-blocking at the registry's revision; the draft ratchet now pins alpha.11 and gates every check's status; conformance#338's fix arrives with the stable bump and its agreement-divergence entry will go stale loudly",
+      "meanwhile": "As of 2026-08-18 the watch is a gate, not a date: `cargo xtask suite-currency` (weekly, in `claims-expire`) fails the moment npm's `latest` stops being 0.1.16, and a red weekly run now files a tracking issue \u2014 so the stable release that triggers this row announces itself rather than waiting to be noticed. The weekly suite-alpha job still runs the alpha dist-tag non-blocking at the registry's revision; the draft ratchet pins alpha.11 and gates every check's status; conformance#338's fix arrives with the stable bump and its agreement-divergence entry will go stale loudly",
       "review_by": "2026-10-15"
     }
   ]

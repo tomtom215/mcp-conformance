@@ -1,13 +1,13 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 36,
+    "pass": 40,
     "fail": 0,
     "warn": 0,
     "excluded": 88,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 16
+    "not_observed": 12
   },
   "requirements": [
     {
@@ -58,17 +58,17 @@
     {
       "id": "BASE-010",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-019",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-020",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "LIFE-001",
@@ -203,7 +203,7 @@
     {
       "id": "TOOL-009",
       "level": "SHOULD",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TOOL-010",

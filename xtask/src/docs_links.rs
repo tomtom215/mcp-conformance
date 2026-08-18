@@ -10,6 +10,11 @@
 //!
 //! Fenced code blocks and inline code spans are stripped before scanning, so
 //! example Markdown inside documentation is never mistaken for a live link.
+//!
+//! The book gets the converse question asked of it as well — every chapter must
+//! be *reached* from `SUMMARY.md` — because mdBook renders only what the summary
+//! lists and says nothing about the rest. A chapter file nobody linked builds
+//! green, ships nowhere, and reads as published to everyone but its readers.
 
 // `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
 // opposite demands about items in a binary crate's private modules; this follows
@@ -40,9 +45,11 @@ pub(crate) fn run() -> bool {
             }
         }
     }
+    broken.extend(unlisted_chapters(&root));
     if broken.is_empty() {
         eprintln!(
-            "xtask: docs links — every relative link in {} Markdown files resolves",
+            "xtask: docs links — every relative link in {} Markdown files resolves, \
+             and every book chapter is reachable from SUMMARY.md",
             files.len()
         );
         true
@@ -52,6 +59,41 @@ pub(crate) fn run() -> bool {
         }
         false
     }
+}
+
+/// Book chapters `SUMMARY.md` does not list, which mdBook therefore never
+/// renders — silently, and with a zero exit code.
+fn unlisted_chapters(root: &Path) -> Vec<String> {
+    let source = root.join("book/src");
+    let summary_path = source.join("SUMMARY.md");
+    let Ok(summary) = std::fs::read_to_string(&summary_path) else {
+        return vec!["book/src/SUMMARY.md: unreadable".to_owned()];
+    };
+    let Ok(entries) = std::fs::read_dir(&source) else {
+        return vec!["book/src: unreadable".to_owned()];
+    };
+    let listed: Vec<String> = links(&summary).into_iter().map(|(_, to)| to).collect();
+    let mut unlisted = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().is_none_or(|extension| extension != "md") {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        // The summary lists the other chapters; it is not one of them.
+        if name == "SUMMARY.md" {
+            continue;
+        }
+        if !listed.iter().any(|target| target == name) {
+            unlisted.push(format!(
+                "book/src/{name}: no SUMMARY.md entry, so mdBook will not render it"
+            ));
+        }
+    }
+    unlisted.sort();
+    unlisted
 }
 
 /// Tracked Markdown files, relative to the workspace root.

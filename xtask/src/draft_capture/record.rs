@@ -47,6 +47,9 @@ fn binary(root: &Path, name: &str) -> String {
     .to_string()
 }
 
+/// The W3C Trace Context example value, propagated on every call.
+const TRACEPARENT: &str = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+
 /// The host's arguments that define the conforming capture, shared by the
 /// stdio and HTTP legs.
 ///
@@ -73,6 +76,18 @@ fn session_args() -> Vec<&'static str> {
         "--sweep",
         "--log-level",
         LOG_LEVEL,
+        // Cancellation is two MUST NOTs, and a MUST NOT is never witnessed by
+        // an absence: the recording has to carry a cancellation and then a
+        // message the server was still *allowed* to send, or the clauses have
+        // nothing to judge and report not-observed forever.
+        "--cancel",
+        // A trace context, because the clause is about the shape of one and a
+        // session that carries none leaves it unjudged. The value is the W3C
+        // specification's own example, so it is recognisably a specimen rather
+        // than a real trace id, and it is fixed because the recording is
+        // byte-pinned.
+        "--traceparent",
+        TRACEPARENT,
     ]
 }
 

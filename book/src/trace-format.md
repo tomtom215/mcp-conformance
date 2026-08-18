@@ -32,5 +32,5 @@ not passes. The **not-applicable** rows are capability-gated requirements this
 session never negotiated (the resources and prompts clauses); the
 **not-observed** rows are clauses whose subject matter never appeared at all —
 nothing was paginated, no binary content was sent, no error was returned. A
-four-line session earns fifteen passes, not a hundred. See
+four-line session earns 17 passes, not a hundred. See
 [Architecture](architecture.md) for why that distinction is load-bearing.

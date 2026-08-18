@@ -50,6 +50,47 @@ fn passing_trace_exits_zero_with_pass_verdict() {
 }
 
 #[test]
+fn a_trace_that_judges_nothing_is_refused_rather_than_passed() {
+    // The engine's answer for an empty trace is honest and useless: no
+    // findings, so `verdict: pass`, so exit 0 — and the likeliest cause is that
+    // the capture failed. A CI job cannot tell that from a conforming session,
+    // which is the silent-green failure this project has already been bitten by
+    // once, in its own tap.
+    for (tag, contents) in [
+        ("empty", ""),
+        // Not empty, and still judges nothing: a transport that opened and
+        // closed carrying no messages.
+        (
+            "lifecycle-only",
+            concat!(
+                r#"{"seq":0,"direction":"client-to-server","transport":"stdio","#,
+                r#""kind":"lifecycle","event":"transport-open"}"#,
+                "\n"
+            ),
+        ),
+    ] {
+        let path = write_temp(tag, contents);
+        let output = run(&["validate", path.to_str().unwrap()]);
+        assert_eq!(output.status.code(), Some(2), "{tag}: {output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("judged no requirement at all"),
+            "{tag}: {stderr}"
+        );
+        // And the same refusal in multi-revision mode, which reaches the
+        // engine by a different path.
+        let output = run(&[
+            "validate",
+            "--revision",
+            "2025-11-25",
+            path.to_str().unwrap(),
+        ]);
+        assert_eq!(output.status.code(), Some(2), "{tag} (multi): {output:?}");
+        std::fs::remove_file(&path).ok();
+    }
+}
+
+#[test]
 fn violating_trace_exits_one_and_names_the_requirement() {
     let output = run(&[
         "validate",

@@ -13,8 +13,16 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 serde_json = { version = "1", features = ["float_roundtrip"] }
-mcp-conformance-core = { path = "../crates/mcp-conformance-core" }
-mcp-trace-validator = { path = "../crates/mcp-trace-validator", default-features = false }
+# `draft-2026-07-28` on both, because the untrusted-input surface is the point:
+# without it 71 of the validator's checks are simply not compiled in, and
+# `registry_set_multi` — whose whole subject is multi-revision judgment — would
+# fuzz a build that answers `unsupported` for every clause of the newer, larger
+# registry. `default-features = false` on the validator still drops `cli`, which
+# is what it was there for.
+mcp-conformance-core = { path = "../crates/mcp-conformance-core", features = ["draft-2026-07-28"] }
+mcp-trace-validator = { path = "../crates/mcp-trace-validator", default-features = false, features = [
+    "draft-2026-07-28",
+] }
 
 # Its own workspace root: fuzzing is nightly-only tooling and must not infect the
 # main workspace's MSRV, lints, or lockfile.

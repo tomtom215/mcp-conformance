@@ -112,14 +112,13 @@ jobs:
       # caught with --all-features.
       - name: Build docs with all features (zero warnings)
         run: cargo doc --workspace --no-deps --all-features
-      - name: README coverage table in sync with the registry
-        run: cargo xtask coverage --check
-      - name: File-size cap on source and registry files
-        run: cargo xtask file-sizes
-      - name: Documentation links resolve
-        run: cargo xtask docs-links
-      - name: README version tracks the workspace version
-        run: cargo xtask version-sync
+      # One command, and the list of gates lives in `xtask`, not here. Four of
+      # them used to be written out in this job while `changelog-links` and
+      # `draft-coverage --check` ran only inside `cargo xtask ci` — which no
+      # push or pull-request workflow invokes — so the gate that stops published
+      # numbers from drifting did not run on the change that published them.
+      - name: Offline gates (sizes, fuzz targets, links, versions, coverage projections)
+        run: cargo xtask gates
 
   book:
     name: Book (mdBook)

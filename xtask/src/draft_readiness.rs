@@ -203,15 +203,14 @@ fn prepare(root: &Path) -> Option<std::path::PathBuf> {
 /// its exit status is deliberately ignored, because scenario failures are this
 /// task's measurement, not its verdict.
 fn run_draft_suite(root: &Path, results_dir: &Path, address: &str) -> bool {
+    let package = crate::conformance::SUITE_PACKAGE;
     eprintln!(
-        "xtask: draft-readiness — running @modelcontextprotocol/conformance@{DRAFT_SUITE_VERSION} \
+        "xtask: draft-readiness — running {package}@{DRAFT_SUITE_VERSION} \
          (spec {DRAFT_SPEC_VERSION}) against http://{address}/mcp"
     );
     let status = Command::new("npx")
         .arg("-y")
-        .arg(format!(
-            "@modelcontextprotocol/conformance@{DRAFT_SUITE_VERSION}"
-        ))
+        .arg(format!("{package}@{DRAFT_SUITE_VERSION}"))
         .arg("server")
         .arg("--url")
         .arg(format!("http://{address}/mcp"))

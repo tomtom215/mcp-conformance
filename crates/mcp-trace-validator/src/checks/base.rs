@@ -202,9 +202,21 @@ pub(super) fn error_code_integer(context: &TraceContext<'_>, sink: &mut FindingS
 /// an `id` and no `method` is response-shaped; if it then carries neither `result`
 /// nor `error`, it is a result response missing its `result` member (an error
 /// response would carry `error` instead).
+///
+/// `Result`-classified messages are subjects too, and counting them is the point:
+/// they carry the member, so they are this clause *complied with*. Examining only
+/// the `Invalid` ones left the check unable to report a pass at all — a session
+/// full of well-formed results reported `not observed`, which says the trace
+/// carried nothing this clause binds to and was plainly untrue. An outcome a
+/// check can never reach is a check nothing proves accepts conforming input.
 pub(super) fn result_field(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, kind, _) in context.messages() {
-        if !matches!(kind, MessageKind::Invalid { .. }) {
+        // An `Error` response is deliberately not a subject: the clause binds
+        // *result* responses, and an error legitimately carries no `result`.
+        if !matches!(
+            kind,
+            MessageKind::Invalid { .. } | MessageKind::Result { .. }
+        ) {
             continue;
         }
         let Some(object) = event.message_payload().and_then(Value::as_object) else {

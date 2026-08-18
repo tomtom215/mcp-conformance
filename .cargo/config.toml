@@ -2,7 +2,17 @@
 # Copyright 2026 Tom F. (https://github.com/tomtom215)
 
 [alias]
-xtask = "run -p xtask --"
+# `--features draft-2026-07-28` is load-bearing, not tidiness. Without it the
+# registry set this build carries describes one revision, and two tasks quietly
+# do less than their name: `spec-drift` skipped `2026-07-28` entirely — 140 of
+# the registry's 412 quotes verified, weekly, green — and `draft-capture`
+# spawned a server, drove a full session, sent nine probes and then refused to
+# judge any of it. Every document spells these commands `cargo xtask <task>`,
+# and the scheduled workflow runs them exactly that way, so the alias is where
+# the feature has to live. It is *not* a package default: `cargo test
+# --workspace` unifies features across members, and a default here would pull
+# the draft surface into the default-features test leg.
+xtask = "run -p xtask --features draft-2026-07-28 --"
 
 # Cross-architecture byte-identity check (`cargo xtask cross-arch`, scheduled
 # `cross-arch` CI job): build the engine crates for architectures CI's own

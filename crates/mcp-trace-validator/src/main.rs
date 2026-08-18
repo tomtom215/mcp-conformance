@@ -23,6 +23,8 @@ use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_trace_validator::report::Verdict;
 use mcp_trace_validator::{engine, multi, reader};
 
+mod judgeable;
+
 const EXIT_OK: u8 = 0;
 const EXIT_FINDINGS: u8 = 1;
 const EXIT_USAGE: u8 = 2;
@@ -225,6 +227,9 @@ fn run_validate(
     };
 
     let report = engine::validate(&registry, &events);
+    if judgeable::reject(report.totals, trace_source) {
+        return EXIT_USAGE;
+    }
     match format {
         Format::Human => print!("{}", report.render_human()),
         Format::Json => match serde_json::to_string_pretty(&report) {
@@ -291,6 +296,9 @@ fn run_validate_multi(
             return EXIT_USAGE;
         }
     };
+    if judgeable::reject(judgeable::combined(&report), trace_source) {
+        return EXIT_USAGE;
+    }
     match format {
         Format::Human => print!("{}", report.render_human()),
         Format::Json => match serde_json::to_string_pretty(&report) {

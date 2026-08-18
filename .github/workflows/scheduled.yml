@@ -105,7 +105,7 @@ jobs:
         run: cargo xtask draft-readiness
 
   fuzz:
-    name: Fuzz (trace parse, canonical JSON, registry parse)
+    name: Fuzz (every declared target)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -120,9 +120,24 @@ jobs:
       # Five minutes per target weekly; committed seed corpora keep coverage warm.
       # The canonical_json target asserts parse(canonical(v)) == v, not mere survival,
       # and trace_parse runs every parseable input through the full validation engine.
-      - name: Fuzz all targets
+      #
+      # The list comes from `cargo fuzz list`, not from names written out here.
+      # It used to be written out, and `registry_set_multi` — added 2026-07-27
+      # with a seed corpus, to cover the only engine path whose *shape* is
+      # attacker-influenced — was never added to it, so the newest target guarded
+      # nothing while the job stayed green. `cargo xtask fuzz-targets` holds the
+      # other end of the chain, checking that every target source is declared as
+      # a `[[bin]]` and so visible to `cargo fuzz list` at all.
+      - name: Fuzz every declared target
         run: |
-          for target in trace_parse canonical_json registry_parse; do
+          set -euo pipefail
+          targets=$(cargo +nightly fuzz list)
+          if [ -z "$targets" ]; then
+            echo "::error::cargo fuzz list named no targets; nothing would be fuzzed"
+            exit 1
+          fi
+          echo "fuzzing: $(echo $targets | tr '\n' ' ')"
+          for target in $targets; do
             cargo +nightly fuzz run "$target" -- -max_total_time=300
           done
       # The corpus libFuzzer grew this run, uploaded so coverage accumulates
@@ -259,20 +274,44 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-  # The claims-expire gates (ADR-0010): the deferral ledger's review-by dates
-  # and the registry's verbatim quotes, both re-verified weekly. Failures
+  # The claims-expire gates (ADR-0010): the deferral ledger's review-by dates,
+  # the registry's verbatim quotes, and the two official-suite pins, all
+  # re-verified weekly. Failures
   # here page the schedule, not PRs — an expired deferral or a drifted quote
-  # is a maintenance event, not a defect in unrelated work.
+  # is a maintenance event, not a defect in unrelated work. That split is
+  # unchanged; what changed (2026-08-18) is the last mile. "Pages the schedule"
+  # used to mean GitHub's default scheduled-failure email and nothing else, and
+  # two ledger rows expired unnoticed behind it, found by hand. So a red run now
+  # opens a tracking issue that names the expired rows, and a green run closes
+  # it — the issue's open/closed state tracks the gates', which is the property
+  # an email cannot have.
   #
-  # 2026-08-18: that split is still right, but "pages the schedule" currently
-  # means GitHub's default scheduled-failure email and nothing else, and two
-  # rows expired unnoticed behind it. Making the failure durable (a tracking
-  # issue naming the expired rows) needs `issues: write` on a job that is
-  # deliberately `contents: read`, so it is its own change — deferral
-  # `expired-deferral-notification`, review-by 2026-11-01.
+  # Security surface (docs/plan/05-security-model.md §CI write scopes, and the
+  # 2026-08-18 amendment to ADR-0010):
+  #
+  #   * `issues: write` is granted on this job alone; the workflow default
+  #     stays `contents: read`, so every other job here is unchanged.
+  #   * No new action dependency: `gh` ships on the runner and is already this
+  #     repository's idiom for GITHUB_TOKEN work (release.yml). Nothing new to
+  #     pin, review, or trust.
+  #   * The issue body is built from the committed ledger and the two step
+  #     outcomes. `spec-drift` fetches remote specification text, and none of
+  #     that text is republished into an issue — the run log carries it.
+  #   * This workflow triggers only on `schedule` and `workflow_dispatch`, so
+  #     no fork or pull-request input reaches the token.
   claims-expire:
-    name: Deferral ledger + spec-quote drift (ADR-0010)
+    name: Deferral ledger + spec quotes + suite pins (ADR-0010)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write # open, comment on, and close the tracking issue below
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      # One stable title is the whole de-duplication key: a run that is still
+      # red comments on the open issue instead of filing a new one every Monday.
+      ISSUE_TITLE: "Weekly claims-expire run is red (ADR-0010)"
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install toolchain
@@ -281,6 +320,89 @@ jobs:
           rustup default stable
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Deferral ledger within its review dates
+        id: ledger
         run: cargo xtask deferrals --check
+      # `always()`: the two gates are independent, and a red ledger used to skip
+      # the drift gate entirely — so a week with an expired row measured the
+      # quotes not at all, while still showing as one red job.
       - name: Registry quotes match the published spec text
+        id: drift
+        if: always()
         run: cargo xtask spec-drift
+      # The third claim that expires on somebody else's schedule: an upstream
+      # suite release. The pins stay exact and bumping one stays a deliberate PR
+      # (03-conformance-strategy §Official-suite version policy) — what this
+      # automates is the *noticing*, which had been a dated line in the deferral
+      # ledger and had already missed two alpha releases.
+      - name: Both suite pins still equal the dist-tags they track
+        id: pins
+        if: always()
+        run: cargo xtask suite-currency
+      - name: Open or update the tracking issue
+        if: failure()
+        shell: bash
+        env:
+          LEDGER_OUTCOME: ${{ steps.ledger.outcome }}
+          DRIFT_OUTCOME: ${{ steps.drift.outcome }}
+          PINS_OUTCOME: ${{ steps.pins.outcome }}
+        run: |
+          set -euo pipefail
+          # printf rather than a heredoc so every backtick in the Markdown is
+          # literal, and so nothing fetched from the network can reach the body.
+          {
+            printf 'The weekly `claims-expire` job ended red.\n\n'
+            printf 'It runs three independent gates ([ADR-0010](%s/%s/blob/main/docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md)), so this issue names which one: an un-re-decided deferral, an upstream release, and a transient spec fetch failure look identical from the outside.\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY"
+            printf '| Gate | Outcome |\n| --- | --- |\n'
+            printf '| Deferral ledger within its review dates | `%s` |\n' "$LEDGER_OUTCOME"
+            printf '| Registry quotes match the published spec text | `%s` |\n' "$DRIFT_OUTCOME"
+            printf '| Both suite pins still equal the dist-tags they track | `%s` |\n' "$PINS_OUTCOME"
+          } > issue-body.md
+          if [[ "$LEDGER_OUTCOME" == "failure" ]]; then
+            # `|| true`: this query fails only when the ledger itself is
+            # unreadable or malformed, which is a different diagnosis than an
+            # expired row and is reported as one below.
+            rows="$(cargo xtask deferrals --expired 2>/dev/null || true)"
+            {
+              printf '\n### Expired ledger rows\n\n'
+              if [[ -n "$rows" ]]; then
+                printf 'Re-decide each one: build the deferred thing and delete its row, or re-date it with a fresh reason in the same commit (`docs/plan/deferrals.json`).\n\n'
+                while read -r id review_by; do
+                  printf -- '- `%s` — review by %s\n' "$id" "$review_by"
+                done <<< "$rows"
+              else
+                printf 'The ledger gate failed with no row past its review date, so the ledger itself did not parse or did not satisfy its shape rules. The run log names the offending row.\n'
+              fi
+            } >> issue-body.md
+          fi
+          if [[ "$DRIFT_OUTCOME" == "failure" ]]; then
+            {
+              printf '\n### Spec-quote drift\n\n'
+              printf 'The drift gate fetches the published specification, so red here is either a genuine quote drift or a transient fetch failure. The run log names the entry and the page; the fetched text is deliberately not republished here.\n'
+            } >> issue-body.md
+          fi
+          if [[ "$PINS_OUTCOME" == "failure" ]]; then
+            {
+              printf '\n### Suite pins\n\n'
+              printf 'A pinned conformance-suite version no longer equals the npm dist-tag it tracks. The run log names which pin and what the tag moved to; the bump itself stays a deliberate change, with the per-pin procedure in `docs/plan/03-conformance-strategy.md`. Holding the pin is a legitimate outcome, recorded where the pin lives.\n'
+            } >> issue-body.md
+          fi
+          printf '\nRun: %s\n' "$RUN_URL" >> issue-body.md
+          # An exact-title match over the open issues, not `gh issue list
+          # --search`, whose index lags creation by enough to file a duplicate.
+          number="$(gh issue list --state open --limit 200 --json number,title \
+            | jq -r --arg title "$ISSUE_TITLE" 'map(select(.title == $title)) | .[0].number // empty')"
+          if [[ -n "$number" ]]; then
+            gh issue comment "$number" --body-file issue-body.md
+          else
+            gh issue create --title "$ISSUE_TITLE" --body-file issue-body.md
+          fi
+      - name: Close the tracking issue once all three gates are green
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          number="$(gh issue list --state open --limit 200 --json number,title \
+            | jq -r --arg title "$ISSUE_TITLE" 'map(select(.title == $title)) | .[0].number // empty')"
+          if [[ -n "$number" ]]; then
+            gh issue close "$number" --comment "All three gates are green as of ${RUN_URL} — closing. A later red run files a fresh issue, so each incident keeps its own history."
+          fi

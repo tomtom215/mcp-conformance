@@ -78,6 +78,58 @@ pub struct Totals {
     pub not_observed: u32,
 }
 
+impl Totals {
+    /// Every outcome's report label and count, in report order.
+    ///
+    /// Destructured exhaustively on purpose, and that is the whole point of the
+    /// method existing: a field added to [`Totals`] fails to compile here until
+    /// it is given a label, and every summary line in the crate is formatted
+    /// from this one list. Hand-written `write!` arms could not offer that —
+    /// the single-revision line named all seven outcomes while the
+    /// multi-revision line named six, so the same run reported 140 clauses as
+    /// human text and 140 as JSON but only accounted for 125 of them in the
+    /// former. Counts that do not add up are how a conformance tool overstates
+    /// what it judged.
+    #[must_use]
+    pub const fn labelled(&self) -> [(&'static str, u32); 7] {
+        let Self {
+            pass,
+            fail,
+            warn,
+            excluded,
+            unsupported,
+            not_applicable,
+            not_observed,
+        } = *self;
+        [
+            ("pass", pass),
+            ("fail", fail),
+            ("warn", warn),
+            ("excluded", excluded),
+            ("unsupported", unsupported),
+            ("not applicable", not_applicable),
+            ("not observed", not_observed),
+        ]
+    }
+}
+
+/// The counts as one phrase — `23 pass, 0 fail, …` — naming every outcome.
+///
+/// The summary lines differ in what surrounds them (`totals: ` on a
+/// single-revision report, the revision and its verdict on a multi-revision
+/// one) and agree on what is inside, so what is inside is written once.
+impl fmt::Display for Totals {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (index, (label, count)) in self.labelled().into_iter().enumerate() {
+            if index > 0 {
+                f.write_str(", ")?;
+            }
+            write!(f, "{count} {label}")?;
+        }
+        Ok(())
+    }
+}
+
 /// One requirement's row in the report.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -178,21 +230,10 @@ impl Report {
                 );
             }
         }
-        let totals = self.totals;
         // Every outcome is named, so the counts sum to the registry's size — a
-        // reader can check the arithmetic, and a variant added without being
-        // rendered would show up as a line that no longer adds up.
-        let _ = writeln!(
-            out,
-            "totals: {} pass, {} fail, {} warn, {} excluded, {} unsupported, {} not applicable, {} not observed",
-            totals.pass,
-            totals.fail,
-            totals.warn,
-            totals.excluded,
-            totals.unsupported,
-            totals.not_applicable,
-            totals.not_observed
-        );
+        // reader can check the arithmetic, and `Totals`' own exhaustive
+        // destructuring is what keeps that true as outcomes are added.
+        let _ = writeln!(out, "totals: {}", self.totals);
         let _ = writeln!(out, "verdict: {}", self.verdict());
         out
     }
@@ -358,6 +399,70 @@ mod tests {
         assert!(json.contains("\"revision\":\"2025-11-25\""), "{json}");
         // Passing rows carry no findings/exclusion/missing_checks keys.
         assert!(!json.contains("\"missing_checks\""), "{json}");
+    }
+
+    /// The counts a rendered summary line actually carries, read back out of
+    /// the text a reader sees rather than off the struct the renderer was
+    /// handed — the two disagreeing is the whole failure this guards.
+    fn counts_in(line: &str) -> Vec<u32> {
+        // The first number in each comma-separated part is its count; what
+        // surrounds it (`totals: ` here, a revision there) carries none.
+        line.split(", ")
+            .filter_map(|part| part.split_whitespace().find_map(|word| word.parse().ok()))
+            .collect()
+    }
+
+    #[test]
+    fn a_summary_line_accounts_for_every_requirement() {
+        let report = sample();
+        let text = report.render_human();
+        let line = text
+            .lines()
+            .find(|line| line.starts_with("totals: "))
+            .unwrap();
+        let counts = counts_in(line);
+        assert_eq!(
+            counts.len(),
+            Totals::default().labelled().len(),
+            "every outcome is named: {line}"
+        );
+        // The invariant the line's own comment claims, asserted rather than
+        // left to a reader's arithmetic: what the renderer prints must add up
+        // to the rows it printed. The multi-revision line made exactly this
+        // claim in prose and silently broke it.
+        assert_eq!(
+            counts.iter().sum::<u32>() as usize,
+            report.requirements.len(),
+            "{line}"
+        );
+    }
+
+    #[test]
+    fn every_outcome_has_a_label_and_they_are_distinct() {
+        let labels: Vec<&str> = Totals::default()
+            .labelled()
+            .iter()
+            .map(|&(label, _)| label)
+            .collect();
+        let mut sorted = labels.clone();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(sorted.len(), labels.len(), "duplicate label in {labels:?}");
+        // Each count sits with its own label: a swapped pair would keep the sum
+        // and the label set intact, so the mapping is pinned too.
+        let totals = Totals {
+            pass: 1,
+            fail: 2,
+            warn: 3,
+            excluded: 4,
+            unsupported: 5,
+            not_applicable: 6,
+            not_observed: 7,
+        };
+        assert_eq!(
+            totals.to_string(),
+            "1 pass, 2 fail, 3 warn, 4 excluded, 5 unsupported, 6 not applicable, 7 not observed"
+        );
     }
 
     #[test]

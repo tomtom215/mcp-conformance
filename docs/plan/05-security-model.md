@@ -21,6 +21,7 @@ reality, not borrowed from a generic library template.
 | Host machine running the everything server | The server is intentionally permissive (it exercises *every* capability) — it must never be reachable from a hostile network | Loopback bind by default; `Host`/`Origin` validation on by default; disabling it requires the self-describing `--dangerously-allow-any-host` flag. |
 | Reference host | Malicious or compromised SUT servers (hostile tool results, oversized streams, slow-loris SSE) | Response size and time budgets; bounded concurrency; cooperative cancellation; no shell interpretation of server-supplied strings. |
 | CI | Supply-chain attacks via actions or dependencies | Actions pinned by SHA; `cargo deny` + `cargo audit` gates; lockfiles; trusted publishing (no long-lived tokens to steal). |
+| CI's `GITHUB_TOKEN` | A job holding a write scope is a lever for anything that can influence what that job runs | Workflow default is `contents: read`; a write scope is granted per job, never per workflow, and carries an inline comment naming what it writes. |
 | Trace corpora | Secrets accidentally recorded into fixtures | Capture tooling redacts `Authorization`/cookie headers and token-shaped strings by default; corpus review is part of PR review. |
 
 ## Designing out the CVE-2026-42559 class
@@ -47,6 +48,34 @@ the `Host` header — [register 4.1–4.2](01-ecosystem-context.md)). Our postur
 Precision note: this advisory is DNS rebinding (CWE-346/350) only; the "CSRF" label
 occasionally attached to it belongs to a different package's advisory
 ([register 4.4](01-ecosystem-context.md)). We do not repeat the conflation.
+
+## CI write scopes (reviewed 2026-08-18)
+
+No workflow grants a write scope at workflow level: every `permissions:` block
+at the top of a file is `{}` or `contents: read`. Write scopes exist only on
+individual jobs, and this is the complete list — five jobs across three
+workflows, each scope with an inline comment in the YAML naming what it writes.
+
+| Workflow (triggers) | Job | Write scope | For |
+|---|---|---|---|
+| `release.yml` (`push` tags, `workflow_dispatch`) | `package` | `id-token`, `attestations` | Sigstore OIDC + build-provenance attestation |
+| `release.yml` | `github-release` | `contents` | create the release, upload `.crate` + `SHA256SUMS` |
+| `release.yml` | `publish` | `id-token` | crates.io Trusted Publishing (no long-lived token exists to steal) |
+| `pages.yml` (`push` to the default branch, `workflow_dispatch`) | `deploy` | `pages`, `id-token` | deploy the book |
+| `scheduled.yml` (`schedule`, `workflow_dispatch`) | `claims-expire` | `issues` | open, comment on, and close the tracking issue a red claims-expiry run files ([ADR-0010 §Amendment](decisions/0010-deferral-ledger-and-scheduled-reverification.md)) |
+
+`ci.yml` and `mutants.yml` — the only two workflows that run on
+`pull_request`, and so the only two that ever execute contributor-authored
+code — hold no write scope anywhere, at either level. No workflow uses
+`pull_request_target`.
+
+Two further properties bound the `issues: write` grant, the newest of the
+five. `scheduled.yml` triggers only on `schedule` and `workflow_dispatch`, so
+no fork or pull-request content reaches the token. And the issue body that job
+posts is composed from the committed deferral ledger and its own step
+outcomes. Two steps in that job read the network — `spec-drift` fetches
+specification text and `suite-currency` fetches npm dist-tags — and neither
+step's fetched text is republished into an issue; the run log carries it.
 
 ## Secrets and data hygiene
 

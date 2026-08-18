@@ -13,6 +13,9 @@
 //! a capability gating it was never negotiated, ADR-0006). Seeing both side by side is
 //! what makes a migration's gains and losses legible: a clause removed in the newer
 //! revision reads `pass` then `absent`; one introduced there reads `absent` then `pass`.
+//!
+//! Against the two registries this build ships, those are the *only* patterns — see
+//! [`MultiRow::differs`] for why, and for what that costs the `*differs` marker.
 
 use core::fmt;
 use core::fmt::Write as _;
@@ -76,7 +79,20 @@ pub struct MultiRow {
 
 impl MultiRow {
     /// Whether this clause's presence-or-outcome is not uniform across the judged
-    /// revisions — the rows a migration review wants to look at first.
+    /// revisions.
+    ///
+    /// How much this discriminates depends on the registries judged, and against
+    /// the two this build ships it discriminates nothing: the registries are
+    /// extracted per revision rather than sharing entries, so a clause restated
+    /// with narrower text at the later revision gets its own ID — the reason
+    /// `2025-11-25`'s BASE-003 (no reuse within a session) and `2026-07-28`'s
+    /// BASE-045 (no reuse *while in flight*) are two clauses and not one. The ID
+    /// spaces are therefore disjoint, every row is `absent` on one side, and
+    /// `differs` is true for all of them. Read the *pattern* instead: `pass` then
+    /// `absent` is a clause the migration removes, `absent` then `pass` one it
+    /// adds. A row that differs in outcome while present at both revisions —
+    /// the one a review would want first — cannot occur here, and would only
+    /// arise for a revision pair that does share clauses.
     #[must_use]
     pub fn differs(&self) -> bool {
         self.outcomes.windows(2).any(|pair| pair[0] != pair[1])
@@ -140,18 +156,13 @@ impl MultiReport {
         }
         let _ = writeln!(out, "per revision:");
         for summary in &self.summaries {
-            let totals = summary.totals;
+            // The same phrase the single-revision report prints, from the same
+            // source: this line used to name six of the seven outcomes, so a
+            // reader adding it up found fewer clauses than the revision has.
             let _ = writeln!(
                 out,
-                "  {}: {} pass, {} fail, {} warn, {} excluded, {} unsupported, {} not applicable — verdict {}",
-                summary.revision,
-                totals.pass,
-                totals.fail,
-                totals.warn,
-                totals.excluded,
-                totals.unsupported,
-                totals.not_applicable,
-                summary.verdict
+                "  {}: {} — verdict {}",
+                summary.revision, summary.totals, summary.verdict
             );
         }
         let _ = writeln!(out, "overall verdict: {}", self.verdict());
@@ -272,162 +283,4 @@ fn outcome_in(report: &Report, id: &str) -> Option<Outcome> {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
-mod tests {
-    use super::*;
-    use crate::reader::{Limits, parse_trace};
-
-    /// A two-revision set: BASE-001 throughout, LIFE-009 removed at 2026-07-28, DISC-001
-    /// introduced at 2026-07-28. All use a real check so outcomes are meaningful.
-    const SET: &str = r#"{
-        "revisions": ["2025-11-25", "2026-07-28"],
-        "requirements": [
-            {"id": "BASE-001", "level": "MUST", "actor": "both",
-             "source": {"section": "b#x", "quote": "MUST jsonrpc 2.0"},
-             "checks": ["base.jsonrpc-version"]},
-            {"id": "LIFE-009", "level": "MUST", "actor": "server",
-             "applies": {"removed": "2026-07-28"},
-             "source": {"section": "l#y", "quote": "MUST jsonrpc 2.0"},
-             "checks": ["base.jsonrpc-version"]},
-            {"id": "DISC-001", "level": "MUST", "actor": "server",
-             "applies": {"introduced": "2026-07-28"},
-             "source": {"section": "d#z", "quote": "MUST jsonrpc 2.0"},
-             "checks": ["base.jsonrpc-version"]}
-        ]
-    }"#;
-
-    fn set() -> RegistrySet {
-        RegistrySet::from_json(SET).unwrap()
-    }
-
-    fn revs() -> [ProtocolRevision; 2] {
-        ["2025-11-25".parse().unwrap(), "2026-07-28".parse().unwrap()]
-    }
-
-    #[test]
-    fn no_revisions_is_an_error() {
-        assert_eq!(
-            validate_revisions(&set(), &[], &[]),
-            Err(MultiError::NoRevisions)
-        );
-    }
-
-    #[test]
-    fn unknown_revision_names_itself() {
-        let unknown: ProtocolRevision = "2024-01-01".parse().unwrap();
-        assert_eq!(
-            validate_revisions(&set(), &[unknown], &[]),
-            Err(MultiError::UnknownRevision(unknown))
-        );
-        assert!(unknown.to_string().contains("2024-01-01"));
-    }
-
-    #[test]
-    fn rows_align_outcomes_with_revisions_and_mark_absence() {
-        let report = validate_revisions(&set(), &revs(), &[]).unwrap();
-        assert_eq!(report.revisions, ["2025-11-25", "2026-07-28"]);
-        assert_eq!(report.summaries.len(), 2);
-
-        let find = |id: &str| {
-            report
-                .requirements
-                .iter()
-                .find(|row| row.id == id)
-                .cloned()
-                .unwrap()
-        };
-
-        // Present throughout: an outcome in both columns, identical, not flagged.
-        let base = find("BASE-001");
-        assert!(base.outcomes[0].is_some() && base.outcomes[1].is_some());
-        assert!(!base.differs());
-
-        // Removed at the boundary: present, then absent.
-        let life = find("LIFE-009");
-        assert!(life.outcomes[0].is_some());
-        assert_eq!(life.outcomes[1], None);
-        assert!(life.differs());
-
-        // Introduced at the boundary: absent, then present.
-        let disc = find("DISC-001");
-        assert_eq!(disc.outcomes[0], None);
-        assert!(disc.outcomes[1].is_some());
-        assert!(disc.differs());
-    }
-
-    #[test]
-    fn union_order_follows_the_set_and_drops_clauses_in_no_judged_revision() {
-        // Judge only the older revision: DISC-001 (introduced later) appears in no judged
-        // revision and must be dropped entirely, not shown as an all-absent row.
-        let older: [ProtocolRevision; 1] = ["2025-11-25".parse().unwrap()];
-        let report = validate_revisions(&set(), &older, &[]).unwrap();
-        let ids: Vec<&str> = report.requirements.iter().map(|r| r.id.as_str()).collect();
-        assert_eq!(ids, ["BASE-001", "LIFE-009"]);
-        // A single judged revision can never "differ".
-        assert!(report.requirements.iter().all(|row| !row.differs()));
-    }
-
-    #[test]
-    fn differs_detects_a_non_adjacent_divergence() {
-        // Three identical-then-different columns: pins `any` against `all` and the row
-        // comparison against equality.
-        let uniform = MultiRow {
-            id: "X-001".to_owned(),
-            level: "MUST".to_owned(),
-            outcomes: vec![
-                Some(Outcome::Pass),
-                Some(Outcome::Pass),
-                Some(Outcome::Pass),
-            ],
-        };
-        assert!(!uniform.differs());
-        let diverges = MultiRow {
-            outcomes: vec![
-                Some(Outcome::Pass),
-                Some(Outcome::Pass),
-                Some(Outcome::Fail),
-            ],
-            ..uniform
-        };
-        assert!(diverges.differs());
-    }
-
-    #[test]
-    fn overall_verdict_is_the_worst_across_revisions() {
-        let mut report = validate_revisions(&set(), &revs(), &[]).unwrap();
-        // The synthetic trace is empty, so every real check passes vacuously.
-        assert_eq!(report.verdict(), Verdict::Pass);
-        // Worsen the second revision and confirm the fold tracks the priority order.
-        report.summaries[1].verdict = Verdict::PassWithWarnings;
-        assert_eq!(report.verdict(), Verdict::PassWithWarnings);
-        report.summaries[1].verdict = Verdict::Fail;
-        assert_eq!(report.verdict(), Verdict::Fail);
-        report.summaries[0].verdict = Verdict::Unsupported;
-        assert_eq!(report.verdict(), Verdict::Unsupported);
-    }
-
-    #[test]
-    fn human_render_shows_each_revision_cell_and_marks_divergence() {
-        let report = validate_revisions(&set(), &revs(), &[]).unwrap();
-        let text = report.render_human();
-        assert!(text.contains("revisions 2025-11-25, 2026-07-28"), "{text}");
-        // The removed clause reads present then absent, and is flagged.
-        assert!(text.contains("LIFE-009"), "{text}");
-        assert!(text.contains("2026-07-28=absent"), "{text}");
-        assert!(text.contains("*differs"), "{text}");
-        assert!(text.contains("overall verdict: pass"), "{text}");
-    }
-
-    #[test]
-    fn judges_a_real_trace_and_is_deterministic() {
-        // A real handshake, judged against both revisions, serializes identically twice.
-        let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}"#;
-        let events = parse_trace(trace, &Limits::default()).unwrap();
-        let a = validate_revisions(&set(), &revs(), &events).unwrap();
-        let b = validate_revisions(&set(), &revs(), &events).unwrap();
-        assert_eq!(
-            serde_json::to_string(&a).unwrap(),
-            serde_json::to_string(&b).unwrap()
-        );
-    }
-}
+mod tests;
