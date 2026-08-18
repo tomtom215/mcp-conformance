@@ -47,15 +47,6 @@ const WITHOUT_A_PASSING_TRACE: &[(&str, &str)] = &[
     // carries a conforming `_meta` key and a tool result embedding a resource,
     // which was the whole of its debt.
     (
-        "CACH-015",
-        "needs a paginated list whose pages agree on `cacheScope`; this server's \
-         surface has no pagination, so only the violating shape is authored",
-    ),
-    (
-        "CACH-016",
-        "shares `caching.page-scope-consistent` with CACH-015",
-    ),
-    (
         "DISC-002",
         "needs a dual-era client that probes with `server/discover` first; the \
          corpus has the client that skips the probe, not the one that sends it",
@@ -75,33 +66,9 @@ const WITHOUT_A_PASSING_TRACE: &[(&str, &str)] = &[
          not serve",
     ),
     (
-        "TOOL-034",
-        "needs an `x-mcp-header`-annotated integer argument inside the IEEE 754 \
-         safe range; the server has no annotated tool, so only the out-of-range \
-         violation is authored",
-    ),
-    (
         "TRAN-096",
         "needs a server rejecting a malformed `Mcp-Param-{Name}` value; the \
          authored trace is the server that accepts one",
-    ),
-    (
-        "TRAN-070",
-        "a MUST NOT whose conforming case is a server that sends nothing after \
-         its response stream closed — the check's subject is a message that \
-         should not exist, so a session has to close a stream mid-request to \
-         exercise it at all",
-    ),
-    (
-        "TRAN-124",
-        "the same shape as TRAN-070 over stdio, where cancellation is a \
-         notification rather than a stream close",
-    ),
-    (
-        "VERS-004",
-        "needs client capabilities advertising a correctly prefixed extension \
-         identifier; the only trace that advertises one omits the prefix, which \
-         is the violation",
     ),
 ];
 

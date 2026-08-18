@@ -300,9 +300,29 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `stdio-feature-session.jsonl` then closed the shipped revision's whole debt:
   it now carries a well-formed `params._meta` key (`BASE-019`/`BASE-020`) and a
   `tools/call` returning an embedded resource against a declared `resources`
-  capability (`TOOL-009`). Eleven `2026-07-28` rows remain, each naming the
-  conforming trace nobody has written — a paginated list, an annotated integer
-  argument in range, a dual-era client that actually probes, and so on.
+  capability (`TOOL-009`).
+
+  The two conforming `2026-07-28` traces closed six of the eleven rows the
+  measurement opened there. `streamable-http-session.jsonl` gained a correctly
+  prefixed extension identifier (`VERS-004`), a paginated `tools/list` whose
+  pages agree on `cacheScope` (`CACH-015`/`CACH-016`), and an `x-mcp-header`
+  annotation on an integer property with a value inside the IEEE 754 safe range
+  (`TOOL-034`); `stateless-session.jsonl` gained two calls in flight, a
+  cancellation for one, and the server answering only the other (`TRAN-124`).
+
+  The two MUST NOTs among them are the interesting ones, because a recording
+  cannot show an absent message. `TRAN-070` and `TRAN-124` are only witnessed by
+  a session that carries a *permitted* message where the forbidden one would be
+  — which is why the HTTP trace now fetches its continuation page after a
+  `transport-close` (ordinary on Streamable HTTP, where every POST gets its own
+  stream) rather than ending there.
+
+  Five rows remain, each naming the conforming trace nobody has written: a
+  dual-era client that actually probes (`DISC-002`/`TRAN-128`, whose pass path
+  needs a server that refuses the probe, so it can only live in a violation
+  trace), a server re-asking after an input shortfall (`MRTR-024`), a prompt
+  carrying audio (`PROM-017`), and a server rejecting a malformed
+  `Mcp-Param-{Name}` value (`TRAN-096`).
 
 - **`*differs` marked every row of a multi-revision report, and its doc comment
   called those "the rows a migration review wants to look at first".** With the

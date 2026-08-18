@@ -1,13 +1,13 @@
 {
   "revision": "2026-07-28",
   "totals": {
-    "pass": 45,
+    "pass": 47,
     "fail": 0,
     "warn": 0,
     "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 79
+    "not_observed": 77
   },
   "requirements": [
     {
@@ -323,12 +323,12 @@
     {
       "id": "TRAN-123",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-124",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-128",
