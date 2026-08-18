@@ -157,10 +157,22 @@ fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
 }
 
-/// One committed golden report, read for its per-requirement outcomes only.
+/// One committed golden report, read for its per-requirement outcomes and its
+/// totals.
+///
+/// `requirements` no longer carries the `excluded` rows — those are a property
+/// of the revision, pinned once in `corpus/golden/exclusions/` (ADR-0013) — so
+/// the excluded count is read from `totals`, which is the report's own
+/// aggregate and stays whole in every golden.
 #[derive(Deserialize)]
 struct GoldenReport {
+    totals: GoldenTotals,
     requirements: Vec<GoldenRow>,
+}
+
+#[derive(Deserialize)]
+struct GoldenTotals {
+    excluded: u32,
 }
 
 #[derive(Deserialize)]
@@ -177,7 +189,9 @@ pub(crate) struct Capture {
     warn: u32,
     /// Clauses the registry documents as unjudgeable from a trace. Not part of
     /// any coverage arithmetic — carried because the verdict rows in
-    /// `corpus/README.md` quote it, so the claim check has to know it.
+    /// `corpus/README.md` quote it, so the claim check has to know it. Taken
+    /// from the report's own `totals`, since the rows themselves live in the
+    /// revision's exclusion ledger rather than in each golden.
     excluded: u32,
     observed: BTreeSet<String>,
     not_observed: BTreeSet<String>,
@@ -235,17 +249,18 @@ fn captures(root: &Path) -> Result<Vec<Capture>, String> {
 
 /// Sorts one report's rows into the buckets the table reports.
 ///
-/// `excluded`, `unsupported` and `not-applicable` are all *un*judgeable and
-/// deliberately fall through: a clause the registry excludes, or one whose
-/// check was not compiled in, or one gated on a capability the session never
-/// negotiated, is not something the capture could have evidenced.
+/// `unsupported` and `not-applicable` are *un*judgeable and deliberately fall
+/// through: a clause whose check was not compiled in, or one gated on a
+/// capability the session never negotiated, is not something the capture could
+/// have evidenced. `excluded` is unjudgeable too and no longer appears as a row
+/// at all; its count comes from `totals`.
 fn tally(name: String, report: &GoldenReport) -> Capture {
     let mut capture = Capture {
         name,
         pass: 0,
         fail: 0,
         warn: 0,
-        excluded: 0,
+        excluded: report.totals.excluded,
         observed: BTreeSet::new(),
         not_observed: BTreeSet::new(),
     };
@@ -256,10 +271,6 @@ fn tally(name: String, report: &GoldenReport) -> Capture {
             "warn" => capture.warn += 1,
             "not-observed" => {
                 capture.not_observed.insert(row.id.clone());
-                continue;
-            }
-            "excluded" => {
-                capture.excluded += 1;
                 continue;
             }
             _ => continue,

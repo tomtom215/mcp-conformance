@@ -4,8 +4,18 @@
 //! Golden-corpus tests: every trace in `corpus/` validates to a byte-identical,
 //! committed report, and the corpus as a whole falsifies every implemented check.
 //!
-//! Regenerate goldens deliberately with `BLESS=1 cargo test -p mcp-trace-validator
-//! --test golden` (or `cargo xtask bless`) and review the diff like any other code.
+//! A trace's report is pinned across *two* files, because it states two kinds of
+//! fact (ADR-0013). `corpus/golden/<stem>.json` holds everything the trace
+//! decided — the judged rows, and the totals. The `excluded` rows are not among
+//! them: the registry alone decides those, identically for every trace
+//! (`engine::build_row`), so they are pinned once per revision in
+//! `corpus/golden/exclusions/<revision>.json`. Splicing the two back together
+//! reproduces the whole report, and
+//! [`assert_reconstructs_the_full_report`] proves it does on every trace.
+//!
+//! Regenerate both deliberately with `BLESS=1 cargo test -p mcp-trace-validator
+//! --all-features --test golden` (or `cargo xtask bless`) and review the diff
+//! like any other code.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -13,9 +23,10 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mcp_conformance_core::requirement::Registry;
-use mcp_trace_validator::report::{Outcome, Report, Verdict};
+use mcp_conformance_core::requirement::{Registry, Verification};
+use mcp_trace_validator::report::{Outcome, Report, RequirementReport, Verdict};
 use mcp_trace_validator::{engine, reader};
+use serde::{Deserialize, Serialize};
 
 fn corpus_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../corpus")
@@ -67,21 +78,46 @@ fn golden_path(trace_path: &Path) -> PathBuf {
     dir.join(format!("{stem}.json"))
 }
 
-fn check_golden(trace_path: &Path, report: &Report) {
-    let golden_path = golden_path(trace_path);
-    let mut rendered = serde_json::to_string_pretty(report).unwrap();
-    rendered.push('\n');
+/// Whether this run regenerates artifacts rather than checking them.
+///
+/// Same convention as the coverage manifest's regeneration switch: only the
+/// exact value "1" blesses, so `BLESS=0 cargo test` does not silently
+/// overwrite goldens.
+fn blessing() -> bool {
+    std::env::var("BLESS").is_ok_and(|value| value == "1")
+}
 
-    // Same convention as the coverage manifest's regeneration switch: only
-    // the exact value "1" blesses, so `BLESS=0 cargo test` does not silently
-    // overwrite goldens.
-    if std::env::var("BLESS").is_ok_and(|value| value == "1") {
-        if let Some(parent) = golden_path.parent() {
-            fs::create_dir_all(parent)
-                .unwrap_or_else(|error| panic!("cannot create {}: {error}", parent.display()));
-        }
-        fs::write(&golden_path, &rendered)
-            .unwrap_or_else(|error| panic!("cannot write {}: {error}", golden_path.display()));
+fn write_artifact(path: &Path, contents: &str) {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .unwrap_or_else(|error| panic!("cannot create {}: {error}", parent.display()));
+    }
+    fs::write(path, contents)
+        .unwrap_or_else(|error| panic!("cannot write {}: {error}", path.display()));
+}
+
+/// Renders a report the way its golden pins it: everything except the
+/// `excluded` rows, which belong to the revision rather than to this trace.
+///
+/// `totals` is left whole — `totals.excluded` staying in every file is what
+/// ties a trace back to its revision's ledger, and it is the per-trace
+/// assertion that the excluded set is still the size the ledger says.
+fn render_golden(report: &Report) -> String {
+    let mut pinned = report.clone();
+    pinned
+        .requirements
+        .retain(|row| row.outcome != Outcome::Excluded);
+    let mut rendered = serde_json::to_string_pretty(&pinned).unwrap();
+    rendered.push('\n');
+    rendered
+}
+
+fn check_golden(registry: &Registry, trace_path: &Path, report: &Report) {
+    let golden_path = golden_path(trace_path);
+    let rendered = render_golden(report);
+
+    if blessing() {
+        write_artifact(&golden_path, &rendered);
         return;
     }
 
@@ -98,6 +134,193 @@ fn check_golden(trace_path: &Path, report: &Report) {
         trace_path.display(),
         golden_path.display()
     );
+
+    assert_reconstructs_the_full_report(registry, trace_path, report);
+}
+
+/// One revision's excluded set: the clauses its registry documents as
+/// unjudgeable from a trace, with the reason it gives.
+///
+/// Pinned once per revision rather than once per trace because that is what it
+/// is — `engine::build_row` maps `Verification::Excluded` straight to the
+/// outcome and the registry's prose, consulting nothing about the session, and
+/// `engine`'s own `happy_path_passes_every_checked_requirement` asserts as much
+/// ("every documented exclusion reports as excluded, regardless of trace").
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct ExclusionLedger {
+    revision: String,
+    requirements: Vec<ExcludedRow>,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct ExcludedRow {
+    id: String,
+    level: String,
+    exclusion: String,
+}
+
+impl ExcludedRow {
+    /// The row as the full report carries it.
+    ///
+    /// Built by deserializing rather than by struct literal: `RequirementReport`
+    /// is `#[non_exhaustive]`, and round-tripping through the real type is also
+    /// what keeps the reconstruction honest — a field added to the report type
+    /// lands here in the report's own order, not in one this test invented.
+    fn as_report_row(&self) -> RequirementReport {
+        serde_json::from_value(serde_json::json!({
+            "id": self.id,
+            "level": self.level,
+            "outcome": "excluded",
+            "exclusion": self.exclusion,
+        }))
+        .expect("an excluded ledger row is a report row")
+    }
+}
+
+fn exclusions_path(revision: &str) -> PathBuf {
+    corpus_root()
+        .join("golden/exclusions")
+        .join(format!("{revision}.json"))
+}
+
+/// Whether the registry declines to judge this clause from a trace.
+///
+/// One predicate, used by both the ledger and the splice, so the two can never
+/// disagree about which rows left the per-trace golden. `Verification` is
+/// `#[non_exhaustive]`, and a variant added later is *not* an exclusion until
+/// someone says so here — the safe default, since an unrecognised variant that
+/// silently joined the ledger would drop a judged row out of every report.
+const fn is_excluded(verification: &Verification) -> bool {
+    matches!(verification, Verification::Excluded { .. })
+}
+
+/// The excluded set as the registry states it, in registry order.
+fn exclusions_of(registry: &Registry) -> ExclusionLedger {
+    ExclusionLedger {
+        revision: registry.revision().to_string(),
+        requirements: registry
+            .requirements()
+            .iter()
+            .filter(|requirement| is_excluded(&requirement.verification))
+            .map(|requirement| {
+                let Verification::Excluded { exclusion } = &requirement.verification else {
+                    unreachable!("is_excluded admitted a non-exclusion")
+                };
+                ExcludedRow {
+                    id: requirement.id.to_string(),
+                    level: requirement.level.keyword().to_owned(),
+                    exclusion: exclusion.clone(),
+                }
+            })
+            .collect(),
+    }
+}
+
+fn read_exclusion_ledger(revision: &str) -> ExclusionLedger {
+    let path = exclusions_path(revision);
+    let text = fs::read_to_string(&path).unwrap_or_else(|error| {
+        panic!(
+            "cannot read {}: {error}\nhint: regenerate goldens with `cargo xtask bless`",
+            path.display()
+        )
+    });
+    serde_json::from_str(&text)
+        .unwrap_or_else(|error| panic!("{} is not an exclusion ledger: {error}", path.display()))
+}
+
+/// Byte-pins one revision's exclusion ledger against its registry.
+///
+/// This is the single place the exclusion prose is asserted, so an edit to a
+/// reason — or a clause that stops being excluded because a check now judges
+/// it — moves exactly one file instead of all 132.
+fn check_exclusion_ledger(registry: &Registry) {
+    let path = exclusions_path(&registry.revision().to_string());
+    let mut rendered = serde_json::to_string_pretty(&exclusions_of(registry)).unwrap();
+    rendered.push('\n');
+
+    if blessing() {
+        write_artifact(&path, &rendered);
+        return;
+    }
+
+    let expected = fs::read_to_string(&path).unwrap_or_else(|error| {
+        panic!(
+            "cannot read {}: {error}\nhint: regenerate goldens with `cargo xtask bless`",
+            path.display()
+        )
+    });
+    assert_eq!(
+        rendered,
+        expected,
+        "revision {}'s excluded set diverges from its ledger {}\nhint: if the change is intended, run `cargo xtask bless` and review the diff",
+        registry.revision(),
+        path.display()
+    );
+}
+
+/// The guarantee the two-file split has to keep: golden + ledger, spliced in
+/// registry order, *is* the whole report — every row, plus the revision and
+/// totals, exactly what the single-file format used to pin.
+///
+/// Without this the split would be a claim rather than a fact. It reads only
+/// committed artifacts and the live report, so it fails if a judged row went
+/// missing from the golden, if the ledger drifted from the registry, or if the
+/// two interleave in any order other than the registry's.
+fn assert_reconstructs_the_full_report(registry: &Registry, trace_path: &Path, report: &Report) {
+    let golden: Report =
+        serde_json::from_str(&fs::read_to_string(golden_path(trace_path)).unwrap()).unwrap();
+    let ledger = read_exclusion_ledger(&registry.revision().to_string());
+
+    let mut judged = golden.requirements.iter();
+    let mut excluded = ledger.requirements.iter();
+    let rebuilt: Vec<RequirementReport> = registry
+        .requirements()
+        .iter()
+        .map(|requirement| {
+            if is_excluded(&requirement.verification) {
+                excluded
+                    .next()
+                    .unwrap_or_else(|| {
+                        panic!("{}: ledger ran out of excluded rows", requirement.id)
+                    })
+                    .as_report_row()
+            } else {
+                judged
+                    .next()
+                    .unwrap_or_else(|| panic!("{}: golden ran out of judged rows", requirement.id))
+                    .clone()
+            }
+        })
+        .collect();
+    assert!(
+        judged.next().is_none() && excluded.next().is_none(),
+        "{}: golden and ledger carry rows the registry does not name",
+        trace_path.display()
+    );
+
+    for (rebuilt, live) in rebuilt.iter().zip(&report.requirements) {
+        assert_eq!(
+            rebuilt,
+            live,
+            "{}: splicing {} back together does not reproduce its row",
+            trace_path.display(),
+            live.id
+        );
+    }
+    assert_eq!(
+        rebuilt.len(),
+        report.requirements.len(),
+        "{}: the splice has {} rows; the report has {}",
+        trace_path.display(),
+        rebuilt.len(),
+        report.requirements.len()
+    );
+    assert_eq!(
+        (&golden.revision, golden.totals),
+        (&report.revision, report.totals),
+        "{}: the golden's revision and totals must be the report's",
+        trace_path.display()
+    );
 }
 
 #[test]
@@ -112,7 +335,7 @@ fn good_traces_pass_and_match_goldens() {
             trace_path.display(),
             report.render_human()
         );
-        check_golden(&trace_path, &report);
+        check_golden(&registry, &trace_path, &report);
     }
 }
 
@@ -128,7 +351,7 @@ fn violation_traces_fail_and_match_goldens() {
             trace_path.display()
         );
         assert_falsifies_its_named_requirement(&trace_path, &report);
-        check_golden(&trace_path, &report);
+        check_golden(&registry, &trace_path, &report);
     }
 }
 
@@ -167,6 +390,11 @@ fn assert_falsifies_its_named_requirement(trace_path: &Path, report: &Report) {
 }
 
 #[test]
+fn exclusion_ledger_matches_the_registry() {
+    check_exclusion_ledger(&Registry::builtin_2025_11_25().unwrap());
+}
+
+#[test]
 fn every_golden_belongs_to_a_living_trace() {
     // Goldens are written per trace; deleting or renaming a trace must not
     // strand its golden as unreviewed dead weight that still looks load-bearing.
@@ -182,16 +410,31 @@ fn every_golden_belongs_to_a_living_trace() {
     // Both revisions, each against its own golden directory: the `2026-07-28`
     // corpus is byte-pinned on the same terms as the shipped one, so a stranded
     // draft golden is as much a defect as a stranded shipped one.
-    for (subdirs, golden_dir) in [
+    //
+    // The revision each directory answers for is named alongside it: its
+    // exclusion ledger is half of every report pinned there, so a missing one
+    // strands the whole directory the same way a missing golden strands a trace.
+    let mut ledgers = BTreeSet::new();
+    for (subdirs, golden_dir, revision) in [
         (
             ["good", "violations"].as_slice(),
             corpus_root().join("golden"),
+            "2025-11-25",
         ),
         (
             ["draft/good", "draft/violations", "draft/captured"].as_slice(),
             corpus_root().join("golden/draft"),
+            "2026-07-28",
         ),
     ] {
+        let ledger = exclusions_path(revision);
+        assert!(
+            ledger.is_file(),
+            "{} pins reports for {revision}, whose exclusion ledger {} is missing",
+            golden_dir.display(),
+            ledger.display()
+        );
+        ledgers.insert(revision.to_owned());
         let traces: BTreeSet<String> = subdirs
             .iter()
             .flat_map(|subdir| trace_files(subdir))
@@ -211,6 +454,19 @@ fn every_golden_belongs_to_a_living_trace() {
             golden_dir.display()
         );
     }
+
+    // And no ledger without a golden directory to serve: a revision whose
+    // corpus was removed leaves prose that still reads as load-bearing.
+    let committed: BTreeSet<String> = fs::read_dir(corpus_root().join("golden/exclusions"))
+        .expect("corpus/golden/exclusions holds one ledger per pinned revision")
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
+        .map(|path| path.file_stem().unwrap().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        committed, ledgers,
+        "left: exclusion ledgers on disk; right: revisions with a golden directory"
+    );
 }
 
 #[test]
@@ -331,7 +587,10 @@ fn checks_count_their_subjects() {
 /// the revision — there would be nothing to project and nothing to judge.
 #[cfg(feature = "draft-2026-07-28")]
 mod draft {
-    use super::{assert_falsifies_its_named_requirement, check_golden, trace_files, validate_file};
+    use super::{
+        assert_falsifies_its_named_requirement, check_exclusion_ledger, check_golden, trace_files,
+        validate_file,
+    };
     use mcp_conformance_core::requirement::Registry;
     use mcp_conformance_core::requirement::RegistrySet;
     use mcp_trace_validator::report::Verdict;
@@ -359,7 +618,7 @@ mod draft {
                 "{} should conform: {failures:#?}",
                 trace_path.display()
             );
-            check_golden(&trace_path, &report);
+            check_golden(&registry, &trace_path, &report);
         }
     }
 
@@ -380,7 +639,7 @@ mod draft {
                 trace_path.display()
             );
             assert_falsifies_its_named_requirement(&trace_path, &report);
-            check_golden(&trace_path, &report);
+            check_golden(&registry, &trace_path, &report);
         }
     }
 
@@ -404,7 +663,12 @@ mod draft {
         let registry = draft_registry();
         for trace_path in trace_files("draft/captured") {
             let report = validate_file(&registry, &trace_path);
-            check_golden(&trace_path, &report);
+            check_golden(&registry, &trace_path, &report);
         }
+    }
+
+    #[test]
+    fn draft_exclusion_ledger_matches_the_registry() {
+        check_exclusion_ledger(&draft_registry());
     }
 }
