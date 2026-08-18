@@ -240,6 +240,19 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **`*differs` marked every row of a multi-revision report, and its doc comment
+  called those "the rows a migration review wants to look at first".** With the
+  registries extracted per revision rather than sharing entries — the reason
+  `2025-11-25`'s BASE-003 (no reuse within a session) and `2026-07-28`'s
+  BASE-045 (no reuse *while in flight*) are two clauses and not one — the ID
+  spaces are disjoint, so all 412 rows are `absent` on one side and all 412
+  differ. A marker that fires on everything points at nothing. The predicate is
+  correct and unchanged; the documentation now says what it does and does not
+  discriminate here, and what to read instead (`pass` then `absent` is a clause
+  the migration removes; `absent` then `pass` one it adds). A test asserts the
+  registries share no clause, so if that ever stops being true the marker
+  becomes meaningful again and the docs get revisited.
+
 - **The multi-revision summary line named six of the seven outcomes, so it
   reported more conformance than it had measured.** `validate --revision`
   printed `23 pass, 0 fail, 0 warn, 88 excluded, 0 unsupported, 14 not
@@ -297,6 +310,23 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   applies to inline code too — **code is a specimen, prose is a claim** — which
   is why row 1.5i's record of what it used to say survives the widening intact
   instead of being edited out of the document to satisfy a checker.
+
+- **The root README reported the draft-readiness score the suite superseded six
+  weeks earlier.** It said the `2026-07-28` scenarios "pass 23/23" — the
+  `alpha.9` figure. The 2026-08-18 pin bump to `alpha.11` separated the legs
+  (**41 passing / 0 failing** stateless, 37 passing / 4 failing legacy) and the
+  planning documents were updated; the most-read file in the repository was
+  not, and nothing could tell, because `draft-readiness` ratchets the *baseline
+  file* while every document quoting it kept the number by hand.
+
+  So the readiness scores are now a checked shape too: `draft-coverage` parses
+  "N passing / M failing" (and the informational count when a sentence gives
+  one) and requires it to be a score `conformance/draft-readiness.json` records
+  — either leg's or the whole run's. Same backtick rule as the other shapes, and
+  it earns its keep immediately: the roadmap's first measurement and the
+  register's superseded `alpha.9` result are *quotes*, and stay in the documents
+  as quotes rather than being swept out to satisfy a checker. A superseded
+  finding that gets deleted is a project that cannot show its work.
 
 - **`cargo xtask bless` regenerated 53 of the 132 golden reports and exited 0.**
   It ran `cargo test -p mcp-trace-validator --test golden` with default
@@ -747,8 +777,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `notifications/elicitation/response`, a *different* notification, and binding
   to it would have left the host silently deaf — caught by the round-trip test.
 
-- **Readiness for `2026-07-28` jumped from 1 passing / 20 failing / 1
-  informational to 23 passing / 0 failing / 0 informational.** The single
+- **Readiness for `2026-07-28` jumped from `1 passing / 20 failing / 1
+  informational` to `23 passing / 0 failing / 0 informational`.** The single
   blocker was the removed handshake: rmcp 1.7.0's server rejected every
   scenario with HTTP 422 before any handler ran. On rmcp 3.x the everything
   server passes the official runner's whole `2026-07-28` scenario set.

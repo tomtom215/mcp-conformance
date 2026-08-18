@@ -135,18 +135,25 @@ fn cell_verdicts(cell: &str, line: usize) -> Vec<Verdict> {
 }
 
 /// Every `<number> <label>` pair in `cell`, in the order they appear.
-///
-/// A label must end a word, so `pass` does not match inside `passes`, and it
-/// must carry a number immediately before it, so "65 clauses not observed"
-/// counts nothing — the number there belongs to the clauses, not the label.
 fn counts(cell: &str) -> Vec<(&'static str, u32)> {
+    counts_of(cell, &LABELS)
+}
+
+/// Every `<number> <label>` pair in `cell` drawn from `labels`, in order.
+///
+/// Shared with [`super::readiness`], which reads the same grammar over a
+/// different vocabulary. A label must end a word, so `pass` does not match
+/// inside `passes`, and it must carry a number immediately before it, so "65
+/// clauses not observed" counts nothing — the number there belongs to the
+/// clauses, not the label.
+pub(super) fn counts_of(cell: &str, labels: &[&'static str]) -> Vec<(&'static str, u32)> {
     let mut found = Vec::new();
     let mut consumed = 0;
     for (at, _) in cell.char_indices() {
         if at < consumed {
             continue;
         }
-        let Some(label) = LABELS.iter().find(|label| ends_word(cell, at, label)) else {
+        let Some(label) = labels.iter().find(|label| ends_word(cell, at, label)) else {
             continue;
         };
         consumed = at + label.len();

@@ -16,6 +16,8 @@
 //!
 //! - [`claim`] — `109 of the 124 judgeable clauses`, a pair against the corpus.
 //! - [`verdict`] — `58 pass, 1 fail, …`, a tuple against one capture's row.
+//! - [`readiness`] — `41 passing / 0 failing`, a score against the committed
+//!   `draft-readiness` baseline.
 //! - [`prose`] — Markdown with its code blanked, so a specimen of tool output
 //!   is never read as an assertion about this corpus.
 
@@ -31,9 +33,11 @@ use super::{Capture, Summary};
 
 mod claim;
 mod prose;
+mod readiness;
 mod verdict;
 
 use claim::{claims, judge};
+use readiness::Baseline;
 use verdict::{judge_verdict, verdicts};
 
 /// The Markdown a reader treats as current, and the only files whose claims
@@ -83,6 +87,13 @@ pub(super) const DOCUMENTS: usize = CLAIM_FILES.len();
 /// Verifies every coverage claim in [`CLAIM_FILES`]; `true` when all agree.
 pub(super) fn check(root: &Path, captures: &[Capture], summary: &Summary) -> bool {
     let allowed = summary.allowed();
+    let baseline = match Baseline::load(root) {
+        Ok(baseline) => baseline,
+        Err(error) => {
+            eprintln!("xtask: draft-coverage — {error}");
+            return false;
+        }
+    };
     let mut ok = true;
     for name in CLAIM_FILES {
         let Ok(text) = fs::read_to_string(root.join(name)) else {
@@ -105,6 +116,7 @@ pub(super) fn check(root: &Path, captures: &[Capture], summary: &Summary) -> boo
         for verdict in verdicts(&scanned) {
             ok &= judge_verdict(name, &verdict, captures);
         }
+        ok &= readiness::check(name, &scanned, &baseline);
     }
     ok
 }

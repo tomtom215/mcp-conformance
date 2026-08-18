@@ -50,8 +50,10 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
 10. The README coverage table in sync with the registry (`cargo xtask coverage --check`)
 11. `corpus/README.md`'s per-capture coverage table in sync with the committed
     golden reports, and every count stated in the **living** Markdown agreeing
-    with them — both the "N of the M judgeable clauses" claims and the "N pass,
-    M fail" verdicts (`cargo xtask draft-coverage --check`). Living means the
+    with the committed artifacts — the "N of the M judgeable clauses" claims and
+    the "N pass, M fail" verdicts against the golden reports, and the "N passing
+    / M failing" readiness scores against `conformance/draft-readiness.json`
+    (`cargo xtask draft-coverage --check`). Living means the
     documents a reader treats as current: the READMEs, `CONTRIBUTING`, the
     `Unreleased` changelog, and `docs/plan/*.md`. Dated documents are exempt
     and stay as written — `docs/reports/`, the ADRs under

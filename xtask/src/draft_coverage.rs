@@ -28,9 +28,12 @@
 //!   with it. Every occurrence of that phrasing in the user-facing Markdown is
 //!   parsed and required to name a real pair: the denominator must be the
 //!   judgeable total, and the numerator must be either the union or some
-//!   single capture's judged count. The same pass reads the other shape a count
-//!   is written in — "58 pass, 1 fail, …" — and requires some committed report
-//!   to have produced it.
+//!   single capture's judged count. The same pass reads the other shapes a count
+//!   is written in: "58 pass, 1 fail, …" must be a tuple some committed report
+//!   produced, and "41 passing / 0 failing" a score `conformance/draft-readiness.json`
+//!   records — that ratchet guards the baseline file, and nothing guarded the
+//!   documents quoting it until the root README was found still reporting the
+//!   pre-`alpha.11` figure.
 //!
 //! The claim check reads the *living* documents rather than every tracked
 //! Markdown file: a dated one records what was true when it was written and is
