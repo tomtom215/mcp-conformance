@@ -16,13 +16,6 @@
       "review_by": "2026-10-01"
     },
     {
-      "id": "expired-deferral-notification",
-      "what": "Make a failing `claims-expire` job reach a human durably \u2014 most likely an `if: failure()` step that opens or updates a tracking issue naming the expired rows, rather than relying on GitHub's default scheduled-failure email to the workflow actor",
-      "why": "New row 2026-08-18, opened by evidence: two rows (`rust-sdk-902-offer-clock`, review-by 2026-08-10; `suite-0-2-0-stable-pin-bump`, review-by 2026-08-15) sat expired and were found by hand, not by anyone acting on the weekly job. ADR-0010's decision that this gate pages the schedule rather than the PR gate is NOT the defect and is not being revisited \u2014 an expiry should not block unrelated work. The defect is the last mile: a red weekly job notifies only by an email that is easy to miss, and the `claims-expire` job runs `spec-drift` too, so a network flake there looks the same from the outside as an expired ledger row. Deferred rather than built in the same commit as the re-decision because it needs `issues: write` on a workflow that is deliberately `contents: read`, plus a new pinned action dependency \u2014 a security-surface change that belongs in its own reviewed PR against 05-security-model, not as a rider on a ledger update",
-      "meanwhile": "The gate itself is correct and loud: `cargo xtask deferrals --check` names every expired row and fails; the two steps are separately named in the job so GitHub shows which one went red; GitHub's default scheduled-failure email still fires",
-      "review_by": "2026-11-01"
-    },
-    {
       "id": "register-90-day-sweep",
       "what": "Re-verify every register row dated 2026-06-09..12 in docs/plan/01-ecosystem-context.md before external use",
       "why": "The register's own maintenance rule 1: rows older than 90 days must be re-verified before citation",

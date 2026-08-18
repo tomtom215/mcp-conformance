@@ -11,7 +11,8 @@
 //!   CONTRIBUTING.md lists, as code, so "run the gates" cannot drift from what CI
 //!   runs.
 //! - `gates` — every gate needing only a stable toolchain and the tree: file
-//!   sizes, fuzz-target declarations, documentation links, version sync,
+//!   sizes, fuzz-target declarations, CI write scopes, documentation links,
+//!   version sync,
 //!   changelog links, and both coverage projections. `ci.yml` runs exactly this,
 //!   and `ci` includes it, so the two cannot diverge.
 //! - `bless` — regenerate the golden corpus reports and the per-revision exclusion
@@ -26,6 +27,9 @@
 //! - `file-sizes` — verify the ≤ 500-line cap on source and registry files.
 //! - `fuzz-targets` — every fuzz target source is declared as a `[[bin]]`, so
 //!   `cargo fuzz list` (which the weekly job takes its list from) can see it.
+//! - `ci-permissions` — every `GITHUB_TOKEN` write scope in `.github/workflows/`
+//!   is granted on a job (never workflow-wide) and is listed in the security
+//!   model's inventory, both directions (`ci_permissions.rs`).
 //! - `deny` — run `cargo deny --all-features check`, skipping loudly when
 //!   cargo-deny is not installed.
 //! - `docs-links` — verify every relative link in tracked Markdown resolves
@@ -37,9 +41,11 @@
 //!   a `[X.Y.Z]: <url>` reference definition and `[Unreleased]` must compare
 //!   against the latest release (`changelog_links.rs`); the sibling of
 //!   `version-sync` for the other doc the release checklist forgets.
-//! - `deferrals [--check]` — list the deferral ledger (docs/plan/deferrals.json);
-//!   `--check` (weekly scheduled job) fails on rows past their review-by date
-//!   (ADR-0010).
+//! - `deferrals [--check|--expired]` — list the deferral ledger
+//!   (docs/plan/deferrals.json); `--check` (weekly scheduled job) fails on rows
+//!   past their review-by date (ADR-0010), and `--expired` prints
+//!   `id review_by` per expired row on stdout for that job's notification step
+//!   to format into the tracking issue it opens.
 //! - `spec-drift` — verify every registry quote against the published spec
 //!   text (network; weekly scheduled job — ADR-0010).
 //! - `mutants [--jobs N]` — the exact diff-scoped mutation gate CI runs on PRs,
@@ -75,6 +81,7 @@ use std::process::{Command, ExitCode};
 
 mod agreement;
 mod changelog_links;
+mod ci_permissions;
 mod conformance;
 mod coverage;
 mod cross_arch;
@@ -112,12 +119,13 @@ fn main() -> ExitCode {
         Some("draft-coverage") => draft_coverage::run(args.next().as_deref() == Some("--check")),
         Some("file-sizes") => exit_if(local_gates::file_size_gate()),
         Some("fuzz-targets") => exit_if(fuzz_targets::run()),
+        Some("ci-permissions") => exit_if(ci_permissions::run()),
         Some("deny") => exit_if(local_gates::deny_gate()),
         Some("mutants") => exit_if(local_gates::mutants_gate(&args.collect::<Vec<_>>())),
         Some("semver") => exit_if(local_gates::semver_gate()),
         Some("cross-arch") => exit_if(cross_arch::run()),
         Some("minimal-versions") => exit_if(minimal_versions::run()),
-        Some("deferrals") => exit_if(deferrals::run(args.next().as_deref() == Some("--check"))),
+        Some("deferrals") => exit_if(deferrals::dispatch(args.next().as_deref())),
         Some("spec-drift") => spec_drift::run(),
         Some("docs-links") => exit_if(docs_links::run()),
         Some("version-sync") => exit_if(version_sync::run()),
@@ -185,6 +193,9 @@ fn gates() -> bool {
     if !fuzz_targets::run() {
         return false;
     }
+    if !ci_permissions::run() {
+        return false;
+    }
     if !docs_links::run() {
         return false;
     }
@@ -202,7 +213,7 @@ fn gates() -> bool {
     draft_coverage::run(true) == ExitCode::SUCCESS
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  gates              the offline gates ci.yml runs (a subset of `ci`)\n  bless              regenerate golden corpus reports + exclusion ledgers\n  coverage [--check] regenerate (or verify) the README coverage table\n  draft-coverage [--check] regenerate (or verify) corpus/README's per-capture\n                     coverage table, and verify every count the living Markdown\n                     states against the committed golden reports\n  file-sizes         verify the 500-line cap on source and registry files\n  fuzz-targets       every fuzz target source is declared as a [[bin]]\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants [--jobs N] diff-scoped mutation gate vs origin/main (the PR gate,\n                     locally); --jobs is the only flag it accepts\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  changelog-links    every CHANGELOG version heading has a link def; Unreleased base current\n  draft-capture      record a 2026-07-28 stdio session (reference host against the\n                     everything server) and judge it; BLESS=1 to refresh the\n                     committed copy in corpus/draft/captured/\n  draft-readiness    measure the everything server against the official runner's\n                     2026-07-28 scenarios; ratchets against a committed\n                     baseline (BLESS=1 to re-record)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  gates              the offline gates ci.yml runs (a subset of `ci`)\n  bless              regenerate golden corpus reports + exclusion ledgers\n  coverage [--check] regenerate (or verify) the README coverage table\n  draft-coverage [--check] regenerate (or verify) corpus/README's per-capture\n                     coverage table, and verify every count the living Markdown\n                     states against the committed golden reports\n  file-sizes         verify the 500-line cap on source and registry files\n  fuzz-targets       every fuzz target source is declared as a [[bin]]\n  ci-permissions     workflow write scopes are per-job and inventoried in\n                     docs/plan/05-security-model.md\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants [--jobs N] diff-scoped mutation gate vs origin/main (the PR gate,\n                     locally); --jobs is the only flag it accepts\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check|--expired]\n                     list the deferral ledger; --check fails on expired rows,\n                     --expired prints `id review_by` per expired row on stdout\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  changelog-links    every CHANGELOG version heading has a link def; Unreleased base current\n  draft-capture      record a 2026-07-28 stdio session (reference host against the\n                     everything server) and judge it; BLESS=1 to refresh the\n                     committed copy in corpus/draft/captured/\n  draft-readiness    measure the everything server against the official runner's\n                     2026-07-28 scenarios; ratchets against a committed\n                     baseline (BLESS=1 to re-record)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {

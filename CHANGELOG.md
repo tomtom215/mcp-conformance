@@ -13,6 +13,48 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **A red claims-expiry run now files a tracking issue, and a green one closes
+  it.** The weekly `claims-expire` job was correct and loud — it went red on the
+  Monday runs and named every expired ledger row — but the only thing downstream
+  of red was GitHub's default scheduled-failure email, so two rows sat expired
+  for eight and three days and were found by hand. The gate now ends in a
+  notification whose state is durable: a failing run opens an issue naming the
+  expired row ids and their dates (or comments on the open one), and a passing
+  run closes it. A missed email is gone; an open issue is still open.
+
+  Two smaller defects fell out of building it. `spec-drift` runs in the same
+  job and used to be *skipped* whenever the ledger step failed, so a week with
+  an expired row measured the registry's 412 quotes not at all while still
+  showing as one red job — it now runs unconditionally, and the issue tabulates
+  both outcomes, because from outside the run log a transient spec fetch and an
+  un-re-decided deferral looked identical. And the row ids in that issue come
+  from `cargo xtask deferrals --expired`, a new machine-readable mode that
+  prints `id review_by` per expired row on stdout, rather than from scraping a
+  log whose format nothing pins. `deferrals` now also rejects an unrecognised
+  flag instead of treating it as the default: `--chekc` used to list the ledger
+  and exit zero, which reads exactly like a gate that ran and passed.
+
+  The security surface is one job-scoped `issues: write`; the workflow default
+  stays `contents: read`, and the deferral row's predicted "new pinned action
+  dependency" turned out to be avoidable — `gh` ships on the runner and is
+  already this repository's idiom for `GITHUB_TOKEN` work. The issue body is
+  composed from the committed ledger and the two step outcomes only, so no
+  fetched specification text is ever republished into an issue. Recorded as an
+  amendment to
+  [ADR-0010](docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md)
+  and inventoried in the security model.
+
+- **The security model's CI write-scope inventory is now a gate, not a table.**
+  Writing that inventory created exactly the kind of claim this repository
+  gates against everywhere else: a hand-kept list, true the day it was written,
+  read afterwards as an inventory. `cargo xtask ci-permissions` checks it in
+  both directions — every `GITHUB_TOKEN` write scope in `.github/workflows/` is
+  granted on a job rather than workflow-wide, and the set of `(workflow, job,
+  scope)` triples the workflows grant equals the set the table lists. It joins
+  `cargo xtask gates`, so it runs on every push and pull request. Seven scopes
+  across five workflows today; the two workflows that ever execute
+  contributor-authored code hold none.
+
 - **The `2026-07-28` registry is complete: all fifteen in-scope pages, 272
   entries, nothing aspirational.** Every page is entered by the same
   per-requirement method as `2025-11-25` — live fetch, verbatim quote, then a
