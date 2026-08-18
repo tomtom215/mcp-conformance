@@ -302,11 +302,19 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   and then refused to judge any of it because the build could not describe the
   revision. Exit 1, from the only command any document names.
 
-  The feature is on by default in `xtask` now. This is **not** the M5 item that
-  drops the gate from the *shipped* crates — those keep their opt-in; it is the
-  dev-only task runner no longer hiding the revision it exists to maintain.
-  Plain `cargo xtask spec-drift` verifies 412 quotes across both revisions, 0
-  drifted; plain `cargo xtask draft-capture` records and judges.
+  The `cargo xtask` alias carries the feature now, so every documented command
+  gets it: `cargo xtask spec-drift` verifies 412 quotes across both revisions,
+  0 drifted, and `cargo xtask draft-capture` records and judges. This is **not**
+  the M5 item that drops the gate from the *shipped* crates — those keep their
+  opt-in.
+
+  The alias rather than a package default, and the difference is not cosmetic:
+  `cargo test --workspace` unifies features across members, so making it an
+  xtask default pulled the draft surface into the **default-features** test leg
+  — 4 draft-gated golden tests running where they should not, and the
+  three-mode matrix collapsed to two. That was the first attempt at this fix,
+  caught by counting what the default leg actually ran. The alias reaches the
+  tasks and nothing else.
 
 - **`cargo xtask ci` compiled less strictly than the CI it reproduces.** `ci.yml`
   sets `RUSTFLAGS: -D warnings` for every job; the local task set it on the
