@@ -13,6 +13,32 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **Neither official-suite pin can fall behind unnoticed any more.** Both
+  versions this workspace pins are exact on purpose — a gate whose input moves
+  underneath it is not a gate — but exactness only makes the input stable, it
+  does not make an upstream release visible. The draft ratchet sat on
+  `0.2.0-alpha.9` for six weeks while `alpha.10` and `alpha.11` shipped, and
+  `alpha.11` added a `wire-schema-valid` check the ratchet had no way to see.
+  The re-check that would have caught it existed as a dated line in the
+  deferral ledger, which is a claim that something will be looked at.
+
+  `cargo xtask suite-currency` asks npm what the `latest` and `alpha`
+  dist-tags point at and fails when either differs from its pin, naming the
+  constant to edit and the procedure for editing it. It runs in the weekly
+  `claims-expire` job — an upstream release is a maintenance event, not a
+  defect in whatever pull request is open — so a moved dist-tag now files a
+  tracking issue within the week. Bumping a pin is unchanged: still a
+  deliberate change with a scenario diff review, and still one where holding
+  the pin is a legitimate outcome, recorded where the pin lives.
+
+  Both pins were re-checked live while building this: npm serves `latest`
+  `0.1.16` and `alpha` `0.2.0-alpha.11`, and the two pins are `0.1.16` and
+  `0.2.0-alpha.11`. Current, with nothing to bump — which is the first time
+  that sentence has been backed by something that will say so again next week
+  without being asked. Ledger row `draft-suite-pin-currency` is deleted, built;
+  `suite-0-2-0-stable-pin-bump` keeps its date and records the new detector as
+  its standing enforcement.
+
 - **A red claims-expiry run now files a tracking issue, and a green one closes
   it.** The weekly `claims-expire` job was correct and loud — it went red on the
   Monday runs and named every expired ledger row — but the only thing downstream

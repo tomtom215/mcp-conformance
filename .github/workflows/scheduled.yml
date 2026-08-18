@@ -274,8 +274,9 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-  # The claims-expire gates (ADR-0010): the deferral ledger's review-by dates
-  # and the registry's verbatim quotes, both re-verified weekly. Failures
+  # The claims-expire gates (ADR-0010): the deferral ledger's review-by dates,
+  # the registry's verbatim quotes, and the two official-suite pins, all
+  # re-verified weekly. Failures
   # here page the schedule, not PRs — an expired deferral or a drifted quote
   # is a maintenance event, not a defect in unrelated work. That split is
   # unchanged; what changed (2026-08-18) is the last mile. "Pages the schedule"
@@ -299,7 +300,7 @@ jobs:
   #   * This workflow triggers only on `schedule` and `workflow_dispatch`, so
   #     no fork or pull-request input reaches the token.
   claims-expire:
-    name: Deferral ledger + spec-quote drift (ADR-0010)
+    name: Deferral ledger + spec quotes + suite pins (ADR-0010)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -328,22 +329,33 @@ jobs:
         id: drift
         if: always()
         run: cargo xtask spec-drift
+      # The third claim that expires on somebody else's schedule: an upstream
+      # suite release. The pins stay exact and bumping one stays a deliberate PR
+      # (03-conformance-strategy §Official-suite version policy) — what this
+      # automates is the *noticing*, which had been a dated line in the deferral
+      # ledger and had already missed two alpha releases.
+      - name: Both suite pins still equal the dist-tags they track
+        id: pins
+        if: always()
+        run: cargo xtask suite-currency
       - name: Open or update the tracking issue
         if: failure()
         shell: bash
         env:
           LEDGER_OUTCOME: ${{ steps.ledger.outcome }}
           DRIFT_OUTCOME: ${{ steps.drift.outcome }}
+          PINS_OUTCOME: ${{ steps.pins.outcome }}
         run: |
           set -euo pipefail
           # printf rather than a heredoc so every backtick in the Markdown is
           # literal, and so nothing fetched from the network can reach the body.
           {
             printf 'The weekly `claims-expire` job ended red.\n\n'
-            printf 'It runs two independent gates ([ADR-0010](%s/%s/blob/main/docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md)), so this issue names which one: an un-re-decided deferral and a transient spec fetch failure look identical from the outside.\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY"
+            printf 'It runs three independent gates ([ADR-0010](%s/%s/blob/main/docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md)), so this issue names which one: an un-re-decided deferral, an upstream release, and a transient spec fetch failure look identical from the outside.\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY"
             printf '| Gate | Outcome |\n| --- | --- |\n'
             printf '| Deferral ledger within its review dates | `%s` |\n' "$LEDGER_OUTCOME"
             printf '| Registry quotes match the published spec text | `%s` |\n' "$DRIFT_OUTCOME"
+            printf '| Both suite pins still equal the dist-tags they track | `%s` |\n' "$PINS_OUTCOME"
           } > issue-body.md
           if [[ "$LEDGER_OUTCOME" == "failure" ]]; then
             # `|| true`: this query fails only when the ledger itself is
@@ -368,6 +380,12 @@ jobs:
               printf 'The drift gate fetches the published specification, so red here is either a genuine quote drift or a transient fetch failure. The run log names the entry and the page; the fetched text is deliberately not republished here.\n'
             } >> issue-body.md
           fi
+          if [[ "$PINS_OUTCOME" == "failure" ]]; then
+            {
+              printf '\n### Suite pins\n\n'
+              printf 'A pinned conformance-suite version no longer equals the npm dist-tag it tracks. The run log names which pin and what the tag moved to; the bump itself stays a deliberate change, with the per-pin procedure in `docs/plan/03-conformance-strategy.md`. Holding the pin is a legitimate outcome, recorded where the pin lives.\n'
+            } >> issue-body.md
+          fi
           printf '\nRun: %s\n' "$RUN_URL" >> issue-body.md
           # An exact-title match over the open issues, not `gh issue list
           # --search`, whose index lags creation by enough to file a duplicate.
@@ -378,7 +396,7 @@ jobs:
           else
             gh issue create --title "$ISSUE_TITLE" --body-file issue-body.md
           fi
-      - name: Close the tracking issue once both gates are green
+      - name: Close the tracking issue once all three gates are green
         if: success()
         shell: bash
         run: |
@@ -386,5 +404,5 @@ jobs:
           number="$(gh issue list --state open --limit 200 --json number,title \
             | jq -r --arg title "$ISSUE_TITLE" 'map(select(.title == $title)) | .[0].number // empty')"
           if [[ -n "$number" ]]; then
-            gh issue close "$number" --comment "Both gates are green as of ${RUN_URL} — closing. A later red run files a fresh issue, so each incident keeps its own history."
+            gh issue close "$number" --comment "All three gates are green as of ${RUN_URL} — closing. A later red run files a fresh issue, so each incident keeps its own history."
           fi

@@ -111,23 +111,33 @@ easy to miss and easy to filter, and which says only that a workflow failed.
 A gate whose output nobody receives is prose with extra steps — the exact
 failure mode this ADR was written against, reappearing one layer out.
 
-Three changes close it, all inside the `claims-expire` job:
+Four changes close it, all inside the `claims-expire` job:
 
 1. **A red run opens or updates a tracking issue**, whose body names the
    expired row ids and their dates. A green run **closes** it. The issue's
    open/closed state therefore tracks the gates' state, which is the property
    an email cannot have: a notification you missed is gone, an open issue is
    still open.
-2. **The two gates report separately.** `spec-drift` now carries
-   `if: always()`, so a red ledger no longer skips it — a week with an expired
-   row used to measure the quotes not at all — and the issue body tabulates
-   both outcomes. A transient spec fetch failure and an un-re-decided deferral
-   were previously indistinguishable from outside the run log; now the issue
-   says which.
+2. **The gates report separately.** `spec-drift` now carries `if: always()`,
+   so a red ledger no longer skips it — a week with an expired row used to
+   measure the quotes not at all — and the issue body tabulates every outcome.
+   A transient spec fetch failure and an un-re-decided deferral were
+   previously indistinguishable from outside the run log; now the issue says
+   which.
 3. **The row ids are read from the ledger, not scraped from a log.**
    `cargo xtask deferrals --expired` prints `id review_by` per expired row on
    stdout and exits zero; the workflow formats those lines. The gate's log
    format stays free to change without silently emptying the notification.
+4. **A third claim joined the job**, because it expires the same way: the two
+   official-suite pins. `cargo xtask suite-currency` fails when npm's `latest`
+   or `alpha` dist-tag stops equalling the version pinned for it. That
+   re-check used to be a dated ledger row — the mechanism decision 1 built —
+   and it had already missed two alpha releases before anyone read the date.
+   A ledger row is the right home for work that is *deferred*; a recurring
+   observation of something outside the repository is better held by a gate
+   that makes it, which is the same reasoning that put the spec quotes here
+   rather than in prose. Bumping a pin stays a deliberate pull request; only
+   the noticing moved.
 
 ### Security surface
 

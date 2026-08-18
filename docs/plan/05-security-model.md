@@ -73,8 +73,9 @@ Two further properties bound the `issues: write` grant, the newest of the
 five. `scheduled.yml` triggers only on `schedule` and `workflow_dispatch`, so
 no fork or pull-request content reaches the token. And the issue body that job
 posts is composed from the committed deferral ledger and its own step
-outcomes — the `spec-drift` step in the same job fetches remote specification
-text, and none of that text is republished into an issue.
+outcomes. Two steps in that job read the network — `spec-drift` fetches
+specification text and `suite-currency` fetches npm dist-tags — and neither
+step's fetched text is republished into an issue; the run log carries it.
 
 ## Secrets and data hygiene
 

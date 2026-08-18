@@ -33,6 +33,11 @@ use std::path::Path;
 use std::process::{Command, ExitCode, Stdio};
 use std::time::Duration;
 
+/// The npm package both suite pins name. One spelling, because
+/// `suite-currency` asks npm about this package and the two runner
+/// invocations fetch it.
+pub(crate) const SUITE_PACKAGE: &str = "@modelcontextprotocol/conformance";
+
 /// The pinned official suite version. Bumps are deliberate changes: review
 /// the upstream diff, refresh `conformance/expected-failures.yaml`, and
 /// update register row 2.4 in the same commit. `MCP_SUITE_VERSION` overrides
@@ -250,12 +255,12 @@ fn await_readiness_line(stderr: std::process::ChildStderr) -> Option<String> {
 /// Runs the pinned npx runner against the served address.
 fn run_suite(root: &Path, results_dir: &Path, address: &str, suite: &str) -> ExitCode {
     eprintln!(
-        "xtask: conformance — running @modelcontextprotocol/conformance@{suite} \
+        "xtask: conformance — running {SUITE_PACKAGE}@{suite} \
          (spec {SPEC_VERSION}) against http://{address}/mcp"
     );
     let status = Command::new("npx")
         .arg("-y")
-        .arg(format!("@modelcontextprotocol/conformance@{suite}"))
+        .arg(format!("{SUITE_PACKAGE}@{suite}"))
         .arg("server")
         .arg("--url")
         .arg(format!("http://{address}/mcp"))
