@@ -264,6 +264,34 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The weekly drift gate verified 140 of the registry's 412 quotes and said it
+  had covered both revisions.** `xtask`'s `draft-2026-07-28` feature was
+  off by default, copying the library crates — where the opt-in is right,
+  because a published build should not judge against a revision its consumers
+  did not ask for. `xtask` publishes nothing, and every document spells the
+  command `cargo xtask spec-drift`, which is exactly how the scheduled workflow
+  runs it. So the `2026-07-28` registry — 272 entries, the larger and newer of
+  the two — was skipped every week since it was extracted, and the job went
+  green.
+
+  Its summary line then rounded the gap away: `140 quote(s) across 2
+  revision(s) verified`, having read one. It counted the revisions it *looped
+  over*, not the ones it verified. A gate overstating its own coverage is the
+  exact failure this gate exists to catch in other people's documents, so the
+  line now counts what it verified and names what it did not — with the feature
+  off it reads `140 quote(s) across 1 revision(s) … 1 NOT verified`.
+
+  `cargo xtask draft-capture` was failing outright for the same reason, and
+  failing late: it spawned the server, drove a full session, sent nine probes,
+  and then refused to judge any of it because the build could not describe the
+  revision. Exit 1, from the only command any document names.
+
+  The feature is on by default in `xtask` now. This is **not** the M5 item that
+  drops the gate from the *shipped* crates — those keep their opt-in; it is the
+  dev-only task runner no longer hiding the revision it exists to maintain.
+  Plain `cargo xtask spec-drift` verifies 412 quotes across both revisions, 0
+  drifted; plain `cargo xtask draft-capture` records and judges.
+
 - **`cargo xtask ci` compiled less strictly than the CI it reproduces.** `ci.yml`
   sets `RUSTFLAGS: -D warnings` for every job; the local task set it on the
   rustdoc steps only, so its clippy and test steps were the one place a rustc

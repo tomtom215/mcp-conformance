@@ -14,6 +14,19 @@ repository.workspace = true
 homepage.workspace = true
 
 [features]
+# ON BY DEFAULT, unlike the library crates, because nothing about this crate
+# ships. There it is an opt-in so a published build cannot judge against a
+# revision its consumers did not ask for; here the only consumer is this
+# repository's own tooling, and the revision is the one it is maintaining.
+#
+# Off by default it cost real coverage silently: every document spells the
+# commands `cargo xtask spec-drift` and `cargo xtask draft-capture`, and the
+# scheduled workflow runs them exactly that way — so the weekly drift gate
+# verified 140 of the registry's 412 quotes and skipped `2026-07-28` entirely,
+# while `draft-capture` spawned a server, drove a full session, sent nine
+# probes and then refused to judge any of it.
+default = ["draft-2026-07-28"]
+
 # Passthrough so `cargo xtask spec-drift` can verify the in-progress revision's
 # quotes: without it the registry set does not describe `2026-07-28`, and the gate
 # reports the revision as skipped rather than silently verifying nothing.

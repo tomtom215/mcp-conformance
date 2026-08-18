@@ -85,6 +85,8 @@ pub(crate) fn run() -> ExitCode {
     };
     let mut drifted = 0u32;
     let mut checked = 0u32;
+    let mut verified: Vec<&str> = Vec::new();
+    let mut skipped: Vec<&str> = Vec::new();
     for revision in REVISIONS {
         let Ok(parsed) = revision.parse() else {
             eprintln!("xtask: spec-drift — {revision} is not a protocol revision");
@@ -94,8 +96,10 @@ pub(crate) fn run() -> ExitCode {
         // the `draft-2026-07-28` feature being off is the ordinary case, not an error.
         let Some(registry) = set.registry(parsed) else {
             eprintln!("xtask: spec-drift — {revision}: not described by this build, skipped");
+            skipped.push(revision);
             continue;
         };
+        verified.push(revision);
         match verify_revision(revision, &registry) {
             Ok(count) => {
                 checked += count.0;
@@ -113,10 +117,24 @@ pub(crate) fn run() -> ExitCode {
         );
         return ExitCode::FAILURE;
     }
+    // The count is of revisions *verified*, not of revisions looped over. It
+    // used to be `REVISIONS.len()`, so a build without the draft feature
+    // announced "140 quote(s) across 2 revision(s)" having read one of them —
+    // a gate overstating its own coverage, which is the failure this gate
+    // exists to catch in other people's documents.
     eprintln!(
         "xtask: spec-drift — {checked} quote(s) across {} revision(s) verified against \
-         the published text",
-        REVISIONS.len()
+         the published text{}",
+        verified.len(),
+        if skipped.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "; {} NOT verified, this build does not describe {}",
+                skipped.len(),
+                skipped.join(", ")
+            )
+        }
     );
     ExitCode::SUCCESS
 }
