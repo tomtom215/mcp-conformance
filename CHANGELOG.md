@@ -240,6 +240,39 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **Two deferral rows sat expired, and three published claims had rotted behind
+  them.** `cargo xtask deferrals --check` is a weekly scheduled gate, not a PR
+  gate (ADR-0010, deliberately — an expiry should not block unrelated work), and
+  nobody acted on it: `rust-sdk-902-offer-clock` passed review-by on 2026-08-10
+  and `suite-0-2-0-stable-pin-bump` on 2026-08-15. Both are re-decided against
+  re-fetched evidence rather than re-dated blind, and the corrected claims are:
+
+  - The ledger and [register row 2.4](docs/plan/01-ecosystem-context.md) said the
+    npm `alpha` dist-tag "has been quiet since 2026-07-01". It was not: `alpha.10`
+    published **2026-07-27, the day after that row was written**. This is
+    [ADR-0010](docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md)'s
+    own founding example recurring verbatim, so the row now states its
+    observation window instead of predicting upstream quiet.
+  - [07-ecosystem-engagement.md](docs/plan/07-ecosystem-engagement.md) called the
+    `enumNames` fix ([rust-sdk#905](https://github.com/modelcontextprotocol/rust-sdk/pull/905))
+    "maintainer-authored". GitHub shows the author carrying the **Contributor**
+    badge, approved and merged by a **Member**. The engagement was still
+    successful; the distinction is precisely the one risk R9 measures.
+  - **R9 has not fired.** Its trigger is *two* substantive offers unanswered for
+    60+ days. [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902)
+    is unanswered at 68 days — open, zero comments, no assignee, no linked PR —
+    but the same day's [#903](https://github.com/modelcontextprotocol/rust-sdk/issues/903)
+    was answered and fixed in nine days. The count stands at one, so M4's DoD
+    does not re-scope. Recorded in the risk register with the evidence.
+
+  Two new rows open for what this exposed: `draft-suite-pin-currency` (the
+  ratchet's input is pre-release and needs dated re-checking, since the weekly
+  alpha job runs at the *registry's* revision and cannot see draft scenario
+  churn) and `expired-deferral-notification` (a red weekly job currently reaches
+  a human only by an easily-missed email; making it durable needs `issues: write`
+  on a `contents: read` workflow, so it gets its own reviewed change).
+
+
 - **The reference server answered a missing resource with a code
   `2026-07-28` withdrew.** `resources/read` for a URI it does not serve drew
   `-32002`, which `basic/index#error-codes` lists under "Implementations of
@@ -481,6 +514,44 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   across several sections.
 
 ### Changed
+
+- **The draft-readiness ratchet moves to suite `0.2.0-alpha.11`, and the runner
+  can now tell the two servers apart — agreeing with this workspace's registry
+  on the clause it found first.** `DRAFT_SUITE_VERSION` had sat on
+  `0.2.0-alpha.9` (2026-07-01) for six weeks while `alpha.10` (2026-07-27) and
+  `alpha.11` (2026-08-07) shipped. Re-measured with `BLESS=1`: **no pre-existing
+  check changed status**, and the entire delta is 36 new `wire-schema-valid`
+  checks, which validate every message against the negotiated revision's JSON
+  schema. Thirty-two pass. The four that fail are all on the `2025-11-25` leg —
+  `resources-{list,read-text,read-binary,templates-read}`, each for `must have
+  required property 'cacheScope'` and `'ttlMs'`.
+
+  That is **CACH-001**, the single clause the registry here had already flagged
+  against the legacy server (123 pass / 1 fail) while the official runner scored
+  both servers an indistinguishable 23/23. The runner has now found it
+  independently, six weeks later. The standing finding "the runner cannot
+  distinguish the two servers" is superseded rather than deleted, in
+  [register row 1.5i](docs/plan/01-ecosystem-context.md) and
+  [06-roadmap.md](docs/plan/06-roadmap.md): a negative result about an
+  instrument expires when the instrument improves. Legs now score 37 passing /
+  4 failing (legacy) and 41 / 0 (stateless).
+
+  The asymmetry is instructive and is recorded: `tools/list` and `prompts/list`
+  pass because rmcp's `#[tool_handler]`/`#[prompt_handler]` expansions attach
+  caching hints unconditionally, while `resources/*` go through this workspace's
+  revision-aware `cached()`, which correctly withholds them at `2025-11-25`. The
+  honest implementation is the one the new check fails.
+
+- **The two suite pins are no longer coupled.**
+  [03-conformance-strategy.md](docs/plan/03-conformance-strategy.md) said both
+  move when the `0.2.0` line stabilizes. They have different triggers:
+  `SUITE_VERSION` gates the *released* revision and waits for a stable release
+  to exist (`0.1.16`, unchanged since 2026-03-30, is still the only one);
+  `DRAFT_SUITE_VERSION` measures readiness against a scenario set that is itself
+  pre-release and moving, so holding it back does not keep the measurement
+  stable — it makes it describe an older question. Six weeks on `alpha.9` cost
+  exactly that.
+
 
 - **Breaking (pre-1.0):** `mcp_everything_server::http::router` and
   `http::router_tapped` take a `ServedRevision`. Pass

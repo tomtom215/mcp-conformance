@@ -133,23 +133,39 @@ informational SHOULD warning on the suite's version-compat probe.
   design* — it exists to hear upstream churn coming — and stays at the registry's revision,
   so it is signal to read, never a gate.
 - **Measure** the next revision separately and *gate* it: `DRAFT_SUITE_VERSION` in
-  `xtask/src/draft_readiness.rs` pins an exact alpha (`0.2.0-alpha.9`) and runs the
+  `xtask/src/draft_readiness.rs` pins an exact alpha (`0.2.0-alpha.11`) and runs the
   runner's `2026-07-28` scenarios against the server once per revision the server can
   serve, ratcheting every check's status against `conformance/draft-readiness.json`. Floating and pinned are not
   interchangeable here: a tracking job wants the newest thing upstream has, a ratchet
   wants an input that cannot move underneath it, so the two are different jobs on
-  different pins rather than one job with a compromise. Both pins move together when the
-  `0.2.0` line stabilizes (deferral `suite-0-2-0-stable-pin-bump`), the draft one with a
-  `BLESS=1` re-measurement in the same commit.
+  different pins rather than one job with a compromise.
+- **The two pins have different triggers**, and conflating them was a mistake this
+  document made until 2026-08-18. `SUITE_VERSION` gates the *released* revision, so it
+  waits for a stable release to exist — `0.1.16` is still the only one. `DRAFT_SUITE_VERSION`
+  measures readiness against a scenario set that is *itself* pre-release and moving, so
+  holding it back does not keep the measurement stable, it makes it describe an
+  increasingly old question. It therefore advances to the newest alpha carrying the
+  `2026-07-28` scenarios, deliberately, with a `BLESS=1` re-measurement and a scenario
+  diff review in the same commit. Holding at `alpha.9` for six weeks cost exactly what
+  that argument predicts: `alpha.11` added a `wire-schema-valid` check that the ratchet
+  had no way to see.
 - The `draft` suite runs only under the `draft-2026-07-28` feature. The readiness ratchet
   above is *not* that: it records the runner's verdicts and nothing else. The registry's
   verdict on the same traffic is taken separately — each leg's session is captured to
   `corpus/draft/captured/`, where the golden suite replays it through the `2026-07-28`
-  registry on every `cargo test`. Keeping the two apart matters because they disagree,
-  usefully: the runner scores 23/23 against a `2025-11-25` server *and* a `2026-07-28`
-  one, while the registry separates them (123 pass / 1 fail against the first, 124 / 0
-  against the second). Folding the alpha's verdicts into the agreement gate would make a
-  released pin's outcome hostage to a pre-release check set.
+  registry on every `cargo test`. Keeping the two apart matters because they have
+  disagreed, usefully. Through `0.2.0-alpha.9` the runner scored 23/23 against a
+  `2025-11-25` server *and* a `2026-07-28` one — it could not tell them apart — while the
+  registry separated them (123 pass / 1 fail against the first, 124 / 0 against the
+  second), the single failure being CACH-001, no `ttlMs` on cacheable results.
+  `alpha.11` closes that gap from the other side: its new `wire-schema-valid` check
+  validates every message against the negotiated revision's JSON schema and fails the
+  `2025-11-25` leg's four resource scenarios for missing `cacheScope`/`ttlMs` — the same
+  clause, found independently, six weeks later. The registry's verdict is now
+  corroborated rather than merely unrefuted, and the argument for taking both readings
+  is stronger, not weaker: one of them saw it first. Folding the alpha's verdicts into
+  the agreement gate would still make a released pin's outcome hostage to a pre-release
+  check set.
 
 ## Supporting rmcp's path to Tier 1
 
