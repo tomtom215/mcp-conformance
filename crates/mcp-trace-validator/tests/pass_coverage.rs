@@ -129,21 +129,38 @@ fn gap(registry: &Registry, goldens: &Path) -> BTreeSet<String> {
     &judged_ids(registry) - &passing_ids(goldens)
 }
 
-#[test]
-fn the_ledger_of_clauses_without_a_passing_trace_is_exact() {
-    let mut measured = gap(
-        &Registry::builtin_2025_11_25().unwrap(),
-        &corpus_root().join("golden"),
-    );
+/// Each revision's registry paired with the goldens judged against it.
+///
+/// The draft half is a separate `cfg`-selected list rather than a conditional
+/// push, so the expression type-checks and lints identically in both feature
+/// modes — `--no-default-features` clippy is a gate leg of its own, and it is
+/// the one that catches a `mut` or a `Vec::new` that only one mode justifies.
+fn corpora() -> Vec<(Registry, PathBuf)> {
     #[cfg(feature = "draft-2026-07-28")]
-    {
-        use mcp_conformance_core::requirement::RegistrySet;
-        let draft = RegistrySet::builtin()
+    let draft = vec![(
+        mcp_conformance_core::requirement::RegistrySet::builtin()
             .unwrap()
             .registry("2026-07-28".parse().unwrap())
-            .expect("the draft feature describes 2026-07-28");
-        measured.extend(gap(&draft, &corpus_root().join("golden/draft")));
-    }
+            .expect("the draft feature describes 2026-07-28"),
+        corpus_root().join("golden/draft"),
+    )];
+    #[cfg(not(feature = "draft-2026-07-28"))]
+    let draft = Vec::new();
+
+    core::iter::once((
+        Registry::builtin_2025_11_25().unwrap(),
+        corpus_root().join("golden"),
+    ))
+    .chain(draft)
+    .collect()
+}
+
+#[test]
+fn the_ledger_of_clauses_without_a_passing_trace_is_exact() {
+    let measured: BTreeSet<String> = corpora()
+        .iter()
+        .flat_map(|(registry, goldens)| gap(registry, goldens))
+        .collect();
 
     let ledger: BTreeSet<String> = WITHOUT_A_PASSING_TRACE
         .iter()
