@@ -17,7 +17,9 @@ use crate::context::{Phase, TraceContext};
 
 /// `LIFE-001`: "The initialization phase MUST be the first interaction between client
 /// and server." — the first message in the trace must be the client's `initialize`
-/// request. An empty trace passes vacuously.
+/// request. A trace with no messages examines nothing and reports *not observed*
+/// (ADR-0012); the CLI declines such a trace outright, because it is a capture
+/// that failed rather than a session that conformed.
 pub(super) fn first_interaction_initialize(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let Some((event, kind, _)) = context.messages().next() else {
         return;

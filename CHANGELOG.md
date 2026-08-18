@@ -264,6 +264,27 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **An empty trace validated to `verdict: pass` and exit `0`.** Every number in
+  that report was true — nothing was judged, so there were no findings — and
+  the conclusion a CI job draws from it is false, because the overwhelmingly
+  likely cause of an empty trace is that the capture step broke. This project
+  has been bitten by precisely that: the server tap keyed on a session ID
+  `2026-07-28` had removed and dropped every exchange, leaving "an empty trace
+  directory, indistinguishable from a server nobody talked to".
+
+  The CLI now declines, with exit `2` — asking for a verdict on a session that
+  was never recorded is a mistake in the asking, and the library still answers
+  for anyone who wants the empty report. The condition is *no clause judged*
+  rather than *no bytes*, so a recording carrying only a transport opening and
+  closing is caught too, and it cannot fire on a real session because any
+  message at all judges the envelope clauses. Two other ways to judge nothing
+  are deliberately excluded: a registry naming checks this build lacks reports
+  `unsupported` and already exits non-zero saying which, and a registry of
+  nothing but exclusions has no judgeable clause for any trace to reach. Both
+  are properties of the registry, and blaming the recording for them would be a
+  wrong diagnosis dressed as a helpful one — the existing CLI suite caught that
+  false positive on the first draft of this guard.
+
 - **`BASE-010` and `BASE-047` could report `fail` or `not observed` and never
   `pass`.** "Result responses MUST include a `result` field" is judged by
   `base.result-field`, which counted a message as a subject only when the

@@ -20,7 +20,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand, ValueEnum};
 use mcp_conformance_core::requirement::{Registry, RegistrySet, Verification};
 use mcp_conformance_core::revision::ProtocolRevision;
-use mcp_trace_validator::report::Verdict;
+use mcp_trace_validator::report::{Totals, Verdict};
 use mcp_trace_validator::{engine, multi, reader};
 
 const EXIT_OK: u8 = 0;
@@ -85,6 +85,51 @@ enum Format {
     Json,
     /// `JUnit` XML (validate only), for CI test-report ingestion.
     Junit,
+}
+
+/// Refuses a run in which no requirement could be judged.
+///
+/// The parser deliberately accepts an empty document — it is well-formed JSON
+/// Lines — and the engine then answers honestly: nothing was judged, so there
+/// are no findings, so the verdict is `pass` and the exit code is `0`. Every
+/// number in that report is true and the conclusion a CI job draws from it is
+/// false, because the overwhelmingly likely cause is that the capture failed.
+/// This project has been bitten by exactly that: the server tap keyed on a
+/// session ID the `2026-07-28` revision had removed and dropped every exchange,
+/// leaving "an empty trace directory, indistinguishable from a server nobody
+/// talked to".
+///
+/// The condition is the honest one — zero clauses judged, rather than zero
+/// bytes — so a recording carrying only a transport opening and closing is
+/// caught too. It cannot fire on a real session: any message at all judges the
+/// envelope clauses.
+///
+/// Two other ways to judge nothing are deliberately *not* this. A registry
+/// naming checks the build lacks reports `unsupported` and already exits
+/// non-zero with a report that says which; a registry of nothing but exclusions
+/// has no judgeable clause for any trace to reach. Both are properties of the
+/// registry, and blaming the recording for them would be a wrong diagnosis
+/// dressed as a helpful one — so the trace is only accused when there were
+/// judgeable clauses and every one of them reported *not observed*.
+///
+/// `EXIT_USAGE`, because asking for a verdict on a session that was never
+/// recorded is a mistake in the asking. The library still answers for anyone
+/// who genuinely wants the empty report.
+fn reject_unjudged(totals: Totals, trace_source: &str) -> bool {
+    let judged = totals.pass + totals.fail + totals.warn;
+    if judged > 0 || totals.unsupported > 0 || totals.not_observed == 0 {
+        return false;
+    }
+    let source = if trace_source == "-" {
+        "the trace on stdin".to_owned()
+    } else {
+        trace_source.to_owned()
+    };
+    eprintln!(
+        "error: {source} judged no requirement at all — an empty or contentless \
+         trace is a capture that failed, not a session that conformed"
+    );
+    true
 }
 
 fn main() -> ExitCode {
@@ -225,6 +270,9 @@ fn run_validate(
     };
 
     let report = engine::validate(&registry, &events);
+    if reject_unjudged(report.totals, trace_source) {
+        return EXIT_USAGE;
+    }
     match format {
         Format::Human => print!("{}", report.render_human()),
         Format::Json => match serde_json::to_string_pretty(&report) {
@@ -242,6 +290,27 @@ fn run_validate(
 
 /// Multi-revision judgment: one trace against several revisions of a registry set, with
 /// per-clause applicability differences in the report (roadmap M2.5).
+/// Every judged revision's totals summed.
+///
+/// Only for the "judged nothing at all" question, where the sum is the right
+/// reading: one revision judging nothing is ordinary — a `2025-11-25` session
+/// says little about `2026-07-28`'s clauses — while none of them judging
+/// anything is a trace with no content. It is not a report anyone should read,
+/// which is why it stays here rather than becoming a method on `MultiReport`.
+fn combined_totals(report: &multi::MultiReport) -> Totals {
+    report
+        .summaries
+        .iter()
+        .fold(Totals::default(), |mut sum, summary| {
+            sum.pass += summary.totals.pass;
+            sum.fail += summary.totals.fail;
+            sum.warn += summary.totals.warn;
+            sum.unsupported += summary.totals.unsupported;
+            sum.not_observed += summary.totals.not_observed;
+            sum
+        })
+}
+
 fn run_validate_multi(
     trace_source: &str,
     format: Format,
@@ -291,6 +360,9 @@ fn run_validate_multi(
             return EXIT_USAGE;
         }
     };
+    if reject_unjudged(combined_totals(&report), trace_source) {
+        return EXIT_USAGE;
+    }
     match format {
         Format::Human => print!("{}", report.render_human()),
         Format::Json => match serde_json::to_string_pretty(&report) {
