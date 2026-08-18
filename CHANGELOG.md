@@ -264,6 +264,42 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **Push and pull-request CI ran four of the offline gates, not all of them.**
+  `ci.yml`'s `doc` job wrote out its own list — `coverage --check`,
+  `file-sizes`, `docs-links`, `version-sync` — while `changelog-links` and
+  `draft-coverage --check` ran only inside `cargo xtask ci`, which no push or
+  pull-request workflow invokes. `xtask ci` runs at *release* time. So the gate
+  whose entire purpose is stopping published numbers from drifting did not run
+  on the change that publishes them; it would have caught the drift after it
+  merged, at the tag.
+
+  There is now one list and it lives in `xtask`: `cargo xtask gates` runs every
+  gate that needs nothing but a stable toolchain and the checked-out tree, the
+  workflow runs that one command, and `cargo xtask ci` calls the same function.
+  `deferrals --check` stays deliberately off it —
+  [ADR-0010](docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md)
+  puts that on the schedule so an expiry pages a maintainer instead of blocking
+  unrelated work.
+
+- **A book chapter that `SUMMARY.md` does not list is silently never
+  rendered.** mdBook builds it, exits 0, and publishes nothing; the file reads
+  as shipped to everyone except its readers. `docs-links` now asks the converse
+  of its usual question — not only "does every link resolve" but "is every
+  chapter reached" — so a chapter written and forgotten fails the gate that
+  already owns the documentation graph.
+
+- **A registry area document that nobody adds to the embed list is silently
+  dropped.** `include_str!` catches the other direction at compile time, but
+  adding an area `.json` and forgetting the `const` makes the registry quietly
+  *smaller*: the clauses are not judged, the generated coverage table
+  regenerates to the lower number, and `spec-drift` only verifies quotes that
+  are in the registry. Nothing downstream could tell an area that was never
+  entered from one entered and dropped — the single hazard in extraction that
+  understates the work rather than overstating it. A test now requires every
+  document carrying a `requirements` member to be embedded, recognising an area
+  by its shape so `sources.json` is excluded by what it is rather than by a
+  second hand-kept list.
+
 - **A fuzz target existed for three weeks and never ran.**
   `fuzz/fuzz_targets/registry_set_multi.rs` was written on 2026-07-27 to cover
   what its own commit called "the only engine path whose *shape* is

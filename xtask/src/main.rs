@@ -10,6 +10,10 @@
 //!   when installed, documentation links, coverage-table sync). The same commands
 //!   CONTRIBUTING.md lists, as code, so "run the gates" cannot drift from what CI
 //!   runs.
+//! - `gates` — every gate needing only a stable toolchain and the tree: file
+//!   sizes, fuzz-target declarations, documentation links, version sync,
+//!   changelog links, and both coverage projections. `ci.yml` runs exactly this,
+//!   and `ci` includes it, so the two cannot diverge.
 //! - `bless` — regenerate the golden corpus reports and the per-revision exclusion
 //!   ledgers (`BLESS=1` all-features golden test run); review
 //!   the diff like any other code change.
@@ -102,6 +106,7 @@ fn main() -> ExitCode {
     let task = args.next();
     match task.as_deref() {
         Some("ci") => run_ci(),
+        Some("gates") => exit_if(gates()),
         Some("bless") => exit_if(run_all(&bless_steps())),
         Some("coverage") => coverage::run(args.next().as_deref() == Some("--check")),
         Some("draft-coverage") => draft_coverage::run(args.next().as_deref() == Some("--check")),
@@ -149,37 +154,55 @@ fn run_ci() -> ExitCode {
     if !local_gates::msrv_clippy_gate() {
         return ExitCode::FAILURE;
     }
-    if !local_gates::file_size_gate() {
-        return ExitCode::FAILURE;
-    }
-    if !fuzz_targets::run() {
-        return ExitCode::FAILURE;
-    }
     if !local_gates::deny_gate() {
         return ExitCode::FAILURE;
     }
-    if !docs_links::run() {
+    if !gates() {
         return ExitCode::FAILURE;
+    }
+    eprintln!("{}", local_gates::ci_summary(&local_gates::skipped_gates()));
+    ExitCode::SUCCESS
+}
+
+/// The `gates` task: every gate that needs nothing but a stable toolchain and
+/// the checked-out tree — no network, no `cargo-deny`, no second toolchain.
+///
+/// One function, called from two places on purpose. `ci.yml`'s `doc` job used to
+/// enumerate its own subset, and that subset was four of these: `changelog-links`
+/// and `draft-coverage --check` ran only inside `cargo xtask ci`, which no
+/// push or pull-request workflow invokes — so the gate whose whole job is
+/// stopping published numbers from drifting did not run on the change that
+/// published them, and `fuzz-targets` would have joined it the day it was
+/// written. Now the workflow runs `cargo xtask gates` and this list is the only
+/// place the set exists.
+///
+/// `deferrals --check` is deliberately not here: ADR-0010 puts it on the
+/// schedule so an expiry pages a maintainer rather than blocking unrelated work.
+fn gates() -> bool {
+    if !local_gates::file_size_gate() {
+        return false;
+    }
+    if !fuzz_targets::run() {
+        return false;
+    }
+    if !docs_links::run() {
+        return false;
     }
     if !version_sync::run() {
-        return ExitCode::FAILURE;
+        return false;
     }
     if !changelog_links::run() {
-        return ExitCode::FAILURE;
+        return false;
     }
     eprintln!("xtask: coverage table in sync — cargo xtask coverage --check");
     if coverage::run(true) != ExitCode::SUCCESS {
-        return ExitCode::FAILURE;
+        return false;
     }
     eprintln!("xtask: capture coverage in sync — cargo xtask draft-coverage --check");
-    let outcome = draft_coverage::run(true);
-    if outcome == ExitCode::SUCCESS {
-        eprintln!("{}", local_gates::ci_summary(&local_gates::skipped_gates()));
-    }
-    outcome
+    draft_coverage::run(true) == ExitCode::SUCCESS
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  bless              regenerate golden corpus reports + exclusion ledgers\n  coverage [--check] regenerate (or verify) the README coverage table\n  draft-coverage [--check] regenerate (or verify) corpus/README's per-capture\n                     coverage table, and verify every count the living Markdown\n                     states against the committed golden reports\n  file-sizes         verify the 500-line cap on source and registry files\n  fuzz-targets       every fuzz target source is declared as a [[bin]]\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants [--jobs N] diff-scoped mutation gate vs origin/main (the PR gate,\n                     locally); --jobs is the only flag it accepts\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  changelog-links    every CHANGELOG version heading has a link def; Unreleased base current\n  draft-capture      record a 2026-07-28 stdio session (reference host against the\n                     everything server) and judge it; BLESS=1 to refresh the\n                     committed copy in corpus/draft/captured/\n  draft-readiness    measure the everything server against the official runner's\n                     2026-07-28 scenarios; ratchets against a committed\n                     baseline (BLESS=1 to re-record)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  gates              the offline gates ci.yml runs (a subset of `ci`)\n  bless              regenerate golden corpus reports + exclusion ledgers\n  coverage [--check] regenerate (or verify) the README coverage table\n  draft-coverage [--check] regenerate (or verify) corpus/README's per-capture\n                     coverage table, and verify every count the living Markdown\n                     states against the committed golden reports\n  file-sizes         verify the 500-line cap on source and registry files\n  fuzz-targets       every fuzz target source is declared as a [[bin]]\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants [--jobs N] diff-scoped mutation gate vs origin/main (the PR gate,\n                     locally); --jobs is the only flag it accepts\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check] list the deferral ledger; --check fails on expired rows\n  spec-drift         verify registry quotes against the published spec (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  version-sync       README crates.io version tracks [workspace.package].version\n  changelog-links    every CHANGELOG version heading has a link def; Unreleased base current\n  draft-capture      record a 2026-07-28 stdio session (reference host against the\n                     everything server) and judge it; BLESS=1 to refresh the\n                     committed copy in corpus/draft/captured/\n  draft-readiness    measure the everything server against the official runner's\n                     2026-07-28 scenarios; ratchets against a committed\n                     baseline (BLESS=1 to re-record)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {

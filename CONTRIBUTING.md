@@ -39,18 +39,20 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
    `--all-features` (feature-gated modules carry rustdoc too)
 5. `cargo clippy` on the MSRV toolchain — skipped **loudly** when clippy for
    that toolchain is not installed (CI runs it regardless)
-6. The 500-line cap on source and registry files (`cargo xtask file-sizes`)
-7. `cargo deny --all-features check` when cargo-deny is installed — skipped
+6. `cargo deny --all-features check` when cargo-deny is installed — skipped
    **loudly** otherwise (`cargo install cargo-deny --locked` to run it locally;
    CI runs it regardless, so a dependency-policy violation will fail there)
-8. Every relative documentation link resolving (`cargo xtask docs-links`)
-9. The README's crates.io version tracking the workspace version
-   (`cargo xtask version-sync`), and every `CHANGELOG` heading carrying its
-   reference definition (`cargo xtask changelog-links`)
-10. The README coverage table in sync with the registry (`cargo xtask coverage --check`)
-11. Every fuzz target source declared as a `[[bin]]`, so `cargo fuzz list` —
-    which the weekly fuzz job takes its target list from — can see it
-    (`cargo xtask fuzz-targets`)
+7. The 500-line cap on source and registry files (`cargo xtask file-sizes`)
+8. Every fuzz target source declared as a `[[bin]]`, so `cargo fuzz list` —
+   which the weekly fuzz job takes its target list from — can see it
+   (`cargo xtask fuzz-targets`)
+9. Every relative documentation link resolving, and every book chapter reachable
+   from `SUMMARY.md` — mdBook renders only what the summary lists and says
+   nothing about the rest (`cargo xtask docs-links`)
+10. The README's crates.io version tracking the workspace version
+    (`cargo xtask version-sync`), and every `CHANGELOG` heading carrying its
+    reference definition (`cargo xtask changelog-links`)
+11. The README coverage table in sync with the registry (`cargo xtask coverage --check`)
 12. `corpus/README.md`'s per-capture coverage table in sync with the committed
     golden reports, and every count stated in the **living** Markdown agreeing
     with the committed artifacts — the "N of the M judgeable clauses" claims and
@@ -58,11 +60,17 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
     / M failing" readiness scores against `conformance/draft-readiness.json`
     (`cargo xtask draft-coverage --check`). Living means the
     documents a reader treats as current: the READMEs, `CONTRIBUTING`, the
-    `Unreleased` changelog, and `docs/plan/*.md`. Dated documents are exempt
-    and stay as written — `docs/reports/`, the ADRs under
+    `Unreleased` changelog, `docs/plan/*.md` and the book. Dated documents are
+    exempt and stay as written — `docs/reports/`, the ADRs under
     `docs/plan/decisions/`, and released changelog sections. To quote a number
     you are *not* asserting — a line as it used to read, or sample tool output
     — put it in backticks; code is a specimen, prose is a claim
+
+Gates 7–12 are exactly `cargo xtask gates`: they need nothing but a stable
+toolchain and the checked-out tree, CI's `doc` job runs that one command, and
+`cargo xtask ci` calls the same function — so what you run locally and what CI
+runs cannot drift apart. They used to be written out in the workflow, and two of
+them were left out of it.
 
 Additionally enforced in CI: `cargo package --workspace --exclude xtask --locked`
 (publishability) and diff-scoped mutation testing (`cargo mutants --in-diff`)
