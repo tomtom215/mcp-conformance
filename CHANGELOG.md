@@ -264,6 +264,25 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **A fuzz target existed for three weeks and never ran.**
+  `fuzz/fuzz_targets/registry_set_multi.rs` was written on 2026-07-27 to cover
+  what its own commit called "the only engine path whose *shape* is
+  attacker-influenced" — a `--registry-set` document decides how many revisions
+  exist, which requirements apply to which, and therefore how the per-clause
+  rows align — and it landed complete, with a `[[bin]]` entry and a seed corpus.
+  The weekly job's target list was written out by hand as
+  `trace_parse canonical_json registry_parse`, and nothing extended it. The job
+  stayed green, and its display name enumerated the same three, so the omission
+  read as a decision.
+
+  This is the shape of the `cargo xtask bless` defect above, in a different
+  place: a job doing a fraction of its job and reporting success. Both ends are
+  now derived rather than written. The workflow takes its list from
+  `cargo fuzz list` and fails loudly if that names nothing, so what is declared
+  is what runs; `cargo xtask fuzz-targets` checks that every target source is
+  declared as a `[[bin]]`, so what exists is what is declared. A target that
+  exists is a target that runs, and neither half is a list anyone maintains.
+
 - **An empty trace validated to `verdict: pass` and exit `0`.** Every number in
   that report was true — nothing was judged, so there were no findings — and
   the conclusion a CI job draws from it is false, because the overwhelmingly

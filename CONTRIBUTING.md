@@ -48,7 +48,10 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
    (`cargo xtask version-sync`), and every `CHANGELOG` heading carrying its
    reference definition (`cargo xtask changelog-links`)
 10. The README coverage table in sync with the registry (`cargo xtask coverage --check`)
-11. `corpus/README.md`'s per-capture coverage table in sync with the committed
+11. Every fuzz target source declared as a `[[bin]]`, so `cargo fuzz list` —
+    which the weekly fuzz job takes its target list from — can see it
+    (`cargo xtask fuzz-targets`)
+12. `corpus/README.md`'s per-capture coverage table in sync with the committed
     golden reports, and every count stated in the **living** Markdown agreeing
     with the committed artifacts — the "N of the M judgeable clauses" claims and
     the "N pass, M fail" verdicts against the golden reports, and the "N passing

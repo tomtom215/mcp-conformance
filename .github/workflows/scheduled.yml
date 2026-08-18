@@ -105,7 +105,7 @@ jobs:
         run: cargo xtask draft-readiness
 
   fuzz:
-    name: Fuzz (trace parse, canonical JSON, registry parse)
+    name: Fuzz (every declared target)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -120,9 +120,24 @@ jobs:
       # Five minutes per target weekly; committed seed corpora keep coverage warm.
       # The canonical_json target asserts parse(canonical(v)) == v, not mere survival,
       # and trace_parse runs every parseable input through the full validation engine.
-      - name: Fuzz all targets
+      #
+      # The list comes from `cargo fuzz list`, not from names written out here.
+      # It used to be written out, and `registry_set_multi` — added 2026-07-27
+      # with a seed corpus, to cover the only engine path whose *shape* is
+      # attacker-influenced — was never added to it, so the newest target guarded
+      # nothing while the job stayed green. `cargo xtask fuzz-targets` holds the
+      # other end of the chain, checking that every target source is declared as
+      # a `[[bin]]` and so visible to `cargo fuzz list` at all.
+      - name: Fuzz every declared target
         run: |
-          for target in trace_parse canonical_json registry_parse; do
+          set -euo pipefail
+          targets=$(cargo +nightly fuzz list)
+          if [ -z "$targets" ]; then
+            echo "::error::cargo fuzz list named no targets; nothing would be fuzzed"
+            exit 1
+          fi
+          echo "fuzzing: $(echo $targets | tr '\n' ' ')"
+          for target in $targets; do
             cargo +nightly fuzz run "$target" -- -max_total_time=300
           done
       # The corpus libFuzzer grew this run, uploaded so coverage accumulates
