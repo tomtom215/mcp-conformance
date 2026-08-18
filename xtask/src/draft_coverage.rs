@@ -28,10 +28,15 @@
 //!   with it. Every occurrence of that phrasing in the user-facing Markdown is
 //!   parsed and required to name a real pair: the denominator must be the
 //!   judgeable total, and the numerator must be either the union or some
-//!   single capture's judged count.
+//!   single capture's judged count. The same pass reads the other shape a count
+//!   is written in — "58 pass, 1 fail, …" — and requires some committed report
+//!   to have produced it.
 //!
-//! The claim check reads a named set of current documents rather than every
-//! tracked Markdown file — see `claims.rs`, which owns that half.
+//! The claim check reads the *living* documents rather than every tracked
+//! Markdown file: a dated one records what was true when it was written and is
+//! allowed to disagree. Where that boundary sits, and why a number in backticks
+//! is read as a specimen rather than an assertion, is `claims.rs`, which owns
+//! that half.
 
 // `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
 // opposite demands about items in a binary crate's private modules; this
@@ -136,10 +141,12 @@ fn verify(
     let ok = table_ok && claims_ok;
     if ok {
         eprintln!(
-            "xtask: draft-coverage — {} captures evidence {} of {} judgeable clauses; every prose claim agrees",
+            "xtask: draft-coverage — {} captures evidence {} of {} judgeable clauses; \
+             every count in {} living documents agrees",
             captures.len(),
             summary.observed,
-            summary.judgeable
+            summary.judgeable,
+            claims::DOCUMENTS
         );
     }
     ok

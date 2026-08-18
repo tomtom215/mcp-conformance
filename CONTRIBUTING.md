@@ -49,8 +49,15 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
    reference definition (`cargo xtask changelog-links`)
 10. The README coverage table in sync with the registry (`cargo xtask coverage --check`)
 11. `corpus/README.md`'s per-capture coverage table in sync with the committed
-    golden reports, and every "N of the M judgeable clauses" claim in the
-    shipped Markdown agreeing with them (`cargo xtask draft-coverage --check`)
+    golden reports, and every count stated in the **living** Markdown agreeing
+    with them — both the "N of the M judgeable clauses" claims and the "N pass,
+    M fail" verdicts (`cargo xtask draft-coverage --check`). Living means the
+    documents a reader treats as current: the READMEs, `CONTRIBUTING`, the
+    `Unreleased` changelog, and `docs/plan/*.md`. Dated documents are exempt
+    and stay as written — `docs/reports/`, the ADRs under
+    `docs/plan/decisions/`, and released changelog sections. To quote a number
+    you are *not* asserting — a line as it used to read, or sample tool output
+    — put it in backticks; code is a specimen, prose is a claim
 
 Additionally enforced in CI: `cargo package --workspace --exclude xtask --locked`
 (publishability) and diff-scoped mutation testing (`cargo mutants --in-diff`)

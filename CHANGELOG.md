@@ -265,6 +265,39 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   asserts they sum to the rows printed, on each renderer; reintroducing the old
   hand-written line fails it.
 
+- **The claim gate read seven documents and the first verdict in each cell, so
+  the numbers it did not reach drifted and some it did reach went unread.** Two
+  gaps, one cause — a gate that reports "every prose claim agrees" while
+  covering less than a reader assumes:
+
+  - **Scope.** `CLAIM_FILES` listed the READMEs and the `Unreleased` changelog.
+    The planning documents state the same counts and were outside it, so the
+    2026-08-17 sweep that corrected the pre-ADR-0012 vacuous-pass arithmetic
+    stopped exactly at the gate's edge and the inflated pair survived in three
+    of them — found only when a `CHANGELOG` entry quoted one and the gate
+    rejected the quote. The boundary is now **living versus dated**, stated
+    where the list is: living documents are checked (the READMEs,
+    `CONTRIBUTING`, `Unreleased`, and `docs/plan/*.md` — 18 in all, named in the
+    success line), dated ones are not, because `docs/reports/`, the ADRs under
+    `docs/plan/decisions/`, and released changelog sections record what was true
+    when they were written. A test walks each covered directory and fails naming
+    any living document missing from the list, so the next one added cannot fall
+    outside it silently.
+  - **Depth.** The verdict parser took the first `pass` and the first `fail` in
+    a table cell and stopped, so a cell holding two verdicts had its second one
+    unchecked while the row counted as covered — and register row 1.5i states
+    both servers' scores in a single sentence. It now reads every verdict in a
+    cell, left to right, attaching each trailing `warn` / `not observed` /
+    `excluded` to the verdict it follows.
+
+  Widening a gate over documents that deliberately quote superseded numbers
+  needs a way to say "this is history, not a claim", and the gate already had
+  the idea: fenced blocks were skipped because sample CLI output is a specimen
+  of the tool's format rather than an assertion about this corpus. That rule now
+  applies to inline code too — **code is a specimen, prose is a claim** — which
+  is why row 1.5i's record of what it used to say survives the widening intact
+  instead of being edited out of the document to satisfy a checker.
+
 - **`cargo xtask bless` regenerated 53 of the 132 golden reports and exited 0.**
   It ran `cargo test -p mcp-trace-validator --test golden` with default
   features, but all three `draft::` golden tests are gated on
