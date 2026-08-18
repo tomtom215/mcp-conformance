@@ -240,6 +240,18 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **`cargo xtask bless` regenerated 53 of the 132 golden reports and exited 0.**
+  It ran `cargo test -p mcp-trace-validator --test golden` with default
+  features, but all three `draft::` golden tests are gated on
+  `draft-2026-07-28`, which is not a default feature. Blessing therefore ran six
+  tests, refreshed the shipped goldens, left all 79 draft ones stale, and
+  reported success — a vacuous pass in the command whose whole job is
+  regenerating goldens. CI's own all-features test leg did catch the resulting
+  staleness, so nothing wrong shipped; what it caught was a failure `bless`
+  could not fix. The task now passes `--all-features`, so all three `draft::`
+  golden tests run.
+
+
 - **The reference server answered a missing resource with a code
   `2026-07-28` withdrew.** `resources/read` for a URI it does not serve drew
   `-32002`, which `basic/index#error-codes` lists under "Implementations of
