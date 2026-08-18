@@ -65,7 +65,7 @@ jobs:
         run: |
           rustup toolchain install ${{ matrix.rust }} --profile minimal --component clippy --no-self-update
           rustup default ${{ matrix.rust }}
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Clippy (default features)
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Clippy (no default features)
@@ -87,7 +87,7 @@ jobs:
         run: |
           rustup toolchain install ${{ matrix.rust }} --profile minimal --no-self-update
           rustup default ${{ matrix.rust }}
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Test (default features)
         run: cargo test --workspace
       - name: Test (no default features)
@@ -104,7 +104,7 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
           rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Build docs (zero warnings)
         run: cargo doc --workspace --no-deps
       # Feature-gated modules (the everything-server's `tap`) carry rustdoc the
@@ -129,7 +129,7 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
           rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install mdBook
         # Built from source under --locked rather than via a third-party setup
         # action: one fewer supply-chain dependency, the same discipline as the
@@ -171,7 +171,7 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
           rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       # `--workspace` resolves path+version deps against sibling crates rather than
       # crates.io, which is what pre-publish validation needs. xtask is publish=false
       # but `cargo package --workspace` still packages it (v0.1.0 shipped a stray
@@ -190,7 +190,7 @@ jobs:
         run: |
           rustup toolchain install nightly --profile minimal --no-self-update
           rustup default nightly
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Test (all features, nightly)
         run: cargo test --workspace --all-features
 
@@ -209,7 +209,7 @@ jobs:
           rustup toolchain install nightly --profile minimal --no-self-update
           rustup toolchain install stable --profile minimal --no-self-update
           rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Resolve minimal versions
         run: cargo +nightly generate-lockfile -Zminimal-versions
       - name: Test against minimum dependency versions
@@ -245,7 +245,7 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
           rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Runner prerequisites (Node is preinstalled on the runner image)
         run: node --version && npx --version
       - name: Official suite vs everything-server
