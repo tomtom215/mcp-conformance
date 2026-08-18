@@ -140,18 +140,13 @@ impl MultiReport {
         }
         let _ = writeln!(out, "per revision:");
         for summary in &self.summaries {
-            let totals = summary.totals;
+            // The same phrase the single-revision report prints, from the same
+            // source: this line used to name six of the seven outcomes, so a
+            // reader adding it up found fewer clauses than the revision has.
             let _ = writeln!(
                 out,
-                "  {}: {} pass, {} fail, {} warn, {} excluded, {} unsupported, {} not applicable — verdict {}",
-                summary.revision,
-                totals.pass,
-                totals.fail,
-                totals.warn,
-                totals.excluded,
-                totals.unsupported,
-                totals.not_applicable,
-                summary.verdict
+                "  {}: {} — verdict {}",
+                summary.revision, summary.totals, summary.verdict
             );
         }
         let _ = writeln!(out, "overall verdict: {}", self.verdict());
@@ -416,6 +411,37 @@ mod tests {
         assert!(text.contains("2026-07-28=absent"), "{text}");
         assert!(text.contains("*differs"), "{text}");
         assert!(text.contains("overall verdict: pass"), "{text}");
+    }
+
+    #[test]
+    fn each_revision_line_accounts_for_every_clause_it_judged() {
+        let report = validate_revisions(&set(), &revs(), &[]).unwrap();
+        let text = report.render_human();
+        for (index, summary) in report.summaries.iter().enumerate() {
+            // The line is built from `Totals`' own phrase, so it names every
+            // outcome by construction; asserting the phrase is present is what
+            // holds it to that source rather than to a hand-written list, which
+            // is how this line came to report six of the seven outcomes.
+            let line = format!(
+                "  {}: {} — verdict {}\n",
+                summary.revision, summary.totals, summary.verdict
+            );
+            assert!(text.contains(&line), "{text}");
+            // And the counts account for exactly the clauses that exist at this
+            // revision — the rows the table above it shows as not `absent`.
+            let judged = report
+                .requirements
+                .iter()
+                .filter(|row| row.outcomes.get(index).is_some_and(Option::is_some))
+                .count();
+            let counted: u32 = summary
+                .totals
+                .labelled()
+                .iter()
+                .map(|&(_, count)| count)
+                .sum();
+            assert_eq!(counted as usize, judged, "{}: {line}", summary.revision);
+        }
     }
 
     #[test]

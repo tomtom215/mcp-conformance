@@ -240,6 +240,31 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The multi-revision summary line named six of the seven outcomes, so it
+  reported more conformance than it had measured.** `validate --revision`
+  printed `23 pass, 0 fail, 0 warn, 88 excluded, 0 unsupported, 14 not
+  applicable` and stopped — `not observed` was missing. The counts therefore
+  accounted for 125 of the `2025-11-25` registry's 140 clauses, and the same
+  run's JSON reported `"not_observed": 15` for the same trace: two output
+  formats of one tool disagreeing about what had been judged, with the human
+  one overstating it. The `2026-07-28` registry is where it bit hardest,
+  because `--revision` is the only CLI path to that revision: every draft
+  report read `77 pass, 0 fail … 0 not applicable` while 47 clauses had carried
+  no subject matter at all. That is precisely the vacuous accounting
+  [ADR-0012](docs/plan/decisions/0012-not-observed-outcome.md) added the
+  outcome to prevent, reappearing in the one renderer the fix did not reach.
+
+  The single-revision line carried a comment claiming "every outcome is named,
+  so the counts sum to the registry's size", and that claim was load-bearing —
+  but it was enforced by a reader doing the arithmetic, and the second renderer
+  was written without it. Both lines are now formatted from one
+  `Display for Totals` whose counts come from an **exhaustive destructuring** of
+  the struct: a field added to `Totals` fails to compile until it is labelled,
+  and both summary lines pick it up at once. A test reads the counts back out
+  of the rendered text — not off the struct the renderer was handed — and
+  asserts they sum to the rows printed, on each renderer; reintroducing the old
+  hand-written line fails it.
+
 - **`cargo xtask bless` regenerated 53 of the 132 golden reports and exited 0.**
   It ran `cargo test -p mcp-trace-validator --test golden` with default
   features, but all three `draft::` golden tests are gated on
