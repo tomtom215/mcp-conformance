@@ -288,6 +288,12 @@ pub async fn tap_layer(
         &session_id,
         Direction::ClientToServer,
         EventBody::Http {
+            // Which request form this was. Streamable HTTP binds different
+            // obligations to POST, GET, and DELETE, so a recording that drops
+            // the method leaves the clauses addressed to one of them unjudgeable
+            // — and, before 2026-08-20, made the validator fail a conforming
+            // teardown DELETE with the POST clause's Accept requirement.
+            method: Some(method.as_str().to_owned()),
             status: None,
             headers: request_headers,
         },
@@ -320,6 +326,10 @@ async fn record_response(
         session_id,
         Direction::ServerToClient,
         EventBody::Http {
+            // A response is not a request: the method belongs to the client
+            // event recorded above, and repeating it here would invite a check
+            // to judge a response against a request-side clause.
+            method: None,
             status: Some(status.as_u16()),
             headers: recorded_headers(response.headers()),
         },

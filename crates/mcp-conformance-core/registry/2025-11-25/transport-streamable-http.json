@@ -12,7 +12,7 @@
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "Every JSON-RPC message sent from the client MUST be a new HTTP POST request to the MCP endpoint."
       },
-      "exclusion": "Recorded HTTP events carry status and conformance-relevant headers, not request methods or targets, so this clause's subject is invisible in a trace."
+      "exclusion": "Adds to TRAN-049's verb obligation that each message ride a *new* POST — one request per message. The verb is recorded and judged (TRAN-049); the request boundary each message rode is HTTP framing a trace summarizes rather than reproduces, and the endpoint it was addressed to is not recorded at all, so what this clause adds stays invisible."
     },
     {
       "id": "TRAN-025",
@@ -26,7 +26,7 @@
         "quote": "The client MUST include an `Accept` header, listing both `application/json` and `text/event-stream` as supported content types."
       },
       "checks": [
-        "transport.client-accept-header"
+        "transport.client-post-accept-header"
       ]
     },
     {
@@ -214,7 +214,7 @@
         "quote": "The client MUST include an `Accept` header, listing `text/event-stream` as a supported content type."
       },
       "checks": [
-        "transport.client-accept-header"
+        "transport.client-get-accept-header"
       ]
     },
     {
@@ -308,7 +308,7 @@
         "section": "basic/transports#resumability-and-redelivery",
         "quote": "If the client wishes to resume after a disconnection (whether due to network failure or server-initiated closure), it SHOULD issue an HTTP GET to the MCP endpoint, and include the `Last-Event-ID` header to indicate the last event ID it received."
       },
-      "exclusion": "Conditional on client intent (the wish to resume), and the request method is not captured; when a resumption does occur its `last-event-id` header is recorded, but absence proves nothing."
+      "exclusion": "Conditional on client intent (the wish to resume): a session that never disconnects owes nothing, and a recording cannot show a client wishing. When a resumption does occur its method and `last-event-id` header are both recorded, but absence proves nothing."
     },
     {
       "id": "TRAN-047",
@@ -334,7 +334,7 @@
         "section": "basic/transports#session-management",
         "quote": "Clients that no longer need a particular session (e.g., because the user is leaving the client application) SHOULD send an HTTP DELETE to the MCP endpoint with the `MCP-Session-Id` header, to explicitly terminate the session."
       },
-      "exclusion": "Conditional on client intent (no longer needing the session), and the request method is not captured."
+      "exclusion": "Conditional on client intent (no longer needing the session). A teardown DELETE is recorded when it happens — `corpus/good/http-session.jsonl` carries one — but a session that ends without one may simply not have finished with it, so absence is not a violation."
     },
     {
       "id": "TRAN-049",
@@ -347,7 +347,9 @@
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "The client MUST use HTTP POST to send JSON-RPC messages to the MCP endpoint."
       },
-      "exclusion": "Restates TRAN-024's obligation as the section's first numbered step (two normative sentences, one constraint). Recorded HTTP events carry status and conformance-relevant headers, not request methods or targets, so the clause's subject is invisible in a trace."
+      "checks": [
+        "transport.client-messages-use-post"
+      ]
     }
   ]
 }

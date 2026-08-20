@@ -1,10 +1,10 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 24,
+    "pass": 25,
     "fail": 0,
     "warn": 0,
-    "excluded": 88,
+    "excluded": 87,
     "unsupported": 0,
     "not_applicable": 14,
     "not_observed": 14
@@ -167,6 +167,11 @@
     },
     {
       "id": "TRAN-040",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-049",
       "level": "MUST",
       "outcome": "pass"
     },

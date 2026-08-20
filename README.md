@@ -63,7 +63,7 @@ MCP trace validation — revision 2025-11-25
   ...
   FAIL  LIFE-001 (MUST)
         seq 0: first message is a "tools/list" request, expected "initialize"
-totals: 12 pass, 1 fail, 1 warn, 88 excluded, 0 unsupported, 14 not applicable, 24 not observed
+totals: 12 pass, 1 fail, 1 warn, 87 excluded, 0 unsupported, 14 not applicable, 25 not observed
 verdict: fail
 ```
 
@@ -99,7 +99,7 @@ its trade-offs are written up for an external audience in
 |-------|-------------------|
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The spec as data.** A requirement registry whose every entry carries a verbatim spec quote, an RFC 2119 level, an optional capability gate, and either a mechanical check or a documented reason it cannot be judged from a trace (the SEP-2484 traceability shape) — covering the `2025-11-25` core protocol surface. Plus the JSON Lines trace schema and RFC 8785 canonical JSON. Serde only; it links no protocol SDK. |
 | [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Replay a trace; get findings with the spec clause and the offending event `seq`, as human text, JSON, or JUnit, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
-| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The reference server**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk) (the official Rust SDK). It passes the official suite's full `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy that closes the CVE-2026-42559 DNS-rebinding class by construction. `--protocol-version 2026-07-28` serves the stateless surface instead (SEP-2575: no `initialize`, no sessions, per-request `_meta`, SEP-2549 caching hints, SEP-2322 MRTR for server-to-client requests, `subscriptions/listen`), over stdio and HTTP alike — the suite's `2026-07-28` scenarios score **41 passing / 0 failing** against that mode (the same scenarios score 37 passing / 4 failing against the `2025-11-25` mode, each failure the caching hints this revision adds), and five committed captures — a conforming session over each transport, a *probe* session of deliberately malformed requests, and the official runner's two — evidence **113 of the 124 judgeable clauses** between them, with everything else reported *not observed* rather than counted as a pass. Its tap records each session as a trace for the calibration check. Offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902). |
+| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The reference server**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk) (the official Rust SDK). It passes the official suite's full `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy that closes the CVE-2026-42559 DNS-rebinding class by construction. `--protocol-version 2026-07-28` serves the stateless surface instead (SEP-2575: no `initialize`, no sessions, per-request `_meta`, SEP-2549 caching hints, SEP-2322 MRTR for server-to-client requests, `subscriptions/listen`), over stdio and HTTP alike — the suite's `2026-07-28` scenarios score **41 passing / 0 failing** against that mode (the same scenarios score 37 passing / 4 failing against the `2025-11-25` mode, each failure the caching hints this revision adds), and five committed captures — a conforming session over each transport, a *probe* session of deliberately malformed requests, and the official runner's two — evidence **114 of the 125 judgeable clauses** between them, with everything else reported *not observed* rather than counted as a pass. Its tap records each session as a trace for the calibration check. Offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902). |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference host** (an MCP client). It passes all four of the official suite's `2025-11-25` **client scenarios** at the pinned version — bounded tool-use loops over both real transports (child-process stdio and streamable HTTP), scriptable sampling / elicitation / roots for CI with zero model-provider network use, and host-side trace capture with redaction by construction. |
 
 ## Requirement coverage
@@ -112,16 +112,16 @@ in CI — the numbers cannot drift from the data:
 |------|-------------:|--------:|---------:|-----------------:|
 | BASE | 24 | 12 | 12 | 0 |
 | LIFE | 17 | 9 | 8 | 0 |
-| TRAN | 49 | 11 | 38 | 0 |
+| TRAN | 49 | 12 | 37 | 0 |
 | TOOL | 15 | 9 | 6 | 13 |
 | RES | 10 | 3 | 7 | 6 |
 | PROM | 10 | 5 | 5 | 7 |
 | LOG | 5 | 1 | 4 | 4 |
 | COMP | 5 | 1 | 4 | 3 |
 | PAGE | 5 | 1 | 4 | 0 |
-| **Total** | **140** | **52** | **88** | **33** |
+| **Total** | **140** | **53** | **87** | **33** |
 
-Revision `2025-11-25`: 140 requirements — 52 judged by 48 distinct trace checks (every check falsified by a committed violation trace, and every check examining a real subject on at least one of them), 88 carrying documented exclusions explaining why a recorded trace cannot judge them. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
+Revision `2025-11-25`: 140 requirements — 53 judged by 50 distinct trace checks (every check falsified by a committed violation trace, and every check examining a real subject on at least one of them), 87 carrying documented exclusions explaining why a recorded trace cannot judge them. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
 <!-- coverage:end -->
 
 A requirement gated on a capability that was never negotiated is reported
@@ -136,8 +136,9 @@ loses credibility.
 A trace is JSON Lines: one event per line, each carrying a capture-assigned `seq`
 (the only ordering authority), a `direction`, a `transport`, and a `kind` —
 `message` events hold the JSON-RPC payload verbatim; `http` events record
-status and conformance-relevant headers; `lifecycle` events mark transport
-open/close. This session reuses a request ID:
+conformance-relevant headers, a response's status, and a client request's
+`method`; `lifecycle` events mark transport open/close. This session reuses a
+request ID:
 
 <!-- The mdBook chapter book/src/trace-format.md embeds the example below via
      this anchor; readme_examples.rs pins it to the validator's real output. -->
@@ -155,13 +156,13 @@ registry, addressed to the offending event:
 ```text
   FAIL  BASE-003 (MUST NOT)
         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
-totals: 17 pass, 1 fail, 0 warn, 88 excluded, 0 unsupported, 6 not applicable, 28 not observed
+totals: 17 pass, 1 fail, 0 warn, 87 excluded, 0 unsupported, 6 not applicable, 29 not observed
 verdict: fail
 ```
 <!-- ANCHOR_END: trace-example -->
 
 The six not-applicable rows are the capability-gated requirements this session
-never negotiated (the resources and prompts clauses), and the twenty-eight
+never negotiated (the resources and prompts clauses), and the twenty-nine
 not-observed rows are the clauses whose subject matter never appeared —
 nothing was paginated, no binary content was sent, no error was returned.
 Neither is reported as a pass. [`corpus/`](corpus) holds complete annotated

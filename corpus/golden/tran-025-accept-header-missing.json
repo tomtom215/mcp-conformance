@@ -1,13 +1,13 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 22,
-    "fail": 2,
+    "pass": 23,
+    "fail": 1,
     "warn": 0,
-    "excluded": 88,
+    "excluded": 87,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 14
+    "not_observed": 15
   },
   "requirements": [
     {
@@ -151,9 +151,9 @@
       "outcome": "fail",
       "findings": [
         {
-          "check": "transport.client-accept-header",
+          "check": "transport.client-post-accept-header",
           "seq": 4,
-          "detail": "client HTTP request has no Accept header; every request to the MCP endpoint must list text/event-stream (and POST requests application/json)"
+          "detail": "client HTTP POST has no Accept header; it must list both application/json and text/event-stream"
         }
       ]
     },
@@ -170,17 +170,15 @@
     {
       "id": "TRAN-039",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "transport.client-accept-header",
-          "seq": 4,
-          "detail": "client HTTP request has no Accept header; every request to the MCP endpoint must list text/event-stream (and POST requests application/json)"
-        }
-      ]
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-040",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-049",
       "level": "MUST",
       "outcome": "pass"
     },

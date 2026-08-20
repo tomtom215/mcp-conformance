@@ -4,10 +4,10 @@
     "pass": 25,
     "fail": 2,
     "warn": 0,
-    "excluded": 148,
+    "excluded": 147,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 97
+    "not_observed": 98
   },
   "requirements": [
     {
@@ -146,6 +146,11 @@
           "detail": "params._meta.traceparent has trace-id \"xyz\"; expected 32 lowercase hex digits"
         }
       ]
+    },
+    {
+      "id": "TRAN-056",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-057",

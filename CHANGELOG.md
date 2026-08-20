@@ -85,7 +85,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   entries, nothing aspirational.** Every page is entered by the same
   per-requirement method as `2025-11-25` — live fetch, verbatim quote, then a
   named check or an exclusion whose reason is specific to that clause — giving
-  **272 entries: 124 judged, 0 unsupported, 148 excluded**, behind the
+  **272 entries: 125 judged, 0 unsupported, 147 excluded**, behind the
   off-by-default `draft-2026-07-28` feature. `spec-drift` verifies **412 quotes
   across both revisions**, and every judged clause has both a conforming and a
   violating trace behind it. The `2025-11-25` registry is untouched at 140
@@ -139,7 +139,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   clauses at all — which is how the `-32002` defect above was found on the
   first run.
 
-  The committed stdio capture now evidences **81 of the 124 judgeable clauses,
+  The committed stdio capture now evidences **81 of the 125 judgeable clauses,
   up from 56**, with no new findings: the error-code partition
   (`BASE-052`…`BASE-060`), logging (`LOG-007`/`008`/`009`), prompts
   (`PROM-012`/`013`/`016`/`018`/`020`), resources
@@ -169,7 +169,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   hand-written reason, and the gate holds the set in both directions. It has
   since worked both ways: the two server defects it found went into the ledger,
   and when they were fixed the gate refused the change until their entries were
-  retired. Across all five captures **113 of the 124 judgeable clauses are now
+  retired. Across all five captures **114 of the 125 judgeable clauses are now
   evidenced**, up from 92, and all ten rejection clauses the probe exercises
   pass.
 
@@ -182,7 +182,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   Streamable HTTP clauses *not observed* exactly like the stdio
   one. The tap sits above the transport and sees status lines and headers.
 
-  At **91 of the 124 judgeable clauses, 0 fail** it is the best-covered capture
+  At **92 of the 125 judgeable clauses, 0 fail** it is the best-covered capture
   in the corpus, and the pair is now genuinely complementary: same session,
   both ends, one file each, so every difference between the two reports is
   attributable to the transport. `corpus/README.md` records what each capture's
@@ -263,9 +263,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   that reading cannot provide, and the matched pair is what makes every
   difference between the two reports attributable to the one variable.
 
-  The legacy server scores **59 pass, 1 fail** (CACH-001: no `ttlMs` on
+  The legacy server scores **60 pass, 1 fail** (CACH-001: no `ttlMs` on
   cacheable results, the correct answer for a server held to a revision it does
-  not implement); the stateless server scores **60 pass, 0 fail**. Both leave
+  not implement); the stateless server scores **61 pass, 0 fail**. Both leave
   64 clauses *not observed* — these scenarios exercise features, and the
   revision's rejection rules, subscriptions and MRTR rounds are not among them.
   The official runner scores both **23/23**: it cannot separate the two
@@ -332,12 +332,77 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The `Accept` clauses were enforced against request forms they do not bind,
+  and under-enforced against the one they do — because the recording did not
+  say which HTTP method an exchange was.** Streamable HTTP gives a client three
+  request forms with three different obligations: a `POST` MUST offer both
+  `application/json` and `text/event-stream` (`TRAN-025`, and `TRAN-057` at
+  `2026-07-28`), a `GET` opening a standalone stream MUST offer
+  `text/event-stream` (`TRAN-039`), and a session-terminating `DELETE` owes an
+  `Accept` header nothing at all — `basic/transports` §Session Management asks
+  only that it name the session. A recorded `kind: http` event carried headers
+  and status but not the verb, so one check enforced the *intersection* of the
+  first two obligations across the *union* of all three forms.
+
+  That is wrong in both directions at once, and both halves reproduce with this
+  workspace's own components:
+
+  - Point `mcp-reference-host` at `mcp-everything-server` over HTTP and validate
+    the tap. The session ends the way rmcp's client ends every session — a
+    `DELETE` carrying reqwest's default `Accept: */*` — and the report came back
+    `verdict: fail` with **two MUST-level failures against a client that had
+    violated nothing**. Neither clause binds a `DELETE`.
+  - Hand a POST whose `Accept` reads `text/event-stream` and nothing else. That
+    is the verbatim violation `TRAN-025` names, and it was reported **`pass`**,
+    because the intersection could only demand what both clauses had in common.
+
+  A false MUST failure against a conforming implementation and a vacuous pass
+  over a real violation are the two ways a conformance verdict stops being worth
+  anything, and one missing field produced both.
+
+  `EventBody::Http` now carries the request `method` (optional, uppercase-
+  normalized on read, omitted from serialization when absent — so response
+  events and every trace written before this are byte-identical). The tap
+  records it; it already had the value in hand and used it to detect teardown.
+  *Breaking (pre-1.0):* a pattern that destructures `EventBody::Http` without a
+  `..` rest no longer compiles. Trace documents are unaffected in both
+  directions — a trace written before this parses unchanged, and one written
+  after parses on an older build, which drops the field it does not know.
+  The single check is replaced by two, each judging exactly the requests its
+  clause binds, and **an exchange whose method the capture did not record is
+  judged by neither** — a recording that cannot tell a POST from a DELETE can
+  neither convict on a POST-only MUST nor be credited with passing one, so the
+  clause reports *not observed*. That is the same rule this validator applies to
+  every other subject a trace does not carry, and it is why
+  `corpus/good/http-session.jsonl` now runs all three request forms: the
+  teardown `DELETE` in it is a regression guard.
+
+  **Six exclusions rested on "the request method is not captured", and two of
+  them were only ever excluded for that reason.** `TRAN-049` and `TRAN-056` —
+  *the client MUST use HTTP POST to send JSON-RPC messages*, in both revisions'
+  words — are now judged by `transport.client-messages-use-post`, which reads
+  the verb of the request each client message rode. The `2026-07-28` registry
+  moves to **125 judged / 147 excluded**, and the five captures evidence 114 of
+  them. The other four exclusions keep their outcome and lose the stale premise:
+  `TRAN-024`/`TRAN-055` add that each message ride a *new* POST, which is
+  connection framing a trace summarizes rather than reproduces, and
+  `TRAN-046`/`TRAN-048` are conditional on client intent, which no recording
+  shows.
+
+  This is the third capture-fidelity defect on this surface — after the tap
+  keying every exchange on a session id, and its header allowlist predating
+  SEP-2243 — and `corpus/README.md` records it beside the other two rather than
+  fixing it quietly. The class is worth naming as often as it appears: **a check
+  is only as honest as the recording it reads, and a capture path that silently
+  drops evidence manufactures findings against conforming implementations.**
+
 - **The recording now carries a cancellation and a trace context, closing three
   clauses no capture reached.** `BASE-040`, `TRAN-123` and `TRAN-124` had
   nothing to judge in any committed session, because the reference host never
   cancelled anything and never propagated a trace context. Two new flags —
-  `--cancel` and `--traceparent` — put both in the capture's definition, and
-  capture coverage moved from 110 to **113 of the 124 judgeable clauses**.
+  `--cancel` and `--traceparent` — put both in the capture's definition, taking
+  capture coverage from 110 clauses to 113. With the request-method fix below
+  it stands at **114 of the 125 judgeable clauses**.
 
   The cancellation is the interesting half. Both clauses are MUST NOTs, and a
   MUST NOT is never witnessed by an absence: what the recording has to carry is
@@ -1014,8 +1079,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   required property 'cacheScope'` and `'ttlMs'`.
 
   That is **CACH-001**, the single clause the registry here had already flagged
-  against the legacy server — the two captures read 59 pass, 1 fail and
-  60 pass, 0 fail, with 64 clauses not observed on each — while the official
+  against the legacy server — the two captures read 60 pass, 1 fail and
+  61 pass, 0 fail, with 64 clauses not observed on each — while the official
   runner scored both servers an indistinguishable 23/23. The runner has now found it
   independently, six weeks later. The standing finding "the runner cannot
   distinguish the two servers" is superseded rather than deleted, in
