@@ -165,3 +165,36 @@ had none. Bounded by construction: one open issue at a time (a stable title
 is the de-duplication key), a comment rather than a new issue while it stays
 red, and an automatic close when it goes green.
 
+### Amendment (2026-08-20): the notification is now itself re-checked
+
+The amendment above ends in shell that had never run in anger. It was
+verified once, by hand, against a `gh` stub that was not committed — which
+is the shape of claim this ADR was written against, one layer further out
+again. It also fails quietly: the steps run inside a job that is *already*
+red (`if: failure()`), so a wrong `gh` invocation adds one more red step to
+a run whose colour was never going to change, and the only symptom is an
+issue that never appears. Nobody watches for the absence of a notification.
+
+Two changes close it, neither of them a date.
+
+1. **The committed shell is executed by a test.** `xtask::notification` lifts
+   each step's `run:` block out of `scheduled.yml` — read from the YAML, not
+   transcribed, so it cannot drift from what CI runs — and executes it under
+   stubbed `gh` and `cargo` across the branches that matter: rows expired, a
+   red ledger with no expired row, a drift failure, a moved pin, an issue that
+   already exists, an unrelated open issue that must not absorb the
+   notification, and the green close. Renaming a step fails the tests rather
+   than leaving them passing over nothing, and a `gh` that exits non-zero must
+   fail its step — which is what `set -euo pipefail` is for, and what nothing
+   previously asserted.
+2. **The outcome is stated on the run summary.** Each step appends what it did
+   to `$GITHUB_STEP_SUMMARY`, so the notification's *absence* is visible on the
+   run page rather than inferable only from an issue tracker nobody is
+   comparing against. A red run without that line means the notification step
+   did not finish.
+
+What remains unproven is whether the real `gh` accepts these exact flags,
+which only a live run can establish. The tests fix everything up to that line;
+the first genuine weekly failure settles the rest, and now says so on the run
+page when it does.
+

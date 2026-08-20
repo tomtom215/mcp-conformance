@@ -332,6 +332,33 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The claims-expiry notification had never run in anger, and would have
+  failed silently if it were wrong.** ADR-0010's amendment ends the weekly gates
+  in shell that opens, comments on, and closes a tracking issue. It was checked
+  once by hand against a `gh` stub that was never committed — a claim that was
+  true once with nothing re-reading it, which is the shape this ADR exists to
+  kill. Worse, the steps run inside a job that is already red (`if: failure()`),
+  so a wrong `gh` invocation would add one more red step to a run whose colour
+  was never going to change, and the only symptom would be an issue that never
+  appears. Nobody watches for the absence of a notification.
+
+  `xtask::notification` now lifts each step's `run:` block out of
+  `scheduled.yml` — read from the YAML, so it cannot drift from what CI runs —
+  and executes it under stubbed `gh` and `cargo` over every branch: rows
+  expired, a red ledger with no expired row, a drift failure, a moved pin, an
+  issue that already exists, an unrelated open issue that must not absorb the
+  notification, and the green close. Renaming a step fails the tests rather than
+  leaving them passing over nothing. Four deliberate breakages of the workflow
+  shell — a de-duplication query matching any title, the row loop dropping its
+  ids, the drift section always emitted, `set -euo pipefail` removed — each
+  turned it red.
+
+  And each step now states what it did on `$GITHUB_STEP_SUMMARY`, so a
+  notification that did not happen is visible on the run page instead of only in
+  an issue tracker nobody is diffing. What is still unproven is whether the real
+  `gh` accepts these exact flags; only a live run settles that, and the summary
+  line is how it will say so.
+
 - **`--strict` exited 1 under a report whose last line said `pass-with-warnings`,
   and nothing connected the two.** The flag promotes SHOULD-level findings to
   failures, which is an invocation policy rather than a fact about the trace, so

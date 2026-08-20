@@ -393,9 +393,20 @@ jobs:
             | jq -r --arg title "$ISSUE_TITLE" 'map(select(.title == $title)) | .[0].number // empty')"
           if [[ -n "$number" ]]; then
             gh issue comment "$number" --body-file issue-body.md
+            action="commented on #$number"
           else
             gh issue create --title "$ISSUE_TITLE" --body-file issue-body.md
+            action="opened"
           fi
+          # These steps run inside a job that is already red, so a broken `gh`
+          # adds one more red step to a run whose colour was never going to
+          # change, and the only symptom is an issue that never appears —
+          # nobody watches for the absence of a notification. Stating the
+          # outcome on the run summary makes the absence itself visible.
+          {
+            printf '### claims-expire notification\n\n'
+            printf 'Tracking issue **%s**. A red run without this line means the notification step did not finish.\n' "$action"
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
       - name: Close the tracking issue once all three gates are green
         if: success()
         shell: bash
@@ -405,4 +416,6 @@ jobs:
             | jq -r --arg title "$ISSUE_TITLE" 'map(select(.title == $title)) | .[0].number // empty')"
           if [[ -n "$number" ]]; then
             gh issue close "$number" --comment "All three gates are green as of ${RUN_URL} — closing. A later red run files a fresh issue, so each incident keeps its own history."
+            printf '### claims-expire notification\n\nTracking issue **#%s closed** — all three gates are green.\n' "$number" \
+              >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           fi

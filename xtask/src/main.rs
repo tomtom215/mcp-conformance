@@ -96,6 +96,10 @@ mod draft_readiness;
 mod fuzz_targets;
 mod local_gates;
 mod minimal_versions;
+// A test harness rather than a task: it executes the notification shell that
+// `scheduled.yml` ships, so nothing in the binary calls into it.
+#[cfg(test)]
+mod notification;
 mod spec_drift;
 mod suite_currency;
 mod version_sync;
