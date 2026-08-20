@@ -33,7 +33,9 @@ impl Default for Limits {
     }
 }
 
-/// Why a trace document was rejected. Every variant carries the 1-based line number.
+/// Why a trace document was rejected. Every variant that addresses one record
+/// carries its 1-based line number; the two that describe the document as a
+/// whole do not.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum TraceParseError {
@@ -63,6 +65,26 @@ pub enum TraceParseError {
         line: usize,
         /// The underlying JSON error.
         source: serde_json::Error,
+    },
+    /// The document begins with a UTF-8 byte-order mark.
+    ///
+    /// Its own variant because serde reports it as `expected value at line 1
+    /// column 1`, which is true and tells the reader nothing: the offending
+    /// bytes are invisible in every editor that wrote them. A BOM is the
+    /// commonest way a trace produced on Windows fails to parse — `Out-File`
+    /// and `Set-Content` have both emitted one by default — and
+    /// `jq`, `python -m json.tool` and every other tool the reader might reach
+    /// for will insist the file is fine.
+    ByteOrderMark,
+    /// The whole document is a single JSON value: it is JSON, not JSON Lines.
+    ///
+    /// Checked only after a line has already failed, so a valid document never
+    /// reaches it and the cost is paid once, on the error path. Pretty-printing
+    /// is the other half of the same mistake as the BOM — a file that is
+    /// obviously well-formed JSON, rejected with a message about column 1.
+    NotJsonLines {
+        /// Whether that value is an array, so the message can name the fix.
+        array: bool,
     },
     /// Event `seq` values must be strictly increasing in document order.
     NonMonotonicSeq {
@@ -97,6 +119,22 @@ impl fmt::Display for TraceParseError {
             }
             Self::Malformed { line, source } => {
                 write!(f, "line {line}: not a valid trace event: {source}")
+            }
+            Self::ByteOrderMark => write!(
+                f,
+                "the document begins with a UTF-8 byte-order mark (EF BB BF), which JSON \
+                 Lines does not permit; strip those three bytes and re-run"
+            ),
+            Self::NotJsonLines { array } => {
+                let fix = if *array {
+                    "it is a JSON array — one event per element, so `jq -c '.[]' <file>` converts it"
+                } else {
+                    "it is one pretty-printed JSON object — `jq -c . <file>` puts it on one line"
+                };
+                write!(
+                    f,
+                    "the document is a single JSON value, not JSON Lines (one event per line): {fix}"
+                )
             }
             Self::NonMonotonicSeq {
                 line,
@@ -136,6 +174,11 @@ impl core::error::Error for TraceParseError {
 /// # Ok::<(), mcp_trace_validator::reader::TraceParseError>(())
 /// ```
 pub fn parse_trace(input: &str, limits: &Limits) -> Result<Vec<TraceEvent>, TraceParseError> {
+    // Before anything is addressed by line: a leading BOM makes line 1 fail with
+    // a message about a column, and the bytes it names cannot be seen.
+    if input.starts_with('\u{feff}') {
+        return Err(TraceParseError::ByteOrderMark);
+    }
     let mut events = Vec::new();
     let mut previous_seq: Option<u64> = None;
     for (index, line) in input.lines().enumerate() {
@@ -148,18 +191,23 @@ pub fn parse_trace(input: &str, limits: &Limits) -> Result<Vec<TraceEvent>, Trac
             });
         }
         if line.trim().is_empty() {
-            return Err(TraceParseError::BlankLine { line: line_number });
+            // A pretty-printed document with an internal blank line reaches
+            // here before any line has failed to parse, so ask the same
+            // question the parse-failure path asks.
+            return Err(whole_document_is_json(input)
+                .unwrap_or(TraceParseError::BlankLine { line: line_number }));
         }
         if events.len() >= limits.max_events {
             return Err(TraceParseError::TooManyEvents {
                 limit: limits.max_events,
             });
         }
-        let event: TraceEvent =
-            serde_json::from_str(line).map_err(|source| TraceParseError::Malformed {
+        let event: TraceEvent = serde_json::from_str(line).map_err(|source| {
+            whole_document_is_json(input).unwrap_or(TraceParseError::Malformed {
                 line: line_number,
                 source,
-            })?;
+            })
+        })?;
         if let Some(previous) = previous_seq
             && event.seq <= previous
         {
@@ -175,12 +223,116 @@ pub fn parse_trace(input: &str, limits: &Limits) -> Result<Vec<TraceEvent>, Trac
     Ok(events)
 }
 
+/// [`TraceParseError::NotJsonLines`] when `input` is a JSON *document* rather
+/// than JSON Lines.
+///
+/// Parsing end to end is not enough on its own, and the test that says so was
+/// already here: one valid record followed by a stray blank line also parses as
+/// a single value, because JSON permits trailing whitespace — reporting that as
+/// "this is JSON, not JSON Lines" would replace a true diagnosis with a false
+/// one. So the value must also be shaped like a document a person pretty-printed
+/// or wrapped: an array (the whole trace as one value, however it is spaced), or
+/// a value spread across more than one line. A one-line object that simply is
+/// not a trace event falls through to serde's message, which names the field it
+/// was missing.
+fn whole_document_is_json(input: &str) -> Option<TraceParseError> {
+    let value: serde_json::Value = serde_json::from_str(input).ok()?;
+    let array = value.is_array();
+    let spans_lines = input.lines().filter(|line| !line.trim().is_empty()).count() > 1;
+    (array || spans_lines).then_some(TraceParseError::NotJsonLines { array })
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
     const VALID_EVENT: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"lifecycle","event":"transport-open"}"#;
+
+    /// The two ways a first trace fails to parse for a reason serde cannot
+    /// name, and the message each must produce.
+    #[test]
+    fn a_leading_byte_order_mark_is_named_rather_than_pointed_at() {
+        let document = format!("\u{feff}{VALID_EVENT}");
+        let error = parse_trace(&document, &Limits::default()).unwrap_err();
+        assert!(matches!(error, TraceParseError::ByteOrderMark), "{error:?}");
+        let message = error.to_string();
+        assert!(message.contains("byte-order mark"), "{message}");
+        assert!(message.contains("EF BB BF"), "{message}");
+        // The same bytes anywhere but the start are ordinary content, and the
+        // line that carries them is what the reader is told about.
+        let inside = format!("{VALID_EVENT}\n\u{feff}{VALID_EVENT}");
+        assert!(matches!(
+            parse_trace(&inside, &Limits::default()).unwrap_err(),
+            TraceParseError::Malformed { line: 2, .. }
+        ));
+    }
+
+    #[test]
+    fn a_json_document_is_told_apart_from_json_lines() {
+        // A pretty-printed object: serde says `EOF while parsing an object at
+        // line 1 column 1`, which describes a fragment rather than the file.
+        let pretty = "{\n  \"seq\": 0,\n  \"direction\": \"client-to-server\",\n  \"transport\": \"stdio\",\n  \"kind\": \"lifecycle\",\n  \"event\": \"transport-open\"\n}";
+        let error = parse_trace(pretty, &Limits::default()).unwrap_err();
+        assert!(
+            matches!(error, TraceParseError::NotJsonLines { array: false }),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("jq -c ."), "{error}");
+
+        // The same events as a JSON array, pretty or compact.
+        for document in [format!("[{VALID_EVENT}]"), format!("[\n  {VALID_EVENT}\n]")] {
+            let error = parse_trace(&document, &Limits::default()).unwrap_err();
+            assert!(
+                matches!(error, TraceParseError::NotJsonLines { array: true }),
+                "{error:?}"
+            );
+            assert!(error.to_string().contains("jq -c '.[]'"), "{error}");
+        }
+    }
+
+    #[test]
+    fn one_record_and_a_stray_newline_is_still_a_blank_line() {
+        // JSON permits trailing whitespace, so this parses as a single value —
+        // and calling it "a JSON document, not JSON Lines" would be a confident
+        // wrong answer where the true one is one word away.
+        let document = format!("{VALID_EVENT}\n\n");
+        assert!(matches!(
+            parse_trace(&document, &Limits::default()).unwrap_err(),
+            TraceParseError::BlankLine { line: 2 }
+        ));
+    }
+
+    #[test]
+    fn a_one_line_object_that_is_not_an_event_keeps_serdes_message() {
+        // Also one JSON value, also not JSON Lines by shape — but the useful
+        // answer names the field, not the file format.
+        let error = parse_trace(r#"{"hello":"world"}"#, &Limits::default()).unwrap_err();
+        assert!(
+            matches!(error, TraceParseError::Malformed { line: 1, .. }),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("missing field `seq`"), "{error}");
+    }
+
+    #[test]
+    fn a_genuinely_broken_line_still_gets_its_line_number() {
+        // The check must not swallow the ordinary case: a document that is not
+        // one JSON value keeps serde's message and the line it happened on.
+        let document = format!("{VALID_EVENT}\nnot json\n");
+        let error = parse_trace(&document, &Limits::default()).unwrap_err();
+        assert!(
+            matches!(error, TraceParseError::Malformed { line: 2, .. }),
+            "{error:?}"
+        );
+
+        // And a stray blank line between real records is still a blank line.
+        let gapped = format!("{VALID_EVENT}\n\n{VALID_EVENT}\n");
+        assert!(matches!(
+            parse_trace(&gapped, &Limits::default()).unwrap_err(),
+            TraceParseError::BlankLine { line: 2 }
+        ));
+    }
 
     #[test]
     fn parses_valid_lines_and_empty_documents() {

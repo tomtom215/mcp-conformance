@@ -332,6 +332,29 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The two commonest ways a first trace fails to parse said nothing a reader
+  could act on.** A UTF-8 byte-order mark — what PowerShell's `Out-File` and
+  `Set-Content` have both written by default — made line 1 fail with serde's
+  `expected value at line 1 column 1`. That is true, and the three bytes it
+  points at are invisible in every editor that wrote them; `jq` and
+  `python -m json.tool` will both insist the file is fine. A pretty-printed
+  document failed with `EOF while parsing an object at line 1 column 1`, which
+  describes a fragment rather than the file, for what is really one sentence:
+  this is JSON, and the reader wants JSON Lines.
+
+  Both now name the problem and the fix — *strip those three bytes*, or
+  `jq -c '.[]' <file>` for an array and `jq -c . <file>` for one object. The
+  JSON-document check runs only after a line has already failed, so a valid
+  trace never pays for it.
+
+  It is narrow on purpose, and an existing test drew the line. One valid record
+  followed by a stray newline also parses as a single JSON value, because JSON
+  permits trailing whitespace — calling that "a JSON document, not JSON Lines"
+  would trade a true diagnosis for a false one, so the check additionally
+  requires the value to be an array or to span more than one line. A one-line
+  object that simply is not a trace event keeps serde's message, which names
+  the field it was missing.
+
 - **A recording of one revision judged against another's registry produced
   confident, wrong findings and said nothing about why.** The default registry
   is `2025-11-25`. Point `validate` at a conforming `2026-07-28` stateless
