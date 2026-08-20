@@ -38,6 +38,7 @@
 
 pub mod checks;
 pub mod context;
+pub mod declared;
 pub mod engine;
 pub mod junit;
 pub mod multi;

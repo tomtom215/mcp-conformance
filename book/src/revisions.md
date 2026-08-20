@@ -19,8 +19,8 @@ changelog and becomes a measurement.
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
 | Registry entries | 140 | 272 |
-| Judged by a named check | 52 | 124 |
-| Carrying a documented exclusion | 88 | 148 |
+| Judged by a named check | 53 | 125 |
+| Carrying a documented exclusion | 87 | 147 |
 | Shipped by default | yes | behind the `draft-2026-07-28` feature |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -91,6 +91,40 @@ what was measured.
 > The example above is executed by a test (`book_examples.rs`) against the real
 > validator on every `cargo test`, so this page cannot drift from what the tool
 > actually prints.
+
+## Judged against the wrong revision
+
+Naming a revision is a choice, and the default is `2025-11-25`. Point the
+validator at a `2026-07-28` recording without saying so and every clause the two
+revisions disagree about becomes a finding: the session opens with `tools/list`
+rather than `initialize`, so `LIFE-001` fails; it reuses request ids after their
+responses, so `BASE-003` fails. Both are correct answers to the question that was
+asked, and neither is a defect in the implementation.
+
+A trace is not silent about which revision it belongs to — the handshake states
+it, a stateless session states it in every request's `_meta`, and the HTTP
+transport states it in a header. This session says `2026-07-28` twice over:
+
+```jsonl
+{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"accept":"application/json, text/event-stream","mcp-protocol-version":"2026-07-28"}}
+{"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}}
+{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"tools":[],"resultType":"complete"}}}
+```
+
+so validating it without naming a revision says so, above the rows and again
+under the verdict:
+
+```text
+  NOTE  this session declares protocol revision 2026-07-28, not 2025-11-25.
+        Every outcome here judges it against rules it was not playing by;
+        re-run with `--revision 2026-07-28` to judge it against its own.
+```
+
+It is deliberately quiet. A session that proposed one revision and negotiated
+another has touched both, so judging it against either draws no note; a version
+a server *refused* states nothing, because the session never ran under it; and a
+recording that declares no revision at all gets no note, since there is nothing
+to disagree with.
 
 ## The four ways a clause is not a pass
 

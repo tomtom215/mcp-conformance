@@ -161,6 +161,19 @@ mod tests {
     }
 
     #[test]
+    fn a_servers_reply_is_not_the_clients_message() {
+        // The direction filter, pinned: a response arriving after the POST
+        // that carried the request must not be counted as a second message
+        // riding that POST. Without this the direction half of the scope guard
+        // is unobserved, and a build that dropped it would report twice the
+        // subjects it examined.
+        let reply = r#"{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}}"#.to_owned();
+        let (findings, subjects) = outcome(&[http(0, Some("POST")), message(1), reply]);
+        assert!(findings.is_empty(), "{findings:?}");
+        assert_eq!(subjects, 1, "only the client's message rode the POST");
+    }
+
+    #[test]
     fn stdio_messages_are_out_of_scope() {
         let stdio = [
             r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}"#.to_owned(),

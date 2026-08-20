@@ -71,7 +71,10 @@ The exit code is documented (`0` pass, `1` findings, `2` bad invocation,
 `3` malformed trace), so this drops straight into CI. A trace that judges no
 requirement at all — the shape a broken capture step produces — is a bad
 invocation rather than a pass: an empty recording is not a conforming session,
-and a green build is the wrong thing to tell you about one.
+and a green build is the wrong thing to tell you about one. And a recording of
+*another* revision — a `2026-07-28` session judged against the default
+`2025-11-25` registry — says so in the report rather than quietly reporting the
+clauses the two revisions disagree about as violations.
 
 Note what the totals do *not* say. A clause the session never came near is
 **not observed** — never a pass. A trace that opens a connection and stops has

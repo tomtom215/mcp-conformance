@@ -332,6 +332,57 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **A recording of one revision judged against another's registry produced
+  confident, wrong findings and said nothing about why.** The default registry
+  is `2025-11-25`. Point `validate` at a conforming `2026-07-28` stateless
+  session without naming a revision and it fails `LIFE-001` — the session did
+  not open with `initialize`, which `2026-07-28` removes (SEP-2575) — and
+  `BASE-003`, for reusing request ids after their responses, which
+  `2026-07-28` permits. Each finding quotes the spec verbatim, and each is a
+  correct answer to a question nobody meant to ask. Every trace in
+  `corpus/draft/` is that trace, and as `2026-07-28` becomes the revision people
+  record, it becomes the first thing a new user sees.
+
+  A trace states its own revision: the `initialize` handshake carries it from
+  both ends, a stateless session carries it in every request's `_meta`, and the
+  Streamable HTTP transport carries it in a header. The report now reads that
+  and says so — above the rows and again under the verdict, because a note that
+  scrolls past a hundred findings is a note nobody reads:
+
+  ```text
+    NOTE  this session declares protocol revision 2026-07-28, not 2025-11-25.
+          Every outcome here judges it against rules it was not playing by;
+          re-run with `--revision 2026-07-28` to judge it against its own.
+  ```
+
+  `Report.revision_mismatch` (and `MultiReport`'s, worded for a run that chose
+  its own revisions) carries the same fact to JSON consumers, and is absent
+  whenever there is nothing to say — so every committed golden is unchanged.
+
+  **It is quiet on purpose, and the corpus is what taught it to be.** A session
+  that proposed one revision and negotiated another has touched both, so judging
+  it against either draws no note. A session that declares nothing draws none:
+  warning from an absence is the vacuous reasoning this validator refuses
+  everywhere else. A version the other end *refused* declares nothing either —
+  the first draft of this flagged `tran-074`, whose client asks for
+  `1900-01-01` and is told no, and `vers-008`, whose legacy `initialize` reaches
+  a server that no longer has one; both are sessions of no revision at all, and
+  `TRAN-074` and `VERS-008` are the clauses with something to say about them.
+  And only revisions this build ships a registry for count, because
+  *re-run with `--revision X`* is worthless advice when there is no `X`.
+
+- **The book's per-revision table had gone stale, and nothing could have said
+  so.** `book/src/revisions.md` still read `52 | 124` judged and `88 | 148`
+  excluded after the change above moved two clauses out of exclusion. The
+  README's equivalent could not drift — `cargo xtask coverage` generates it —
+  and the `draft-coverage` gate reads verdict tuples and "N of the M judgeable
+  clauses" claims, neither of which matches a table cell. So the one table in
+  the repository stating the registries' shape in a human's own words was the
+  one nothing checked. `cargo xtask coverage --check` now verifies all six of
+  its numeric cells against the registries, naming each disagreement and its
+  revision. It verifies rather than generates: the wording, the ordering and
+  the prose rows stay the author's, and only the numbers are the registry's.
+
 - **The `Accept` clauses were enforced against request forms they do not bind,
   and under-enforced against the one they do — because the recording did not
   say which HTTP method an exchange was.** Streamable HTTP gives a client three
@@ -1142,8 +1193,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   and the loops filtered the page manifest that way. The extractor's calibration
   claim survives re-checking at the true total — **140/140** quotes verify — but
   the counts in `tools/extract-clauses.py` and the extraction inventory are
-  corrected, and the trap is documented in the tool. The true split, 52 checked
-  / 88 excluded, matches what v0.4.0's changelog already stated.
+  corrected, and the trap is documented in the tool. The true split as the registry then stood, 52
+  checked / 88 excluded, matches what v0.4.0's changelog already stated.
 
 - **The SDK moved from `rmcp 1.7.0` to `3.1.2`, and a before/after wire diff
   says what that changed.** ADR-0011 held the pin until both the `2026-07-28`

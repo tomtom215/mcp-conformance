@@ -89,8 +89,8 @@ The spec as data, and the engine that judges traces against it.
       server published as `required` in `prompts/list`, demonstrably processed input it
       had declared invalid. Both halves of that comparison are recorded messages, so the
       exclusion's premise was simply untrue — the same shape as TRAN-026's in the second
-      audit. Now judged by `prompts.arguments-validated` with a killer trace: **140
-      entries, 52 judged by 48 checks, 88 exclusions**. The check is deliberately narrow
+      audit. Now judged by `prompts.arguments-validated` with a killer trace, which took
+      the registry to **140 entries, 52 judged by 48 checks, 88 exclusions**. The check is deliberately narrow
       — it fires only on prompts whose required arguments were observed being declared,
       and only when the server returned a *result*, since an error means the server did
       reject the call. PROM-007 stays excluded on purpose: two of its three enumerated

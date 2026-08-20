@@ -354,7 +354,11 @@ mod tests {
             panic!("expected an http event");
         };
         assert_eq!(method.as_deref(), Some("POST"));
-        assert!(!serde_json::to_string(&event).unwrap().contains("targetPath"));
+        assert!(
+            !serde_json::to_string(&event)
+                .unwrap()
+                .contains("targetPath")
+        );
     }
 
     #[test]
