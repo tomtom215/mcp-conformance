@@ -332,6 +332,16 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **`--strict` exited 1 under a report whose last line said `pass-with-warnings`,
+  and nothing connected the two.** The flag promotes SHOULD-level findings to
+  failures, which is an invocation policy rather than a fact about the trace, so
+  it deliberately does not rewrite the report's `verdict:` line — a golden report
+  must not depend on how the CLI was called. What was missing was the sentence
+  saying so, leaving a CI log that ends in a pass and a build that went red.
+  There is now a note on stderr, printed only when `--strict` actually promoted
+  something. stdout is unchanged in every case, which a test pins: it is the
+  report, including the JSON and JUnit a machine reads.
+
 - **The two commonest ways a first trace fails to parse said nothing a reader
   could act on.** A UTF-8 byte-order mark — what PowerShell's `Out-File` and
   `Set-Content` have both written by default — made line 1 fail with serde's

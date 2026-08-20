@@ -8,7 +8,7 @@
 //! | Code | Meaning |
 //! |------|---------|
 //! | 0    | Validation ran; no MUST-level violations (warnings allowed unless `--strict`) |
-//! | 1    | MUST-level violations — or SHOULD-level ones under `--strict` |
+//! | 1    | MUST-level violations — or SHOULD-level ones under `--strict`, which says so on stderr |
 //! | 2    | Invocation, registry, or check-inventory problem (including `unsupported` outcomes) |
 //! | 3    | The trace document itself was malformed |
 
@@ -175,7 +175,21 @@ fn parse_revisions(revisions: &[String]) -> Result<Vec<ProtocolRevision>, String
 
 /// The exit code a verdict maps to, shared by single- and multi-revision runs so the
 /// 0/1/2 contract has one definition. `--strict` promotes warnings to findings.
-const fn verdict_to_code(verdict: Verdict, strict: bool) -> u8 {
+///
+/// When it does, it says so on stderr. The report's own `verdict:` line is a
+/// property of the trace and is deliberately not rewritten by an invocation
+/// flag — a golden report must not depend on how the CLI was called — which
+/// left a run ending `verdict: pass-with-warnings` and exiting 1, with nothing
+/// anywhere connecting the two. The note is the missing sentence, and stderr is
+/// where it belongs: stdout carries the report, including the JSON and `JUnit` a
+/// machine reads.
+fn verdict_to_code(verdict: Verdict, strict: bool) -> u8 {
+    if strict && verdict == Verdict::PassWithWarnings {
+        eprintln!(
+            "note: --strict — the SHOULD-level findings above are treated as failures, \
+             so this run exits {EXIT_FINDINGS} despite a verdict of {verdict}"
+        );
+    }
     match verdict {
         Verdict::Fail => EXIT_FINDINGS,
         Verdict::PassWithWarnings if strict => EXIT_FINDINGS,
