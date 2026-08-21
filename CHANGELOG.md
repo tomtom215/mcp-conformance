@@ -390,6 +390,22 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   can repeat and one nobody will. A test asserts every other job carries the
   guard, so a job added later cannot quietly put the full sweep back into it.
 
+  **And then it was run, both halves.** A ledger row was expired on a branch and
+  the job dispatched: red, and
+  [#42](https://github.com/tomtom215/mcp-conformance/issues/42) was opened by
+  `github-actions[bot]`, naming the expired row and its date, tabulating all
+  three gate outcomes, and republishing none of the fetched specification text.
+  The row was restored and the job dispatched again: green, and the same run
+  closed #42. Thirty seconds each, nine jobs skipped. The notification is no
+  longer a claim.
+
+  **The rehearsal found a real drift, which is the better result** — see the
+  subscriptions entry above. The red run's issue named *two* failing gates
+  rather than the one that had been arranged, which is the `if: always()` half
+  of this change working: before it, a red ledger skipped the drift gate
+  entirely, so the moved quotes would have waited for a week when the ledger
+  happened to be clean.
+
 - **`--strict` exited 1 under a report whose last line said `pass-with-warnings`,
   and nothing connected the two.** The flag promotes SHOULD-level findings to
   failures, which is an invocation policy rather than a fact about the trace, so
