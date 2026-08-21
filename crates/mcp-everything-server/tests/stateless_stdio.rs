@@ -18,8 +18,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::collections::BTreeMap;
-use std::io::{BufRead as _, BufReader, Write as _};
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::io::Write as _;
+use std::process::{Child, ChildStdin, Command, Stdio};
+
+mod common;
+use common::Lines;
 
 use serde_json::{Value, json};
 
@@ -32,7 +35,11 @@ const ENVELOPE: &str = r#""io.modelcontextprotocol/protocolVersion":"2026-07-28"
 struct Server {
     child: Child,
     stdin: ChildStdin,
-    stdout: BufReader<ChildStdout>,
+    /// Bounded, so a server that answers nothing fails this test rather than
+    /// hanging it — see `common::Lines`. A stalled subscription or an
+    /// unanswered request is exactly the defect these tests exist to catch,
+    /// and a hang is the one report that says nothing about which.
+    stdout: Lines,
 }
 
 impl Server {
@@ -45,7 +52,7 @@ impl Server {
             .spawn()
             .expect("binary spawns");
         let stdin = child.stdin.take().unwrap();
-        let stdout = BufReader::new(child.stdout.take().unwrap());
+        let stdout = Lines::from(child.stdout.take().unwrap());
         Self {
             child,
             stdin,
@@ -63,12 +70,10 @@ impl Server {
     /// Correlated rather than ordered: a stateless server answers independent
     /// requests concurrently and has no reason to reply in the order it read
     /// them.
-    fn answers(&mut self, count: usize) -> BTreeMap<u64, Value> {
+    fn answers(&self, count: usize) -> BTreeMap<u64, Value> {
         let mut answers = BTreeMap::new();
         while answers.len() < count {
-            let mut line = String::new();
-            let read = self.stdout.read_line(&mut line).expect("read an answer");
-            assert_ne!(read, 0, "the server closed stdout after {answers:?}");
+            let line = self.stdout.next(&format!("an answer (have {answers:?})"));
             let answer: Value = serde_json::from_str(&line)
                 .unwrap_or_else(|error| panic!("not one JSON line ({error}): {line}"));
             // Server-initiated messages carry a `method`; at this revision
@@ -89,12 +94,10 @@ impl Server {
     /// Ordering matters here in a way it does not for independent requests —
     /// SUBS-002 is about *which message came first* — so this keeps the
     /// sequence rather than keying by id.
-    fn subscription(&mut self, id: u64) -> (Vec<Value>, Value) {
+    fn subscription(&self, id: u64) -> (Vec<Value>, Value) {
         let mut notifications = Vec::new();
         loop {
-            let mut line = String::new();
-            let read = self.stdout.read_line(&mut line).expect("read");
-            assert_ne!(read, 0, "the stream closed with no final result");
+            let line = self.stdout.next("a subscription message");
             let message: Value = serde_json::from_str(&line).expect("one JSON line");
             if message["id"].as_u64() == Some(id) && message.get("method").is_none() {
                 return (notifications, message);
@@ -313,8 +316,7 @@ fn logging_rides_only_a_request_that_asked_for_it() {
     server.send(&asking);
     let mut logs = 0;
     loop {
-        let mut line = String::new();
-        server.stdout.read_line(&mut line).expect("read");
+        let line = server.stdout.next("a log notification or the result");
         let message: Value = serde_json::from_str(&line).expect("one JSON line");
         if message["method"] == "notifications/message" {
             logs += 1;

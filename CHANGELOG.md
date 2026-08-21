@@ -332,6 +332,30 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **A test that waited on server output hung forever instead of failing.**
+  Every read in the binary tests waits on a line the server is supposed to
+  produce, and each was an unbounded `read_line`, so the moment the server
+  stopped producing it the test stopped too. `cargo test` has no per-test
+  timeout: the symptom is not a red test but a CI job that spends its whole
+  budget blocked, with nothing in the log saying on what.
+
+  The mutation gate surfaced it and could not name it. Flipping
+  `HttpSecurityPolicy::validates_nothing` to `false` removes the startup
+  warning, which
+  `disabling_host_validation_warns_after_the_readiness_line` exists to assert;
+  it should have failed in milliseconds. Measured, it blocked indefinitely
+  (killed at 45s), and cargo-mutants could only report a 183-second `TIMEOUT` —
+  the one outcome that says nothing about whether a test noticed.
+
+  Reads are now bounded by a shared `tests/common` helper that reads on a worker
+  thread, mirroring `xtask::conformance::await_readiness_line`, which had this
+  right already. Same mutation, same 30-second bound as the conformance task:
+  `no warning line within 30s`, naming the line that never came. Applied to all
+  eleven pipe reads across `cli.rs` and `stateless_stdio.rs` — a stalled
+  subscription or an unanswered request is exactly what those tests exist to
+  catch — and the four raw HTTP exchanges now carry a read timeout for the same
+  reason.
+
 - **Seven capability clauses reported *pass* on sessions that could not have
   declared anything.** `support::server_capability` is a tri-state: the trace
   declared the capability, the trace withheld it, or the trace carries no
