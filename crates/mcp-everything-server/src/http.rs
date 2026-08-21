@@ -141,8 +141,7 @@ fn headers_allowed(policy: &HttpSecurityPolicy, headers: &HeaderMap) -> bool {
     let host_ok = match (hosts.next(), hosts.next()) {
         (Some(value), None) => value
             .to_str()
-            .ok()
-            .is_some_and(|host| policy.host_header_allowed(host)),
+            .is_ok_and(|host| policy.host_header_allowed(host)),
         _ => false,
     };
     // Origin is absent for non-browser clients — that is acceptable; when
@@ -152,8 +151,7 @@ fn headers_allowed(policy: &HttpSecurityPolicy, headers: &HeaderMap) -> bool {
         (None, _) => true,
         (Some(value), None) => value
             .to_str()
-            .ok()
-            .is_some_and(|origin| policy.origin_allowed(origin)),
+            .is_ok_and(|origin| policy.origin_allowed(origin)),
         (Some(_), Some(_)) => false,
     };
     host_ok && origin_ok

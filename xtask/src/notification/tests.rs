@@ -6,13 +6,30 @@
 //! The sandbox they run in is [`super::harness`]; what they assert is that the
 //! shell `scheduled.yml` ships does the right thing with a `gh` that works, and
 //! fails loudly with one that does not.
+//!
+//! **The executing tests are `cfg(unix)`.** The step under test is a `run:`
+//! block on an `ubuntu-latest` job, so a POSIX shell is not an implementation
+//! detail of the test — it is the environment the script actually has. Running
+//! it on a Windows runner exercises Git Bash over native paths instead, and the
+//! harness cannot even reach it there: `PATH` is joined with `:`, which is not
+//! the Windows separator, so the stub directory never goes on `PATH` and the
+//! script reaches the runner's real `gh` and `cargo` instead. Four of the eight
+//! failed that way; the other four were running against those real binaries,
+//! which is not what any of them mean to assert.
+//!
+//! What stays platform-independent is everything that reads the workflow rather
+//! than running it: the extractor, the committed-script check, and the dispatch
+//! guard. Those are the ones a Windows contributor can still break.
 
 use std::fs;
+#[cfg(unix)]
 use std::process::Command;
 
+#[cfg(unix)]
 use super::harness::{Sandbox, TITLE, outcomes, run_step};
 use super::{CLOSE_STEP, OPEN_STEP, WORKFLOW, step_script, workspace_root};
 
+#[cfg(unix)]
 #[test]
 fn an_expired_row_opens_an_issue_naming_it() {
     let run = run_step(
@@ -85,6 +102,7 @@ fn an_expired_row_opens_an_issue_naming_it() {
     assert!(run.summary.contains("**opened**"), "{}", run.summary);
 }
 
+#[cfg(unix)]
 #[test]
 fn a_run_that_is_still_red_comments_rather_than_filing_again() {
     let run = run_step(
@@ -103,6 +121,7 @@ fn a_run_that_is_still_red_comments_rather_than_filing_again() {
     assert!(run.summary.contains("commented on #41"), "{}", run.summary);
 }
 
+#[cfg(unix)]
 #[test]
 fn an_unrelated_open_issue_does_not_absorb_the_notification() {
     // The de-duplication key is the exact title. A repository with other open
@@ -119,6 +138,7 @@ fn an_unrelated_open_issue_does_not_absorb_the_notification() {
     assert!(run.gh_call("issue comment").is_none(), "{:?}", run.gh_calls);
 }
 
+#[cfg(unix)]
 #[test]
 fn a_red_ledger_with_no_expired_row_says_the_ledger_itself_is_the_problem() {
     // The other way the ledger gate goes red: the file does not parse, or
@@ -138,6 +158,7 @@ fn a_red_ledger_with_no_expired_row_says_the_ledger_itself_is_the_problem() {
     assert!(!run.body.contains("review by"), "{}", run.body);
 }
 
+#[cfg(unix)]
 #[test]
 fn each_gate_contributes_its_own_section_and_no_others() {
     let drift = run_step(
@@ -199,6 +220,7 @@ fn each_gate_contributes_its_own_section_and_no_others() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn a_green_run_closes_the_open_issue_and_a_quiet_one_does_nothing() {
     let closed = run_step(
@@ -225,6 +247,7 @@ fn a_green_run_closes_the_open_issue_and_a_quiet_one_does_nothing() {
     assert!(nothing.summary.is_empty(), "{}", nothing.summary);
 }
 
+#[cfg(unix)]
 #[test]
 fn a_broken_gh_fails_the_step_rather_than_skipping_the_notification() {
     // The failure this whole module exists for: these steps run inside a job
@@ -260,6 +283,7 @@ fn a_broken_gh_fails_the_step_rather_than_skipping_the_notification() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn an_unset_step_summary_does_not_trip_set_u() {
     // The summary variable exists only inside Actions. `set -u` turns a bare
@@ -379,6 +403,7 @@ fn a_claims_scoped_dispatch_runs_the_notification_job_and_no_other() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn two_sandboxes_never_share_a_directory() {
     // `cargo mutants` runs many `cargo test` processes at once. A sandbox name

@@ -539,7 +539,7 @@ fn spawn_initialized_tapped_server(dir: &std::path::Path) -> (ServerProcess, Str
 
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
-        let started = std::fs::read_dir(dir).ok().is_some_and(|entries| {
+        let started = std::fs::read_dir(dir).is_ok_and(|entries| {
             entries
                 .flatten()
                 .any(|e| std::fs::metadata(e.path()).is_ok_and(|m| m.len() > 0))

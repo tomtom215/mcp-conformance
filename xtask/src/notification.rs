@@ -76,7 +76,9 @@ pub(crate) fn workspace_root() -> PathBuf {
         .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
 }
 
-#[cfg(test)]
+// The harness executes the step's shell; see `tests`' module documentation for
+// why that is `cfg(unix)` and what stays portable.
+#[cfg(all(test, unix))]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod harness;
 #[cfg(test)]
