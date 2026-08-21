@@ -355,9 +355,15 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
   And each step now states what it did on `$GITHUB_STEP_SUMMARY`, so a
   notification that did not happen is visible on the run page instead of only in
-  an issue tracker nobody is diffing. What is still unproven is whether the real
-  `gh` accepts these exact flags; only a live run settles that, and the summary
-  line is how it will say so.
+  an issue tracker nobody is diffing.
+
+  Whether the real `gh` accepts these exact flags is the one thing no test can
+  settle, so the workflow gains a way to ask cheaply: `workflow_dispatch` takes
+  an `only` input, and `claims` runs the claims-expire job by itself — skipping
+  the mutation sweep, fuzzing, the cross-architecture matrix and the benchmarks.
+  Minutes rather than hours, which is the difference between a check somebody
+  can repeat and one nobody will. A test asserts every other job carries the
+  guard, so a job added later cannot quietly put the full sweep back into it.
 
 - **`--strict` exited 1 under a report whose last line said `pass-with-warnings`,
   and nothing connected the two.** The flag promotes SHOULD-level findings to

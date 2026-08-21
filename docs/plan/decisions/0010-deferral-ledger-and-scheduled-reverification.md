@@ -193,8 +193,13 @@ Two changes close it, neither of them a date.
    comparing against. A red run without that line means the notification step
    did not finish.
 
-What remains unproven is whether the real `gh` accepts these exact flags,
-which only a live run can establish. The tests fix everything up to that line;
-the first genuine weekly failure settles the rest, and now says so on the run
-page when it does.
+Whether the real `gh` accepts these exact flags is the one thing no test can
+settle — that needs a live run against a real repository. So a third change
+makes one cheap: `workflow_dispatch` gains an `only` input, and `claims` runs
+the claims-expire job alone, skipping the mutation sweep, fuzzing, the
+cross-architecture matrix and the benchmarks. Minutes rather than hours, which
+is the difference between a check somebody can repeat and one nobody will.
+Every other job carries the guard, and a test asserts that they all do: a job
+added later without it would quietly put the full sweep back into that
+dispatch.
 

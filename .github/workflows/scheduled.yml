@@ -14,6 +14,23 @@ on:
     # Mondays 06:00 UTC — early enough that a red run is seen the same day.
     - cron: "0 6 * * 1"
   workflow_dispatch:
+    inputs:
+      only:
+        description: >-
+          Which of this workflow's jobs to run. `all` is the weekly sweep and
+          the default. `claims` runs the claims-expire gates and their
+          notification alone, skipping the mutation sweep, fuzzing, the
+          cross-architecture matrix and the benchmarks — minutes rather than
+          hours. It exists because the notification is the one part of this
+          workflow whose live behaviour cannot be established any other way:
+          `gh` either accepts those flags against a real repository or it does
+          not, and the steps run inside an already-red job where a wrong flag
+          shows up as an issue that never appears.
+        type: choice
+        default: all
+        options:
+          - all
+          - claims
 
 permissions:
   contents: read
@@ -31,6 +48,8 @@ env:
 jobs:
   audit:
     name: cargo-audit (RustSec)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,6 +65,8 @@ jobs:
 
   full-mutants:
     name: Mutants (full sweep)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -70,6 +91,8 @@ jobs:
   # the exact pin in xtask. Failures here are signal to read, never a gate.
   suite-alpha:
     name: Conformance (suite alpha line, informational)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 15
@@ -92,6 +115,8 @@ jobs:
   # or a regression. `BLESS=1 cargo xtask draft-readiness` re-records.
   draft-readiness:
     name: Draft readiness (2026-07-28 scenarios, ratcheted)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -106,6 +131,8 @@ jobs:
 
   fuzz:
     name: Fuzz (every declared target)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -162,6 +189,8 @@ jobs:
   # informational — a finding is a genuine defect, not a nightly-churn artifact.
   careful:
     name: cargo-careful (UB / overflow on the engine crates)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -196,6 +225,8 @@ jobs:
   # on any of them is a real defect, not a nightly-churn artifact.
   cross-arch:
     name: Cross-arch byte-identity (${{ matrix.note }})
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -237,6 +268,8 @@ jobs:
   # claims-expiry gates, not a defect in unrelated work.
   minimal-versions:
     name: Dependency floors (oldest versions resolve, build, and test)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -256,6 +289,8 @@ jobs:
   # downloading two artifacts and diffing criterion's estimates.
   bench:
     name: Benchmarks (history artifact)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
