@@ -19,8 +19,8 @@ changelog and becomes a measurement.
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
 | Registry entries | 142 | 272 |
-| Judged by a named check | 54 | 125 |
-| Carrying a documented exclusion | 88 | 147 |
+| Judged by a named check | 55 | 125 |
+| Carrying a documented exclusion | 87 | 147 |
 | Shipped by default | yes | behind the `draft-2026-07-28` feature |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -78,7 +78,7 @@ And the verdict splits:
 
 ```text
 per revision:
-  2025-11-25: 17 pass, 0 fail, 0 warn, 88 excluded, 0 unsupported, 14 not applicable, 23 not observed — verdict pass
+  2025-11-25: 17 pass, 0 fail, 0 warn, 87 excluded, 0 unsupported, 14 not applicable, 24 not observed — verdict pass
   2026-07-28: 14 pass, 8 fail, 0 warn, 147 excluded, 0 unsupported, 0 not applicable, 103 not observed — verdict fail
 overall verdict: fail
 ```

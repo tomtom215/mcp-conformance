@@ -427,11 +427,6 @@
       "exclusion": "What a client assumes is internal state; the assumption has no wire footprint (MCP pagination requests carry no size parameter to inspect)."
     },
     {
-      "id": "PAGE-003",
-      "level": "SHOULD",
-      "exclusion": "Whether a cursor is invalid is server-internal knowledge; a trace cannot distinguish a server accepting a stale-but-valid cursor from one silently tolerating an invalid one."
-    },
-    {
       "id": "PAGE-004",
       "level": "SHOULD",
       "exclusion": "Cursor stability is cross-request server behavior over hidden state; gracefulness on invalid cursors requires knowing a cursor was invalid (the PAGE-003 argument)."

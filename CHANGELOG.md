@@ -332,6 +332,29 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **`PAGE-003`'s exclusion said a trace cannot judge the clause; the same
+  clause is judged at the next revision, by a check that needs nothing new.**
+  `2025-11-25` entered "Invalid cursors SHOULD result in an error with code
+  -32602" with an exclusion: *"whether a cursor is invalid is server-internal
+  knowledge; a trace cannot distinguish a server accepting a stale-but-valid
+  cursor from one silently tolerating an invalid one."* True of the general
+  case, and written as a verdict on the clause. `2026-07-28` entered the
+  identical quote as PAGE-011 with a check, which finds the narrow case the
+  sentence itself excludes: a cursor with **no issuance anywhere in the
+  session**, which a recording decides on its own. Nothing went back.
+
+  `corpus/violations/page-002-cursor-never-issued.jsonl` had been in the corpus
+  the whole time — a fabricated cursor answered with a result — and the shipped
+  revision reported nothing about the server half of it. The check moves out of
+  the draft-gated module (where the 2025 registry could not reach it) beside the
+  other pagination checks, PAGE-003 is judged, and a second trace evidences the
+  pass path: the same fabricated cursor, answered with `-32602`. The client's
+  clause is falsified and the server's is evidenced by one exchange, which is
+  what two parties to one event looks like.
+
+  `2025-11-25` now judges 55 of its 142 clauses, up from 54, with 87 exclusions
+  rather than 88.
+
 - **A test that waited on server output hung forever instead of failing.**
   Every read in the binary tests waits on a line the server is supposed to
   produce, and each was an unbounded `read_line`, so the moment the server

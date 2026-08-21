@@ -1,13 +1,13 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 16,
+    "pass": 22,
     "fail": 1,
     "warn": 0,
     "excluded": 87,
     "unsupported": 0,
-    "not_applicable": 14,
-    "not_observed": 24
+    "not_applicable": 6,
+    "not_observed": 26
   },
   "requirements": [
     {
@@ -38,29 +38,22 @@
     {
       "id": "BASE-006",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-007",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-008",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "base.jsonrpc-version",
-          "seq": 3,
-          "detail": "jsonrpc member is \"1.0\", expected the string \"2.0\""
-        }
-      ]
+      "outcome": "pass"
     },
     {
       "id": "BASE-009",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-010",
@@ -115,7 +108,7 @@
     {
       "id": "LIFE-009",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "LIFE-010",
@@ -195,50 +188,42 @@
     {
       "id": "TOOL-003",
       "level": "MUST",
-      "outcome": "not-applicable",
-      "capability": "server.tools"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-005",
       "level": "SHOULD",
-      "outcome": "not-applicable",
-      "capability": "server.tools"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-006",
       "level": "SHOULD",
-      "outcome": "not-applicable",
-      "capability": "server.tools"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-007",
       "level": "SHOULD NOT",
-      "outcome": "not-applicable",
-      "capability": "server.tools"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-008",
       "level": "SHOULD",
-      "outcome": "not-applicable",
-      "capability": "server.tools"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-009",
       "level": "SHOULD",
-      "outcome": "not-applicable",
-      "capability": "server.tools"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-010",
       "level": "SHOULD",
-      "outcome": "not-applicable",
-      "capability": "server.tools"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-011",
       "level": "MUST",
-      "outcome": "not-applicable",
-      "capability": "server.tools"
+      "outcome": "not-observed"
     },
     {
       "id": "RES-001",
@@ -299,12 +284,19 @@
     {
       "id": "PAGE-002",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "pagination.cursor-opacity",
+          "seq": 3,
+          "detail": "tools/list cursor \"eyJmb3JnZWQiOnRydWV9\" was never issued as a nextCursor for that method in this session"
+        }
+      ]
     },
     {
       "id": "PAGE-003",
       "level": "SHOULD",
-      "outcome": "not-observed"
+      "outcome": "pass"
     }
   ]
 }

@@ -63,7 +63,7 @@ MCP trace validation — revision 2025-11-25
   ...
   FAIL  LIFE-001 (MUST)
         seq 0: first message is a "tools/list" request, expected "initialize"
-totals: 10 pass, 1 fail, 1 warn, 88 excluded, 0 unsupported, 14 not applicable, 28 not observed
+totals: 10 pass, 1 fail, 1 warn, 87 excluded, 0 unsupported, 14 not applicable, 29 not observed
 verdict: fail
 ```
 
@@ -121,10 +121,10 @@ in CI — the numbers cannot drift from the data:
 | PROM | 10 | 5 | 5 | 7 |
 | LOG | 5 | 1 | 4 | 4 |
 | COMP | 5 | 1 | 4 | 3 |
-| PAGE | 5 | 1 | 4 | 0 |
-| **Total** | **142** | **54** | **88** | **33** |
+| PAGE | 5 | 2 | 3 | 0 |
+| **Total** | **142** | **55** | **87** | **33** |
 
-Revision `2025-11-25`: 142 requirements — 54 judged by 50 distinct trace checks (every check falsified by a committed violation trace, and every check examining a real subject on at least one of them), 88 carrying documented exclusions explaining why a recorded trace cannot judge them. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
+Revision `2025-11-25`: 142 requirements — 55 judged by 51 distinct trace checks (every check falsified by a committed violation trace, and every check examining a real subject on at least one of them), 87 carrying documented exclusions explaining why a recorded trace cannot judge them. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
 <!-- coverage:end -->
 
 A requirement gated on a capability that was never negotiated is reported
@@ -159,7 +159,7 @@ registry, addressed to the offending event:
 ```text
   FAIL  BASE-003 (MUST NOT)
         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
-totals: 17 pass, 1 fail, 0 warn, 88 excluded, 0 unsupported, 6 not applicable, 30 not observed
+totals: 17 pass, 1 fail, 0 warn, 87 excluded, 0 unsupported, 6 not applicable, 31 not observed
 verdict: fail
 ```
 <!-- ANCHOR_END: trace-example -->

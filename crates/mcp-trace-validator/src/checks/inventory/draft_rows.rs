@@ -251,10 +251,6 @@ pub(super) const DRAFT: &[Check] = &[
         draft::logging::invalid_level_rejected
     ),
     check!(
-        "pagination.invalid-cursor-rejected",
-        draft::pagination::invalid_cursor_rejected
-    ),
-    check!(
         "capabilities.tools-declared",
         draft::capabilities::tools_declared
     ),

@@ -137,6 +137,7 @@ example).
 | `life-010-initialize-result-missing-capabilities.jsonl` | LIFE-010 |
 | `log-001-capability-undeclared.jsonl` | LOG-001 |
 | `page-002-cursor-never-issued.jsonl` | PAGE-002 |
+| `page-002-fabricated-cursor-rejected.jsonl` | PAGE-002, and with it PAGE-003's pass path: the client fabricates a cursor and the server answers `-32602` rather than honouring it. The two halves of one event belong to different parties, so the trace falsifies the client's clause and evidences the server's. |
 | `prom-001-capability-undeclared.jsonl` | PROM-001 |
 | `prom-003-image-data-invalid.jsonl` | PROM-003 |
 | `prom-004-audio-data-invalid.jsonl` | PROM-004 |

@@ -155,6 +155,10 @@ const SHIPPED: &[Check] = &[
         utilities::completion_capability_declared
     ),
     check!("pagination.cursor-opacity", utilities::cursor_opacity),
+    check!(
+        "pagination.invalid-cursor-rejected",
+        utilities::invalid_cursor_rejected
+    ),
 ];
 
 /// Concatenates the two halves at compile time, so each may live in its own file
