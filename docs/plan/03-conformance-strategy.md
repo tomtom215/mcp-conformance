@@ -45,7 +45,12 @@ instances are normative):
 
 1. **Every MUST / MUST NOT** on an in-scope page enters — with checks when a recorded
    trace can judge it, with a documented exclusion naming where it *is* enforced when
-   it cannot. No exceptions: that is the SEP-2484 floor.
+   it cannot. No exceptions: that is the SEP-2484 floor. Gated since 2026-08-20 by the
+   `must_census` in each revision's `sources.json`: `cargo xtask spec-drift` recounts
+   every page's MUST-family keyword instances against the published text, so a clause
+   the registry never had can no longer arrive unnoticed. Before that gate existed the
+   rule was hand-verified, and two clauses had been missed — BASE-082 and LIFE-018,
+   both restating an obligation the registry already held under another page's id.
 2. **SHOULD / SHOULD NOT / MAY** enter when the clause constrains observable wire
    behavior (messages, headers, capability declarations). Guidance about UI, internal
    policy, or model interaction stays out of the registry.

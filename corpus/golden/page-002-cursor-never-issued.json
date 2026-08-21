@@ -4,10 +4,10 @@
     "pass": 19,
     "fail": 1,
     "warn": 0,
-    "excluded": 87,
+    "excluded": 88,
     "unsupported": 0,
     "not_applicable": 6,
-    "not_observed": 27
+    "not_observed": 28
   },
   "requirements": [
     {
@@ -114,6 +114,11 @@
       "id": "LIFE-010",
       "level": "MUST",
       "outcome": "pass"
+    },
+    {
+      "id": "LIFE-018",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-004",

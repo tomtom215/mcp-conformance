@@ -2,9 +2,9 @@
   "revision": "2025-11-25",
   "totals": {
     "pass": 20,
-    "fail": 1,
+    "fail": 2,
     "warn": 0,
-    "excluded": 87,
+    "excluded": 88,
     "unsupported": 0,
     "not_applicable": 14,
     "not_observed": 18
@@ -114,6 +114,18 @@
       "id": "LIFE-010",
       "level": "MUST",
       "outcome": "pass"
+    },
+    {
+      "id": "LIFE-018",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.protocol-version-header",
+          "seq": 4,
+          "detail": "client HTTP request after initialization lacks the MCP-Protocol-Version header"
+        }
+      ]
     },
     {
       "id": "TRAN-004",

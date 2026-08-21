@@ -4,10 +4,10 @@
     "pass": 14,
     "fail": 1,
     "warn": 0,
-    "excluded": 87,
+    "excluded": 88,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 24
+    "not_observed": 25
   },
   "requirements": [
     {
@@ -119,6 +119,11 @@
     },
     {
       "id": "LIFE-010",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "LIFE-018",
       "level": "MUST",
       "outcome": "not-observed"
     },

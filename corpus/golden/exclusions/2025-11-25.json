@@ -62,6 +62,11 @@
       "exclusion": "Rejection is client-side handling after receipt; the trace records the icon metadata served, not what the client did with it."
     },
     {
+      "id": "BASE-082",
+      "level": "MUST",
+      "exclusion": "Restates BASE-013's dialect floor and BASE-016's documentation SHOULD as the section's third numbered rule, unconditionally where BASE-013 scopes itself to schemas without an explicit `$schema` (the same restatement shape as TRAN-049 to TRAN-024). Excluded for BASE-013's reason: dialect support is validation behavior inside each implementation, and a trace shows the schemas exchanged, not how the receiver processed them."
+    },
+    {
       "id": "LIFE-008",
       "level": "MUST",
       "exclusion": "After negotiation, neither stdio nor HTTP message payloads carry a per-message protocol version, so respect is not observable in message traffic. The one wire artifact — the HTTP `MCP-Protocol-Version` header — is judged under TRAN-017 and TRAN-018."

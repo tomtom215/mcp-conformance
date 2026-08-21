@@ -336,6 +336,19 @@
         "quote": "Clients MUST reject icon URIs that use unsafe schemes and redirects, such as `javascript:`, `file:`, `ftp:`, `ws:`, or local app URI schemes."
       },
       "exclusion": "Rejection is client-side handling after receipt; the trace records the icon metadata served, not what the client did with it."
+    },
+    {
+      "id": "BASE-082",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic#schema-dialect",
+        "quote": "Supported dialects: Implementations MUST support at least 2020-12 and SHOULD document which additional dialects they support"
+      },
+      "exclusion": "Restates BASE-013's dialect floor and BASE-016's documentation SHOULD as the section's third numbered rule, unconditionally where BASE-013 scopes itself to schemas without an explicit `$schema` (the same restatement shape as TRAN-049 to TRAN-024). Excluded for BASE-013's reason: dialect support is validation behavior inside each implementation, and a trace shows the schemas exchanged, not how the receiver processed them."
     }
   ]
 }

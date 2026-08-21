@@ -21,6 +21,13 @@
 //! that the listed set and the set of pages entries actually cite are
 //! identical, so the explicit list can never drift from the registry it
 //! describes.
+//!
+//! Quotes are only half of it. Verifying the ones the registry *has* cannot see
+//! a clause it never had, so a page could gain a MUST with every committed quote
+//! still verifying and the run still green. [`census`] closes that direction:
+//! each page's MUST-family keyword count is committed beside the page list and
+//! recounted here. Together the two say the registry still quotes the spec
+//! accurately *and* still quotes all of it.
 
 // `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
 // opposite demands about items in a binary crate's private modules; this follows
@@ -32,6 +39,8 @@ use std::process::ExitCode;
 
 use mcp_conformance_core::requirement::{Registry, RegistrySet, Requirement};
 use serde::Deserialize;
+
+mod census;
 
 /// The revisions this gate verifies, each against its own published pages.
 ///
@@ -73,6 +82,16 @@ struct Sources {
     /// Pages of the revision deliberately out of scope, with reasons.
     #[allow(dead_code)]
     out_of_scope: BTreeMap<String, String>,
+    /// Why the census exists and how to re-decide it, beside the data.
+    #[serde(rename = "_must_census_policy")]
+    #[allow(dead_code)]
+    must_census_policy: String,
+    /// Page → how many MUST-family clauses its prose carries, so rule 1's
+    /// "no exceptions" is a gate rather than a claim (`census`). Defaults to
+    /// empty, which the reconciliation then reports page by page — a revision
+    /// mid-extraction is not required to have censused every page yet.
+    #[serde(default)]
+    must_census: BTreeMap<String, u32>,
 }
 
 pub(crate) fn run() -> ExitCode {
@@ -155,11 +174,13 @@ fn verify_revision(revision: &str, registry: &Registry) -> Result<(u32, u32), ()
 
     let mut checked = 0u32;
     let mut drifted = 0u32;
+    let mut live_census: BTreeMap<String, u32> = BTreeMap::new();
     for (page, requirements) in &by_page {
         let url = format!("{}/{}", raw_base(revision), sources.in_scope[page]);
         let text = fetch(&url).map_err(|message| {
             eprintln!("xtask: spec-drift — cannot fetch {url}: {message}");
         })?;
+        live_census.insert(page.clone(), census::count(&text));
         let normalized = normalize(&text);
         let mut page_drifted = 0u32;
         for requirement in requirements {
@@ -178,6 +199,22 @@ fn verify_revision(revision: &str, registry: &Registry) -> Result<(u32, u32), ()
         );
         checked += u32::try_from(requirements.len()).unwrap_or(u32::MAX);
         drifted += page_drifted;
+    }
+
+    // The other direction: the quotes above prove what the registry *has* is
+    // still accurate; this proves the pages have gained nothing it lacks.
+    match census::reconcile(revision, &sources.must_census, &live_census) {
+        Ok(total) => eprintln!(
+            "xtask: spec-drift — {revision}: {total} MUST-family clause(s) across \
+             {} in-scope page(s), matching the committed census",
+            live_census.len()
+        ),
+        Err(problems) => {
+            for problem in &problems {
+                eprintln!("xtask: spec-drift — {problem}");
+            }
+            drifted += u32::try_from(problems.len()).unwrap_or(u32::MAX);
+        }
     }
     Ok((checked, drifted))
 }

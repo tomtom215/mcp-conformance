@@ -1,10 +1,10 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 24,
+    "pass": 25,
     "fail": 1,
     "warn": 0,
-    "excluded": 87,
+    "excluded": 88,
     "unsupported": 0,
     "not_applicable": 14,
     "not_observed": 14
@@ -112,6 +112,11 @@
     },
     {
       "id": "LIFE-010",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-018",
       "level": "MUST",
       "outcome": "pass"
     },

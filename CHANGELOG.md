@@ -332,6 +332,44 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The registry's strongest claim had no gate, and was false in two places.**
+  Rule 1 of §What enters the registry reads *"Every MUST / MUST NOT on an
+  in-scope page enters … No exceptions: that is the SEP-2484 floor."*
+  `spec-drift` verifies that every quote the registry holds is still present in
+  the published text, and that the page list and the cited pages agree — neither
+  of which can see a clause the registry never had. A page could gain a MUST and
+  the run would stay green: every committed quote still verifies, the page set
+  still agrees. The per-page fingerprint the gate prints would have shown the
+  page changed, but it is printed and never compared.
+
+  Checking the rule by hand found two clauses at `2025-11-25` with no entry, both
+  restating an obligation the registry already held under another page's id and
+  neither entered on its own page — the same shape as TRAN-049, which exists
+  precisely because it restates TRAN-024:
+
+  - **BASE-082**, `basic#schema-dialect`: *"Supported dialects: Implementations
+    MUST support at least 2020-12 and SHOULD document which additional dialects
+    they support"* — restating BASE-013 and BASE-016 as the section's third
+    numbered rule, and unconditionally where BASE-013 scopes itself to schemas
+    with no explicit `$schema`. Excluded for BASE-013's reason.
+  - **LIFE-018**, `basic/lifecycle#version-negotiation`: the `<Note>` restating
+    TRAN-017's `MCP-Protocol-Version` header rule. A trace can judge it, so it
+    carries TRAN-017's check rather than an exclusion.
+
+  `2025-11-25` is now 142 entries, 54 judged.
+
+  **And the rule is a gate.** Each revision's `sources.json` gains a
+  `must_census` — how many MUST-family keyword instances each page's prose
+  carries — which `spec-drift` recounts against the published text. It is
+  deliberately a count and not a clause matcher: segmenting prose into clauses is
+  hard enough that `tools/extract-clauses.py` records two of its rules as
+  "learned by the check failing first", and a completeness gate that cries wolf
+  is worse than none. A count is coarse and exact. A reworded clause keeps it —
+  the subscriptions reshuffle above would not have fired it — while a clause
+  added or removed moves it, which is the event nobody was watching for. Red is
+  a re-decide in the deferral ledger's sense: read the page, enter or retire the
+  clause, update the number in the same commit.
+
 - **The subscriptions page moved under two clauses, and the drift gate caught
   it on its first live run.** `SUBS-005` and `SUBS-006` quoted `2026-07-28`'s
   §Cancellation and §Graceful Closure as *"send the empty `subscriptions/listen`
