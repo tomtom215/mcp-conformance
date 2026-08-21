@@ -332,6 +332,34 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The two registries never compared their readings of a clause they both
+  carry, and four had drifted.** Requirement ids are unique across the whole set
+  rather than per revision, so a sentence the specification keeps unchanged is
+  entered twice under two ids — `BASE-001` and `BASE-043` are one clause. That
+  makes each pair two independent readings of the same sentence, written months
+  apart, and nothing had ever put them side by side.
+
+  `cargo xtask registry-continuity` does, over the 30 clauses both revisions
+  carry. It compares level, actor, and whether the clause is judged or excluded
+  — not the check *ids*, because a revision can need a different implementation
+  of the same clause and five capability clauses legitimately do (`2026-07-28`
+  reads declarations off `server/discover` where `2025-11-25` reads them off an
+  `initialize` result). A level disagreement is always a defect, since the RFC
+  2119 keyword is inside the quote and the quotes are identical; actor and
+  verification are judgments, so they get a ledger with a reason rather than a
+  silence. The ledger is empty, which is the point of it: all four
+  disagreements were defects.
+
+  It reports `PAGE-003`/`PAGE-011` in the words above, the gap that had to be
+  found by reading. The other three were about which party a clause binds:
+  `LOG-012` said `both` for a rule on log-message content, where every emission
+  clause in the same registry says the server emits; `TOOL-017` said `both` for
+  the human-in-the-loop rule whose own section-neighbour `TOOL-018` says
+  `client`; and `TOOL-013` said `server` for "tool names SHOULD be considered
+  case-sensitive", which unlike its siblings constrains how a name is *compared*
+  rather than what a server names its tools — both ends compare. Nothing reads
+  `actor`, which is exactly why nothing noticed.
+
 - **CI had been red for thirteen consecutive runs on three unrelated causes.**
   Two are lints that only exist in a newer clippy than any local check runs:
   1.98 added `unused_async_trait_impl`, which fires sixteen times across the

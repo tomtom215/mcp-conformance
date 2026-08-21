@@ -74,7 +74,10 @@ Package registries are reachable only at dependency-install time, under lockfile
    features and `--all-features` (feature-gated modules carry rustdoc the default
    build never sees)
 5. Structural gates: README coverage table in sync with the registry
-   (`cargo xtask coverage --check`), the ≤ 500-line file cap
+   (`cargo xtask coverage --check`, which also verifies the book's per-revision
+   table and the corpus README's accounting table against the data they
+   describe), the two registries agreeing about every clause they both carry
+   (`cargo xtask registry-continuity`), the ≤ 500-line file cap
    (`cargo xtask file-sizes`), and every relative documentation link resolving
    (`cargo xtask docs-links`)
 6. `cargo deny check` (license allowlist, advisories, sources); `cargo audit` runs

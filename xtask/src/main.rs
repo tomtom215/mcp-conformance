@@ -32,6 +32,11 @@
 //!   model's inventory, both directions (`ci_permissions.rs`).
 //! - `deny` — run `cargo deny --all-features check`, skipping loudly when
 //!   cargo-deny is not installed.
+//! - `registry-continuity` — a clause both revisions carry, entered twice under
+//!   two ids, must be entered the same way twice: same level, same actor, and
+//!   judged in both or excluded in both (`registry_continuity.rs`). Not the same
+//!   check *ids* — a revision can need a different implementation of the same
+//!   clause, and five capability clauses do.
 //! - `docs-links` — verify every relative link in tracked Markdown resolves
 //!   (`docs_links.rs`).
 //! - `version-sync` — the README's `**Status:` crates.io version must equal
@@ -100,6 +105,7 @@ mod minimal_versions;
 // `scheduled.yml` ships, so nothing in the binary calls into it.
 #[cfg(test)]
 mod notification;
+mod registry_continuity;
 mod spec_drift;
 mod suite_currency;
 mod version_sync;
@@ -137,6 +143,7 @@ fn main() -> ExitCode {
         Some("spec-drift") => spec_drift::run(),
         Some("suite-currency") => exit_if(suite_currency::run()),
         Some("docs-links") => exit_if(docs_links::run()),
+        Some("registry-continuity") => exit_if(registry_continuity::run()),
         Some("version-sync") => exit_if(version_sync::run()),
         Some("changelog-links") => exit_if(changelog_links::run()),
         Some("conformance") => conformance::run(),
@@ -203,6 +210,9 @@ fn gates() -> bool {
         return false;
     }
     if !ci_permissions::run() {
+        return false;
+    }
+    if !registry_continuity::run() {
         return false;
     }
     if !docs_links::run() {

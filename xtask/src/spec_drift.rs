@@ -308,7 +308,7 @@ fn fingerprint(text: &str) -> String {
     )
 }
 
-mod quote;
+pub(crate) mod quote;
 
 use quote::{normalize, quote_present};
 

@@ -19,7 +19,7 @@
     {
       "id": "TOOL-017",
       "level": "SHOULD",
-      "actor": "both",
+      "actor": "client",
       "applies": {
         "introduced": "2026-07-28"
       },
