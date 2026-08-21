@@ -226,16 +226,28 @@ pub(in crate::checks) fn acknowledgment_first(context: &TraceContext<'_>, sink: 
     }
 }
 
-/// `SUBS-005` and `SUBS-006`: a graceful closure's result is empty.
+/// `SUBS-005` and `SUBS-006`: a graceful closure's result carries no
+/// method-specific data.
 ///
 /// The clauses' leading obligation — *send* a response before closing — has no
 /// falsifier, and the page says why in its own words: "a transport that closes
 /// without it indicates an unexpected disconnect". A close with no response is
 /// therefore not a missing response but a different ending, and no trace
 /// separates the two. What is judged is the half that is on the wire when the
-/// server does respond: the result must be empty, carrying nothing beyond
-/// `resultType` and the `_meta` that names the subscription.
-pub(in crate::checks) fn graceful_close_result_empty(
+/// server does respond: the result carries "no method-specific data beyond the
+/// standard result fields and subscription metadata" — `resultType` and the
+/// `_meta` that names the subscription, and nothing else.
+///
+/// **Re-reviewed 2026-08-20**, when the drift gate caught both quotes moving.
+/// The page changed "the empty response" to "a successful response" and "an
+/// empty result" to "a completion result", and added the sentence quoted above.
+/// The obligation did not change: this check already permitted exactly
+/// `resultType` and `_meta`, which the new prose now states outright instead of
+/// leaving "empty" to be read. `resultType: "complete"` is *not* additionally
+/// enforced — it appears only in the page's example, and a value shown in an
+/// example with no RFC 2119 keyword is not a clause this registry enters
+/// (03-conformance-strategy §What enters the registry, rule 3).
+pub(in crate::checks) fn graceful_close_result_shape(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
@@ -252,7 +264,8 @@ pub(in crate::checks) fn graceful_close_result_empty(
             sink.push(
                 Some(exchange.response.seq),
                 format!(
-                    "the `{LISTEN}` response carries {}; a graceful closure's result is empty",
+                    "the `{LISTEN}` response carries {}; a graceful closure's result \
+                     carries no method-specific data beyond `resultType` and `_meta`",
                     extra
                         .iter()
                         .map(|key| format!("`{key}`"))

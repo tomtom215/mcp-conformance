@@ -431,9 +431,9 @@
       "outcome": "warn",
       "findings": [
         {
-          "check": "subscriptions.graceful-close-result-empty",
+          "check": "subscriptions.graceful-close-result-shape",
           "seq": 2,
-          "detail": "the `subscriptions/listen` response carries `delivered`; a graceful closure's result is empty"
+          "detail": "the `subscriptions/listen` response carries `delivered`; a graceful closure's result carries no method-specific data beyond `resultType` and `_meta`"
         }
       ]
     },
@@ -443,9 +443,9 @@
       "outcome": "warn",
       "findings": [
         {
-          "check": "subscriptions.graceful-close-result-empty",
+          "check": "subscriptions.graceful-close-result-shape",
           "seq": 2,
-          "detail": "the `subscriptions/listen` response carries `delivered`; a graceful closure's result is empty"
+          "detail": "the `subscriptions/listen` response carries `delivered`; a graceful closure's result carries no method-specific data beyond `resultType` and `_meta`"
         }
       ]
     },

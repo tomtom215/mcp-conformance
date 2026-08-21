@@ -332,6 +332,31 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The subscriptions page moved under two clauses, and the drift gate caught
+  it on its first live run.** `SUBS-005` and `SUBS-006` quoted `2026-07-28`'s
+  §Cancellation and §Graceful Closure as *"send the empty `subscriptions/listen`
+  response"* and *"respond … with an empty result"*. Upstream now reads *"a
+  successful response"* and *"a completion result"*, and has added the sentence
+  that says what that means: *"The result carries no method-specific data beyond
+  the standard result fields and subscription metadata."*
+
+  Both quotes are refreshed, and the refresh was used as ADR-0010 intends — as
+  the moment to ask whether the *requirement* moved or only the words. It did
+  not. The check already permitted exactly `resultType` and `_meta` and flagged
+  anything else, so the new prose states outright what "empty" had been left to
+  imply. What the check deliberately does **not** now enforce is
+  `resultType: "complete"`: that value appears only in the page's example, and a
+  constraint shown in an example with no RFC 2119 keyword is not one this
+  registry enters (03-conformance-strategy §What enters the registry, rule 3).
+  The reasoning is recorded on the check rather than in a commit message,
+  because the next person to read the clause will read the check.
+
+  The check's own words followed the page: `graceful-close-result-empty` became
+  `graceful-close-result-shape`, and a finding that read *"a graceful closure's
+  result is empty"* now says what the specification says. Leaving a stable
+  identifier and a user-facing sentence built on a word the spec has stopped
+  using is the drift this gate exists to catch, one level in from the quote.
+
 - **The claims-expiry notification had never run in anger, and would have
   failed silently if it were wrong.** ADR-0010's amendment ends the weekly gates
   in shell that opens, comments on, and closes a tracking issue. It was checked

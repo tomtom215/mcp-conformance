@@ -221,8 +221,8 @@ pub(super) const DRAFT: &[Check] = &[
         draft::subscriptions::acknowledgment_first
     ),
     check!(
-        "subscriptions.graceful-close-result-empty",
-        draft::subscriptions::graceful_close_result_empty
+        "subscriptions.graceful-close-result-shape",
+        draft::subscriptions::graceful_close_result_shape
     ),
     check!(
         "caching.hints-on-cacheable-results",

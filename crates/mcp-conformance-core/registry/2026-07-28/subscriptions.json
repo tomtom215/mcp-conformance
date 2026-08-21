@@ -66,10 +66,10 @@
       },
       "source": {
         "section": "basic/patterns/subscriptions#cancellation",
-        "quote": "The server tears it down (e.g., during shutdown) — it SHOULD send the empty `subscriptions/listen` response to signal a graceful end (see Graceful Closure), then close the stream."
+        "quote": "The server tears it down (e.g., during shutdown) — it SHOULD send a successful `subscriptions/listen` response to signal a graceful end (see Graceful Closure), then close the stream."
       },
       "checks": [
-        "subscriptions.graceful-close-result-empty"
+        "subscriptions.graceful-close-result-shape"
       ]
     },
     {
@@ -81,10 +81,10 @@
       },
       "source": {
         "section": "basic/patterns/subscriptions#graceful-closure",
-        "quote": "When the server ends a subscription on its own initiative (for example, during shutdown), it SHOULD respond to the original `subscriptions/listen` request with an empty result before closing the stream."
+        "quote": "When the server ends a subscription on its own initiative (for example, during shutdown), it SHOULD respond to the original `subscriptions/listen` request with a completion result before closing the stream."
       },
       "checks": [
-        "subscriptions.graceful-close-result-empty"
+        "subscriptions.graceful-close-result-shape"
       ]
     },
     {

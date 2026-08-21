@@ -12,7 +12,7 @@ use crate::checks::draft::testkit::{client, findings_for, server, trace};
 
 const ONLY_REQUESTED: &str = "subscriptions.only-requested-notifications";
 const ACK_FIRST: &str = "subscriptions.acknowledgment-first";
-const CLOSE_EMPTY: &str = "subscriptions.graceful-close-result-empty";
+const CLOSE_SHAPE: &str = "subscriptions.graceful-close-result-shape";
 
 /// A `subscriptions/listen` request `id` whose filter is `filter`.
 fn listen(seq: u64, id: u64, filter: &str) -> String {
@@ -218,14 +218,14 @@ fn a_graceful_closure_carries_an_empty_result() {
         ack(1, 1),
         close(2, 1, ""),
     ]);
-    assert!(findings_for(CLOSE_EMPTY, &empty).is_empty());
+    assert!(findings_for(CLOSE_SHAPE, &empty).is_empty());
 
     let stuffed = trace(&[
         listen(0, 1, r#"{"toolsListChanged":true}"#),
         ack(1, 1),
         close(2, 1, r#","delivered":7"#),
     ]);
-    let findings = findings_for(CLOSE_EMPTY, &stuffed);
+    let findings = findings_for(CLOSE_SHAPE, &stuffed);
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert!(findings[0].contains("delivered"), "{findings:?}");
 }
@@ -240,5 +240,5 @@ fn a_stream_that_simply_stops_is_not_a_missing_response() {
         ack(1, 1),
         notify(2, 1, "notifications/tools/list_changed", ""),
     ]);
-    assert!(findings_for(CLOSE_EMPTY, &session).is_empty());
+    assert!(findings_for(CLOSE_SHAPE, &session).is_empty());
 }
