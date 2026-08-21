@@ -355,6 +355,16 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `2025-11-25` now judges 55 of its 142 clauses, up from 54, with 87 exclusions
   rather than 88.
 
+- **The corpus README argued the golden split with six numbers and all six were
+  wrong.** It said 53 shipped goldens and 79 draft ones (57 and 80), 88 and 148
+  ledger rows (87 and 147), 28 and 67 distinct not-observed sets (29 and 69) —
+  drift from several changes, none of which had reason to look there. The
+  README's own coverage block is generated and the book's table gained a gate
+  the day before; this was the third document stating counts the data owns and
+  the only one with nothing watching it. The numbers are now a table, and
+  `xtask::coverage::corpus` verifies every cell against the corpus on each
+  `cargo xtask ci`.
+
 - **A test that waited on server output hung forever instead of failing.**
   Every read in the binary tests waits on a line the server is supposed to
   produce, and each was an unbounded `read_line`, so the moment the server

@@ -36,9 +36,20 @@ A report states two kinds of fact, and they are pinned separately
 `golden/exclusions/<revision>.json` holds what the **registry** decided: the
 `excluded` rows, whose outcome and prose come from the registry alone and are
 identical for every trace judged against it — `engine::build_row` never consults
-the session for them. There were 88 such rows in each of the 53 shipped goldens
-and 148 in each of the 79 draft ones — one distinct set per revision, repeated
-132 times, and 59% of the corpus's 165,145 lines.
+the session for them. One distinct set per revision, and before the split every
+golden restated its revision's whole set: at the time that was 59% of the
+corpus's lines.
+
+|  | `2025-11-25` | `2026-07-28` |
+|---|---:|---:|
+| Goldens | 57 | 80 |
+| Excluded rows the ledger holds | 87 | 147 |
+| Distinct not-observed sets across them | 29 | 69 |
+
+Every cell is verified against the corpus by `cargo xtask ci`
+(`xtask::coverage::corpus`). It is checked rather than trusted because it had
+already drifted twice: this paragraph is prose, and prose does not recount
+itself.
 
 Nothing stopped being pinned. Splicing a golden back together with its ledger
 reproduces the whole report, and `assert_reconstructs_the_full_report` proves it
@@ -46,12 +57,12 @@ does on every trace, on every run — so a judged row that went missing, a ledge
 that drifted from its registry, or rows that interleave in any order but the
 registry's all fail the suite. `totals.excluded` stays in every golden as the
 per-trace tie back to the ledger: a clause entering or leaving the excluded set
-moves all 132 files, one line each.
+moves every golden for that revision, one line each.
 
 Only `excluded` collapses. `not-observed` and `not-applicable` are per-trace
-evidence — the 53 shipped goldens carry 28 distinct not-observed sets and the 79
-draft ones 67 — and collapsing them would delete exactly what makes the captures
-differentiate each other.
+evidence, and the table's third row is the measure of it: near one distinct set
+per golden, in both revisions. Collapsing those would delete exactly what makes
+the captures differentiate each other.
 
 ## Violation naming contract
 
