@@ -332,6 +332,36 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **A server with `Host`/`Origin` validation turned off said nothing about
+  it.** The security model's stated control for the DNS-rebinding class is that
+  disabling validation "requires the self-describing `--dangerously-allow-any-host`
+  flag". That name lives in the operator's command line and appeared in nothing
+  the running process wrote: a server started that way logged one
+  `listening on <addr>` line, exactly like a server with the protection on, so a
+  log could not be audited for it and a deployment could not be told apart from
+  a safe one after the fact.
+
+  It now warns on stderr, naming the flag and the class it reopens — *after* the
+  readiness line, never before, because `xtask::conformance` reads exactly one
+  line and requires it to be `listening on <addr>`, and a warning that broke
+  process startup would be a poor way to improve safety. The predicate is
+  derived from the policy actually installed (`HttpSecurityPolicy::
+  validates_nothing`) rather than from the flag, so the warning cannot describe a
+  policy other than the one in force. Two binary tests pin both halves: the
+  warning follows readiness when the flag is set, and the default server prints
+  no warning at all — one that fired always would be one nobody reads.
+
+- **The notification harness shared one temporary directory across concurrent
+  test processes.** `cargo mutants` runs many `cargo test` processes at once,
+  and the sandbox each notification test builds was named for the test alone —
+  so every one of those processes used the same directory, and each sandbox's
+  `remove_dir_all` deleted a sibling's stubs mid-run. The symptom was the
+  mutation gate's *baseline* failing, four tests panicking inside the harness
+  rather than a mutant surviving, which is a confusing place to start reading.
+  The name now carries the process id and a counter. Introduced and caught
+  within this release; recorded because "shared names are shared state" is the
+  same lesson the tap's writer task exists for.
+
 - **The reference host reported why it stopped in Rust's words, not a
   reader's.** A run that ended other than cleanly printed the `StopReason`
   variant with `{:?}` — `mcp-reference-host: ErrorBudgetExhausted after 10

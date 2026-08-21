@@ -12,7 +12,7 @@
 #![cfg(feature = "cli")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::io::{BufRead as _, BufReader, Write as _};
+use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::process::{Command, Stdio};
 
 /// The `2026-07-28` `_meta` envelope every request carries.
@@ -668,4 +668,78 @@ fn tap_notes_unrecordable_request_bodies_exactly_once() {
         "exactly the one bad body is noted; clean traffic is not:\n{rest}"
     );
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Turning `Host`/`Origin` validation off must leave evidence in the server's
+/// own output, and must not disturb the readiness contract.
+///
+/// The security model's stated control is that disabling validation "requires
+/// the self-describing `--dangerously-allow-any-host` flag" — a name that lives
+/// in the operator's command line and, until 2026-08-20, in nothing the running
+/// process wrote. A log could not be audited for it. The warning follows the
+/// readiness line rather than preceding it, because `xtask::conformance` reads
+/// exactly one line and requires it to be `listening on <addr>`.
+#[test]
+fn disabling_host_validation_warns_after_the_readiness_line() {
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args([
+                "--transport",
+                "http",
+                "--bind",
+                "127.0.0.1:0",
+                "--dangerously-allow-any-host",
+            ])
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("binary spawns"),
+    );
+    let mut reader = BufReader::new(child.stderr.take().unwrap());
+
+    let mut readiness = String::new();
+    reader.read_line(&mut readiness).expect("readiness line");
+    assert!(
+        readiness.trim().starts_with("listening on "),
+        "readiness stays first on stderr: {readiness:?}"
+    );
+
+    let mut warning = String::new();
+    reader.read_line(&mut warning).expect("warning line");
+    assert!(warning.contains("WARNING"), "{warning:?}");
+    assert!(warning.contains("DISABLED"), "{warning:?}");
+    assert!(
+        warning.contains("--dangerously-allow-any-host"),
+        "the warning names the flag that caused it: {warning:?}"
+    );
+    assert!(
+        warning.contains("CVE-2026-42559"),
+        "and the class it reopens: {warning:?}"
+    );
+}
+
+/// The default server says nothing of the sort — a warning that fired always
+/// would be a warning nobody reads.
+#[test]
+fn the_default_policy_prints_only_the_readiness_line() {
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args(["--transport", "http", "--bind", "127.0.0.1:0"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("binary spawns"),
+    );
+    let mut reader = BufReader::new(child.stderr.take().unwrap());
+    let mut readiness = String::new();
+    reader.read_line(&mut readiness).expect("readiness line");
+    assert!(readiness.trim().starts_with("listening on "));
+    // Nothing follows until the process is killed, so read with the child gone.
+    drop(child);
+    let mut rest = String::new();
+    let _ = reader.read_to_string(&mut rest);
+    assert!(
+        !rest.contains("WARNING"),
+        "the default policy warns about nothing: {rest:?}"
+    );
 }

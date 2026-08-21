@@ -71,6 +71,19 @@ impl HttpSecurityPolicy {
         self
     }
 
+    /// Whether this policy validates nothing.
+    ///
+    /// Read by the binary to warn at startup: the security model's stated
+    /// control is that turning validation off "requires the self-describing
+    /// `--dangerously-allow-any-host` flag", and that name lives in the
+    /// operator's command line rather than in anything the running server says.
+    /// Derived from the policy rather than from the flag so the warning cannot
+    /// describe a policy other than the one installed.
+    #[must_use]
+    pub const fn validates_nothing(&self) -> bool {
+        self.allow_any_host
+    }
+
     /// Whether a raw `Host` header value is acceptable.
     ///
     /// Accepts `host`, `host:port`, `[v6]`, and `[v6]:port` forms. Fails closed on

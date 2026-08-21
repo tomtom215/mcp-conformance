@@ -380,6 +380,25 @@ fn a_claims_scoped_dispatch_runs_the_notification_job_and_no_other() {
 }
 
 #[test]
+fn two_sandboxes_never_share_a_directory() {
+    // `cargo mutants` runs many `cargo test` processes at once. A sandbox name
+    // keyed only on the test made every one of them share a directory, and each
+    // `remove_dir_all` deleted a sibling's stubs mid-run — a mutation gate whose
+    // *baseline* failed inside this harness. Uniqueness within a process is what
+    // can be asserted here; the process id in the name carries the rest, and
+    // both are named in `harness::Sandbox`.
+    let first = Sandbox::new("same-name");
+    let second = Sandbox::new("same-name");
+    assert_ne!(first.0, second.0);
+    assert!(first.0.is_dir() && second.0.is_dir());
+    let name = first.0.file_name().unwrap_or_default().to_string_lossy();
+    assert!(
+        name.contains(&std::process::id().to_string()),
+        "the process id distinguishes concurrent test processes: {name}"
+    );
+}
+
+#[test]
 fn the_extractor_stops_at_the_end_of_the_block() {
     let workflow = "\
 jobs:

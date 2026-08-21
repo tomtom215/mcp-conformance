@@ -13,6 +13,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::{WORKFLOW, step_script, workspace_root};
 
@@ -34,13 +35,29 @@ impl Run {
     }
 }
 
-/// A sandbox directory that removes itself. `std::env::temp_dir` plus the test
-/// name keeps runs independent without a dependency on a temp-dir crate.
+/// A sandbox directory that removes itself, unique to this process and call.
+///
+/// The name carries the process id and a counter, not just the test's name.
+/// `cargo mutants` runs many `cargo test` **processes** at once, and with a
+/// name keyed only on the test every one of them shared a directory: each
+/// `remove_dir_all` below deleted a sibling's stubs mid-run. The symptom was a
+/// mutation gate whose *baseline* failed — four notification tests panicking
+/// inside the harness rather than a mutant surviving — which is a confusing
+/// place to start reading. Uniqueness per process makes the sandboxes
+/// independent for the same reason the writer task assigns `seq`: shared names
+/// are shared state.
 pub(super) struct Sandbox(pub(super) PathBuf);
+
+/// Distinguishes two sandboxes built by the same test in one process.
+static SANDBOXES: AtomicU32 = AtomicU32::new(0);
 
 impl Sandbox {
     pub(super) fn new(name: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("mcp-conformance-notification-{name}"));
+        let ordinal = SANDBOXES.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!(
+            "mcp-conformance-notification-{name}-{}-{ordinal}",
+            std::process::id()
+        ));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(dir.join("bin")).expect("sandbox");
         Self(dir)
