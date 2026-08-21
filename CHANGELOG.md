@@ -332,6 +332,30 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The reference host reported why it stopped in Rust's words, not a
+  reader's.** A run that ended other than cleanly printed the `StopReason`
+  variant with `{:?}` — `mcp-reference-host: ErrorBudgetExhausted after 10
+  turn(s), 1 error(s)` — which names the condition and no remedy. The default
+  plan tolerates zero errors, and this workspace's own everything-server
+  publishes `test_error_handling`, a tool whose entire job is to return one, so
+  pointing the host at the server it was built to exercise *always* ends that
+  way. Correct, and unhelpful: the flag that changes it is `--error-budget`, and
+  nothing said so.
+
+  Each stop reason is now a sentence naming the flag and the number behind it —
+  `1 error(s) exceeds the --error-budget of 0. Raise --error-budget to run past
+  them …`. The match is exhaustive on purpose, so a new stop reason must be
+  given words rather than falling into a wildcard that prints the variant name
+  again. Exit codes are unchanged; the run really did not complete.
+
+  Following that advice then reveals the next bound, which the same change makes
+  legible: `stopped at the --turn-limit of 16 with calls still planned`. The
+  generic plan's cap of 16 is sized for the suite's scenarios, which publish one
+  tool each, while the everything-server publishes eighteen — `cargo xtask
+  draft-capture` has always passed 32 for exactly this reason, with a comment
+  saying so, but `--help` never mentioned the default or why a sweep needs more.
+  It does now.
+
 - **The registry's strongest claim had no gate, and was false in two places.**
   Rule 1 of §What enters the registry reads *"Every MUST / MUST NOT on an
   in-scope page enters … No exceptions: that is the SEP-2484 floor."*

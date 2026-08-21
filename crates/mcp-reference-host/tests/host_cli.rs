@@ -69,8 +69,9 @@ fn completed_run_exits_zero_and_renders_the_record() {
         "the empty plan completes against the everything server: {stderr}"
     );
     // The run record names the stop reason — `render`'s output is the
-    // contract, not decoration.
-    assert!(stderr.contains("Completed"), "{stderr}");
+    // contract, not decoration — as a sentence rather than a Rust variant.
+    assert!(stderr.contains("completed 0 turn(s)"), "{stderr}");
+    assert!(!stderr.contains("Completed after"), "{stderr}");
 }
 
 #[test]
@@ -109,7 +110,19 @@ fn exhausted_error_budget_exits_one() {
         .expect("binary runs");
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("ErrorBudgetExhausted"), "{stderr}");
+    // The reason names the flag that changes it and the number behind it.
+    // Printing the `StopReason` variant instead is what this replaced: the
+    // default budget is 0 and this server ships a tool that fails by design,
+    // so this is what a first run against it always looks like.
+    assert!(
+        stderr.contains("exceeds the --error-budget of 0"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("Raise --error-budget"), "{stderr}");
+    assert!(
+        !stderr.contains("ErrorBudgetExhausted"),
+        "the Rust variant name is not the user-facing sentence: {stderr}"
+    );
     assert!(
         stderr.contains("err  "),
         "the failing call is rendered: {stderr}"
@@ -244,7 +257,7 @@ fn the_subscribe_and_sweep_phases_both_run_and_report() {
         "including the read that is meant to fail: {stderr}"
     );
     // And the tool loop still ran, with the log level asked for.
-    assert!(stderr.contains("Completed after"), "{stderr}");
+    assert!(stderr.contains("completed 16 turn(s)"), "{stderr}");
 }
 
 /// The probe session, driven through the binary.

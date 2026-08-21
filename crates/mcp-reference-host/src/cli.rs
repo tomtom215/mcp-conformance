@@ -56,7 +56,11 @@ pub(crate) struct Cli {
     /// whose whole job is to return one.
     #[arg(long, value_name = "N")]
     pub(crate) error_budget: Option<u32>,
-    /// Cap the run at this many turns, overriding the scenario plan's.
+    /// Cap the run at this many turns, overriding the scenario plan's, which
+    /// is `16` for the generic plan. That bound is sized for the suite's
+    /// scenarios, which publish one tool each; this workspace's own
+    /// everything-server publishes more than sixteen, so a run meant to reach
+    /// every tool needs a higher cap — `cargo xtask draft-capture` passes 32.
     #[arg(long, value_name = "N")]
     pub(crate) turn_limit: Option<u32>,
     /// Open a `subscriptions/listen` stream before the tool loop and drain it
