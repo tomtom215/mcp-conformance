@@ -12,7 +12,7 @@
 use serde_json::Value;
 
 use super::FindingSink;
-use super::support::server_capability;
+use super::support::{Declaration, server_capability};
 use crate::context::TraceContext;
 
 /// Every tool object across all `tools/list` results, with the result event's `seq`.
@@ -50,7 +50,13 @@ pub(super) fn capability_declared(context: &TraceContext<'_>, sink: &mut Finding
     // The subject is an answered `tools/*` exchange — the observable form of
     // supporting tools — whether or not the declaration is there. A session
     // that never exercised tools has nothing to judge and says so.
-    let declared = server_capability(context, &["tools"]) != Some(false);
+    let declared = match server_capability(context, &["tools"]) {
+        Declaration::Declared => true,
+        Declaration::Withheld => false,
+        // Nothing in this trace could have declared anything, so it shows
+        // neither compliance nor violation: abstain before counting a subject.
+        Declaration::Unknowable => return,
+    };
     for exchange in context.exchanges() {
         if exchange.method.starts_with("tools/") && exchange.result.is_some() {
             sink.examined();
@@ -162,7 +168,13 @@ pub(super) fn name_unique(context: &TraceContext<'_>, sink: &mut FindingSink) {
 pub(super) fn embedded_resource_capability(context: &TraceContext<'_>, sink: &mut FindingSink) {
     // The subject is a result that actually embedded a resource; a session
     // whose tools never returned one leaves this clause untested.
-    let declared = server_capability(context, &["resources"]) != Some(false);
+    let declared = match server_capability(context, &["resources"]) {
+        Declaration::Declared => true,
+        Declaration::Withheld => false,
+        // Nothing in this trace could have declared anything, so it shows
+        // neither compliance nor violation: abstain before counting a subject.
+        Declaration::Unknowable => return,
+    };
     for (seq, name, result) in call_results(context) {
         let embedded = content_items(result)
             .any(|item| item.get("type").and_then(Value::as_str) == Some("resource"));

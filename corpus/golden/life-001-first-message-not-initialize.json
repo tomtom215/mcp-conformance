@@ -1,13 +1,13 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 12,
+    "pass": 10,
     "fail": 1,
     "warn": 1,
     "excluded": 88,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 26
+    "not_observed": 28
   },
   "requirements": [
     {
@@ -122,7 +122,7 @@
     {
       "id": "LIFE-009",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "LIFE-010",
@@ -197,7 +197,7 @@
     {
       "id": "TOOL-001",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-003",

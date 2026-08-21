@@ -11,7 +11,7 @@
 use serde_json::Value;
 
 use super::FindingSink;
-use super::support::{has_rfc3986_scheme, is_base64, server_capability};
+use super::support::{Declaration, has_rfc3986_scheme, is_base64, server_capability};
 use crate::context::TraceContext;
 
 /// The resources-area request methods whose successful service evidences support.
@@ -29,7 +29,13 @@ const RESOURCE_METHODS: &[&str] = &[
 pub(super) fn capability_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
     // The subject is an answered resources exchange, declaration or not; a
     // session that never touched resources leaves this clause untested.
-    let declared = server_capability(context, &["resources"]) != Some(false);
+    let declared = match server_capability(context, &["resources"]) {
+        Declaration::Declared => true,
+        Declaration::Withheld => false,
+        // Nothing in this trace could have declared anything, so it shows
+        // neither compliance nor violation: abstain before counting a subject.
+        Declaration::Unknowable => return,
+    };
     for exchange in context.exchanges() {
         if RESOURCE_METHODS.contains(&exchange.method) && exchange.result.is_some() {
             sink.examined();

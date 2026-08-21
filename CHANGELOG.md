@@ -332,6 +332,32 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **Seven capability clauses reported *pass* on sessions that could not have
+  declared anything.** `support::server_capability` is a tri-state: the trace
+  declared the capability, the trace withheld it, or the trace carries no
+  `initialize` result and so has no declaration surface to read at all. Its own
+  doc said the third case means "judgment must abstain". Eight of its nine
+  callers discarded it — six wrote `!= Some(false)`, one `== Some(false)` —
+  which reads a missing handshake as a declaration and reports a green row.
+
+  `corpus/violations/life-001-first-message-not-initialize.jsonl` is two events
+  long, answers `tools/list`, and never handshakes. TOOL-001 ("Servers that
+  support tools MUST declare the `tools` capability") and LIFE-009 ("every
+  capability-gated message must ride on a declared capability") both reported
+  **pass** on it, and the committed golden had blessed both. Pointed at a real
+  captured `2026-07-28` session under the default registry — a revision with no
+  `initialize` at all — six such clauses passed at once.
+
+  The tri-state is now an enum with a named `Unknowable` arm and, deliberately,
+  no `PartialEq`: `!= Some(false)` no longer compiles, and reading a
+  `Declaration` means answering all three arms. All seven checks abstain, so the
+  rows are *not observed*. The area tests could not have caught this — they
+  assert `findings.is_empty()`, and an abstention and a pass are alike in having
+  no findings; `negotiation`'s `abstains_when_negotiation_is_invisible` asserted
+  exactly that and passed throughout. The new tests assert the **subject count**,
+  which is the only thing that tells the two apart, and they cover all seven
+  checks across all three arms.
+
 - **A server with `Host`/`Origin` validation turned off said nothing about
   it.** The security model's stated control for the DNS-rebinding class is that
   disabling validation "requires the self-describing `--dangerously-allow-any-host`

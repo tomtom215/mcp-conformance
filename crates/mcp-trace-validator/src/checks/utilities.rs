@@ -5,7 +5,7 @@
 //! completion (`COMP-*`), and pagination (`PAGE-*`).
 
 use super::FindingSink;
-use super::support::server_capability;
+use super::support::{Declaration, server_capability};
 use crate::context::TraceContext;
 use mcp_conformance_core::message::MessageKind;
 use mcp_conformance_core::trace::Direction;
@@ -15,7 +15,13 @@ use mcp_conformance_core::trace::Direction;
 pub(super) fn logging_capability_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
     // The subject is an emitted log notification, declaration or not; a session
     // in which the server never logged leaves this clause untested.
-    let declared = server_capability(context, &["logging"]) != Some(false);
+    let declared = match server_capability(context, &["logging"]) {
+        Declaration::Declared => true,
+        Declaration::Withheld => false,
+        // Nothing in this trace could have declared anything, so it shows
+        // neither compliance nor violation: abstain before counting a subject.
+        Declaration::Unknowable => return,
+    };
     for (event, kind, _) in context.messages() {
         if event.direction != Direction::ServerToClient {
             continue;
@@ -40,7 +46,13 @@ pub(super) fn logging_capability_declared(context: &TraceContext<'_>, sink: &mut
 pub(super) fn completion_capability_declared(context: &TraceContext<'_>, sink: &mut FindingSink) {
     // The subject is an answered completion, declaration or not; a session that
     // never asked for one leaves this clause untested.
-    let declared = server_capability(context, &["completions"]) != Some(false);
+    let declared = match server_capability(context, &["completions"]) {
+        Declaration::Declared => true,
+        Declaration::Withheld => false,
+        // Nothing in this trace could have declared anything, so it shows
+        // neither compliance nor violation: abstain before counting a subject.
+        Declaration::Unknowable => return,
+    };
     for exchange in context.exchanges_for("completion/complete") {
         if exchange.result.is_some() {
             sink.examined();

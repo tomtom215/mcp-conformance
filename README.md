@@ -63,7 +63,7 @@ MCP trace validation — revision 2025-11-25
   ...
   FAIL  LIFE-001 (MUST)
         seq 0: first message is a "tools/list" request, expected "initialize"
-totals: 12 pass, 1 fail, 1 warn, 88 excluded, 0 unsupported, 14 not applicable, 26 not observed
+totals: 10 pass, 1 fail, 1 warn, 88 excluded, 0 unsupported, 14 not applicable, 28 not observed
 verdict: fail
 ```
 
