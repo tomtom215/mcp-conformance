@@ -31,7 +31,7 @@ Every item is anchored to a register row, so the backlog dies gracefully if a fa
 | 1 | Everything server into rust-sdk (SEP-1730 appendix asks for one in-repo; none exists) | [2.6, 3.4, 3.10](01-ecosystem-context.md) | Issue → design alignment → PR or fixture adoption from M2 — **offered as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902)** (2026-06-11; pre-flight in [#9](https://github.com/tomtom215/mcp-conformance/issues/9)). **Outcome at 2026-08-18, 68 days: no reply.** The issue is open with zero comments, no assignee and no linked PR, labelled P2/enhancement. The R9 60-day clock has run out on *this* offer — but R9's trigger is **two** substantive offers unanswered for 60+ days, and the same day's other filing (rust-sdk#903, backlog row 9) was answered and fixed in nine days, so **R9 has not fired and M4's DoD does not re-scope**. Next re-decision 2026-10-16 (deferral `rust-sdk-902-offer-clock`): re-ping, or record the offer as lapsed here. Read alongside row 9, the pattern is legible — this repo's *bug reports* land quickly; the *adoption offer* is a larger ask sitting behind upstream's own SEP-implementation wave |
 | 2 | ~~`rmcp`-keyed RustSec advisory for CVE-2026-42559~~ — **CLOSED 2026-08-24, resolved upstream independently.** [`RUSTSEC-2026-0189`](https://rustsec.org/advisories/RUSTSEC-2026-0189.html) is keyed `package = "rmcp"` with `patched = [">= 1.4.0"]`, so a direct `rmcp < 1.4.0` dependent **does** now get a `cargo audit` warning, and `rustsec.org/packages/rmcp.html` returns 200 where it used to 404. The alias collision this row called blocking was resolved the way the row said it would have to be — by reconciliation, not a drop-in PR: the new advisory aliases the CVE and the two GHSAs and puts `RUSTSEC-2026-0140` in `related` instead. The [draft advisory](../reports/rmcp-cve-2026-42559-rustsec-advisory-draft.md) is obsolete — **do not file**. | [4.3](01-ecosystem-context.md) | No action. Kept as a row for the same reason item 3 is: it is the **third** backlog item resolved upstream before we filed, and the register's own 2026-07-26 re-check had missed it — evidence about our verification method, not only about the ecosystem |
 | 3 | ~~MSRV policy for rust-sdk~~ — **CLOSED 2026-07-23, resolved upstream independently.** [rust-sdk#1034](https://github.com/modelcontextprotocol/rust-sdk/pull/1034) (author jamadeo) declares `rust-version` **and** adds an MSRV CI job; the declared value **1.88** matches the floor ADR-0008 measured empirically, and `rmcp 3.0.0-beta.2` is the first published version carrying it. The [draft issue](../reports/rust-sdk-msrv-policy-issue-draft.md) is obsolete — **do not file** | [3.5](01-ecosystem-context.md) | No action. Kept as a row (not deleted) because it is the second backlog item to be resolved upstream before we filed — evidence for how the M4 DoD should be read, not a gap |
-| 4 | Conformance scenarios/fixtures where Rust runs expose suite gaps | [2.3, 3.6](01-ecosystem-context.md) | Small PRs to the conformance repo, SEP-tagged where applicable |
+| 4 | Conformance scenarios/fixtures where Rust runs expose suite gaps | [2.3, 3.6](01-ecosystem-context.md) | Small PRs to the conformance repo, SEP-tagged where applicable. **Anchor re-examined 2026-08-24:** row 3.6's open-issue half is refuted — rust-sdk#684 "Conformance Testing" is closed, so the rust-sdk-side conformance push this item expected to shadow is finished and 3.6 no longer supplies it a live gap. The 2.3 half stands on its own: suite gaps that Rust runs expose are still real and still land in the conformance repo, where both of item 8's issues remain open. That leaves this item and item 8 pointed at the same repo for the same reason, with item 8 carrying the specific issues; whether they merge is a maintainer call, not one the refutation forces |
 | 5 | 2026-07-28 stateless-rework readiness (test targets before the Tier-1 window — two weeks per SEP text, ~10 weeks observed this cycle) | [1.3, 1.5a, 2.5](01-ecosystem-context.md) | Roadmap M2.5: draft corpus + multi-revision validator support published early; findings filed upstream |
 | 6 | Spec-vs-suite discrepancies discovered by the agreement check | [03-conformance-strategy.md](03-conformance-strategy.md) | Issues with reproducing traces attached |
 | 7 | SEP-2484 traceability tooling: the registry already stores the `sep-NNNN.yaml` shape, so an emitter plus a completeness checker is a query over existing data — recurring per-SEP work the gate created with no owning tool. **Scope corrected 2026-08-24:** SEP-2484 requires a row for "every MUST, MUST NOT, **SHOULD, and SHOULD NOT** (and RFC 2119 equivalents: SHALL, REQUIRED, RECOMMENDED)", not MUST-level only; this registry already records RFC 2119 level per clause, so the wider bar costs nothing to meet and the checker must enforce it | [2.9, 2.11](01-ecosystem-context.md) | Offer upstream as a conformance-repo utility once M1 publishes; design note first |
@@ -52,6 +52,53 @@ Item 1 is now the only entry anchored to a gap the ecosystem still publishes
 ([ADR-0015](decisions/0015-the-tier-2-premise-is-gone.md)); the rest are contributions of work
 rather than closures of holes, which is the sturdier kind of offer and should have been the
 emphasis sooner.
+
+**Register rule-3 re-examination — 2026-08-24 (rows 3.6, 3.7 and 3.11 refuted).** The three
+refutations land on this page in different places, and only one of them is good news.
+
+rust-sdk#684 "Conformance Testing" is **closed** (rows 3.6, 3.11). The Tier-2 process backlog
+this project first organised around is now closed out end to end, which agrees with what
+[ADR-0015](decisions/0015-the-tier-2-premise-is-gone.md) concluded from the tier table. Item 4's
+anchor is half gone with it; the note in that row says what survives.
+
+Row 3.11's SEP-implementation wave has **landed** — all seven issues closed, plus the three
+features its note called "still without conformance scenarios" and their tracking epic. The row
+is cited here for *offer timing*, and the timing it described is spent: help on those SEPs would
+have been welcome in June and is redundant in August. This is the fifth instance of the pattern
+named two paragraphs above, and the first where the decay was in an anchor rather than an item —
+worth saying plainly, because an anchor decaying is harder to notice than an item closing. The
+pattern is no longer a caution about backlog hygiene. It is the dominant outcome: a gaps-based
+backlog has now been overtaken upstream more often than it has been filed against.
+
+Row 3.7 is the one that changes who this page is addressed to. It named 4t145 and jokemanfire as
+the most active maintainers; neither has committed to rust-sdk in ninety days, and 4t145 not
+since 2025-10-13. Over the 181 commits since 2026-05-26 the most active author is **Dale Seo**
+(67), ahead of Jack Amadeo (13) and Alex Hancock (10). Both resolve to people already named on
+this page, and the git identities carry the proof rather than the resemblance: Dale Seo commits as
+`5466341+DaleSeo@users.noreply.github.com` — the `DaleSeo` who approved and merged the community
+`enumNames` fix in item 9 — and `7698802 chore: declare and check MSRV (#1034)`, item 3's PR, is
+authored by Jack Amadeo.
+The evidence for the current maintainer picture was already on this page, in two items, and was
+never carried back to the row that claimed otherwise. **And [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) — item 1's
+offer, the only entry still anchored to a gap the ecosystem publishes — appears to have been
+answered.** It is still open at 74 days, confirmed two-sided. But GitHub's search index now
+reports **exactly one comment** on it, where the `rust-sdk-902-offer-clock` ledger row recorded
+zero replies on 2026-08-18. The count is solid: `comments:0`, `comments:2` and `comments:5` all
+return nothing for this author while `comments:1` and `comments:>0` both return #902, so the
+qualifier is filtering rather than being ignored. What could **not** be established from here is
+the comment itself — neither its author nor a word of its text. The issue page's rendered
+comment section does not survive the fetch that reads it (the same lossiness that drops state
+badges), and the API is refused. So this row records a *count*, not a reply, and it is the one
+finding on this page that needs a human with a browser rather than another verification pass.
+
+That matters more than its size. The deferral governing this offer frames its next re-decision
+as "re-ping, or record the offer as lapsed" — and if someone has replied, neither is the right
+move, so the ledger row is pulled forward to 2026-09-07 rather than left at October on a premise
+that no longer holds. It also revises the reading above: a silence that looked like a signal
+about the offer may simply not be a silence. The active reviewers merged two community
+contributions promptly in this same window, which was always the harder fact to square with 74
+days of nothing.
+
 
 ## Conduct and process norms
 

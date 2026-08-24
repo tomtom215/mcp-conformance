@@ -74,11 +74,50 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   ecosystem still publishes — which is worth naming rather than celebrating a
   fourth closure: a backlog of *gaps* decays on somebody else's schedule.
 
-  **What could not be verified is marked as unverified rather than advanced.**
-  GitHub was unreachable from the session that ran the sweep, so the four rows
-  sourced only from issue state keep their original dates, stay outside the
-  citation window, and carry a ledger row of their own. Re-dating a row nobody
-  re-checked is the one failure that would make the register worthless.
+  **What could not be verified was marked as unverified rather than advanced —
+  and then verified.** GitHub was unreachable from the session that ran the
+  sweep, so the four rows sourced only from issue state kept their original
+  dates, stayed outside the citation window, and got a ledger row of their own.
+  Re-dating a row nobody re-checked is the one failure that would make the
+  register worthless. A later session the same day found a route the sweep had
+  not: `api.github.com` and `github.com` HTML are both 403 and the
+  repository-scoped tooling refuses cross-owner reads, but `github.com`'s
+  *filtered issue-search* pages are reachable. Every state was taken **two-sided**
+  — present in the `is:closed` result set *and* absent from the `is:open` one —
+  so that the query string carries the state and nothing rests on reading a
+  rendered badge. That guard earned itself immediately: reading an issue's own
+  page proved unreliable, with two reads of byte-identical cached content
+  disagreeing, one of them confidently.
+
+  **Three of those four rows were wrong, which makes seven refutations in this
+  sweep rather than four.** rust-sdk#684 "Conformance Testing" is closed, which
+  rows 3.6 and 3.11 both asserted was still open — so the Tier-2 process backlog
+  is closed out end to end, the same conclusion
+  [ADR-0015](docs/plan/decisions/0015-the-tier-2-premise-is-gone.md) reached from
+  the published tier table, arrived at independently from the issue tracker. Row
+  3.11's SEP-implementation wave has landed in full, which spends the *offer
+  timing* it was cited for. And row 3.7 named two maintainers who have not
+  committed to rust-sdk in ninety days — one not since 2025-10-13 — while the
+  commit log puts a different contributor at 67 of the last 181 commits. The
+  ledger row is deleted, the register carries the method and states plainly that
+  it is weaker than an API read, and ADR-0015 carries the procedural lesson: row
+  3.7's activity half never needed GitHub at all, because `git log` answers "who
+  is most active" directly and better. It was filed as blocked because the sweep
+  recorded a *source* rather than a *question*.
+
+  **One side-finding, and the honest form of it is a count.** The same route was
+  turned on rust-sdk#902, this project's one live engagement offer, which the
+  deferral ledger recorded on 2026-08-18 as open with zero replies at 68 days. It
+  is still open at 74 — and the search index now reports exactly one comment on
+  it. The count is trustworthy (`comments:0`, `comments:2` and `comments:5`
+  return nothing for this author; `comments:1` and `comments:>0` both return
+  #902), but the comment itself is not readable from here: the rendered comment
+  section does not survive the fetch, and the API is refused. So the ledger row
+  records a contradicted premise rather than a replacement for it, and its review
+  moves from 2026-10-16 to 2026-09-07 — "re-ping or record as lapsed" is the
+  wrong pair of options if somebody has already answered. Its other premise moved
+  the same day: the SEP wave the offer was said to sit behind is the one row 3.11
+  just showed has landed.
 
 - **Neither official-suite pin can fall behind unnoticed any more.** Both
   versions this workspace pins are exact on purpose — a gate whose input moves
