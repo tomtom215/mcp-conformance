@@ -2,12 +2,12 @@
   "revision": "2025-11-25",
   "totals": {
     "pass": 20,
-    "fail": 1,
+    "fail": 2,
     "warn": 0,
-    "excluded": 88,
+    "excluded": 87,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 17
+    "not_observed": 19
   },
   "requirements": [
     {
@@ -116,6 +116,18 @@
       "outcome": "pass"
     },
     {
+      "id": "LIFE-018",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.protocol-version-header",
+          "seq": 4,
+          "detail": "client HTTP request after initialization lacks the MCP-Protocol-Version header"
+        }
+      ]
+    },
+    {
       "id": "TRAN-004",
       "level": "MUST NOT",
       "outcome": "not-observed"
@@ -170,10 +182,15 @@
     {
       "id": "TRAN-039",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-040",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-049",
       "level": "MUST",
       "outcome": "pass"
     },
@@ -289,6 +306,11 @@
     {
       "id": "PAGE-002",
       "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PAGE-003",
+      "level": "SHOULD",
       "outcome": "not-observed"
     }
   ]

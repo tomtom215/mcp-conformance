@@ -307,7 +307,7 @@ async fn agent_run(
         return ExitCode::FAILURE;
     }
     let report = run(&client, &plan, &CancellationToken::new()).await;
-    render::run(&report);
+    render::run(&report, &plan);
     if extras.sweep {
         // After the loop, not before: the sweep reads resources the tools may
         // have changed, and a recording is easier to follow when the

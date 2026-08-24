@@ -9,7 +9,10 @@ capture-assigned `seq` (the only ordering authority — never inferred later), a
 `kind`:
 
 - **`message`** events hold the JSON-RPC payload verbatim;
-- **`http`** events record the status and the conformance-relevant headers; and
+- **`http`** events record the conformance-relevant headers, a response's
+  status, and a client request's `method` — Streamable HTTP binds different
+  obligations to `POST`, `GET`, and `DELETE`, so a clause addressed to one of
+  them is judged only where the recording says which it was; and
 - **`lifecycle`** events mark transport open/close.
 
 The full schema, including the redaction rules that keep credential-bearing

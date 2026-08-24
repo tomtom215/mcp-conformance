@@ -12,8 +12,11 @@
 #![cfg(feature = "cli")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::io::{BufRead as _, BufReader, Write as _};
+use std::io::Write as _;
 use std::process::{Command, Stdio};
+
+mod common;
+use common::{Lines, bound_reads};
 
 /// The `2026-07-28` `_meta` envelope every request carries.
 const ENVELOPE: &str = r#""_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}"#;
@@ -68,8 +71,7 @@ fn stdio_serves_a_real_initialize_handshake() {
     );
 
     let mut stdin = child.stdin.take().unwrap();
-    let stdout = child.stdout.take().unwrap();
-    let mut reader = BufReader::new(stdout);
+    let stdout = Lines::from(child.stdout.take().unwrap());
 
     writeln!(
         stdin,
@@ -77,10 +79,7 @@ fn stdio_serves_a_real_initialize_handshake() {
     )
     .expect("write initialize");
 
-    let mut line = String::new();
-    reader
-        .read_line(&mut line)
-        .expect("read initialize response");
+    let line = stdout.next("initialize response");
     let response: serde_json::Value =
         serde_json::from_str(&line).expect("response is one JSON line");
     assert_eq!(response["id"], 1);
@@ -118,9 +117,8 @@ fn protocol_version_flag_selects_the_surface_the_binary_serves() {
             .spawn()
             .expect("binary spawns"),
     );
-    let mut reader = BufReader::new(child.stderr.take().unwrap());
-    let mut line = String::new();
-    reader.read_line(&mut line).expect("readiness line");
+    let stderr = Lines::from(child.stderr.take().unwrap());
+    let line = stderr.next("readiness line");
     let addr = line
         .trim()
         .strip_prefix("listening on ")
@@ -136,6 +134,7 @@ fn protocol_version_flag_selects_the_surface_the_binary_serves() {
         body.len()
     );
     let mut stream = std::net::TcpStream::connect(&addr).expect("connect");
+    bound_reads(&stream);
     std::io::Write::write_all(&mut stream, request.as_bytes()).expect("send");
     let mut response = String::new();
     std::io::Read::read_to_string(&mut stream, &mut response).expect("read");
@@ -167,7 +166,7 @@ fn the_stateless_revision_is_served_over_stdio() {
             .expect("binary spawns"),
     );
     let mut stdin = child.stdin.take().unwrap();
-    let mut reader = BufReader::new(child.stdout.take().unwrap());
+    let stdout = Lines::from(child.stdout.take().unwrap());
 
     writeln!(
         stdin,
@@ -185,8 +184,7 @@ fn the_stateless_revision_is_served_over_stdio() {
     // and this one does not.
     let mut answers = std::collections::BTreeMap::new();
     for _ in 0..2 {
-        let mut line = String::new();
-        reader.read_line(&mut line).expect("an answer");
+        let line = stdout.next("an answer");
         let answer: serde_json::Value = serde_json::from_str(&line).expect("one JSON line");
         answers.insert(answer["id"].as_u64().expect("an id"), answer);
     }
@@ -236,9 +234,8 @@ fn a_panicking_test_leaves_no_server_behind() {
                 .spawn()
                 .expect("binary spawns"),
         );
-        let mut reader = BufReader::new(child.stderr.take().unwrap());
-        let mut line = String::new();
-        reader.read_line(&mut line).expect("readiness line");
+        let stderr = Lines::from(child.stderr.take().unwrap());
+        let line = stderr.next("readiness line");
         let listening = line
             .trim()
             .strip_prefix("listening on ")
@@ -291,9 +288,8 @@ fn http_transport_binds_and_enforces_the_403_policy() {
     );
 
     let stderr = child.stderr.take().unwrap();
-    let mut reader = BufReader::new(stderr);
-    let mut line = String::new();
-    reader.read_line(&mut line).expect("readiness line");
+    let stderr = Lines::from(stderr);
+    let line = stderr.next("readiness line");
     let addr = line
         .trim()
         .strip_prefix("listening on ")
@@ -303,6 +299,7 @@ fn http_transport_binds_and_enforces_the_403_policy() {
     // Loopback socket to our own subprocess: the binary's HTTP contract is
     // pinned the same way the stdio contract is — against the real process.
     let mut stream = std::net::TcpStream::connect(&addr).expect("connect");
+    bound_reads(&stream);
     let request = "POST /mcp HTTP/1.1\r\nHost: evil.example\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}";
     std::io::Write::write_all(&mut stream, request.as_bytes()).expect("send");
     let mut response = String::new();
@@ -333,9 +330,8 @@ fn default_bind_is_loopback() {
     );
 
     let stderr = child.stderr.take().unwrap();
-    let mut reader = BufReader::new(stderr);
-    let mut line = String::new();
-    reader.read_line(&mut line).expect("readiness line");
+    let stderr = Lines::from(stderr);
+    let line = stderr.next("readiness line");
     child.kill().expect("stop server");
     let _ = child.wait();
 
@@ -395,9 +391,8 @@ fn tap_dir_with_http_serves_and_records_the_session() {
     );
 
     let stderr = child.stderr.take().unwrap();
-    let mut reader = BufReader::new(stderr);
-    let mut line = String::new();
-    reader.read_line(&mut line).expect("readiness line");
+    let stderr = Lines::from(stderr);
+    let line = stderr.next("readiness line");
     let addr = line
         .trim()
         .strip_prefix("listening on ")
@@ -410,6 +405,7 @@ fn tap_dir_with_http_serves_and_records_the_session() {
         body.len()
     );
     let mut stream = std::net::TcpStream::connect(&addr).expect("connect");
+    bound_reads(&stream);
     std::io::Write::write_all(&mut stream, request.as_bytes()).expect("send");
     let mut response = String::new();
     std::io::Read::read_to_string(&mut stream, &mut response).expect("read");
@@ -459,6 +455,7 @@ fn raw_post(addr: &str, body: &str, session: Option<&str>) -> String {
         body.len()
     );
     let mut stream = std::net::TcpStream::connect(addr).expect("connect");
+    bound_reads(&stream);
     std::io::Write::write_all(&mut stream, request.as_bytes()).expect("send");
     let mut response = String::new();
     std::io::Read::read_to_string(&mut stream, &mut response).expect("read");
@@ -511,9 +508,8 @@ fn spawn_initialized_tapped_server(dir: &std::path::Path) -> (ServerProcess, Str
             .expect("binary spawns"),
     );
     let stderr = child.stderr.take().unwrap();
-    let mut reader = BufReader::new(stderr);
-    let mut line = String::new();
-    reader.read_line(&mut line).expect("readiness line");
+    let stderr = Lines::from(stderr);
+    let line = stderr.next("readiness line");
     let addr = line
         .trim()
         .strip_prefix("listening on ")
@@ -543,7 +539,7 @@ fn spawn_initialized_tapped_server(dir: &std::path::Path) -> (ServerProcess, Str
 
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
-        let started = std::fs::read_dir(dir).ok().is_some_and(|entries| {
+        let started = std::fs::read_dir(dir).is_ok_and(|entries| {
             entries
                 .flatten()
                 .any(|e| std::fs::metadata(e.path()).is_ok_and(|m| m.len() > 0))
@@ -615,9 +611,8 @@ fn tap_notes_unrecordable_request_bodies_exactly_once() {
             .expect("binary spawns"),
     );
     let stderr = child.stderr.take().unwrap();
-    let mut reader = BufReader::new(stderr);
-    let mut line = String::new();
-    reader.read_line(&mut line).expect("readiness line");
+    let stderr = Lines::from(stderr);
+    let line = stderr.next("readiness line");
     let addr = line
         .trim()
         .strip_prefix("listening on ")
@@ -657,8 +652,7 @@ fn tap_notes_unrecordable_request_bodies_exactly_once() {
     // guard is correct) is already flushed before the bad POST's response.
     child.kill().expect("stop server");
     let _ = child.wait();
-    let mut rest = String::new();
-    std::io::Read::read_to_string(&mut reader, &mut rest).expect("drain stderr");
+    let rest = stderr.rest();
     let notes = rest
         .lines()
         .filter(|l| l.contains("without its request message"))
@@ -668,4 +662,74 @@ fn tap_notes_unrecordable_request_bodies_exactly_once() {
         "exactly the one bad body is noted; clean traffic is not:\n{rest}"
     );
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Turning `Host`/`Origin` validation off must leave evidence in the server's
+/// own output, and must not disturb the readiness contract.
+///
+/// The security model's stated control is that disabling validation "requires
+/// the self-describing `--dangerously-allow-any-host` flag" — a name that lives
+/// in the operator's command line and, until 2026-08-20, in nothing the running
+/// process wrote. A log could not be audited for it. The warning follows the
+/// readiness line rather than preceding it, because `xtask::conformance` reads
+/// exactly one line and requires it to be `listening on <addr>`.
+#[test]
+fn disabling_host_validation_warns_after_the_readiness_line() {
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args([
+                "--transport",
+                "http",
+                "--bind",
+                "127.0.0.1:0",
+                "--dangerously-allow-any-host",
+            ])
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("binary spawns"),
+    );
+    let stderr = Lines::from(child.stderr.take().unwrap());
+
+    let readiness = stderr.next("readiness line");
+    assert!(
+        readiness.trim().starts_with("listening on "),
+        "readiness stays first on stderr: {readiness:?}"
+    );
+
+    let warning = stderr.next("warning line");
+    assert!(warning.contains("WARNING"), "{warning:?}");
+    assert!(warning.contains("DISABLED"), "{warning:?}");
+    assert!(
+        warning.contains("--dangerously-allow-any-host"),
+        "the warning names the flag that caused it: {warning:?}"
+    );
+    assert!(
+        warning.contains("CVE-2026-42559"),
+        "and the class it reopens: {warning:?}"
+    );
+}
+
+/// The default server says nothing of the sort — a warning that fired always
+/// would be a warning nobody reads.
+#[test]
+fn the_default_policy_prints_only_the_readiness_line() {
+    let mut child = ServerProcess(
+        Command::new(env!("CARGO_BIN_EXE_mcp-everything-server"))
+            .args(["--transport", "http", "--bind", "127.0.0.1:0"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("binary spawns"),
+    );
+    let stderr = Lines::from(child.stderr.take().unwrap());
+    let readiness = stderr.next("readiness line");
+    assert!(readiness.trim().starts_with("listening on "));
+    // Nothing follows until the process is killed, so read with the child gone.
+    drop(child);
+    let rest = stderr.rest();
+    assert!(
+        !rest.contains("WARNING"),
+        "the default policy warns about nothing: {rest:?}"
+    );
 }

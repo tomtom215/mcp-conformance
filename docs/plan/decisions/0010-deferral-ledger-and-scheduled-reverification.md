@@ -165,3 +165,60 @@ had none. Bounded by construction: one open issue at a time (a stable title
 is the de-duplication key), a comment rather than a new issue while it stays
 red, and an automatic close when it goes green.
 
+### Amendment (2026-08-20): the notification is now itself re-checked
+
+The amendment above ends in shell that had never run in anger. It was
+verified once, by hand, against a `gh` stub that was not committed — which
+is the shape of claim this ADR was written against, one layer further out
+again. It also fails quietly: the steps run inside a job that is *already*
+red (`if: failure()`), so a wrong `gh` invocation adds one more red step to
+a run whose colour was never going to change, and the only symptom is an
+issue that never appears. Nobody watches for the absence of a notification.
+
+Two changes close it, neither of them a date.
+
+1. **The committed shell is executed by a test.** `xtask::notification` lifts
+   each step's `run:` block out of `scheduled.yml` — read from the YAML, not
+   transcribed, so it cannot drift from what CI runs — and executes it under
+   stubbed `gh` and `cargo` across the branches that matter: rows expired, a
+   red ledger with no expired row, a drift failure, a moved pin, an issue that
+   already exists, an unrelated open issue that must not absorb the
+   notification, and the green close. Renaming a step fails the tests rather
+   than leaving them passing over nothing, and a `gh` that exits non-zero must
+   fail its step — which is what `set -euo pipefail` is for, and what nothing
+   previously asserted.
+2. **The outcome is stated on the run summary.** Each step appends what it did
+   to `$GITHUB_STEP_SUMMARY`, so the notification's *absence* is visible on the
+   run page rather than inferable only from an issue tracker nobody is
+   comparing against. A red run without that line means the notification step
+   did not finish.
+
+Whether the real `gh` accepts these exact flags is the one thing no test can
+settle — that needs a live run against a real repository. So a third change
+makes one cheap: `workflow_dispatch` gains an `only` input, and `claims` runs
+the claims-expire job alone, skipping the mutation sweep, fuzzing, the
+cross-architecture matrix and the benchmarks. Minutes rather than hours, which
+is the difference between a check somebody can repeat and one nobody will.
+Every other job carries the guard, and a test asserts that they all do: a job
+added later without it would quietly put the full sweep back into that
+dispatch.
+
+**Then it was run, both halves, on 2026-08-20.** A ledger row was expired on a
+branch and the job dispatched: it went red, and
+[#42](https://github.com/tomtom215/mcp-conformance/issues/42) was opened by
+`github-actions[bot]` — naming the expired row and its date, tabulating all
+three gate outcomes, and republishing none of the fetched specification text.
+The row was restored and the job dispatched again: green, and the same run
+closed #42. `gh issue create` and `gh issue close` both work against a real
+repository with the `issues: write` grant, which is what nothing until now had
+established. Each run took about thirty seconds and skipped nine jobs.
+
+**The rehearsal found a real drift, which is the better result.** The red run's
+issue named *two* failing gates, not the one that had been arranged: the
+`2026-07-28` subscriptions page had moved under `SUBS-005` and `SUBS-006`
+("the empty response" → "a successful response"; "an empty result" → "a
+completion result"). That is the amendment's second change working — before
+`if: always()`, a red ledger skipped the drift gate, so this week would have
+measured the quotes not at all and the drift would have waited for a week when
+the ledger happened to be clean.
+

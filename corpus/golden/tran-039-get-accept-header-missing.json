@@ -1,0 +1,310 @@
+{
+  "revision": "2025-11-25",
+  "totals": {
+    "pass": 25,
+    "fail": 1,
+    "warn": 0,
+    "excluded": 87,
+    "unsupported": 0,
+    "not_applicable": 14,
+    "not_observed": 15
+  },
+  "requirements": [
+    {
+      "id": "BASE-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-002",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-003",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-004",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-005",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-006",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-007",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-008",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-009",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-010",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-019",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-020",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "LIFE-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-002",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-003",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-004",
+      "level": "SHOULD NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-005",
+      "level": "SHOULD NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-006",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-007",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-009",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "LIFE-010",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-018",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-004",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-005",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-011",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-013",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-017",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-018",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-025",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-026",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-029",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-039",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.client-get-accept-header",
+          "seq": 7,
+          "detail": "client GET Accept header \"application/json\" does not list text/event-stream"
+        }
+      ]
+    },
+    {
+      "id": "TRAN-040",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-049",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-003",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-005",
+      "level": "SHOULD",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-006",
+      "level": "SHOULD",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-007",
+      "level": "SHOULD NOT",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-008",
+      "level": "SHOULD",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-009",
+      "level": "SHOULD",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-010",
+      "level": "SHOULD",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "TOOL-011",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.tools"
+    },
+    {
+      "id": "RES-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-004",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.resources"
+    },
+    {
+      "id": "RES-006",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.resources"
+    },
+    {
+      "id": "PROM-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-003",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-004",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-005",
+      "level": "MUST",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-008",
+      "level": "SHOULD",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "LOG-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "COMP-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PAGE-002",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PAGE-003",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    }
+  ]
+}

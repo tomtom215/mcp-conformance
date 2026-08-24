@@ -188,7 +188,7 @@
     {
       "id": "TOOL-013",
       "level": "SHOULD",
-      "actor": "server",
+      "actor": "both",
       "capability": "server.tools",
       "applies": {
         "removed": "2026-07-28"

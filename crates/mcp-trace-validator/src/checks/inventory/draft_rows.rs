@@ -221,8 +221,8 @@ pub(super) const DRAFT: &[Check] = &[
         draft::subscriptions::acknowledgment_first
     ),
     check!(
-        "subscriptions.graceful-close-result-empty",
-        draft::subscriptions::graceful_close_result_empty
+        "subscriptions.graceful-close-result-shape",
+        draft::subscriptions::graceful_close_result_shape
     ),
     check!(
         "caching.hints-on-cacheable-results",
@@ -249,10 +249,6 @@ pub(super) const DRAFT: &[Check] = &[
     check!(
         "logging.invalid-level-rejected",
         draft::logging::invalid_level_rejected
-    ),
-    check!(
-        "pagination.invalid-cursor-rejected",
-        draft::pagination::invalid_cursor_rejected
     ),
     check!(
         "capabilities.tools-declared",

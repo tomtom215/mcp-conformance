@@ -12,7 +12,7 @@
         "section": "basic/transports/streamable-http#sending-messages",
         "quote": "Every JSON-RPC message sent from the client MUST be a new HTTP POST request to the MCP endpoint."
       },
-      "exclusion": "Whether each message was carried by its own POST is HTTP framing the trace summarizes rather than reproduces: `kind: http` events record status and headers, not the request/connection boundary each message rode on. Same reasoning as TRAN-024 at 2025-11-25."
+      "exclusion": "Adds to TRAN-056's verb obligation that each message ride a *new* POST — one request per message. The verb is recorded and judged (TRAN-056); whether each message had its own request is HTTP framing the trace summarizes rather than reproduces. Same split as TRAN-024/TRAN-049 at 2025-11-25."
     },
     {
       "id": "TRAN-056",
@@ -25,7 +25,9 @@
         "section": "basic/transports/streamable-http#sending-messages",
         "quote": "The client MUST use HTTP POST to send JSON-RPC messages."
       },
-      "exclusion": "The HTTP method used is not recorded — the trace's `kind: http` events carry status and headers, not the verb. Same reasoning as TRAN-049 at 2025-11-25."
+      "checks": [
+        "transport.client-messages-use-post"
+      ]
     },
     {
       "id": "TRAN-057",
@@ -39,7 +41,7 @@
         "quote": "The client MUST include an `Accept` header listing both `application/json` and `text/event-stream` as supported content types."
       },
       "checks": [
-        "transport.client-accept-header"
+        "transport.client-post-accept-header"
       ]
     },
     {

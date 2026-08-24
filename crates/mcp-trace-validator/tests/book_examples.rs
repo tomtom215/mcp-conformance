@@ -39,9 +39,33 @@ fn fenced_blocks(text: &str, lang: &str) -> Vec<String> {
     found
 }
 
+/// The chapter's text up to its second trace: the multi-revision worked
+/// example, whose quoted output all belongs to the first trace. Splitting here
+/// rather than scanning the whole chapter is what lets a second worked example
+/// live below without either one's quoted output being checked against the
+/// other's trace.
+fn multi_revision_example(chapter: &str) -> &str {
+    let first = chapter.find("```jsonl").expect("the chapter shows a trace") + 1;
+    chapter
+        .find_at("```jsonl", first)
+        .map_or(chapter, |second| &chapter[..second])
+}
+
+/// `str::find` from an offset, keeping the returned index absolute.
+trait FindAt {
+    fn find_at(&self, needle: &str, from: usize) -> Option<usize>;
+}
+
+impl FindAt for str {
+    fn find_at(&self, needle: &str, from: usize) -> Option<usize> {
+        self[from..].find(needle).map(|offset| offset + from)
+    }
+}
+
 #[test]
 fn the_chapters_multi_revision_example_is_what_the_validator_prints() {
-    let chapter = chapter();
+    let whole = chapter();
+    let chapter = multi_revision_example(&whole).to_owned();
     let trace = fenced_blocks(&chapter, "jsonl")
         .pop()
         .expect("the chapter shows one trace");
@@ -68,6 +92,32 @@ fn the_chapters_multi_revision_example_is_what_the_validator_prints() {
                 "the chapter quotes a line the validator does not produce:\n  {line}\nactual:\n{rendered}"
             );
         }
+    }
+}
+
+#[test]
+fn the_chapters_revision_mismatch_note_is_what_the_validator_prints() {
+    // The second worked example: a `2026-07-28` recording judged against the
+    // default registry. The note is the whole point of the section, so it is
+    // held to the tool exactly like every other quoted line in the chapter.
+    let whole = chapter();
+    let below = &whole[multi_revision_example(&whole).len()..];
+    let trace = fenced_blocks(below, "jsonl")
+        .pop()
+        .expect("the mismatch section shows its own trace");
+    let quoted = fenced_blocks(below, "text")
+        .pop()
+        .expect("the mismatch section quotes the note");
+
+    let registry = mcp_conformance_core::requirement::Registry::builtin_2025_11_25().unwrap();
+    let events = parse_trace(&trace, &Limits::default()).expect("the chapter's trace parses");
+    let rendered = mcp_trace_validator::engine::validate(&registry, &events).render_human();
+
+    for line in quoted.lines().filter(|line| !line.trim().is_empty()) {
+        assert!(
+            rendered.contains(line),
+            "the chapter quotes a line the validator does not produce:\n  {line}\nactual:\n{rendered}"
+        );
     }
 }
 

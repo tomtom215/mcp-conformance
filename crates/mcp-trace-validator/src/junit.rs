@@ -283,6 +283,7 @@ mod tests {
         let mut not_applicable = bare_row("AAAA-005", Outcome::NotApplicable);
         not_applicable.capability = Some("server.tools".to_owned());
         Report {
+            revision_mismatch: None,
             revision: "2025-11-25".to_owned(),
             totals: Totals {
                 pass: 0,

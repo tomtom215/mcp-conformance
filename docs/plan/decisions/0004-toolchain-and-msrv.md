@@ -8,7 +8,9 @@
 action inventory has since grown with release.yml and the conformance job, and every
 action remains SHA-pinned (the policy, not the enumeration, is the decision)
 (2026-06-10: rmcp's measured floor forced the bump this ADR anticipated); edition,
-toolchain-action, and lint policy remain in force
+toolchain-action, and lint policy remain in force; clause 3 is extended — not replaced —
+by [ADR-0014](0014-pin-the-stable-toolchain.md), which pins the exact stable version in
+`rust-toolchain.toml` while keeping installation on plain `rustup` (2026-08-24)
 **Author:** Tom F.
 
 ---

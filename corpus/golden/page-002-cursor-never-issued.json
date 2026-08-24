@@ -3,11 +3,11 @@
   "totals": {
     "pass": 19,
     "fail": 1,
-    "warn": 0,
-    "excluded": 88,
+    "warn": 1,
+    "excluded": 87,
     "unsupported": 0,
     "not_applicable": 6,
-    "not_observed": 26
+    "not_observed": 28
   },
   "requirements": [
     {
@@ -116,6 +116,11 @@
       "outcome": "pass"
     },
     {
+      "id": "LIFE-018",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-004",
       "level": "MUST NOT",
       "outcome": "pass"
@@ -167,6 +172,11 @@
     },
     {
       "id": "TRAN-040",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-049",
       "level": "MUST",
       "outcome": "not-observed"
     },
@@ -280,6 +290,18 @@
           "check": "pagination.cursor-opacity",
           "seq": 3,
           "detail": "tools/list cursor \"eyJmb3JnZWQiOnRydWV9\" was never issued as a nextCursor for that method in this session"
+        }
+      ]
+    },
+    {
+      "id": "PAGE-003",
+      "level": "SHOULD",
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "pagination.invalid-cursor-rejected",
+          "seq": 4,
+          "detail": "`tools/list` presented the cursor \"eyJmb3JnZWQiOnRydWV9\", which this session never issued, and the server answered with a result rather than -32602"
         }
       ]
     }

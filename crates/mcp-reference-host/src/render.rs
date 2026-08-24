@@ -16,7 +16,7 @@
 
 use std::process::ExitCode;
 
-use mcp_reference_host::run::RunReport;
+use mcp_reference_host::run::{RunPlan, RunReport, StopReason};
 use mcp_reference_host::sweep::SweepReport;
 
 /// Sends the probe session and reports what each malformed request drew.
@@ -81,15 +81,104 @@ pub(crate) fn cancel(outcome: &Result<mcp_reference_host::cancel::CancelReport, 
 }
 
 /// The run record, one line per call, on stderr.
-pub(crate) fn run(report: &RunReport) {
-    eprintln!(
-        "mcp-reference-host: {:?} after {} turn(s), {} error(s)",
-        report.stop, report.turns, report.errors
-    );
+pub(crate) fn run(report: &RunReport, plan: &RunPlan) {
+    eprintln!("mcp-reference-host: {}", stopped(report, plan));
     for outcome in &report.outcomes {
         match &outcome.result {
             Ok(text) => eprintln!("  ok   {}: {text}", outcome.tool),
             Err(error) => eprintln!("  err  {}: {error}", outcome.tool),
         }
+    }
+}
+
+/// Why the loop ended, as a sentence naming the flag that changes it.
+///
+/// This used to print the `StopReason` variant with `{:?}`, which named the
+/// condition in Rust's words and the remedy in nobody's. The default plan
+/// tolerates no errors, so a `--sweep` over the everything server — whose tool
+/// list deliberately contains `test_error_handling` — always ends
+/// `ErrorBudgetExhausted` and exits 1. That outcome is correct; a reader who
+/// has to find `--error-budget` in `--help` to learn why is not.
+///
+/// Matched exhaustively on purpose (a same-crate enum): a new [`StopReason`]
+/// must force a deliberate sentence here rather than fall into a wildcard that
+/// prints the variant name again.
+fn stopped(report: &RunReport, plan: &RunPlan) -> String {
+    let RunReport {
+        turns,
+        errors,
+        stop,
+        ..
+    } = report;
+    match stop {
+        StopReason::Completed => {
+            format!("completed {turns} turn(s) with {errors} error(s)")
+        }
+        StopReason::TurnLimit => format!(
+            "stopped at the --turn-limit of {} with calls still planned ({errors} error(s))",
+            plan.turn_limit
+        ),
+        StopReason::ErrorBudgetExhausted => format!(
+            "stopped after {turns} turn(s): {errors} error(s) exceeds the --error-budget of \
+             {}. Raise --error-budget to run past them — a server whose tool list includes an \
+             error-returning tool (this workspace's `test_error_handling`) needs at least 1",
+            plan.error_budget
+        ),
+        StopReason::Cancelled => {
+            format!("cancelled after {turns} turn(s) with {errors} error(s)")
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mcp_reference_host::run::CallPolicy;
+
+    fn plan(turn_limit: u32, error_budget: u32) -> RunPlan {
+        RunPlan {
+            turn_limit,
+            error_budget,
+            calls: CallPolicy::EachDiscoveredToolOnce,
+            log_level: None,
+            trace_parent: None,
+        }
+    }
+
+    fn report(stop: StopReason, turns: u32, errors: u32) -> RunReport {
+        RunReport {
+            turns,
+            errors,
+            stop,
+            outcomes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn the_error_budget_stop_names_the_flag_and_the_number() {
+        let line = stopped(
+            &report(StopReason::ErrorBudgetExhausted, 10, 1),
+            &plan(20, 0),
+        );
+        assert!(line.contains("--error-budget of 0"), "{line}");
+        assert!(line.contains("1 error(s)"), "{line}");
+        assert!(line.contains("Raise --error-budget"), "{line}");
+        // The condition, not the Rust variant name.
+        assert!(!line.contains("ErrorBudgetExhausted"), "{line}");
+    }
+
+    #[test]
+    fn every_other_stop_reads_as_a_sentence_too() {
+        let done = stopped(&report(StopReason::Completed, 12, 0), &plan(20, 0));
+        assert_eq!(done, "completed 12 turn(s) with 0 error(s)");
+
+        let capped = stopped(&report(StopReason::TurnLimit, 20, 0), &plan(20, 0));
+        assert!(capped.contains("--turn-limit of 20"), "{capped}");
+
+        let stopped_early = stopped(&report(StopReason::Cancelled, 3, 0), &plan(20, 0));
+        assert!(
+            stopped_early.starts_with("cancelled after 3"),
+            "{stopped_early}"
+        );
     }
 }

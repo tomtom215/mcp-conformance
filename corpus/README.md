@@ -36,9 +36,20 @@ A report states two kinds of fact, and they are pinned separately
 `golden/exclusions/<revision>.json` holds what the **registry** decided: the
 `excluded` rows, whose outcome and prose come from the registry alone and are
 identical for every trace judged against it — `engine::build_row` never consults
-the session for them. There were 88 such rows in each of the 53 shipped goldens
-and 148 in each of the 79 draft ones — one distinct set per revision, repeated
-132 times, and 59% of the corpus's 165,145 lines.
+the session for them. One distinct set per revision, and before the split every
+golden restated its revision's whole set: at the time that was 59% of the
+corpus's lines.
+
+|  | `2025-11-25` | `2026-07-28` |
+|---|---:|---:|
+| Goldens | 57 | 80 |
+| Excluded rows the ledger holds | 87 | 147 |
+| Distinct not-observed sets across them | 29 | 69 |
+
+Every cell is verified against the corpus by `cargo xtask ci`
+(`xtask::coverage::corpus`). It is checked rather than trusted because it had
+already drifted twice: this paragraph is prose, and prose does not recount
+itself.
 
 Nothing stopped being pinned. Splicing a golden back together with its ledger
 reproduces the whole report, and `assert_reconstructs_the_full_report` proves it
@@ -46,12 +57,12 @@ does on every trace, on every run — so a judged row that went missing, a ledge
 that drifted from its registry, or rows that interleave in any order but the
 registry's all fail the suite. `totals.excluded` stays in every golden as the
 per-trace tie back to the ledger: a clause entering or leaving the excluded set
-moves all 132 files, one line each.
+moves every golden for that revision, one line each.
 
 Only `excluded` collapses. `not-observed` and `not-applicable` are per-trace
-evidence — the 53 shipped goldens carry 28 distinct not-observed sets and the 79
-draft ones 67 — and collapsing them would delete exactly what makes the captures
-differentiate each other.
+evidence, and the table's third row is the measure of it: near one distinct set
+per golden, in both revisions. Collapsing those would delete exactly what makes
+the captures differentiate each other.
 
 ## Violation naming contract
 
@@ -99,7 +110,7 @@ below: the implementations on both ends, the tool that recorded them, and when.
 
 | Trace | Exercises |
 |-------|-----------|
-| `http-session.jsonl` | Streamable HTTP session: session-ID assignment and echo, `MCP-Protocol-Version` headers, `Accept`/`Content-Type` discipline, ping (TRAN-011/013/017/018/025/029/039/040 pass paths) |
+| `http-session.jsonl` | Streamable HTTP session: session-ID assignment and echo, `MCP-Protocol-Version` headers, `Accept`/`Content-Type` discipline, ping (TRAN-011/013/017/018/025/029/039/040 pass paths). It carries all three client request forms, which is what lets the two `Accept` clauses be told apart: POSTs offering both media types (TRAN-025), a standalone-stream `GET` offering `text/event-stream` (TRAN-039), and a session-terminating `DELETE` carrying `Accept: */*`. That last exchange is a regression guard — the clause defining session termination places no `Accept` obligation on it, but until 2026-08-20 both clauses were applied to every client request whatever its method, so this exact teardown drew two MUST-level failures from a client that had violated nothing. |
 | `stdio-feature-session.jsonl` | Every feature area conformant in one session: tools (incl. outputSchema + structuredContent, and a call returning an embedded resource against a declared `resources` capability — TOOL-009's pass path), resources (read/blob/subscribe/updated), prompts (text/image/audio/embedded), logging, completion, pagination cursor flow, and a well-formed `params._meta` key (BASE-019/020's pass path) |
 | `stdio-full-session.jsonl` | Handshake plus ping, tools/list, tools/call over stdio |
 | `stdio-minimal-init.jsonl` | Smallest conformant session: the three-message handshake |
@@ -137,6 +148,7 @@ example).
 | `life-010-initialize-result-missing-capabilities.jsonl` | LIFE-010 |
 | `log-001-capability-undeclared.jsonl` | LOG-001 |
 | `page-002-cursor-never-issued.jsonl` | PAGE-002 |
+| `page-002-fabricated-cursor-rejected.jsonl` | PAGE-002, and with it PAGE-003's pass path: the client fabricates a cursor and the server answers `-32602` rather than honouring it. The two halves of one event belong to different parties, so the trace falsifies the client's clause and evidences the server's. |
 | `prom-001-capability-undeclared.jsonl` | PROM-001 |
 | `prom-003-image-data-invalid.jsonl` | PROM-003 |
 | `prom-004-audio-data-invalid.jsonl` | PROM-004 |
@@ -159,7 +171,10 @@ example).
 | `tran-013-session-id-not-echoed.jsonl` | TRAN-013 |
 | `tran-017-protocol-version-header-missing.jsonl` | TRAN-017 |
 | `tran-018-protocol-version-mismatched.jsonl` | TRAN-018 |
-| `tran-025-accept-header-missing.jsonl` | TRAN-025, TRAN-039 (shared `transport.client-accept-header` check) |
+| `tran-025-accept-header-missing.jsonl` | TRAN-025 (a POST with no `Accept` header at all) |
+| `tran-025-accept-header-json-missing.jsonl` | TRAN-025 (a POST offering `text/event-stream` only — the half of the clause that read as a pass until the check learned the request method) |
+| `tran-039-get-accept-header-missing.jsonl` | TRAN-039 (a standalone-stream GET offering `application/json` only) |
+| `tran-049-message-not-posted.jsonl` | TRAN-049 (a `ping` sent by `PUT` after a clean handshake) |
 | `tran-026-http-post-batch.jsonl` | TRAN-026 (a batch array POSTed after a clean handshake) |
 | `tran-029-content-type-unexpected.jsonl` | TRAN-029, TRAN-040 (shared `transport.success-content-type` check) |
 
@@ -173,12 +188,12 @@ two reports is attributable to that one change.
 
 | Field | `official-suite-2026-07-28-scenarios.jsonl` | `official-suite-2026-07-28-stateless.jsonl` |
 |---|---|---|
-| Client | The **official MCP conformance suite**, `0.2.0-alpha.9`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` held when these were recorded; it moved to `0.2.0-alpha.11` on 2026-08-18, and re-recording is a deliberate act — see below) | The same client, the same scenarios, the same run |
+| Client | The **official MCP conformance suite**, `0.2.0-alpha.11`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` holds) | The same client, the same scenarios, the same run |
 | Server | `mcp-everything-server` serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode |
-| Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-08-17 | same run, second leg |
+| Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-08-20 | same run, second leg |
 | Contents | 91 events / 22 POST exchanges | 91 events / 22 POST exchanges |
-| Our verdict | 59 pass, **1 fail**, 0 warn, 64 not observed, 148 excluded | **60 pass, 0 fail, 0 warn**, 64 not observed, 148 excluded |
-| The official runner's verdict | 23/23 at `alpha.9`; **37 passing / 4 failing** at `alpha.11` | 23/23 at `alpha.9`; **41 passing / 0 failing** at `alpha.11` |
+| Our verdict | 60 pass, **1 fail**, 0 warn, 64 not observed, 147 excluded | **61 pass, 0 fail, 0 warn**, 64 not observed, 147 excluded |
+| The official runner's verdict | **37 passing / 4 failing** | **41 passing / 0 failing** |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
 `resources/{list,read}`, `prompts/{list,get}` and progress notifications; every
@@ -206,6 +221,21 @@ extended; both clauses now pass on both captures. The lesson is recorded rather
 than quietly fixed: **a check can only be as honest as the recording it reads,
 and a capture path that silently drops evidence manufactures findings against
 conforming implementations.**
+
+**The same lesson, a third time, one field over (2026-08-20).** The tap recorded
+an exchange's headers but not its *method*, so `TRAN-025` and `TRAN-039` — the
+`Accept` obligations of a POST and of a GET — were enforced as one rule applied
+to every client request whatever its form. That was wrong twice over, and both
+halves were found by pointing this workspace's own reference host at its own
+reference server over HTTP and validating the tap: the conforming
+session-teardown `DELETE`, which owes no `Accept` header at all, drew two
+MUST-level failures, while a POST omitting `application/json` — the verbatim
+violation `TRAN-025` names — was reported `pass`, because the one shared rule
+could only demand what both clauses had in common. `EventBody::Http` now carries
+the method, each clause is judged against the requests it binds, and an exchange
+whose method the capture did not record is judged by neither. These two captures
+were re-recorded so the method is present; that is why their `Recorded by` row
+reads 2026-08-20.
 
 **Why the runner's 23/23 and our 58-vs-59 were both right — and how the runner
 caught up.** The suite's `2026-07-28` scenarios exercise features — list a
@@ -246,7 +276,7 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all four prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **81 pass, 0 fail, 0 warn**, 43 not observed, 148 excluded |
+| Our verdict | **81 pass, 0 fail, 0 warn**, 44 not observed, 147 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -298,7 +328,7 @@ probe, `MRTR-024`, `BASE-040`, `BASE-047`, and `VERS-004`.
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | 159 events — the stdio session's 85 messages plus 74 `http` events carrying status and headers |
-| Our verdict | **91 pass, 0 fail, 0 warn**, 33 not observed, 148 excluded |
+| Our verdict | **92 pass, 0 fail, 0 warn**, 33 not observed, 147 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -311,7 +341,7 @@ in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 91 of the 124 judgeable clauses it is the best-covered capture here. Its 33
+At 92 of the 125 judgeable clauses it is the best-covered capture here. Its 33
 not-observed rows are the server-rejection rules a conforming client never
 triggers, the pagination and `x-mcp-header` clauses this server's surface does
 not reach, and `TOOL-022` (rmcp's client caches `tools/list` under the
@@ -393,14 +423,14 @@ read as a specimen instead.
 <!-- draft-coverage:begin (generated by `cargo xtask draft-coverage`; do not edit by hand) -->
 | Capture | Judged | pass | fail | warn | Not observed |
 |---------|-------:|-----:|-----:|-----:|-------------:|
-| `official-suite-2026-07-28-scenarios` | 60 | 59 | 1 | 0 | 64 |
-| `official-suite-2026-07-28-stateless` | 60 | 60 | 0 | 0 | 64 |
-| `probe-2026-07-28-http` | 67 | 55 | 10 | 2 | 57 |
-| `reference-host-2026-07-28-http` | 91 | 91 | 0 | 0 | 33 |
-| `reference-host-2026-07-28-stdio` | 81 | 81 | 0 | 0 | 43 |
-| **Union** | **113** | | | | **11** |
+| `official-suite-2026-07-28-scenarios` | 61 | 60 | 1 | 0 | 64 |
+| `official-suite-2026-07-28-stateless` | 61 | 61 | 0 | 0 | 64 |
+| `probe-2026-07-28-http` | 68 | 56 | 10 | 2 | 57 |
+| `reference-host-2026-07-28-http` | 92 | 92 | 0 | 0 | 33 |
+| `reference-host-2026-07-28-stdio` | 81 | 81 | 0 | 0 | 44 |
+| **Union** | **114** | | | | **11** |
 
-Across all 5 captures, **113 of the 124 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 5 captures, **114 of the 125 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
 The 11 clauses no capture reaches: `CACH-015`, `CACH-016`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-096`, `VERS-004`.
 <!-- draft-coverage:end -->

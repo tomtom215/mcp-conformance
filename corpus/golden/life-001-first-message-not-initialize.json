@@ -1,13 +1,13 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 12,
+    "pass": 10,
     "fail": 1,
     "warn": 1,
-    "excluded": 88,
+    "excluded": 87,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 24
+    "not_observed": 29
   },
   "requirements": [
     {
@@ -122,10 +122,15 @@
     {
       "id": "LIFE-009",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "LIFE-010",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "LIFE-018",
       "level": "MUST",
       "outcome": "not-observed"
     },
@@ -185,9 +190,14 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-049",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TOOL-001",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-003",
@@ -296,6 +306,11 @@
     {
       "id": "PAGE-002",
       "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PAGE-003",
+      "level": "SHOULD",
       "outcome": "not-observed"
     }
   ]

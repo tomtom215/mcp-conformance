@@ -21,7 +21,7 @@
 /// dropped, typographic quotes straightened, whitespace runs collapsed —
 /// and the quote convention's `"; "` list joins relaxed to single spaces on
 /// both sides before matching.
-pub(super) fn normalize(text: &str) -> String {
+pub(crate) fn normalize(text: &str) -> String {
     let mut joined = String::with_capacity(text.len());
     for line in text.lines() {
         let trimmed = line.trim_start();

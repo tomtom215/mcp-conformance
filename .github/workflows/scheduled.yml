@@ -14,6 +14,23 @@ on:
     # Mondays 06:00 UTC — early enough that a red run is seen the same day.
     - cron: "0 6 * * 1"
   workflow_dispatch:
+    inputs:
+      only:
+        description: >-
+          Which of this workflow's jobs to run. `all` is the weekly sweep and
+          the default. `claims` runs the claims-expire gates and their
+          notification alone, skipping the mutation sweep, fuzzing, the
+          cross-architecture matrix and the benchmarks — minutes rather than
+          hours. It exists because the notification is the one part of this
+          workflow whose live behaviour cannot be established any other way:
+          `gh` either accepts those flags against a real repository or it does
+          not, and the steps run inside an already-red job where a wrong flag
+          shows up as an issue that never appears.
+        type: choice
+        default: all
+        options:
+          - all
+          - claims
 
 permissions:
   contents: read
@@ -31,14 +48,14 @@ env:
 jobs:
   audit:
     name: cargo-audit (RustSec)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
       - name: Audit dependencies
@@ -46,14 +63,14 @@ jobs:
 
   full-mutants:
     name: Mutants (full sweep)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-mutants
         run: cargo install cargo-mutants --locked
       # The standard (docs/plan/04-engineering-standards.md): zero surviving mutants
@@ -70,16 +87,16 @@ jobs:
   # the exact pin in xtask. Failures here are signal to read, never a gate.
   suite-alpha:
     name: Conformance (suite alpha line, informational)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Official suite (alpha dist-tag) vs everything-server
         run: cargo xtask conformance
         env:
@@ -92,27 +109,29 @@ jobs:
   # or a regression. `BLESS=1 cargo xtask draft-readiness` re-records.
   draft-readiness:
     name: Draft readiness (2026-07-28 scenarios, ratcheted)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Draft scenarios vs everything-server, against the committed baseline
         run: cargo xtask draft-readiness
 
   fuzz:
     name: Fuzz (every declared target)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install toolchain
         run: |
           rustup toolchain install nightly --profile minimal --no-self-update
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: fuzz
       - name: Install cargo-fuzz
@@ -162,12 +181,14 @@ jobs:
   # informational — a finding is a genuine defect, not a nightly-churn artifact.
   careful:
     name: cargo-careful (UB / overflow on the engine crates)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install nightly toolchain (with rust-src for the careful sysroot)
         run: rustup toolchain install nightly --profile minimal --component rust-src --no-self-update
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-careful
         run: cargo install cargo-careful --locked
       # These two crates have no behavior-affecting feature split — core has no
@@ -196,6 +217,8 @@ jobs:
   # on any of them is a real defect, not a nightly-churn artifact.
   cross-arch:
     name: Cross-arch byte-identity (${{ matrix.note }})
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -215,10 +238,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install toolchain (with the ${{ matrix.rust_target }} std target)
         run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
+          rustup show active-toolchain
           rustup target add ${{ matrix.rust_target }}
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install the cross toolchain for ${{ matrix.note }}
         run: |
           sudo apt-get update
@@ -237,6 +259,8 @@ jobs:
   # claims-expiry gates, not a defect in unrelated work.
   minimal-versions:
     name: Dependency floors (oldest versions resolve, build, and test)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -244,9 +268,11 @@ jobs:
       - name: Install nightly (for -Z direct-minimal-versions) and stable
         run: |
           rustup toolchain install nightly --profile minimal --no-self-update
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+          # The non-nightly half of this job runs on the pinned toolchain, which
+          # rust-toolchain.toml installs; `cargo +nightly` overrides it where the
+          # unstable flag is needed.
+          rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Resolve to the declared floors, then build and test there
         run: cargo xtask minimal-versions
 
@@ -256,14 +282,14 @@ jobs:
   # downloading two artifacts and diffing criterion's estimates.
   bench:
     name: Benchmarks (history artifact)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Run benchmarks
         run: cargo bench --workspace
       - name: Upload criterion estimates
@@ -300,7 +326,7 @@ jobs:
   #   * This workflow triggers only on `schedule` and `workflow_dispatch`, so
   #     no fork or pull-request input reaches the token.
   claims-expire:
-    name: Deferral ledger + spec quotes + suite pins (ADR-0010)
+    name: Deferral ledger + spec quotes + suite pins + register currency (ADR-0010)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -314,11 +340,9 @@ jobs:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Deferral ledger within its review dates
         id: ledger
         run: cargo xtask deferrals --check
@@ -338,6 +362,25 @@ jobs:
         id: pins
         if: always()
         run: cargo xtask suite-currency
+      # The fourth claim on somebody else's schedule, and the one that had no
+      # noticing at all: a Rust release. The pin stays exact and bumping it
+      # stays a deliberate commit; a release used to arrive as thirteen
+      # consecutive red pull-request runs instead.
+      - name: The pinned toolchain still equals current stable
+        id: toolchain
+        if: always()
+        run: cargo xtask toolchain-currency
+      # The fifth claim, and the only one that expires on *our* schedule rather
+      # than someone else's: the ecosystem register's own maintenance rule 1.
+      # The rule was stated in the register's prose and read by nothing; the
+      # 2026-08-24 sweep it should have driven happened because a hand-written
+      # ledger row scheduled it, and that row's scope figure was a grep miscount
+      # (ADR-0015). The dates the gate reads are the ones the rows already
+      # carry, so the schedule cannot drift from the data.
+      - name: Register rows re-verified within the 90-day rule
+        id: register
+        if: always()
+        run: cargo xtask register-currency --check
       - name: Open or update the tracking issue
         if: failure()
         shell: bash
@@ -345,17 +388,21 @@ jobs:
           LEDGER_OUTCOME: ${{ steps.ledger.outcome }}
           DRIFT_OUTCOME: ${{ steps.drift.outcome }}
           PINS_OUTCOME: ${{ steps.pins.outcome }}
+          TOOLCHAIN_OUTCOME: ${{ steps.toolchain.outcome }}
+          REGISTER_OUTCOME: ${{ steps.register.outcome }}
         run: |
           set -euo pipefail
           # printf rather than a heredoc so every backtick in the Markdown is
           # literal, and so nothing fetched from the network can reach the body.
           {
             printf 'The weekly `claims-expire` job ended red.\n\n'
-            printf 'It runs three independent gates ([ADR-0010](%s/%s/blob/main/docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md)), so this issue names which one: an un-re-decided deferral, an upstream release, and a transient spec fetch failure look identical from the outside.\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY"
+            printf 'It runs five independent gates ([ADR-0010](%s/%s/blob/main/docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md), extended by [ADR-0015](%s/%s/blob/main/docs/plan/decisions/0015-the-tier-2-premise-is-gone.md)), so this issue names which one: an un-re-decided deferral, an upstream release, a Rust release, a stale register row, and a transient spec fetch failure look identical from the outside.\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY"
             printf '| Gate | Outcome |\n| --- | --- |\n'
             printf '| Deferral ledger within its review dates | `%s` |\n' "$LEDGER_OUTCOME"
             printf '| Registry quotes match the published spec text | `%s` |\n' "$DRIFT_OUTCOME"
             printf '| Both suite pins still equal the dist-tags they track | `%s` |\n' "$PINS_OUTCOME"
+            printf '| The pinned toolchain still equals current stable | `%s` |\n' "$TOOLCHAIN_OUTCOME"
+            printf '| Register rows re-verified within the 90-day rule | `%s` |\n' "$REGISTER_OUTCOME"
           } > issue-body.md
           if [[ "$LEDGER_OUTCOME" == "failure" ]]; then
             # `|| true`: this query fails only when the ledger itself is
@@ -386,6 +433,18 @@ jobs:
               printf 'A pinned conformance-suite version no longer equals the npm dist-tag it tracks. The run log names which pin and what the tag moved to; the bump itself stays a deliberate change, with the per-pin procedure in `docs/plan/03-conformance-strategy.md`. Holding the pin is a legitimate outcome, recorded where the pin lives.\n'
             } >> issue-body.md
           fi
+          if [[ "$TOOLCHAIN_OUTCOME" == "failure" ]]; then
+            {
+              printf '\n### Toolchain pin\n\n'
+              printf 'A new Rust stable has shipped and `rust-toolchain.toml` still pins the old one. Bumping is a deliberate commit: raise `channel`, run `cargo xtask ci`, and fix or record what the new lints say in the same commit. Holding the pin is a legitimate outcome, recorded where the pin lives. The run log names both versions.\n'
+            } >> issue-body.md
+          fi
+          if [[ "$REGISTER_OUTCOME" == "failure" ]]; then
+            {
+              printf '\n### Register currency\n\n'
+              printf 'One or more rows in `docs/plan/01-ecosystem-context.md` have passed the register%s own 90-day rule. Re-verify each against its listed primary source and update value, date and source in place (maintenance rule 2). If a source cannot be reached, say so in the row and leave its date alone: advancing a date nobody re-checked is the one failure that makes the register worthless. The run log names each row, its line, its date and its age.\n' "'s"
+            } >> issue-body.md
+          fi
           printf '\nRun: %s\n' "$RUN_URL" >> issue-body.md
           # An exact-title match over the open issues, not `gh issue list
           # --search`, whose index lags creation by enough to file a duplicate.
@@ -393,9 +452,20 @@ jobs:
             | jq -r --arg title "$ISSUE_TITLE" 'map(select(.title == $title)) | .[0].number // empty')"
           if [[ -n "$number" ]]; then
             gh issue comment "$number" --body-file issue-body.md
+            action="commented on #$number"
           else
             gh issue create --title "$ISSUE_TITLE" --body-file issue-body.md
+            action="opened"
           fi
+          # These steps run inside a job that is already red, so a broken `gh`
+          # adds one more red step to a run whose colour was never going to
+          # change, and the only symptom is an issue that never appears —
+          # nobody watches for the absence of a notification. Stating the
+          # outcome on the run summary makes the absence itself visible.
+          {
+            printf '### claims-expire notification\n\n'
+            printf 'Tracking issue **%s**. A red run without this line means the notification step did not finish.\n' "$action"
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
       - name: Close the tracking issue once all three gates are green
         if: success()
         shell: bash
@@ -405,4 +475,6 @@ jobs:
             | jq -r --arg title "$ISSUE_TITLE" 'map(select(.title == $title)) | .[0].number // empty')"
           if [[ -n "$number" ]]; then
             gh issue close "$number" --comment "All three gates are green as of ${RUN_URL} — closing. A later red run files a fresh issue, so each incident keeps its own history."
+            printf '### claims-expire notification\n\nTracking issue **#%s closed** — all three gates are green.\n' "$number" \
+              >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           fi

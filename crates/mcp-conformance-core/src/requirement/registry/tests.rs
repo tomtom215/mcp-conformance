@@ -73,7 +73,7 @@ fn builtin_registry_parses_and_validates() {
     // dropped from the embed (a forgotten include, a bad merge) shrinks
     // the count without failing any floor check. The README coverage
     // gate pins the same number from the other direction.
-    assert_eq!(registry.requirements().len(), 140);
+    assert_eq!(registry.requirements().len(), 142);
     assert!(registry.get("LIFE-001").is_some());
     assert!(registry.get("NOPE-999").is_none());
 }

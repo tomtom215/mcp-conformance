@@ -113,6 +113,35 @@ fn warnings_pass_by_default_and_fail_under_strict() {
 
     let strict = run(&["validate", trace.to_str().unwrap(), "--strict"]);
     assert_eq!(strict.status.code(), Some(1), "{strict:?}");
+
+    // The report's verdict line is a property of the trace, so `--strict` does
+    // not rewrite it — which left the run ending `verdict: pass-with-warnings`
+    // and exiting 1, with nothing connecting the two. stdout stays the report;
+    // the sentence that reconciles them goes to stderr.
+    assert_eq!(
+        stdout(&strict),
+        stdout(&lenient),
+        "stdout must not depend on --strict"
+    );
+    let note = String::from_utf8_lossy(&strict.stderr).into_owned();
+    assert!(note.contains("--strict"), "{note}");
+    assert!(note.contains("exits 1"), "{note}");
+    assert!(
+        String::from_utf8_lossy(&lenient.stderr).is_empty(),
+        "a lenient run says nothing on stderr"
+    );
+
+    // A run `--strict` did not promote says nothing either.
+    let clean = run(&[
+        "validate",
+        corpus("good/stdio-full-session.jsonl").to_str().unwrap(),
+        "--strict",
+    ]);
+    assert_eq!(clean.status.code(), Some(0), "{clean:?}");
+    assert!(
+        String::from_utf8_lossy(&clean.stderr).is_empty(),
+        "{clean:?}"
+    );
 }
 
 #[test]

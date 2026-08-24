@@ -13,6 +13,73 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **The register's own 90-day rule is now a gate, and running it early found
+  that three of the four premises this project was founded on had closed.**
+  `docs/plan/01-ecosystem-context.md` has stated maintenance rule 1 since it was
+  written — *"a row older than 90 days must be re-verified before it is cited in
+  anything external"* — and nothing read it. The rule ran on a hand-written
+  deferral-ledger row, and that row's own scope figure ("50 rows") was a `grep`
+  miscount: the real scope was 48 facts, 39 with a per-row date and nine covered
+  by a table header's.
+
+  `cargo xtask register-currency` reads the dates the rows already carry. Without
+  a flag it validates shape — a status the register's preamble defines, a date
+  that parses, none dated in the future — and runs inside `cargo xtask ci`,
+  because a malformed row is a defect in the change that wrote it. `--check`
+  fails on rows past ninety days and runs weekly beside `deferrals --check`, for
+  [ADR-0010](docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md)'s
+  reason: an expiry pages the schedule, it does not block an unrelated pull
+  request. Both halves were tripped deliberately before being trusted — a
+  back-dated row and a bad status each fail with the row, its line and its age
+  named. Its vacuous-walk guard is the one every walk-the-tree gate needs: a
+  reshaped table that yields no rows fails rather than reporting success having
+  checked nothing.
+
+  The sweep it replaces was then run, two weeks early, against primary sources.
+  **Four rows were refuted.** The current protocol revision is `2026-07-28`, not
+  `2025-11-25` (row 1.1). **The Rust SDK is Tier 1**, not Tier 2 — corroborated
+  three ways, and later than the revision ship, since the 2026-07-28 post still
+  placed Rust outside "all four Tier 1 SDKs" (row 2.8). SEP-1627 is **superseded
+  by SEP-2484**, which says in terms that "SEP-1627's golden-trace approach was
+  not carried forward" while "SEP-1627's protocol-debugger ideas remain valuable
+  future work" (row 2.12). And an `rmcp`-keyed RustSec advisory now exists —
+  `RUSTSEC-2026-0189` — closing a gap this register had recorded as blocked, and
+  recording that its own 2026-07-26 re-check had searched for a guessed filename
+  and concluded "absent" about something already in the database (row 4.3).
+
+  Three of the four gaps in the charter's third premise are therefore closed —
+  the tier, the missing MSRV, and the missing advisory — leaving the everything
+  server as the only published one.
+  [ADR-0015](docs/plan/decisions/0015-the-tier-2-premise-is-gone.md) works
+  through what that costs and what it does not: the scope decision stands on the
+  premise that nobody has built the offline half, which the sweep strengthened,
+  and it says plainly that an argument from absence is the weaker foundation.
+  The charter, the conformance strategy and risk R2 are corrected to match. R2's
+  watch signal had fired and been left armed — a signal still waiting for an
+  event that already happened is a defect, not vigilance.
+
+  Four new rows record what the sweep found rather than confirmed: the roadmap
+  published 2026-08-22, whose five priority areas include SDK "conformance with
+  the specification" (1.9); the official suite's frozen per-revision requirement
+  sets, which reach several of this workspace's own conclusions independently
+  (2.18); three of that suite's spec-reference URLs that 404 in both pinned
+  versions (2.19); and the docs-site restructure that had quietly emptied the
+  page rows 1.5a/1.5b cited (2.20).
+
+  The contribution backlog is corrected with it: item 2 (the RustSec advisory)
+  joins item 3 as closed-upstream-before-we-filed, item 7's coverage bar widens
+  to the SHOULD level SEP-2484 actually requires, and a new item 12 offers the
+  three-string-literal fix for the suite's 404ing spec references. Item 1, the
+  everything server, is now the only backlog entry anchored to a gap the
+  ecosystem still publishes — which is worth naming rather than celebrating a
+  fourth closure: a backlog of *gaps* decays on somebody else's schedule.
+
+  **What could not be verified is marked as unverified rather than advanced.**
+  GitHub was unreachable from the session that ran the sweep, so the four rows
+  sourced only from issue state keep their original dates, stay outside the
+  citation window, and carry a ledger row of their own. Re-dating a row nobody
+  re-checked is the one failure that would make the register worthless.
+
 - **Neither official-suite pin can fall behind unnoticed any more.** Both
   versions this workspace pins are exact on purpose — a gate whose input moves
   underneath it is not a gate — but exactness only makes the input stable, it
@@ -85,7 +152,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   entries, nothing aspirational.** Every page is entered by the same
   per-requirement method as `2025-11-25` — live fetch, verbatim quote, then a
   named check or an exclusion whose reason is specific to that clause — giving
-  **272 entries: 124 judged, 0 unsupported, 148 excluded**, behind the
+  **272 entries: 125 judged, 0 unsupported, 147 excluded**, behind the
   off-by-default `draft-2026-07-28` feature. `spec-drift` verifies **412 quotes
   across both revisions**, and every judged clause has both a conforming and a
   violating trace behind it. The `2025-11-25` registry is untouched at 140
@@ -139,7 +206,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   clauses at all — which is how the `-32002` defect above was found on the
   first run.
 
-  The committed stdio capture now evidences **81 of the 124 judgeable clauses,
+  The committed stdio capture now evidences **81 of the 125 judgeable clauses,
   up from 56**, with no new findings: the error-code partition
   (`BASE-052`…`BASE-060`), logging (`LOG-007`/`008`/`009`), prompts
   (`PROM-012`/`013`/`016`/`018`/`020`), resources
@@ -169,7 +236,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   hand-written reason, and the gate holds the set in both directions. It has
   since worked both ways: the two server defects it found went into the ledger,
   and when they were fixed the gate refused the change until their entries were
-  retired. Across all five captures **113 of the 124 judgeable clauses are now
+  retired. Across all five captures **114 of the 125 judgeable clauses are now
   evidenced**, up from 92, and all ten rejection clauses the probe exercises
   pass.
 
@@ -182,7 +249,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   Streamable HTTP clauses *not observed* exactly like the stdio
   one. The tap sits above the transport and sees status lines and headers.
 
-  At **91 of the 124 judgeable clauses, 0 fail** it is the best-covered capture
+  At **92 of the 125 judgeable clauses, 0 fail** it is the best-covered capture
   in the corpus, and the pair is now genuinely complementary: same session,
   both ends, one file each, so every difference between the two reports is
   attributable to the transport. `corpus/README.md` records what each capture's
@@ -263,9 +330,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   that reading cannot provide, and the matched pair is what makes every
   difference between the two reports attributable to the one variable.
 
-  The legacy server scores **59 pass, 1 fail** (CACH-001: no `ttlMs` on
+  The legacy server scores **60 pass, 1 fail** (CACH-001: no `ttlMs` on
   cacheable results, the correct answer for a server held to a revision it does
-  not implement); the stateless server scores **60 pass, 0 fail**. Both leave
+  not implement); the stateless server scores **61 pass, 0 fail**. Both leave
   64 clauses *not observed* — these scenarios exercise features, and the
   revision's rejection rules, subscriptions and MRTR rounds are not among them.
   The official runner scores both **23/23**: it cannot separate the two
@@ -332,12 +399,577 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The weekly full mutation sweep found two survivors, and both were the same
+  untested code path.** 1726 mutants, 2 missed: deleting either `Titled` arm from
+  the reference host's `default_of` fell through to the `_ => None` that exists
+  for rmcp's `#[non_exhaustive]` future variants, so a titled enum's declared
+  default silently vanished. SEP-1330's titled enum forms — the ones carrying a
+  human label per choice, so they deserialize to a different variant than a plain
+  `enum` array — had no test at all; the suite's scenario sends the untitled form,
+  and the corpus followed it. A host that drops a declared default answers an
+  elicitation without a field the server asked it to prefill, which is precisely
+  what `AcceptWithDefaults` exists to avoid. Three tests now cover both titled
+  forms and the no-default case; `cargo mutants` over that file reports 7 of 7
+  caught.
+
+- **A dependency floor went dishonest with no local change.**
+  `mcp-reference-host` declared `sse-stream = ">=0.2, <0.3"`, which
+  `-Z direct-minimal-versions` resolves to 0.2.0 — and rmcp 3.1.2 requires
+  `^0.2.4`, so the two could not be satisfied together and the weekly floors gate
+  went red. Raised to `>=0.2.4`, the minimum the tree actually resolves to. This
+  is the failure mode that gate was built for: a floor that was honest when
+  written and stopped being so when an upstream manifest moved.
+
+- **The toolchain is pinned, and the pin is gated in both directions.** Every
+  gate here runs at `-D warnings` under clippy's pedantic and nursery groups,
+  which makes the compiler an *input* to the gate — and the rule this repository
+  already applies to the official-suite pins applies to it: a gate whose input
+  moves underneath it is not a gate. It was the one input still floating. CI
+  installed `stable`; contributors ran whatever they had; and because a local
+  `cargo xtask ci` structurally cannot see lints from a toolchain it does not
+  have, the two diverged and stayed diverged for thirteen consecutive red runs.
+
+  `rust-toolchain.toml` now pins it exactly. `rustup` honours the file for every
+  plain `cargo` in the tree, so a checkout and CI compile with the same lints by
+  construction — which is the half that closes the gap, not the workflow edit.
+  Legs wanting a different toolchain say so where it outranks a directory
+  override: `RUSTUP_TOOLCHAIN` for the MSRV matrices, `cargo +nightly` for the
+  unstable-flag tasks. Fourteen `rustup default stable` invocations across five
+  workflows became one `rustup show active-toolchain` each.
+
+  Two gates hold it. `cargo xtask toolchain-pin` (offline, in `ci`) fails when a
+  workflow gates on a version the pin does not name — the `matrix` context cannot
+  read `env`, so the number is written out and checked, as the MSRV constant is
+  checked against the manifest — or when one installs bare `stable` again. `cargo
+  xtask toolchain-currency` (network, weekly) asks rust-lang.org what stable is
+  and fails when the pin is not it; it joins the ledger, drift and suite-pin gates
+  in the `claims-expire` job, so a Rust release now arrives as a tracking issue
+  naming the bump procedure rather than as a red pull request nobody caused.
+  Bumping stays a deliberate commit, and holding the pin stays a legitimate
+  outcome recorded where the pin lives.
+
+- **The two registries never compared their readings of a clause they both
+  carry, and four had drifted.** Requirement ids are unique across the whole set
+  rather than per revision, so a sentence the specification keeps unchanged is
+  entered twice under two ids — `BASE-001` and `BASE-043` are one clause. That
+  makes each pair two independent readings of the same sentence, written months
+  apart, and nothing had ever put them side by side.
+
+  `cargo xtask registry-continuity` does, over the 30 clauses both revisions
+  carry. It compares level, actor, and whether the clause is judged or excluded
+  — not the check *ids*, because a revision can need a different implementation
+  of the same clause and five capability clauses legitimately do (`2026-07-28`
+  reads declarations off `server/discover` where `2025-11-25` reads them off an
+  `initialize` result). A level disagreement is always a defect, since the RFC
+  2119 keyword is inside the quote and the quotes are identical; actor and
+  verification are judgments, so they get a ledger with a reason rather than a
+  silence. The ledger is empty, which is the point of it: all four
+  disagreements were defects.
+
+  It reports `PAGE-003`/`PAGE-011` in the words above, the gap that had to be
+  found by reading. The other three were about which party a clause binds:
+  `LOG-012` said `both` for a rule on log-message content, where every emission
+  clause in the same registry says the server emits; `TOOL-017` said `both` for
+  the human-in-the-loop rule whose own section-neighbour `TOOL-018` says
+  `client`; and `TOOL-013` said `server` for "tool names SHOULD be considered
+  case-sensitive", which unlike its siblings constrains how a name is *compared*
+  rather than what a server names its tools — both ends compare. Nothing reads
+  `actor`, which is exactly why nothing noticed.
+
+- **rmcp 3.1.2 → 3.1.4, taken as its own measured change.** A patch bump inside
+  the range the manifest already declares (`>=3.1.1, <4`), so
+  [ADR-0011](docs/plan/decisions/0011-rmcp-pin-holds-at-1-7.md)'s pin decision —
+  whose condition was met when the spec text and a stable `3.0.x` both landed —
+  is not reopened by it.
+
+  It was kept out of the dependency commit because two of its seven fixes touch
+  **elicitation schemas**, and this workspace both sends them (the everything-
+  server serves the three elicitation scenarios the suite checks) and reads them
+  (the reference host derives defaults from them). Read from the published
+  crates rather than a release note: `3.1.3` preserves elicitation property-order
+  metadata, and `3.1.4` preserves the `requestedSchema` `$schema` dialect.
+
+  Structurally that is not a small change. `ElicitationSchema` gains two public
+  fields (`schema`, `property_order`) and now serialises through a wire type
+  backed by an `IndexMap`, so **property order on the wire can move** — the sort
+  of thing a green build hides completely. Measured rather than assumed: all six
+  captured `requestedSchema` payloads were extracted from the committed traces,
+  the sessions re-recorded on 3.1.4, and the two compared. Three distinct
+  schemas, identical set, identical property order, no `$schema` key appearing.
+  The reason is that this workspace builds its schemas from a `BTreeMap`, which
+  leaves `property_order` at `None` and falls back to sorted order.
+
+  `getrandom` looks like a downgrade in the lockfile diff and is not one: both
+  0.3.4 and 0.4.3 were already in the tree, and only `tempfile`'s edge moved
+  during re-resolution. `rmcp` gains `indexmap`; `rmcp-macros` gains `serde`.
+
+  Six legs, all green: `ci`, the official suite (40/40 server over 30 sessions,
+  the client leg's four scenarios, zero unexplained divergence either side),
+  `draft-capture` (judged clean), `draft-readiness` (matches the committed
+  baseline exactly), `minimal-versions` (the floors still resolve, build and
+  pass — the declared floor stays 3.1.1, since nothing here needs 3.1.4), and
+  the targeted wire diff above.
+
+- **Dependabot's two open updates, verified and taken.** The actions group
+  (#36: `Swatinem/rust-cache` 2.9.1 → 2.9.2, `actions/attest-build-provenance`
+  4.1.1 → 4.2.2) conflicted with this branch and only because of it — the
+  branch rewrote the very `rustup` lines its diff used as context. Both SHAs
+  were resolved against the upstream repositories before being taken rather
+  than trusted from the bot: `rust-cache`'s v2.9.2 is an annotated tag whose
+  *commit* is the pinned `6323deb…` (the tag object is a different hash, and
+  pinning that one would be a subtle mistake), and `attest-build-provenance`'s
+  v4.2.2 is a lightweight tag pointing straight at `4d10147…`.
+
+  The cargo group (#37: clap 4.6.6, schemars 1.2.2, http-body-util 0.1.5,
+  futures 0.3.34, http 1.5.0) needed no rebase at all — it touches only
+  `Cargo.lock`, which this branch does not, and GitHub reports it clean. Applied
+  here it reproduces that PR's diffstat exactly, 35 insertions and 35 deletions
+  in one file. Three of the five are more than cosmetic and sit in the wire
+  path: `http` now enforces a maximum length in `PathAndQuery`, `futures`
+  preserves cloned waker identity, and `http-body-util` moved a doc attribute.
+  So they were put through the official suite rather than the unit tests alone:
+  40/40 server checks over 30 tapped sessions, the client leg's four scenarios,
+  and zero unexplained divergence on either side.
+
+- **The licence header was a checklist box; it is a gate.** The pull-request
+  template asked for "SPDX header on every new file" and nothing checked it. It
+  was true — 281 of 281 eligible tracked files carried one when this was written
+  — which is the argument for mechanizing it while the tree is clean rather than
+  after the first file slips through a large change with the box ticked from
+  memory. `cargo xtask spdx` reads `git ls-files`, so it judges what is committed
+  rather than what happens to be in a working tree. JSON and JSONL are exempt
+  (no comment syntax, and the registries, goldens and corpus are all JSON),
+  along with lockfiles, `LICENSE` itself, and the fuzz corpus, whose inputs are
+  valuable precisely for being byte-exact. Verified in both directions: it passes
+  the committed tree and fails, naming the file, on a tracked file without one.
+
+- **CI had been red for thirteen consecutive runs on three unrelated causes.**
+  Two are lints that only exist in a newer clippy than any local check runs:
+  1.98 added `unused_async_trait_impl`, which fires sixteen times across the
+  rmcp handler and transport impls, and it now sees `.ok().is_some_and(..)` on a
+  `Result` as `.is_ok_and(..)`. The `is_ok_and` reading is simply better and is
+  taken. The async one is declined once in `[workspace.lints.clippy]` rather
+  than at sixteen impl blocks: two of the sites are generated by rmcp's
+  `#[tool_handler]` / `#[prompt_handler]` macros and cannot be written any other
+  way here, so taking the advice everywhere it *can* be taken would leave the
+  handlers inconsistent with themselves and still not clean.
+
+  The third is a portability defect in this branch's own notification harness,
+  and it is the interesting one. The harness puts a directory of stub `gh` and
+  `cargo` executables first on `PATH` — joined with `:`, which is not the
+  Windows separator. On the Windows runners the stub directory therefore never
+  went on `PATH` at all and the script reached the runner's real `gh` and
+  `cargo`: four tests failed, and the other four were asserting against those
+  real binaries. The step under test is a `run:` block on an `ubuntu-latest`
+  job, so the eight that execute it are now `cfg(unix)` — a POSIX shell is the
+  environment the script has, not an implementation detail of the test. The four
+  that read the workflow rather than running it stay platform-independent, which
+  is what a Windows contributor can still break.
+
+- **`PAGE-003`'s exclusion said a trace cannot judge the clause; the same
+  clause is judged at the next revision, by a check that needs nothing new.**
+  `2025-11-25` entered "Invalid cursors SHOULD result in an error with code
+  -32602" with an exclusion: *"whether a cursor is invalid is server-internal
+  knowledge; a trace cannot distinguish a server accepting a stale-but-valid
+  cursor from one silently tolerating an invalid one."* True of the general
+  case, and written as a verdict on the clause. `2026-07-28` entered the
+  identical quote as PAGE-011 with a check, which finds the narrow case the
+  sentence itself excludes: a cursor with **no issuance anywhere in the
+  session**, which a recording decides on its own. Nothing went back.
+
+  `corpus/violations/page-002-cursor-never-issued.jsonl` had been in the corpus
+  the whole time — a fabricated cursor answered with a result — and the shipped
+  revision reported nothing about the server half of it. The check moves out of
+  the draft-gated module (where the 2025 registry could not reach it) beside the
+  other pagination checks, PAGE-003 is judged, and a second trace evidences the
+  pass path: the same fabricated cursor, answered with `-32602`. The client's
+  clause is falsified and the server's is evidenced by one exchange, which is
+  what two parties to one event looks like.
+
+  `2025-11-25` now judges 55 of its 142 clauses, up from 54, with 87 exclusions
+  rather than 88.
+
+- **The corpus README argued the golden split with six numbers and all six were
+  wrong.** It said 53 shipped goldens and 79 draft ones (57 and 80), 88 and 148
+  ledger rows (87 and 147), 28 and 67 distinct not-observed sets (29 and 69) —
+  drift from several changes, none of which had reason to look there. The
+  README's own coverage block is generated and the book's table gained a gate
+  the day before; this was the third document stating counts the data owns and
+  the only one with nothing watching it. The numbers are now a table, and
+  `xtask::coverage::corpus` verifies every cell against the corpus on each
+  `cargo xtask ci`.
+
+- **A test that waited on server output hung forever instead of failing.**
+  Every read in the binary tests waits on a line the server is supposed to
+  produce, and each was an unbounded `read_line`, so the moment the server
+  stopped producing it the test stopped too. `cargo test` has no per-test
+  timeout: the symptom is not a red test but a CI job that spends its whole
+  budget blocked, with nothing in the log saying on what.
+
+  The mutation gate surfaced it and could not name it. Flipping
+  `HttpSecurityPolicy::validates_nothing` to `false` removes the startup
+  warning, which
+  `disabling_host_validation_warns_after_the_readiness_line` exists to assert;
+  it should have failed in milliseconds. Measured, it blocked indefinitely
+  (killed at 45s), and cargo-mutants could only report a 183-second `TIMEOUT` —
+  the one outcome that says nothing about whether a test noticed.
+
+  Reads are now bounded by a shared `tests/common` helper that reads on a worker
+  thread, mirroring `xtask::conformance::await_readiness_line`, which had this
+  right already. Same mutation, same 30-second bound as the conformance task:
+  `no warning line within 30s`, naming the line that never came. Applied to all
+  eleven pipe reads across `cli.rs` and `stateless_stdio.rs` — a stalled
+  subscription or an unanswered request is exactly what those tests exist to
+  catch — and the four raw HTTP exchanges now carry a read timeout for the same
+  reason.
+
+- **Seven capability clauses reported *pass* on sessions that could not have
+  declared anything.** `support::server_capability` is a tri-state: the trace
+  declared the capability, the trace withheld it, or the trace carries no
+  `initialize` result and so has no declaration surface to read at all. Its own
+  doc said the third case means "judgment must abstain". Eight of its nine
+  callers discarded it — six wrote `!= Some(false)`, one `== Some(false)` —
+  which reads a missing handshake as a declaration and reports a green row.
+
+  `corpus/violations/life-001-first-message-not-initialize.jsonl` is two events
+  long, answers `tools/list`, and never handshakes. TOOL-001 ("Servers that
+  support tools MUST declare the `tools` capability") and LIFE-009 ("every
+  capability-gated message must ride on a declared capability") both reported
+  **pass** on it, and the committed golden had blessed both. Pointed at a real
+  captured `2026-07-28` session under the default registry — a revision with no
+  `initialize` at all — six such clauses passed at once.
+
+  The tri-state is now an enum with a named `Unknowable` arm and, deliberately,
+  no `PartialEq`: `!= Some(false)` no longer compiles, and reading a
+  `Declaration` means answering all three arms. All seven checks abstain, so the
+  rows are *not observed*. The area tests could not have caught this — they
+  assert `findings.is_empty()`, and an abstention and a pass are alike in having
+  no findings; `negotiation`'s `abstains_when_negotiation_is_invisible` asserted
+  exactly that and passed throughout. The new tests assert the **subject count**,
+  which is the only thing that tells the two apart, and they cover all seven
+  checks across all three arms.
+
+- **A server with `Host`/`Origin` validation turned off said nothing about
+  it.** The security model's stated control for the DNS-rebinding class is that
+  disabling validation "requires the self-describing `--dangerously-allow-any-host`
+  flag". That name lives in the operator's command line and appeared in nothing
+  the running process wrote: a server started that way logged one
+  `listening on <addr>` line, exactly like a server with the protection on, so a
+  log could not be audited for it and a deployment could not be told apart from
+  a safe one after the fact.
+
+  It now warns on stderr, naming the flag and the class it reopens — *after* the
+  readiness line, never before, because `xtask::conformance` reads exactly one
+  line and requires it to be `listening on <addr>`, and a warning that broke
+  process startup would be a poor way to improve safety. The predicate is
+  derived from the policy actually installed (`HttpSecurityPolicy::
+  validates_nothing`) rather than from the flag, so the warning cannot describe a
+  policy other than the one in force. Two binary tests pin both halves: the
+  warning follows readiness when the flag is set, and the default server prints
+  no warning at all — one that fired always would be one nobody reads.
+
+- **The notification harness shared one temporary directory across concurrent
+  test processes.** `cargo mutants` runs many `cargo test` processes at once,
+  and the sandbox each notification test builds was named for the test alone —
+  so every one of those processes used the same directory, and each sandbox's
+  `remove_dir_all` deleted a sibling's stubs mid-run. The symptom was the
+  mutation gate's *baseline* failing, four tests panicking inside the harness
+  rather than a mutant surviving, which is a confusing place to start reading.
+  The name now carries the process id and a counter. Introduced and caught
+  within this release; recorded because "shared names are shared state" is the
+  same lesson the tap's writer task exists for.
+
+- **The reference host reported why it stopped in Rust's words, not a
+  reader's.** A run that ended other than cleanly printed the `StopReason`
+  variant with `{:?}` — `mcp-reference-host: ErrorBudgetExhausted after 10
+  turn(s), 1 error(s)` — which names the condition and no remedy. The default
+  plan tolerates zero errors, and this workspace's own everything-server
+  publishes `test_error_handling`, a tool whose entire job is to return one, so
+  pointing the host at the server it was built to exercise *always* ends that
+  way. Correct, and unhelpful: the flag that changes it is `--error-budget`, and
+  nothing said so.
+
+  Each stop reason is now a sentence naming the flag and the number behind it —
+  `1 error(s) exceeds the --error-budget of 0. Raise --error-budget to run past
+  them …`. The match is exhaustive on purpose, so a new stop reason must be
+  given words rather than falling into a wildcard that prints the variant name
+  again. Exit codes are unchanged; the run really did not complete.
+
+  Following that advice then reveals the next bound, which the same change makes
+  legible: `stopped at the --turn-limit of 16 with calls still planned`. The
+  generic plan's cap of 16 is sized for the suite's scenarios, which publish one
+  tool each, while the everything-server publishes eighteen — `cargo xtask
+  draft-capture` has always passed 32 for exactly this reason, with a comment
+  saying so, but `--help` never mentioned the default or why a sweep needs more.
+  It does now.
+
+- **The registry's strongest claim had no gate, and was false in two places.**
+  Rule 1 of §What enters the registry reads *"Every MUST / MUST NOT on an
+  in-scope page enters … No exceptions: that is the SEP-2484 floor."*
+  `spec-drift` verifies that every quote the registry holds is still present in
+  the published text, and that the page list and the cited pages agree — neither
+  of which can see a clause the registry never had. A page could gain a MUST and
+  the run would stay green: every committed quote still verifies, the page set
+  still agrees. The per-page fingerprint the gate prints would have shown the
+  page changed, but it is printed and never compared.
+
+  Checking the rule by hand found two clauses at `2025-11-25` with no entry, both
+  restating an obligation the registry already held under another page's id and
+  neither entered on its own page — the same shape as TRAN-049, which exists
+  precisely because it restates TRAN-024:
+
+  - **BASE-082**, `basic#schema-dialect`: *"Supported dialects: Implementations
+    MUST support at least 2020-12 and SHOULD document which additional dialects
+    they support"* — restating BASE-013 and BASE-016 as the section's third
+    numbered rule, and unconditionally where BASE-013 scopes itself to schemas
+    with no explicit `$schema`. Excluded for BASE-013's reason.
+  - **LIFE-018**, `basic/lifecycle#version-negotiation`: the `<Note>` restating
+    TRAN-017's `MCP-Protocol-Version` header rule. A trace can judge it, so it
+    carries TRAN-017's check rather than an exclusion.
+
+  `2025-11-25` is now 142 entries, 54 judged.
+
+  **And the rule is a gate.** Each revision's `sources.json` gains a
+  `must_census` — how many MUST-family keyword instances each page's prose
+  carries — which `spec-drift` recounts against the published text. It is
+  deliberately a count and not a clause matcher: segmenting prose into clauses is
+  hard enough that `tools/extract-clauses.py` records two of its rules as
+  "learned by the check failing first", and a completeness gate that cries wolf
+  is worse than none. A count is coarse and exact. A reworded clause keeps it —
+  the subscriptions reshuffle above would not have fired it — while a clause
+  added or removed moves it, which is the event nobody was watching for. Red is
+  a re-decide in the deferral ledger's sense: read the page, enter or retire the
+  clause, update the number in the same commit.
+
+- **The subscriptions page moved under two clauses, and the drift gate caught
+  it on its first live run.** `SUBS-005` and `SUBS-006` quoted `2026-07-28`'s
+  §Cancellation and §Graceful Closure as *"send the empty `subscriptions/listen`
+  response"* and *"respond … with an empty result"*. Upstream now reads *"a
+  successful response"* and *"a completion result"*, and has added the sentence
+  that says what that means: *"The result carries no method-specific data beyond
+  the standard result fields and subscription metadata."*
+
+  Both quotes are refreshed, and the refresh was used as ADR-0010 intends — as
+  the moment to ask whether the *requirement* moved or only the words. It did
+  not. The check already permitted exactly `resultType` and `_meta` and flagged
+  anything else, so the new prose states outright what "empty" had been left to
+  imply. What the check deliberately does **not** now enforce is
+  `resultType: "complete"`: that value appears only in the page's example, and a
+  constraint shown in an example with no RFC 2119 keyword is not one this
+  registry enters (03-conformance-strategy §What enters the registry, rule 3).
+  The reasoning is recorded on the check rather than in a commit message,
+  because the next person to read the clause will read the check.
+
+  The check's own words followed the page: `graceful-close-result-empty` became
+  `graceful-close-result-shape`, and a finding that read *"a graceful closure's
+  result is empty"* now says what the specification says. Leaving a stable
+  identifier and a user-facing sentence built on a word the spec has stopped
+  using is the drift this gate exists to catch, one level in from the quote.
+
+- **The claims-expiry notification had never run in anger, and would have
+  failed silently if it were wrong.** ADR-0010's amendment ends the weekly gates
+  in shell that opens, comments on, and closes a tracking issue. It was checked
+  once by hand against a `gh` stub that was never committed — a claim that was
+  true once with nothing re-reading it, which is the shape this ADR exists to
+  kill. Worse, the steps run inside a job that is already red (`if: failure()`),
+  so a wrong `gh` invocation would add one more red step to a run whose colour
+  was never going to change, and the only symptom would be an issue that never
+  appears. Nobody watches for the absence of a notification.
+
+  `xtask::notification` now lifts each step's `run:` block out of
+  `scheduled.yml` — read from the YAML, so it cannot drift from what CI runs —
+  and executes it under stubbed `gh` and `cargo` over every branch: rows
+  expired, a red ledger with no expired row, a drift failure, a moved pin, an
+  issue that already exists, an unrelated open issue that must not absorb the
+  notification, and the green close. Renaming a step fails the tests rather than
+  leaving them passing over nothing. Four deliberate breakages of the workflow
+  shell — a de-duplication query matching any title, the row loop dropping its
+  ids, the drift section always emitted, `set -euo pipefail` removed — each
+  turned it red.
+
+  And each step now states what it did on `$GITHUB_STEP_SUMMARY`, so a
+  notification that did not happen is visible on the run page instead of only in
+  an issue tracker nobody is diffing.
+
+  Whether the real `gh` accepts these exact flags is the one thing no test can
+  settle, so the workflow gains a way to ask cheaply: `workflow_dispatch` takes
+  an `only` input, and `claims` runs the claims-expire job by itself — skipping
+  the mutation sweep, fuzzing, the cross-architecture matrix and the benchmarks.
+  Minutes rather than hours, which is the difference between a check somebody
+  can repeat and one nobody will. A test asserts every other job carries the
+  guard, so a job added later cannot quietly put the full sweep back into it.
+
+  **And then it was run, both halves.** A ledger row was expired on a branch and
+  the job dispatched: red, and
+  [#42](https://github.com/tomtom215/mcp-conformance/issues/42) was opened by
+  `github-actions[bot]`, naming the expired row and its date, tabulating all
+  three gate outcomes, and republishing none of the fetched specification text.
+  The row was restored and the job dispatched again: green, and the same run
+  closed #42. Thirty seconds each, nine jobs skipped. The notification is no
+  longer a claim.
+
+  **The rehearsal found a real drift, which is the better result** — see the
+  subscriptions entry above. The red run's issue named *two* failing gates
+  rather than the one that had been arranged, which is the `if: always()` half
+  of this change working: before it, a red ledger skipped the drift gate
+  entirely, so the moved quotes would have waited for a week when the ledger
+  happened to be clean.
+
+- **`--strict` exited 1 under a report whose last line said `pass-with-warnings`,
+  and nothing connected the two.** The flag promotes SHOULD-level findings to
+  failures, which is an invocation policy rather than a fact about the trace, so
+  it deliberately does not rewrite the report's `verdict:` line — a golden report
+  must not depend on how the CLI was called. What was missing was the sentence
+  saying so, leaving a CI log that ends in a pass and a build that went red.
+  There is now a note on stderr, printed only when `--strict` actually promoted
+  something. stdout is unchanged in every case, which a test pins: it is the
+  report, including the JSON and JUnit a machine reads.
+
+- **The two commonest ways a first trace fails to parse said nothing a reader
+  could act on.** A UTF-8 byte-order mark — what PowerShell's `Out-File` and
+  `Set-Content` have both written by default — made line 1 fail with serde's
+  `expected value at line 1 column 1`. That is true, and the three bytes it
+  points at are invisible in every editor that wrote them; `jq` and
+  `python -m json.tool` will both insist the file is fine. A pretty-printed
+  document failed with `EOF while parsing an object at line 1 column 1`, which
+  describes a fragment rather than the file, for what is really one sentence:
+  this is JSON, and the reader wants JSON Lines.
+
+  Both now name the problem and the fix — *strip those three bytes*, or
+  `jq -c '.[]' <file>` for an array and `jq -c . <file>` for one object. The
+  JSON-document check runs only after a line has already failed, so a valid
+  trace never pays for it.
+
+  It is narrow on purpose, and an existing test drew the line. One valid record
+  followed by a stray newline also parses as a single JSON value, because JSON
+  permits trailing whitespace — calling that "a JSON document, not JSON Lines"
+  would trade a true diagnosis for a false one, so the check additionally
+  requires the value to be an array or to span more than one line. A one-line
+  object that simply is not a trace event keeps serde's message, which names
+  the field it was missing.
+
+- **A recording of one revision judged against another's registry produced
+  confident, wrong findings and said nothing about why.** The default registry
+  is `2025-11-25`. Point `validate` at a conforming `2026-07-28` stateless
+  session without naming a revision and it fails `LIFE-001` — the session did
+  not open with `initialize`, which `2026-07-28` removes (SEP-2575) — and
+  `BASE-003`, for reusing request ids after their responses, which
+  `2026-07-28` permits. Each finding quotes the spec verbatim, and each is a
+  correct answer to a question nobody meant to ask. Every trace in
+  `corpus/draft/` is that trace, and as `2026-07-28` becomes the revision people
+  record, it becomes the first thing a new user sees.
+
+  A trace states its own revision: the `initialize` handshake carries it from
+  both ends, a stateless session carries it in every request's `_meta`, and the
+  Streamable HTTP transport carries it in a header. The report now reads that
+  and says so — above the rows and again under the verdict, because a note that
+  scrolls past a hundred findings is a note nobody reads:
+
+  ```text
+    NOTE  this session declares protocol revision 2026-07-28, not 2025-11-25.
+          Every outcome here judges it against rules it was not playing by;
+          re-run with `--revision 2026-07-28` to judge it against its own.
+  ```
+
+  `Report.revision_mismatch` (and `MultiReport`'s, worded for a run that chose
+  its own revisions) carries the same fact to JSON consumers, and is absent
+  whenever there is nothing to say — so every committed golden is unchanged.
+
+  **It is quiet on purpose, and the corpus is what taught it to be.** A session
+  that proposed one revision and negotiated another has touched both, so judging
+  it against either draws no note. A session that declares nothing draws none:
+  warning from an absence is the vacuous reasoning this validator refuses
+  everywhere else. A version the other end *refused* declares nothing either —
+  the first draft of this flagged `tran-074`, whose client asks for
+  `1900-01-01` and is told no, and `vers-008`, whose legacy `initialize` reaches
+  a server that no longer has one; both are sessions of no revision at all, and
+  `TRAN-074` and `VERS-008` are the clauses with something to say about them.
+  And only revisions this build ships a registry for count, because
+  *re-run with `--revision X`* is worthless advice when there is no `X`.
+
+- **The book's per-revision table had gone stale, and nothing could have said
+  so.** `book/src/revisions.md` still read `52 | 124` judged and `88 | 148`
+  excluded after the change above moved two clauses out of exclusion. The
+  README's equivalent could not drift — `cargo xtask coverage` generates it —
+  and the `draft-coverage` gate reads verdict tuples and "N of the M judgeable
+  clauses" claims, neither of which matches a table cell. So the one table in
+  the repository stating the registries' shape in a human's own words was the
+  one nothing checked. `cargo xtask coverage --check` now verifies all six of
+  its numeric cells against the registries, naming each disagreement and its
+  revision. It verifies rather than generates: the wording, the ordering and
+  the prose rows stay the author's, and only the numbers are the registry's.
+
+- **The `Accept` clauses were enforced against request forms they do not bind,
+  and under-enforced against the one they do — because the recording did not
+  say which HTTP method an exchange was.** Streamable HTTP gives a client three
+  request forms with three different obligations: a `POST` MUST offer both
+  `application/json` and `text/event-stream` (`TRAN-025`, and `TRAN-057` at
+  `2026-07-28`), a `GET` opening a standalone stream MUST offer
+  `text/event-stream` (`TRAN-039`), and a session-terminating `DELETE` owes an
+  `Accept` header nothing at all — `basic/transports` §Session Management asks
+  only that it name the session. A recorded `kind: http` event carried headers
+  and status but not the verb, so one check enforced the *intersection* of the
+  first two obligations across the *union* of all three forms.
+
+  That is wrong in both directions at once, and both halves reproduce with this
+  workspace's own components:
+
+  - Point `mcp-reference-host` at `mcp-everything-server` over HTTP and validate
+    the tap. The session ends the way rmcp's client ends every session — a
+    `DELETE` carrying reqwest's default `Accept: */*` — and the report came back
+    `verdict: fail` with **two MUST-level failures against a client that had
+    violated nothing**. Neither clause binds a `DELETE`.
+  - Hand a POST whose `Accept` reads `text/event-stream` and nothing else. That
+    is the verbatim violation `TRAN-025` names, and it was reported **`pass`**,
+    because the intersection could only demand what both clauses had in common.
+
+  A false MUST failure against a conforming implementation and a vacuous pass
+  over a real violation are the two ways a conformance verdict stops being worth
+  anything, and one missing field produced both.
+
+  `EventBody::Http` now carries the request `method` (optional, uppercase-
+  normalized on read, omitted from serialization when absent — so response
+  events and every trace written before this are byte-identical). The tap
+  records it; it already had the value in hand and used it to detect teardown.
+  *Breaking (pre-1.0):* a pattern that destructures `EventBody::Http` without a
+  `..` rest no longer compiles. Trace documents are unaffected in both
+  directions — a trace written before this parses unchanged, and one written
+  after parses on an older build, which drops the field it does not know.
+  The single check is replaced by two, each judging exactly the requests its
+  clause binds, and **an exchange whose method the capture did not record is
+  judged by neither** — a recording that cannot tell a POST from a DELETE can
+  neither convict on a POST-only MUST nor be credited with passing one, so the
+  clause reports *not observed*. That is the same rule this validator applies to
+  every other subject a trace does not carry, and it is why
+  `corpus/good/http-session.jsonl` now runs all three request forms: the
+  teardown `DELETE` in it is a regression guard.
+
+  **Six exclusions rested on "the request method is not captured", and two of
+  them were only ever excluded for that reason.** `TRAN-049` and `TRAN-056` —
+  *the client MUST use HTTP POST to send JSON-RPC messages*, in both revisions'
+  words — are now judged by `transport.client-messages-use-post`, which reads
+  the verb of the request each client message rode. The `2026-07-28` registry
+  moves to **125 judged / 147 excluded**, and the five captures evidence 114 of
+  them. The other four exclusions keep their outcome and lose the stale premise:
+  `TRAN-024`/`TRAN-055` add that each message ride a *new* POST, which is
+  connection framing a trace summarizes rather than reproduces, and
+  `TRAN-046`/`TRAN-048` are conditional on client intent, which no recording
+  shows.
+
+  This is the third capture-fidelity defect on this surface — after the tap
+  keying every exchange on a session id, and its header allowlist predating
+  SEP-2243 — and `corpus/README.md` records it beside the other two rather than
+  fixing it quietly. The class is worth naming as often as it appears: **a check
+  is only as honest as the recording it reads, and a capture path that silently
+  drops evidence manufactures findings against conforming implementations.**
+
 - **The recording now carries a cancellation and a trace context, closing three
   clauses no capture reached.** `BASE-040`, `TRAN-123` and `TRAN-124` had
   nothing to judge in any committed session, because the reference host never
   cancelled anything and never propagated a trace context. Two new flags —
-  `--cancel` and `--traceparent` — put both in the capture's definition, and
-  capture coverage moved from 110 to **113 of the 124 judgeable clauses**.
+  `--cancel` and `--traceparent` — put both in the capture's definition, taking
+  capture coverage from 110 clauses to 113. With the request-method fix below
+  it stands at **114 of the 125 judgeable clauses**.
 
   The cancellation is the interesting half. Both clauses are MUST NOTs, and a
   MUST NOT is never witnessed by an absence: what the recording has to carry is
@@ -1014,8 +1646,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   required property 'cacheScope'` and `'ttlMs'`.
 
   That is **CACH-001**, the single clause the registry here had already flagged
-  against the legacy server — the two captures read 59 pass, 1 fail and
-  60 pass, 0 fail, with 64 clauses not observed on each — while the official
+  against the legacy server — the two captures read 60 pass, 1 fail and
+  61 pass, 0 fail, with 64 clauses not observed on each — while the official
   runner scored both servers an indistinguishable 23/23. The runner has now found it
   independently, six weeks later. The standing finding "the runner cannot
   distinguish the two servers" is superseded rather than deleted, in
@@ -1077,8 +1709,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   and the loops filtered the page manifest that way. The extractor's calibration
   claim survives re-checking at the true total — **140/140** quotes verify — but
   the counts in `tools/extract-clauses.py` and the extraction inventory are
-  corrected, and the trap is documented in the tool. The true split, 52 checked
-  / 88 excluded, matches what v0.4.0's changelog already stated.
+  corrected, and the trap is documented in the tool. The true split as the registry then stood, 52
+  checked / 88 excluded, matches what v0.4.0's changelog already stated.
 
 - **The SDK moved from `rmcp 1.7.0` to `3.1.2`, and a before/after wire diff
   says what that changed.** ADR-0011 held the pin until both the `2026-07-28`

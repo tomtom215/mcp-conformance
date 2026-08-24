@@ -229,3 +229,36 @@ fn judges_a_real_trace_and_is_deterministic() {
         serde_json::to_string(&b).unwrap()
     );
 }
+
+// Needs a second shipped registry, for the reason `declared.rs` states.
+#[test]
+#[cfg(feature = "draft-2026-07-28")]
+fn a_run_that_judged_none_of_the_sessions_revisions_says_so() {
+    // Naming `--revision` explicitly does not make judging a `2026-07-28`
+    // recording against `2025-11-25` any less of a mistake, so the note is
+    // rendered here too — and it is worded for a run that chose its revisions.
+    let stateless = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}}
+{"seq":1,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}}"#;
+    let events = parse_trace(stateless, &Limits::default()).unwrap();
+    let set = RegistrySet::builtin().unwrap();
+
+    let wrong: Vec<ProtocolRevision> = vec!["2025-11-25".parse().unwrap()];
+    let report = validate_revisions(&set, &wrong, &events).unwrap();
+    assert_eq!(
+        report.revision_mismatch.as_deref(),
+        Some(["2026-07-28".to_owned()].as_slice())
+    );
+    let rendered = report.render_human();
+    assert!(
+        rendered.contains("declares protocol revision 2026-07-28"),
+        "{rendered}"
+    );
+    assert!(rendered.contains("which was not judged"), "{rendered}");
+
+    // Judging its own revision alongside the other one is a fair question.
+    let both: Vec<ProtocolRevision> =
+        vec!["2025-11-25".parse().unwrap(), "2026-07-28".parse().unwrap()];
+    let report = validate_revisions(&set, &both, &events).unwrap();
+    assert!(report.revision_mismatch.is_none());
+    assert!(!report.render_human().contains("NOTE"));
+}

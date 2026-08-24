@@ -219,7 +219,11 @@ fn valid_id(id: &str) -> bool {
 
 /// Today as `YYYY-MM-DD` (UTC), via the proleptic-Gregorian civil-from-days
 /// algorithm (Howard Hinnant) — no calendar dependency for one date.
-fn today_utc() -> String {
+///
+/// Shared with `register_currency`, which asks the same question of a different
+/// ledger; two implementations of "what day is it" would be two ways to be
+/// wrong about an expiry.
+pub(crate) fn today_utc() -> String {
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |duration| duration.as_secs());
@@ -229,7 +233,10 @@ fn today_utc() -> String {
 }
 
 /// Civil date from days since 1970-01-01 (valid for the era this gate runs in).
-const fn civil_from_days(z: i64) -> (i64, i64, i64) {
+///
+/// `pub(crate)` so `register_currency`'s round-trip test can prove its inverse
+/// (`days_from_civil`) agrees with this one rather than with itself.
+pub(crate) const fn civil_from_days(z: i64) -> (i64, i64, i64) {
     let shifted = z + 719_468;
     let era = shifted.div_euclid(146_097);
     let day_of_era = shifted.rem_euclid(146_097);

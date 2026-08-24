@@ -65,6 +65,18 @@ Package registries are reachable only at dependency-install time, under lockfile
 
 ## CI gates (every PR, in order of cost)
 
+0. **The toolchain is pinned**, exactly, in `rust-toolchain.toml`. Every gate
+   below runs at `-D warnings` under clippy's pedantic and nursery groups, which
+   makes the compiler an *input* to the gate — and the rule this document already
+   applies to the official-suite pins applies here: a gate whose input moves
+   underneath it is not a gate. `rustup` honours the file for every plain `cargo`
+   in the tree, so a checkout and CI compile with the same lints by construction;
+   the MSRV legs override it with `RUSTUP_TOOLCHAIN`, and nightly-only tasks with
+   `cargo +nightly`. `cargo xtask toolchain-pin` fails when a workflow gates on a
+   different version or installs bare `stable`; `cargo xtask toolchain-currency`
+   (weekly) fails when a newer stable has shipped, so the pin cannot fall behind
+   unnoticed. Bumping is a deliberate commit — raise `channel`, run the gates, fix
+   or record what the new lints say — and holding the pin is a legitimate outcome.
 1. `cargo fmt --all -- --check`
 2. `cargo clippy --workspace --all-targets -- -D warnings` — repeated per feature
    combination: default, `--no-default-features`, and `--all-features` (the
@@ -74,8 +86,13 @@ Package registries are reachable only at dependency-install time, under lockfile
    features and `--all-features` (feature-gated modules carry rustdoc the default
    build never sees)
 5. Structural gates: README coverage table in sync with the registry
-   (`cargo xtask coverage --check`), the ≤ 500-line file cap
-   (`cargo xtask file-sizes`), and every relative documentation link resolving
+   (`cargo xtask coverage --check`, which also verifies the book's per-revision
+   table and the corpus README's accounting table against the data they
+   describe), the two registries agreeing about every clause they both carry
+   (`cargo xtask registry-continuity`), the pinned toolchain matching every
+   workflow (`cargo xtask toolchain-pin`), the ≤ 500-line file cap
+   (`cargo xtask file-sizes`), a licence header on every comment-carrying tracked
+   file (`cargo xtask spdx`), and every relative documentation link resolving
    (`cargo xtask docs-links`)
 6. `cargo deny check` (license allowlist, advisories, sources); `cargo audit` runs
    in the weekly scheduled job

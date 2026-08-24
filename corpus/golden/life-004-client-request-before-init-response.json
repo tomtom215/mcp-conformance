@@ -4,10 +4,10 @@
     "pass": 18,
     "fail": 0,
     "warn": 1,
-    "excluded": 88,
+    "excluded": 87,
     "unsupported": 0,
     "not_applicable": 6,
-    "not_observed": 27
+    "not_observed": 30
   },
   "requirements": [
     {
@@ -123,6 +123,11 @@
       "outcome": "pass"
     },
     {
+      "id": "LIFE-018",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-004",
       "level": "MUST NOT",
       "outcome": "pass"
@@ -174,6 +179,11 @@
     },
     {
       "id": "TRAN-040",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-049",
       "level": "MUST",
       "outcome": "not-observed"
     },
@@ -281,6 +291,11 @@
     {
       "id": "PAGE-002",
       "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PAGE-003",
+      "level": "SHOULD",
       "outcome": "not-observed"
     }
   ]

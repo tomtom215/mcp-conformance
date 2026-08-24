@@ -91,8 +91,16 @@ const SHIPPED: &[Check] = &[
         transport::http_post_single_message
     ),
     check!(
-        "transport.client-accept-header",
-        transport::client_accept_header
+        "transport.client-post-accept-header",
+        transport::client_post_accept_header
+    ),
+    check!(
+        "transport.client-get-accept-header",
+        transport::client_get_accept_header
+    ),
+    check!(
+        "transport.client-messages-use-post",
+        transport::client_messages_use_post
     ),
     check!(
         "transport.success-content-type",
@@ -147,6 +155,10 @@ const SHIPPED: &[Check] = &[
         utilities::completion_capability_declared
     ),
     check!("pagination.cursor-opacity", utilities::cursor_opacity),
+    check!(
+        "pagination.invalid-cursor-rejected",
+        utilities::invalid_cursor_rejected
+    ),
 ];
 
 /// Concatenates the two halves at compile time, so each may live in its own file

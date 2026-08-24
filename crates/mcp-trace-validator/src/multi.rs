@@ -110,6 +110,13 @@ impl MultiRow {
 pub struct MultiReport {
     /// The revisions judged, in the order requested — the column order for every row.
     pub revisions: Vec<String>,
+    /// The revisions the *session* declared, when it declared some and none of
+    /// [`Self::revisions`] is among them. Named explicitly on the command line
+    /// or not, judging a recording against rules it was never playing by is the
+    /// same mistake, and the reader is told so either way
+    /// ([`crate::declared`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revision_mismatch: Option<Vec<String>>,
     /// Per-revision aggregate results, aligned by index with `revisions`.
     pub summaries: Vec<RevisionSummary>,
     /// Union of clauses across the judged revisions, in registry-union order. A clause is
@@ -144,6 +151,7 @@ impl MultiReport {
             "MCP multi-revision validation — revisions {}",
             self.revisions.join(", ")
         );
+        self.write_revision_mismatch(&mut out);
         for row in &self.requirements {
             let _ = write!(out, "  {:<10} ({})", row.id, row.level);
             for (revision, outcome) in self.revisions.iter().zip(&row.outcomes) {
@@ -166,7 +174,30 @@ impl MultiReport {
             );
         }
         let _ = writeln!(out, "overall verdict: {}", self.verdict());
+        self.write_revision_mismatch(&mut out);
         out
+    }
+
+    /// The revision-disagreement note, worded for a run that names its own
+    /// revisions: the fix is a different `--revision`, not the absence of one.
+    fn write_revision_mismatch(&self, out: &mut String) {
+        let Some(declared) = &self.revision_mismatch else {
+            return;
+        };
+        let (subject, tail) = if declared.len() == 1 {
+            ("revision", "which was not judged")
+        } else {
+            ("revisions", "none of which was judged")
+        };
+        let _ = writeln!(
+            out,
+            "  NOTE  this session declares protocol {subject} {}, {tail}.",
+            declared.join(", ")
+        );
+        let _ = writeln!(
+            out,
+            "        Every outcome here judges it against rules it was not playing by."
+        );
     }
 }
 
@@ -267,6 +298,7 @@ pub fn validate_revisions(
 
     Ok(MultiReport {
         revisions: revisions.iter().map(ProtocolRevision::to_string).collect(),
+        revision_mismatch: crate::declared::mismatch_any(revisions, events),
         summaries,
         requirements: rows,
     })

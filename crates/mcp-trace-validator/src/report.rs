@@ -9,9 +9,10 @@
 //! environment-dependent (paths, timestamps, hostnames) is ever included.
 
 use core::fmt;
-use core::fmt::Write as _;
 
 use serde::{Deserialize, Serialize};
+
+mod human;
 
 /// One concrete violation, addressed to a requirement and (where possible) an event.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -160,6 +161,15 @@ pub struct RequirementReport {
 pub struct Report {
     /// The registry's protocol revision (`YYYY-MM-DD`).
     pub revision: String,
+    /// The revisions the *session* declared, when it declared some and
+    /// [`Self::revision`] is not among them — so the reader is told that these
+    /// findings judge the trace against rules it was not playing by.
+    ///
+    /// Absent whenever there is nothing to say, which is the common case; see
+    /// [`crate::declared`] for what counts as a declaration and why the rule is
+    /// deliberately quiet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revision_mismatch: Option<Vec<String>>,
     /// Aggregate counts.
     pub totals: Totals,
     /// Per-requirement outcomes, in registry order.
@@ -183,59 +193,6 @@ impl Report {
     #[must_use]
     pub const fn has_unsupported(&self) -> bool {
         self.totals.unsupported > 0
-    }
-
-    /// Renders the human-readable form.
-    #[must_use]
-    pub fn render_human(&self) -> String {
-        let mut out = String::new();
-        let _ = writeln!(out, "MCP trace validation — revision {}", self.revision);
-        for row in &self.requirements {
-            let marker = match row.outcome {
-                Outcome::Pass => "PASS",
-                Outcome::Fail => "FAIL",
-                Outcome::Warn => "WARN",
-                Outcome::Excluded => "EXCL",
-                Outcome::Unsupported => "UNSUP",
-                Outcome::NotApplicable => "N/A",
-                Outcome::NotObserved => "NOBS",
-            };
-            let _ = writeln!(out, "  {marker:<5} {} ({})", row.id, row.level);
-            for finding in &row.findings {
-                match finding.seq {
-                    Some(seq) => {
-                        let _ = writeln!(out, "        seq {seq}: {}", finding.detail);
-                    }
-                    None => {
-                        let _ = writeln!(out, "        {}", finding.detail);
-                    }
-                }
-            }
-            if let Some(exclusion) = &row.exclusion {
-                let _ = writeln!(out, "        excluded: {exclusion}");
-            }
-            for check in &row.missing_checks {
-                let _ = writeln!(out, "        unsupported check: {check}");
-            }
-            if let Some(capability) = &row.capability {
-                let _ = writeln!(
-                    out,
-                    "        not applicable: capability {capability} was not declared in this session"
-                );
-            }
-            if row.outcome == Outcome::NotObserved {
-                let _ = writeln!(
-                    out,
-                    "        not observed: the session carried none of the traffic this clause binds to"
-                );
-            }
-        }
-        // Every outcome is named, so the counts sum to the registry's size — a
-        // reader can check the arithmetic, and `Totals`' own exhaustive
-        // destructuring is what keeps that true as outcomes are added.
-        let _ = writeln!(out, "totals: {}", self.totals);
-        let _ = writeln!(out, "verdict: {}", self.verdict());
-        out
     }
 
     /// One-word verdict for the trailing summary line.
@@ -312,6 +269,7 @@ mod tests {
         let mut not_applicable = row("TOOL-001", "MUST", Outcome::NotApplicable);
         not_applicable.capability = Some("server.tools".to_owned());
         Report {
+            revision_mismatch: None,
             revision: "2025-11-25".to_owned(),
             totals: Totals {
                 pass: 1,

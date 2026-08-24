@@ -48,10 +48,9 @@ use mcp_conformance_core::requirement::{Registry, Verification};
 
 /// Judged clauses that no committed trace reports as passing, and why not.
 ///
-/// Every row is a conforming trace nobody has written yet, not a defect — but a
-/// row is a debt, and the list is meant to shrink. Retiring one means adding a
-/// conforming trace that carries the clause's subject matter.
-/// Judged clauses that no committed trace reports as passing, and why not.
+/// A row is a conforming trace nobody has written yet, not a defect — but it is
+/// a debt, and retiring one means adding a trace that carries the clause's
+/// subject matter.
 ///
 /// Empty, and that is the point of it still existing: the list shrank from
 /// fourteen to nothing, and a row appearing again means a check has been added

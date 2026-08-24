@@ -320,7 +320,7 @@ mod tests {
     /// The invariant the `removed = 2026-07-28` bound exists to protect, and the one
     /// that would fail silently if it were missing: describing a second revision must
     /// not change what the first one requires. An absent `applies` range means *every*
-    /// revision, so without the bound all 140 entries — every quote citing a
+    /// revision, so without the bound all 142 entries — every quote citing a
     /// `2025-11-25` page — would leak into `2026-07-28` and read as if that revision
     /// had been extracted. Asserted in both feature modes, because the projection is
     /// what every caller actually consumes.
@@ -329,7 +329,7 @@ mod tests {
         let set = RegistrySet::builtin().unwrap();
         let projected = set.registry(rev("2025-11-25")).unwrap();
         assert_eq!(projected, Registry::builtin_2025_11_25().unwrap());
-        assert_eq!(projected.requirements().len(), 140);
+        assert_eq!(projected.requirements().len(), 142);
     }
 
     /// No entry serves both revisions. Each revision's entries quote its own pages, so

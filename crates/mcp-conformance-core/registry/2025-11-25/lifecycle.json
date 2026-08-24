@@ -239,6 +239,21 @@
         "quote": "However, implementations SHOULD always enforce a maximum timeout, regardless of progress notifications, to limit the impact of a misbehaving client or server."
       },
       "exclusion": "Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged."
+    },
+    {
+      "id": "LIFE-018",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/lifecycle#version-negotiation",
+        "quote": "If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server."
+      },
+      "checks": [
+        "transport.protocol-version-header"
+      ]
     }
   ]
 }

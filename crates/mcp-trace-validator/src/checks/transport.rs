@@ -18,6 +18,12 @@ use mcp_conformance_core::trace::{Direction, EventBody, TransportKind};
 use super::FindingSink;
 use crate::context::TraceContext;
 
+mod accept;
+mod post;
+
+pub(super) use accept::{client_get_accept_header, client_post_accept_header};
+pub(super) use post::client_messages_use_post;
+
 /// `TRAN-004`: nothing on the server's stdout that is not a valid MCP message.
 pub(super) fn stdio_server_output_valid(context: &TraceContext<'_>, sink: &mut FindingSink) {
     stdio_messages_valid(context, sink, Direction::ServerToClient, "stdout");
@@ -197,35 +203,6 @@ fn negotiated_version<'a>(context: &TraceContext<'a>) -> Option<(u64, &'a str)> 
     Some((seq, version))
 }
 
-/// `TRAN-025`/`TRAN-039`: every client HTTP request to the MCP endpoint must
-/// carry an `Accept` header listing `text/event-stream`.
-///
-/// This enforces the floor the two clauses share. POST requests must list
-/// both `application/json` and `text/event-stream`; GET requests must list
-/// `text/event-stream`. Recorded events carry no request method, so the
-/// POST-only half (`application/json` present) is not separately enforceable
-/// offline — but no request form may omit `text/event-stream`, so flagging
-/// that omission is sound for every recorded request.
-pub(super) fn client_accept_header(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    for (seq, headers) in http_headers(context, Direction::ClientToServer) {
-        sink.examined();
-        match headers.get("accept") {
-            None => sink.push(
-                Some(seq),
-                "client HTTP request has no Accept header; every request to the MCP \
-                 endpoint must list text/event-stream (and POST requests application/json)"
-                    .to_owned(),
-            ),
-            Some(accept) if !accept.to_ascii_lowercase().contains("text/event-stream") => sink
-                .push(
-                    Some(seq),
-                    format!("client Accept header {accept:?} does not list text/event-stream"),
-                ),
-            Some(_) => {}
-        }
-    }
-}
-
 /// `TRAN-029`/`TRAN-040`: an HTTP 200 from the MCP endpoint must declare
 /// `Content-Type: application/json` or `Content-Type: text/event-stream`.
 ///
@@ -241,6 +218,7 @@ pub(super) fn success_content_type(context: &TraceContext<'_>, sink: &mut Findin
         let EventBody::Http {
             status: Some(200),
             headers,
+            ..
         } = &event.body
         else {
             continue;
@@ -417,28 +395,6 @@ mod tests {
         let client = findings_for("transport.stdio-client-input-valid", trace);
         assert_eq!(client.len(), 1, "{client:?}");
         assert!(client[0].contains("not a JSON object"), "{client:?}");
-    }
-
-    #[test]
-    fn client_accept_header_requires_event_stream_on_every_request() {
-        // Followup request with no Accept at all.
-        let missing = http_session("{}", r#"{"mcp-protocol-version":"2025-11-25"}"#);
-        let findings = findings_for("transport.client-accept-header", &missing);
-        assert_eq!(findings.len(), 1, "{findings:?}");
-        assert!(findings[0].contains("no Accept header"), "{findings:?}");
-
-        // Accept present but without text/event-stream.
-        let json_only = http_session("{}", r#"{"accept":"application/json"}"#);
-        let findings = findings_for("transport.client-accept-header", &json_only);
-        assert_eq!(findings.len(), 1, "{findings:?}");
-        assert!(findings[0].contains("text/event-stream"), "{findings:?}");
-
-        // Either order and extra parameters are fine; matching is case-insensitive.
-        let fine = http_session(
-            "{}",
-            r#"{"accept":"TEXT/EVENT-STREAM;q=0.9, application/json"}"#,
-        );
-        assert!(findings_for("transport.client-accept-header", &fine).is_empty());
     }
 
     #[test]

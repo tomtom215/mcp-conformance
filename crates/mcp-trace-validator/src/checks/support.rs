@@ -9,18 +9,47 @@ use serde_json::Value;
 
 use crate::context::TraceContext;
 
-/// Whether the server declared the capability at `path` (e.g. `["tools"]` or
-/// `["resources", "subscribe"]`): every segment resolves and the final value is
-/// neither `false` nor `null` — the ADR-0006 reading. Returns `None` when the trace
-/// has no `initialize` result to read declarations from (judgment must abstain), and
-/// `Some(declared)` otherwise.
-pub(super) fn server_capability(context: &TraceContext<'_>, path: &[&str]) -> Option<bool> {
+/// What a trace says about one capability.
+///
+/// A tri-state, because *"this session did not declare it"* and *"this session
+/// could not have declared it"* are different facts and only the first is a
+/// violation. Both were reachable in the shipped corpus: a stdio capture that
+/// begins after the handshake, an `initialize` answered with an error, and —
+/// most simply — `corpus/violations/life-001-first-message-not-initialize.jsonl`,
+/// two events long, which answers `tools/list` without ever handshaking.
+///
+/// **Deliberately no `PartialEq`.** This was an `Option<bool>` whose doc said
+/// "judgment must abstain" on `None`, and eight of its nine callers discarded
+/// that arm — six wrote `!= Some(false)` and one `== Some(false)`, each a
+/// character away from correct and each turning an unjudgeable session into a
+/// green row. TOOL-001 and LIFE-009 reported *pass* on the two-event trace
+/// above, and the committed golden had blessed both. Without an equality impl
+/// the only way to read a `Declaration` is to name all three arms, so the
+/// abstention has to be answered rather than compared away.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Declaration {
+    /// The declaration surface resolves `path` to something that is neither
+    /// `false` nor `null` — the ADR-0006 reading.
+    Declared,
+    /// The declaration surface is present and `path` is not on it. This is the
+    /// only arm a "supported implies declared" clause may fail on.
+    Withheld,
+    /// There is no declaration surface at all: the trace carries no `initialize`
+    /// result, so nothing in it could have declared anything. A check that
+    /// reaches this must abstain — reporting a pass here states evidence the
+    /// trace does not carry (ADR-0012).
+    Unknowable,
+}
+
+/// What the server declared for the capability at `path` (e.g. `["tools"]` or
+/// `["resources", "subscribe"]`), read from the `initialize` result.
+pub(super) fn server_capability(context: &TraceContext<'_>, path: &[&str]) -> Declaration {
     capability_in(context.server_capabilities(), path, context)
 }
 
 /// The client-side counterpart of [`server_capability`], read from the `initialize`
 /// request params.
-pub(super) fn client_capability(context: &TraceContext<'_>, path: &[&str]) -> Option<bool> {
+pub(super) fn client_capability(context: &TraceContext<'_>, path: &[&str]) -> Declaration {
     capability_in(context.client_capabilities(), path, context)
 }
 
@@ -28,20 +57,26 @@ fn capability_in(
     capabilities: Option<&Value>,
     path: &[&str],
     context: &TraceContext<'_>,
-) -> Option<bool> {
+) -> Declaration {
     // No initialize result at all: there is no declaration surface, so the session's
     // capability state is unknowable rather than empty.
-    context.initialize().result?;
+    if context.initialize().result.is_none() {
+        return Declaration::Unknowable;
+    }
     let Some(mut current) = capabilities else {
-        return Some(false);
+        return Declaration::Withheld;
     };
     for segment in path {
         match current.get(segment) {
             Some(next) => current = next,
-            None => return Some(false),
+            None => return Declaration::Withheld,
         }
     }
-    Some(!(current.is_null() || matches!(current, Value::Bool(false))))
+    if current.is_null() || matches!(current, Value::Bool(false)) {
+        Declaration::Withheld
+    } else {
+        Declaration::Declared
+    }
 }
 
 /// `true` when `text` is standard base64 (RFC 4648 §4 alphabet, `=` padding to a
@@ -126,8 +161,113 @@ pub(super) fn has_rfc3986_scheme(uri: &str) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    use crate::checks;
+    use crate::reader::{Limits, parse_trace};
+
+    /// Every check that reads a [`Declaration`], and the traffic that evidences
+    /// the support each one judges.
+    const CAPABILITY_CHECKS: [&str; 7] = [
+        "tools.capability-declared",
+        "tools.embedded-resource-capability",
+        "resources.capability-declared",
+        "prompts.capability-declared",
+        "logging.capability-declared",
+        "completion.capability-declared",
+        "lifecycle.negotiated-capabilities-only",
+    ];
+
+    /// A session exercising every capability-gated feature, optionally preceded
+    /// by a handshake declaring all of them.
+    fn session(handshake: bool) -> String {
+        let mut lines: Vec<String> = Vec::new();
+        if handshake {
+            lines.push(r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}"#.to_owned());
+            lines.push(r#"{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{},"resources":{},"prompts":{},"logging":{},"completions":{}},"serverInfo":{"name":"s","version":"0"}}}}"#.to_owned());
+        }
+        for line in [
+            r#"{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/list"}}"#,
+            r#"{"seq":3,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}}"#,
+            r#"{"seq":4,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":"file:///a"}}}"#,
+            r#"{"seq":5,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"result":{"contents":[]}}}"#,
+            r#"{"seq":6,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":4,"method":"prompts/get","params":{"name":"p"}}}"#,
+            r#"{"seq":7,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":4,"result":{"messages":[]}}}"#,
+            r#"{"seq":8,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":5,"method":"completion/complete","params":{}}}"#,
+            r#"{"seq":9,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":5,"result":{"completion":{"values":[]}}}}"#,
+            r#"{"seq":10,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"x"}}}"#,
+            r#"{"seq":11,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"t"}}}"#,
+            r#"{"seq":12,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"resource","resource":{"uri":"file:///a","text":"x"}}]}}}"#,
+        ] {
+            lines.push(line.to_owned());
+        }
+        lines.join("\n")
+    }
+
+    fn subjects_and_findings(check: &str, trace: &str) -> (u32, usize) {
+        let events = parse_trace(trace, &Limits::default()).unwrap();
+        let context = TraceContext::new(&events);
+        let outcome = checks::find(check).unwrap().run(&context);
+        (outcome.subjects, outcome.findings.len())
+    }
+
+    /// The rule [`Declaration::Unknowable`] exists for, over every check that
+    /// reads one: a session whose declarations are not in the trace earns no
+    /// verdict on whether it declared them.
+    ///
+    /// This asserts on the *subject count*, not on findings, and that is the
+    /// whole point. An abstention and a pass both have no findings, so
+    /// `findings.is_empty()` — which is what each area's own tests assert —
+    /// cannot tell them apart. Eight of these callers used to read the
+    /// declaration as "present unless explicitly denied"; every one still
+    /// produced no findings here, and every one reported a green row on a
+    /// session that never carried a declaration at all.
+    #[test]
+    fn no_declaration_surface_means_no_verdict() {
+        let trace = session(false);
+        for check in CAPABILITY_CHECKS {
+            let (subjects, findings) = subjects_and_findings(check, &trace);
+            assert_eq!(
+                subjects, 0,
+                "{check} counted a subject in a session with no initialize result, \
+                 so the clause it backs reports a pass it cannot support"
+            );
+            assert_eq!(findings, 0, "{check} judged an unjudgeable session");
+        }
+    }
+
+    /// The other half, without which the abstention above could be satisfied by
+    /// a check that never judges anything: the same traffic, behind a handshake,
+    /// is judged.
+    #[test]
+    fn a_declaration_surface_is_judged() {
+        let trace = session(true);
+        for check in CAPABILITY_CHECKS {
+            let (subjects, findings) = subjects_and_findings(check, &trace);
+            assert!(subjects > 0, "{check} found nothing to judge");
+            assert_eq!(
+                findings, 0,
+                "{check} faulted a session that declared everything it used"
+            );
+        }
+    }
+
+    #[test]
+    fn a_present_surface_that_withholds_the_capability_is_a_violation() {
+        // The arm that must stay distinguishable from the abstention: the
+        // handshake is there and declares nothing.
+        let trace = session(true).replace(
+            r#""capabilities":{"tools":{},"resources":{},"prompts":{},"logging":{},"completions":{}}"#,
+            r#""capabilities":{}"#,
+        );
+        for check in CAPABILITY_CHECKS {
+            let (subjects, findings) = subjects_and_findings(check, &trace);
+            assert!(subjects > 0, "{check} found nothing to judge");
+            assert!(findings > 0, "{check} excused an undeclared capability");
+        }
+    }
 
     #[test]
     fn base64_validation_is_exact() {

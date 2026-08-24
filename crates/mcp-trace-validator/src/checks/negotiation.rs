@@ -15,7 +15,7 @@ use mcp_conformance_core::message::MessageKind;
 use mcp_conformance_core::trace::Direction;
 
 use super::FindingSink;
-use super::support::{client_capability, server_capability};
+use super::support::{Declaration, client_capability, server_capability};
 use crate::context::TraceContext;
 
 /// Capability-gated methods of `2025-11-25`: who sends them, and which declared
@@ -157,14 +157,21 @@ pub(super) fn negotiated_capabilities_only(context: &TraceContext<'_>, sink: &mu
         let Some((_, _, party, path)) = gate else {
             continue;
         };
-        // The subject is a capability-gated message; a session that sent none
-        // put nothing to the test, however long it ran.
-        sink.examined();
         let declared = match party {
             CapabilityParty::Server => server_capability(context, path),
             CapabilityParty::Client => client_capability(context, path),
         };
-        if declared == Some(false) {
+        if matches!(declared, Declaration::Unknowable) {
+            // No initialize result, so neither side's declarations are in this
+            // trace. The message is gated on something the capture cannot show,
+            // which is not the same as riding on a capability nobody negotiated.
+            continue;
+        }
+        // The subject is a capability-gated message in a session whose
+        // declarations are readable; one that sent none put nothing to the
+        // test, however long it ran.
+        sink.examined();
+        if matches!(declared, Declaration::Withheld) {
             let owner = match party {
                 CapabilityParty::Server => "server",
                 CapabilityParty::Client => "client",
@@ -254,7 +261,19 @@ mod tests {
     #[test]
     fn abstains_when_negotiation_is_invisible() {
         let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/list"}}"#;
-        assert!(findings_for(trace).is_empty());
+        let events = parse_trace(trace, &Limits::default()).unwrap();
+        let context = TraceContext::new(&events);
+        let outcome = checks::find("lifecycle.negotiated-capabilities-only")
+            .unwrap()
+            .run(&context);
+        assert!(outcome.findings.is_empty());
+        // The half this test used to omit, and the reason it passed for as long
+        // as the check reported *pass* here: an abstention and a pass both have
+        // no findings, and only the subject count separates them.
+        assert_eq!(
+            outcome.subjects, 0,
+            "a session with no handshake shows neither compliance nor violation"
+        );
     }
 
     #[test]

@@ -52,6 +52,7 @@ pub fn validate(registry: &Registry, events: &[TraceEvent]) -> Report {
 
     Report {
         revision: registry.revision().to_string(),
+        revision_mismatch: crate::declared::mismatch(registry.revision(), events),
         totals,
         requirements: rows,
     }

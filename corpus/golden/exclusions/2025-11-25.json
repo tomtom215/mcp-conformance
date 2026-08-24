@@ -62,6 +62,11 @@
       "exclusion": "Rejection is client-side handling after receipt; the trace records the icon metadata served, not what the client did with it."
     },
     {
+      "id": "BASE-082",
+      "level": "MUST",
+      "exclusion": "Restates BASE-013's dialect floor and BASE-016's documentation SHOULD as the section's third numbered rule, unconditionally where BASE-013 scopes itself to schemas without an explicit `$schema` (the same restatement shape as TRAN-049 to TRAN-024). Excluded for BASE-013's reason: dialect support is validation behavior inside each implementation, and a trace shows the schemas exchanged, not how the receiver processed them."
+    },
+    {
       "id": "LIFE-008",
       "level": "MUST",
       "exclusion": "After negotiation, neither stdio nor HTTP message payloads carry a per-message protocol version, so respect is not observable in message traffic. The one wire artifact — the HTTP `MCP-Protocol-Version` header — is judged under TRAN-017 and TRAN-018."
@@ -189,7 +194,7 @@
     {
       "id": "TRAN-024",
       "level": "MUST",
-      "exclusion": "Recorded HTTP events carry status and conformance-relevant headers, not request methods or targets, so this clause's subject is invisible in a trace."
+      "exclusion": "Adds to TRAN-049's verb obligation that each message ride a *new* POST — one request per message. The verb is recorded and judged (TRAN-049); the request boundary each message rode is HTTP framing a trace summarizes rather than reproduces, and the endpoint it was addressed to is not recorded at all, so what this clause adds stays invisible."
     },
     {
       "id": "TRAN-027",
@@ -274,7 +279,7 @@
     {
       "id": "TRAN-046",
       "level": "SHOULD",
-      "exclusion": "Conditional on client intent (the wish to resume), and the request method is not captured; when a resumption does occur its `last-event-id` header is recorded, but absence proves nothing."
+      "exclusion": "Conditional on client intent (the wish to resume): a session that never disconnects owes nothing, and a recording cannot show a client wishing. When a resumption does occur its method and `last-event-id` header are both recorded, but absence proves nothing."
     },
     {
       "id": "TRAN-047",
@@ -284,12 +289,7 @@
     {
       "id": "TRAN-048",
       "level": "SHOULD",
-      "exclusion": "Conditional on client intent (no longer needing the session), and the request method is not captured."
-    },
-    {
-      "id": "TRAN-049",
-      "level": "MUST",
-      "exclusion": "Restates TRAN-024's obligation as the section's first numbered step (two normative sentences, one constraint). Recorded HTTP events carry status and conformance-relevant headers, not request methods or targets, so the clause's subject is invisible in a trace."
+      "exclusion": "Conditional on client intent (no longer needing the session). A teardown DELETE is recorded when it happens — `corpus/good/http-session.jsonl` carries one — but a session that ends without one may simply not have finished with it, so absence is not a violation."
     },
     {
       "id": "TOOL-002",
@@ -425,11 +425,6 @@
       "id": "PAGE-001",
       "level": "MUST NOT",
       "exclusion": "What a client assumes is internal state; the assumption has no wire footprint (MCP pagination requests carry no size parameter to inspect)."
-    },
-    {
-      "id": "PAGE-003",
-      "level": "SHOULD",
-      "exclusion": "Whether a cursor is invalid is server-internal knowledge; a trace cannot distinguish a server accepting a stale-but-valid cursor from one silently tolerating an invalid one."
     },
     {
       "id": "PAGE-004",

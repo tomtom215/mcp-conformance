@@ -132,8 +132,9 @@ async fn serve_http_tapped(
             return ExitCode::FAILURE;
         }
     };
+    let disabled = policy.validates_nothing();
     let app = mcp_everything_server::http::router_tapped(policy, revision, tap);
-    serve_app(bind, app).await
+    serve_app(bind, app, disabled).await
 }
 
 async fn serve_stdio(revision: ServedRevision) -> ExitCode {
@@ -186,12 +187,18 @@ async fn serve_http(
     policy: HttpSecurityPolicy,
     revision: ServedRevision,
 ) -> ExitCode {
+    let disabled = policy.validates_nothing();
     let app = mcp_everything_server::http::router(policy, revision);
-    serve_app(bind, app).await
+    serve_app(bind, app, disabled).await
 }
 
 /// Binds, prints the readiness line, and serves `app` until ctrl-c.
-async fn serve_app(bind: SocketAddr, app: axum::Router) -> ExitCode {
+///
+/// `host_policy_disabled` is reported *after* readiness, never before: the
+/// orchestration contract is that `listening on <addr>` is the first line on
+/// stderr (`xtask::conformance::await_readiness_line` reads exactly one), and a
+/// warning that broke process startup would be a poor way to improve safety.
+async fn serve_app(bind: SocketAddr, app: axum::Router, host_policy_disabled: bool) -> ExitCode {
     let listener = match tokio::net::TcpListener::bind(bind).await {
         Ok(listener) => listener,
         Err(error) => {
@@ -205,6 +212,20 @@ async fn serve_app(bind: SocketAddr, app: axum::Router) -> ExitCode {
             eprintln!("mcp-everything-server: no local addr: {error}");
             return ExitCode::FAILURE;
         }
+    }
+    if host_policy_disabled {
+        // The security model's stated control is that disabling validation
+        // "requires the self-describing --dangerously-allow-any-host flag".
+        // That name is in the operator's command line; it was in nothing the
+        // server itself wrote, so a running process left no evidence that the
+        // DNS-rebinding protection was off and a log could not be audited for
+        // it. One line closes that, at the moment it becomes true.
+        eprintln!(
+            "mcp-everything-server: WARNING — Host/Origin validation is DISABLED \
+             (--dangerously-allow-any-host). Any origin can reach this server, \
+             reopening the DNS-rebinding class (CVE-2026-42559) the default closes. \
+             Safe only behind a proxy that already enforces host policy."
+        );
     }
     match axum::serve(listener, app)
         .with_graceful_shutdown(async {

@@ -45,6 +45,21 @@ where
         .collect())
 }
 
+/// Deserializes an HTTP request method with the token normalized to uppercase.
+///
+/// RFC 9110 §9.1 makes method tokens case-sensitive and the registered methods
+/// are all uppercase, so a capture recording `post` is describing the same
+/// request a capture recording `POST` describes — it is the capturer's casing,
+/// not the wire's. Normalizing here means a lowercasing capturer cannot make a
+/// method-gated clause silently stop being judged, which is the failure mode
+/// the header normalization above exists to prevent, one field over.
+fn deserialize_uppercase_method<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Option::<String>::deserialize(deserializer)?.map(|method| method.to_ascii_uppercase()))
+}
+
 /// Which party emitted an event.
 ///
 /// Deliberately *not* `#[non_exhaustive]`: a protocol exchange has exactly two ends,
@@ -95,6 +110,24 @@ pub enum EventBody {
     },
     /// An HTTP-level observation (Streamable HTTP transport only).
     Http {
+        /// The request method, when this event records a client request.
+        ///
+        /// Streamable HTTP gives the client three request forms and binds
+        /// different obligations to each — `POST` carries messages, `GET`
+        /// opens a standalone stream, `DELETE` terminates a session — so a
+        /// clause addressed to one of them cannot be judged from an exchange
+        /// that does not say which it was. Absent (the shape every capture
+        /// predating this field has, and every server-side response event),
+        /// method-gated checks report the clause *not observed* rather than
+        /// guessing: a recording that cannot tell a POST from a DELETE cannot
+        /// evidence a POST-only MUST, and must not fail a DELETE with one.
+        /// Normalized to uppercase on deserialization.
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "deserialize_uppercase_method"
+        )]
+        method: Option<String>,
         /// Response status, when this event records a response.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         status: Option<u16>,
@@ -220,6 +253,7 @@ mod tests {
             direction: Direction::ServerToClient,
             transport: TransportKind::StreamableHttp,
             body: EventBody::Http {
+                method: None,
                 status: Some(403),
                 headers: BTreeMap::new(),
             },
@@ -278,6 +312,53 @@ mod tests {
         // The capitalized spellings are gone, not merely duplicated.
         assert!(!headers.contains_key("Mcp-Session-Id"));
         assert_eq!(headers.len(), 2);
+    }
+
+    #[test]
+    fn http_request_method_normalizes_to_uppercase() {
+        // A capturer that lowercases its method must not make a POST-gated
+        // clause stop being judged.
+        let line = r#"{"seq":2,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"post","headers":{}}"#;
+        let event: TraceEvent = serde_json::from_str(line).unwrap();
+        let EventBody::Http { method, .. } = event.body else {
+            panic!("expected an http event");
+        };
+        assert_eq!(method.as_deref(), Some("POST"));
+    }
+
+    #[test]
+    fn http_event_without_a_method_round_trips_byte_identically() {
+        // Every capture predating the field, and every response event, omits
+        // it — those recordings must serialize exactly as they did before.
+        let line = r#"{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":202}"#;
+        let event: TraceEvent = serde_json::from_str(line).unwrap();
+        let EventBody::Http { method, .. } = &event.body else {
+            panic!("expected an http event");
+        };
+        assert!(method.is_none());
+        assert_eq!(serde_json::to_string(&event).unwrap(), line);
+    }
+
+    #[test]
+    fn an_unrecognized_event_member_is_tolerated_rather_than_rejected() {
+        // The schema's extension contract, and the reason a field may be added
+        // to it without stranding either side: a reader ignores members it does
+        // not know, so a trace written by a newer capture still parses here (it
+        // loses the unknown member on re-serialization, which is the honest
+        // outcome — this build cannot vouch for what it did not understand).
+        // Verified against the real pre-`method` build before `method` was
+        // added: it parsed a trace carrying one and dropped it.
+        let line = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","targetPath":"/mcp","headers":{}}"#;
+        let event: TraceEvent = serde_json::from_str(line).unwrap();
+        let EventBody::Http { method, .. } = &event.body else {
+            panic!("expected an http event");
+        };
+        assert_eq!(method.as_deref(), Some("POST"));
+        assert!(
+            !serde_json::to_string(&event)
+                .unwrap()
+                .contains("targetPath")
+        );
     }
 
     #[test]

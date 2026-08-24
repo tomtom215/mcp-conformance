@@ -40,7 +40,9 @@
         "section": "server/utilities/pagination#error-handling",
         "quote": "Invalid cursors SHOULD result in an error with code -32602 (Invalid params)."
       },
-      "exclusion": "Whether a cursor is invalid is server-internal knowledge; a trace cannot distinguish a server accepting a stale-but-valid cursor from one silently tolerating an invalid one."
+      "checks": [
+        "pagination.invalid-cursor-rejected"
+      ]
     },
     {
       "id": "PAGE-004",

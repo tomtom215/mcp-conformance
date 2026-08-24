@@ -198,6 +198,82 @@ mod tests {
         assert_eq!(content["tags"], serde_json::json!(["a", "c"]));
     }
 
+    /// SEP-1330's titled enum forms, which carry a human label per choice and
+    /// so deserialize to a different variant than the plain `enum` array.
+    ///
+    /// Untested until 2026-08-24, and the weekly full mutation sweep is what
+    /// said so: deleting either `Titled` arm from `default_of` fell through to
+    /// the `_ => None` that exists for rmcp's `#[non_exhaustive]` future
+    /// variants, so a titled enum's default silently vanished and 1726 mutants
+    /// found only these two unobserved. A host that drops a declared default
+    /// answers an elicitation with a field the server asked it to prefill and
+    /// did not get — the exact failure `AcceptWithDefaults` exists to avoid.
+    #[test]
+    fn titled_single_select_defaults_are_extracted() {
+        let schema: ElicitationSchema = serde_json::from_value(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "oneOf": [
+                        { "const": "active", "title": "Active" },
+                        { "const": "inactive", "title": "Inactive" }
+                    ],
+                    "default": "active"
+                }
+            },
+            "required": []
+        }))
+        .unwrap();
+        let content = defaults_from_schema(&schema);
+        assert_eq!(content["status"], "active", "{content:?}");
+    }
+
+    #[test]
+    fn titled_multi_select_defaults_become_string_arrays() {
+        let schema: ElicitationSchema = serde_json::from_value(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "anyOf": [
+                            { "const": "a", "title": "Alpha" },
+                            { "const": "b", "title": "Beta" }
+                        ]
+                    },
+                    "default": ["a", "b"]
+                }
+            },
+            "required": []
+        }))
+        .unwrap();
+        let content = defaults_from_schema(&schema);
+        assert_eq!(
+            content["tags"],
+            serde_json::json!(["a", "b"]),
+            "{content:?}"
+        );
+    }
+
+    #[test]
+    fn a_titled_enum_without_a_default_is_omitted_not_invented() {
+        // The other half of each arm: `None` in, nothing out. Without this the
+        // arms could be "return something" rather than "return the default".
+        let schema: ElicitationSchema = serde_json::from_value(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "oneOf": [{ "const": "active", "title": "Active" }]
+                }
+            },
+            "required": []
+        }))
+        .unwrap();
+        assert!(defaults_from_schema(&schema).is_empty());
+    }
+
     #[test]
     fn default_script_is_the_conformance_posture() {
         let script = InteractionScript::default();

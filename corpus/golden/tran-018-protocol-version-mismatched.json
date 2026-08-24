@@ -1,13 +1,13 @@
 {
   "revision": "2025-11-25",
   "totals": {
-    "pass": 21,
+    "pass": 22,
     "fail": 0,
     "warn": 1,
-    "excluded": 88,
+    "excluded": 87,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 16
+    "not_observed": 18
   },
   "requirements": [
     {
@@ -116,6 +116,11 @@
       "outcome": "pass"
     },
     {
+      "id": "LIFE-018",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
       "id": "TRAN-004",
       "level": "MUST NOT",
       "outcome": "not-observed"
@@ -170,10 +175,15 @@
     {
       "id": "TRAN-039",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-040",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-049",
       "level": "MUST",
       "outcome": "pass"
     },
@@ -289,6 +299,11 @@
     {
       "id": "PAGE-002",
       "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PAGE-003",
+      "level": "SHOULD",
       "outcome": "not-observed"
     }
   ]
