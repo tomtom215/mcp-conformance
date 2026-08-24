@@ -66,6 +66,14 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   versions (2.19); and the docs-site restructure that had quietly emptied the
   page rows 1.5a/1.5b cited (2.20).
 
+  The contribution backlog is corrected with it: item 2 (the RustSec advisory)
+  joins item 3 as closed-upstream-before-we-filed, item 7's coverage bar widens
+  to the SHOULD level SEP-2484 actually requires, and a new item 12 offers the
+  three-string-literal fix for the suite's 404ing spec references. Item 1, the
+  everything server, is now the only backlog entry anchored to a gap the
+  ecosystem still publishes — which is worth naming rather than celebrating a
+  fourth closure: a backlog of *gaps* decays on somebody else's schedule.
+
   **What could not be verified is marked as unverified rather than advanced.**
   GitHub was unreachable from the session that ran the sweep, so the four rows
   sourced only from issue state keep their original dates, stay outside the

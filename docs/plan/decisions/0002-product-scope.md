@@ -4,7 +4,11 @@
 # ADR 0002: Product Scope — Conformance Toolkit, Not Another SDK
 
 **Date:** 2026-06-09
-**Status:** Accepted
+**Status:** Accepted. Context re-examined by
+[ADR-0015](0015-the-tier-2-premise-is-gone.md) (2026-08-24): three of the four gaps in the
+second decisive fact below have closed — the Rust SDK reached Tier 1, rmcp declares an MSRV,
+and `RUSTSEC-2026-0189` exists. The decision stands on the third and fifth facts; the body
+below is left as written, per this log's rule that old reasoning stays readable.
 **Author:** Tom F.
 
 ---
