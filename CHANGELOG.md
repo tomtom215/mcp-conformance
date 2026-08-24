@@ -409,6 +409,40 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   rather than what a server names its tools — both ends compare. Nothing reads
   `actor`, which is exactly why nothing noticed.
 
+- **rmcp 3.1.2 → 3.1.4, taken as its own measured change.** A patch bump inside
+  the range the manifest already declares (`>=3.1.1, <4`), so
+  [ADR-0011](docs/plan/decisions/0011-rmcp-pin-holds-at-1-7.md)'s pin decision —
+  whose condition was met when the spec text and a stable `3.0.x` both landed —
+  is not reopened by it.
+
+  It was kept out of the dependency commit because two of its seven fixes touch
+  **elicitation schemas**, and this workspace both sends them (the everything-
+  server serves the three elicitation scenarios the suite checks) and reads them
+  (the reference host derives defaults from them). Read from the published
+  crates rather than a release note: `3.1.3` preserves elicitation property-order
+  metadata, and `3.1.4` preserves the `requestedSchema` `$schema` dialect.
+
+  Structurally that is not a small change. `ElicitationSchema` gains two public
+  fields (`schema`, `property_order`) and now serialises through a wire type
+  backed by an `IndexMap`, so **property order on the wire can move** — the sort
+  of thing a green build hides completely. Measured rather than assumed: all six
+  captured `requestedSchema` payloads were extracted from the committed traces,
+  the sessions re-recorded on 3.1.4, and the two compared. Three distinct
+  schemas, identical set, identical property order, no `$schema` key appearing.
+  The reason is that this workspace builds its schemas from a `BTreeMap`, which
+  leaves `property_order` at `None` and falls back to sorted order.
+
+  `getrandom` looks like a downgrade in the lockfile diff and is not one: both
+  0.3.4 and 0.4.3 were already in the tree, and only `tempfile`'s edge moved
+  during re-resolution. `rmcp` gains `indexmap`; `rmcp-macros` gains `serde`.
+
+  Six legs, all green: `ci`, the official suite (40/40 server over 30 sessions,
+  the client leg's four scenarios, zero unexplained divergence either side),
+  `draft-capture` (judged clean), `draft-readiness` (matches the committed
+  baseline exactly), `minimal-versions` (the floors still resolve, build and
+  pass — the declared floor stays 3.1.1, since nothing here needs 3.1.4), and
+  the targeted wire diff above.
+
 - **Dependabot's two open updates, verified and taken.** The actions group
   (#36: `Swatinem/rust-cache` 2.9.1 → 2.9.2, `actions/attest-build-provenance`
   4.1.1 → 4.2.2) conflicted with this branch and only because of it — the
