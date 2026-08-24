@@ -55,7 +55,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
       - name: Audit dependencies
@@ -70,7 +70,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-mutants
         run: cargo install cargo-mutants --locked
       # The standard (docs/plan/04-engineering-standards.md): zero surviving mutants
@@ -96,7 +96,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Official suite (alpha dist-tag) vs everything-server
         run: cargo xtask conformance
         env:
@@ -117,7 +117,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Draft scenarios vs everything-server, against the committed baseline
         run: cargo xtask draft-readiness
 
@@ -131,7 +131,7 @@ jobs:
       - name: Install toolchain
         run: |
           rustup toolchain install nightly --profile minimal --no-self-update
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: fuzz
       - name: Install cargo-fuzz
@@ -188,7 +188,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install nightly toolchain (with rust-src for the careful sysroot)
         run: rustup toolchain install nightly --profile minimal --component rust-src --no-self-update
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-careful
         run: cargo install cargo-careful --locked
       # These two crates have no behavior-affecting feature split — core has no
@@ -240,7 +240,7 @@ jobs:
         run: |
           rustup show active-toolchain
           rustup target add ${{ matrix.rust_target }}
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install the cross toolchain for ${{ matrix.note }}
         run: |
           sudo apt-get update
@@ -272,7 +272,7 @@ jobs:
           # rust-toolchain.toml installs; `cargo +nightly` overrides it where the
           # unstable flag is needed.
           rustup show active-toolchain
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Resolve to the declared floors, then build and test there
         run: cargo xtask minimal-versions
 
@@ -289,7 +289,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Run benchmarks
         run: cargo bench --workspace
       - name: Upload criterion estimates
@@ -342,7 +342,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Deferral ledger within its review dates
         id: ledger
         run: cargo xtask deferrals --check

@@ -409,6 +409,27 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   rather than what a server names its tools — both ends compare. Nothing reads
   `actor`, which is exactly why nothing noticed.
 
+- **Dependabot's two open updates, verified and taken.** The actions group
+  (#36: `Swatinem/rust-cache` 2.9.1 → 2.9.2, `actions/attest-build-provenance`
+  4.1.1 → 4.2.2) conflicted with this branch and only because of it — the
+  branch rewrote the very `rustup` lines its diff used as context. Both SHAs
+  were resolved against the upstream repositories before being taken rather
+  than trusted from the bot: `rust-cache`'s v2.9.2 is an annotated tag whose
+  *commit* is the pinned `6323deb…` (the tag object is a different hash, and
+  pinning that one would be a subtle mistake), and `attest-build-provenance`'s
+  v4.2.2 is a lightweight tag pointing straight at `4d10147…`.
+
+  The cargo group (#37: clap 4.6.6, schemars 1.2.2, http-body-util 0.1.5,
+  futures 0.3.34, http 1.5.0) needed no rebase at all — it touches only
+  `Cargo.lock`, which this branch does not, and GitHub reports it clean. Applied
+  here it reproduces that PR's diffstat exactly, 35 insertions and 35 deletions
+  in one file. Three of the five are more than cosmetic and sit in the wire
+  path: `http` now enforces a maximum length in `PathAndQuery`, `futures`
+  preserves cloned waker identity, and `http-body-util` moved a doc attribute.
+  So they were put through the official suite rather than the unit tests alone:
+  40/40 server checks over 30 tapped sessions, the client leg's four scenarios,
+  and zero unexplained divergence on either side.
+
 - **The licence header was a checklist box; it is a gate.** The pull-request
   template asked for "SPDX header on every new file" and nothing checked it. It
   was true — 281 of 281 eligible tracked files carried one when this was written
