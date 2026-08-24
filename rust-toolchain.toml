@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+# The toolchain this workspace is developed and gated on, pinned exactly.
+#
+# Every gate here runs at `-D warnings` under clippy's pedantic and nursery
+# groups, which makes the toolchain an *input* to the gate: a new Rust release
+# adds lints, and the build turns red on code nobody touched. That is the shape
+# `docs/plan/04-engineering-standards.md` already refuses for the official-suite
+# pins — a gate whose input moves underneath it is not a gate — and until
+# 2026-08-24 the Rust toolchain was the one input still floating. CI installed
+# `stable`; contributors ran whatever they had. The two diverged and stayed
+# diverged for thirteen consecutive red runs, because a local `cargo xtask ci`
+# structurally cannot see lints from a toolchain it does not have.
+#
+# Pinning here rather than in the workflows is what closes that: rustup honours
+# this file for every cargo invocation in the tree, so CI and a checkout run the
+# same compiler and the same lints by construction, and a contributor gets the
+# toolchain installed on first build rather than a surprise on push.
+#
+# **Bumping it is a deliberate change**, the same procedure as a suite pin: raise
+# `channel`, run `cargo xtask ci`, and fix or record what the new lints say in
+# the commit that raises it. `cargo xtask toolchain-currency` (weekly, ADR-0010)
+# fails when a newer stable exists, so the pin cannot fall behind unnoticed —
+# and holding it deliberately is a legitimate outcome, recorded where the pin
+# lives.
+#
+# The MSRV is a different number for a different purpose (1.88, ADR-0008,
+# `[workspace.package].rust-version`): the oldest toolchain the crates *compile*
+# on. CI's MSRV legs override this file with `RUSTUP_TOOLCHAIN`, and
+# `cargo xtask ci`'s MSRV clippy leg with an explicit `+1.88.0`.
+[toolchain]
+channel = "1.98.0"
+profile = "minimal"
+components = ["clippy", "rustfmt"]

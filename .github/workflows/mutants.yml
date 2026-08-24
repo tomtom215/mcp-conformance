@@ -39,8 +39,7 @@ jobs:
           fetch-depth: 0
       - name: Install toolchain
         run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
+          rustup show active-toolchain
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       # Compiled from source with --locked for reproducibility; the rust-cache step
       # caches the installed binary between runs.

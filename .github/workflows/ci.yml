@@ -44,10 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --component rustfmt --no-self-update
-          rustup default stable
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -57,14 +55,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: [stable, "1.88"]
+        # The first entry must equal rust-toolchain.toml's channel; the second is
+        # the MSRV (ADR-0008). `cargo xtask toolchain-pin` fails when the two
+        # files disagree — the `matrix` context cannot read `env`, so the version
+        # is written out here and checked rather than interpolated.
+        rust: ["1.98.0", "1.88"]
         os: [ubuntu-latest, macos-latest, windows-latest]
+    # A directory override outranks `rustup default`, so naming the toolchain in
+    # the environment is the only way a leg can override rust-toolchain.toml.
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install toolchain
-        run: |
-          rustup toolchain install ${{ matrix.rust }} --profile minimal --component clippy --no-self-update
-          rustup default ${{ matrix.rust }}
+        run: rustup toolchain install ${{ matrix.rust }} --profile minimal --component clippy --no-self-update
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Clippy (default features)
         run: cargo clippy --workspace --all-targets -- -D warnings
@@ -79,14 +83,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: [stable, "1.88"]
+        # Same pair as the clippy matrix, and gated the same way.
+        rust: ["1.98.0", "1.88"]
         os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install toolchain
-        run: |
-          rustup toolchain install ${{ matrix.rust }} --profile minimal --no-self-update
-          rustup default ${{ matrix.rust }}
+        run: rustup toolchain install ${{ matrix.rust }} --profile minimal --no-self-update
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Test (default features)
         run: cargo test --workspace
@@ -100,10 +105,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Build docs (zero warnings)
         run: cargo doc --workspace --no-deps
@@ -125,10 +128,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Install mdBook
         # Built from source under --locked rather than via a third-party setup
@@ -167,10 +168,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       # `--workspace` resolves path+version deps against sibling crates rather than
       # crates.io, which is what pre-publish validation needs. xtask is publish=false
@@ -187,9 +186,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install toolchain
-        run: |
-          rustup toolchain install nightly --profile minimal --no-self-update
-          rustup default nightly
+        # `RUSTUP_TOOLCHAIN` below, not `rustup default`: rust-toolchain.toml is
+        # a directory override and outranks the default, so a job that wants a
+        # different toolchain has to say so in the environment.
+        run: rustup toolchain install nightly --profile minimal --no-self-update
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Test (all features, nightly)
         run: cargo test --workspace --all-features
@@ -207,8 +207,10 @@ jobs:
       - name: Install toolchains
         run: |
           rustup toolchain install nightly --profile minimal --no-self-update
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
+          # The non-nightly half of this job runs on the pinned toolchain, which
+          # rust-toolchain.toml installs; `cargo +nightly` overrides it where the
+          # unstable flag is needed.
+          rustup show active-toolchain
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Resolve minimal versions
         run: cargo +nightly generate-lockfile -Zminimal-versions
@@ -241,10 +243,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Runner prerequisites (Node is preinstalled on the runner image)
         run: node --version && npx --version

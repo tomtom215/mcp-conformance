@@ -332,6 +332,34 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The toolchain is pinned, and the pin is gated in both directions.** Every
+  gate here runs at `-D warnings` under clippy's pedantic and nursery groups,
+  which makes the compiler an *input* to the gate — and the rule this repository
+  already applies to the official-suite pins applies to it: a gate whose input
+  moves underneath it is not a gate. It was the one input still floating. CI
+  installed `stable`; contributors ran whatever they had; and because a local
+  `cargo xtask ci` structurally cannot see lints from a toolchain it does not
+  have, the two diverged and stayed diverged for thirteen consecutive red runs.
+
+  `rust-toolchain.toml` now pins it exactly. `rustup` honours the file for every
+  plain `cargo` in the tree, so a checkout and CI compile with the same lints by
+  construction — which is the half that closes the gap, not the workflow edit.
+  Legs wanting a different toolchain say so where it outranks a directory
+  override: `RUSTUP_TOOLCHAIN` for the MSRV matrices, `cargo +nightly` for the
+  unstable-flag tasks. Fourteen `rustup default stable` invocations across five
+  workflows became one `rustup show active-toolchain` each.
+
+  Two gates hold it. `cargo xtask toolchain-pin` (offline, in `ci`) fails when a
+  workflow gates on a version the pin does not name — the `matrix` context cannot
+  read `env`, so the number is written out and checked, as the MSRV constant is
+  checked against the manifest — or when one installs bare `stable` again. `cargo
+  xtask toolchain-currency` (network, weekly) asks rust-lang.org what stable is
+  and fails when the pin is not it; it joins the ledger, drift and suite-pin gates
+  in the `claims-expire` job, so a Rust release now arrives as a tracking issue
+  naming the bump procedure rather than as a red pull request nobody caused.
+  Bumping stays a deliberate commit, and holding the pin stays a legitimate
+  outcome recorded where the pin lives.
+
 - **The two registries never compared their readings of a clause they both
   carry, and four had drifted.** Requirement ids are unique across the whole set
   rather than per revision, so a sentence the specification keeps unchanged is

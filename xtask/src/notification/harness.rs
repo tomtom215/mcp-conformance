@@ -129,7 +129,8 @@ pub(super) fn run_step(
         sandbox.0.join("bin").display(),
         std::env::var("PATH").unwrap_or_default()
     );
-    let output = Command::new("bash")
+    let mut command = Command::new("bash");
+    command
         .arg(&script_path)
         .current_dir(&sandbox.0)
         .env("PATH", path)
@@ -139,21 +140,19 @@ pub(super) fn run_step(
         .env("GITHUB_REPOSITORY", "tomtom215/mcp-conformance")
         .env("GH_TOKEN", "stub")
         .env("GH_REPO", "tomtom215/mcp-conformance")
-        .env("GITHUB_STEP_SUMMARY", sandbox.0.join("summary.md"))
-        .env(
-            "LEDGER_OUTCOME",
-            outcomes.get("ledger").copied().unwrap_or("success"),
-        )
-        .env(
-            "DRIFT_OUTCOME",
-            outcomes.get("drift").copied().unwrap_or("success"),
-        )
-        .env(
-            "PINS_OUTCOME",
-            outcomes.get("pins").copied().unwrap_or("success"),
-        )
-        .output()
-        .expect("bash runs the step");
+        .env("GITHUB_STEP_SUMMARY", sandbox.0.join("summary.md"));
+    // Each gate's step outcome, defaulting to the colour a step that did not
+    // fail reports. A gate added to the job without a row here would make every
+    // test below run with it green, so the list is the contract.
+    for (key, variable) in [
+        ("ledger", "LEDGER_OUTCOME"),
+        ("drift", "DRIFT_OUTCOME"),
+        ("pins", "PINS_OUTCOME"),
+        ("toolchain", "TOOLCHAIN_OUTCOME"),
+    ] {
+        command.env(variable, outcomes.get(key).copied().unwrap_or("success"));
+    }
+    let output = command.output().expect("bash runs the step");
 
     Run {
         status: output.status.code().unwrap_or(-1),

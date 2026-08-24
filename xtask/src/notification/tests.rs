@@ -158,66 +158,81 @@ fn a_red_ledger_with_no_expired_row_says_the_ledger_itself_is_the_problem() {
     assert!(!run.body.contains("review by"), "{}", run.body);
 }
 
+/// Every gate this job runs, and the section its failure must add.
+///
+/// The list is the contract: a gate added to `scheduled.yml` without a row here
+/// is a gate whose failure the issue would not explain, which is the whole
+/// reason the issue names one at all — an un-re-decided deferral, an upstream
+/// suite release, a Rust release and a transient fetch failure are identical
+/// from outside the run.
+#[cfg(unix)]
+const GATES: [(&str, &str); 4] = [
+    ("ledger", "### Expired ledger rows"),
+    ("drift", "### Spec-quote drift"),
+    ("pins", "### Suite pins"),
+    ("toolchain", "### Toolchain pin"),
+];
+
 #[cfg(unix)]
 #[test]
 fn each_gate_contributes_its_own_section_and_no_others() {
+    for (key, section) in GATES {
+        let run = run_step(
+            key,
+            OPEN_STEP,
+            &outcomes(&[(key, "failure")]),
+            Some("a-row 2026-01-01\n"),
+            "[]",
+        );
+        assert!(
+            run.body.contains(section),
+            "{section} missing:\n{}",
+            run.body
+        );
+        for (_, other) in GATES.iter().filter(|(other, _)| *other != key) {
+            assert!(
+                !run.body.contains(other),
+                "a red `{key}` produced {other}:\n{}",
+                run.body
+            );
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn every_gate_red_at_once_names_all_of_them() {
+    let all = run_step(
+        "all",
+        OPEN_STEP,
+        &outcomes(&GATES.map(|(key, _)| (key, "failure"))),
+        Some("a-row 2026-01-01\n"),
+        "[]",
+    );
+    for (_, section) in GATES {
+        assert!(
+            all.body.contains(section),
+            "{section} missing:\n{}",
+            all.body
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn the_drift_section_does_not_republish_what_it_fetched() {
     let drift = run_step(
-        "drift",
+        "drift-text",
         OPEN_STEP,
         &outcomes(&[("drift", "failure")]),
         Some(""),
         "[]",
     );
     assert!(
-        drift.body.contains("### Spec-quote drift"),
-        "{}",
-        drift.body
-    );
-    assert!(
-        !drift.body.contains("### Expired ledger rows"),
-        "{}",
-        drift.body
-    );
-    assert!(!drift.body.contains("### Suite pins"), "{}", drift.body);
-    // The fetched specification text is deliberately not republished.
-    assert!(
         drift.body.contains("deliberately not republished"),
         "{}",
         drift.body
     );
-
-    let pins = run_step(
-        "pins",
-        OPEN_STEP,
-        &outcomes(&[("pins", "failure")]),
-        Some(""),
-        "[]",
-    );
-    assert!(pins.body.contains("### Suite pins"), "{}", pins.body);
-    assert!(!pins.body.contains("### Spec-quote drift"), "{}", pins.body);
-
-    let all = run_step(
-        "all",
-        OPEN_STEP,
-        &outcomes(&[
-            ("ledger", "failure"),
-            ("drift", "failure"),
-            ("pins", "failure"),
-        ]),
-        Some("a-row 2026-01-01\n"),
-        "[]",
-    );
-    for section in [
-        "### Expired ledger rows",
-        "### Spec-quote drift",
-        "### Suite pins",
-    ] {
-        assert!(
-            all.body.contains(section),
-            "{section} missing from {}",
-            all.body
-        );
-    }
 }
 
 #[cfg(unix)]
@@ -315,6 +330,7 @@ fn an_unset_step_summary_does_not_trip_set_u() {
         .env("LEDGER_OUTCOME", "success")
         .env("DRIFT_OUTCOME", "failure")
         .env("PINS_OUTCOME", "success")
+        .env("TOOLCHAIN_OUTCOME", "success")
         .env_remove("GITHUB_STEP_SUMMARY")
         .output()
         .expect("bash runs the step");

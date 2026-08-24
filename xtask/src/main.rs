@@ -32,6 +32,10 @@
 //!   model's inventory, both directions (`ci_permissions.rs`).
 //! - `deny` — run `cargo deny --all-features check`, skipping loudly when
 //!   cargo-deny is not installed.
+//! - `toolchain-pin` — every governed workflow gates on the compiler
+//!   `rust-toolchain.toml` names, and none installs bare `stable`
+//!   (`toolchain.rs`). Offline; its network sibling `toolchain-currency` runs
+//!   weekly and fails when a newer stable exists.
 //! - `registry-continuity` — a clause both revisions carry, entered twice under
 //!   two ids, must be entered the same way twice: same level, same actor, and
 //!   judged in both or excluded in both (`registry_continuity.rs`). Not the same
@@ -108,6 +112,7 @@ mod notification;
 mod registry_continuity;
 mod spec_drift;
 mod suite_currency;
+mod toolchain;
 mod version_sync;
 
 /// The workspace root: the parent of this crate's manifest directory.
@@ -144,6 +149,8 @@ fn main() -> ExitCode {
         Some("suite-currency") => exit_if(suite_currency::run()),
         Some("docs-links") => exit_if(docs_links::run()),
         Some("registry-continuity") => exit_if(registry_continuity::run()),
+        Some("toolchain-pin") => exit_if(toolchain::pin_gate()),
+        Some("toolchain-currency") => exit_if(toolchain::currency_gate()),
         Some("version-sync") => exit_if(version_sync::run()),
         Some("changelog-links") => exit_if(changelog_links::run()),
         Some("conformance") => conformance::run(),
@@ -210,6 +217,9 @@ fn gates() -> bool {
         return false;
     }
     if !ci_permissions::run() {
+        return false;
+    }
+    if !toolchain::pin_gate() {
         return false;
     }
     if !registry_continuity::run() {
