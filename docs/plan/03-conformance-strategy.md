@@ -4,7 +4,7 @@
 # Conformance Strategy
 
 **Status:** Active
-**Last reviewed:** 2026-06-11
+**Last reviewed:** 2026-08-24
 
 ---
 
@@ -185,15 +185,27 @@ informational SHOULD warning on the suite's version-compat probe.
   the agreement gate would still make a released pin's outcome hostage to a pre-release
   check set.
 
-## Supporting rmcp's path to Tier 1
+## Supporting rmcp at Tier 1
 
-The Rust SDK is officially Tier 2 ([register 2.8](01-ecosystem-context.md)). Tier 1 requires
-([register 2.5](01-ecosystem-context.md)): 100% conformance pass, new protocol features
-inside the two-week RC→release window, two-business-day triage, seven-day P0 resolution, and
-documented stable releasing. Of these, the first two are where outside engineering effort
-genuinely helps; the rest are maintainer-process commitments we can support but not supply.
+**rmcp reached Tier 1.** The published table places Rust in Tier 1 alongside TypeScript,
+Python, C# and Go, and rust-sdk's `ROADMAP.md` reports every SEP-1730 requirement met, with
+100% server and client conformance on both dated suites
+([register 2.8](01-ecosystem-context.md), refuted and rewritten in the 2026-08-24 sweep; this
+section read "is officially Tier 2" until then). Tier 1 requires
+([register 2.5](01-ecosystem-context.md)): 100% conformance pass, protocol features on the
+timeline agreed per release, two-business-day triage, seven-day P0 resolution, and documented
+stable releasing.
 
-Our concrete contributions to that path (tracked in
+**That changes what help is worth offering, and the change is not cosmetic.** Tier 1 is not a
+finish line but a *standing* condition — the sdk-tiers page defines demotion as "Tier 1 → Tier
+2: **Any** conformance test fails" — so the useful contribution shifts from closing a gap to
+keeping a 100% bar from slipping across two live revisions and a growing scenario set. Of the
+four gaps this project was founded to help close, three closed without us
+([ADR-0015](decisions/0015-the-tier-2-premise-is-gone.md)); the everything server is the one
+that remains, and the roadmap published 2026-08-22 independently names SDK "conformance with
+the specification" a priority area ([register 1.9](01-ecosystem-context.md)).
+
+Our concrete contributions (tracked in
 [07-ecosystem-engagement.md](07-ecosystem-engagement.md)):
 
 1. **The everything server** — the SEP-1730 appendix artifact rust-sdk verifiably lacks
@@ -201,15 +213,20 @@ Our concrete contributions to that path (tracked in
 2. **Conformance scenarios and fixtures** for gaps the suite's Rust runs expose, contributed
    to `modelcontextprotocol/conformance`.
 3. **A published tier-gap report**: the official suite's measurement plus requirement-level
-   detail from our validator, refreshed per spec revision — turning "reach Tier 1" from a
-   slogan into a checklist. First edition published 2026-06-13:
+   detail from our validator, refreshed per spec revision. Its frame is now *holding* Tier 1
+   rather than reaching it, and each edition must say which tier and which revision it
+   measured against — a report that says "gap" without naming the bar is the score theater
+   this strategy refuses below. First edition published 2026-06-13:
    [docs/reports/rmcp-tier-gap-2025-11-25.md](../reports/rmcp-tier-gap-2025-11-25.md)
    (rmcp 38/40 at head `266f870`; the two failures read back to clause level; close-the-gap
    checklist). It reports the `server`-subcommand figure rather than a `tier-check` aggregate,
    which is GitHub-token-gated and under-counts ([register 2.13](01-ecosystem-context.md),
    conformance#182).
-4. **2026-07-28 readiness**: validator and corpus support for the stateless rework *before*
-   the two-week window opens, so the Rust ecosystem has a test target early.
+4. **`2026-07-28` support**: validator and corpus support for the stateless rework. Written
+   as *readiness ahead of the window*; the revision shipped 2026-07-28 and is now current
+   ([register 1.1](01-ecosystem-context.md)), so this is ongoing support for a live revision,
+   measured two-legged by `cargo xtask draft-readiness`
+   ([register 1.5i](01-ecosystem-context.md)).
 
 ## What this strategy refuses to do
 

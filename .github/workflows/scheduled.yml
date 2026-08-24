@@ -326,7 +326,7 @@ jobs:
   #   * This workflow triggers only on `schedule` and `workflow_dispatch`, so
   #     no fork or pull-request input reaches the token.
   claims-expire:
-    name: Deferral ledger + spec quotes + suite pins (ADR-0010)
+    name: Deferral ledger + spec quotes + suite pins + register currency (ADR-0010)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -370,6 +370,17 @@ jobs:
         id: toolchain
         if: always()
         run: cargo xtask toolchain-currency
+      # The fifth claim, and the only one that expires on *our* schedule rather
+      # than someone else's: the ecosystem register's own maintenance rule 1.
+      # The rule was stated in the register's prose and read by nothing; the
+      # 2026-08-24 sweep it should have driven happened because a hand-written
+      # ledger row scheduled it, and that row's scope figure was a grep miscount
+      # (ADR-0015). The dates the gate reads are the ones the rows already
+      # carry, so the schedule cannot drift from the data.
+      - name: Register rows re-verified within the 90-day rule
+        id: register
+        if: always()
+        run: cargo xtask register-currency --check
       - name: Open or update the tracking issue
         if: failure()
         shell: bash
@@ -378,18 +389,20 @@ jobs:
           DRIFT_OUTCOME: ${{ steps.drift.outcome }}
           PINS_OUTCOME: ${{ steps.pins.outcome }}
           TOOLCHAIN_OUTCOME: ${{ steps.toolchain.outcome }}
+          REGISTER_OUTCOME: ${{ steps.register.outcome }}
         run: |
           set -euo pipefail
           # printf rather than a heredoc so every backtick in the Markdown is
           # literal, and so nothing fetched from the network can reach the body.
           {
             printf 'The weekly `claims-expire` job ended red.\n\n'
-            printf 'It runs four independent gates ([ADR-0010](%s/%s/blob/main/docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md)), so this issue names which one: an un-re-decided deferral, an upstream release, a Rust release, and a transient spec fetch failure look identical from the outside.\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY"
+            printf 'It runs five independent gates ([ADR-0010](%s/%s/blob/main/docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md), extended by [ADR-0015](%s/%s/blob/main/docs/plan/decisions/0015-the-tier-2-premise-is-gone.md)), so this issue names which one: an un-re-decided deferral, an upstream release, a Rust release, a stale register row, and a transient spec fetch failure look identical from the outside.\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY"
             printf '| Gate | Outcome |\n| --- | --- |\n'
             printf '| Deferral ledger within its review dates | `%s` |\n' "$LEDGER_OUTCOME"
             printf '| Registry quotes match the published spec text | `%s` |\n' "$DRIFT_OUTCOME"
             printf '| Both suite pins still equal the dist-tags they track | `%s` |\n' "$PINS_OUTCOME"
             printf '| The pinned toolchain still equals current stable | `%s` |\n' "$TOOLCHAIN_OUTCOME"
+            printf '| Register rows re-verified within the 90-day rule | `%s` |\n' "$REGISTER_OUTCOME"
           } > issue-body.md
           if [[ "$LEDGER_OUTCOME" == "failure" ]]; then
             # `|| true`: this query fails only when the ledger itself is
@@ -424,6 +437,12 @@ jobs:
             {
               printf '\n### Toolchain pin\n\n'
               printf 'A new Rust stable has shipped and `rust-toolchain.toml` still pins the old one. Bumping is a deliberate commit: raise `channel`, run `cargo xtask ci`, and fix or record what the new lints say in the same commit. Holding the pin is a legitimate outcome, recorded where the pin lives. The run log names both versions.\n'
+            } >> issue-body.md
+          fi
+          if [[ "$REGISTER_OUTCOME" == "failure" ]]; then
+            {
+              printf '\n### Register currency\n\n'
+              printf 'One or more rows in `docs/plan/01-ecosystem-context.md` have passed the register%s own 90-day rule. Re-verify each against its listed primary source and update value, date and source in place (maintenance rule 2). If a source cannot be reached, say so in the row and leave its date alone: advancing a date nobody re-checked is the one failure that makes the register worthless. The run log names each row, its line, its date and its age.\n' "'s"
             } >> issue-body.md
           fi
           printf '\nRun: %s\n' "$RUN_URL" >> issue-body.md

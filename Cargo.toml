@@ -118,6 +118,16 @@ expect_used = "warn"
 # not clean; and an impl that reads method-for-method against the trait it
 # implements is worth more here than a state machine that is never polled twice.
 unused_async_trait_impl = "allow"
+# Known cost, measured 2026-08-24 rather than assumed: this lint does not exist
+# at the MSRV (ADR-0008, 1.88), so every `cargo +1.88.0` build prints
+# `warning[E0602]: unknown lint: clippy::unused_async_trait_impl` once per crate
+# and target — about twenty-eight lines. It is noise, not a break: `-D warnings`
+# does not escalate E0602 for a lint supplied on the command line, so the MSRV
+# clippy gate still runs and still passes on its own merits (verified by running
+# it directly and reading the exit code, not by inferring it from a green `ci`).
+# Silencing it would mean `unknown_lints = "allow"` across the workspace, which
+# buys quiet by giving up the lint that catches a misspelled lint name — a trade
+# this repository has already been bitten by once. The noise stays, explained.
 
 [profile.release]
 panic = "abort"

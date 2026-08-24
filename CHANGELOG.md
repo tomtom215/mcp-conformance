@@ -13,6 +13,65 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **The register's own 90-day rule is now a gate, and running it early found
+  that three of the four premises this project was founded on had closed.**
+  `docs/plan/01-ecosystem-context.md` has stated maintenance rule 1 since it was
+  written — *"a row older than 90 days must be re-verified before it is cited in
+  anything external"* — and nothing read it. The rule ran on a hand-written
+  deferral-ledger row, and that row's own scope figure ("50 rows") was a `grep`
+  miscount: the real scope was 48 facts, 39 with a per-row date and nine covered
+  by a table header's.
+
+  `cargo xtask register-currency` reads the dates the rows already carry. Without
+  a flag it validates shape — a status the register's preamble defines, a date
+  that parses, none dated in the future — and runs inside `cargo xtask ci`,
+  because a malformed row is a defect in the change that wrote it. `--check`
+  fails on rows past ninety days and runs weekly beside `deferrals --check`, for
+  [ADR-0010](docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md)'s
+  reason: an expiry pages the schedule, it does not block an unrelated pull
+  request. Both halves were tripped deliberately before being trusted — a
+  back-dated row and a bad status each fail with the row, its line and its age
+  named. Its vacuous-walk guard is the one every walk-the-tree gate needs: a
+  reshaped table that yields no rows fails rather than reporting success having
+  checked nothing.
+
+  The sweep it replaces was then run, two weeks early, against primary sources.
+  **Four rows were refuted.** The current protocol revision is `2026-07-28`, not
+  `2025-11-25` (row 1.1). **The Rust SDK is Tier 1**, not Tier 2 — corroborated
+  three ways, and later than the revision ship, since the 2026-07-28 post still
+  placed Rust outside "all four Tier 1 SDKs" (row 2.8). SEP-1627 is **superseded
+  by SEP-2484**, which says in terms that "SEP-1627's golden-trace approach was
+  not carried forward" while "SEP-1627's protocol-debugger ideas remain valuable
+  future work" (row 2.12). And an `rmcp`-keyed RustSec advisory now exists —
+  `RUSTSEC-2026-0189` — closing a gap this register had recorded as blocked, and
+  recording that its own 2026-07-26 re-check had searched for a guessed filename
+  and concluded "absent" about something already in the database (row 4.3).
+
+  Three of the four gaps in the charter's third premise are therefore closed —
+  the tier, the missing MSRV, and the missing advisory — leaving the everything
+  server as the only published one.
+  [ADR-0015](docs/plan/decisions/0015-the-tier-2-premise-is-gone.md) works
+  through what that costs and what it does not: the scope decision stands on the
+  premise that nobody has built the offline half, which the sweep strengthened,
+  and it says plainly that an argument from absence is the weaker foundation.
+  The charter, the conformance strategy and risk R2 are corrected to match. R2's
+  watch signal had fired and been left armed — a signal still waiting for an
+  event that already happened is a defect, not vigilance.
+
+  Four new rows record what the sweep found rather than confirmed: the roadmap
+  published 2026-08-22, whose five priority areas include SDK "conformance with
+  the specification" (1.9); the official suite's frozen per-revision requirement
+  sets, which reach several of this workspace's own conclusions independently
+  (2.18); three of that suite's spec-reference URLs that 404 in both pinned
+  versions (2.19); and the docs-site restructure that had quietly emptied the
+  page rows 1.5a/1.5b cited (2.20).
+
+  **What could not be verified is marked as unverified rather than advanced.**
+  GitHub was unreachable from the session that ran the sweep, so the four rows
+  sourced only from issue state keep their original dates, stay outside the
+  citation window, and carry a ledger row of their own. Re-dating a row nobody
+  re-checked is the one failure that would make the register worthless.
+
 - **Neither official-suite pin can fall behind unnoticed any more.** Both
   versions this workspace pins are exact on purpose — a gate whose input moves
   underneath it is not a gate — but exactness only makes the input stable, it

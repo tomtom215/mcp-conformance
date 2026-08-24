@@ -26,7 +26,7 @@ use std::fs;
 use std::process::Command;
 
 #[cfg(unix)]
-use super::harness::{Sandbox, TITLE, outcomes, run_step};
+use super::harness::{OUTCOME_VARIABLES, Sandbox, TITLE, outcomes, run_step};
 use super::{CLOSE_STEP, OPEN_STEP, WORKFLOW, step_script, workspace_root};
 
 #[cfg(unix)]
@@ -163,14 +163,21 @@ fn a_red_ledger_with_no_expired_row_says_the_ledger_itself_is_the_problem() {
 /// The list is the contract: a gate added to `scheduled.yml` without a row here
 /// is a gate whose failure the issue would not explain, which is the whole
 /// reason the issue names one at all — an un-re-decided deferral, an upstream
-/// suite release, a Rust release and a transient fetch failure are identical
-/// from outside the run.
+/// suite release, a Rust release, a stale register row and a transient fetch
+/// failure are identical from outside the run.
+///
+/// It is also enforced twice over, and the second way is the sharper one: the
+/// harness sets exactly these keys as `*_OUTCOME` environment variables, and
+/// the step runs under `set -u`. A gate whose `printf` reads a variable no row
+/// here provides aborts the script mid-body rather than running green — which
+/// is how adding `register-currency` was caught.
 #[cfg(unix)]
-const GATES: [(&str, &str); 4] = [
+const GATES: [(&str, &str); 5] = [
     ("ledger", "### Expired ledger rows"),
     ("drift", "### Spec-quote drift"),
     ("pins", "### Suite pins"),
     ("toolchain", "### Toolchain pin"),
+    ("register", "### Register currency"),
 ];
 
 #[cfg(unix)]
@@ -318,7 +325,8 @@ fn an_unset_step_summary_does_not_trip_set_u() {
         sandbox.0.join("bin").display(),
         std::env::var("PATH").unwrap_or_default()
     );
-    let output = Command::new("bash")
+    let mut command = Command::new("bash");
+    command
         .arg(&script_path)
         .current_dir(&sandbox.0)
         .env("PATH", path)
@@ -327,13 +335,14 @@ fn an_unset_step_summary_does_not_trip_set_u() {
         .env("GITHUB_SERVER_URL", "https://github.com")
         .env("GITHUB_REPOSITORY", "tomtom215/mcp-conformance")
         .env("GH_TOKEN", "stub")
-        .env("LEDGER_OUTCOME", "success")
-        .env("DRIFT_OUTCOME", "failure")
-        .env("PINS_OUTCOME", "success")
-        .env("TOOLCHAIN_OUTCOME", "success")
-        .env_remove("GITHUB_STEP_SUMMARY")
-        .output()
-        .expect("bash runs the step");
+        .env_remove("GITHUB_STEP_SUMMARY");
+    // Every gate green but one, from the harness's single list rather than a
+    // second copy of it: this test cannot use `run_step`, which sets the very
+    // variable it removes, and when it kept its own copy the copy went stale.
+    for (key, variable) in OUTCOME_VARIABLES {
+        command.env(variable, if key == "drift" { "failure" } else { "success" });
+    }
+    let output = command.output().expect("bash runs the step");
     assert!(
         output.status.success(),
         "unset GITHUB_STEP_SUMMARY must not fail the step: {}",

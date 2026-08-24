@@ -142,14 +142,8 @@ pub(super) fn run_step(
         .env("GH_REPO", "tomtom215/mcp-conformance")
         .env("GITHUB_STEP_SUMMARY", sandbox.0.join("summary.md"));
     // Each gate's step outcome, defaulting to the colour a step that did not
-    // fail reports. A gate added to the job without a row here would make every
-    // test below run with it green, so the list is the contract.
-    for (key, variable) in [
-        ("ledger", "LEDGER_OUTCOME"),
-        ("drift", "DRIFT_OUTCOME"),
-        ("pins", "PINS_OUTCOME"),
-        ("toolchain", "TOOLCHAIN_OUTCOME"),
-    ] {
+    // fail reports.
+    for (key, variable) in OUTCOME_VARIABLES {
         command.env(variable, outcomes.get(key).copied().unwrap_or("success"));
     }
     let output = command.output().expect("bash runs the step");
@@ -169,6 +163,22 @@ fn read_calls(path: &Path) -> Vec<String> {
         .map(str::to_owned)
         .collect()
 }
+
+/// Every gate's step key and the environment variable the step reads for it.
+///
+/// **This list is the contract**, and it is enforced by `set -u` rather than by
+/// an assertion: the step under test aborts on a `*_OUTCOME` nobody exported,
+/// so a gate added to `scheduled.yml` without a row here fails every executing
+/// test loudly instead of running green. It lives here, and not inline in the
+/// two places that need it, because the one time it was duplicated the second
+/// copy was missed and only one test reported the gap.
+pub(super) const OUTCOME_VARIABLES: [(&str, &str); 5] = [
+    ("ledger", "LEDGER_OUTCOME"),
+    ("drift", "DRIFT_OUTCOME"),
+    ("pins", "PINS_OUTCOME"),
+    ("toolchain", "TOOLCHAIN_OUTCOME"),
+    ("register", "REGISTER_OUTCOME"),
+];
 
 pub(super) fn outcomes(
     pairs: &[(&'static str, &'static str)],

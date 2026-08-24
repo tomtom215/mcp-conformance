@@ -18,7 +18,7 @@ or when the reasoning would otherwise live only in someone's head.
 | ADR | Title | Status |
 |-----|-------|--------|
 | [0001](0001-plan-documentation-model.md) | Plan Documentation Model | Accepted |
-| [0002](0002-product-scope.md) | Product Scope: Conformance Toolkit, Not Another SDK | Accepted |
+| [0002](0002-product-scope.md) | Product Scope: Conformance Toolkit, Not Another SDK | Accepted (context re-examined by 0015; decision stands) |
 | [0003](0003-crate-naming.md) | Crate Naming and Namespace Strategy | Accepted |
 | [0004](0004-toolchain-and-msrv.md) | Toolchain Policy — Edition 2024, MSRV 1.85, No Third-Party Toolchain Actions | Accepted (MSRV clause superseded by 0008) |
 | [0005](0005-cli-argument-parsing.md) | CLI Argument Parsing — clap, Isolated Behind a `cli` Feature | Accepted |
@@ -31,6 +31,7 @@ or when the reasoning would otherwise live only in someone's head.
 | [0012](0012-not-observed-outcome.md) | Subject Counting and the `not-observed` Outcome | Accepted (extends 0006's argument beyond the capability gate) |
 | [0013](0013-golden-report-format.md) | The Golden Report Format — Trace Facts and Registry Facts Are Pinned Separately | Accepted |
 | [0014](0014-pin-the-stable-toolchain.md) | Pin the Stable Toolchain in `rust-toolchain.toml`, Not in the Workflows | Accepted (extends 0004 clause 3) |
+| [0015](0015-the-tier-2-premise-is-gone.md) | The Tier-2 Premise Is Gone — What the Scope Actually Rests On | Accepted (re-examines 0002's context; extends 0010) |
 
 ## Process
 

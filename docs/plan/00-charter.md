@@ -4,7 +4,7 @@
 # Charter
 
 **Status:** Active
-**Last reviewed:** 2026-06-09
+**Last reviewed:** 2026-08-24
 
 ---
 
@@ -22,31 +22,52 @@ underbuilt. Every clause below is verified in the
 [ecosystem context register](01-ecosystem-context.md):
 
 1. **Conformance gates SDK standing.** SEP-1730 (Final) classifies SDKs into tiers; Tier 1
-   requires a 100% conformance pass rate, protocol features implemented inside the two-week
-   window between release candidate and release, two-business-day issue triage, and seven-day
-   resolution of critical (P0) bugs.
-2. **Conformance gates the spec itself.** SEP-2484 (merged 2026-05-17) requires a matching
-   conformance scenario and a requirement-traceability file before a Standards-Track SEP can
-   reach Final status.
-3. **The Rust SDK sits at Tier 2** in the officially published tier table (Tier 1: TypeScript,
-   Python, C#, Go). The SDK already wires into the official conformance runner, but three
-   verified gaps remain: no everything-server reference implementation (SEP-1730's appendix
-   asks every SDK to carry one in-repo), no declared MSRV, and no RustSec advisory for
-   CVE-2026-42559 — meaning `cargo audit` is silent on a CVSS 8.8 vulnerability in rmcp
-   < 1.4.0.
-4. **A protocol-revision storm is scheduled.** The 2026-07-28 release candidate removes the
-   `initialize` handshake and the `Mcp-Session-Id` header — a structural rework that every
-   implementation, and every conformance tool, must absorb on Tier-1 timelines.
+   requires a 100% conformance pass rate, two-business-day issue triage, and seven-day
+   resolution of critical (P0) bugs. On protocol-feature timing the two live sources
+   disagree, and the operational one governs: the sdk-tiers requirement table reads "Before
+   new spec version release, timeline agreed per release based on feature complexity", while
+   the Final SEP text still says "two week window between Release Candidate and the new
+   protocol version release" ([register 2.5](01-ecosystem-context.md)). The practiced
+   `2026-07-28` cycle ran about ten weeks.
+2. **Conformance gates the spec itself.** SEP-2484 (Final, Process) requires a matching
+   conformance scenario and a `sep-NNNN.yaml` traceability file before a Standards-Track SEP
+   can reach Final status — mapping every MUST, MUST NOT, SHOULD and SHOULD NOT (and the RFC
+   2119 synonyms) to "a check or a documented exclusion"
+   ([register 2.9](01-ecosystem-context.md)).
+3. **The Rust SDK reached Tier 1, and one published gap survives: it has no everything
+   server.** The tier table at `/docs/sdk` now places Rust in Tier 1 alongside TypeScript,
+   Python, C# and Go, and rust-sdk's own `ROADMAP.md` reports every SEP-1730 Tier 1
+   requirement met. SEP-1730's appendix asks each SDK to carry an everything server in-repo
+   ("We want to check it into each SDKs repo as it will serve as an example for server
+   implementers"); rmcp still has none, and its own client examples drive the *TypeScript*
+   everything server over `npx`. *This premise read "sits at Tier 2… three verified gaps" until
+   the 2026-08-24 sweep refuted three of them — the tier, the missing MSRV (declared 1.88
+   since rmcp `3.0.0-beta.2`) and the missing RustSec advisory (`RUSTSEC-2026-0189` now
+   exists). See [register 2.8, 3.4, 3.5, 4.3](01-ecosystem-context.md) and
+   [ADR-0015](decisions/0015-the-tier-2-premise-is-gone.md).*
+4. **The protocol-revision storm arrived.** The `2026-07-28` revision shipped on schedule and
+   is the current version: no `initialize` handshake, no `Mcp-Session-Id`, per-request
+   version negotiation in `_meta` ([register 1.1, 1.3](01-ecosystem-context.md)). Every
+   implementation and every conformance tool is absorbing it now, not preparing to.
 5. **Nobody has built the offline half.** The official suite executes live scenarios from
-   TypeScript. No tool in any language validates *recorded traces* of MCP traffic against the
-   spec's normative requirements, and no Rust everything server exists. Adjacent community
-   tools (tooltest, mcp-tester, mcp-wallfacer, mcp-probe) are low-adoption and none occupies
-   either gap.
+   TypeScript, and its answer to "what did this revision require" is a frozen per-revision set
+   of those same live scenarios ([register 2.18](01-ecosystem-context.md)). No tool in any
+   language validates *recorded traces* against the spec's normative requirements, and no Rust
+   everything server exists. The authority has said so itself: SEP-2484 supersedes SEP-1627
+   with "SEP-1627's golden-trace approach was not carried forward… SEP-1627's protocol-debugger
+   ideas remain valuable future work" ([register 2.12](01-ecosystem-context.md)). Adjacent
+   community tools remain low-adoption and none occupies either gap — three of the six have
+   published nothing for four months or more ([register §5](01-ecosystem-context.md)).
 
 The opportunity is therefore durable rather than speculative: conformance tooling grows in
-value with every spec revision, cannot be obsoleted by any vendor shipping a new SDK (it is
-how new SDKs get validated), and directly serves the official Rust SDK's published path from
-Tier 2 to Tier 1.
+value with every spec revision, and cannot be obsoleted by any vendor shipping a new SDK (it
+is how new SDKs get validated). **Premise 5 is the load-bearing one.** Premise 3 used to carry
+equal weight — a Tier-2 SDK with four nameable gaps — and after the 2026-08-24 sweep it
+carries one gap instead of four. The scope decision does not rest on it; the reasoning is
+worked through in [ADR-0015](decisions/0015-the-tier-2-premise-is-gone.md), including what
+gets weaker as a result. Independently, SDK "conformance with the specification" is now a
+named priority area on the roadmap published 2026-08-22
+([register 1.9](01-ecosystem-context.md)).
 
 ## What we ship
 
