@@ -332,6 +332,27 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **The weekly full mutation sweep found two survivors, and both were the same
+  untested code path.** 1726 mutants, 2 missed: deleting either `Titled` arm from
+  the reference host's `default_of` fell through to the `_ => None` that exists
+  for rmcp's `#[non_exhaustive]` future variants, so a titled enum's declared
+  default silently vanished. SEP-1330's titled enum forms — the ones carrying a
+  human label per choice, so they deserialize to a different variant than a plain
+  `enum` array — had no test at all; the suite's scenario sends the untitled form,
+  and the corpus followed it. A host that drops a declared default answers an
+  elicitation without a field the server asked it to prefill, which is precisely
+  what `AcceptWithDefaults` exists to avoid. Three tests now cover both titled
+  forms and the no-default case; `cargo mutants` over that file reports 7 of 7
+  caught.
+
+- **A dependency floor went dishonest with no local change.**
+  `mcp-reference-host` declared `sse-stream = ">=0.2, <0.3"`, which
+  `-Z direct-minimal-versions` resolves to 0.2.0 — and rmcp 3.1.2 requires
+  `^0.2.4`, so the two could not be satisfied together and the weekly floors gate
+  went red. Raised to `>=0.2.4`, the minimum the tree actually resolves to. This
+  is the failure mode that gate was built for: a floor that was honest when
+  written and stopped being so when an upstream manifest moved.
+
 - **The toolchain is pinned, and the pin is gated in both directions.** Every
   gate here runs at `-D warnings` under clippy's pedantic and nursery groups,
   which makes the compiler an *input* to the gate — and the rule this repository
