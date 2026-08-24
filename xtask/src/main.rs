@@ -36,6 +36,10 @@
 //!   `rust-toolchain.toml` names, and none installs bare `stable`
 //!   (`toolchain.rs`). Offline; its network sibling `toolchain-currency` runs
 //!   weekly and fails when a newer stable exists.
+//! - `spdx` — every tracked file that can carry a comment carries an
+//!   `SPDX-License-Identifier` in its first three lines (`local_gates.rs`). JSON,
+//!   lockfiles, the licence itself and the fuzz corpus are exempt, each for a
+//!   reason the gate states. Was a pull-request checkbox until 2026-08-24.
 //! - `registry-continuity` — a clause both revisions carry, entered twice under
 //!   two ids, must be entered the same way twice: same level, same actor, and
 //!   judged in both or excluded in both (`registry_continuity.rs`). Not the same
@@ -137,6 +141,7 @@ fn main() -> ExitCode {
         Some("coverage") => coverage::run(args.next().as_deref() == Some("--check")),
         Some("draft-coverage") => draft_coverage::run(args.next().as_deref() == Some("--check")),
         Some("file-sizes") => exit_if(local_gates::file_size_gate()),
+        Some("spdx") => exit_if(local_gates::spdx_gate()),
         Some("fuzz-targets") => exit_if(fuzz_targets::run()),
         Some("ci-permissions") => exit_if(ci_permissions::run()),
         Some("deny") => exit_if(local_gates::deny_gate()),
@@ -211,6 +216,9 @@ fn run_ci() -> ExitCode {
 /// schedule so an expiry pages a maintainer rather than blocking unrelated work.
 fn gates() -> bool {
     if !local_gates::file_size_gate() {
+        return false;
+    }
+    if !local_gates::spdx_gate() {
         return false;
     }
     if !fuzz_targets::run() {

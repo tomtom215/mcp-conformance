@@ -409,6 +409,18 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   rather than what a server names its tools — both ends compare. Nothing reads
   `actor`, which is exactly why nothing noticed.
 
+- **The licence header was a checklist box; it is a gate.** The pull-request
+  template asked for "SPDX header on every new file" and nothing checked it. It
+  was true — 281 of 281 eligible tracked files carried one when this was written
+  — which is the argument for mechanizing it while the tree is clean rather than
+  after the first file slips through a large change with the box ticked from
+  memory. `cargo xtask spdx` reads `git ls-files`, so it judges what is committed
+  rather than what happens to be in a working tree. JSON and JSONL are exempt
+  (no comment syntax, and the registries, goldens and corpus are all JSON),
+  along with lockfiles, `LICENSE` itself, and the fuzz corpus, whose inputs are
+  valuable precisely for being byte-exact. Verified in both directions: it passes
+  the committed tree and fails, naming the file, on a tracked file without one.
+
 - **CI had been red for thirteen consecutive runs on three unrelated causes.**
   Two are lints that only exist in a newer clippy than any local check runs:
   1.98 added `unused_async_trait_impl`, which fires sixteen times across the
