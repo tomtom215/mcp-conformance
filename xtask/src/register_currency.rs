@@ -69,12 +69,22 @@ fn cells(line: &str) -> Option<Vec<&str>> {
 /// the previous reading (`Scale (2026-08-24; was 2026-06-09)`). In both, the
 /// leading date is the current one; a scan for the *oldest* date would read the
 /// history and report the row as stale forever.
+///
+/// Scans by char index, and takes the window with `get` rather than `[..]`. An
+/// earlier version indexed bytes and sliced directly, which panicked on the
+/// first multi-byte character before a date — `"re-checked — 2026-08-24"` aborts
+/// with *end byte index 12 is not a char boundary*. It passed on the real
+/// register only because every date there happens to sit at byte zero of its
+/// cell or behind pure ASCII, so the first row written with an em-dash in front
+/// of its date would have crashed the gate instead of failing it. A gate that
+/// panics reports nothing about the thing it was asked to check.
 fn first_date(text: &str) -> Option<String> {
-    let bytes = text.as_bytes();
-    (0..bytes.len().saturating_sub(9)).find_map(|start| {
-        let candidate = &text[start..start + 10];
-        looks_like_iso_date(candidate).then(|| candidate.to_owned())
-    })
+    text.char_indices()
+        .find_map(|(start, _)| {
+            text.get(start..start.checked_add(10)?)
+                .filter(|candidate| looks_like_iso_date(candidate))
+        })
+        .map(str::to_owned)
 }
 
 /// `YYYY-MM-DD` shape with sane ranges — the same bar `deferrals` applies, for
@@ -352,6 +362,20 @@ mod tests {
             "2026-08-24"
         );
         assert!(first_date("no date here at all").is_none());
+    }
+
+    #[test]
+    fn a_date_behind_a_multibyte_character_is_found_rather_than_panicking() {
+        // The register is full of em-dashes. This scanned bytes and sliced
+        // directly until 2026-08-24, which aborts with "end byte index 12 is
+        // not a char boundary" — reproduced before the fix, not theorised.
+        assert_eq!(first_date("re-checked — 2026-08-24").unwrap(), "2026-08-24");
+        assert_eq!(
+            first_date("héllo… 2026-01-02 — see fact").unwrap(),
+            "2026-01-02"
+        );
+        // Multi-byte characters and no date at all: still None, still no panic.
+        assert!(first_date("— … é ✓ no date").is_none());
     }
 
     #[test]
