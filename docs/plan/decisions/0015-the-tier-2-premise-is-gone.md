@@ -211,8 +211,10 @@ that has closed rather than one still open. And row 3.7 named 4t145 and jokemanf
 active maintainers, which the commit log flatly contradicts: neither has committed in ninety
 days, 4t145 not since 2025-10-13. That compounds the negative consequence this ADR already
 records. The project's remaining engagement anchor is item 1, and rust-sdk#902 — the offer that
-carries it — has now sat open and unanswered for 74 days, addressed to a maintainer picture that
-was already out of date when it was filed.
+carries it — has now been open for 74 days, addressed to a maintainer picture that was already
+out of date when it was filed. Whether it is *unanswered* is the thing this pass could not
+settle: the search index reports one comment on it where the ledger recorded none on
+2026-08-18, and the comment itself was not readable from here. A count, not a reply.
 
 One lesson is procedural and worth more than the three findings. Row 3.7's activity half never
 needed GitHub issue access: `git log` over a clone answers "who is most active" directly, and

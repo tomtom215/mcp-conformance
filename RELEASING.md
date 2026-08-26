@@ -57,10 +57,46 @@ legs pre-run on the audited tree (commit `669c5b4`):
 Remaining for the owner: SECURITY.md's table flips to `0.3.x yes / 0.2.x no`
 in the release PR; then steps 1–5 below.
 
+## v0.5.0 pre-flight (2026-08-26)
+
+Measured on the release tree, not asserted:
+
+| Leg | Result |
+|-----|--------|
+| `cargo xtask ci` | green (MSRV clippy + cargo-deny report SKIPPED locally; CI enforces both) |
+| `cargo xtask semver` (cargo-semver-checks 0.50.0) | green — "no semver update required" for all four crates at `0.4.0 → 0.5.0` |
+| `cargo package --workspace --exclude xtask --locked` | green — all four crates packaged with verification builds |
+| `cargo xtask version-sync` | green — README + `CITATION.cff` both `0.5.0` |
+| `cargo xtask changelog-links` | green — 5 headings, `[Unreleased]` compares against `v0.5.0` |
+| `cargo xtask register-currency --check` | green — all 72 rows inside the 90-day window |
+| `cargo xtask deferrals --check` | green — 4 open rows, none expired |
+| `cargo xtask coverage --check` / `draft-coverage --check` | green — 114 of 125 judgeable clauses evidenced across 5 captures |
+| `Cargo.lock` diff | exactly 5 lines, the workspace crates only |
+
+Run at the current version *before* the bump, `semver` reported three
+undeclared API breaks; they are declared in the `0.5.0` section now. Not yet
+run for this release: the full `--all-features` mutation sweep and miri, both of
+which v0.3.0's audit covered and neither of which is in the standing checklist.
+
 ## Release checklist
 
 1. **Prepare** on a `release/vX.Y.Z` branch:
-   - Bump `version` in `[workspace.package]` (one place; all crates inherit).
+   - Bump the version. This is **seven places, not one** — the claim that
+     `[workspace.package]` alone suffices was wrong until v0.5.0 corrected it,
+     and following it literally fails the build with
+     `error: failed to select a version for the requirement mcp-conformance-core = "^0.4.0"`,
+     because the internal dependency declarations pin an exact version rather
+     than inheriting one:
+     `Cargo.toml` `[workspace.package].version` and the three
+     `[workspace.dependencies]` entries for `mcp-conformance-core`,
+     `mcp-trace-validator` and `mcp-everything-server`;
+     `crates/mcp-everything-server/Cargo.toml`'s `mcp-trace-validator` entry;
+     `README.md`'s status line and `CITATION.cff`'s `version` (both enforced by
+     `cargo xtask version-sync`, which fails the release otherwise), plus
+     `CITATION.cff`'s `date-released`. Then `cargo update --workspace --offline`
+     to move the five workspace crates in `Cargo.lock` without dragging in
+     dependency updates the release never measured — the diff should be exactly
+     five lines.
    - Move `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD` in `CHANGELOG.md`; add a fresh
      `[Unreleased]` section. Update the link-reference definitions at the foot of
      the file too: add `[X.Y.Z]: …/releases/tag/vX.Y.Z` and repoint `[Unreleased]:`
@@ -69,6 +105,20 @@ in the release PR; then steps 1–5 below.
      `[Unreleased]` still comparing against `v0.2.0`).
    - `cargo xtask ci` green; `cargo deny check` green; `cargo package --workspace --exclude xtask --locked`
      green.
+   - **Run `cargo xtask semver` and read its output, before tagging.** It needs
+     `cargo install cargo-semver-checks --locked`; without it the task reports
+     SKIPPED, which in a green log is indistinguishable from a pass. That is how
+     v0.5.0 shipped to this checklist with three API breaks nobody had written
+     down. Note what the gate can and cannot do: it verifies the *bump is large
+     enough*, and pre-1.0 the minor position is the breaking position, so
+     `0.x → 0.(x+1)` licenses any break and passes no matter what the changelog
+     says. Nothing mechanical checks that the breaks are declared. Reading this
+     output against `[Unreleased]` is the whole control.
+   - State the **version class** at the top of the new `[X.Y.Z]` section, and
+     tabulate every breaking change with its migration — the pattern v0.3.0 set
+     and v0.5.0 restored. Pre-1.0 minors may break APIs; this file's Principles
+     say the changelog states so explicitly, and a reader upgrading should not
+     have to find that out from `cargo build`.
    - Update the supported-versions table in `SECURITY.md`.
 2. **Merge** via PR (CI must be green; no exceptions for release PRs).
 3. **Tag**: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` on `main`; push the tag.
