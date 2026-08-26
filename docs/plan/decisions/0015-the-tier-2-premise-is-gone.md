@@ -183,3 +183,43 @@ argue with themselves — quoting the source, recording what was refuted and how
 reading went wrong — and that prose is the artifact, not decoration around a date. Splitting
 dates into JSON and prose into Markdown would put the two out of sync exactly the way the
 charter and register went out of sync. Revisit if the parser breaks twice.
+
+## Amendment (2026-08-24): the four blocked rows are settled, and three of them were wrong
+
+Decision point 6 said rows 2.13, 3.6, 3.11 and half of 3.7 would keep their old dates and trip
+the new gate on 2026-09-07 if nobody re-checked them. They were re-checked the same day, from a
+later session with a narrower route to GitHub than an API read: `api.github.com` and
+`github.com` HTML are both still 403, and the repository-scoped tooling refuses cross-owner
+reads outright, but `github.com`'s **filtered issue-search** pages are reachable. Every state
+was taken two-sided — present in the `is:closed` result set *and* absent from the `is:open` one,
+or the reverse — so that the query string carries the state and nothing rests on reading a
+rendered badge. That guard was not theoretical: reading an issue's own page proved unreliable,
+with two reads of byte-identical cached content disagreeing, one of them confidently. The method
+is weaker than the API and the register records it as weaker.
+
+Three of the four rows carried claims that were **refuted**, and one of them strengthens this
+ADR's own argument. rust-sdk#684 "Conformance Testing" is **closed**, which rows 3.6 and 3.11
+both asserted was still open. So the Tier-2 process backlog is closed out end to end — the same
+conclusion this ADR reached from the published tier table, arrived at independently from the
+issue tracker. Premise 3 was not merely stale; the evidence against it was available in two
+places at once.
+
+The other two refutations cut the other way. Row 3.11's SEP wave has **landed** — all seven
+issues closed, along with the three features its note called "still without conformance
+scenarios" and their tracking epic — so what the row was cited for, *offer timing*, is a window
+that has closed rather than one still open. And row 3.7 named 4t145 and jokemanfire as the most
+active maintainers, which the commit log flatly contradicts: neither has committed in ninety
+days, 4t145 not since 2025-10-13. That compounds the negative consequence this ADR already
+records. The project's remaining engagement anchor is item 1, and rust-sdk#902 — the offer that
+carries it — has now sat open and unanswered for 74 days, addressed to a maintainer picture that
+was already out of date when it was filed.
+
+One lesson is procedural and worth more than the three findings. Row 3.7's activity half never
+needed GitHub issue access: `git log` over a clone answers "who is most active" directly, and
+better than a contributor API would. It was filed as blocked anyway, and would have stayed that
+way until the gate paged on 2026-09-07, because the sweep recorded a *source* ("needs the GitHub
+API") rather than a *question* ("who is committing") — and the source was unreachable while the
+question never was. Decision point 6 is right that a row nobody
+re-checked must keep its date. It is silent on the failure that actually happened here, which is
+a row filed as unreachable that nobody re-examined for a second route. When the gate pages, the
+first question should be whether the named source is the only one that could answer the row.
