@@ -11,6 +11,24 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-26
+
+**This is a minor release with breaking API changes, which pre-1.0 SemVer
+permits and this project states explicitly rather than leaving to a reader's
+`cargo build`.** Four breaks, all small and all mechanical to migrate:
+
+| Crate | Break | Migration |
+|-------|-------|-----------|
+| `mcp-everything-server` | `http::router` and `http::router_tapped` take a `ServedRevision` | Pass `ServedRevision::default()` (or `::V2025_11_25`) for 0.4.0 behaviour |
+| `mcp-conformance-core` | `EventBody::Http` gained a field | A pattern destructuring it without a `..` rest no longer compiles; add `..`. Trace documents are unaffected in both directions |
+| `mcp-reference-host` | `RunPlan` gained `log_level` and `trace_parent` | The struct has no `Default`, so a struct literal must name both; `None` for each reproduces 0.4.0 behaviour |
+| `mcp-reference-host` | `run` takes `&RunningService<RoleClient, S>`, not `&Peer<RoleClient>` | Pass the service you already hold from `serve_client`; the function calls `.peer()` itself |
+
+Each is stated again in the entry that introduced it, with the reasoning.
+`cargo-semver-checks` additionally flags a discriminant shift on
+`TraceParseError::NonMonotonicSeq`; that one is **not** a reachable break, and
+the entry for it explains why.
+
 ### Added
 
 - **The register's own 90-day rule is now a gate, and running it early found
@@ -238,6 +256,16 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   client-side half of the mechanism that replaced `logging/setLevel`. The
   sweep is discovery-driven rather than scripted, so it is worth pointing at an
   implementation that is not ours.
+
+  *Breaking (pre-1.0):* two changes to `mcp-reference-host`'s public surface.
+  `RunPlan` gains `log_level: Option<LoggingLevel>`, and the struct has no
+  `Default`, so a struct literal that compiled against 0.4.0 must name the new
+  field — `None` reproduces the old behaviour exactly. And `run` now takes
+  `&RunningService<RoleClient, S>` where it took `&Peer<RoleClient>`, gaining a
+  generic parameter with it: the loop needs the service to reach per-request
+  state, and a bare peer cannot supply it. Call it with the value you already
+  hold from `serve_client`; `client.peer()` is what the function now does
+  internally.
 
   One step is a deliberate miss: a read of a URI the catalog does not contain.
   Asking for something absent is conforming client behaviour, and the error it
@@ -887,6 +915,19 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   object that simply is not a trace event keeps serde's message, which names
   the field it was missing.
 
+  *Not breaking, though a tool says otherwise, and the reasoning is worth
+  keeping.* The two diagnoses arrive as new `TraceParseError` variants —
+  `ByteOrderMark` and `NotJsonLines` — inserted before `NonMonotonicSeq`, which
+  moves that variant's implicit discriminant from 4 to 6.
+  `cargo-semver-checks` flags this as a major break
+  (`enum_no_repr_variant_discriminant_changed`), on the grounds that a
+  downstream `as isize` cast would change value. No such cast can exist here:
+  Rust permits `as` only on field-less enums, and every variant of this one but
+  `ByteOrderMark` carries data. The enum is also `#[non_exhaustive]`, so adding
+  variants was already permitted. Recorded rather than silently dismissed,
+  because the next reader of that lint deserves the argument and not just the
+  verdict.
+
 - **A recording of one revision judged against another's registry produced
   confident, wrong findings and said nothing about why.** The default registry
   is `2025-11-25`. Point `validate` at a conforming `2026-07-28` stateless
@@ -1009,6 +1050,14 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `--cancel` and `--traceparent` — put both in the capture's definition, taking
   capture coverage from 110 clauses to 113. With the request-method fix below
   it stands at **114 of the 125 judgeable clauses**.
+
+  *Breaking (pre-1.0):* `RunPlan` gains `trace_parent: Option<String>`, the
+  second of the two fields this release adds to it. As with `log_level` above,
+  there is no `Default` to fall back on, so a struct literal must name it;
+  `None` sends no trace context, which is the 0.4.0 behaviour. The value is
+  supplied rather than generated on purpose — a client propagates the trace
+  context its caller handed it, and a host minting a fresh id per run would make
+  every recording of the same session differ.
 
   The cancellation is the interesting half. Both clauses are MUST NOTs, and a
   MUST NOT is never witnessed by an absence: what the recording has to carry is
@@ -2535,7 +2584,8 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.0
 [0.4.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.4.0
 [0.3.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.3.0
 [0.2.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.2.0
