@@ -92,6 +92,25 @@ Transport-level events are first-class because real requirements live there: `Ho
 validation (CVE-2026-42559 class), session headers, SSE resumption. A message-only trace
 format could not express them.
 
+### One recording, one transport — a scope boundary
+
+A trace records a single transport. That is a property of the format, not a gap in it, and it
+bounds what this toolkit can ever judge: **any requirement whose falsification needs two
+correlated transports is out of reach by construction.** Concurrency between separate clients —
+one caller holding a resource another is refused, connection affinity, anything about
+contention — has no witness in a single recording, however complete that recording is.
+
+The boundary is already load-bearing in the shipped registry rather than hypothetical.
+`BASE-065` (`2026-07-28`) is excluded on exactly this ground: falsifying it "needs a server
+refusing an operation *because* it arrived on a different connection — two correlated
+connections in one recording, which the trace vocabulary does not span". It is stated here, once,
+because it had otherwise to be rediscovered from an exclusion string by anyone designing against
+it ([ADR-0016](decisions/0016-no-reservation-primitive.md), decision 3).
+
+Widening this is a foundational change — every check, the golden corpus, and
+[ADR-0013](decisions/0013-golden-report-format.md)'s pinning model assume the single-transport
+shape — and is not undertaken for a speculative demand.
+
 ### Capability matrix
 
 A pure function from the negotiated capability sets to the active requirement subset.
