@@ -111,6 +111,28 @@ Widening this is a foundational change — every check, the golden corpus, and
 [ADR-0013](decisions/0013-golden-report-format.md)'s pinning model assume the single-transport
 shape — and is not undertaken for a speculative demand.
 
+### Checks may not consult time — a scope boundary
+
+A requirement whose falsification needs elapsed time is out of reach by construction. Timeouts,
+polling intervals, jitter and backoff, rate limiting, debouncing — the conduct is real and the
+clauses are in the registry, but a verdict about them would have to read a clock, and a verdict
+that reads a clock is not reproducible from a committed file
+([trace-validation.md](../design/trace-validation.md) §4).
+
+`TraceEvent` carries an optional `ts`, and it is informational: `trace.rs` documents it "Never
+consulted by checks". That is the engine half, stated as a design commitment under
+[deterministic judgment](#mcp-trace-validator--deterministic-judgment) — "no clocks, no randomness
+in the engine". This is the other half, and it is a larger claim than the engine one: not that
+today's engine has no clock, but that timing conduct is **beyond conformance judgment here for
+good**, whatever the engine later becomes.
+
+Sixteen exclusions across both revisions invoke it: `CACH-004`, `CACH-005`, `CACH-006`,
+`CACH-009`, `CACH-010`, `CACH-011`, `CACH-012`, `COMP-005`, `COMP-009`, `LIFE-015`, `LIFE-016`,
+`LIFE-017`, `LOG-011`, `MRTR-009`, `TRAN-033`, `TRAN-126`. For some it is the sole ground; for
+others (`COMP-009`, `LOG-011`, `MRTR-009`, `TRAN-126`) one of several. Four name this document
+directly — `LIFE-015`, `LIFE-016`, `LIFE-017`, `TRAN-033` — for a rule it carried only as an
+implementation note ([ADR-0017](decisions/0017-both-stranded-properties-were-already-settled.md)).
+
 ### Capability matrix
 
 A pure function from the negotiated capability sets to the active requirement subset.

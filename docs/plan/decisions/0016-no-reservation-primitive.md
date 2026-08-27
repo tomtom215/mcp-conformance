@@ -5,7 +5,9 @@
 
 **Date:** 2026-08-27
 **Status:** Rejected (the investigation is the record; no reservation primitive is proposed
-upstream and no actuation profile is added here)
+upstream and no actuation profile is added here). **Third negative consequence refuted the same
+day by [ADR-0017](0017-both-stranded-properties-were-already-settled.md)** — see the amendment
+below; the body is unedited, per this log's rule that old reasoning stays readable.
 **Author:** Tom F.
 
 ---
@@ -190,3 +192,27 @@ and preview terms plausibly carry confidentiality that would contaminate an inde
 implementation. For MCP and A2A, reading the public specification was the qualification to build
 independently; here, privileged access may be the disqualification. That should be checked in the
 actual terms before anyone applies, not after.
+
+## Amendment (2026-08-27): the two "stranded" properties were never stranded
+
+The third negative consequence above says write idempotency under retry and bounded error
+recovery "are judgeable and unclaimed". Both halves are wrong, and
+[ADR-0017](0017-both-stranded-properties-were-already-settled.md) records the check that found it
+— run the same day, before anything was built on the claim.
+
+Idempotency under retry is **claimed**: retry at `2026-07-28` is MRTR (SEP-2322), and
+`MRTR-015`, `MRTR-016`, `MRTR-018`, `MRTR-019`, `MRTR-020` and `TOOL-023` all carry implemented
+checks. `MRTR-019` also answers the question in the opposite direction from the framing that
+produced it — "The JSON-RPC `id` MUST be different between the initial request and the retry, as
+they are independent requests" — so a retry is a new request rather than a redelivery, and there
+is no duplicate-suppression semantics for a check to have an opinion about.
+
+Bounded error recovery is **not judgeable**: it is `CACH-011` verbatim, already in the registry
+and already excluded, because jitter and backoff are properties of a request schedule measurable
+only in elapsed time (which checks may not consult, `LIFE-015`) and observable only across a run
+far longer than one recorded session.
+
+What survives is not a gap but a second boundary, and ADR-0017 states it: sixteen exclusions rest
+on "checks may not consult time", and the rule they lean on appears in `02-architecture.md` only as
+an engine property inside the Determinism commitment. Decision 3 of this ADR promoted one boundary
+out of an exclusion string; ADR-0017 promotes its sibling for the same reason.
