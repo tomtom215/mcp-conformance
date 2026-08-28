@@ -78,6 +78,45 @@ undeclared API breaks; they are declared in the `0.5.0` section now. Not yet
 run for this release: the full `--all-features` mutation sweep and miri, both of
 which v0.3.0's audit covered and neither of which is in the standing checklist.
 
+## v0.5.1 pre-flight (2026-08-28)
+
+Measured on the release tree, not asserted:
+
+| Leg | Result |
+|-----|--------|
+| `cargo xtask ci` | green (reports MSRV clippy SKIPPED locally; run separately below) |
+| **MSRV clippy (1.88) × 3 feature modes** | **green** — run directly with the 1.88 toolchain installed, closing the gap every prior pre-flight left open |
+| `cargo xtask semver` (cargo-semver-checks 0.50.0) | green — "no semver update required" for all four crates at `0.5.0 -> 0.5.1`; 196 checks pass, 58 skip, each |
+| `cargo package --workspace --exclude xtask --locked` | green — all four crates packaged with verification builds |
+| `cargo deny check` | green — advisories ok, bans ok, licenses ok, sources ok (the gate this release exists to un-break) |
+| `cargo xtask version-sync` | green — README + `CITATION.cff` both `0.5.1` |
+| `cargo xtask changelog-links` | green — 6 headings, `[Unreleased]` compares against `v0.5.1` |
+| `cargo xtask register-currency --check` | green — all 72 rows inside the 90-day window |
+| `cargo xtask deferrals --check` | green — 4 open rows, none expired (earliest review-by 2026-09-01) |
+| `cargo xtask coverage --check` / `draft-coverage --check` | green — 114 of 125 judgeable clauses evidenced across 5 captures |
+| `Cargo.lock` diff | exactly 5 lines, the workspace crates only — the chacha20 line came in ahead of the bump, via [#47](https://github.com/tomtom215/mcp-conformance/pull/47) |
+
+**The semver gate means more here than it did at v0.5.0, and the checklist's own
+caveat is why.** That caveat — pre-1.0 the minor position is the breaking
+position, so `0.x -> 0.(x+1)` licenses any break and passes regardless — applies
+to a *minor* bump. This bump moves the patch position only, which licenses
+nothing, so "no semver update required" is a real assertion about all four
+crates rather than a vacuous pass. It is also cheap to believe: no source file
+changed between `0.5.0` and this tag.
+
+**`SECURITY.md` is deliberately untouched**, against a checklist line that says to
+update it. Its table tracks *minors* — "fixes land on the latest 0.x minor only" —
+and `0.5.1` is inside `0.5.x`, so `0.5.x yes / 0.4.x no` is already correct. A
+cosmetic edit to satisfy the checklist would have made the table say the same
+thing with a newer timestamp; the checklist line is right for minors and vacuous
+for patches.
+
+Not run for this release: the full `--all-features` mutation sweep and miri.
+Neither is in the standing checklist, and no source changed, so both would be
+re-measuring `0.5.0`. The diff-scoped mutation gate did run on the PR that
+carried the lockfile change, finding no mutants in changed code — the diff is
+`Cargo.lock` and `CHANGELOG.md` only.
+
 ## Release checklist
 
 1. **Prepare** on a `release/vX.Y.Z` branch:
