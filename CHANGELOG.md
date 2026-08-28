@@ -11,6 +11,31 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`chacha20 0.10.1` was yanked upstream on 2026-08-27, turning `cargo deny
+  check` red on every branch; the lockfile moves to `0.10.2`, published the same
+  day.** It arrives transitively — `chacha20` <- `rand 0.10.2` <- `rmcp 3.1.4` —
+  so it is in the normal dependency graph of `mcp-everything-server` and
+  `mcp-reference-host`, and absent from `mcp-trace-validator` entirely.
+  `cargo update -p chacha20 --precise 0.10.2` keeps the change to two lines, a
+  version and a checksum.
+
+  **This is a yank, not an advisory.** No RUSTSEC advisory exists for
+  `chacha20 0.10.1`; `cargo deny`'s `yanked` check and its vulnerability check are
+  separate gates, and only the former fired. Nothing here is exploitable, and no
+  behaviour changes.
+
+  Scope for anyone on 0.5.0: a published `Cargo.lock` is read only by
+  `cargo install --locked`, never when a crate is consumed as a library, where
+  Cargo re-resolves and already picks `0.10.2`. The shipped
+  `mcp-everything-server 0.5.0` and `mcp-reference-host 0.5.0` archives do pin the
+  yanked version — verified by extracting them from crates.io — so a `--locked`
+  install of those two binaries pulls it; it still resolves, because a yank blocks
+  new resolution rather than an existing lock. `mcp-trace-validator 0.5.0`, the
+  crate the README tells you to install, does not pin `chacha20` at all and is
+  unaffected.
+
 ## [0.5.0] - 2026-08-26
 
 **This is a minor release with breaking API changes, which pre-1.0 SemVer
