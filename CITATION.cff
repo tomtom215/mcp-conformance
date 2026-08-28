@@ -12,8 +12,8 @@ repository-code: "https://github.com/tomtom215/mcp-conformance"
 url: "https://mcp-conformance.com"
 # Kept in step with [workspace.package].version by `cargo xtask version-sync`
 # — an uncited-because-stale citation file is the failure mode here.
-version: "0.5.0"
-date-released: "2026-08-26"
+version: "0.5.1"
+date-released: "2026-08-28"
 license: MIT
 keywords:
   - mcp

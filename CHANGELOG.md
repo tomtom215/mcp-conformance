@@ -11,6 +11,15 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-08-28
+
+**This is a patch release. No API changes, no breaking changes, and no behaviour
+changes — the only difference from `0.5.0` is one dependency version in
+`Cargo.lock`.** `cargo xtask semver` reports "no semver update required" for all
+four crates at `0.5.0 -> 0.5.1`, and the release exists so that the published
+lockfile stops naming a yanked crate. Upgrading from `0.5.0` requires nothing;
+there is no migration table because there is nothing to migrate.
+
 ### Fixed
 
 - **`chacha20 0.10.1` was yanked upstream on 2026-08-27, turning `cargo deny
@@ -2609,7 +2618,8 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.1
 [0.5.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.0
 [0.4.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.4.0
 [0.3.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.3.0
