@@ -65,7 +65,7 @@ reqwest = { workspace = true, optional = true }
 # change to notice). Both crates are already in the tree as rmcp dependencies.
 # `cargo xtask minimal-versions` keeps these honest.
 futures = { version = ">=0.3.30, <0.4", optional = true }
-sse-stream = { version = ">=0.2.4, <0.3", optional = true }
+sse-stream = { version = ">=0.2.4, <0.4", optional = true }
 
 [dev-dependencies]
 mcp-everything-server = { workspace = true }
