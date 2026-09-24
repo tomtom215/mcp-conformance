@@ -30,6 +30,6 @@
 # on. CI's MSRV legs override this file with `RUSTUP_TOOLCHAIN`, and
 # `cargo xtask ci`'s MSRV clippy leg with an explicit `+1.88.0`.
 [toolchain]
-channel = "1.98.0"
+channel = "1.98.1"
 profile = "minimal"
 components = ["clippy", "rustfmt"]

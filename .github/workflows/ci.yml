@@ -59,7 +59,7 @@ jobs:
         # the MSRV (ADR-0008). `cargo xtask toolchain-pin` fails when the two
         # files disagree — the `matrix` context cannot read `env`, so the version
         # is written out here and checked rather than interpolated.
-        rust: ["1.98.0", "1.88"]
+        rust: ["1.98.1", "1.88"]
         os: [ubuntu-latest, macos-latest, windows-latest]
     # A directory override outranks `rustup default`, so naming the toolchain in
     # the environment is the only way a leg can override rust-toolchain.toml.
@@ -84,7 +84,7 @@ jobs:
       fail-fast: false
       matrix:
         # Same pair as the clippy matrix, and gated the same way.
-        rust: ["1.98.0", "1.88"]
+        rust: ["1.98.1", "1.88"]
         os: [ubuntu-latest, macos-latest, windows-latest]
     env:
       RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
