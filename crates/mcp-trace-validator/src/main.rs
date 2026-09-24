@@ -184,7 +184,7 @@ fn run_validate_command(
         report.revision_source = Some(source);
         return emit_single(&report, trace, format, strict);
     }
-    run_validate_multi(&events, trace, format, strict, &set, &chosen)
+    run_validate_multi(&events, trace, format, strict, &set, &chosen, source)
 }
 
 /// The revisions to judge against: the `--revision` flags when given, otherwise the
@@ -322,7 +322,8 @@ fn emit_single(report: &Report, trace_source: &str, format: Format, strict: bool
 }
 
 /// Multi-revision judgment: one trace against several revisions of a registry set, with
-/// per-clause applicability differences in the report (roadmap M2.5).
+/// per-clause applicability differences in the report. `JUnit` renders one suite per
+/// revision.
 fn run_validate_multi(
     events: &[mcp_conformance_core::trace::TraceEvent],
     trace_source: &str,
@@ -330,21 +331,16 @@ fn run_validate_multi(
     strict: bool,
     set: &RegistrySet,
     revisions: &[ProtocolRevision],
+    source: RevisionSource,
 ) -> u8 {
-    if matches!(format, Format::Junit) {
-        eprintln!(
-            "error: --format junit applies to single-revision validate, not multi-revision \
-             (use json or human)"
-        );
-        return EXIT_USAGE;
-    }
-    let report = match multi::validate_revisions(set, revisions, events) {
+    let mut report = match multi::validate_revisions(set, revisions, events) {
         Ok(report) => report,
         Err(error) => {
             eprintln!("error: {error}");
             return EXIT_USAGE;
         }
     };
+    report.revision_source = Some(source);
     if judgeable::reject(judgeable::combined(&report), trace_source) {
         return EXIT_USAGE;
     }
@@ -357,8 +353,14 @@ fn run_validate_multi(
                 return EXIT_USAGE;
             }
         },
-        // Guarded above; defensive rather than a reachable panic.
-        Format::Junit => return EXIT_USAGE,
+        Format::Junit => {
+            let reports: Vec<Report> = revisions
+                .iter()
+                .filter_map(|revision| set.registry(*revision))
+                .map(|registry| engine::validate(&registry, events))
+                .collect();
+            emit(&mcp_trace_validator::junit::render_all(&reports));
+        }
     }
     verdict_to_code(report.verdict(), strict)
 }

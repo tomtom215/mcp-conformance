@@ -115,6 +115,7 @@ fn differs_detects_a_non_adjacent_divergence() {
             Some(Outcome::Pass),
             Some(Outcome::Pass),
         ],
+        findings: vec![],
     };
     assert!(!uniform.differs());
     let diverges = MultiRow {

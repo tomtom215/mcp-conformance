@@ -501,3 +501,40 @@ fn junit_format_emits_xml_for_validate_and_rejects_requirements() {
     let rejected = run(&["requirements", "--format", "junit"]);
     assert_eq!(rejected.status.code(), Some(2), "{rejected:?}");
 }
+
+#[test]
+fn multi_revision_reports_carry_each_findings_seq_and_reason() {
+    let trace = corpus("draft/violations/mrtr-019-retry-reuses-id.jsonl");
+    let trace = trace.to_str().unwrap();
+    let both = ["--revision", "2025-11-25", "--revision", "2026-07-28"];
+
+    let human = run(&[&["validate", trace], &both[..]].concat());
+    assert_eq!(human.status.code(), Some(1), "{human:?}");
+    let text = stdout(&human);
+    assert!(
+        text.contains("2026-07-28 seq 2: the retry reuses id 1"),
+        "{text}"
+    );
+    assert!(text.contains("(requested)"), "{text}");
+
+    let json = run(&[&["validate", trace, "--format", "json"], &both[..]].concat());
+    let report: serde_json::Value = serde_json::from_str(&stdout(&json)).unwrap();
+    assert_eq!(report["revision_source"], "requested");
+    let row = report["requirements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["id"] == "MRTR-019")
+        .unwrap();
+    assert_eq!(row["findings"][0], serde_json::json!([]));
+    assert_eq!(row["findings"][1][0]["seq"], 2);
+    assert_eq!(row["findings"][1][0]["check"], "mrtr.retry-id-differs");
+
+    let junit = run(&[&["validate", trace, "--format", "junit"], &both[..]].concat());
+    assert_eq!(junit.status.code(), Some(1), "{junit:?}");
+    let xml = stdout(&junit);
+    assert_eq!(xml.matches("<testsuite ").count(), 2, "{xml}");
+    assert!(xml.contains("mcp-trace-validator (2025-11-25)"), "{xml}");
+    assert!(xml.contains("mcp-trace-validator (2026-07-28)"), "{xml}");
+    assert!(xml.contains("[mrtr.retry-id-differs] at seq 2"), "{xml}");
+}

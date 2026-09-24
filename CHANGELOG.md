@@ -38,6 +38,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **Multi-revision reports carry every finding's `seq` and reason**, per revision,
+  in human and JSON output (`findings` on each row, omitted when empty), and
+  `--format junit` works for them: one `<testsuite>` per revision
+  (`junit::render_all`). Previously the multi-revision path printed `fail` and
+  nothing else, and refused JUnit.
 - `declared::select`, `Selection`, `RevisionSource` and `UnjudgeableRevisions`:
   the CLI's revision choice as a library API, so embedders get the same rule.
 - `RegistrySet::latest` and `BUILTIN_REVISIONS` in `mcp-conformance-core`.

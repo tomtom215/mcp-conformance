@@ -33,31 +33,67 @@ use crate::report::{Outcome, Report};
 /// ```
 #[must_use]
 pub fn render(report: &Report) -> String {
-    let totals = report.totals;
-    let failures = totals.fail;
-    let skipped =
-        totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
-    let tests = totals.pass + totals.fail + totals.warn + skipped;
+    render_all(core::slice::from_ref(report))
+}
 
+/// Renders several single-revision reports as one `JUnit` document.
+///
+/// One trace judged under each revision gives one `<testsuite>` per revision, in the
+/// order given; the document-level counts are the sums of the suites'.
+///
+/// ```
+/// use mcp_conformance_core::requirement::RegistrySet;
+/// use mcp_trace_validator::{engine, junit};
+///
+/// let set = RegistrySet::builtin()?;
+/// let reports: Vec<_> = set
+///     .revisions()
+///     .iter()
+///     .filter_map(|revision| set.registry(*revision))
+///     .map(|registry| engine::validate(&registry, &[]))
+///     .collect();
+/// let xml = junit::render_all(&reports);
+/// assert_eq!(xml.matches("<testsuite ").count(), 2);
+/// # Ok::<(), Box<dyn core::error::Error>>(())
+/// ```
+#[must_use]
+pub fn render_all(reports: &[Report]) -> String {
     let mut out = String::new();
     out.push_str(r#"<?xml version="1.0" encoding="UTF-8"?>"#);
     out.push('\n');
+    let counts: Vec<(u32, u32, u32)> = reports.iter().map(counts).collect();
+    let (tests, failures, skipped) = counts.iter().fold((0, 0, 0), |sum, count| {
+        (sum.0 + count.0, sum.1 + count.1, sum.2 + count.2)
+    });
     let _ = writeln!(
         out,
         r#"<testsuites tests="{tests}" failures="{failures}" skipped="{skipped}">"#
     );
-    let _ = writeln!(
-        out,
-        r#"  <testsuite name="mcp-trace-validator ({})" tests="{tests}" failures="{failures}" skipped="{skipped}">"#,
-        escape(&report.revision)
-    );
-
-    for row in &report.requirements {
-        render_row(&mut out, report, row);
+    for (report, (tests, failures, skipped)) in reports.iter().zip(counts) {
+        let _ = writeln!(
+            out,
+            r#"  <testsuite name="mcp-trace-validator ({})" tests="{tests}" failures="{failures}" skipped="{skipped}">"#,
+            escape(&report.revision)
+        );
+        for row in &report.requirements {
+            render_row(&mut out, report, row);
+        }
+        out.push_str("  </testsuite>\n");
     }
-
-    out.push_str("  </testsuite>\n</testsuites>\n");
+    out.push_str("</testsuites>\n");
     out
+}
+
+/// `(tests, failures, skipped)` for one report.
+const fn counts(report: &Report) -> (u32, u32, u32) {
+    let totals = report.totals;
+    let skipped =
+        totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
+    (
+        totals.pass + totals.fail + totals.warn + skipped,
+        totals.fail,
+        skipped,
+    )
 }
 
 fn render_row(out: &mut String, report: &Report, row: &crate::report::RequirementReport) {

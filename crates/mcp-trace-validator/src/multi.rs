@@ -26,7 +26,7 @@ use mcp_conformance_core::trace::TraceEvent;
 use serde::{Deserialize, Serialize};
 
 use crate::engine;
-use crate::report::{Outcome, Report, Totals, Verdict};
+use crate::report::{Finding, Outcome, RequirementReport, Totals, Verdict};
 
 /// Error produced by a multi-revision run.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,6 +75,16 @@ pub struct MultiRow {
     /// [`MultiReport::revisions`]. `None` means the clause does not exist at that
     /// revision — *absent*, not [`Outcome::NotApplicable`].
     pub outcomes: Vec<Option<Outcome>>,
+    /// The findings behind each outcome, aligned by index with
+    /// [`MultiReport::revisions`]: what failed or warned, where (`seq`), and why.
+    /// Omitted from JSON when no revision has any, which is the common case.
+    #[serde(default, skip_serializing_if = "no_findings")]
+    pub findings: Vec<Vec<Finding>>,
+}
+
+/// Whether a row carries no finding under any revision.
+fn no_findings(findings: &[Vec<Finding>]) -> bool {
+    findings.iter().all(Vec::is_empty)
 }
 
 impl MultiRow {
@@ -102,7 +112,7 @@ impl MultiRow {
 /// A multi-revision report: the same trace judged against several revisions, aligned per
 /// clause.
 ///
-/// Like [`Report`], it is an artifact — serialization order is fixed (revisions in the
+/// Like [`Report`](crate::report::Report), it is an artifact — serialization order is fixed (revisions in the
 /// order requested; clauses in registry-union order) and nothing environment-dependent
 /// appears.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -117,6 +127,9 @@ pub struct MultiReport {
     /// ([`crate::declared`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revision_mismatch: Option<Vec<String>>,
+    /// How [`Self::revisions`] were chosen, when the caller recorded it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revision_source: Option<crate::declared::RevisionSource>,
     /// Per-revision aggregate results, aligned by index with `revisions`.
     pub summaries: Vec<RevisionSummary>,
     /// Union of clauses across the judged revisions, in registry-union order. A clause is
@@ -126,7 +139,7 @@ pub struct MultiReport {
 
 impl MultiReport {
     /// The overall verdict: the worst across revisions, by the same severity priority a
-    /// single [`Report`] uses (unsupported ≻ fail ≻ pass-with-warnings ≻ pass). A
+    /// single [`Report`](crate::report::Report) uses (unsupported ≻ fail ≻ pass-with-warnings ≻ pass). A
     /// multi-revision run is only as good as its weakest revision.
     #[must_use]
     pub fn verdict(&self) -> Verdict {
@@ -146,11 +159,19 @@ impl MultiReport {
     #[must_use]
     pub fn render_human(&self) -> String {
         let mut out = String::new();
-        let _ = writeln!(
+        let _ = write!(
             out,
             "MCP multi-revision validation — revisions {}",
             self.revisions.join(", ")
         );
+        match self.revision_source {
+            Some(source) => {
+                let _ = writeln!(out, " ({source})");
+            }
+            None => {
+                let _ = writeln!(out);
+            }
+        }
         self.write_revision_mismatch(&mut out);
         for row in &self.requirements {
             let _ = write!(out, "  {:<10} ({})", row.id, row.level);
@@ -161,6 +182,19 @@ impl MultiReport {
                 let _ = write!(out, "  *differs");
             }
             let _ = writeln!(out);
+            for (revision, findings) in self.revisions.iter().zip(&row.findings) {
+                for finding in findings {
+                    match finding.seq {
+                        Some(seq) => {
+                            let _ =
+                                writeln!(out, "        {revision} seq {seq}: {}", finding.detail);
+                        }
+                        None => {
+                            let _ = writeln!(out, "        {revision}: {}", finding.detail);
+                        }
+                    }
+                }
+            }
         }
         let _ = writeln!(out, "per revision:");
         for summary in &self.summaries {
@@ -279,39 +313,42 @@ pub fn validate_revisions(
     // exactly the clauses in force at its revision, so a clause's outcome there is "found
     // in that report" and its absence is "not found" — applicability needs no second
     // source of truth.
+    let indexes: Vec<std::collections::HashMap<&str, &RequirementReport>> = reports
+        .iter()
+        .map(|report| {
+            report
+                .requirements
+                .iter()
+                .map(|row| (row.id.as_str(), row))
+                .collect()
+        })
+        .collect();
     let mut rows = Vec::new();
     for requirement in set.requirements() {
         let id = requirement.id.as_str();
-        let outcomes: Vec<Option<Outcome>> = reports
-            .iter()
-            .map(|report| outcome_in(report, id))
-            .collect();
-        if outcomes.iter().all(Option::is_none) {
+        let found: Vec<Option<&RequirementReport>> =
+            indexes.iter().map(|index| index.get(id).copied()).collect();
+        if found.iter().all(Option::is_none) {
             continue;
         }
         rows.push(MultiRow {
             id: id.to_owned(),
             level: requirement.level.keyword().to_owned(),
-            outcomes,
+            outcomes: found.iter().map(|row| row.map(|row| row.outcome)).collect(),
+            findings: found
+                .iter()
+                .map(|row| row.map(|row| row.findings.clone()).unwrap_or_default())
+                .collect(),
         });
     }
 
     Ok(MultiReport {
         revisions: revisions.iter().map(ProtocolRevision::to_string).collect(),
         revision_mismatch: crate::declared::mismatch_any(revisions, events),
+        revision_source: None,
         summaries,
         requirements: rows,
     })
-}
-
-/// One clause's outcome within a single-revision report, by ID; `None` when the clause is
-/// not in that report (it does not exist at that revision).
-fn outcome_in(report: &Report, id: &str) -> Option<Outcome> {
-    report
-        .requirements
-        .iter()
-        .find(|row| row.id == id)
-        .map(|row| row.outcome)
 }
 
 #[cfg(test)]
