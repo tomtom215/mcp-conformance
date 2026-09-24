@@ -8,6 +8,8 @@ canonicalization) measures:
 
 - **`validator/validate_1003_events`** — full engine throughput (events/second):
   registry × trace → report over a synthetic 1003-event conformant session.
+- **`validator/validate_stateless_1000_events`** — the same, against the `2026-07-28`
+  registry over a session whose every request declares its revision in `_meta`.
 - **`validator/context_1003_events`** — context construction alone: message
   classification, lifecycle state-machine stepping, and request/response pairing.
 - **`canonical/tool_result_payload`** — RFC 8785 canonicalization throughput
