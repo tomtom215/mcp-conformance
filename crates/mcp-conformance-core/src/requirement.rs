@@ -24,7 +24,7 @@ mod registry;
 mod set;
 
 pub use registry::{Registry, RegistryError};
-pub use set::RegistrySet;
+pub use set::{BUILTIN_REVISIONS, RegistrySet};
 
 /// RFC 2119 requirement level of a normative clause.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -22,11 +22,9 @@ homepage.workspace = true
 default = ["cli"]
 cli = ["dep:clap"]
 
-# The stateless `2026-07-28` lifecycle variant (SEP-2575): a second state-machine
-# variant alongside the `2025-11-25` one, gated off while the draft moves. Carries no
-# runtime dependencies; enabling it only compiles in the `context::draft` module
-# (docs/plan/02-architecture.md §Protocol-revision strategy, roadmap M2.5).
-draft-2026-07-28 = ["mcp-conformance-core/draft-2026-07-28"]
+# Deprecated no-op, kept so manifests that enabled it keep building. Until 0.6.0
+# it gated the `2026-07-28` registry and checks; every build now ships them.
+draft-2026-07-28 = []
 
 # docs.rs builds with every feature enabled so feature-gated APIs are documented.
 [package.metadata.docs.rs]

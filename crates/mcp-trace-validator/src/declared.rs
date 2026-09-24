@@ -52,11 +52,13 @@
 //! [`Report::revision_mismatch`]: crate::report::Report::revision_mismatch
 
 use std::collections::BTreeSet;
+use std::fmt;
 use std::str::FromStr as _;
 
-use mcp_conformance_core::requirement::RegistrySet;
+use mcp_conformance_core::requirement::BUILTIN_REVISIONS;
 use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::{EventBody, TraceEvent};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// How `2026-07-28` states the revision on each request, having no handshake.
@@ -79,8 +81,18 @@ pub fn declared_revisions(events: &[TraceEvent]) -> Vec<String> {
         .collect()
 }
 
-/// [`declared_revisions`] before rendering, so comparisons stay typed.
+/// [`declared_revisions`] before rendering, so comparisons stay typed: the
+/// declarations this build ships a registry for.
 fn collect(events: &[TraceEvent]) -> BTreeSet<ProtocolRevision> {
+    collect_all(events)
+        .into_iter()
+        .filter(|revision| is_known(*revision))
+        .collect()
+}
+
+/// Every well-formed revision the session states about itself, whether or not
+/// any registry describes it.
+fn collect_all(events: &[TraceEvent]) -> BTreeSet<ProtocolRevision> {
     let refused = refused_request_ids(events);
     let mut found: BTreeSet<ProtocolRevision> = BTreeSet::new();
     let mut pending_header: Option<&str> = None;
@@ -205,161 +217,130 @@ fn collect_from_message(payload: &Value, found: &mut BTreeSet<ProtocolRevision>)
 }
 
 fn insert(value: &str, found: &mut BTreeSet<ProtocolRevision>) {
-    if let Ok(revision) = ProtocolRevision::from_str(value)
-        && is_known(revision)
-    {
+    if let Ok(revision) = ProtocolRevision::from_str(value) {
         found.insert(revision);
     }
 }
 
 /// Whether this build ships a registry for `revision`, and so could be asked to
-/// judge against it. Feature-dependent by construction: a build without
-/// `draft-2026-07-28` cannot judge that revision and therefore has no advice to
-/// offer about a recording of it.
+/// judge against it.
+///
+/// A scan of [`BUILTIN_REVISIONS`], not a parse of the embedded registry: this
+/// runs once per declaring message, and every `2026-07-28` request declares.
 fn is_known(revision: ProtocolRevision) -> bool {
-    RegistrySet::builtin().is_ok_and(|set| set.revisions().contains(&revision))
+    BUILTIN_REVISIONS.contains(&revision)
+}
+
+/// How the revision a report judges against was chosen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[non_exhaustive]
+pub enum RevisionSource {
+    /// The caller named it (`--revision`).
+    Requested,
+    /// The trace declared it: see [`declared_revisions`] for what counts.
+    Declared,
+    /// The trace declared nothing, so the newest supported revision was used.
+    Default,
+}
+
+impl fmt::Display for RevisionSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Requested => "requested",
+            Self::Declared => "declared by the trace",
+            Self::Default => "the trace declares none; newest supported",
+        })
+    }
+}
+
+/// The revisions to judge a trace against, and why those.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Selection {
+    /// Ascending; never empty.
+    pub revisions: Vec<ProtocolRevision>,
+    /// How they were chosen.
+    pub source: RevisionSource,
+}
+
+/// The trace declares only revisions no available registry describes.
+///
+/// Judging it anyway would report every clause the revisions disagree about as a
+/// violation, against an implementation that may have violated nothing — so this
+/// is an error the caller must resolve (a newer build, or an explicit revision),
+/// never a silent fallback.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct UnjudgeableRevisions {
+    /// What the trace declared, ascending.
+    pub declared: Vec<ProtocolRevision>,
+    /// What the available registries describe, ascending.
+    pub supported: Vec<ProtocolRevision>,
+}
+
+impl fmt::Display for UnjudgeableRevisions {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let join = |revisions: &[ProtocolRevision]| {
+            revisions
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        write!(
+            f,
+            "the trace declares protocol revision(s) {}, which no available registry \
+             describes (supported: {}); judging it against another revision would \
+             report that revision's rules as violations",
+            join(&self.declared),
+            join(&self.supported)
+        )
+    }
+}
+
+impl std::error::Error for UnjudgeableRevisions {}
+
+/// Chooses the revisions to judge `events` against, from those `supported`.
+///
+/// 1. Declared revisions that are supported are judged — all of them, so a session
+///    that proposed one revision and negotiated another is judged under both.
+/// 2. A trace declaring only unsupported revisions is an error.
+/// 3. A trace declaring nothing is judged against the newest supported revision.
+///
+/// # Errors
+///
+/// [`UnjudgeableRevisions`] in case 2, or when `supported` is empty.
+pub fn select(
+    supported: &[ProtocolRevision],
+    events: &[TraceEvent],
+) -> Result<Selection, UnjudgeableRevisions> {
+    let declared = collect_all(events);
+    let mut supported_sorted = supported.to_vec();
+    supported_sorted.sort_unstable();
+    supported_sorted.dedup();
+    let judgeable: Vec<ProtocolRevision> = declared
+        .iter()
+        .copied()
+        .filter(|revision| supported_sorted.contains(revision))
+        .collect();
+    if !judgeable.is_empty() {
+        return Ok(Selection {
+            revisions: judgeable,
+            source: RevisionSource::Declared,
+        });
+    }
+    match (declared.is_empty(), supported_sorted.last()) {
+        (true, Some(&newest)) => Ok(Selection {
+            revisions: vec![newest],
+            source: RevisionSource::Default,
+        }),
+        _ => Err(UnjudgeableRevisions {
+            declared: declared.into_iter().collect(),
+            supported: supported_sorted,
+        }),
+    }
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
-mod tests {
-    use super::*;
-    use crate::reader::{Limits, parse_trace};
-
-    fn events(document: &str) -> Vec<TraceEvent> {
-        parse_trace(document, &Limits::default()).unwrap()
-    }
-
-    fn rev(revision: &str) -> ProtocolRevision {
-        revision.parse().unwrap()
-    }
-
-    const HANDSHAKE: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}
-{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}"#;
-
-    #[test]
-    fn the_handshake_states_the_revision_from_both_ends() {
-        assert_eq!(declared_revisions(&events(HANDSHAKE)), ["2025-11-25"]);
-        assert!(mismatch(rev("2025-11-25"), &events(HANDSHAKE)).is_none());
-    }
-
-    // Needs a second shipped registry: without `draft-2026-07-28` this build
-    // has none, so `2026-07-28` is not a revision it could be asked to judge
-    // and correctly counts as no declaration at all.
-    #[test]
-    #[cfg(feature = "draft-2026-07-28")]
-    fn a_stateless_session_states_it_per_request() {
-        let document = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}}"#;
-        assert_eq!(declared_revisions(&events(document)), ["2026-07-28"]);
-        assert_eq!(
-            mismatch(rev("2025-11-25"), &events(document)),
-            Some(vec!["2026-07-28".to_owned()])
-        );
-    }
-
-    #[test]
-    fn the_http_header_states_it_too() {
-        let document = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"mcp-protocol-version":"2025-11-25"}}"#;
-        assert_eq!(declared_revisions(&events(document)), ["2025-11-25"]);
-    }
-
-    // Needs a second shipped registry: without `draft-2026-07-28` this build
-    // has none, so `2026-07-28` is not a revision it could be asked to judge
-    // and correctly counts as no declaration at all.
-    #[test]
-    #[cfg(feature = "draft-2026-07-28")]
-    fn a_session_that_touched_the_registrys_revision_draws_no_note() {
-        // Proposed one revision, negotiated another: judging it against either
-        // is a fair question, so neither draws a warning.
-        let document = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2026-07-28","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}
-{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}"#;
-        assert_eq!(
-            declared_revisions(&events(document)),
-            ["2025-11-25", "2026-07-28"]
-        );
-        assert!(mismatch(rev("2025-11-25"), &events(document)).is_none());
-        assert!(mismatch(rev("2026-07-28"), &events(document)).is_none());
-    }
-
-    #[test]
-    fn a_session_that_declares_nothing_draws_no_note() {
-        let document = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}"#;
-        assert!(declared_revisions(&events(document)).is_empty());
-        assert!(mismatch(rev("2025-11-25"), &events(document)).is_none());
-    }
-
-    #[test]
-    fn a_malformed_version_is_not_evidence_of_a_revision() {
-        // LIFE-006's subject, not this module's: a value that is not a dated
-        // revision says nothing about which revision the session belongs to.
-        let document = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"draft","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}"#;
-        assert!(declared_revisions(&events(document)).is_empty());
-        assert!(mismatch(rev("2025-11-25"), &events(document)).is_none());
-    }
-
-    #[test]
-    fn a_version_this_build_cannot_judge_is_not_a_declaration() {
-        // Well-formed, but no registry ships for it, so `--revision 1900-01-01`
-        // would be advice with nothing behind it.
-        let document = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"mcp-protocol-version":"1900-01-01"}}
-{"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"1900-01-01"}}}}"#;
-        assert!(declared_revisions(&events(document)).is_empty());
-        assert!(mismatch(rev("2025-11-25"), &events(document)).is_none());
-    }
-
-    // Needs a second shipped registry: without `draft-2026-07-28` this build
-    // has none, so `2026-07-28` is not a revision it could be asked to judge
-    // and correctly counts as no declaration at all.
-    #[test]
-    #[cfg(feature = "draft-2026-07-28")]
-    fn a_refused_request_states_no_revision() {
-        // The `vers-008` corpus trace: a legacy client's `initialize` reaches a
-        // server that no longer implements one. The session ran under no
-        // revision, and `VERS-008` is the clause with something to say about
-        // it — this module must not add "you used the wrong registry" on top.
-        let document = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}
-{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"Method not found"}}}"#;
-        assert!(declared_revisions(&events(document)).is_empty());
-        assert!(mismatch(rev("2026-07-28"), &events(document)).is_none());
-    }
-
-    #[test]
-    fn a_headers_only_capture_still_states_its_revision() {
-        // A recording that began mid-session has no handshake to read, but
-        // every request still carries the header.
-        let document = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"mcp-protocol-version":"2025-11-25"}}
-{"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":9,"method":"tools/list"}}
-{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":9,"result":{"tools":[]}}}"#;
-        assert_eq!(declared_revisions(&events(document)), ["2025-11-25"]);
-    }
-
-    #[test]
-    fn a_refused_request_takes_its_own_header_down_with_it() {
-        let document = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"mcp-protocol-version":"2025-11-25"}}
-{"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":9,"method":"tools/list"}}
-{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":9,"error":{"code":-32022,"message":"Unsupported protocol version"}}}"#;
-        assert!(declared_revisions(&events(document)).is_empty());
-    }
-
-    #[test]
-    fn a_non_string_version_is_ignored_rather_than_stringified() {
-        let document = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":20251125}}}"#;
-        assert!(declared_revisions(&events(document)).is_empty());
-    }
-
-    // Needs a second shipped registry: without `draft-2026-07-28` this build
-    // has none, so `2026-07-28` is not a revision it could be asked to judge
-    // and correctly counts as no declaration at all.
-    #[test]
-    #[cfg(feature = "draft-2026-07-28")]
-    fn declarations_are_deduplicated_and_ordered() {
-        let document = format!(
-            "{HANDSHAKE}\n{}",
-            r#"{"seq":2,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}}"#
-        );
-        assert_eq!(
-            declared_revisions(&events(&document)),
-            ["2025-11-25", "2026-07-28"]
-        );
-    }
-}
+mod tests;

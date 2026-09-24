@@ -246,9 +246,9 @@ fn judge(trace: &Path, leg: Leg) -> Result<(), String> {
     let revision = REVISION
         .parse()
         .map_err(|_| format!("{REVISION} is not a protocol revision"))?;
-    let registry = set.registry(revision).ok_or_else(|| {
-        format!("this build does not describe {REVISION}; enable `draft-2026-07-28`")
-    })?;
+    let registry = set
+        .registry(revision)
+        .ok_or_else(|| format!("this build does not describe {REVISION}"))?;
     let report = mcp_trace_validator::engine::validate(&registry, &events);
     let failed: Vec<&str> = report
         .requirements

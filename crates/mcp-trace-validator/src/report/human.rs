@@ -16,7 +16,18 @@ impl Report {
     #[must_use]
     pub fn render_human(&self) -> String {
         let mut out = String::new();
-        let _ = writeln!(out, "MCP trace validation — revision {}", self.revision);
+        match self.revision_source {
+            Some(source) => {
+                let _ = writeln!(
+                    out,
+                    "MCP trace validation — revision {} ({source})",
+                    self.revision
+                );
+            }
+            None => {
+                let _ = writeln!(out, "MCP trace validation — revision {}", self.revision);
+            }
+        }
         self.write_revision_mismatch(&mut out);
         for row in &self.requirements {
             let marker = match row.outcome {

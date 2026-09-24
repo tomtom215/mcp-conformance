@@ -111,8 +111,7 @@ pub(crate) fn run() -> ExitCode {
             eprintln!("xtask: spec-drift — {revision} is not a protocol revision");
             return ExitCode::FAILURE;
         };
-        // A revision the set does not describe has no embedded entries to verify —
-        // the `draft-2026-07-28` feature being off is the ordinary case, not an error.
+        // A revision the set does not describe has no embedded entries to verify.
         let Some(registry) = set.registry(parsed) else {
             eprintln!("xtask: spec-drift — {revision}: not described by this build, skipped");
             skipped.push(revision);

@@ -116,29 +116,20 @@ fn gap(registry: &Registry, goldens: &Path) -> BTreeSet<String> {
 }
 
 /// Each revision's registry paired with the goldens judged against it.
-///
-/// The draft half is a separate `cfg`-selected list rather than a conditional
-/// push, so the expression type-checks and lints identically in both feature
-/// modes — `--no-default-features` clippy is a gate leg of its own, and it is
-/// the one that catches a `mut` or a `Vec::new` that only one mode justifies.
 fn corpora() -> Vec<(Registry, PathBuf)> {
-    #[cfg(feature = "draft-2026-07-28")]
-    let draft = vec![(
-        mcp_conformance_core::requirement::RegistrySet::builtin()
-            .unwrap()
-            .registry("2026-07-28".parse().unwrap())
-            .expect("the draft feature describes 2026-07-28"),
-        corpus_root().join("golden/draft"),
-    )];
-    #[cfg(not(feature = "draft-2026-07-28"))]
-    let draft = Vec::new();
-
-    core::iter::once((
-        Registry::builtin_2025_11_25().unwrap(),
-        corpus_root().join("golden"),
-    ))
-    .chain(draft)
-    .collect()
+    vec![
+        (
+            Registry::builtin_2025_11_25().unwrap(),
+            corpus_root().join("golden"),
+        ),
+        (
+            mcp_conformance_core::requirement::RegistrySet::builtin()
+                .unwrap()
+                .registry("2026-07-28".parse().unwrap())
+                .expect("the builtin set describes 2026-07-28"),
+            corpus_root().join("golden/draft"),
+        ),
+    ]
 }
 
 #[test]
@@ -151,7 +142,6 @@ fn the_ledger_of_clauses_without_a_passing_trace_is_exact() {
     let ledger: BTreeSet<String> = WITHOUT_A_PASSING_TRACE
         .iter()
         .map(|&(id, _)| id.to_owned())
-        .filter(|id| cfg!(feature = "draft-2026-07-28") || id_is_shipped(id))
         .collect();
 
     let unlisted: Vec<&String> = measured.difference(&ledger).collect();
@@ -165,15 +155,6 @@ fn the_ledger_of_clauses_without_a_passing_trace_is_exact() {
         retired.is_empty(),
         "these clauses now have a passing trace; delete their ledger rows: {retired:#?}"
     );
-}
-
-/// Whether `id` belongs to the always-built `2025-11-25` registry.
-///
-/// Without the draft feature the second revision's goldens are still on disk but
-/// its registry is not loadable, so its rows are not measurable and are skipped
-/// rather than reported as retired.
-fn id_is_shipped(id: &str) -> bool {
-    judged_ids(&Registry::builtin_2025_11_25().unwrap()).contains(id)
 }
 
 /// The shape a row must have, checked whether or not any exist today.

@@ -51,9 +51,11 @@ Severity is about consequence for a user or for the project's credibility, not e
 ### Critical — the tool gives wrong verdicts on the current revision
 
 **C1. A default install fails every conforming `2026-07-28` session, silently.**
-VALIDATED. A default-feature build run on the five conforming captures in
-`corpus/draft/captured/` returns `verdict: fail`, exit 1, on all five — a false `LIFE-001`
-("first message is a `server/discover` request, expected `initialize`") on each, plus
+VALIDATED. A default-feature build run on the five captures in `corpus/draft/captured/`
+(three conforming sessions, plus a deliberately malformed probe and a legacy-mode server
+session with one genuine CACH-001 finding) returns `verdict: fail`, exit 1, on all five — a
+false `LIFE-001` ("first message is a `server/discover` request, expected `initialize`") on
+each, plus
 `BASE-003` on the two official-suite captures and `PAGE-002` on the probe. No note is
 printed. README lines 74–77 promise the report "says so" when a trace is of another
 revision; that path (`crates/mcp-trace-validator/src/declared.rs`, `is_known`) only
@@ -265,7 +267,7 @@ Answering these first changes what gets built. Recommendations are mine.
 | 0.1 | Make `cargo test` clock-independent: the real-register currency assertion moves out of unit tests (the weekly `register-currency --check` already covers it); unit tests keep fixed synthetic dates | `cargo test --workspace --all-features` passes with the system date set a year ahead (e.g. `faketime`) | S |
 | 0.2 | Clear `claims-expire`: re-decide the two expired deferrals (D3 for #902), bump the toolchain pin to 1.98.1, re-verify register rows 1.5a/1.5b/1.5c/3.10 | Scheduled workflow green; issue #50 closed with the run link | S |
 | 0.3 | Merge Dependabot #51 and #53; fix the reference host for sse-stream 0.3.0 or hold it at 0.2 with a reason | All three PRs resolved; CI green on `main` | S |
-| 0.4 | Judge `2026-07-28` by default: ship the registry unconditionally (drop or invert the `draft-2026-07-28` feature), auto-select the revision a trace declares, and exit 2 with guidance when a trace declares a revision this build cannot judge | A default-feature build returns `pass` on all five `corpus/draft/captured/` traces and all four `corpus/good/` traces; a regression test runs the README's cross-revision claim **on the default build** (today `tests/book_examples.rs` runs it only with the feature on) | M |
+| 0.4 | Judge `2026-07-28` by default: ship the registry unconditionally (drop or invert the `draft-2026-07-28` feature), auto-select the revision a trace declares, and exit 2 with guidance when a trace declares a revision this build cannot judge | A default-feature build returns `pass` on the three conforming `corpus/draft/captured/` traces, both `corpus/draft/good/` traces and all four `corpus/good/` traces, and exactly the committed golden findings on the other two captures; a regression test runs the README's cross-revision claim **on the default build** (today `tests/book_examples.rs` runs it only with the feature on) | M |
 | 0.5 | Multi-revision reports carry full findings (seq, message, quote); JUnit supported for multi-revision | Golden test on a `corpus/draft/violations/` trace shows `seq` and reason in human, JSON and JUnit | M |
 | 0.6 | Cache the built-in `RegistrySet` (`OnceLock`) | Before/after timing on the 40k-message trace, release build, same machine, 5 runs each with spread reported; target within 2× of the no-`_meta` time | S |
 | 0.7 | Correct the living docs: current revision, capture reality, calibration scope, the redaction claim, design-note counts, `corpus/README.md` arithmetic; add a 5-minute quickstart built on the working reference-host path | `cargo xtask gates` green; quickstart commands run verbatim in CI (the `readme_examples.rs` pattern) | S |

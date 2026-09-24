@@ -284,6 +284,7 @@ mod tests {
         not_applicable.capability = Some("server.tools".to_owned());
         Report {
             revision_mismatch: None,
+            revision_source: None,
             revision: "2025-11-25".to_owned(),
             totals: Totals {
                 pass: 0,

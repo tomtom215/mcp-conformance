@@ -34,11 +34,9 @@ const AREAS_2025_11_25: &[&str] = &[
 
 /// The embedded per-area registry documents for protocol revision `2026-07-28`.
 ///
-/// Built area by area (roadmap M2.5): this list grows as each area's clauses are
-/// curated and its checks land, so it is deliberately shorter than the revision's
-/// clause inventory. The complete, quote-verified inventory is the backlog, recorded
-/// in `docs/reports/registry-extraction-2026-07-28-inventory-2026-08-06.md`.
-#[cfg(feature = "draft-2026-07-28")]
+/// Every in-scope page of the published text is entered; the extraction method and
+/// per-area decisions are recorded in
+/// `docs/reports/registry-extraction-2026-07-28-inventory-2026-08-06.md`.
 const AREAS_2026_07_28: &[&str] = &[
     include_str!("../../registry/2026-07-28/messages.json"),
     include_str!("../../registry/2026-07-28/statelessness.json"),
@@ -209,14 +207,11 @@ pub(super) fn builtin_requirements() -> Result<Vec<Requirement>, RegistryError> 
 /// The union across every revision the embedded set describes.
 ///
 /// Distinct from [`builtin_requirements`] on purpose: that one feeds
-/// [`Registry::builtin_2025_11_25`] and must stay exactly the `2025-11-25` data
-/// whatever features are on. This one is the set's union, and only
-/// [`RegistrySet::builtin`](super::RegistrySet::builtin) uses it. Keeping them apart is
-/// what stops a feature flag from silently changing the single-revision registry.
+/// [`Registry::builtin_2025_11_25`] and must stay exactly the `2025-11-25` data. This
+/// one is the set's union, and only [`RegistrySet::builtin`](super::RegistrySet::builtin)
+/// uses it.
 pub(super) fn builtin_set_requirements() -> Result<Vec<Requirement>, RegistryError> {
-    #[allow(unused_mut, reason = "grows only when the draft feature is enabled")]
     let mut requirements = builtin_requirements()?;
-    #[cfg(feature = "draft-2026-07-28")]
     for document in AREAS_2026_07_28 {
         let area: Registry = serde_json::from_str(document).map_err(RegistryError::Parse)?;
         if area.revision != crate::revision::REVISION_2026_07_28 {

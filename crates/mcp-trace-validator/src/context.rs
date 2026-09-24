@@ -13,8 +13,7 @@ use serde_json::Value;
 
 mod pairing;
 
-#[cfg(feature = "draft-2026-07-28")]
-pub mod draft;
+pub mod stateless;
 
 pub use pairing::Exchange;
 

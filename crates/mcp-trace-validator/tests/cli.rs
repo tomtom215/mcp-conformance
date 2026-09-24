@@ -35,6 +35,10 @@ fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
 }
 
+fn stderr(output: &Output) -> String {
+    String::from_utf8(output.stderr.clone()).unwrap()
+}
+
 #[test]
 fn passing_trace_exits_zero_with_pass_verdict() {
     let output = run(&[
@@ -92,16 +96,79 @@ fn a_trace_that_judges_nothing_is_refused_rather_than_passed() {
 
 #[test]
 fn violating_trace_exits_one_and_names_the_requirement() {
+    // This trace never reaches `initialize`, so it declares no revision; the
+    // clause it breaks is a `2025-11-25` one, so the test names that revision.
     let output = run(&[
         "validate",
+        "--revision",
+        "2025-11-25",
         corpus("violations/life-001-first-message-not-initialize.jsonl")
             .to_str()
             .unwrap(),
     ]);
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     let text = stdout(&output);
+    assert!(text.contains("revision 2025-11-25 (requested)"), "{text}");
     assert!(text.contains("FAIL  LIFE-001"), "{text}");
     assert!(text.contains("verdict: fail"), "{text}");
+}
+
+#[test]
+fn the_revision_defaults_to_what_the_trace_declares() {
+    // A conforming session of each revision passes with no flag at all — the
+    // failure this replaced judged every 2026-07-28 session against 2025-11-25.
+    for (trace, revision) in [
+        ("good/stdio-minimal-init.jsonl", "2025-11-25"),
+        ("draft/good/stateless-session.jsonl", "2026-07-28"),
+        (
+            "draft/captured/reference-host-2026-07-28-stdio.jsonl",
+            "2026-07-28",
+        ),
+    ] {
+        let output = run(&["validate", corpus(trace).to_str().unwrap()]);
+        assert_eq!(output.status.code(), Some(0), "{trace}: {output:?}");
+        let text = stdout(&output);
+        assert!(
+            text.contains(&format!("revision {revision} (declared by the trace)")),
+            "{trace}: {text}"
+        );
+        assert!(stderr(&output).is_empty(), "{trace}: {output:?}");
+    }
+}
+
+#[test]
+fn an_undeclared_trace_is_judged_against_the_newest_revision_and_says_so() {
+    let output = run(&[
+        "validate",
+        corpus("violations/life-001-first-message-not-initialize.jsonl")
+            .to_str()
+            .unwrap(),
+        "--format",
+        "json",
+    ]);
+    let report: serde_json::Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(report["revision"], "2026-07-28");
+    assert_eq!(report["revision_source"], "default");
+    let note = stderr(&output);
+    assert!(
+        note.contains("declares no protocol revision") && note.contains("--revision"),
+        "{note}"
+    );
+}
+
+#[test]
+fn a_trace_of_an_unsupported_revision_is_refused_not_misjudged() {
+    let path = write_temp(
+        "future",
+        r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2027-03-01"}}}}"#,
+    );
+    let output = run(&["validate", path.to_str().unwrap()]);
+    std::fs::remove_file(&path).ok();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(stdout(&output).is_empty(), "{output:?}");
+    let message = stderr(&output);
+    assert!(message.contains("2027-03-01"), "{message}");
+    assert!(message.contains("hint: pass --revision"), "{message}");
 }
 
 #[test]
@@ -231,7 +298,19 @@ fn registry_referencing_unknown_checks_exits_two() {
 
 #[test]
 fn requirements_lists_the_registry_in_both_formats() {
-    let human = run(&["requirements"]);
+    // The newest revision by default.
+    let newest = run(&["requirements", "--format", "json"]);
+    assert_eq!(newest.status.code(), Some(0));
+    let registry: serde_json::Value = serde_json::from_str(&stdout(&newest)).unwrap();
+    assert_eq!(registry["revision"], "2026-07-28");
+    assert_eq!(
+        run(&["requirements", "--revision", "2024-01-01"])
+            .status
+            .code(),
+        Some(2)
+    );
+
+    let human = run(&["requirements", "--revision", "2025-11-25"]);
     assert_eq!(human.status.code(), Some(0));
     let text = stdout(&human);
     assert!(text.contains("LIFE-001"), "{text}");
@@ -241,7 +320,13 @@ fn requirements_lists_the_registry_in_both_formats() {
     );
     assert!(text.contains("excluded"), "{text}");
 
-    let json = run(&["requirements", "--format", "json"]);
+    let json = run(&[
+        "requirements",
+        "--revision",
+        "2025-11-25",
+        "--format",
+        "json",
+    ]);
     assert_eq!(json.status.code(), Some(0));
     let registry: serde_json::Value = serde_json::from_str(&stdout(&json)).unwrap();
     assert_eq!(registry["revision"], "2025-11-25");
@@ -274,7 +359,7 @@ const TWO_REVISION_SET: &str = r#"{
 }"#;
 
 #[test]
-fn multi_revision_against_the_builtin_set_judges_its_sole_revision() {
+fn one_requested_revision_gives_the_full_single_revision_report() {
     let output = run(&[
         "validate",
         corpus("good/stdio-minimal-init.jsonl").to_str().unwrap(),
@@ -284,10 +369,28 @@ fn multi_revision_against_the_builtin_set_judges_its_sole_revision() {
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let text = stdout(&output);
     assert!(
-        text.contains("MCP multi-revision validation — revisions 2025-11-25"),
+        text.contains("MCP trace validation — revision 2025-11-25 (requested)"),
         "{text}"
     );
-    assert!(text.contains("overall verdict: pass"), "{text}");
+    assert!(text.contains("verdict: pass"), "{text}");
+}
+
+#[test]
+fn two_requested_revisions_judge_against_both_builtin_registries() {
+    let output = run(&[
+        "validate",
+        corpus("good/stdio-minimal-init.jsonl").to_str().unwrap(),
+        "--revision",
+        "2025-11-25",
+        "--revision",
+        "2026-07-28",
+    ]);
+    let text = stdout(&output);
+    assert!(
+        text.contains("MCP multi-revision validation — revisions 2025-11-25, 2026-07-28"),
+        "{text}"
+    );
+    assert!(text.contains("2025-11-25:"), "{text}");
 }
 
 #[test]
@@ -339,11 +442,16 @@ fn multi_revision_flag_misuse_and_unknown_revisions_exit_two() {
     let good = corpus("good/stdio-minimal-init.jsonl");
     let good = good.to_str().unwrap();
 
-    // --registry-set without --revision.
+    // --registry-set without --revision selects from the custom set, like the
+    // built-in one: this trace declares 2025-11-25, which the set describes.
     let set = write_temp("set-no-rev", TWO_REVISION_SET);
-    let orphan = run(&["validate", good, "--registry-set", set.to_str().unwrap()]);
+    let selected = run(&["validate", good, "--registry-set", set.to_str().unwrap()]);
     std::fs::remove_file(&set).ok();
-    assert_eq!(orphan.status.code(), Some(2), "{orphan:?}");
+    assert_eq!(selected.status.code(), Some(0), "{selected:?}");
+    assert!(
+        stdout(&selected).contains("revision 2025-11-25 (declared by the trace)"),
+        "{selected:?}"
+    );
 
     // --registry (single-revision) with --revision (multi) is contradictory.
     let mixed = run(&[
@@ -362,7 +470,7 @@ fn multi_revision_flag_misuse_and_unknown_revisions_exit_two() {
     let stderr = String::from_utf8_lossy(&unknown.stderr).into_owned();
     assert!(stderr.contains("does not describe revision"), "{stderr}");
 
-    // JUnit has no multi-revision rendering.
+    // One requested revision is a single-revision run, so JUnit works.
     let junit = run(&[
         "validate",
         good,
@@ -371,7 +479,8 @@ fn multi_revision_flag_misuse_and_unknown_revisions_exit_two() {
         "--format",
         "junit",
     ]);
-    assert_eq!(junit.status.code(), Some(2), "{junit:?}");
+    assert_eq!(junit.status.code(), Some(0), "{junit:?}");
+    assert!(stdout(&junit).starts_with("<?xml"), "{junit:?}");
 }
 
 #[test]

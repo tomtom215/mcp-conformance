@@ -224,7 +224,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg(feature = "draft-2026-07-28")]
     fn the_shipped_registries_are_continuous() {
         // The gate, run against the real tree: the assertion that would have
         // caught PAGE-003 and the three actor disagreements.

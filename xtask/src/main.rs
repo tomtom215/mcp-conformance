@@ -339,12 +339,7 @@ fn ci_steps() -> Vec<Step> {
     steps
 }
 
-/// `--all-features` is load-bearing, not tidiness: the three `draft::` golden
-/// tests are `#[cfg(feature = "draft-2026-07-28")]`, and `draft-2026-07-28` is
-/// not a default feature. Without the flag this ran six tests, regenerated the
-/// 53 `2025-11-25` goldens, left all 79 draft ones stale, and exited 0 — a
-/// blessing that silently did 40% of the job. CI's own all-features test leg
-/// then failed on goldens `cargo xtask bless` could not fix.
+/// Regenerates every revision's goldens in one test run.
 fn bless_steps() -> Vec<Step> {
     vec![Step {
         name: "bless golden corpus".to_owned(),

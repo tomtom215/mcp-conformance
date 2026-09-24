@@ -144,11 +144,7 @@ fn measure(set: &RegistrySet, revision: ProtocolRevision, metric: Metric) -> u32
 mod tests {
     use super::*;
 
-    // The chapter's table has a column per shipped revision, so this needs the
-    // draft feature to have both. The `cargo xtask` alias turns it on, which is
-    // how the gate itself always runs; a plain `cargo test -p xtask` does not.
     #[test]
-    #[cfg(feature = "draft-2026-07-28")]
     fn the_committed_chapter_agrees_with_the_registries() {
         // The gate, run against the real tree: this is the assertion that would
         // have caught the table going stale.

@@ -11,6 +11,41 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Changed — breaking
+
+- **`validate` judges the revision the trace declares, and `2026-07-28` ships in
+  every build.** Until now a default install judged every trace against `2025-11-25`,
+  so a conforming `2026-07-28` session failed `LIFE-001` (and often `BASE-003`) with
+  exit 1 and no warning; the `2026-07-28` registry and checks needed the
+  `draft-2026-07-28` feature, which the README never mentioned. Now:
+  - the revision is read from the trace (`initialize`, per-request `_meta`, or the
+    `MCP-Protocol-Version` header) and reported with how it was chosen —
+    `revision 2026-07-28 (declared by the trace)`, and `revision_source` in JSON;
+  - a trace declaring nothing is judged against the newest supported revision,
+    with a note on stderr;
+  - a trace declaring only revisions this build cannot judge exits 2 and says
+    which, instead of being judged against the wrong rules;
+  - one `--revision` gives the full single-revision report (findings, `seq`,
+    JUnit); several give the multi-revision report;
+  - `--registry-set` no longer requires `--revision`;
+  - `requirements` prints the newest revision by default and takes `--revision`.
+
+  Migration: pass `--revision 2025-11-25` where a script relied on the old
+  default for traces that declare no revision. The `draft-2026-07-28` feature
+  remains as a no-op so existing manifests keep building.
+- **`context::draft` is now `context::stateless`** — the `2026-07-28` lifecycle
+  machine, named for what it models rather than a draft that has shipped.
+
+### Added
+
+- `declared::select`, `Selection`, `RevisionSource` and `UnjudgeableRevisions`:
+  the CLI's revision choice as a library API, so embedders get the same rule.
+- `RegistrySet::latest` and `BUILTIN_REVISIONS` in `mcp-conformance-core`.
+
+### Fixed
+
+- `requirements | head` (or any closed pipe) no longer panics.
+
 ## [0.5.1] - 2026-08-28
 
 **This is a patch release. No API changes, no breaking changes, and no behaviour

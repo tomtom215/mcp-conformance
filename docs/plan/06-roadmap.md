@@ -254,7 +254,7 @@ second DoD line reflects the full inventory.
 - [x] Stateless state-machine variant alongside — not replacing — the `2025-11-25`
       machine, every transition and error edge unit- and property-tested.
       *(2026-06-14:
-      [`context::draft`](../../crates/mcp-trace-validator/src/context/draft.rs), behind the
+      [`context::stateless`](../../crates/mcp-trace-validator/src/context/stateless.rs) (named `context::draft` until 0.6.0), behind the
       `draft-2026-07-28` feature. The `2026-07-28` rework removes the
       `initialize`/`initialized` handshake (register 1.3, 1.5a; SEP-2575), so the variant's
       defining property is that a session is **operational from its first message** — no

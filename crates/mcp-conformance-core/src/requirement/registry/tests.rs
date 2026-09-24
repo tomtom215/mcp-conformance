@@ -24,7 +24,6 @@
 fn every_registry_area_document_is_embedded() {
     for (revision, embedded) in [
         ("2025-11-25", super::AREAS_2025_11_25),
-        #[cfg(feature = "draft-2026-07-28")]
         ("2026-07-28", super::AREAS_2026_07_28),
     ] {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

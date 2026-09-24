@@ -170,6 +170,11 @@ pub struct Report {
     /// deliberately quiet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revision_mismatch: Option<Vec<String>>,
+    /// How [`Self::revision`] was chosen, when the caller recorded it (the CLI
+    /// always does). Absent from reports built by [`crate::engine::validate`]
+    /// directly, which is handed a registry and chooses nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revision_source: Option<crate::declared::RevisionSource>,
     /// Aggregate counts.
     pub totals: Totals,
     /// Per-requirement outcomes, in registry order.
@@ -270,6 +275,7 @@ mod tests {
         not_applicable.capability = Some("server.tools".to_owned());
         Report {
             revision_mismatch: None,
+            revision_source: None,
             revision: "2025-11-25".to_owned(),
             totals: Totals {
                 pass: 1,

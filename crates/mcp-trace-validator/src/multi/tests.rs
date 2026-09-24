@@ -160,7 +160,6 @@ fn human_render_shows_each_revision_cell_and_marks_divergence() {
 /// registries have started sharing entries and both that doc comment and
 /// the `*differs` marker become meaningful again — which is a change worth
 /// being told about.
-#[cfg(feature = "draft-2026-07-28")]
 #[test]
 fn the_shipped_registries_share_no_clause() {
     use mcp_conformance_core::requirement::RegistrySet;
@@ -232,7 +231,6 @@ fn judges_a_real_trace_and_is_deterministic() {
 
 // Needs a second shipped registry, for the reason `declared.rs` states.
 #[test]
-#[cfg(feature = "draft-2026-07-28")]
 fn a_run_that_judged_none_of_the_sessions_revisions_says_so() {
     // Naming `--revision` explicitly does not make judging a `2026-07-28`
     // recording against `2025-11-25` any less of a mistake, so the note is

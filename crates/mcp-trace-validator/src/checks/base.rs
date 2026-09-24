@@ -28,7 +28,6 @@ pub(super) use meta::meta_key_format;
 // The `_meta` key grammar is unchanged at `2026-07-28`, where VERS-004 reuses it
 // for extension identifiers — the function, not `base.meta-key-format`, which
 // reads envelope keys and would inspect no identifier at all.
-#[cfg(feature = "draft-2026-07-28")]
 pub(super) use meta::validate_meta_key;
 
 /// Human name of a JSON value's type, for finding details.
