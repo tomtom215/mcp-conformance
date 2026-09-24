@@ -165,7 +165,7 @@ verdict: fail
 <!-- ANCHOR_END: trace-example -->
 
 The six not-applicable rows are the capability-gated requirements this session
-never negotiated (the resources and prompts clauses), and the thirty
+never negotiated (the resources and prompts clauses), and the thirty-one
 not-observed rows are the clauses whose subject matter never appeared —
 nothing was paginated, no binary content was sent, no error was returned.
 Neither is reported as a pass. [`corpus/`](corpus) holds complete annotated

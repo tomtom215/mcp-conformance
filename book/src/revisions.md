@@ -3,8 +3,9 @@
 
 # Two revisions at once
 
-MCP is a *dated* specification. `2025-11-25` is what implementations ship
-against today; `2026-07-28` removes the `initialize` handshake outright
+MCP is a *dated* specification. `2026-07-28` is the current revision, and
+`2025-11-25` stays in wide use while implementations migrate. `2026-07-28`
+removes the `initialize` handshake outright
 ([SEP-2575](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2575)),
 makes every request carry its own `_meta` envelope, and adds caching hints,
 multi-round-trip requests, subscriptions, and a discovery probe. That is not a
@@ -21,7 +22,7 @@ changelog and becomes a measurement.
 | Registry entries | 142 | 272 |
 | Judged by a named check | 55 | 125 |
 | Carrying a documented exclusion | 87 | 147 |
-| Shipped by default | yes | behind the `draft-2026-07-28` feature |
+| Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
 each clause is quoted from its own revision's published text, and a clause
@@ -92,18 +93,24 @@ what was measured.
 > validator on every `cargo test`, so this page cannot drift from what the tool
 > actually prints.
 
-## Judged against the wrong revision
-
-Naming a revision is a choice, and the default is `2025-11-25`. Point the
-validator at a `2026-07-28` recording without saying so and every clause the two
-revisions disagree about becomes a finding: the session opens with `tools/list`
-rather than `initialize`, so `LIFE-001` fails; it reuses request ids after their
-responses, so `BASE-003` fails. Both are correct answers to the question that was
-asked, and neither is a defect in the implementation.
+## Which revision a trace is judged against
 
 A trace is not silent about which revision it belongs to — the handshake states
 it, a stateless session states it in every request's `_meta`, and the HTTP
-transport states it in a header. This session says `2026-07-28` twice over:
+transport states it in a header. So by default the validator judges a trace
+against the revision it declares, and says so in the report's first line:
+`revision 2026-07-28 (declared by the trace)`. A trace declaring nothing is
+judged against the newest supported revision, with a note on stderr; a trace
+declaring only revisions this build cannot judge is refused (exit 2) rather
+than judged against the wrong rules.
+
+Judging against the wrong rules is easy to do on purpose, with `--revision`.
+Force `2025-11-25` onto a `2026-07-28` recording and every clause the two
+revisions disagree about becomes a finding: the session opens with `tools/list`
+rather than `initialize`, so `LIFE-001` fails; it reuses request ids after their
+responses, so `BASE-003` fails. Both are correct answers to the question that was
+asked, and neither is a defect in the implementation. This session says
+`2026-07-28` twice over:
 
 ```jsonl
 {"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"accept":"application/json, text/event-stream","mcp-protocol-version":"2026-07-28"}}
@@ -111,7 +118,7 @@ transport states it in a header. This session says `2026-07-28` twice over:
 {"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"tools":[],"resultType":"complete"}}}
 ```
 
-so validating it without naming a revision says so, above the rows and again
+so validating it with `--revision 2025-11-25` says so, above the rows and again
 under the verdict:
 
 ```text

@@ -224,13 +224,13 @@ calibrated against the authority rather than asking anyone to trust it.
 
 ## Protocol-revision strategy
 
-- `2025-11-25` is the default revision everywhere.
-- `2026-07-28` support lands behind a `draft-2026-07-28` cargo feature while the RC is in
-  flux; registry entries gain `applies` ranges at roadmap M2.5 so the stateless rework is a
-  data change plus a state-machine variant, not a rewrite
-  ([register 1.2–1.5b](01-ecosystem-context.md)). The feature gate drops (becomes default)
-  only after the final spec text ships, M2.5 completes, and the official suite's scenarios
-  for it stabilize.
+- Every build judges both `2025-11-25` and `2026-07-28`. The validator judges a trace
+  against the revision it declares, the newest supported one when it declares none, and
+  refuses one that declares only unsupported revisions
+  ([ADR-0018](decisions/0018-judge-the-declared-revision.md)).
+- Registry entries carry `applies` ranges, so a new revision is a data change plus, where
+  the lifecycle changes, a state-machine variant — not a rewrite
+  ([register 1.2–1.5b](01-ecosystem-context.md)).
 - Versioning of our own crates follows SemVer with `#[non_exhaustive]` on protocol-facing
   enums and structs; pre-1.0 minor bumps may break, mirroring the honesty of the spec's own
   RC process.

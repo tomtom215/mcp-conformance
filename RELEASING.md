@@ -3,15 +3,10 @@
 
 # Releasing
 
-> **Status:** v0.1.0 (2026-06-10, bootstrap token) and v0.2.0 (2026-06-11, OIDC)
-> are published. The publish job authenticates only via OIDC, and the v0.2.0
-> publish is the proof that trusted publishing is configured for all four crates —
-> its first attempt failed (crates.io: `No Trusted Publishing config found`), the
-> owner added the config, and the re-run published. The owner confirmed on
-> 2026-06-11, after that correction, that trusted publishing is working as
-> intended — the per-crate **"Trusted Publishing Only"** switch and the bootstrap
-> token's revocation rest on that statement, since the registry exposes no
-> external check (ADR-0007 §Correction).
+> **Status:** the latest release is v0.5.1 (2026-08-29). Every release since v0.2.0
+> has published through OIDC trusted publishing only; the bootstrap token that
+> published v0.1.0 is revoked (ADR-0007 §Correction). The dated pre-flight records
+> below are history, kept for their method.
 
 ## Principles
 

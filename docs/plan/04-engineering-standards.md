@@ -144,8 +144,9 @@ dependencies are justified where they are declared):
 - Tag-triggered release workflow: version/CHANGELOG validation → full CI → packaging with
   SLSA build-provenance attestation → publish dry-run → GitHub Release with notes →
   crates.io publish in dependency order with index-propagation waits.
-- **Trusted publishing (OIDC)** to crates.io — no long-lived registry tokens. This is the
-  one deliberate upgrade over a2a-rust's token-in-environment approach.
+- **Trusted publishing (OIDC) only** to crates.io — no long-lived registry token exists to
+  fall back to. a2a-rust also publishes via OIDC, but keeps a `CARGO_REGISTRY_TOKEN`
+  fallback (its `release.yml`, verified 2026-09-24).
 - `CHANGELOG.md` per Keep-a-Changelog for *code* releases. Plan documents carry no
   changelogs ([ADR-0001](decisions/0001-plan-documentation-model.md)).
 - Deprecations in our public API follow the spirit of MCP's own lifecycle policy

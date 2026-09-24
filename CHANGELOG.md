@@ -51,7 +51,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 - `requirements | head` (or any closed pipe) no longer panics.
 
-## [0.5.1] - 2026-08-28
+## [0.5.1] - 2026-08-29
 
 **This is a patch release. No API changes, no breaking changes, and no behaviour
 changes — the only difference from `0.5.0` is one dependency version in

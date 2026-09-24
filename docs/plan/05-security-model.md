@@ -22,7 +22,7 @@ reality, not borrowed from a generic library template.
 | Reference host | Malicious or compromised SUT servers (hostile tool results, oversized streams, slow-loris SSE) | Response size and time budgets; bounded concurrency; cooperative cancellation; no shell interpretation of server-supplied strings. |
 | CI | Supply-chain attacks via actions or dependencies | Actions pinned by SHA; `cargo deny` + `cargo audit` gates; lockfiles; trusted publishing (no long-lived tokens to steal). |
 | CI's `GITHUB_TOKEN` | A job holding a write scope is a lever for anything that can influence what that job runs | Workflow default is `contents: read`; a write scope is granted per job, never per workflow, and carries an inline comment naming what it writes. |
-| Trace corpora | Secrets accidentally recorded into fixtures | Capture tooling redacts `Authorization`/cookie headers and token-shaped strings by default; corpus review is part of PR review. |
+| Trace corpora | Secrets accidentally recorded into fixtures | Capture records headers by allowlist, so `Authorization`, cookies and other credentials are never written; the reference host captures at the message seam, where headers are unobservable. **Message bodies are recorded verbatim** — a secret inside a JSON-RPC payload is recorded like any other value — so corpus review is part of PR review. |
 
 ## Designing out the CVE-2026-42559 class
 
@@ -39,10 +39,10 @@ the `Host` header — [register 4.1–4.2](01-ecosystem-context.md)). Our postur
    requirements, so *every implementation we validate* gets checked for this class — the
    toolkit propagates the fix's lesson across the ecosystem rather than just avoiding the
    bug itself.
-3. **Ecosystem follow-through.** No RustSec advisory exists for this CVE, so `cargo audit`
-   is silent on vulnerable rmcp versions ([register 4.3](01-ecosystem-context.md)). Filing
-   it, in coordination with rmcp maintainers, is on the contribution backlog
-   ([07-ecosystem-engagement.md](07-ecosystem-engagement.md)) — security posture includes
+3. **Ecosystem follow-through.** [`RUSTSEC-2026-0189`](https://rustsec.org/advisories/RUSTSEC-2026-0189.html)
+   now covers this CVE for `rmcp < 1.4.0`, so `cargo audit` flags vulnerable versions
+   ([register 4.3](01-ecosystem-context.md)); it was filed upstream independently of this
+   project ([07-ecosystem-engagement.md](07-ecosystem-engagement.md), backlog item 2) — security posture includes
    the ecosystem's tooling, not only our code.
 
 Precision note: this advisory is DNS rebinding (CWE-346/350) only; the "CSRF" label

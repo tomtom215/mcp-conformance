@@ -60,7 +60,7 @@ is the signal that someone looked.
 | Term | Meaning |
 |------|---------|
 | **MCP** | Model Context Protocol — open protocol for connecting AI applications to tools and data; governed under the Agentic AI Foundation (Linux Foundation). |
-| **Spec revision** | A dated protocol version, e.g. `2025-11-25` (current) or `2026-07-28` (release candidate). |
+| **Spec revision** | A dated protocol version, e.g. `2026-07-28` (current, published 2026-07-28) or `2025-11-25` (previous). |
 | **SEP** | Specification Enhancement Proposal — MCP's change process. |
 | **SEP-1730** | The SDK Tiering System: Tier 1/2/3 classification of MCP SDKs by conformance and maintenance commitments. |
 | **SEP-2484** | Requires a merged conformance scenario and a traceability file before a Standards-Track SEP can reach Final status. |

@@ -403,9 +403,10 @@ Backlog opens at M0; the milestone closes only on merged outcomes.
       success — and the live site returns `200`. docs.rs rendered all four crates
       at `0.3.0` (`doc_status: true` on each `status.json`), so both clauses of
       this line now hold.)*
-- [ ] The `draft-2026-07-28` feature gate dropped (revision becomes default) — only after
-      the final text has shipped, M2.5 is complete, and the official scenarios for the
-      revision stabilize.
+- [x] The `draft-2026-07-28` feature gate dropped (revision becomes default).
+      *(2026-09-24, [ADR-0018](decisions/0018-judge-the-declared-revision.md): the text has
+      shipped and every in-scope page is entered; the suite-stability condition now gates
+      only the blocking `2026-07-28` agreement check.)*
 
 ## Standing workstreams
 
