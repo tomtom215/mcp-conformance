@@ -255,11 +255,28 @@ fn location(artifact: Artifact<'_>, seq: Option<u64>) -> Value {
     json!([{ "physicalLocation": physical }])
 }
 
-/// `path` as a URI reference: `/`-separated, with every byte outside RFC 3986's
+/// `path` as a URI reference, `/`-separated with every byte outside RFC 3986's
 /// unreserved set and `/` percent-encoded.
+///
+/// A relative path stays relative — the form code scanning resolves against the
+/// repository root — and its colons stay encoded, so none can be read as a
+/// scheme. An absolute path becomes a `file:` URI (RFC 8089): `/tmp/t.jsonl` is
+/// `file:///tmp/t.jsonl`, and Windows' `D:\t.jsonl` is `file:///D:/t.jsonl`, its
+/// drive letter intact rather than the relative `D%3A/t.jsonl` it would
+/// otherwise read as.
 fn uri_reference(path: &str) -> String {
-    let mut out = String::with_capacity(path.len());
-    for byte in path.replace('\\', "/").bytes() {
+    let path = path.replace('\\', "/");
+    let bytes = path.as_bytes();
+    let drive =
+        bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/';
+    let (mut out, rest) = if drive {
+        (format!("file:///{}:", char::from(bytes[0])), &path[2..])
+    } else if path.starts_with('/') {
+        ("file://".to_owned(), path.as_str())
+    } else {
+        (String::with_capacity(path.len()), path.as_str())
+    };
+    for byte in rest.bytes() {
         if byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte) {
             out.push(char::from(byte));
         } else {
@@ -409,5 +426,19 @@ mod tests {
             "traces/my%20run%20%232.jsonl"
         );
         assert_eq!(uri_reference("é"), "%C3%A9");
+        // A colon in a relative path cannot be taken for a scheme.
+        assert_eq!(uri_reference("a:b.jsonl"), "a%3Ab.jsonl");
+        // Absolute paths are file: URIs, drive letters intact.
+        assert_eq!(
+            uri_reference("/tmp/my run.jsonl"),
+            "file:///tmp/my%20run.jsonl"
+        );
+        assert_eq!(
+            uri_reference(r"D:\a\b c\t.jsonl"),
+            "file:///D:/a/b%20c/t.jsonl"
+        );
+        assert_eq!(uri_reference("c:/t.jsonl"), "file:///c:/t.jsonl");
+        // A drive letter needs its separator: `C:` alone is a relative name.
+        assert_eq!(uri_reference("C:t"), "C%3At");
     }
 }

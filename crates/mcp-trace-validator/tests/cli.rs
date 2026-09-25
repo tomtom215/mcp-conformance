@@ -754,9 +754,15 @@ fn sarif_is_a_validate_format_with_the_same_exit_codes() {
     assert_eq!(log["version"], "2.1.0");
     let result = &log["runs"][0]["results"][0];
     assert_eq!(result["ruleId"], "MRTR-019");
-    assert_eq!(
-        result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"],
-        trace
+    // The trace was named by an absolute path, so the location is a file: URI
+    // (a drive-letter one on Windows).
+    let uri = result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+        .as_str()
+        .unwrap();
+    assert!(uri.starts_with("file:///"), "{uri}");
+    assert!(
+        uri.ends_with("/corpus/draft/violations/mrtr-019-retry-reuses-id.jsonl"),
+        "{uri}"
     );
     assert_eq!(
         result["locations"][0]["physicalLocation"]["region"]["startLine"],
