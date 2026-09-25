@@ -11,9 +11,12 @@
 #![cfg(feature = "cli")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+#[cfg(unix)]
 use std::io::Write as _;
 use std::path::PathBuf;
-use std::process::{Command, Output, Stdio};
+use std::process::Command;
+#[cfg(unix)]
+use std::process::{Output, Stdio};
 
 fn binary() -> Command {
     Command::new(env!("CARGO_BIN_EXE_mcp-trace-capture"))
@@ -31,6 +34,7 @@ fn scratch(name: &str) -> PathBuf {
 /// Runs `command` with `input` on its stdin, collecting its output. The input is
 /// written from its own thread: written first, anything larger than the pipe
 /// buffers would deadlock against a child that echoes it.
+#[cfg(unix)]
 fn run_with_stdin(mut command: Command, input: &[u8]) -> Output {
     let mut child = command
         .stdin(Stdio::piped())
@@ -296,12 +300,12 @@ fn an_incomplete_trace_exits_3_unless_the_server_already_failed() {
     );
 }
 
-/// Starts the proxy with `args`, returns it and its listening address.
-#[cfg(unix)]
 /// A running proxy, killed if a test ends without stopping it — so a failed
 /// assertion (or a mutant that ignores the signal) cannot leave it running.
+#[cfg(unix)]
 struct Proxy(std::process::Child);
 
+#[cfg(unix)]
 impl Drop for Proxy {
     fn drop(&mut self) {
         if matches!(self.0.try_wait(), Ok(None)) {
@@ -311,6 +315,8 @@ impl Drop for Proxy {
     }
 }
 
+/// Starts the proxy with `args`, returns it and its listening address.
+#[cfg(unix)]
 fn start_proxy(
     trace: &std::path::Path,
     upstream: &str,
