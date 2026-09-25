@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "pass",
   "totals": {
     "pass": 40,
     "fail": 0,

@@ -11,7 +11,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use mcp_trace_validator::report::JSON_SCHEMA;
+use mcp_trace_validator::report::{JSON_SCHEMA, Report};
 use serde_json::{Value, json};
 
 fn validator() -> jsonschema::Validator {
@@ -45,6 +45,14 @@ fn every_golden_report_is_valid() {
                 serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
             let found = errors(&validator, &report);
             assert!(found.is_empty(), "{}: {found:#?}", path.display());
+            // The verdict is the one the totals imply.
+            let parsed: Report = serde_json::from_value(report.clone()).unwrap();
+            assert_eq!(
+                report["verdict"],
+                json!(parsed.verdict()),
+                "{}",
+                path.display()
+            );
             checked += 1;
         }
     }
@@ -98,9 +106,9 @@ fn a_report_that_breaks_the_schema_is_caught() {
         .iter()
         .position(|row| row["outcome"] == "fail")
         .unwrap();
-    let broken: [(&str, Breaking); 5] = [
+    let broken: [(&str, Breaking); 6] = [
         ("an undocumented member", |report, _| {
-            report["verdict"] = json!("fail");
+            report["score"] = json!(1);
         }),
         ("a fail row without its clause", |report, row| {
             report["requirements"][row]
@@ -116,6 +124,9 @@ fn a_report_that_breaks_the_schema_is_caught() {
         }),
         ("a total that is not a count", |report, _| {
             report["totals"]["pass"] = json!(-1);
+        }),
+        ("a report without its verdict", |report, _| {
+            report.as_object_mut().unwrap().remove("verdict");
         }),
     ];
     for (what, breaking) in broken {

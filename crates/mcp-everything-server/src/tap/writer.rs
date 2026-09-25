@@ -13,62 +13,50 @@ use tokio::io::AsyncWriteExt as _;
 
 use super::Record;
 
-/// Open handle plus the next sequence number to assign for one trace file.
-struct FileState {
-    file: tokio::fs::File,
-    next_seq: u64,
-}
-
 /// The writer task: sequences each record per file (the schema's
 /// strictly-increasing rule holds by construction), appends it as one JSON
 /// line, and flushes before accepting the next — everything enqueued before
 /// a kill is durable.
+///
+/// Each record opens its file for append and closes it again, so a long-lived
+/// server holds no descriptor per session it has ever seen; only each file's
+/// next `seq` is kept. That was an open handle per session until 0.6.0, which a
+/// server run for days against many clients would have exhausted.
 pub(super) async fn write_loop(mut receiver: tokio::sync::mpsc::Receiver<Record>) {
-    let mut files: HashMap<PathBuf, FileState> = HashMap::new();
+    let mut next_seq: HashMap<PathBuf, u64> = HashMap::new();
     while let Some(record) = receiver.recv().await {
         let path = &record.file.path;
-        if !files.contains_key(path) {
-            match tokio::fs::OpenOptions::new()
+        let seq = next_seq.get(path).copied().unwrap_or(0);
+        let event = TraceEvent::new(
+            seq,
+            record.direction,
+            TransportKind::StreamableHttp,
+            record.body,
+        );
+        let Ok(mut line) = serde_json::to_vec(&event) else {
+            eprintln!("mcp-everything-server: tap event unserializable; skipped");
+            continue;
+        };
+        line.push(b'\n');
+        let write = async {
+            let mut file = tokio::fs::OpenOptions::new()
                 .create(true)
                 .append(true)
                 .open(path)
-                .await
-            {
-                Ok(file) => {
-                    files.insert(path.clone(), FileState { file, next_seq: 0 });
-                }
-                Err(error) => {
-                    eprintln!(
-                        "mcp-everything-server: tap cannot open {}: {error}",
-                        path.display()
-                    );
-                    continue;
-                }
+                .await?;
+            file.write_all(&line).await?;
+            file.flush().await
+        };
+        match write.await {
+            // The seq is spent only once its line is written, so a failed
+            // write leaves no gap for the next record to straddle.
+            Ok(()) => {
+                next_seq.insert(path.clone(), seq + 1);
             }
-        }
-        if let Some(state) = files.get_mut(path) {
-            let event = TraceEvent::new(
-                state.next_seq,
-                record.direction,
-                TransportKind::StreamableHttp,
-                record.body,
-            );
-            let Ok(line) = serde_json::to_string(&event) else {
-                eprintln!("mcp-everything-server: tap event unserializable; skipped");
-                continue;
-            };
-            state.next_seq += 1;
-            let write = async {
-                state.file.write_all(line.as_bytes()).await?;
-                state.file.write_all(b"\n").await?;
-                state.file.flush().await
-            };
-            if let Err(error) = write.await {
-                eprintln!(
-                    "mcp-everything-server: tap write to {} failed: {error}",
-                    path.display()
-                );
-            }
+            Err(error) => eprintln!(
+                "mcp-everything-server: tap write to {} failed: {error}",
+                path.display()
+            ),
         }
     }
 }

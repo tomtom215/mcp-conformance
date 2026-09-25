@@ -124,8 +124,9 @@ impl MultiRow {
 ///
 /// Like [`Report`](crate::report::Report), it is an artifact — serialization order is fixed (revisions in the
 /// order requested; clauses in registry-union order) and nothing environment-dependent
-/// appears.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// appears. Its JSON carries the overall [`verdict`](Self::verdict) after the
+/// revision fields, derived on output like the single report's.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct MultiReport {
     /// The revisions judged, in the order requested — the column order for every row.
@@ -270,6 +271,28 @@ impl MultiReport {
             out,
             "        Every outcome here judges it against rules it was not playing by."
         );
+    }
+}
+
+impl Serialize for MultiReport {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct as _;
+        let mut report = serializer.serialize_struct("MultiReport", 6)?;
+        report.serialize_field("revisions", &self.revisions)?;
+        if let Some(mismatch) = &self.revision_mismatch {
+            report.serialize_field("revision_mismatch", mismatch)?;
+        } else {
+            report.skip_field("revision_mismatch")?;
+        }
+        if let Some(source) = &self.revision_source {
+            report.serialize_field("revision_source", source)?;
+        } else {
+            report.skip_field("revision_source")?;
+        }
+        report.serialize_field("verdict", &self.verdict())?;
+        report.serialize_field("summaries", &self.summaries)?;
+        report.serialize_field("requirements", &self.requirements)?;
+        report.end()
     }
 }
 

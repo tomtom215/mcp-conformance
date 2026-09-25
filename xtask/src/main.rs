@@ -117,6 +117,7 @@ mod fuzz_targets;
 mod local_gates;
 mod minimal_versions;
 mod register_currency;
+mod semver;
 // A test harness rather than a task: it executes the notification shell that
 // `scheduled.yml` ships, so nothing in the binary calls into it.
 #[cfg(test)]
@@ -154,7 +155,7 @@ fn main() -> ExitCode {
         Some("ci-permissions") => exit_if(ci_permissions::run()),
         Some("deny") => exit_if(local_gates::deny_gate()),
         Some("mutants") => exit_if(local_gates::mutants_gate(&args.collect::<Vec<_>>())),
-        Some("semver") => exit_if(local_gates::semver_gate()),
+        Some("semver") => exit_if(semver::semver_gate()),
         Some("cross-arch") => exit_if(cross_arch::run()),
         Some("minimal-versions") => exit_if(minimal_versions::run()),
         Some("deferrals") => exit_if(deferrals::dispatch(args.next().as_deref())),

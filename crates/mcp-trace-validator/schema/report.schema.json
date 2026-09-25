@@ -43,6 +43,7 @@
       "enum": ["pass", "fail", "warn", "excluded", "unsupported", "not-applicable", "not-observed"]
     },
     "verdict": {
+      "description": "Follows from the totals: unsupported if any clause is, else fail if any fails, else pass-with-warnings if any warns, else pass. The exit code maps it: fail is 1 (as is pass-with-warnings under --strict), unsupported is 2.",
       "enum": ["pass", "pass-with-warnings", "fail", "unsupported"]
     },
     "requirementId": {
@@ -123,14 +124,15 @@
       ]
     },
     "report": {
-      "description": "One trace judged against one revision. The verdict follows from `totals`: unsupported if any row is, else fail if any is, else pass-with-warnings if any warns, else pass.",
+      "description": "One trace judged against one revision.",
       "type": "object",
-      "required": ["revision", "totals", "requirements"],
+      "required": ["revision", "verdict", "totals", "requirements"],
       "additionalProperties": false,
       "properties": {
         "revision": { "$ref": "#/$defs/revision" },
         "revision_mismatch": { "$ref": "#/$defs/revisionMismatch" },
         "revision_source": { "$ref": "#/$defs/revisionSource" },
+        "verdict": { "$ref": "#/$defs/verdict" },
         "totals": { "$ref": "#/$defs/totals" },
         "requirements": { "type": "array", "items": { "$ref": "#/$defs/row" } }
       }
@@ -160,7 +162,7 @@
     "multiReport": {
       "description": "One trace judged against several revisions, aligned per clause.",
       "type": "object",
-      "required": ["revisions", "summaries", "requirements"],
+      "required": ["revisions", "verdict", "summaries", "requirements"],
       "additionalProperties": false,
       "properties": {
         "revisions": {
@@ -170,6 +172,10 @@
         },
         "revision_mismatch": { "$ref": "#/$defs/revisionMismatch" },
         "revision_source": { "$ref": "#/$defs/revisionSource" },
+        "verdict": {
+          "description": "The worst of the per-revision verdicts.",
+          "$ref": "#/$defs/verdict"
+        },
         "summaries": {
           "type": "array",
           "items": {

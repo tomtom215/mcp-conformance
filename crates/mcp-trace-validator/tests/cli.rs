@@ -522,6 +522,7 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
     let json = run(&[&["validate", trace, "--format", "json"], &both[..]].concat());
     let report: serde_json::Value = serde_json::from_str(&stdout(&json)).unwrap();
     assert_eq!(report["revision_source"], "requested");
+    assert_eq!(report["verdict"], "fail", "the worst across revisions");
     let row = report["requirements"]
         .as_array()
         .unwrap()
@@ -545,23 +546,6 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
              and the retry, as they are independent requests.\"\n"
         ),
         "{text}"
-    );
-
-    let quiet = run(&[&["validate", "--quiet", trace], &both[..]].concat());
-    assert_eq!(quiet.status.code(), Some(1), "{quiet:?}");
-    let quiet = stdout(&quiet);
-    assert!(quiet.contains("MRTR-019"), "{quiet}");
-    assert!(!quiet.contains("=excluded"), "{quiet}");
-    let per_revision = |text: &str| {
-        text.lines()
-            .skip_while(|line| *line != "per revision:")
-            .map(str::to_owned)
-            .collect::<Vec<_>>()
-    };
-    assert_eq!(
-        per_revision(&quiet),
-        per_revision(&text),
-        "--quiet hides rows, never counts"
     );
 
     let junit = run(&[&["validate", trace, "--format", "junit"], &both[..]].concat());
@@ -797,4 +781,28 @@ fn sarif_is_a_validate_format_with_the_same_exit_codes() {
     );
     let rejected = run(&["requirements", "--format", "sarif"]);
     assert_eq!(rejected.status.code(), Some(2), "{rejected:?}");
+}
+
+#[test]
+fn quiet_multi_revision_output_hides_rows_never_counts() {
+    let trace = corpus("draft/violations/mrtr-019-retry-reuses-id.jsonl");
+    let trace = trace.to_str().unwrap();
+    let both = ["--revision", "2025-11-25", "--revision", "2026-07-28"];
+    let text = stdout(&run(&[&["validate", trace], &both[..]].concat()));
+    let quiet = run(&[&["validate", "--quiet", trace], &both[..]].concat());
+    assert_eq!(quiet.status.code(), Some(1), "{quiet:?}");
+    let quiet = stdout(&quiet);
+    assert!(quiet.contains("MRTR-019"), "{quiet}");
+    assert!(!quiet.contains("=excluded"), "{quiet}");
+    let per_revision = |text: &str| {
+        text.lines()
+            .skip_while(|line| *line != "per revision:")
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        per_revision(&quiet),
+        per_revision(&text),
+        "--quiet hides rows, never counts"
+    );
 }

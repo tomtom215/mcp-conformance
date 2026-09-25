@@ -15,6 +15,16 @@ mod pairing;
 
 pub mod stateless;
 
+/// The `2026-07-28` lifecycle machine under its pre-0.6.0 name.
+///
+/// Renamed [`stateless`] when the revision it models stopped being a draft. Kept
+/// for one minor release, as `docs/plan/04-engineering-standards.md` requires of
+/// a deprecation; the items are the same ones.
+#[deprecated(since = "0.6.0", note = "renamed `context::stateless`")]
+pub mod draft {
+    pub use super::stateless::*;
+}
+
 pub use pairing::Exchange;
 
 /// The `2025-11-25` session lifecycle phase *before* a given event is processed.

@@ -57,15 +57,28 @@ use axum::response::Response;
 use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent};
 use tokio_stream::StreamExt as _;
 
+mod body;
 mod headers;
 mod sse;
 
+use body::{Buffered, buffer};
 use sse::SseSplitter;
 
-/// The recording allowlist, shared with every capture tool through the trace
-/// schema's crate so the recorders cannot drift apart: everything absent from it —
-/// notably `authorization` and `cookie` — is never written to a trace.
-pub use mcp_conformance_core::trace::{RECORDED_HEADER_PREFIXES, RECORDED_HEADERS};
+/// The recording allowlist: everything absent from it — notably
+/// `authorization` and `cookie` — is never written to a trace.
+///
+/// Defined by [`mcp_conformance_core::trace::RECORDED_HEADERS`], shared with
+/// every capture tool so the recorders cannot drift apart; kept here as a
+/// constant of its own (not a `pub use`) so this crate's API is unchanged for
+/// the tools that read a crate's API from its own items.
+pub const RECORDED_HEADERS: [&str; mcp_conformance_core::trace::RECORDED_HEADERS.len()] =
+    mcp_conformance_core::trace::RECORDED_HEADERS;
+
+/// Header-name prefixes recorded in addition to [`RECORDED_HEADERS`]; defined by
+/// [`mcp_conformance_core::trace::RECORDED_HEADER_PREFIXES`].
+pub const RECORDED_HEADER_PREFIXES: [&str;
+    mcp_conformance_core::trace::RECORDED_HEADER_PREFIXES.len()] =
+    mcp_conformance_core::trace::RECORDED_HEADER_PREFIXES;
 
 /// The session-id header of the streamable HTTP transport (`2025-11-25`
 /// basic/transports §session management).
@@ -93,8 +106,9 @@ const SESSION_ID_HEADER: &str = "mcp-session-id";
 const STATELESS_TRACE: &str = "stateless";
 
 /// Largest request/response body the tap will buffer for recording. The
-/// suite's payloads are kilobytes; anything larger is passed through
-/// unrecorded with a stderr note rather than held in memory.
+/// suite's payloads are kilobytes; anything larger is passed through intact —
+/// what was buffered, then the rest as it streams — unrecorded, with a stderr
+/// note, rather than held in memory.
 const MAX_RECORDED_BODY: usize = 4 * 1024 * 1024;
 
 /// Capacity of the event channel to the writer task. Sending applies
@@ -216,11 +230,16 @@ pub async fn tap_layer(
 
     // Buffer the request body for recording, then reconstruct the request.
     let (parts, body) = request.into_parts();
-    let Ok(bytes) = axum::body::to_bytes(body, MAX_RECORDED_BODY).await else {
-        // Body larger than the recording cap (or unreadable): the tap
-        // steps aside entirely rather than guess at fidelity.
-        eprintln!("mcp-everything-server: tap skipped an oversized request body");
-        return next.run(Request::from_parts(parts, Body::empty())).await;
+    let bytes = match buffer(body).await {
+        Buffered::Whole(bytes) => bytes,
+        Buffered::Passed(body) => {
+            // Larger than the recording cap, or cut off: the service receives
+            // every byte the client sent, and the tap records nothing of it.
+            eprintln!(
+                "mcp-everything-server: tap passed an oversized request body through unrecorded"
+            );
+            return next.run(Request::from_parts(parts, body)).await;
+        }
     };
     let request_payload: Option<serde_json::Value> = serde_json::from_slice(&bytes).ok();
     let response = next
@@ -360,83 +379,26 @@ fn record_sse(tap: &Arc<Tap>, session_id: &str, response: Response) -> Response 
 /// Buffers, records, and re-bodies a JSON response.
 async fn record_json(tap: &Arc<Tap>, session_id: &str, response: Response) -> Response {
     let (parts, body) = response.into_parts();
-    if let Ok(bytes) = axum::body::to_bytes(body, MAX_RECORDED_BODY).await {
-        if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-            tap.record(
-                session_id,
-                Direction::ServerToClient,
-                EventBody::Message { payload },
-            )
-            .await;
+    match buffer(body).await {
+        Buffered::Whole(bytes) => {
+            if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                tap.record(
+                    session_id,
+                    Direction::ServerToClient,
+                    EventBody::Message { payload },
+                )
+                .await;
+            }
+            Response::from_parts(parts, Body::from(bytes))
         }
-        Response::from_parts(parts, Body::from(bytes))
-    } else {
-        eprintln!("mcp-everything-server: tap lost an oversized response body");
-        Response::from_parts(parts, Body::empty())
+        Buffered::Passed(body) => {
+            eprintln!(
+                "mcp-everything-server: tap passed an oversized response body through unrecorded"
+            );
+            Response::from_parts(parts, body)
+        }
     }
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn record_json_preserves_the_body_and_records_the_message() {
-        // rmcp currently frames every request response as SSE, so this path
-        // is pinned at the unit level: a JSON response must reach the client
-        // byte-identical and land in the trace as one message event.
-        let dir = std::env::temp_dir().join(format!("tap-json-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        let tap = Tap::new(dir.clone()).expect("tap directory");
-        let body = r#"{"jsonrpc":"2.0","id":9,"result":{"ok":true}}"#;
-        let response = Response::builder()
-            .status(200)
-            .header("content-type", "application/json")
-            .body(Body::from(body))
-            .expect("response");
-
-        let returned = record_json(&tap, "json-session", response).await;
-        let returned_body = axum::body::to_bytes(returned.into_body(), 1024 * 1024)
-            .await
-            .expect("body");
-        assert_eq!(returned_body.as_ref(), body.as_bytes(), "byte-identical");
-
-        let path = dir.join("001-json-session.jsonl");
-        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
-        let recorded = loop {
-            if let Ok(text) = std::fs::read_to_string(&path)
-                && text.ends_with('\n')
-            {
-                break text;
-            }
-            assert!(
-                tokio::time::Instant::now() < deadline,
-                "the writer did not persist the message within 10s"
-            );
-            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-        };
-        let event: serde_json::Value =
-            serde_json::from_str(recorded.lines().next().expect("one line")).expect("event");
-        assert_eq!(event["kind"], "message");
-        assert_eq!(event["direction"], "server-to-client");
-        assert_eq!(event["payload"]["id"], 9);
-        let _ = std::fs::remove_dir_all(dir);
-    }
-
-    #[tokio::test]
-    async fn debug_names_the_trace_directory_without_dumping_internals() {
-        let dir = std::env::temp_dir().join(format!("tap-debug-{}", std::process::id()));
-        let tap = Tap::new(dir.clone()).expect("tap directory");
-        let rendered = format!("{tap:?}");
-        assert!(
-            rendered.contains("Tap") && rendered.contains("tap-debug"),
-            "Debug names the type and its directory: {rendered}"
-        );
-        assert!(
-            rendered.contains(".."),
-            "the non-exhaustive marker shows fields are elided: {rendered}"
-        );
-        let _ = std::fs::remove_dir_all(dir);
-    }
-}
+mod tests;

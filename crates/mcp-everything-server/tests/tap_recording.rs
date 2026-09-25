@@ -535,9 +535,10 @@ async fn oversized_request_bodies_pass_through_unrecorded() {
     let (app, dir) = tapped_app("oversized");
     let session_id = initialized_session(&app, &dir).await;
 
-    // One byte past the recording cap: the tap steps aside entirely — the
-    // exchange is served (with an empty body, the documented trade), and the
-    // trace gains nothing.
+    // One byte past the recording cap: the tap passes the body through intact
+    // and records none of it (`an_oversized_body_passes_through_intact_both_ways`
+    // in src/tap.rs proves the bytes arrive; here, that the trace stays clean).
+    // The service rejects 4 MiB of `x` as the malformed request it is.
     let huge = vec![b'x'; 4 * 1024 * 1024 + 1];
     let response = app
         .clone()
@@ -546,7 +547,7 @@ async fn oversized_request_bodies_pass_through_unrecorded() {
         .unwrap();
     assert!(
         response.status().is_client_error(),
-        "an empty body is the service's problem to reject, not a tap crash: {}",
+        "a malformed body is the service's to reject, not a tap crash: {}",
         response.status()
     );
 

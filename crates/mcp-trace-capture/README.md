@@ -28,6 +28,48 @@ wrapper's exit code. Then:
 mcp-trace-validator validate session.jsonl
 ```
 
+### In a client's configuration
+
+Clients launch a stdio server from a command and its arguments; the wrapper goes in
+front of both. Two things matter when a client, not you, starts it: give `-o` an
+**absolute path** (the client's working directory is its own), and pass **`--force`**
+or a fresh path per run, because the wrapper refuses to overwrite an existing trace
+and a client relaunches its servers.
+
+The `mcpServers` shape most desktop clients use:
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "mcp-trace-capture",
+      "args": ["-o", "/tmp/my-server.jsonl", "--force", "stdio", "--", "python", "/path/to/my_server.py"]
+    }
+  }
+}
+```
+
+From a test suite, through the official SDKs' stdio clients (Python's
+`StdioServerParameters`, TypeScript's `StdioClientTransport`) — the server's command
+moves behind `--`:
+
+```python
+StdioServerParameters(
+    command="mcp-trace-capture",
+    args=["-o", "/tmp/session.jsonl", "--force", "stdio", "--", "python", "my_server.py"],
+)
+```
+
+```typescript
+new StdioClientTransport({
+  command: "mcp-trace-capture",
+  args: ["-o", "/tmp/session.jsonl", "--force", "stdio", "--", "node", "build/index.js"],
+});
+```
+
+After the session, `mcp-trace-validator validate /tmp/session.jsonl`; in CI,
+`--format sarif` or `--format junit` and the exit code.
+
 ## Streamable HTTP servers
 
 Start the proxy in front of the server and point the client at the proxy:

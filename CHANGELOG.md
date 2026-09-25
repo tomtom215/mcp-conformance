@@ -33,8 +33,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   Migration: pass `--revision 2025-11-25` where a script relied on the old
   default for traces that declare no revision. The `draft-2026-07-28` feature
   remains as a no-op so existing manifests keep building.
+
+### Deprecated
+
 - **`context::draft` is now `context::stateless`** — the `2026-07-28` lifecycle
-  machine, named for what it models rather than a draft that has shipped.
+  machine, named for what it models rather than a draft that has shipped. The old
+  path still works, with a deprecation warning, until the next minor release.
 
 ### Added
 
@@ -70,6 +74,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   (`#meta` for `#_meta`, `#security--endpoint` for `#security-&-endpoint`,
   `#https` for `#https//`, and three more), and `#resulttype`, an `#####` heading the
   site gives no anchor (now its parent, `#result-responses`). All 31 are corrected.
+- **JSON reports carry their `verdict`** (`pass`, `pass-with-warnings`, `fail`,
+  `unsupported`), after the revision fields — the overall one on multi-revision
+  reports — so a script can gate on `jq -e '.verdict == "pass"'` instead of
+  re-deriving it from `totals`. Derived on output, never stored, so it cannot
+  disagree with the counts; ignored on input.
 - **`--format sarif`: SARIF 2.1.0 for code scanning.** One rule per violated clause
   (the quote, its level, its link), one result per finding at the trace line holding
   the event it names, unsupported clauses as invocation notifications; every judged
@@ -86,6 +95,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   can check its output. A test holds the schema and the reader to the same answer on
   every corpus record and on one violation of each rule, and pins the one
   divergence the schema documents (`1.0` for an integer).
+- `engine::try_validate` and `SeqOrderError`: for events built in code rather
+  than read by `reader::parse_trace`, the report or an error naming the first pair
+  out of `seq` order — where `validate` panics, as documented.
+  `Totals::judged_nothing` exposes the rule the CLI uses to refuse an empty or
+  contentless recording, so embedders can apply the same one.
 - `declared::select`, `Selection`, `RevisionSource` and `UnjudgeableRevisions`:
   the CLI's revision choice as a library API, so embedders get the same rule.
 - `RegistrySet::latest` and `BUILTIN_REVISIONS` in `mcp-conformance-core`.
@@ -104,6 +118,23 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   from 100,000 to 1,000,000), and a trace over either limit is told which flag to
   raise; `reader::Limits::new` lets embedders set both. A capture with a raised
   `--max-message-bytes` prints the `--max-line-bytes` to validate with.
+- **The everything server's tap no longer alters traffic it cannot record.** A
+  request body over its 4 MiB recording cap reached the server as an empty body,
+  and an oversized JSON response reached the client as one — the tap's own first
+  rule is that it never changes an exchange. Both now pass through byte for byte
+  (what was buffered, then the rest of the stream) and are left out of the trace.
+- **The tap no longer stops recording an SSE stream at a split character.** Chunks
+  were decoded as UTF-8 one at a time, so a multi-byte character split across two
+  network reads ended the stream's recording. Frames are now cut on bytes and
+  decoded whole; a frame that is not UTF-8 is skipped on its own.
+- **The tap no longer holds a file descriptor per session for the life of the
+  server.** Each record opens its trace file for append and closes it; only the
+  next `seq` per file is kept.
+- **`cargo xtask semver` no longer aborts on a crate's first release.** It checked
+  the whole workspace, and cargo-semver-checks stops at a crate with no published
+  baseline — so `release.yml` would have failed at 0.6.0 on `mcp-trace-capture`. The
+  gate now looks each publishable crate up in the crates.io index and excludes, by
+  name and out loud, one that is not there yet; any other answer fails it.
 - `requirements | head` (or any closed pipe) no longer panics.
 - `validate --quiet` with several `--revision`s is now tested end to end; a
   mutation run showed the multi-revision findings-only rendering had no test that

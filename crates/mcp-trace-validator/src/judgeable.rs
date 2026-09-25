@@ -49,8 +49,7 @@ mod tests;
 /// and both halves of the sum survived mutation, because the corpus happens not
 /// to contain a trace that separates them.
 pub(crate) fn refusal(totals: Totals, trace_source: &str) -> Option<String> {
-    let judged = totals.pass + totals.fail + totals.warn;
-    if judged > 0 || totals.unsupported > 0 || totals.not_observed == 0 {
+    if !totals.judged_nothing() {
         return None;
     }
     let source = if trace_source == "-" {
