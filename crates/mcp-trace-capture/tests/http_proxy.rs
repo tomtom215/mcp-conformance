@@ -82,6 +82,41 @@ async fn proxy(
 
 const SSE: &str = "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"text\":\"é日本\"}}\n\n: keep-alive\n\ndata: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/message\"}\n\n";
 
+/// Two events over the proxy's 1024-byte limit, each in its own chunk, around one
+/// that fits.
+fn sse_big_chunks() -> Vec<String> {
+    let big = |n: u8| format!("data: {{\"n\":{n},\"pad\":\"{}\"}}\n\n", "x".repeat(2000));
+    vec![big(1), "data: {\"n\":2}\n\n".to_owned(), big(3)]
+}
+
+/// The routes that exercise the proxy's message limit.
+fn limit_routes() -> axum::Router {
+    axum::Router::new()
+        .route(
+            "/mcp/sse-big",
+            post(|| async {
+                let chunks: Vec<Result<String, std::io::Error>> =
+                    sse_big_chunks().into_iter().map(Ok).collect();
+                Response::builder()
+                    .header("content-type", "text/event-stream")
+                    .body(Body::from_stream(futures::stream::iter(chunks)))
+                    .unwrap()
+            }),
+        )
+        .route(
+            "/mcp/exact",
+            post(|| async {
+                // Exactly the proxy's 1024-byte limit: recorded, not oversized.
+                let body = format!("{{\"pad\":\"{}\"}}", "x".repeat(1024 - 10));
+                assert_eq!(body.len(), 1024);
+                Response::builder()
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap()
+            }),
+        )
+}
+
 fn mock_upstream(seen_authorization: Arc<Mutex<Vec<String>>>) -> axum::Router {
     axum::Router::new()
         .route(
@@ -118,6 +153,7 @@ fn mock_upstream(seen_authorization: Arc<Mutex<Vec<String>>>) -> axum::Router {
             }),
         )
         .route("/mcp/accepted", post(|| async { StatusCode::ACCEPTED }))
+        .merge(limit_routes())
         .route(
             "/mcp/big",
             post(|| async {
@@ -176,14 +212,34 @@ async fn the_proxy_relays_bytes_unchanged_and_records_what_the_validator_reads()
         "oversized body relayed intact"
     );
 
+    let sse_big = client.post(url("sse-big")).body("{}").send().await.unwrap();
+    assert_eq!(
+        sse_big.bytes().await.unwrap(),
+        sse_big_chunks().concat().as_bytes(),
+        "relayed intact"
+    );
+    let exact = client.post(url("exact")).body("{}").send().await.unwrap();
+    assert_eq!(exact.bytes().await.unwrap().len(), 1024);
+
     let unrecorded = stop().await.unwrap().unwrap();
+    // /big, and the two oversized SSE events; /exact is at the limit, not over it.
     assert_eq!(
         (
             unrecorded.oversized,
             unrecorded.not_json,
             unrecorded.upstream_failures
         ),
-        (1, 0, 0)
+        (3, 0, 0)
+    );
+    let text = sink.text();
+    assert!(
+        text.contains(r#"{"n":2}"#),
+        "the event that fits is recorded"
+    );
+    assert!(!text.contains(r#""n":1"#) && !text.contains(r#""n":3"#));
+    assert!(
+        text.contains(&"x".repeat(1014)),
+        "the exact-limit body is recorded"
     );
 
     // Credentials reach the server and never the trace.
@@ -200,8 +256,10 @@ async fn the_proxy_relays_bytes_unchanged_and_records_what_the_validator_reads()
         .collect();
     // ping and its result; the `{}` request to /sse and its two events; the `{}`
     // requests to /accepted (answered with no body) and /big (answered with a
-    // body over the limit, so not recorded).
-    assert_eq!(messages.len(), 7, "{messages:#?}");
+    // body over the limit, so not recorded); the `{}` request to /sse-big and
+    // the one event of its three that fits; the `{}` request to /exact and its
+    // body at the limit.
+    assert_eq!(messages.len(), 11, "{messages:#?}");
     assert_eq!(messages[1]["id"], 7);
     assert_eq!(messages[3]["result"]["text"], "é日本");
     assert_eq!(messages[4]["method"], "notifications/message");

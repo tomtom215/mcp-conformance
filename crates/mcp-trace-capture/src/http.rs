@@ -153,19 +153,28 @@ pub async fn serve(
     Ok(proxy.counters.snapshot())
 }
 
-#[cfg(feature = "tls")]
+/// The upstream connector: HTTPS and HTTP with the `tls` feature, HTTP without.
+///
+/// One function with the variants inside, rather than one function per `cfg`, so
+/// that every build compiles the whole of it and mutation testing (which runs
+/// with all features) never mutates a body that build does not contain.
+#[cfg_attr(
+    not(feature = "tls"),
+    allow(
+        clippy::unnecessary_wraps,
+        reason = "only loading root certificates can fail"
+    )
+)]
 fn connector() -> io::Result<Connector> {
-    Ok(hyper_rustls::HttpsConnectorBuilder::new()
+    #[cfg(feature = "tls")]
+    let connector = hyper_rustls::HttpsConnectorBuilder::new()
         .with_provider_and_native_roots(rustls::crypto::ring::default_provider())?
         .https_or_http()
         .enable_http1()
-        .build())
-}
-
-#[cfg(not(feature = "tls"))]
-#[allow(clippy::unnecessary_wraps, reason = "same signature as the tls build")]
-fn connector() -> io::Result<Connector> {
-    Ok(HttpConnector::new())
+        .build();
+    #[cfg(not(feature = "tls"))]
+    let connector = HttpConnector::new();
+    Ok(connector)
 }
 
 async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -> Response {

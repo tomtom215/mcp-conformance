@@ -146,3 +146,19 @@ fn an_sse_event_of_exactly_the_limit_is_kept() {
     assert!(parser.push(b"data: ab\ndata: cd\n\n").is_empty());
     assert_eq!(parser.oversized(), 1);
 }
+
+#[test]
+fn only_a_bom_at_the_very_start_of_the_stream_is_skipped() {
+    // At the start, the BOM is not part of the first field name.
+    let mut parser = SseParser::new(1024);
+    assert_eq!(
+        parser.push("\u{FEFF}data: 1\n\n".as_bytes()),
+        [b"1".to_vec()]
+    );
+    // Anywhere else it is, so this line's field is not `data` and is ignored.
+    let mut parser = SseParser::new(1024);
+    assert_eq!(
+        parser.push("data: 1\n\n\u{FEFF}data: 2\n\n".as_bytes()),
+        [b"1".to_vec()]
+    );
+}
