@@ -283,6 +283,30 @@ mod tests {
     use super::*;
 
     #[test]
+    fn source_urls_link_the_published_page_and_anchor() {
+        let url = |section: &str| {
+            SourceRef {
+                section: section.to_owned(),
+                quote: String::new(),
+            }
+            .url("2025-11-25".parse().unwrap())
+        };
+        let base = "https://modelcontextprotocol.io/specification/2025-11-25";
+        assert_eq!(
+            url("basic/lifecycle#initialization"),
+            format!("{base}/basic/lifecycle#initialization")
+        );
+        // A directory's index page is published at the directory.
+        assert_eq!(url("basic/index#_meta"), format!("{base}/basic#_meta"));
+        // The revision's own index is the revision's root.
+        assert_eq!(url("index#overview"), format!("{base}#overview"));
+        assert_eq!(url("index"), base);
+        // A page named like an index but not one keeps its name.
+        assert_eq!(url("reindex#x"), format!("{base}/reindex#x"));
+        assert_eq!(url("server/tools"), format!("{base}/server/tools"));
+    }
+
+    #[test]
     fn requirement_id_parsing() {
         assert!("LIFE-001".parse::<RequirementId>().is_ok());
         assert!("BASE-012".parse::<RequirementId>().is_ok());

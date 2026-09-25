@@ -107,3 +107,20 @@ async fn debug_names_the_trace_directory_without_dumping_internals() {
     );
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// `buffer` at the cap's edge: exactly the cap is recorded whole, one byte past
+/// it is passed through — the arithmetic pinned from both sides.
+#[tokio::test]
+async fn a_body_of_exactly_the_cap_is_recorded_and_one_byte_more_is_not() {
+    use super::body::{Buffered, buffer};
+    let body = |len: usize| Body::from(vec![b'x'; len]);
+    assert!(matches!(
+        buffer(body(MAX_RECORDED_BODY)).await,
+        Buffered::Whole(bytes) if bytes.len() == MAX_RECORDED_BODY
+    ));
+    let Buffered::Passed(passed) = buffer(body(MAX_RECORDED_BODY + 1)).await else {
+        panic!("one byte over the cap is passed through");
+    };
+    let delivered = axum::body::to_bytes(passed, usize::MAX).await.unwrap();
+    assert_eq!(delivered.len(), MAX_RECORDED_BODY + 1);
+}

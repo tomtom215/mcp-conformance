@@ -298,14 +298,23 @@ fn an_incomplete_trace_exits_3_unless_the_server_already_failed() {
 
 /// Starts the proxy with `args`, returns it and its listening address.
 #[cfg(unix)]
+/// A running proxy, killed if a test ends without stopping it — so a failed
+/// assertion (or a mutant that ignores the signal) cannot leave it running.
+struct Proxy(std::process::Child);
+
+impl Drop for Proxy {
+    fn drop(&mut self) {
+        if matches!(self.0.try_wait(), Ok(None)) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+}
+
 fn start_proxy(
     trace: &std::path::Path,
     upstream: &str,
-) -> (
-    std::process::Child,
-    String,
-    std::sync::mpsc::Receiver<String>,
-) {
+) -> (Proxy, String, std::sync::mpsc::Receiver<String>) {
     use std::io::BufRead as _;
     let mut child = binary()
         .args([
@@ -337,17 +346,27 @@ fn start_proxy(
     let address = address_rx
         .recv_timeout(std::time::Duration::from_secs(30))
         .expect("the proxy announces its address");
-    (child, address, lines_rx)
+    (Proxy(child), address, lines_rx)
 }
 
 #[cfg(unix)]
-fn interrupt(child: &mut std::process::Child) -> std::process::ExitStatus {
+fn interrupt(proxy: &mut Proxy) -> std::process::ExitStatus {
     let status = Command::new("kill")
-        .args(["-INT", &child.id().to_string()])
+        .args(["-INT", &proxy.0.id().to_string()])
         .status()
         .unwrap();
     assert!(status.success());
-    child.wait().unwrap()
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    loop {
+        if let Some(status) = proxy.0.try_wait().unwrap() {
+            return status;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the proxy did not stop within 20 s of SIGINT"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
 }
 
 #[cfg(unix)]

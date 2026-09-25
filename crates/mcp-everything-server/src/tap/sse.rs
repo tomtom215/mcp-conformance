@@ -27,15 +27,22 @@ impl SseSplitter {
         }
         self.buffer.extend_from_slice(chunk);
         let mut payloads = Vec::new();
-        let mut consumed = 0;
-        // Every completed frame consumes at least its boundary bytes, so the
-        // loop ends; a recording bug must never wedge the serving path.
-        while let Some((frame, next)) = split_frame(&self.buffer[consumed..]) {
+        let mut rest: &[u8] = &self.buffer;
+        // The iteration bound is a real invariant, not decoration: every
+        // completed frame consumes at least its boundary bytes, so an n-byte
+        // buffer holds at most n frames. Bounding the loop makes an infinite
+        // spin impossible even if frame-splitting were to stop consuming
+        // input — a recording bug must never wedge the serving path.
+        for _ in 0..=self.buffer.len() {
+            let Some((frame, next)) = split_frame(rest) else {
+                break;
+            };
             if let Some(payload) = payload(frame) {
                 payloads.push(payload);
             }
-            consumed += next;
+            rest = &rest[next..];
         }
+        let consumed = self.buffer.len() - rest.len();
         self.buffer.drain(..consumed);
         // The JSON path bounds recorded bodies (MAX_RECORDED_BODY); without
         // the same bound here, one frame-boundary-free stream would grow
