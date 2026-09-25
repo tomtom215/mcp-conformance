@@ -425,11 +425,14 @@ fn the_readme_stdio_quickstart_records_a_session() {
     let separator = args.iter().position(|arg| arg == "--").unwrap();
     let mut command = binary();
     command.args(["--force", "-o", trace.to_str().unwrap()]);
-    command.args(
-        args[..separator]
-            .iter()
-            .filter(|arg| !arg.starts_with("-o") && !arg.ends_with(".jsonl")),
-    );
+    let mut own = args[..separator].iter();
+    while let Some(arg) = own.next() {
+        if arg == "-o" {
+            own.next(); // the README's output path; this test writes its own
+        } else {
+            command.arg(arg);
+        }
+    }
     command.args(["--", "cat"]);
     let output = run_with_stdin(
         command,
