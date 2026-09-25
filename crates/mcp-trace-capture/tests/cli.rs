@@ -129,6 +129,51 @@ fn non_json_server_output_is_forwarded_and_reported_not_recorded() {
         stderr.contains("1 server message(s) were not JSON"),
         "{stderr}"
     );
+    assert!(!stderr.contains("exceeded"), "{stderr}");
+}
+
+/// The server exits while the client still holds its end open — the session ends
+/// by cancelling the client's relay — and what the client sent that the trace
+/// could not hold is still reported. The count is taken before the line is
+/// forwarded, and the server exits only after reading it, so the order is fixed.
+#[cfg(unix)]
+#[test]
+fn client_side_counts_survive_a_server_that_exits_first() {
+    let trace = scratch("server-first");
+    let mut child = binary()
+        .args([
+            "-o",
+            trace.to_str().unwrap(),
+            "stdio",
+            "--",
+            "sh",
+            "-c",
+            "read line; exit 0",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    stdin.write_all(b"not json\n").unwrap();
+    // `stdin` stays open until the wrapper has exited.
+    let output = child.wait_with_output().unwrap();
+    drop(stdin);
+    let text = std::fs::read_to_string(&trace).unwrap();
+    std::fs::remove_file(&trace).ok();
+    assert!(output.status.success(), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("1 client message(s) were not JSON"),
+        "{stderr}"
+    );
+    // The server closed the session, and that is the trace's last word.
+    let last = text.lines().last().unwrap();
+    assert!(
+        last.contains("\"server-to-client\"") && last.contains("transport-close"),
+        "{text}"
+    );
 }
 
 #[test]

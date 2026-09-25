@@ -17,6 +17,7 @@ use std::ffi::OsString;
 use std::io;
 use std::process::ExitStatus;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TransportKind};
 use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
@@ -37,11 +38,20 @@ pub struct Unrecorded {
     pub oversized: u64,
 }
 
-impl Unrecorded {
-    /// Whether nothing was left out.
-    #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.not_json == 0 && self.oversized == 0
+/// A pump's running [`Unrecorded`] counts, readable while it runs — so what it left
+/// out is still known when the session ends by cancelling it.
+#[derive(Debug, Default)]
+struct Tally {
+    not_json: AtomicU64,
+    oversized: AtomicU64,
+}
+
+impl Tally {
+    fn snapshot(&self) -> Unrecorded {
+        Unrecorded {
+            not_json: self.not_json.load(Ordering::Relaxed),
+            oversized: self.oversized.load(Ordering::Relaxed),
+        }
     }
 }
 
@@ -54,36 +64,53 @@ impl Unrecorded {
 pub async fn pump<R, W>(
     recorder: &Recorder,
     direction: Direction,
-    mut from: R,
-    mut to: W,
+    from: R,
+    to: W,
     max_message: usize,
 ) -> io::Result<Unrecorded>
 where
     R: AsyncRead + Unpin,
     W: AsyncWrite + Unpin,
 {
+    let tally = Tally::default();
+    pump_counted(recorder, direction, from, to, max_message, &tally).await?;
+    Ok(tally.snapshot())
+}
+
+/// [`pump`], counting into `tally` as it goes.
+async fn pump_counted<R, W>(
+    recorder: &Recorder,
+    direction: Direction,
+    mut from: R,
+    mut to: W,
+    max_message: usize,
+    tally: &Tally,
+) -> io::Result<()>
+where
+    R: AsyncRead + Unpin,
+    W: AsyncWrite + Unpin,
+{
     let mut splitter = LineSplitter::new(max_message);
-    let mut unrecorded = Unrecorded::default();
     let mut buffer = vec![0_u8; 64 * 1024];
     loop {
         let read = from.read(&mut buffer).await?;
         if read == 0 {
             if let Some(line) = splitter.finish() {
-                record_line(recorder, direction, line, &mut unrecorded);
+                record_line(recorder, direction, line, tally);
             }
             to.shutdown().await.ok();
-            return Ok(unrecorded);
+            return Ok(());
         }
         let chunk = &buffer[..read];
         for line in splitter.push(chunk) {
-            record_line(recorder, direction, line, &mut unrecorded);
+            record_line(recorder, direction, line, tally);
         }
         to.write_all(chunk).await?;
         to.flush().await?;
     }
 }
 
-fn record_line(recorder: &Recorder, direction: Direction, line: Line, unrecorded: &mut Unrecorded) {
+fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Tally) {
     match line {
         Line::Complete(bytes) => match parse_json(&bytes) {
             Some(payload) => {
@@ -93,9 +120,13 @@ fn record_line(recorder: &Recorder, direction: Direction, line: Line, unrecorded
                     EventBody::Message { payload },
                 );
             }
-            None => unrecorded.not_json += 1,
+            None => {
+                tally.not_json.fetch_add(1, Ordering::Relaxed);
+            }
         },
-        Line::Oversized => unrecorded.oversized += 1,
+        Line::Oversized => {
+            tally.oversized.fetch_add(1, Ordering::Relaxed);
+        }
     }
 }
 
@@ -138,41 +169,49 @@ pub async fn run(
         LifecycleEvent::TransportOpen,
     );
 
+    let (client_tally, server_tally) = (Arc::new(Tally::default()), Arc::new(Tally::default()));
     let mut client = tokio::spawn({
-        let recorder = Arc::clone(&recorder);
+        let (recorder, tally) = (Arc::clone(&recorder), Arc::clone(&client_tally));
         async move {
-            pump(
+            pump_counted(
                 &recorder,
                 Direction::ClientToServer,
                 tokio::io::stdin(),
                 child_stdin,
                 max_message,
+                &tally,
             )
             .await
         }
     });
     let server = tokio::spawn({
-        let recorder = Arc::clone(&recorder);
+        let (recorder, tally) = (Arc::clone(&recorder), Arc::clone(&server_tally));
         async move {
-            pump(
+            pump_counted(
                 &recorder,
                 Direction::ServerToClient,
                 child_stdout,
                 tokio::io::stdout(),
                 max_message,
+                &tally,
             )
             .await
         }
     });
 
-    let (status, closed_by_client, client_unrecorded) =
-        wait_for_end(&mut child, &mut client, stop).await?;
+    let (status, closed_by_client) = wait_for_end(&mut child, &mut client, stop).await?;
     if !closed_by_client {
-        // Blocked on this process's stdin, which the client may hold open forever.
+        // The client's pump is blocked on this process's stdin, which the client
+        // may hold open forever. Stop it, and wait until it has stopped, so nothing
+        // it reads after the server has gone is recorded behind the closing event
+        // below — and a library caller is not left with a task reading its stdin.
+        // (When the client closed first, `wait_for_end` already joined it.)
         client.abort();
+        let _ = client.await;
     }
-    // The server's stdout closes at exit, so this drains and returns.
-    let server_unrecorded = server.await.map_err(io::Error::other)?.unwrap_or_default();
+    // The server's stdout closes at exit, so this drains and returns. Its result,
+    // like the client's, is only the first I/O error; the counts are in the tallies.
+    let _ = server.await;
     let closer = if closed_by_client {
         Direction::ClientToServer
     } else {
@@ -186,8 +225,8 @@ pub async fn run(
     lifecycle(&recorder, closer, ending);
     Ok(Outcome {
         status,
-        client: client_unrecorded,
-        server: server_unrecorded,
+        client: client_tally.snapshot(),
+        server: server_tally.snapshot(),
     })
 }
 
@@ -231,18 +270,17 @@ fn spawn_server(
 
 /// Waits for the session to end: the server exits, the client closes its end (then
 /// the server is given until it exits), or this process is asked to stop (then the
-/// server is terminated). Returns the server's status, whether the client closed
-/// first, and what the client sent that was not recorded.
+/// server is terminated). Returns the server's status and whether the client closed
+/// first.
 async fn wait_for_end(
     child: &mut tokio::process::Child,
-    client: &mut tokio::task::JoinHandle<io::Result<Unrecorded>>,
+    client: &mut tokio::task::JoinHandle<io::Result<()>>,
     stop: impl std::future::Future<Output = ()>,
-) -> io::Result<(ExitStatus, bool, Unrecorded)> {
+) -> io::Result<(ExitStatus, bool)> {
     tokio::pin!(stop);
     tokio::select! {
-        status = child.wait() => Ok((status?, false, Unrecorded::default())),
-        joined = client => {
-            let unrecorded = joined.map_err(io::Error::other)?.unwrap_or_default();
+        status = child.wait() => Ok((status?, false)),
+        _ = client => {
             let status = tokio::select! {
                 status = child.wait() => status?,
                 () = &mut stop => {
@@ -250,11 +288,11 @@ async fn wait_for_end(
                     child.wait().await?
                 }
             };
-            Ok((status, true, unrecorded))
+            Ok((status, true))
         }
         () = &mut stop => {
             child.start_kill().ok();
-            Ok((child.wait().await?, false, Unrecorded::default()))
+            Ok((child.wait().await?, false))
         }
     }
 }

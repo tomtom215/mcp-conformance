@@ -105,9 +105,14 @@ fn events_without_data_and_empty_data_are_not_dispatched() {
 #[test]
 fn an_oversized_event_is_dropped_and_counted_without_affecting_the_next() {
     let mut parser = SseParser::new(8);
+    assert_eq!(parser.push(b"data: ok\n\n"), [b"ok".to_vec()]);
+    assert_eq!(parser.oversized(), 0);
     let out = parser.push(b"data: 0123456789\n\ndata: ok\n\n");
     assert_eq!(out, [b"ok".to_vec()]);
     assert_eq!(parser.oversized(), 1);
+    // The count accumulates across events and chunks.
+    assert!(parser.push(b"data: 0123456789\n\n").is_empty());
+    assert_eq!(parser.oversized(), 2);
     // A line with no terminator stops growing the buffer at the bound, and the
     // event it belongs to is counted as oversized — not truncated and parsed.
     let mut parser = SseParser::new(8);

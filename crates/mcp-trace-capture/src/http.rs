@@ -315,13 +315,12 @@ impl Proxy {
                     }
                 }
             }
+            // The parser's count only grows; add what this chunk contributed.
             let oversized = parser.oversized();
-            if oversized > oversized_seen {
-                self.counters
-                    .oversized
-                    .fetch_add(oversized - oversized_seen, Ordering::Relaxed);
-                oversized_seen = oversized;
-            }
+            self.counters
+                .oversized
+                .fetch_add(oversized - oversized_seen, Ordering::Relaxed);
+            oversized_seen = oversized;
         })
     }
 
