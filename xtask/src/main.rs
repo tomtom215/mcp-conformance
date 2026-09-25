@@ -40,6 +40,9 @@
 //!   `SPDX-License-Identifier` in its first three lines (`local_gates.rs`). JSON,
 //!   lockfiles, the licence itself and the fuzz corpus are exempt, each for a
 //!   reason the gate states. Was a pull-request checkbox until 2026-08-24.
+//! - `license-files` — every published crate carries a copy of the root
+//!   `LICENSE`, byte-identical (`license_files.rs`): MIT's notice must travel
+//!   with each crates.io copy, and `license = "MIT"` alone does not carry it.
 //! - `registry-continuity` — a clause both revisions carry, entered twice under
 //!   two ids, must be entered the same way twice: same level, same actor, and
 //!   judged in both or excluded in both (`registry_continuity.rs`). Not the same
@@ -114,6 +117,7 @@ mod draft_capture;
 mod draft_coverage;
 mod draft_readiness;
 mod fuzz_targets;
+mod license_files;
 mod local_gates;
 mod minimal_versions;
 mod register_currency;
@@ -151,6 +155,7 @@ fn main() -> ExitCode {
         Some("draft-coverage") => draft_coverage::run(args.next().as_deref() == Some("--check")),
         Some("file-sizes") => exit_if(local_gates::file_size_gate()),
         Some("spdx") => exit_if(local_gates::spdx_gate()),
+        Some("license-files") => exit_if(license_files::run()),
         Some("fuzz-targets") => exit_if(fuzz_targets::run()),
         Some("ci-permissions") => exit_if(ci_permissions::run()),
         Some("deny") => exit_if(local_gates::deny_gate()),
@@ -236,6 +241,9 @@ fn gates() -> bool {
         return false;
     }
     if !local_gates::spdx_gate() {
+        return false;
+    }
+    if !license_files::run() {
         return false;
     }
     if !fuzz_targets::run() {

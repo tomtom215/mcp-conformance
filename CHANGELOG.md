@@ -156,6 +156,10 @@ Each is stated again in the entry that introduced it, with the reasoning.
 - **The tap no longer holds a file descriptor per session for the life of the
   server.** Each record opens its trace file for append and closes it; only the
   next `seq` per file is kept.
+- **Every published crate now ships the licence text.** `license = "MIT"` names the
+  licence; MIT's notice must travel with each copy, and no release before this one
+  included a `LICENSE` file in any crate. Each crate now carries the root `LICENSE`,
+  and `cargo xtask license-files` (in `gates`) holds every copy byte-identical to it.
 - **`cargo xtask semver` no longer aborts on a crate's first release.** It checked
   the whole workspace, and cargo-semver-checks stops at a crate with no published
   baseline — so `release.yml` would have failed at 0.6.0 on `mcp-trace-capture`. The

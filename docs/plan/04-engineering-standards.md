@@ -92,7 +92,8 @@ Package registries are reachable only at dependency-install time, under lockfile
    (`cargo xtask registry-continuity`), the pinned toolchain matching every
    workflow (`cargo xtask toolchain-pin`), the ≤ 500-line file cap
    (`cargo xtask file-sizes`), a licence header on every comment-carrying tracked
-   file (`cargo xtask spdx`), and every relative documentation link resolving
+   file (`cargo xtask spdx`), the licence text in every published crate
+   (`cargo xtask license-files`), and every relative documentation link resolving
    (`cargo xtask docs-links`)
 6. `cargo deny check` (license allowlist, advisories, sources); `cargo audit` runs
    in the weekly scheduled job

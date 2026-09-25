@@ -242,7 +242,10 @@ const UNCOMMENTABLE: [&str; 2] = ["json", "jsonl"];
 /// identifier refers to. The fuzz corpus holds opaque byte inputs whose whole
 /// value is being byte-exact — a header would change the input.
 fn header_exempt(path: &str) -> bool {
+    // The root licence, and the copies each published crate carries (which
+    // `license-files` holds byte-identical to it).
     path == "LICENSE"
+        || path.ends_with("/LICENSE")
         || path.ends_with("Cargo.lock")
         || path.starts_with("fuzz/corpus/")
         || std::path::Path::new(path)
