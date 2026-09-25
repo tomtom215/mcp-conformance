@@ -360,3 +360,87 @@ fn http_mode_rejects_an_upstream_that_is_not_an_absolute_http_url() {
     assert_eq!(output.status.code(), Some(2), "{output:?}");
     assert!(String::from_utf8_lossy(&output.stderr).contains("not an absolute http"));
 }
+
+/// The `mcp-trace-capture` command lines the root README's quickstart shows.
+fn readme_quickstart_commands() -> Vec<Vec<String>> {
+    let readme =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../README.md")).unwrap();
+    let start = readme
+        .find("## Quickstart")
+        .expect("README has a quickstart");
+    let end = readme[start..]
+        .find("\n## ")
+        .map_or(readme.len(), |at| start + at);
+    readme[start..end]
+        .lines()
+        .filter(|line| line.starts_with("mcp-trace-capture "))
+        .map(|line| {
+            line.split_whitespace()
+                .skip(1)
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .collect()
+}
+
+#[test]
+fn every_quickstart_command_in_the_readme_is_valid_for_this_cli() {
+    let commands = readme_quickstart_commands();
+    assert_eq!(
+        commands.len(),
+        2,
+        "one stdio and one http example: {commands:?}"
+    );
+    for mut args in commands {
+        // `--help` after the subcommand's own arguments makes clap validate every
+        // flag and value the README shows, then exit 0 without running anything.
+        // It goes before any `--`, which hands everything after it to the server.
+        let at = args
+            .iter()
+            .position(|arg| arg == "--")
+            .unwrap_or(args.len());
+        args.insert(at, "--help".to_owned());
+        let output = binary()
+            .args(&args)
+            .current_dir(std::env::temp_dir())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "README command {args:?}: {output:?}"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn the_readme_stdio_quickstart_records_a_session() {
+    let trace = scratch("readme-stdio");
+    let args = readme_quickstart_commands()
+        .into_iter()
+        .find(|args| args.contains(&"stdio".to_owned()))
+        .unwrap();
+    // The README's command, with `cat` standing in for its example server and the
+    // trace written somewhere this test owns.
+    let separator = args.iter().position(|arg| arg == "--").unwrap();
+    let mut command = binary();
+    command.args(["--force", "-o", trace.to_str().unwrap()]);
+    command.args(
+        args[..separator]
+            .iter()
+            .filter(|arg| !arg.starts_with("-o") && !arg.ends_with(".jsonl")),
+    );
+    command.args(["--", "cat"]);
+    let output = run_with_stdin(
+        command,
+        b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\n",
+    );
+    let text = std::fs::read_to_string(&trace).unwrap();
+    std::fs::remove_file(&trace).ok();
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        text.lines().count(),
+        4,
+        "open, request, echo, close: {text}"
+    );
+}

@@ -563,3 +563,38 @@ fn quiet_lists_only_what_needs_attention_and_keeps_every_total() {
         "--quiet hides rows, never counts"
     );
 }
+
+#[test]
+fn the_readme_quickstart_validate_command_runs() {
+    let readme =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../README.md")).unwrap();
+    let start = readme
+        .find("## Quickstart")
+        .expect("README has a quickstart");
+    let end = readme[start..]
+        .find("\n## ")
+        .map_or(readme.len(), |at| start + at);
+    let line = readme[start..end]
+        .lines()
+        .find(|line| line.starts_with("mcp-trace-validator "))
+        .expect("the quickstart shows a validate command");
+    // The README's arguments, with its placeholder trace replaced by a committed one.
+    let args: Vec<String> = line
+        .split_whitespace()
+        .skip(1)
+        .map(|arg| {
+            if arg == "session.jsonl" {
+                corpus("draft/violations/mrtr-019-retry-reuses-id.jsonl")
+                    .to_str()
+                    .unwrap()
+                    .to_owned()
+            } else {
+                arg.to_owned()
+            }
+        })
+        .collect();
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    let output = run(&args);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert!(stdout(&output).contains("FAIL  MRTR-019"), "{output:?}");
+}
