@@ -57,6 +57,10 @@ enum Command {
         /// Treat SHOULD-level findings (warnings) as failures.
         #[arg(long)]
         strict: bool,
+        /// Human output: print only failing, warning and unsupported clauses (the
+        /// totals still count every clause). JSON and `JUnit` are unaffected.
+        #[arg(short, long)]
+        quiet: bool,
         /// Path to a custom single-revision registry JSON document, used instead of the
         /// built-in registries. Mutually exclusive with `--revision` and `--registry-set`.
         #[arg(long)]
@@ -102,13 +106,17 @@ fn main() -> ExitCode {
             trace,
             format,
             strict,
+            quiet,
             registry,
             revisions,
             registry_set,
         } => run_validate_command(
             &trace,
-            format,
-            strict,
+            Output {
+                format,
+                strict,
+                quiet,
+            },
             registry.as_deref(),
             registry_set.as_deref(),
             &revisions,
@@ -122,12 +130,21 @@ fn main() -> ExitCode {
     ExitCode::from(code)
 }
 
+/// How `validate` presents its report.
+#[derive(Debug, Clone, Copy)]
+struct Output {
+    format: Format,
+    /// SHOULD-level findings fail the run.
+    strict: bool,
+    /// Human output lists only the clauses that need attention.
+    quiet: bool,
+}
+
 /// Runs `validate`: reads the trace, chooses the revisions to judge it against, and
 /// dispatches to single- or multi-revision judgment.
 fn run_validate_command(
     trace: &str,
-    format: Format,
-    strict: bool,
+    output: Output,
     registry: Option<&std::path::Path>,
     registry_set: Option<&std::path::Path>,
     revisions: &[String],
@@ -145,9 +162,7 @@ fn run_validate_command(
     };
     if let Some(path) = registry {
         return match load_registry(path) {
-            Ok(registry) => {
-                emit_single(&engine::validate(&registry, &events), trace, format, strict)
-            }
+            Ok(registry) => emit_single(&engine::validate(&registry, &events), trace, output),
             Err(message) => {
                 eprintln!("error: {message}");
                 EXIT_USAGE
@@ -182,9 +197,9 @@ fn run_validate_command(
         };
         let mut report = engine::validate(&registry, &events);
         report.revision_source = Some(source);
-        return emit_single(&report, trace, format, strict);
+        return emit_single(&report, trace, output);
     }
-    run_validate_multi(&events, trace, format, strict, &set, &chosen, source)
+    run_validate_multi(&events, trace, output, &set, &chosen, source)
 }
 
 /// The revisions to judge against: the `--revision` flags when given, otherwise the
@@ -303,11 +318,12 @@ fn read_trace_document(source: &str) -> Result<String, String> {
 }
 
 /// Renders a single-revision report and maps its verdict to an exit code.
-fn emit_single(report: &Report, trace_source: &str, format: Format, strict: bool) -> u8 {
+fn emit_single(report: &Report, trace_source: &str, output: Output) -> u8 {
     if judgeable::reject(report.totals, trace_source) {
         return EXIT_USAGE;
     }
-    match format {
+    match output.format {
+        Format::Human if output.quiet => emit(&report.render_findings()),
         Format::Human => emit(&report.render_human()),
         Format::Json => match serde_json::to_string_pretty(report) {
             Ok(json) => emit(&format!("{json}\n")),
@@ -318,7 +334,7 @@ fn emit_single(report: &Report, trace_source: &str, format: Format, strict: bool
         },
         Format::Junit => emit(&mcp_trace_validator::junit::render(report)),
     }
-    verdict_to_code(report.verdict(), strict)
+    verdict_to_code(report.verdict(), output.strict)
 }
 
 /// Multi-revision judgment: one trace against several revisions of a registry set, with
@@ -327,8 +343,7 @@ fn emit_single(report: &Report, trace_source: &str, format: Format, strict: bool
 fn run_validate_multi(
     events: &[mcp_conformance_core::trace::TraceEvent],
     trace_source: &str,
-    format: Format,
-    strict: bool,
+    output: Output,
     set: &RegistrySet,
     revisions: &[ProtocolRevision],
     source: RevisionSource,
@@ -344,7 +359,8 @@ fn run_validate_multi(
     if judgeable::reject(judgeable::combined(&report), trace_source) {
         return EXIT_USAGE;
     }
-    match format {
+    match output.format {
+        Format::Human if output.quiet => emit(&report.render_findings()),
         Format::Human => emit(&report.render_human()),
         Format::Json => match serde_json::to_string_pretty(&report) {
             Ok(json) => emit(&format!("{json}\n")),
@@ -362,7 +378,7 @@ fn run_validate_multi(
             emit(&mcp_trace_validator::junit::render_all(&reports));
         }
     }
-    verdict_to_code(report.verdict(), strict)
+    verdict_to_code(report.verdict(), output.strict)
 }
 
 fn run_requirements(

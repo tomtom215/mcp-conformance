@@ -58,6 +58,15 @@ pub enum Outcome {
     NotObserved,
 }
 
+impl Outcome {
+    /// Whether a reader must act on this outcome: a failure, a warning, or a clause
+    /// this build could not judge.
+    #[must_use]
+    pub const fn needs_attention(self) -> bool {
+        matches!(self, Self::Fail | Self::Warn | Self::Unsupported)
+    }
+}
+
 /// Aggregate counts, in report order. `excluded` and `unsupported` are first-class:
 /// inflating pass rates by hiding them is how conformance tools lose trust.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

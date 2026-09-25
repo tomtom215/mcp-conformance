@@ -155,9 +155,20 @@ impl MultiReport {
         }
     }
 
-    /// Renders the human-readable form.
+    /// Renders the human-readable form: every clause's row.
     #[must_use]
     pub fn render_human(&self) -> String {
+        self.render(false)
+    }
+
+    /// Renders only the clauses that need attention under some revision, with the
+    /// per-revision totals and the verdict.
+    #[must_use]
+    pub fn render_findings(&self) -> String {
+        self.render(true)
+    }
+
+    fn render(&self, findings_only: bool) -> String {
         let mut out = String::new();
         let _ = write!(
             out,
@@ -174,6 +185,15 @@ impl MultiReport {
         }
         self.write_revision_mismatch(&mut out);
         for row in &self.requirements {
+            if findings_only
+                && !row
+                    .outcomes
+                    .iter()
+                    .flatten()
+                    .any(|outcome| outcome.needs_attention())
+            {
+                continue;
+            }
             let _ = write!(out, "  {:<10} ({})", row.id, row.level);
             for (revision, outcome) in self.revisions.iter().zip(&row.outcomes) {
                 let _ = write!(out, "  {revision}={}", cell_token(*outcome));

@@ -112,7 +112,37 @@ fn an_oversized_event_is_dropped_and_counted_without_affecting_the_next() {
     // event it belongs to is counted as oversized — not truncated and parsed.
     let mut parser = SseParser::new(8);
     assert!(parser.push(&[b'x'; 10_000]).is_empty());
-    assert!(parser.pending.len() <= 8);
+    assert!(parser.pending.len() <= 8 + super::LINE_OVERHEAD);
     assert_eq!(parser.push(b"\n\ndata: ok\n\n"), [b"ok".to_vec()]);
+    assert_eq!(parser.oversized(), 1);
+}
+
+#[test]
+fn a_line_of_exactly_the_limit_is_kept() {
+    // Within one chunk…
+    let mut splitter = LineSplitter::new(4);
+    assert_eq!(splitter.push(b"abcd\n"), [Line::Complete(b"abcd".to_vec())]);
+    // …split across chunks…
+    let mut splitter = LineSplitter::new(4);
+    assert!(splitter.push(b"ab").is_empty());
+    assert_eq!(splitter.push(b"cd\n"), [Line::Complete(b"abcd".to_vec())]);
+    // …and unterminated at end of stream.
+    let mut splitter = LineSplitter::new(4);
+    assert!(splitter.push(b"abcd").is_empty());
+    assert_eq!(splitter.finish(), Some(Line::Complete(b"abcd".to_vec())));
+    // One byte more is oversized in each case.
+    let mut splitter = LineSplitter::new(4);
+    assert_eq!(splitter.push(b"abcde\n"), [Line::Oversized]);
+}
+
+#[test]
+fn an_sse_event_of_exactly_the_limit_is_kept() {
+    let mut parser = SseParser::new(4);
+    assert_eq!(parser.push(b"data: abcd\n\n"), [b"abcd".to_vec()]);
+    // Two data lines joined by `\n` count the separator.
+    let mut parser = SseParser::new(4);
+    assert_eq!(parser.push(b"data: a\ndata: bc\n\n"), [b"a\nbc".to_vec()]);
+    let mut parser = SseParser::new(4);
+    assert!(parser.push(b"data: ab\ndata: cd\n\n").is_empty());
     assert_eq!(parser.oversized(), 1);
 }

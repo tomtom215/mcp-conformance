@@ -538,3 +538,28 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
     assert!(xml.contains("mcp-trace-validator (2026-07-28)"), "{xml}");
     assert!(xml.contains("[mrtr.retry-id-differs] at seq 2"), "{xml}");
 }
+
+#[test]
+fn quiet_lists_only_what_needs_attention_and_keeps_every_total() {
+    let trace = corpus("draft/violations/mrtr-019-retry-reuses-id.jsonl");
+    let full = run(&["validate", trace.to_str().unwrap()]);
+    let quiet = run(&["validate", "--quiet", trace.to_str().unwrap()]);
+    assert_eq!(quiet.status.code(), full.status.code());
+    let (full, quiet) = (stdout(&full), stdout(&quiet));
+    assert!(full.contains("  EXCL  "), "{full}");
+    assert!(
+        !quiet.contains("  EXCL  ") && !quiet.contains("  PASS  "),
+        "{quiet}"
+    );
+    assert!(quiet.contains("FAIL  MRTR-019"), "{quiet}");
+    let totals = |text: &str| {
+        text.lines()
+            .find(|line| line.starts_with("totals:"))
+            .map(str::to_owned)
+    };
+    assert_eq!(
+        totals(&quiet),
+        totals(&full),
+        "--quiet hides rows, never counts"
+    );
+}

@@ -26,5 +26,48 @@ pub mod stdio;
 
 pub use recorder::{Recorder, Summary};
 
+/// A future that resolves when this process is asked to stop: SIGINT or SIGTERM on
+/// Unix, Ctrl-C elsewhere.
+///
+/// The Unix handlers are registered by this call, not when the future is first
+/// polled, so a signal arriving between the call and the first poll is not lost —
+/// the difference between a capture that finishes its trace and one the default
+/// handler kills mid-announcement.
+///
+/// # Errors
+///
+/// A signal handler could not be registered.
+pub fn shutdown_signal() -> std::io::Result<impl std::future::Future<Output = ()>> {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        let mut interrupt = signal(SignalKind::interrupt())?;
+        let mut terminate = signal(SignalKind::terminate())?;
+        Ok(async move {
+            tokio::select! {
+                _ = interrupt.recv() => {}
+                _ = terminate.recv() => {}
+            }
+        })
+    }
+    #[cfg(not(unix))]
+    {
+        Ok(async {
+            if tokio::signal::ctrl_c().await.is_err() {
+                std::future::pending::<()>().await;
+            }
+        })
+    }
+}
+
 /// The default largest message recorded, in bytes (64 MiB).
 pub const DEFAULT_MAX_MESSAGE: usize = 64 * 1024 * 1024;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_default_message_limit_is_the_documented_64_mib() {
+        // The README and `--help` both state it; this keeps them honest.
+        assert_eq!(super::DEFAULT_MAX_MESSAGE, 67_108_864);
+    }
+}

@@ -25,7 +25,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use mcp_conformance_core::requirement::{Registry, Requirement, Verification};
+use mcp_conformance_core::requirement::{Registry, RegistrySet, Requirement, Verification};
 
 mod book;
 mod corpus;
@@ -36,8 +36,8 @@ const END: &str = "<!-- coverage:end -->";
 
 /// Generates (or, with `check`, verifies) the README coverage block.
 pub(crate) fn run(check: bool) -> ExitCode {
-    let registry = match Registry::builtin_2025_11_25() {
-        Ok(registry) => registry,
+    let set = match RegistrySet::builtin() {
+        Ok(set) => set,
         Err(error) => {
             eprintln!("xtask: embedded registry failed to load: {error}");
             return ExitCode::FAILURE;
@@ -51,7 +51,11 @@ pub(crate) fn run(check: bool) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let Some(updated) = splice(&readme, &render(&registry)) else {
+    let Some(table) = render_all(&set) else {
+        eprintln!("xtask: the embedded registry set does not project to each revision it names");
+        return ExitCode::FAILURE;
+    };
+    let Some(updated) = splice(&readme, &table) else {
         eprintln!(
             "xtask: README.md lacks the `{BEGIN}` … `{END}` markers; cannot place the coverage table"
         );
@@ -59,33 +63,7 @@ pub(crate) fn run(check: bool) -> ExitCode {
     };
 
     if check {
-        if updated == readme {
-            eprintln!("xtask: README coverage table is in sync with the registry");
-            // The README's block is generated, so it cannot drift. The book's
-            // is prose, so it can, and did — same rule, second document.
-            let mut ok = true;
-            // Two prose documents state counts the data owns; both are checked,
-            // and both are reported, so one failure does not hide the other.
-            for verified in [book::verify(), corpus::verify()] {
-                match verified {
-                    Ok(message) => eprintln!("xtask: {message}"),
-                    Err(problems) => {
-                        eprintln!("xtask: coverage — {problems}");
-                        ok = false;
-                    }
-                }
-            }
-            if ok {
-                ExitCode::SUCCESS
-            } else {
-                ExitCode::FAILURE
-            }
-        } else {
-            eprintln!(
-                "xtask: README coverage table is out of date — run `cargo xtask coverage` and commit the diff"
-            );
-            ExitCode::FAILURE
-        }
+        verify(&updated, &readme)
     } else {
         match fs::write(&readme_path, updated) {
             Ok(()) => {
@@ -97,6 +75,38 @@ pub(crate) fn run(check: bool) -> ExitCode {
                 ExitCode::FAILURE
             }
         }
+    }
+}
+
+/// The `--check` half: the README block must be current, and the prose documents
+/// that restate the same counts must agree with them.
+fn verify(updated: &str, readme: &str) -> ExitCode {
+    if updated == readme {
+        eprintln!("xtask: README coverage table is in sync with the registry");
+        // The README's block is generated, so it cannot drift. The book's
+        // is prose, so it can, and did — same rule, second document.
+        let mut ok = true;
+        // Two prose documents state counts the data owns; both are checked,
+        // and both are reported, so one failure does not hide the other.
+        for verified in [book::verify(), corpus::verify()] {
+            match verified {
+                Ok(message) => eprintln!("xtask: {message}"),
+                Err(problems) => {
+                    eprintln!("xtask: coverage — {problems}");
+                    ok = false;
+                }
+            }
+        }
+        if ok {
+            ExitCode::SUCCESS
+        } else {
+            ExitCode::FAILURE
+        }
+    } else {
+        eprintln!(
+            "xtask: README coverage table is out of date — run `cargo xtask coverage` and commit the diff"
+        );
+        ExitCode::FAILURE
     }
 }
 
@@ -131,21 +141,52 @@ fn area_rows<'a>(registry: &'a Registry, distinct_checks: &mut BTreeSet<&'a str>
     let mut rows: Vec<AreaRow> = Vec::new();
     for requirement in registry.requirements() {
         let area = requirement.id.area();
-        if rows.last().is_none_or(|row| row.area != area) {
-            rows.push(AreaRow {
-                area: area.to_owned(),
-                requirements: 0,
-                checked: 0,
-                excluded: 0,
-                gated: 0,
+        // One row per area in order of first appearance: an area's clauses need
+        // not be contiguous (`2026-07-28` enters transport clauses from two pages).
+        let index = rows
+            .iter()
+            .position(|row| row.area == area)
+            .unwrap_or_else(|| {
+                rows.push(AreaRow {
+                    area: area.to_owned(),
+                    requirements: 0,
+                    checked: 0,
+                    excluded: 0,
+                    gated: 0,
+                });
+                rows.len() - 1
             });
-        }
-        if let Some(row) = rows.last_mut() {
-            row.requirements += 1;
-            tally(row, requirement, distinct_checks);
-        }
+        let row = &mut rows[index];
+        row.requirements += 1;
+        tally(row, requirement, distinct_checks);
     }
     rows
+}
+
+/// One table per built-in revision, newest first, then the shared reading note.
+fn render_all(set: &RegistrySet) -> Option<String> {
+    let mut revisions = set.revisions().to_vec();
+    revisions.sort_unstable_by(|a, b| b.cmp(a));
+    let mut out = String::new();
+    for (index, revision) in revisions.iter().enumerate() {
+        let registry = set.registry(*revision)?;
+        let label = if index == 0 {
+            " — current revision"
+        } else {
+            ""
+        };
+        let _ = writeln!(out, "**`{revision}`{label}**\n");
+        out.push_str(&render(&registry));
+        out.push('\n');
+    }
+    out.push_str(
+        "Every check is falsified by a committed violation trace and examines a real \
+         subject on at least one conforming one. A requirement is reported *pass* only \
+         where the session carried something it binds to: a capability-gated clause the \
+         session never negotiated reports *not-applicable*, and a clause whose subject \
+         matter never appeared reports *not-observed*. Neither is a vacuous pass.\n",
+    );
+    Some(out)
 }
 
 fn render(registry: &Registry) -> String {
@@ -180,15 +221,8 @@ fn render(registry: &Registry) -> String {
     );
     let _ = writeln!(
         out,
-        "\nRevision `{}`: {} requirements — {} judged by {} distinct trace checks (every \
-         check falsified by a committed violation trace, and every check examining a \
-         real subject on at least one of them), {} carrying documented exclusions \
-         explaining why a recorded trace cannot judge them. A requirement is reported \
-         *pass* only where the session carried something it binds to: a capability-gated \
-         clause the session never negotiated reports *not-applicable*, and a clause \
-         whose subject matter never appeared reports *not-observed*. Neither is a \
-         vacuous pass.",
-        registry.revision(),
+        "\n{} requirements: {} judged by {} distinct trace checks, {} carrying a \
+         documented exclusion that explains why a recorded trace cannot judge them.",
         totals.requirements,
         totals.checked,
         distinct_checks.len(),

@@ -186,12 +186,18 @@ async fn run_http(
         }
     };
     let bound = listener.local_addr().unwrap_or(listen);
+    // Registered before the address is announced: a client (or a test) may signal
+    // the moment it reads that line.
+    let shutdown = match mcp_trace_capture::shutdown_signal() {
+        Ok(shutdown) => shutdown,
+        Err(error) => {
+            eprintln!("mcp-trace-capture: cannot install a signal handler: {error}");
+            return EXIT_USAGE;
+        }
+    };
     eprintln!(
         "mcp-trace-capture: listening on http://{bound}, forwarding to {upstream} (Ctrl-C to stop)"
     );
-    let shutdown = async {
-        let _ = tokio::signal::ctrl_c().await;
-    };
     match http::serve(listener, Arc::clone(recorder), options, shutdown).await {
         Ok(unrecorded) => {
             report_unrecorded("session", unrecorded.not_json, unrecorded.oversized);

@@ -128,6 +128,9 @@ pub async fn run(
     args: Vec<OsString>,
     max_message: usize,
 ) -> io::Result<Outcome> {
+    // Registered before the server starts, so a signal that arrives at any point
+    // after this relays to it rather than killing this process outright.
+    let stop = crate::shutdown_signal()?;
     let (mut child, child_stdin, child_stdout) = spawn_server(&program, &args)?;
     lifecycle(
         &recorder,
@@ -163,7 +166,7 @@ pub async fn run(
     });
 
     let (status, closed_by_client, client_unrecorded) =
-        wait_for_end(&mut child, &mut client).await?;
+        wait_for_end(&mut child, &mut client, stop).await?;
     if !closed_by_client {
         // Blocked on this process's stdin, which the client may hold open forever.
         client.abort();
@@ -233,47 +236,25 @@ fn spawn_server(
 async fn wait_for_end(
     child: &mut tokio::process::Child,
     client: &mut tokio::task::JoinHandle<io::Result<Unrecorded>>,
+    stop: impl std::future::Future<Output = ()>,
 ) -> io::Result<(ExitStatus, bool, Unrecorded)> {
+    tokio::pin!(stop);
     tokio::select! {
         status = child.wait() => Ok((status?, false, Unrecorded::default())),
         joined = client => {
             let unrecorded = joined.map_err(io::Error::other)?.unwrap_or_default();
             let status = tokio::select! {
                 status = child.wait() => status?,
-                () = terminated() => {
+                () = &mut stop => {
                     child.start_kill().ok();
                     child.wait().await?
                 }
             };
             Ok((status, true, unrecorded))
         }
-        () = terminated() => {
+        () = &mut stop => {
             child.start_kill().ok();
             Ok((child.wait().await?, false, Unrecorded::default()))
-        }
-    }
-}
-
-/// Resolves when this process is asked to stop.
-async fn terminated() {
-    #[cfg(unix)]
-    {
-        use tokio::signal::unix::{SignalKind, signal};
-        let (Ok(mut interrupt), Ok(mut terminate)) = (
-            signal(SignalKind::interrupt()),
-            signal(SignalKind::terminate()),
-        ) else {
-            return std::future::pending().await;
-        };
-        tokio::select! {
-            _ = interrupt.recv() => {}
-            _ = terminate.recv() => {}
-        }
-    }
-    #[cfg(not(unix))]
-    {
-        if tokio::signal::ctrl_c().await.is_err() {
-            std::future::pending::<()>().await;
         }
     }
 }

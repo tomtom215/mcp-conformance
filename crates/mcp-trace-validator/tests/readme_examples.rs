@@ -61,18 +61,15 @@ fn the_inline_trace_example_produces_exactly_the_quoted_output() {
 }
 
 #[test]
-fn the_opening_example_totals_match_the_corpus_trace_it_depicts() {
-    // The first example depicts validating a session whose only error is
-    // LIFE-001 (first message not initialize) — the exact session committed
-    // as corpus/violations/life-001-first-message-not-initialize.jsonl. Its
-    // elided rows ("...") cannot be asserted, but the FAIL detail and the
-    // totals line are quoted verbatim and must match that trace's reality.
+fn the_opening_example_is_what_the_cli_prints_for_the_trace_it_depicts() {
+    // The first example depicts `validate --quiet` on the committed MRTR-019
+    // violation trace. Every line it quotes is checked against the output the CLI
+    // produces for that trace: the revision chosen the way the CLI chooses it, and
+    // the findings-only rendering `--quiet` selects.
     let readme = readme();
     let example_at = readme
-        .find("validate session.jsonl")
-        .expect("first example");
-    // The marker sits inside its fence, so locate that fence's opening by
-    // searching backwards from the marker.
+        .find("validate --quiet session.jsonl\nMCP trace validation")
+        .expect("the opening example");
     let open_at = readme[..example_at]
         .rfind("```text")
         .expect("opening fence before the marker");
@@ -80,18 +77,27 @@ fn the_opening_example_totals_match_the_corpus_trace_it_depicts() {
 
     let trace_path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../corpus/violations/life-001-first-message-not-initialize.jsonl"
+        "/../../corpus/draft/violations/mrtr-019-retry-reuses-id.jsonl"
     );
-    let trace = std::fs::read_to_string(trace_path).unwrap();
-    let rendered = validate_text(&trace).render_human();
+    let events = parse_trace(
+        &std::fs::read_to_string(trace_path).unwrap(),
+        &Limits::default(),
+    )
+    .unwrap();
+    let set = mcp_conformance_core::requirement::RegistrySet::builtin().unwrap();
+    let selection = mcp_trace_validator::declared::select(set.revisions(), &events).unwrap();
+    let registry = set.registry(selection.revisions[0]).unwrap();
+    let mut report = engine::validate(&registry, &events);
+    report.revision_source = Some(selection.source);
+    let rendered = report.render_findings();
 
-    for line in quoted.lines().filter(|line| {
-        line.contains("seq 0:") || line.starts_with("totals:") || line.starts_with("verdict:")
-    }) {
-        assert!(
-            rendered.contains(line),
-            "README's opening example quotes a line the validator does not produce for \
-             the life-001 trace:\n  {line}\nactual output:\n{rendered}"
-        );
-    }
+    let quoted_lines: Vec<&str> = quoted
+        .lines()
+        .filter(|line| !line.trim().is_empty() && !line.starts_with('$'))
+        .collect();
+    assert_eq!(
+        quoted_lines,
+        rendered.lines().collect::<Vec<_>>(),
+        "the README's opening example must be exactly what `validate --quiet` prints"
+    );
 }

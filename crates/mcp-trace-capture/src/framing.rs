@@ -117,6 +117,11 @@ pub struct SseParser {
     oversized: u64,
 }
 
+/// Room a line needs beyond its data: the field name and `": "` of the longest
+/// field this parser reads (`data: ` is six bytes). The event limit applies to the
+/// data itself; this only keeps an unterminated line from growing without bound.
+const LINE_OVERHEAD: usize = 16;
+
 /// The data of the event being assembled.
 #[derive(Debug)]
 enum EventData {
@@ -155,7 +160,9 @@ impl SseParser {
                     self.end_line(&mut events);
                 }
                 b'\n' => self.end_line(&mut events),
-                _ if self.pending.len() < self.max_event => self.pending.push(byte),
+                _ if self.pending.len() < self.max_event.saturating_add(LINE_OVERHEAD) => {
+                    self.pending.push(byte);
+                }
                 // A line longer than any event may be: the event it belongs to is
                 // oversized, and the line stops growing.
                 _ => self.event = EventData::Oversized,
