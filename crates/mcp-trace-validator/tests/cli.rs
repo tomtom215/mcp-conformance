@@ -598,3 +598,92 @@ fn the_readme_quickstart_validate_command_runs() {
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     assert!(stdout(&output).contains("FAIL  MRTR-019"), "{output:?}");
 }
+
+#[test]
+fn a_custom_registry_cannot_be_combined_with_revision_selection() {
+    // A valid registry file, so the only thing wrong is the combination.
+    let registry = write_temp(
+        "one-registry",
+        r#"{"revision":"2025-11-25","requirements":[
+            {"id":"BASE-001","level":"MUST","actor":"both",
+             "source":{"section":"b#x","quote":"MUST jsonrpc 2.0"},
+             "checks":["base.jsonrpc-version"]}]}"#,
+    );
+    let set = write_temp("one-set", TWO_REVISION_SET);
+    let good = corpus("good/stdio-minimal-init.jsonl");
+    let alone = run(&[
+        "validate",
+        good.to_str().unwrap(),
+        "--registry",
+        registry.to_str().unwrap(),
+    ]);
+    for extra in [
+        vec!["--revision", "2025-11-25"],
+        vec!["--registry-set", set.to_str().unwrap()],
+    ] {
+        let mut args = vec![
+            "validate",
+            good.to_str().unwrap(),
+            "--registry",
+            registry.to_str().unwrap(),
+        ];
+        args.extend(extra);
+        let output = run(&args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {output:?}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("cannot be combined"),
+            "{output:?}"
+        );
+    }
+    std::fs::remove_file(&registry).ok();
+    std::fs::remove_file(&set).ok();
+    assert_eq!(
+        alone.status.code(),
+        Some(0),
+        "the registry alone is fine: {alone:?}"
+    );
+}
+
+#[test]
+fn a_reader_that_stops_early_is_not_an_error() {
+    use std::io::BufRead as _;
+    // The JSON registry is ~150 KB, well past a pipe's buffer, so the write is
+    // certain to meet the closed pipe rather than finish into the buffer first.
+    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_mcp-trace-validator"))
+        .args(["requirements", "--format", "json"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut first = String::new();
+    std::io::BufReader::new(child.stdout.take().unwrap())
+        .read_line(&mut first)
+        .unwrap();
+    // The reader is gone; the rest of the output meets a closed pipe.
+    let output = child.wait_with_output().unwrap();
+    assert!(first.starts_with('{'), "{first}");
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert!(
+        output.stderr.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_write_error_other_than_a_closed_pipe_is_reported() {
+    let full = std::fs::OpenOptions::new()
+        .write(true)
+        .open("/dev/full")
+        .unwrap();
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_mcp-trace-validator"))
+        .arg("requirements")
+        .stdout(full)
+        .output()
+        .unwrap();
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("cannot write output"),
+        "{output:?}"
+    );
+}
