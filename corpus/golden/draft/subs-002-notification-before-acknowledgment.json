@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 24,
     "fail": 1,
@@ -430,7 +431,12 @@
           "seq": 1,
           "detail": "subscription 1 opened with `notifications/tools/list_changed`; `notifications/subscriptions/acknowledged` must be its first message"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/subscriptions#acknowledgment",
+        "quote": "The server MUST send `notifications/subscriptions/acknowledged` as the first message carrying the subscription's ID in `meta` under `io.modelcontextprotocol/subscriptionId`, and MUST NOT send any notification on the subscription before it.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/subscriptions#acknowledgment"
+      }
     },
     {
       "id": "SUBS-005",

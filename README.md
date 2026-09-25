@@ -3,114 +3,172 @@
 
 # mcp-conformance
 
-**Independent conformance testing for the [Model Context Protocol](https://modelcontextprotocol.io).**
-Record a trace of any MCP session — in any language, over any transport — and
-find out exactly which of the spec's requirements it met, which it broke, and
-why.
+**Clause-by-clause conformance checking for the [Model Context Protocol](https://modelcontextprotocol.io).**
+Record any MCP session — any language, any SDK, stdio or streamable HTTP — and find
+out which of the specification's requirements it met, which it broke, where, and
+which it never exercised.
 
-**Status: `0.5.1` on [crates.io](https://crates.io/crates/mcp-trace-validator)**
-(`cargo install mcp-trace-validator`), published with SLSA build-provenance
-attestations. Pre-1.0, so the API and the verdicts it produces may still change
-between minor releases — the [changelog](CHANGELOG.md) says so explicitly when
-they do.
+**Status: `0.6.0` on [crates.io](https://crates.io/crates/mcp-trace-validator)**
+(`cargo install mcp-trace-capture mcp-trace-validator`), published with SLSA
+build-provenance attestations. Pre-1.0: the API and the verdicts may change between
+minor releases, and the [changelog](CHANGELOG.md) says so when they do.
 
----
+## Quickstart
 
-## The problem
+```text
+cargo install mcp-trace-capture mcp-trace-validator
+```
 
-The Model Context Protocol is a *specification*: a long list of normative
-requirements, each a MUST, SHOULD, or MAY that a conforming implementation is
-expected to honor. If you build an MCP server or client, how do you actually
-*know* it conforms?
+Or skip the compile: `cargo binstall mcp-trace-capture mcp-trace-validator` fetches
+the prebuilt archive each release attaches for Linux (static, x86_64 and aarch64),
+macOS (arm64 and x86_64) or Windows (x86_64), with build-provenance attestations
+(`gh attestation verify <archive> --repo tomtom215/mcp-conformance`) and
+`SHA256SUMS-binaries` beside it.
 
-Today there is essentially one answer — the official conformance suite, which
-drives **live** scenarios written in TypeScript. That suite is the authority,
-and it is invaluable. But it leaves a real gap:
+Record a session. For a **stdio** server, configure your client to launch the
+capture wrapper instead of the server:
 
-- Nothing takes a **recording** of an MCP session — whatever language produced
-  it, whatever transport it crossed — and checks it, requirement by requirement,
-  against the spec.
-- In Rust there is no reference *everything server* or *host* to measure
-  against at all.
+```text
+mcp-trace-capture -o session.jsonl stdio -- python my_server.py
+```
 
-## What this is
+For a **streamable-HTTP** server, put the proxy in front of it and point your client
+at the proxy:
 
-`mcp-conformance` is the missing half — a toolkit built around three verbs:
+```text
+mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000
+# client URL: http://127.0.0.1:8080/mcp
+```
 
-- **Capture** a trace of an MCP session: a plain [JSON Lines](#the-trace-format)
-  file, one event per line.
-- **Validate** it offline and get **requirement-level** findings — the exact
-  spec clause, the offending message, and a plain-language reason — as human
-  text, machine JSON, or JUnit XML for CI.
-- **Calibrate** against the authority: the reference server and host bundled
-  here are driven by the *official* suite on every CI run, and this toolkit's
-  verdicts are diffed against the official runner's. A disagreement fails the
-  build.
+Then judge it:
 
-That last point is the whole game. A conformance verdict is only worth as much
-as its credibility, so these verdicts are **continuously checked against the
-recognized authority** — deterministic, reproducible from a committed file, and
-defensible rather than a "trust us."
+```text
+mcp-trace-validator validate --quiet session.jsonl
+```
+
+In CI, the exit code is the verdict (`0` pass, `1` findings, `2` bad invocation, `3`
+malformed trace); `--format junit` produces a test report, and `--format sarif` puts
+each finding on the trace line it concerns in GitHub code scanning (or any SARIF
+viewer).
+[`mcp-trace-capture`'s README](crates/mcp-trace-capture/README.md) covers what the
+recorder guarantees and what it leaves out.
 
 ## See it work
 
-Install the validator and point it at a recorded session:
+A client that retries a multi-round-trip request with the id of the original — the
+two are independent requests under `2026-07-28` and must not share one:
 
 ```text
-$ mcp-trace-validator validate session.jsonl
-MCP trace validation — revision 2025-11-25
-  PASS  BASE-001 (MUST)
-  ...
-  FAIL  LIFE-001 (MUST)
-        seq 0: first message is a "tools/list" request, expected "initialize"
-totals: 10 pass, 1 fail, 1 warn, 87 excluded, 0 unsupported, 14 not applicable, 29 not observed
+$ mcp-trace-validator validate --quiet session.jsonl
+MCP trace validation — revision 2026-07-28 (declared by the trace)
+  FAIL  MRTR-019 (MUST)
+        seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
+        spec: "The JSON-RPC `id` MUST be different between the initial request and the retry, as they are independent requests."
+        see:  https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#client-requirements-basic-workflow
+  FAIL  TOOL-023 (MUST)
+        seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
+        spec: "Note that the JSON-RPC `id` MUST be different between the initial request and the retry."
+        see:  https://modelcontextprotocol.io/specification/2026-07-28/server/tools#input-required-tool-results
+totals: 37 pass, 2 fail, 0 warn, 147 excluded, 0 unsupported, 0 not applicable, 86 not observed
 verdict: fail
 ```
 
-The exit code is documented (`0` pass, `1` findings, `2` bad invocation,
-`3` malformed trace), so this drops straight into CI. A trace that judges no
-requirement at all — the shape a broken capture step produces — is a bad
-invocation rather than a pass: an empty recording is not a conforming session,
-and a green build is the wrong thing to tell you about one. And a recording of
-*another* revision — a `2026-07-28` session judged against the default
-`2025-11-25` registry — says so in the report rather than quietly reporting the
-clauses the two revisions disagree about as violations.
+- **Every finding cites the clause it breaks** — the event (`seq`), what was wrong,
+  the clause verbatim, and a link to it in the published revision; JSON, JUnit and
+  SARIF output carry the same. The weekly spec-drift job re-verifies every quote against
+  the spec's source and every link's anchor against the published page.
+- **The revision is the one the session declares** — in `initialize`, in each
+  request's `_meta`, or in the `MCP-Protocol-Version` header. A trace declaring no
+  revision is judged against the newest one (and says so); a trace declaring only a
+  revision this build does not know is refused rather than judged against the wrong
+  rules. `--revision` overrides; naming two judges the session under both, clause by
+  clause.
+- **Not observed is not a pass.** A clause the session never came near is reported
+  *not observed*; one gated on a capability nobody negotiated is *not applicable*;
+  one no trace can judge is *excluded*, with the reason. The 86 above are clauses
+  this short session never exercised — reporting them as passes would be a score, not
+  a verdict.
+- **An empty recording is a bad invocation**, not a pass: the shape a broken capture
+  step produces should fail the build.
 
-Note what the totals do *not* say. A clause the session never came near is
-**not observed** — never a pass. A trace that opens a connection and stops has
-complied with nothing; reporting it as 100-odd passes would be a score, not a
-verdict, and the whole tool is worth exactly as much as that distinction.
+Without `--quiet` every clause is listed with its outcome and, for exclusions, the
+reason. `--format json` gives the whole report as data.
+
+## How this relates to other tools
+
+Surveyed 2026-09-24; details and sources in the
+[ecosystem register](docs/plan/01-ecosystem-context.md).
+
+| | Judges | Unit of verdict |
+|---|---|---|
+| [Official conformance suite](https://github.com/modelcontextprotocol/conformance) — the authority | A live server or client, by driving scenarios; also validates every message against the revision's JSON schema | Scenario and check, with per-revision required sets and per-SEP traceability |
+| [`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) | Its own recorded captures, offline | A fixed set of MUST rules, reported as text, JUnit or SARIF |
+| **This project** | Any recorded session, offline, from any implementation | One row per normative clause of the spec — each with a stable ID, its verbatim quote in the registry, and either a check or a written reason it cannot be judged — continuously calibrated against the official suite |
+
+The official suite remains the authority on what "conformant" means; this project
+does not replace it. What it adds is the offline, clause-level reading: *which*
+sentence of the specification a session broke, judged from a recording of real
+traffic, with every clause it could not see accounted for.
 
 ## The one idea: capture, then judge
 
-The validator is a **pure function** — a slice of trace events in, a report out
-— with no network, no clock, and no I/O of its own. Whoever owns the socket (the
-reference server's session tap, the host's capture wrapper, or any external
-proxy) records the trace and assigns the ordering; the validator's only job is
-to judge it. The judge also never links the SDK it judges, so its verdicts stay
-independent of any one implementation's interpretation of the spec.
+The validator is a **pure function** — a slice of trace events in, a report out —
+with no network, no clock, and no I/O of its own. The capture tool (or the reference
+server's tap, or the reference host) records the trace and assigns the ordering; the
+validator only judges it. Neither the validator nor the capture tool links an MCP
+SDK, so a verdict describes the bytes on the wire rather than one SDK's reading of
+them.
 
-That separation is what buys determinism, replayability, and
-language/transport independence: the same trace yields a byte-identical report
-forever, on any platform — a regression is a diff, not a flake. The design and
-its trade-offs are written up for an external audience in
-[docs/design/trace-validation.md](docs/design/trace-validation.md).
+That separation buys determinism and replayability: the same trace yields a
+byte-identical report on any platform, big-endian and 32-bit included — a regression
+is a diff, not a flake. The design and its trade-offs are written up for an external
+audience in [docs/design/trace-validation.md](docs/design/trace-validation.md).
 
 ## The toolkit
 
 | Crate | What it gives you |
 |-------|-------------------|
-| [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The spec as data.** A requirement registry whose every entry carries a verbatim spec quote, an RFC 2119 level, an optional capability gate, and either a mechanical check or a documented reason it cannot be judged from a trace (the SEP-2484 traceability shape) — covering the `2025-11-25` core protocol surface. Plus the JSON Lines trace schema and RFC 8785 canonical JSON. Serde only; it links no protocol SDK. |
-| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Replay a trace; get findings with the spec clause and the offending event `seq`, as human text, JSON, or JUnit, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
-| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The reference server**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk) (the official Rust SDK). It passes the official suite's full `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy that closes the CVE-2026-42559 DNS-rebinding class by construction. `--protocol-version 2026-07-28` serves the stateless surface instead (SEP-2575: no `initialize`, no sessions, per-request `_meta`, SEP-2549 caching hints, SEP-2322 MRTR for server-to-client requests, `subscriptions/listen`), over stdio and HTTP alike — the suite's `2026-07-28` scenarios score **41 passing / 0 failing** against that mode (the same scenarios score 37 passing / 4 failing against the `2025-11-25` mode, each failure the caching hints this revision adds), and five committed captures — a conforming session over each transport, a *probe* session of deliberately malformed requests, and the official runner's two — evidence **114 of the 125 judgeable clauses** between them, with everything else reported *not observed* rather than counted as a pass. Its tap records each session as a trace for the calibration check. Offered upstream as [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902). |
-| [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference host** (an MCP client). It passes all four of the official suite's `2025-11-25` **client scenarios** at the pinned version — bounded tool-use loops over both real transports (child-process stdio and streamable HTTP), scriptable sampling / elicitation / roots for CI with zero model-provider network use, and host-side trace capture with redaction by construction. |
+| [`mcp-trace-capture`](crates/mcp-trace-capture) | **The recorder.** A stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write a validator-ready trace, recording each message before the bytes that complete it are forwarded. CI runs reference-host sessions through it at both revisions and requires them to judge clean, and runs the official suite through the proxy. New; ships with the next release. |
+| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Findings with the clause ID and the offending event `seq`, as human text (full or `--quiet`), JSON (with a published JSON Schema), JUnit, or SARIF, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
+| [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The spec as data.** Requirement registries for `2025-11-25` and `2026-07-28` whose every entry carries a verbatim spec quote, an RFC 2119 level, an optional capability gate, and either a mechanical check or a documented exclusion (the SEP-2484 traceability shape); a weekly job re-verifies every quote against the published text. Plus the JSON Lines trace schema and RFC 8785 canonical JSON. Serde only. |
+| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk). It passes the pinned official suite's `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy. `--protocol-version 2026-07-28` serves the stateless revision; the suite's pre-release `2026-07-28` scenarios score **41 passing / 0 failing** against it, and five committed captures evidence **114 of the 125 judgeable clauses** between them. Its tap records each suite session for the calibration check. |
+| [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference client.** Passes all four of the official suite's `2025-11-25` client scenarios at the pinned version; bounded tool-use loops over stdio and streamable HTTP, scriptable sampling / elicitation / roots with no model-provider network use. |
+
+**Calibration.** On every CI run the official suite (pinned `0.1.16`, `2025-11-25`)
+drives the everything server and the reference host, the tapped sessions replay
+through the validator, and any MUST-level disagreement not triaged in a committed
+ledger fails the build. The `2026-07-28` surface is measured weekly against the
+suite's pinned pre-release (`0.2.0-alpha.11`) as a ratchet, not yet as a blocking
+agreement check: the suite has no stable `2026-07-28` release to calibrate against.
 
 ## Requirement coverage
 
-The table is generated from the registry by `cargo xtask coverage` and verified
-in CI — the numbers cannot drift from the data:
+Generated from the registries by `cargo xtask coverage` and verified in CI:
 
 <!-- coverage:begin (generated by `cargo xtask coverage`; do not edit by hand) -->
+**`2026-07-28` — current revision**
+
+| Area | Requirements | Checked | Excluded | Capability-gated |
+|------|-------------:|--------:|---------:|-----------------:|
+| BASE | 57 | 26 | 31 | 0 |
+| TRAN | 80 | 33 | 47 | 0 |
+| DISC | 4 | 2 | 2 | 0 |
+| VERS | 8 | 5 | 3 | 0 |
+| MRTR | 25 | 15 | 10 | 0 |
+| SUBS | 7 | 4 | 3 | 0 |
+| CACH | 18 | 4 | 14 | 0 |
+| COMP | 6 | 2 | 4 | 0 |
+| PAGE | 6 | 3 | 3 | 0 |
+| LOG | 8 | 4 | 4 | 0 |
+| TOOL | 29 | 14 | 15 | 0 |
+| RES | 13 | 6 | 7 | 0 |
+| PROM | 11 | 7 | 4 | 0 |
+| **Total** | **272** | **125** | **147** | **0** |
+
+272 requirements: 125 judged by 100 distinct trace checks, 147 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+
+**`2025-11-25`**
+
 | Area | Requirements | Checked | Excluded | Capability-gated |
 |------|-------------:|--------:|---------:|-----------------:|
 | BASE | 25 | 12 | 13 | 0 |
@@ -124,24 +182,23 @@ in CI — the numbers cannot drift from the data:
 | PAGE | 5 | 2 | 3 | 0 |
 | **Total** | **142** | **55** | **87** | **33** |
 
-Revision `2025-11-25`: 142 requirements — 55 judged by 51 distinct trace checks (every check falsified by a committed violation trace, and every check examining a real subject on at least one of them), 87 carrying documented exclusions explaining why a recorded trace cannot judge them. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
-<!-- coverage:end -->
+142 requirements: 55 judged by 51 distinct trace checks, 87 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
-A requirement gated on a capability that was never negotiated is reported
-**not-applicable**, and one whose subject matter the session never carried is
-reported **not-observed** — neither is ever a pass. Every check counts the
-subjects it considered, so the report can tell "complied with" from "never came
-up"; inflating a score with vacuous checks is exactly how a conformance tool
-loses credibility.
+Every check is falsified by a committed violation trace and examines a real subject on at least one conforming one. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
+<!-- coverage:end -->
 
 ## The trace format
 
 A trace is JSON Lines: one event per line, each carrying a capture-assigned `seq`
 (the only ordering authority), a `direction`, a `transport`, and a `kind` —
-`message` events hold the JSON-RPC payload verbatim; `http` events record
+`message` events hold the JSON-RPC payload; `http` events record
 conformance-relevant headers, a response's status, and a client request's
-`method`; `lifecycle` events mark transport open/close. This session reuses a
-request ID:
+`method`; `lifecycle` events mark transport open/close. The format is published as
+a JSON Schema, [`trace-event.schema.json`](crates/mcp-conformance-core/schema/trace-event.schema.json)
+(also `mcp_conformance_core::trace::EVENT_JSON_SCHEMA`), so a recorder written in
+any language can check its output without this toolkit; a test holds the schema
+and the validator's reader to the same answer on every corpus record. This
+`2025-11-25` session reuses a request ID:
 
 <!-- The mdBook chapter book/src/trace-format.md embeds the example below via
      this anchor; readme_examples.rs pins it to the validator's real output. -->
@@ -153,19 +210,21 @@ request ID:
 {"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}
 ```
 
-and the validator answers with the violated clause, verbatim from the spec via the
-registry, addressed to the offending event:
+and the validator answers with the violated clause, addressed to the offending
+event:
 
 ```text
   FAIL  BASE-003 (MUST NOT)
         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
+        spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
+        see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
 totals: 17 pass, 1 fail, 0 warn, 87 excluded, 0 unsupported, 6 not applicable, 31 not observed
 verdict: fail
 ```
 <!-- ANCHOR_END: trace-example -->
 
 The six not-applicable rows are the capability-gated requirements this session
-never negotiated (the resources and prompts clauses), and the thirty
+never negotiated (the resources and prompts clauses), and the thirty-one
 not-observed rows are the clauses whose subject matter never appeared —
 nothing was paginated, no binary content was sent, no error was returned.
 Neither is reported as a pass. [`corpus/`](corpus) holds complete annotated
@@ -173,46 +232,31 @@ sessions for every area.
 
 ## Documentation
 
-- **[The book](https://mcp-conformance.com)** — architecture, the trace format,
-  the corpus guide, and conformance results, collected as an mdBook
-  ([`book/`](book)) that builds on every push and deploys to
-  <https://mcp-conformance.com>.
+- **[The book](https://mcp-conformance.com)** — architecture, the trace format, the
+  two revisions, the corpus, and conformance results ([`book/`](book), built on every
+  push).
 - **API docs** for every crate on [docs.rs](https://docs.rs/mcp-trace-validator).
-- **The engineered plan** — charter, verified ecosystem register, architecture,
-  conformance strategy, engineering standards, security model, roadmap, and
-  decision records — in [`docs/plan/`](docs/plan/README.md). Every claim is
-  verified and dated.
+- **The plan** — charter, ecosystem register, architecture, conformance strategy,
+  engineering standards, security model, roadmap, and decision records — in
+  [`docs/plan/`](docs/plan/README.md). The ecosystem register dates every external
+  fact it records, and a weekly CI job fails when a row is older than ninety days.
+- **The [project review of 2026-09-24](docs/reports/project-review-2026-09-24.md)** —
+  what was wrong, and the plan being executed to fix it.
 
-## Why it exists
+## Engineering
 
-Conformance is the load-bearing mechanism of MCP's maturity model: SEP-1730
-gates an SDK's tier standing on its conformance pass rate, and SEP-2484 gates
-spec finalization on conformance scenarios. The official suite executes live
-scenarios from TypeScript; nothing in any language validates *recorded traces*
-against the spec's normative requirements, and no Rust everything server exists.
-This project builds that missing half — **upstream-first** (anything generically
-useful is offered to the official repositories first), calibrated against the
-official suite, and engineered to the standard set by
-[a2a-rust](https://github.com/tomtom215/a2a-rust) and held by CI: clippy
-pedantic + nursery at `-D warnings` on stable and MSRV across three platforms,
-property and golden-corpus tests, diff-scoped mutation gates with a
-zero-surviving-mutants standard on every shipped crate, fuzzing, a
-sanitization pass, and `cargo deny` on every push — plus scheduled gates that
-catch what a green PR cannot: byte-identical reports on big-endian and 32-bit
-targets, a build at the oldest dependency versions the manifests claim to
-support, and a ratcheted measurement of how much of the *next* spec revision
-the reference server already satisfies
-([`conformance/draft-readiness.json`](conformance/draft-readiness.json)).
-
-The full reasoning, with every claim verified and dated, is in
-[docs/plan/00-charter.md](docs/plan/00-charter.md).
+Held by CI on every push: clippy pedantic + nursery at `-D warnings` on the pinned
+stable toolchain and on the MSRV (1.88) across Linux, macOS and Windows; property,
+golden-corpus and falsifiability tests; diff-scoped mutation testing with zero
+surviving mutants required in shipped crates; `cargo deny`; and a gate that every
+fuzz target builds. Weekly: fuzzing, byte-identical reports on big-endian and 32-bit
+targets, a build at the oldest dependency versions the manifests claim, quote drift
+against the published spec, and the expiry of every dated claim.
 
 ## Contributing
 
-[CONTRIBUTING.md](CONTRIBUTING.md) has the gates — `cargo xtask ci` runs them
-all locally — and [SECURITY.md](SECURITY.md) has the vulnerability process.
-Anything generically useful to the official MCP SDKs belongs upstream first; the
-engagement backlog is [docs/plan/07-ecosystem-engagement.md](docs/plan/07-ecosystem-engagement.md).
+[CONTRIBUTING.md](CONTRIBUTING.md) has the gates — `cargo xtask ci` runs them all
+locally — and [SECURITY.md](SECURITY.md) has the vulnerability process.
 
 ## License
 

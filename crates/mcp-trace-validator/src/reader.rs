@@ -22,13 +22,27 @@ pub struct Limits {
     pub max_line_bytes: usize,
 }
 
+impl Limits {
+    /// Limits with both caps set explicitly.
+    #[must_use]
+    pub const fn new(max_events: usize, max_line_bytes: usize) -> Self {
+        Self {
+            max_events,
+            max_line_bytes,
+        }
+    }
+}
+
 impl Default for Limits {
+    /// 1,000,000 events, and lines up to
+    /// [`DEFAULT_MAX_LINE_BYTES`](mcp_conformance_core::trace::DEFAULT_MAX_LINE_BYTES)
+    /// — so anything a recorder writes with its default message limit reads back.
     fn default() -> Self {
         Self {
-            // Generous for real sessions (the everything-server suites produce
-            // hundreds of events) while bounding adversarial inputs.
-            max_events: 100_000,
-            max_line_bytes: 1024 * 1024,
+            // An hour of a busy streamable-HTTP session is tens of thousands of
+            // events; the cap bounds an adversarial document, not a real one.
+            max_events: 1_000_000,
+            max_line_bytes: mcp_conformance_core::trace::DEFAULT_MAX_LINE_BYTES,
         }
     }
 }
@@ -248,6 +262,24 @@ mod tests {
     use super::*;
 
     const VALID_EVENT: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"lifecycle","event":"transport-open"}"#;
+
+    #[test]
+    fn the_default_limits_read_back_what_a_recorder_writes_at_its_defaults() {
+        let limits = Limits::default();
+        assert_eq!(
+            limits.max_line_bytes,
+            mcp_conformance_core::trace::DEFAULT_MAX_LINE_BYTES
+        );
+        assert_eq!(limits.max_line_bytes, 65 * 1024 * 1024);
+        assert_eq!(limits.max_events, 1_000_000);
+        assert_eq!(
+            Limits::new(7, 9),
+            Limits {
+                max_events: 7,
+                max_line_bytes: 9
+            }
+        );
+    }
 
     /// The two ways a first trace fails to parse for a reason serde cannot
     /// name, and the message each must produce.

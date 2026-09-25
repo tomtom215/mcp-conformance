@@ -29,8 +29,7 @@ pub const REVISION_2025_11_25: ProtocolRevision = ProtocolRevision {
 /// Named here because the registry's revision *ranges* refer to it already: every
 /// `2025-11-25` entry is bounded `removed = 2026-07-28`, since its quote cites a
 /// `2025-11-25` page and the published text was rewritten even where the underlying
-/// requirement survived. Requirement *content* for this revision arrives area by area
-/// behind the `draft-2026-07-28` feature.
+/// requirement survived.
 pub const REVISION_2026_07_28: ProtocolRevision = ProtocolRevision {
     year: 2026,
     month: 7,

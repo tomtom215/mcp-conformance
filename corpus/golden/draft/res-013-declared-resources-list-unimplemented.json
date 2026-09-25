@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 36,
     "fail": 1,
@@ -590,7 +591,12 @@
           "seq": 3,
           "detail": "server declared the `resources` capability but answered `resources/list` with -32601; a declared capability must be served"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/resources#capabilities",
+        "quote": "Servers that declare the `resources` capability MUST respond to `resources/list` requests with the set of resources currently available to the requesting client.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources#capabilities"
+      }
     },
     {
       "id": "RES-018",

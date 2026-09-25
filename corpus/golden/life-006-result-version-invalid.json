@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 16,
     "fail": 1,
@@ -105,7 +106,12 @@
           "seq": 1,
           "detail": "initialize result protocolVersion \"1.0\" is not a dated revision identifier (YYYY-MM-DD)"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#version-negotiation",
+        "quote": "If the server supports the requested protocol version, it MUST respond with the same version. Otherwise, the server MUST respond with another protocol version it supports.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation"
+      }
     },
     {
       "id": "LIFE-007",

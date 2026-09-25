@@ -517,14 +517,11 @@ fn corpus_falsifies_every_check() {
         }
     };
     collect(&Registry::builtin_2025_11_25().unwrap(), "violations");
-    #[cfg(feature = "draft-2026-07-28")]
-    {
-        let draft = mcp_conformance_core::requirement::RegistrySet::builtin()
-            .unwrap()
-            .registry("2026-07-28".parse().unwrap())
-            .expect("the draft feature describes 2026-07-28");
-        collect(&draft, "draft/violations");
-    }
+    let stateless = mcp_conformance_core::requirement::RegistrySet::builtin()
+        .unwrap()
+        .registry("2026-07-28".parse().unwrap())
+        .expect("the builtin set describes 2026-07-28");
+    collect(&stateless, "draft/violations");
     let implemented: BTreeSet<String> = mcp_trace_validator::checks::ALL
         .iter()
         .map(|check| check.id.to_owned())
@@ -582,10 +579,6 @@ fn checks_count_their_subjects() {
 /// The `2026-07-28` corpus, held to the same contract as the `2025-11-25` one:
 /// a conforming session passes everything, and every check that revision's
 /// registry names has a trace that kills it.
-///
-/// Gated on the feature because without it the registry set does not describe
-/// the revision — there would be nothing to project and nothing to judge.
-#[cfg(feature = "draft-2026-07-28")]
 mod draft {
     use super::{
         assert_falsifies_its_named_requirement, check_exclusion_ledger, check_golden, trace_files,
@@ -599,7 +592,7 @@ mod draft {
         RegistrySet::builtin()
             .unwrap()
             .registry("2026-07-28".parse().unwrap())
-            .expect("the draft feature describes 2026-07-28")
+            .expect("the builtin set describes 2026-07-28")
     }
 
     #[test]

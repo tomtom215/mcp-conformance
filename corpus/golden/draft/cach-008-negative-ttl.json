@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 26,
     "fail": 1,
@@ -450,7 +451,12 @@
           "seq": 1,
           "detail": "`ttlMs` is -1; servers must provide a value that is >= 0"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/caching#time-to-live-ttl-field",
+        "quote": "Servers MUST provide a `ttlMs` value that is `>= 0`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#time-to-live-ttl-field"
+      }
     },
     {
       "id": "CACH-015",

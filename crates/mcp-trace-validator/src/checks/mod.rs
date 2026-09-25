@@ -20,13 +20,12 @@
 //! here as [`ALL`].
 
 mod base;
-#[cfg(feature = "draft-2026-07-28")]
-mod draft;
 mod inventory;
 mod lifecycle;
 mod negotiation;
 mod prompts;
 mod resources;
+mod stateless;
 mod support;
 mod tools;
 mod transport;

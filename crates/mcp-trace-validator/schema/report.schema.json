@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/tomtom215/mcp-conformance/main/crates/mcp-trace-validator/schema/report.schema.json",
+  "title": "mcp-trace-validator JSON report",
+  "description": "The output of `mcp-trace-validator validate --format json`: a single-revision report, or a multi-revision one when several revisions were judged. It describes the release it ships with, closed (`additionalProperties: false`) so a test can prove every emitted member is documented; a later release may add members, and says so in its changelog. Absent optional members mean 'nothing to say' — they are omitted rather than written as null or empty.",
+  "oneOf": [
+    { "$ref": "#/$defs/report" },
+    { "$ref": "#/$defs/multiReport" }
+  ],
+  "$defs": {
+    "revision": {
+      "description": "A protocol revision.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "revisionSource": {
+      "description": "How the judged revision(s) were chosen: named on the command line, declared by the trace, or the newest supported because the trace declared none.",
+      "enum": ["requested", "declared", "default"]
+    },
+    "revisionMismatch": {
+      "description": "The revisions the session declared, present only when none of them was judged: the outcomes judge the trace against rules it was not playing by.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/revision" },
+      "minItems": 1
+    },
+    "count": { "type": "integer", "minimum": 0 },
+    "totals": {
+      "description": "Requirements per outcome; they sum to the number of requirements judged.",
+      "type": "object",
+      "required": ["pass", "fail", "warn", "excluded", "unsupported", "not_applicable", "not_observed"],
+      "additionalProperties": false,
+      "properties": {
+        "pass": { "$ref": "#/$defs/count" },
+        "fail": { "$ref": "#/$defs/count" },
+        "warn": { "$ref": "#/$defs/count" },
+        "excluded": { "$ref": "#/$defs/count" },
+        "unsupported": { "$ref": "#/$defs/count" },
+        "not_applicable": { "$ref": "#/$defs/count" },
+        "not_observed": { "$ref": "#/$defs/count" }
+      }
+    },
+    "outcome": {
+      "enum": ["pass", "fail", "warn", "excluded", "unsupported", "not-applicable", "not-observed"]
+    },
+    "verdict": {
+      "description": "Follows from the totals: unsupported if any clause is, else fail if any fails, else pass-with-warnings if any warns, else pass. The exit code maps it: fail is 1 (as is pass-with-warnings under --strict), unsupported is 2.",
+      "enum": ["pass", "pass-with-warnings", "fail", "unsupported"]
+    },
+    "requirementId": {
+      "type": "string",
+      "pattern": "^[A-Z]+-[0-9]{3}$"
+    },
+    "level": {
+      "description": "The requirement's RFC 2119 level.",
+      "enum": ["MUST", "MUST NOT", "SHOULD", "SHOULD NOT", "MAY"]
+    },
+    "finding": {
+      "description": "One violation: the check that found it, the event it points at when one is identifiable, and what was wrong.",
+      "type": "object",
+      "required": ["check", "detail"],
+      "additionalProperties": false,
+      "properties": {
+        "check": { "type": "string", "minLength": 1 },
+        "seq": { "type": "integer", "minimum": 0 },
+        "detail": { "type": "string", "minLength": 1 }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" },
+      "minItems": 1
+    },
+    "source": {
+      "description": "The clause a failing or warning row breaks: its spec page and anchor, the clause verbatim, and its published link at the judged revision.",
+      "type": "object",
+      "required": ["section", "quote", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "section": { "type": "string", "minLength": 1 },
+        "quote": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "pattern": "^https://modelcontextprotocol\\.io/specification/" }
+      }
+    },
+    "row": {
+      "description": "One requirement's outcome. `findings` and `source` accompany `fail` and `warn`; `exclusion` accompanies `excluded`; `missing_checks` accompanies `unsupported`; `capability` accompanies `not-applicable`.",
+      "type": "object",
+      "required": ["id", "level", "outcome"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/requirementId" },
+        "level": { "$ref": "#/$defs/level" },
+        "outcome": { "$ref": "#/$defs/outcome" },
+        "findings": { "$ref": "#/$defs/findings" },
+        "source": { "$ref": "#/$defs/source" },
+        "exclusion": { "type": "string", "minLength": 1 },
+        "missing_checks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "capability": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "outcome": { "enum": ["fail", "warn"] } } },
+          "then": { "required": ["findings", "source"] },
+          "else": { "not": { "anyOf": [{ "required": ["findings"] }, { "required": ["source"] }] } }
+        },
+        {
+          "if": { "properties": { "outcome": { "const": "excluded" } } },
+          "then": { "required": ["exclusion"] },
+          "else": { "not": { "required": ["exclusion"] } }
+        },
+        {
+          "if": { "properties": { "outcome": { "const": "unsupported" } } },
+          "then": { "required": ["missing_checks"] },
+          "else": { "not": { "required": ["missing_checks"] } }
+        },
+        {
+          "if": { "properties": { "outcome": { "const": "not-applicable" } } },
+          "then": { "required": ["capability"] },
+          "else": { "not": { "required": ["capability"] } }
+        }
+      ]
+    },
+    "report": {
+      "description": "One trace judged against one revision.",
+      "type": "object",
+      "required": ["revision", "verdict", "totals", "requirements"],
+      "additionalProperties": false,
+      "properties": {
+        "revision": { "$ref": "#/$defs/revision" },
+        "revision_mismatch": { "$ref": "#/$defs/revisionMismatch" },
+        "revision_source": { "$ref": "#/$defs/revisionSource" },
+        "verdict": { "$ref": "#/$defs/verdict" },
+        "totals": { "$ref": "#/$defs/totals" },
+        "requirements": { "type": "array", "items": { "$ref": "#/$defs/row" } }
+      }
+    },
+    "multiRow": {
+      "description": "One clause across the judged revisions; each array is aligned by index with `revisions`. A null outcome means the clause does not exist at that revision. `findings` and `sources` are omitted when no revision has any.",
+      "type": "object",
+      "required": ["id", "level", "outcomes"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/requirementId" },
+        "level": { "$ref": "#/$defs/level" },
+        "outcomes": {
+          "type": "array",
+          "items": { "oneOf": [{ "$ref": "#/$defs/outcome" }, { "type": "null" }] }
+        },
+        "findings": {
+          "type": "array",
+          "items": { "type": "array", "items": { "$ref": "#/$defs/finding" } }
+        },
+        "sources": {
+          "type": "array",
+          "items": { "oneOf": [{ "$ref": "#/$defs/source" }, { "type": "null" }] }
+        }
+      }
+    },
+    "multiReport": {
+      "description": "One trace judged against several revisions, aligned per clause.",
+      "type": "object",
+      "required": ["revisions", "verdict", "summaries", "requirements"],
+      "additionalProperties": false,
+      "properties": {
+        "revisions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/revision" },
+          "minItems": 1
+        },
+        "revision_mismatch": { "$ref": "#/$defs/revisionMismatch" },
+        "revision_source": { "$ref": "#/$defs/revisionSource" },
+        "verdict": {
+          "description": "The worst of the per-revision verdicts.",
+          "$ref": "#/$defs/verdict"
+        },
+        "summaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["revision", "totals", "verdict"],
+            "additionalProperties": false,
+            "properties": {
+              "revision": { "$ref": "#/$defs/revision" },
+              "totals": { "$ref": "#/$defs/totals" },
+              "verdict": { "$ref": "#/$defs/verdict" }
+            }
+          }
+        },
+        "requirements": { "type": "array", "items": { "$ref": "#/$defs/multiRow" } }
+      }
+    }
+  }
+}

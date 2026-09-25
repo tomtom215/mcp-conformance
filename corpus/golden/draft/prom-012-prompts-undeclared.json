@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 30,
     "fail": 1,
@@ -615,7 +616,12 @@
           "seq": 3,
           "detail": "server answered `prompts/get` while its `server/discover` result declared no `prompts` capability"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/prompts#capabilities",
+        "quote": "Servers that support prompts MUST declare the `prompts` capability in their `DiscoverResult`:",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#capabilities"
+      }
     },
     {
       "id": "PROM-013",

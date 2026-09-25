@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "pass-with-warnings",
   "totals": {
     "pass": 18,
     "fail": 0,
@@ -95,7 +96,12 @@
           "seq": 1,
           "detail": "client sent a \"tools/list\" request before the server responded to initialize"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The client SHOULD NOT send requests other than pings before the server has responded to the `initialize` request.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+      }
     },
     {
       "id": "LIFE-005",

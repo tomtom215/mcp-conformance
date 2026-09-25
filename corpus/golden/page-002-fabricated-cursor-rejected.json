@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 22,
     "fail": 1,
@@ -291,7 +292,12 @@
           "seq": 3,
           "detail": "tools/list cursor \"eyJmb3JnZWQiOnRydWV9\" was never issued as a nextCursor for that method in this session"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/pagination#implementation-guidelines",
+        "quote": "Clients MUST treat cursors as opaque tokens: Don't make assumptions about cursor format; Don't attempt to parse or modify cursors; Don't persist cursors across sessions",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/pagination#implementation-guidelines"
+      }
     },
     {
       "id": "PAGE-003",

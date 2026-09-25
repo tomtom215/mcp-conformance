@@ -8,17 +8,26 @@ capture-assigned `seq` (the only ordering authority — never inferred later), a
 `direction` (`client-to-server` / `server-to-client`), a `transport`, and a
 `kind`:
 
-- **`message`** events hold the JSON-RPC payload verbatim;
+- **`message`** events hold the JSON-RPC payload (as parsed JSON: every value,
+  not its whitespace, member order, or the spelling of its numbers);
 - **`http`** events record the conformance-relevant headers, a response's
   status, and a client request's `method` — Streamable HTTP binds different
   obligations to `POST`, `GET`, and `DELETE`, so a clause addressed to one of
   them is judged only where the recording says which it was; and
 - **`lifecycle`** events mark transport open/close.
 
-The full schema, including the redaction rules that keep credential-bearing
-headers out of a trace by construction, is in
-[`02-architecture.md`](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/02-architecture.md)
-and [`05-security-model.md`](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/05-security-model.md).
+The format is published as a JSON Schema (draft 2020-12),
+[`trace-event.schema.json`](https://github.com/tomtom215/mcp-conformance/blob/main/crates/mcp-conformance-core/schema/trace-event.schema.json),
+for recorders written in any language. It states every rule the validator's
+reader applies to one record — a test runs both over every corpus record and one
+violation of each rule — and says where JSON Schema cannot follow: the
+document-level rules (one record per line, `seq` strictly increasing), and
+integers written as `1.0`, which the reader refuses. Unknown members are ignored,
+so producers may add their own.
+
+The redaction rules that keep credential-bearing headers out of a trace by
+construction are in
+[`05-security-model.md`](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/05-security-model.md).
 
 ## One worked example
 

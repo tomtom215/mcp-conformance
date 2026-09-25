@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 16,
     "fail": 1,
@@ -120,7 +121,12 @@
           "seq": 1,
           "detail": "initialize result lacks its capabilities: no capabilities member"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The server MUST respond with its own capabilities and information:",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+      }
     },
     {
       "id": "LIFE-018",

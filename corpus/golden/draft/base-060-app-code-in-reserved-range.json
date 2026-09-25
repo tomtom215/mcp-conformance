@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "pass-with-warnings",
   "totals": {
     "pass": 28,
     "fail": 0,
@@ -85,7 +86,12 @@
           "seq": 1,
           "detail": "error code -32500 is application-defined but sits inside the JSON-RPC reserved range (-32768..-32000)"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "New error codes for purposes not defined by this specification SHOULD be allocated outside the JSON-RPC reserved range (`-32768` to `-32000`); the remainder of the integer space is available for application-defined errors.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#error-codes"
+      }
     },
     {
       "id": "BASE-062",

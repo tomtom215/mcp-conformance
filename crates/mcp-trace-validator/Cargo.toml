@@ -22,13 +22,23 @@ homepage.workspace = true
 default = ["cli"]
 cli = ["dep:clap"]
 
-# The stateless `2026-07-28` lifecycle variant (SEP-2575): a second state-machine
-# variant alongside the `2025-11-25` one, gated off while the draft moves. Carries no
-# runtime dependencies; enabling it only compiles in the `context::draft` module
-# (docs/plan/02-architecture.md §Protocol-revision strategy, roadmap M2.5).
-draft-2026-07-28 = ["mcp-conformance-core/draft-2026-07-28"]
+# Deprecated no-op, kept so manifests that enabled it keep building. Until 0.6.0
+# it gated the `2026-07-28` registry and checks; every build now ships them.
+draft-2026-07-28 = []
 
 # docs.rs builds with every feature enabled so feature-gated APIs are documented.
+# `cargo binstall mcp-trace-validator` downloads the attested prebuilt archive the release
+# workflow attaches (both CLIs per target; Linux is static musl) instead of
+# compiling. binstall falls back to building from source where no archive fits.
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/mcp-conformance-v{ version }-{ target }.tar.gz"
+bin-dir = "mcp-conformance-v{ version }-{ target }/{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-url = "{ repo }/releases/download/v{ version }/mcp-conformance-v{ version }-{ target }.zip"
+pkg-fmt = "zip"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
@@ -40,6 +50,14 @@ serde_json = { workspace = true }
 clap = { workspace = true, optional = true }
 
 [dev-dependencies]
+# Checks the published trace-event JSON Schema against the reader
+# (tests/trace_schema.rs). No default features: no remote `$ref` resolution.
+jsonschema = { version = ">=0.57, <0.58", default-features = false }
+# Floor repair for jsonschema's under-specified requirement: it asks for
+# serde_json "1" but derives `Default` through `CompactFormatter`, which
+# serde_json gained in 1.0.143. Dev-only, so the floor published to library
+# users (the workspace's) is untouched; the minimal-versions job resolves here.
+serde_json = { version = ">=1.0.143, <2" }
 proptest = { workspace = true }
 criterion = { workspace = true }
 

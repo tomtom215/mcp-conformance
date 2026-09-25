@@ -33,31 +33,67 @@ use crate::report::{Outcome, Report};
 /// ```
 #[must_use]
 pub fn render(report: &Report) -> String {
-    let totals = report.totals;
-    let failures = totals.fail;
-    let skipped =
-        totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
-    let tests = totals.pass + totals.fail + totals.warn + skipped;
+    render_all(core::slice::from_ref(report))
+}
 
+/// Renders several single-revision reports as one `JUnit` document.
+///
+/// One trace judged under each revision gives one `<testsuite>` per revision, in the
+/// order given; the document-level counts are the sums of the suites'.
+///
+/// ```
+/// use mcp_conformance_core::requirement::RegistrySet;
+/// use mcp_trace_validator::{engine, junit};
+///
+/// let set = RegistrySet::builtin()?;
+/// let reports: Vec<_> = set
+///     .revisions()
+///     .iter()
+///     .filter_map(|revision| set.registry(*revision))
+///     .map(|registry| engine::validate(&registry, &[]))
+///     .collect();
+/// let xml = junit::render_all(&reports);
+/// assert_eq!(xml.matches("<testsuite ").count(), 2);
+/// # Ok::<(), Box<dyn core::error::Error>>(())
+/// ```
+#[must_use]
+pub fn render_all(reports: &[Report]) -> String {
     let mut out = String::new();
     out.push_str(r#"<?xml version="1.0" encoding="UTF-8"?>"#);
     out.push('\n');
+    let counts: Vec<(u32, u32, u32)> = reports.iter().map(counts).collect();
+    let (tests, failures, skipped) = counts.iter().fold((0, 0, 0), |sum, count| {
+        (sum.0 + count.0, sum.1 + count.1, sum.2 + count.2)
+    });
     let _ = writeln!(
         out,
         r#"<testsuites tests="{tests}" failures="{failures}" skipped="{skipped}">"#
     );
-    let _ = writeln!(
-        out,
-        r#"  <testsuite name="mcp-trace-validator ({})" tests="{tests}" failures="{failures}" skipped="{skipped}">"#,
-        escape(&report.revision)
-    );
-
-    for row in &report.requirements {
-        render_row(&mut out, report, row);
+    for (report, (tests, failures, skipped)) in reports.iter().zip(counts) {
+        let _ = writeln!(
+            out,
+            r#"  <testsuite name="mcp-trace-validator ({})" tests="{tests}" failures="{failures}" skipped="{skipped}">"#,
+            escape(&report.revision)
+        );
+        for row in &report.requirements {
+            render_row(&mut out, report, row);
+        }
+        out.push_str("  </testsuite>\n");
     }
-
-    out.push_str("  </testsuite>\n</testsuites>\n");
+    out.push_str("</testsuites>\n");
     out
+}
+
+/// `(tests, failures, skipped)` for one report.
+const fn counts(report: &Report) -> (u32, u32, u32) {
+    let totals = report.totals;
+    let skipped =
+        totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
+    (
+        totals.pass + totals.fail + totals.warn + skipped,
+        totals.fail,
+        skipped,
+    )
 }
 
 fn render_row(out: &mut String, report: &Report, row: &crate::report::RequirementReport) {
@@ -78,9 +114,10 @@ fn render_row(out: &mut String, report: &Report, row: &crate::report::Requiremen
             for finding in &row.findings {
                 let _ = writeln!(
                     out,
-                    r#"      <failure message="{}">{}</failure>"#,
+                    r#"      <failure message="{}">{}{}</failure>"#,
                     escape(&finding.detail),
                     escape(&location(finding.seq, &finding.check)),
+                    escape(&clause_lines(row)),
                 );
             }
             out.push_str("    </testcase>\n");
@@ -99,6 +136,7 @@ fn render_row(out: &mut String, report: &Report, row: &crate::report::Requiremen
                     escape(&finding.detail)
                 );
             }
+            out.push_str(escape(clause_lines(row).trim_start()).as_str());
             out.push_str("</system-out>\n    </testcase>\n");
         }
         Outcome::Excluded
@@ -133,6 +171,15 @@ fn skip_reason(row: &crate::report::RequirementReport) -> String {
             row.missing_checks.join(", ")
         ),
     }
+}
+
+/// The violated clause as body text — `\nspec: "…"\nsee: <url>` — or nothing when
+/// the row carries no source. CI systems show a failure's body beside its message,
+/// so this is what puts the clause in front of the person reading the failure.
+fn clause_lines(row: &crate::report::RequirementReport) -> String {
+    row.source.as_ref().map_or_else(String::new, |source| {
+        format!("\nspec: \"{}\"\nsee: {}", source.quote, source.url)
+    })
 }
 
 fn location(seq: Option<u64>, check: &str) -> String {
@@ -200,6 +247,23 @@ mod tests {
         assert!(xml.contains("<skipped message="), "{xml}");
         // The LIFE-004 warning must NOT be a failure; its findings live in system-out.
         assert!(xml.contains("<system-out>"), "{xml}");
+        // Each carries its clause: the failure body under its location, the
+        // warning's after its findings, closing the element.
+        assert!(
+            xml.contains(
+                "at seq 0\nspec: &quot;The initialization phase MUST be the first interaction \
+                 between client and server.&quot;\nsee: \
+                 https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization</failure>"
+            ),
+            "{xml}"
+        );
+        assert!(
+            xml.contains(
+                "before the server has responded to the `initialize` request.&quot;\nsee: \
+                 https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization</system-out>"
+            ),
+            "{xml}"
+        );
         // Balanced tags, exactly once each.
         assert_eq!(xml.matches("<testsuites").count(), 1);
         assert_eq!(xml.matches("</testsuites>").count(), 1);
@@ -258,6 +322,7 @@ mod tests {
             exclusion: None,
             missing_checks: vec![],
             capability: None,
+            source: None,
         }
     }
 
@@ -284,6 +349,7 @@ mod tests {
         not_applicable.capability = Some("server.tools".to_owned());
         Report {
             revision_mismatch: None,
+            revision_source: None,
             revision: "2025-11-25".to_owned(),
             totals: Totals {
                 pass: 0,

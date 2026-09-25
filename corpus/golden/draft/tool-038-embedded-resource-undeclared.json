@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "pass-with-warnings",
   "totals": {
     "pass": 30,
     "fail": 0,
@@ -565,7 +566,12 @@
           "seq": 3,
           "detail": "a `tools/call` result embeds a resource while the `server/discover` result declared no `resources` capability"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#embedded-resources",
+        "quote": "Servers that use embedded resources SHOULD implement the `resources` capability:",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools#embedded-resources"
+      }
     },
     {
       "id": "TOOL-039",

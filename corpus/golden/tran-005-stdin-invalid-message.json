@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 15,
     "fail": 2,
@@ -55,7 +56,12 @@
           "seq": 3,
           "detail": "message is not a JSON-RPC request, notification, or response: message is not a JSON object"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic#messages",
+        "quote": "All messages between MCP clients and servers MUST follow the JSON-RPC 2.0 specification.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#messages"
+      }
     },
     {
       "id": "BASE-009",
@@ -142,7 +148,12 @@
           "seq": 3,
           "detail": "message on stdin is not a valid MCP message: message is not a JSON object"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports#stdio",
+        "quote": "The client MUST NOT write anything to the server's `stdin` that is not a valid MCP message.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#stdio"
+      }
     },
     {
       "id": "TRAN-011",

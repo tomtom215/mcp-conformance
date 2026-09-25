@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "pass-with-warnings",
   "totals": {
     "pass": 23,
     "fail": 0,
@@ -215,7 +216,12 @@
           "seq": 4,
           "detail": "tool name \"echo\" appears more than once in this tools/list result"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "Tool names SHOULD be unique within a server.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool-names"
+      }
     },
     {
       "id": "TOOL-009",

@@ -74,7 +74,7 @@
         "introduced": "2026-07-28"
       },
       "source": {
-        "section": "basic/index#ref-resolution",
+        "section": "basic/index#$ref-resolution",
         "quote": "Implementations MUST NOT automatically dereference `$ref` values that resolve to a network URI."
       },
       "exclusion": "Whether an implementation dereferenced a `$ref` is an outbound fetch to a third party, not an MCP message; nothing in the recorded session distinguishes a resolved reference from an unresolved one."
@@ -87,7 +87,7 @@
         "introduced": "2026-07-28"
       },
       "source": {
-        "section": "basic/index#ref-resolution",
+        "section": "basic/index#$ref-resolution",
         "quote": "Implementations MAY offer an opt-in mode that fetches non-local `$ref`s but it MUST be disabled by default and SHOULD enforce an allowlist of hosts or at minimum reject loopback, link-local, and private network addresses, apply timeouts and size limits, and log dereferenced URIs."
       },
       "exclusion": "The default state of an opt-in mode, its allowlist, timeouts and logging are all implementation configuration; none appears in an MCP session."
@@ -100,7 +100,7 @@
         "introduced": "2026-07-28"
       },
       "source": {
-        "section": "basic/index#ref-resolution",
+        "section": "basic/index#$ref-resolution",
         "quote": "Schemas that fail to validate due to an unresolved external `$ref` SHOULD be rejected rather than silently treated as permissive."
       },
       "exclusion": "Rejection happens inside the receiver's schema validation; the trace shows the schema that was sent, not what the receiver did with an unresolvable reference."

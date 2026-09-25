@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 19,
     "fail": 1,
@@ -270,7 +271,12 @@
           "seq": 4,
           "detail": "audio content data is not valid base64"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/prompts#audio-content",
+        "quote": "The audio data MUST be base64-encoded and include a valid MIME type.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#audio-content"
+      }
     },
     {
       "id": "PROM-005",

@@ -22,7 +22,8 @@ reality, not borrowed from a generic library template.
 | Reference host | Malicious or compromised SUT servers (hostile tool results, oversized streams, slow-loris SSE) | Response size and time budgets; bounded concurrency; cooperative cancellation; no shell interpretation of server-supplied strings. |
 | CI | Supply-chain attacks via actions or dependencies | Actions pinned by SHA; `cargo deny` + `cargo audit` gates; lockfiles; trusted publishing (no long-lived tokens to steal). |
 | CI's `GITHUB_TOKEN` | A job holding a write scope is a lever for anything that can influence what that job runs | Workflow default is `contents: read`; a write scope is granted per job, never per workflow, and carries an inline comment naming what it writes. |
-| Trace corpora | Secrets accidentally recorded into fixtures | Capture tooling redacts `Authorization`/cookie headers and token-shaped strings by default; corpus review is part of PR review. |
+| Trace capture (`mcp-trace-capture`) | A recording proxy reachable from a hostile network would relay anything to the upstream | Listens on loopback by default (`--listen 127.0.0.1:8080`); binding elsewhere is an explicit choice. Forwards credentials (it must be transparent) but records only the header allowlist. The wrapped stdio server is never orphaned: termination signals are relayed. |
+| Trace corpora | Secrets accidentally recorded into fixtures | Capture records headers by allowlist, so `Authorization`, cookies and other credentials are never written; the reference host captures at the message seam, where headers are unobservable. **Message bodies are recorded verbatim** — a secret inside a JSON-RPC payload is recorded like any other value — so corpus review is part of PR review. |
 
 ## Designing out the CVE-2026-42559 class
 
@@ -39,27 +40,28 @@ the `Host` header — [register 4.1–4.2](01-ecosystem-context.md)). Our postur
    requirements, so *every implementation we validate* gets checked for this class — the
    toolkit propagates the fix's lesson across the ecosystem rather than just avoiding the
    bug itself.
-3. **Ecosystem follow-through.** No RustSec advisory exists for this CVE, so `cargo audit`
-   is silent on vulnerable rmcp versions ([register 4.3](01-ecosystem-context.md)). Filing
-   it, in coordination with rmcp maintainers, is on the contribution backlog
-   ([07-ecosystem-engagement.md](07-ecosystem-engagement.md)) — security posture includes
+3. **Ecosystem follow-through.** [`RUSTSEC-2026-0189`](https://rustsec.org/advisories/RUSTSEC-2026-0189.html)
+   now covers this CVE for `rmcp < 1.4.0`, so `cargo audit` flags vulnerable versions
+   ([register 4.3](01-ecosystem-context.md)); it was filed upstream independently of this
+   project ([07-ecosystem-engagement.md](07-ecosystem-engagement.md), backlog item 2) — security posture includes
    the ecosystem's tooling, not only our code.
 
 Precision note: this advisory is DNS rebinding (CWE-346/350) only; the "CSRF" label
 occasionally attached to it belongs to a different package's advisory
 ([register 4.4](01-ecosystem-context.md)). We do not repeat the conflation.
 
-## CI write scopes (reviewed 2026-08-18)
+## CI write scopes (reviewed 2026-09-25)
 
 No workflow grants a write scope at workflow level: every `permissions:` block
 at the top of a file is `{}` or `contents: read`. Write scopes exist only on
-individual jobs, and this is the complete list — five jobs across three
+individual jobs, and this is the complete list — six jobs across three
 workflows, each scope with an inline comment in the YAML naming what it writes.
 
 | Workflow (triggers) | Job | Write scope | For |
 |---|---|---|---|
 | `release.yml` (`push` tags, `workflow_dispatch`) | `package` | `id-token`, `attestations` | Sigstore OIDC + build-provenance attestation |
-| `release.yml` | `github-release` | `contents` | create the release, upload `.crate` + `SHA256SUMS` |
+| `release.yml` | `binaries` | `id-token`, `attestations` | Sigstore OIDC + build-provenance attestation of each prebuilt archive |
+| `release.yml` | `github-release` | `contents` | create the release, upload `.crate` + `SHA256SUMS`, the binary archives + `SHA256SUMS-binaries` |
 | `release.yml` | `publish` | `id-token` | crates.io Trusted Publishing (no long-lived token exists to steal) |
 | `pages.yml` (`push` to the default branch, `workflow_dispatch`) | `deploy` | `pages`, `id-token` | deploy the book |
 | `scheduled.yml` (`schedule`, `workflow_dispatch`) | `claims-expire` | `issues` | open, comment on, and close the tracking issue a red claims-expiry run files ([ADR-0010 §Amendment](decisions/0010-deferral-ledger-and-scheduled-reverification.md)) |
@@ -69,12 +71,13 @@ workflows, each scope with an inline comment in the YAML naming what it writes.
 code — hold no write scope anywhere, at either level. No workflow uses
 `pull_request_target`.
 
-Two further properties bound the `issues: write` grant, the newest of the
-five. `scheduled.yml` triggers only on `schedule` and `workflow_dispatch`, so
+Two further properties bound the `issues: write` grant, the only scope held
+outside `release.yml` and `pages.yml`. `scheduled.yml` triggers only on `schedule` and `workflow_dispatch`, so
 no fork or pull-request content reaches the token. And the issue body that job
 posts is composed from the committed deferral ledger and its own step
 outcomes. Two steps in that job read the network — `spec-drift` fetches
-specification text and `suite-currency` fetches npm dist-tags — and neither
+specification text and the published pages' HTML (for their heading anchors),
+and `suite-currency` fetches npm dist-tags — and neither
 step's fetched text is republished into an issue; the run log carries it.
 
 ## Secrets and data hygiene

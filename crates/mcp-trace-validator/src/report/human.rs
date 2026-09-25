@@ -12,51 +12,40 @@ use core::fmt::Write as _;
 use super::{Outcome, Report};
 
 impl Report {
-    /// Renders the human-readable form.
+    /// Renders the human-readable form: every requirement's row.
     #[must_use]
     pub fn render_human(&self) -> String {
+        self.render(false)
+    }
+
+    /// Renders only what needs attention — failing, warning and unsupported rows —
+    /// with the header, totals and verdict. The totals still account for every
+    /// clause, so nothing is hidden from the arithmetic.
+    #[must_use]
+    pub fn render_findings(&self) -> String {
+        self.render(true)
+    }
+
+    fn render(&self, findings_only: bool) -> String {
         let mut out = String::new();
-        let _ = writeln!(out, "MCP trace validation — revision {}", self.revision);
+        match self.revision_source {
+            Some(source) => {
+                let _ = writeln!(
+                    out,
+                    "MCP trace validation — revision {} ({source})",
+                    self.revision
+                );
+            }
+            None => {
+                let _ = writeln!(out, "MCP trace validation — revision {}", self.revision);
+            }
+        }
         self.write_revision_mismatch(&mut out);
         for row in &self.requirements {
-            let marker = match row.outcome {
-                Outcome::Pass => "PASS",
-                Outcome::Fail => "FAIL",
-                Outcome::Warn => "WARN",
-                Outcome::Excluded => "EXCL",
-                Outcome::Unsupported => "UNSUP",
-                Outcome::NotApplicable => "N/A",
-                Outcome::NotObserved => "NOBS",
-            };
-            let _ = writeln!(out, "  {marker:<5} {} ({})", row.id, row.level);
-            for finding in &row.findings {
-                match finding.seq {
-                    Some(seq) => {
-                        let _ = writeln!(out, "        seq {seq}: {}", finding.detail);
-                    }
-                    None => {
-                        let _ = writeln!(out, "        {}", finding.detail);
-                    }
-                }
+            if findings_only && !row.outcome.needs_attention() {
+                continue;
             }
-            if let Some(exclusion) = &row.exclusion {
-                let _ = writeln!(out, "        excluded: {exclusion}");
-            }
-            for check in &row.missing_checks {
-                let _ = writeln!(out, "        unsupported check: {check}");
-            }
-            if let Some(capability) = &row.capability {
-                let _ = writeln!(
-                    out,
-                    "        not applicable: capability {capability} was not declared in this session"
-                );
-            }
-            if row.outcome == Outcome::NotObserved {
-                let _ = writeln!(
-                    out,
-                    "        not observed: the session carried none of the traffic this clause binds to"
-                );
-            }
+            write_row(&mut out, row);
         }
         // Every outcome is named, so the counts sum to the registry's size — a
         // reader can check the arithmetic, and `Totals`' own exhaustive
@@ -97,5 +86,60 @@ impl Report {
             out,
             "        re-run with `--revision {suggestion}` to judge it against its own."
         );
+    }
+}
+
+/// One requirement's row and its detail lines.
+fn write_row(out: &mut String, row: &super::RequirementReport) {
+    let marker = match row.outcome {
+        Outcome::Pass => "PASS",
+        Outcome::Fail => "FAIL",
+        Outcome::Warn => "WARN",
+        Outcome::Excluded => "EXCL",
+        Outcome::Unsupported => "UNSUP",
+        Outcome::NotApplicable => "N/A",
+        Outcome::NotObserved => "NOBS",
+    };
+    let _ = writeln!(out, "  {marker:<5} {} ({})", row.id, row.level);
+    for finding in &row.findings {
+        match finding.seq {
+            Some(seq) => {
+                let _ = writeln!(out, "        seq {seq}: {}", finding.detail);
+            }
+            None => {
+                let _ = writeln!(out, "        {}", finding.detail);
+            }
+        }
+    }
+    if let Some(source) = &row.source {
+        source.write_human(out);
+    }
+    if let Some(exclusion) = &row.exclusion {
+        let _ = writeln!(out, "        excluded: {exclusion}");
+    }
+    for check in &row.missing_checks {
+        let _ = writeln!(out, "        unsupported check: {check}");
+    }
+    if let Some(capability) = &row.capability {
+        let _ = writeln!(
+            out,
+            "        not applicable: capability {capability} was not declared in this session"
+        );
+    }
+    if row.outcome == Outcome::NotObserved {
+        let _ = writeln!(
+            out,
+            "        not observed: the session carried none of the traffic this clause binds to"
+        );
+    }
+}
+
+impl super::ClauseSource {
+    /// The violated clause under a failing or warning row: the quote, then where
+    /// it is published. Shared with the multi-revision report, which prints the
+    /// same two lines.
+    pub(crate) fn write_human(&self, out: &mut String) {
+        let _ = writeln!(out, "        spec: \"{}\"", self.quote);
+        let _ = writeln!(out, "        see:  {}", self.url);
     }
 }

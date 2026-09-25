@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "pass-with-warnings",
   "totals": {
     "pass": 19,
     "fail": 0,
@@ -225,7 +226,12 @@
           "seq": 4,
           "detail": "tool \"w\" returned structuredContent without a TextContent fallback block"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#structured-content",
+        "quote": "For backwards compatibility, a tool that returns structured content SHOULD also return the serialized JSON in a TextContent block.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#structured-content"
+      }
     },
     {
       "id": "TOOL-011",

@@ -92,7 +92,8 @@ Package registries are reachable only at dependency-install time, under lockfile
    (`cargo xtask registry-continuity`), the pinned toolchain matching every
    workflow (`cargo xtask toolchain-pin`), the ≤ 500-line file cap
    (`cargo xtask file-sizes`), a licence header on every comment-carrying tracked
-   file (`cargo xtask spdx`), and every relative documentation link resolving
+   file (`cargo xtask spdx`), the licence text in every published crate
+   (`cargo xtask license-files`), and every relative documentation link resolving
    (`cargo xtask docs-links`)
 6. `cargo deny check` (license allowlist, advisories, sources); `cargo audit` runs
    in the weekly scheduled job
@@ -135,6 +136,9 @@ dependencies are justified where they are declared):
 | `tokio-stream` | everything-server | Direct under the `tap` feature (`StreamExt::then` drives the SSE recording pass-through) *and* a documented floor repair for rmcp's under-specified requirement — the manifest comment carries both facts |
 | `rmcp-macros` | everything-server (ceiling shim) | Not used directly and never named in code: a documented *upper* bound repairing rmcp's own caret requirement on its lockstep-coupled proc-macro crate (register 3.13). Without it Cargo resolves `rmcp 1.7.0` + `rmcp-macros 1.8.0`, which does not compile. It also keeps the deferred SDK upgrade deliberate — rmcp 1.8.0 needs `rmcp-macros ^1.8.0`, so `cargo update` cannot perform it silently |
 | `http-body-util`, `tracing` | everything-server (floor shims) | Not used directly: documented minimal-versions floor repairs for under-specified third-party requirements (each names its culprit in the manifest; removable when upstream fixes) |
+| `axum`, `hyper`, `hyper-util`, `futures` | trace-capture | The HTTP recording proxy ([ADR-0019](decisions/0019-a-recording-tap-is-not-a-gateway.md)): axum listens, hyper's legacy client forwards so bodies stream through as the endpoints sent them, `futures` splices a recorded prefix back onto a stream. All four were already in the tree (axum for the everything server; hyper and futures under axum and reqwest) |
+| `tokio` | trace-capture | Child-process stdio, the listener, and signal relay; per-crate feature grant (`process`, `io-util`, `io-std`, `net`, `sync`, `signal`) |
+| `hyper-rustls`, `rustls` | trace-capture (`tls` feature, default) | `https://` upstreams, `ring` provider, native roots. Chosen over reqwest's TLS features, which Cargo feature unification spread to the reference host and made it panic in workspace builds (ADR-0019 §4); `ring` brings the two duplicate versions `deny.toml` skips with its reason |
 | `reqwest`, `futures`, `sse-stream` | reference-host (`http` feature) | The SSE-resumption dance drives rmcp's **public** `StreamableHttpClient` seam (ADR-0009 §Amendment): `reqwest::Client` is the trait's only shipped implementation, and the seam's vocabulary is `futures` streams of `sse_stream::Sse` frames. All three version-mirror rmcp's own requirements and were already in the tree as its dependencies |
 
 ## Releases
@@ -144,8 +148,9 @@ dependencies are justified where they are declared):
 - Tag-triggered release workflow: version/CHANGELOG validation → full CI → packaging with
   SLSA build-provenance attestation → publish dry-run → GitHub Release with notes →
   crates.io publish in dependency order with index-propagation waits.
-- **Trusted publishing (OIDC)** to crates.io — no long-lived registry tokens. This is the
-  one deliberate upgrade over a2a-rust's token-in-environment approach.
+- **Trusted publishing (OIDC) only** to crates.io — no long-lived registry token exists to
+  fall back to. a2a-rust also publishes via OIDC, but keeps a `CARGO_REGISTRY_TOKEN`
+  fallback (its `release.yml`, verified 2026-09-24).
 - `CHANGELOG.md` per Keep-a-Changelog for *code* releases. Plan documents carry no
   changelogs ([ADR-0001](decisions/0001-plan-documentation-model.md)).
 - Deprecations in our public API follow the spirit of MCP's own lifecycle policy

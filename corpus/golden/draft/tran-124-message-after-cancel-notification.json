@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 26,
     "fail": 1,
@@ -340,7 +341,12 @@
           "seq": 2,
           "detail": "server sent a response for request 1, which the client cancelled at seq 1"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/stdio#cancellation",
+        "quote": "Servers SHOULD stop work on a cancelled request as soon as practical and MUST NOT send any further messages for it.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#cancellation"
+      }
     },
     {
       "id": "TRAN-128",

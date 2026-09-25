@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 27,
     "fail": 1,
@@ -480,7 +481,12 @@
           "seq": 0,
           "detail": "tools/list cursor \"fabricated\" was never issued as a nextCursor for that method in this session"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/pagination#implementation-guidelines",
+        "quote": "Clients MUST treat cursors as opaque tokens: Don't make assumptions about cursor format; Don't attempt to parse or modify cursors; Don't make any determination based on cursor value other than whether a non-null value was provided (e.g. an empty string is a valid cursor and thus MUST NOT be treated as the end of results)",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination#implementation-guidelines"
+      }
     },
     {
       "id": "PAGE-011",
@@ -492,7 +498,12 @@
           "seq": 1,
           "detail": "`tools/list` presented the cursor \"fabricated\", which this session never issued, and the server answered with a result rather than -32602"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/pagination#error-handling",
+        "quote": "Invalid cursors SHOULD result in an error with code -32602 (Invalid params).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination#error-handling"
+      }
     },
     {
       "id": "LOG-007",

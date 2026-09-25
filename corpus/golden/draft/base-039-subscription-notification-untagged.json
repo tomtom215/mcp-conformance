@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 22,
     "fail": 1,
@@ -140,7 +141,12 @@
           "seq": 1,
           "detail": "notification `notifications/tools/list_changed` on a subscriptions/listen stream has no `io.modelcontextprotocol/subscriptionId` in `_meta`"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#_meta",
+        "quote": "On notifications delivered via a [`subscriptions/listen`][subscriptions-listen] stream, the server MUST include `io.modelcontextprotocol/subscriptionId` in `meta` so the client can correlate the notification with the originating subscription request.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+      }
     },
     {
       "id": "BASE-040",

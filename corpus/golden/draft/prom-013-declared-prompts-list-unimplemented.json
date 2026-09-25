@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 36,
     "fail": 1,
@@ -620,7 +621,12 @@
           "seq": 3,
           "detail": "server declared the `prompts` capability but answered `prompts/list` with -32601; a declared capability must be served"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/prompts#capabilities",
+        "quote": "Servers that declare the `prompts` capability MUST respond to `prompts/list` requests with the set of prompts currently available to the requesting client.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#capabilities"
+      }
     },
     {
       "id": "PROM-016",

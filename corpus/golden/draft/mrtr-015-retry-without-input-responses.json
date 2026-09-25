@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 39,
     "fail": 1,
@@ -390,7 +391,12 @@
           "seq": 2,
           "detail": "the retry carries no `inputResponses[login]` for the input the `input_required` at seq 1 asked for"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "If a client receives an `InputRequiredResult` that contains the `inputRequests` field, the client MUST construct the requested inputs before retrying the original request.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#client-requirements-basic-workflow"
+      }
     },
     {
       "id": "MRTR-016",

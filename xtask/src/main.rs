@@ -40,6 +40,9 @@
 //!   `SPDX-License-Identifier` in its first three lines (`local_gates.rs`). JSON,
 //!   lockfiles, the licence itself and the fuzz corpus are exempt, each for a
 //!   reason the gate states. Was a pull-request checkbox until 2026-08-24.
+//! - `license-files` — every published crate carries a copy of the root
+//!   `LICENSE`, byte-identical (`license_files.rs`): MIT's notice must travel
+//!   with each crates.io copy, and `license = "MIT"` alone does not carry it.
 //! - `registry-continuity` — a clause both revisions carry, entered twice under
 //!   two ids, must be entered the same way twice: same level, same actor, and
 //!   judged in both or excluded in both (`registry_continuity.rs`). Not the same
@@ -114,9 +117,11 @@ mod draft_capture;
 mod draft_coverage;
 mod draft_readiness;
 mod fuzz_targets;
+mod license_files;
 mod local_gates;
 mod minimal_versions;
 mod register_currency;
+mod semver;
 // A test harness rather than a task: it executes the notification shell that
 // `scheduled.yml` ships, so nothing in the binary calls into it.
 #[cfg(test)]
@@ -150,11 +155,12 @@ fn main() -> ExitCode {
         Some("draft-coverage") => draft_coverage::run(args.next().as_deref() == Some("--check")),
         Some("file-sizes") => exit_if(local_gates::file_size_gate()),
         Some("spdx") => exit_if(local_gates::spdx_gate()),
+        Some("license-files") => exit_if(license_files::run()),
         Some("fuzz-targets") => exit_if(fuzz_targets::run()),
         Some("ci-permissions") => exit_if(ci_permissions::run()),
         Some("deny") => exit_if(local_gates::deny_gate()),
         Some("mutants") => exit_if(local_gates::mutants_gate(&args.collect::<Vec<_>>())),
-        Some("semver") => exit_if(local_gates::semver_gate()),
+        Some("semver") => exit_if(semver::semver_gate()),
         Some("cross-arch") => exit_if(cross_arch::run()),
         Some("minimal-versions") => exit_if(minimal_versions::run()),
         Some("deferrals") => exit_if(deferrals::dispatch(args.next().as_deref())),
@@ -235,6 +241,9 @@ fn gates() -> bool {
         return false;
     }
     if !local_gates::spdx_gate() {
+        return false;
+    }
+    if !license_files::run() {
         return false;
     }
     if !fuzz_targets::run() {
@@ -339,12 +348,7 @@ fn ci_steps() -> Vec<Step> {
     steps
 }
 
-/// `--all-features` is load-bearing, not tidiness: the three `draft::` golden
-/// tests are `#[cfg(feature = "draft-2026-07-28")]`, and `draft-2026-07-28` is
-/// not a default feature. Without the flag this ran six tests, regenerated the
-/// 53 `2025-11-25` goldens, left all 79 draft ones stale, and exited 0 — a
-/// blessing that silently did 40% of the job. CI's own all-features test leg
-/// then failed on goldens `cargo xtask bless` could not fix.
+/// Regenerates every revision's goldens in one test run.
 fn bless_steps() -> Vec<Step> {
     vec![Step {
         name: "bless golden corpus".to_owned(),

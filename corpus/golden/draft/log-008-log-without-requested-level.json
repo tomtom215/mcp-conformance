@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 26,
     "fail": 1,
@@ -495,7 +496,12 @@
           "seq": 1,
           "detail": "server emitted `notifications/message` though no request in this session carried `io.modelcontextprotocol/logLevel`"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/logging#per-request-log-level",
+        "quote": "The server MUST NOT emit `notifications/message` for a request that does not include this field.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/logging#per-request-log-level"
+      }
     },
     {
       "id": "LOG-009",

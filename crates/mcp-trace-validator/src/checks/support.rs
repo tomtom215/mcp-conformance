@@ -113,7 +113,6 @@ pub(super) fn is_base64(text: &str) -> bool {
 /// values are "Base64 encoding of the UTF-8 representation"
 /// (`basic/transports/streamable-http#value-encoding`). Gated with its only
 /// caller, since a decoder no build path reaches is dead weight.
-#[cfg(feature = "draft-2026-07-28")]
 pub(super) fn decode_base64(text: &str) -> Option<String> {
     if !is_base64(text) {
         return None;
@@ -286,7 +285,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "draft-2026-07-28")]
     #[test]
     fn base64_decoding_round_trips_the_specification_examples() {
         // The encoding table in `basic/transports/streamable-http#value-encoding`,
@@ -306,7 +304,6 @@ mod tests {
         assert_eq!(decode_base64("").as_deref(), Some(""));
     }
 
-    #[cfg(feature = "draft-2026-07-28")]
     #[test]
     fn base64_decoding_covers_the_whole_alphabet_and_every_padding_length() {
         // `+` and `/` are the two alphabet entries a lazy table would omit.
@@ -321,7 +318,6 @@ mod tests {
         assert_eq!(decode_base64("YmFj").as_deref(), Some("bac"));
     }
 
-    #[cfg(feature = "draft-2026-07-28")]
     #[test]
     fn base64_decoding_refuses_what_it_cannot_represent() {
         // Not base64 at all.

@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 34,
     "fail": 5,
@@ -220,7 +221,12 @@
           "seq": 0,
           "detail": "header `mcp-name` carries \"file:///café.txt\" unencoded; a value that is not safely representable in ASCII must use the Base64 sentinel"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#standard-request-headers",
+        "quote": "If the `Mcp-Name` source value cannot be safely represented as a plain ASCII header value, clients MUST encode it using the Base64 sentinel format described in Value Encoding.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#standard-request-headers"
+      }
     },
     {
       "id": "TRAN-079",
@@ -242,7 +248,12 @@
           "seq": 0,
           "detail": "header `mcp-name` carries \"file:///café.txt\" unencoded; a value that is not safely representable in ASCII must use the Base64 sentinel"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#value-encoding",
+        "quote": "Clients MUST encode parameter values before including them in HTTP headers to ensure safe transmission and prevent injection attacks.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#value-encoding"
+      }
     },
     {
       "id": "TRAN-087",
@@ -254,7 +265,12 @@
           "seq": 0,
           "detail": "header `mcp-name` carries \"file:///café.txt\" unencoded; a value that is not safely representable in ASCII must use the Base64 sentinel"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#value-encoding",
+        "quote": "When a value cannot be safely represented as a plain ASCII header value (e.g., it contains non-ASCII characters, control characters, or has leading/trailing whitespace), clients MUST use Base64 encoding of the UTF-8 representation with the following format:",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#value-encoding"
+      }
     },
     {
       "id": "TRAN-089",
@@ -466,7 +482,12 @@
           "seq": 3,
           "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/caching#cacheable-results",
+        "quote": "Servers MUST include caching hints on results with `resultType: \"complete\"` returned by the following operations: `server/discover`; `tools/list`; `prompts/list`; `resources/list`; `resources/templates/list`; `resources/read`",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cacheable-results"
+      }
     },
     {
       "id": "CACH-008",
@@ -628,7 +649,12 @@
           "seq": 3,
           "detail": "`resources/read` answered with an empty `contents` array, which is ambiguous between an empty resource and a missing one"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/resources#error-handling",
+        "quote": "Servers MUST NOT return an empty `contents` array for a non-existent resource.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling"
+      }
     },
     {
       "id": "RES-023",

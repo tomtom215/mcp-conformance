@@ -3,21 +3,16 @@
 
 # Releasing
 
-> **Status:** v0.1.0 (2026-06-10, bootstrap token) and v0.2.0 (2026-06-11, OIDC)
-> are published. The publish job authenticates only via OIDC, and the v0.2.0
-> publish is the proof that trusted publishing is configured for all four crates —
-> its first attempt failed (crates.io: `No Trusted Publishing config found`), the
-> owner added the config, and the re-run published. The owner confirmed on
-> 2026-06-11, after that correction, that trusted publishing is working as
-> intended — the per-crate **"Trusted Publishing Only"** switch and the bootstrap
-> token's revocation rest on that statement, since the registry exposes no
-> external check (ADR-0007 §Correction).
+> **Status:** the latest release is v0.5.1 (2026-08-29). Every release since v0.2.0
+> has published through OIDC trusted publishing only; the bootstrap token that
+> published v0.1.0 is revoked (ADR-0007 §Correction). The dated pre-flight records
+> below are history, kept for their method.
 
 ## Principles
 
 - All publishable crates share one version and release together
-  (`mcp-conformance-core`, `mcp-trace-validator`, `mcp-everything-server`,
-  `mcp-reference-host`; `xtask` is never published).
+  (`mcp-conformance-core`, `mcp-trace-validator`, `mcp-trace-capture`,
+  `mcp-everything-server`, `mcp-reference-host`; `xtask` is never published).
 - [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html). Pre-1.0, minor releases may
   break APIs; the changelog says so explicitly when they do.
 - **Trusted publishing (OIDC)** to crates.io — no long-lived registry tokens exist
@@ -33,8 +28,17 @@
 Dependency order, with index-propagation waits between steps:
 
 1. `mcp-conformance-core` (no internal deps)
-2. `mcp-trace-validator` (depends on core)
+2. `mcp-trace-validator`, `mcp-trace-capture` (depend on core)
 3. `mcp-everything-server`, `mcp-reference-host`
+
+**A new crate needs a one-time bootstrap.** crates.io cannot configure trusted
+publishing for a crate that has never been published
+([register 2.14](docs/plan/01-ecosystem-context.md)), so the first release that
+includes a new crate — `mcp-trace-capture`, from 0.6.0 — needs the owner to publish
+that crate once with a crate-scoped, short-expiry token (the v0.1.0 procedure below),
+configure its trusted publisher, and revoke the token. Until then the OIDC-only
+publish job stops at that crate; it is resumable, so re-running the tag afterwards
+continues from there.
 
 ## v0.3.0 pre-flight (third audit, 2026-06-13)
 
@@ -117,6 +121,27 @@ re-measuring `0.5.0`. The diff-scoped mutation gate did run on the PR that
 carried the lockfile change, finding no mutants in changed code — the diff is
 `Cargo.lock` and `CHANGELOG.md` only.
 
+## v0.6.0 pre-flight (2026-09-25)
+
+Measured on the release branch, not asserted:
+
+| Leg | Result |
+|-----|--------|
+| `cargo xtask ci` (stable 1.98.1, incl. MSRV 1.88.0 clippy and `cargo deny`, none skipped) | green |
+| `cargo xtask semver` (cargo-semver-checks 0.50.0) | green — "no semver update required" for the four published crates at `0.5.1 -> 0.6.0`; `mcp-trace-capture` excluded as a first release (not in the crates.io index) |
+| `cargo package --workspace --exclude xtask --locked` | green — five crates packaged with verification builds, each now carrying `LICENSE` |
+| `cargo deny check` | green |
+| `cargo xtask spec-drift` | green — 414 quotes and their section anchors verified against the published text |
+| `cargo xtask conformance` | green — suite 0.1.16 40/40 with 30 agreement sessions, client leg 4 scenarios + agreement, capture leg (stdio at both revisions judged clean; the suite through the HTTP proxy) |
+| SARIF against the OASIS 2.1.0 schema (the new CI job's steps, run locally) | green — 126 logs valid |
+| diff-scoped mutants over the whole branch diff (`--all-features`, as `mutants.yml` runs it) | green — 374 mutants at `b79e861`: 345 caught, 29 unviable, **0 missed, 0 timeouts** (44 min, 2 jobs) |
+| Linux x86_64 musl binaries (the new `binaries` job's build, smoke and archive steps) | green — static-pie; the other four targets are first built by the rehearsal |
+| `Cargo.lock` diff | six version lines: the five published crates and `xtask` |
+
+Not yet run: the release rehearsal (`workflow_dispatch`), which is the first
+build of the macOS, Windows and aarch64 Linux archives, and the bootstrap
+publish of `mcp-trace-capture` (§Publish order) — both owner steps.
+
 ## Release checklist
 
 1. **Prepare** on a `release/vX.Y.Z` branch:
@@ -133,9 +158,10 @@ carried the lockfile change, finding no mutants in changed code — the diff is
      `README.md`'s status line and `CITATION.cff`'s `version` (both enforced by
      `cargo xtask version-sync`, which fails the release otherwise), plus
      `CITATION.cff`'s `date-released`. Then `cargo update --workspace --offline`
-     to move the five workspace crates in `Cargo.lock` without dragging in
+     to move the workspace packages in `Cargo.lock` without dragging in
      dependency updates the release never measured — the diff should be exactly
-     five lines.
+     one version line per workspace package: six from 0.6.0 (the five published
+     crates and `xtask`).
    - Move `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD` in `CHANGELOG.md`; add a fresh
      `[Unreleased]` section. Update the link-reference definitions at the foot of
      the file too: add `[X.Y.Z]: …/releases/tag/vX.Y.Z` and repoint `[Unreleased]:`
@@ -165,8 +191,11 @@ carried the lockfile change, finding no mutants in changed code — the diff is
    re-runs the full gate set (including MSRV clippy/tests and cross-OS tests), packages
    all publishable crates with verification builds (`cargo package --workspace --exclude xtask --locked` — the
    workspace-wide dry run; per-crate `--dry-run` cannot resolve unpublished sibling
-   dependencies), attests SLSA build provenance over the `.crate` files, creates the
-   GitHub Release with the changelog excerpt and checksummed artifacts, then — behind
+   dependencies), attests SLSA build provenance over the `.crate` files, builds both
+   CLIs for five targets (Linux x86_64/aarch64 musl, macOS arm64/x86_64, Windows
+   x86_64) and attests each archive, creates the GitHub Release with the changelog
+   excerpt, the checksummed `.crate` files and the checksummed binary archives
+   (`SHA256SUMS-binaries`), then — behind
    the `release` environment's required-reviewer approval — re-packages,
    **byte-compares against the attested SHA256SUMS**, and publishes to crates.io in
    dependency order. Re-running a partially published tag is safe: already-published

@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 24,
     "fail": 1,
@@ -230,7 +231,12 @@
           "seq": 6,
           "detail": "tool \"weather\" declares an outputSchema but this result carries no structuredContent object"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#output-schema",
+        "quote": "If an output schema is provided: Servers MUST provide structured results that conform to this schema.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#output-schema"
+      }
     },
     {
       "id": "RES-001",

@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 18,
     "fail": 1,
@@ -90,7 +91,12 @@
           "seq": 1,
           "detail": "the server answered initialize here, but no notifications/initialized notification follows in the trace"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "After successful initialization, the client MUST send an `initialized` notification to indicate it is ready to begin normal operations",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+      }
     },
     {
       "id": "LIFE-004",

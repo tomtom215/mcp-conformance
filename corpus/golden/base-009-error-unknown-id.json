@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 19,
     "fail": 1,
@@ -60,7 +61,12 @@
           "seq": 3,
           "detail": "error response answers id 42, but that party has no outstanding request with that id (never sent, or already answered)"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic#error-responses",
+        "quote": "Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request).",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#error-responses"
+      }
     },
     {
       "id": "BASE-010",

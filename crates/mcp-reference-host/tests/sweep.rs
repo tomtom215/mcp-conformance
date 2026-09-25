@@ -14,8 +14,7 @@
 //! Driven at `2025-11-25` rather than the stateless revision, and the reason
 //! is that the sweep is revision-agnostic by construction: it asks
 //! `prompts/list` what prompts there are and reads the answer. Pinning it to
-//! the older surface here proves that, and keeps this test independent of the
-//! `draft-2026-07-28` feature gate.
+//! the older surface here proves that.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 

@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 29,
     "fail": 1,
@@ -515,7 +516,12 @@
           "seq": 3,
           "detail": "server answered `tools/call` while its `server/discover` result declared no `tools` capability"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#capabilities",
+        "quote": "Servers that support tools MUST declare the `tools` capability:",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools#capabilities"
+      }
     },
     {
       "id": "TOOL-020",

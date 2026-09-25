@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 35,
     "fail": 3,
@@ -180,7 +181,12 @@
           "seq": 3,
           "detail": "server sent an independent request `elicitation/create`; 2026-07-28 replaces server-initiated requests with MRTR input requests"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#receiving-messages",
+        "quote": "The server MUST NOT send independent JSON-RPC requests on this stream.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#receiving-messages"
+      }
     },
     {
       "id": "TRAN-068",
@@ -337,7 +343,12 @@
           "seq": 3,
           "detail": "server sent an independent request `elicitation/create`; 2026-07-28 replaces server-initiated requests with MRTR input requests"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/stdio#receiving-messages",
+        "quote": "The server MUST NOT write JSON-RPC requests to `stdout`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#receiving-messages"
+      }
     },
     {
       "id": "TRAN-123",
@@ -364,7 +375,12 @@
           "seq": 3,
           "detail": "server sent an independent request `elicitation/create`; 2026-07-28 replaces server-initiated requests with MRTR input requests"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr",
+        "quote": "Servers MUST send server-to-client requests (such as `roots/list`, `sampling/createMessage`, or `elicitation/create`) using the MRTR pattern.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr"
+      }
     },
     {
       "id": "MRTR-002",

@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 10,
     "fail": 1,
@@ -80,7 +81,12 @@
           "seq": 0,
           "detail": "first message is a \"tools/list\" request, expected \"initialize\""
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The initialization phase MUST be the first interaction between client and server.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+      }
     },
     {
       "id": "LIFE-002",
@@ -102,7 +108,12 @@
           "seq": 0,
           "detail": "client sent a \"tools/list\" request before the server responded to initialize"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The client SHOULD NOT send requests other than pings before the server has responded to the `initialize` request.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+      }
     },
     {
       "id": "LIFE-005",

@@ -183,10 +183,95 @@ jobs:
           retention-days: 90
           if-no-files-found: error
 
+  # ── Prebuilt binaries: both CLIs per platform, attested like the crates ─────
+  # `cargo install` compiles for minutes; these are the same two binaries from
+  # the same tagged source, built with the workspace's release profile. Linux is
+  # musl, statically linked, so one archive runs on any distribution. Each
+  # archive is attested (tag runs only, like the crates) and checksummed in the
+  # github-release job; `cargo binstall` finds them through each crate's
+  # `[package.metadata.binstall]`. A rehearsal (workflow_dispatch) builds every
+  # target, so a platform that no longer builds fails before a tag exists.
+  binaries:
+    name: Binaries (${{ matrix.target }})
+    needs: [verify, tests]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write # OIDC identity for SLSA provenance signing
+      attestations: write # store the attestation in the repository
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest, archive: tar.gz }
+          - { target: aarch64-unknown-linux-musl, os: ubuntu-24.04-arm, archive: tar.gz }
+          - { target: x86_64-apple-darwin, os: macos-latest, archive: tar.gz }
+          - { target: aarch64-apple-darwin, os: macos-latest, archive: tar.gz }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, archive: zip }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install toolchain and target
+        shell: bash
+        run: |
+          rustup show active-toolchain
+          rustup target add ${{ matrix.target }}
+      - name: Install the musl C toolchain (ring compiles C)
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build both CLIs
+        run: cargo build --release --locked --target ${{ matrix.target }} -p mcp-trace-validator -p mcp-trace-capture --bins
+      - name: Smoke-test the binaries (native targets)
+        # The x86_64 macOS build is cross-compiled on an arm64 runner, where
+        # running it depends on Rosetta being on the image; it is built and
+        # archived, not run.
+        if: matrix.target != 'x86_64-apple-darwin'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="target/${{ matrix.target }}/release"
+          VERSION="${{ needs.verify.outputs.version }}"
+          "$BIN/mcp-trace-validator" --version | grep -Fx "mcp-trace-validator ${VERSION}"
+          "$BIN/mcp-trace-capture" --version | grep -Fx "mcp-trace-capture ${VERSION}"
+          "$BIN/mcp-trace-validator" validate corpus/draft/violations/mrtr-019-retry-reuses-id.jsonl --quiet \
+            && { echo "::error::a violation trace passed"; exit 1; } || [[ $? -eq 1 ]]
+      - name: Archive
+        id: archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAME="mcp-conformance-v${{ needs.verify.outputs.version }}-${{ matrix.target }}"
+          EXT=""
+          [[ "${{ matrix.target }}" == *windows* ]] && EXT=".exe"
+          mkdir "$NAME"
+          cp "target/${{ matrix.target }}/release/mcp-trace-validator${EXT}" \
+             "target/${{ matrix.target }}/release/mcp-trace-capture${EXT}" \
+             LICENSE README.md "$NAME/"
+          if [[ "${{ matrix.archive }}" == zip ]]; then
+            7z a -tzip "$NAME.zip" "$NAME" > /dev/null
+          else
+            tar -czf "$NAME.tar.gz" "$NAME"
+          fi
+          echo "file=$NAME.${{ matrix.archive }}" >> "$GITHUB_OUTPUT"
+      - name: Attest build provenance (SLSA)
+        if: github.ref_type == 'tag'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.archive.outputs.file }}
+      - name: Upload the archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: binaries-${{ matrix.target }}
+          path: ${{ steps.archive.outputs.file }}
+          retention-days: 90
+          if-no-files-found: error
+
   # ── GitHub Release before crates.io (RELEASING.md order; idempotent) ────────
   github-release:
     name: Create GitHub release
-    needs: [verify, package]
+    needs: [verify, package, binaries]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
@@ -198,6 +283,22 @@ jobs:
         with:
           name: release-artifacts
           path: release-artifacts/
+      - name: Download the binary archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: binaries-*
+          merge-multiple: true
+          path: release-binaries/
+      - name: Checksum the binary archives
+        # Kept apart from SHA256SUMS, which covers exactly the .crate files the
+        # publish job re-packages and byte-compares against it.
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-binaries
+          ls
+          [[ $(ls | wc -l) -eq 5 ]] || { echo "::error::expected 5 archives"; exit 1; }
+          sha256sum ./* | tee ../SHA256SUMS-binaries
       - name: Extract changelog section
         shell: bash
         run: |
@@ -225,14 +326,16 @@ jobs:
           if gh release view "$TAG" &>/dev/null; then
             echo "::warning::release ${TAG} already exists — updating in place"
             gh release edit "$TAG" $PRE_FLAG --title "$TAG" --notes-file release-notes.md
-            gh release upload "$TAG" --clobber release-artifacts/*.crate release-artifacts/SHA256SUMS
+            gh release upload "$TAG" --clobber release-artifacts/*.crate release-artifacts/SHA256SUMS \
+              release-binaries/* SHA256SUMS-binaries
           else
             gh release create "$TAG" \
               --verify-tag \
               $PRE_FLAG \
               --title "$TAG" \
               --notes-file release-notes.md \
-              release-artifacts/*.crate release-artifacts/SHA256SUMS
+              release-artifacts/*.crate release-artifacts/SHA256SUMS \
+              release-binaries/* SHA256SUMS-binaries
           fi
 
   # ── Publish to crates.io (protected environment; OIDC-only) ────────────────
@@ -319,6 +422,7 @@ jobs:
           # depends only on core.
           publish_crate mcp-conformance-core
           publish_crate mcp-trace-validator
+          publish_crate mcp-trace-capture
           publish_crate mcp-everything-server
           publish_crate mcp-reference-host
 
@@ -327,7 +431,7 @@ jobs:
             echo ""
             echo "| Crate | Link |"
             echo "|-------|------|"
-            for crate in mcp-conformance-core mcp-trace-validator mcp-everything-server mcp-reference-host; do
+            for crate in mcp-conformance-core mcp-trace-validator mcp-trace-capture mcp-everything-server mcp-reference-host; do
               echo "| ${crate} | [crates.io](https://crates.io/crates/${crate}/${VERSION}) |"
             done
             echo ""
@@ -371,35 +475,40 @@ jobs:
         run: |
           rustup toolchain install ${{ matrix.toolchain }} --profile minimal --no-self-update
           rustup default ${{ matrix.toolchain }}
-      - name: cargo install mcp-trace-validator, exactly as the README tells users to
+      - name: cargo install the two user-facing tools, exactly as the README tells users to
         shell: bash
         run: |
           set -euo pipefail
           VERSION="${{ needs.verify.outputs.version }}"
-          # The sparse index can lag behind a completed publish at some CDN
-          # edges, so a miss here is retried before it is believed.
-          for attempt in 1 2 3 4 5; do
-            if cargo install mcp-trace-validator --version "${VERSION}"; then
-              installed=1; break
-            fi
-            echo "::warning::install attempt ${attempt} failed; the index may still be propagating"
-            sleep $(( attempt * 20 ))
+          for crate in mcp-trace-validator mcp-trace-capture; do
+            # The sparse index can lag behind a completed publish at some CDN
+            # edges, so a miss here is retried before it is believed.
+            installed=0
+            for attempt in 1 2 3 4 5; do
+              if cargo install "${crate}" --version "${VERSION}"; then
+                installed=1; break
+              fi
+              echo "::warning::${crate} install attempt ${attempt} failed; the index may still be propagating"
+              sleep $(( attempt * 20 ))
+            done
+            [[ "${installed}" == "1" ]] || { echo "::error::cargo install ${crate} failed after 5 attempts"; exit 1; }
           done
-          [[ "${installed:-0}" == "1" ]] || { echo "::error::cargo install failed after 5 attempts"; exit 1; }
-      - name: The installed binary runs and is the version we published
+      - name: The installed binaries run and are the version we published
         shell: bash
         run: |
           set -euo pipefail
           VERSION="${{ needs.verify.outputs.version }}"
           # Closes the loop: resolving and building is not the same as shipping
           # a binary that starts and reports itself correctly.
-          got="$(mcp-trace-validator --version)"
-          echo "installed: ${got}"
-          grep -qF "${VERSION}" <<<"${got}" || {
-            echo "::error::installed binary reports '${got}', expected ${VERSION}"
-            exit 1
-          }
-          mcp-trace-validator --help >/dev/null
+          for binary in mcp-trace-validator mcp-trace-capture; do
+            got="$("${binary}" --version)"
+            echo "installed: ${got}"
+            grep -qF "${VERSION}" <<<"${got}" || {
+              echo "::error::installed ${binary} reports '${got}', expected ${VERSION}"
+              exit 1
+            }
+            "${binary}" --help >/dev/null
+          done
       - name: The pinned graph is coherent too (`--locked`)
         # The unlocked install above is the user-facing command; this one proves
         # the Cargo.lock published inside the crate still resolves, so a future
@@ -407,4 +516,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo install mcp-trace-validator --version "${{ needs.verify.outputs.version }}" --locked --force
+          for crate in mcp-trace-validator mcp-trace-capture; do
+            cargo install "${crate}" --version "${{ needs.verify.outputs.version }}" --locked --force
+          done

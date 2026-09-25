@@ -34,7 +34,7 @@ for the conformance toolkit (roadmap M3, ADR-0009), built on
 - `resume` (feature `http`) — the spec's SSE-resumption dance (server-named
   `retry` delay honored through `RetryPolicy::delay_honoring_retry_after`,
   `Last-Event-ID` offered on the GET reconnect), implemented on rmcp's public
-  `StreamableHttpClient` seam because rmcp 1.7's own transport loses an
+  `StreamableHttpClient` seam because rmcp's own transport (measured at 1.7) lost an
   in-flight request when its POST SSE stream closes early (measured; ADR-0009
   §Amendment).
 - the binary (feature `cli`) — the official suite's client SUT: the runner

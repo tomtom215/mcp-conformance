@@ -11,7 +11,166 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
-## [0.5.1] - 2026-08-28
+## [0.6.0] - 2026-09-25
+
+**This is a minor release with breaking behaviour changes and no Rust API
+break**, which pre-1.0 SemVer permits and this project states explicitly.
+`cargo xtask semver` (cargo-semver-checks 0.50.0) reports "no semver update
+required" for the four previously published crates against 0.5.1;
+`mcp-trace-capture` is new. What can break a caller is what the tools output and
+decide:
+
+| Surface | Change | Migration |
+|---------|--------|-----------|
+| `validate` CLI | Judges the revision the trace declares (else the newest), not always `2025-11-25` | `--revision 2025-11-25` restores the old judgment |
+| JSON report | Gains `verdict`; failing and warning rows gain `source`, multi-revision rows `sources` | A consumer that rejects unknown members: accept them, or validate against the published `report.schema.json` |
+| `JUnit` report | A failure's body and a warning's `system-out` end with the clause (`spec:`) and its link (`see:`) | Read the finding from the `message` attribute, which is unchanged |
+| `reader::Limits::default()` | Lines up to 65 MiB (was 1 MiB), up to 1,000,000 events (was 100,000) | `Limits::new(100_000, 1024 * 1024)` for the old caps |
+| Registry data | 31 `source.section` anchors corrected to the ones the spec site publishes (e.g. `basic/index#meta` → `basic/index#_meta`) | Key on the requirement ID, which did not change |
+| `context::draft` | Deprecated alias of `context::stateless` | Use `context::stateless`; the alias goes in the next minor |
+
+Each is stated again in the entry that introduced it, with the reasoning.
+
+### Changed — breaking
+
+- **`validate` judges the revision the trace declares, and `2026-07-28` ships in
+  every build.** Until now a default install judged every trace against `2025-11-25`,
+  so a conforming `2026-07-28` session failed `LIFE-001` (and often `BASE-003`) with
+  exit 1 and no warning; the `2026-07-28` registry and checks needed the
+  `draft-2026-07-28` feature, which the README never mentioned. Now:
+  - the revision is read from the trace (`initialize`, per-request `_meta`, or the
+    `MCP-Protocol-Version` header) and reported with how it was chosen —
+    `revision 2026-07-28 (declared by the trace)`, and `revision_source` in JSON;
+  - a trace declaring nothing is judged against the newest supported revision,
+    with a note on stderr;
+  - a trace declaring only revisions this build cannot judge exits 2 and says
+    which, instead of being judged against the wrong rules;
+  - one `--revision` gives the full single-revision report (findings, `seq`,
+    JUnit); several give the multi-revision report;
+  - `--registry-set` no longer requires `--revision`;
+  - `requirements` prints the newest revision by default and takes `--revision`.
+
+  Migration: pass `--revision 2025-11-25` where a script relied on the old
+  default for traces that declare no revision. The `draft-2026-07-28` feature
+  remains as a no-op so existing manifests keep building.
+
+### Deprecated
+
+- **`context::draft` is now `context::stateless`** — the `2026-07-28` lifecycle
+  machine, named for what it models rather than a draft that has shipped. The old
+  path still works, with a deprecation warning, until the next minor release.
+
+### Added
+
+- **`mcp-trace-capture`, a new crate: record any MCP session as a trace.** Wrap a stdio
+  server (`mcp-trace-capture -o t.jsonl stdio -- <server> [args…]`, launched by the
+  client in the server's place) or proxy a streamable-HTTP one
+  (`mcp-trace-capture -o t.jsonl http --upstream <url>`), in any language, through any
+  SDK. Bytes are forwarded unchanged; each message is recorded before the bytes that
+  complete it are forwarded, so the order is causal; what cannot be recorded (non-JSON,
+  over `--max-message-bytes`) is forwarded intact and counted; only allowlisted headers
+  are written. `https://` upstreams are supported. CI now proves it end to end:
+  reference-host sessions through the wrapper judge clean at both revisions, and the
+  official suite passes 40/40 through the proxy
+  ([ADR-0019](docs/plan/decisions/0019-a-recording-tap-is-not-a-gateway.md)).
+- The header recording allowlist moves to `mcp_conformance_core::trace`
+  (`RECORDED_HEADERS`, `RECORDED_HEADER_PREFIXES`), shared by every recorder; the
+  everything server's tap re-exports it under the same names.
+- **Multi-revision reports carry every finding's `seq` and reason**, per revision,
+  in human and JSON output (`findings` on each row, omitted when empty), and
+  `--format junit` works for them: one `<testsuite>` per revision
+  (`junit::render_all`). Previously the multi-revision path printed `fail` and
+  nothing else, and refused JUnit.
+- **Every failing or warning row cites the clause it breaks.** Human output prints
+  the quote and its link under the findings (`spec: "…"`, `see: <url>`); JSON rows
+  carry `source: {section, quote, url}` (multi-revision rows: `sources`, one per
+  revision, because the published page is per revision); JUnit puts both in the
+  failure body and in a warning's `system-out`. `SourceRef::url` builds the link
+  from the registry's `section` at the judged revision. Other rows omit it —
+  `requirements` lists every clause's source.
+- **`cargo xtask spec-drift` also verifies every section anchor against the
+  published page's heading ids.** Checking it found 31 requirements whose anchors
+  the site does not publish — GitHub-style slugs where the site keeps punctuation
+  (`#meta` for `#_meta`, `#security--endpoint` for `#security-&-endpoint`,
+  `#https` for `#https//`, and three more), and `#resulttype`, an `#####` heading the
+  site gives no anchor (now its parent, `#result-responses`). All 31 are corrected.
+- **JSON reports carry their `verdict`** (`pass`, `pass-with-warnings`, `fail`,
+  `unsupported`), after the revision fields — the overall one on multi-revision
+  reports — so a script can gate on `jq -e '.verdict == "pass"'` instead of
+  re-deriving it from `totals`. Derived on output, never stored, so it cannot
+  disagree with the counts; ignored on input.
+- **`--format sarif`: SARIF 2.1.0 for code scanning.** One rule per violated clause
+  (the quote, its level, its link), one result per finding at the trace line holding
+  the event it names, unsupported clauses as invocation notifications; every judged
+  revision in one run, as GitHub code scanning requires (`sarif::render`). CI validates
+  the log of every violation trace against the OASIS schema, fetched from its official
+  URL and pinned by SHA-256 rather than vendored (its licence is the OASIS IPR policy).
+- **The JSON report is published as a JSON Schema**
+  (`crates/mcp-trace-validator/schema/report.schema.json`, `report::JSON_SCHEMA`):
+  closed, so the test that validates every golden report and both CLI shapes against
+  it proves each emitted member is documented.
+- **Prebuilt binaries.** Each release attaches `mcp-trace-validator` and
+  `mcp-trace-capture` for five targets — Linux x86_64 and aarch64 (static musl),
+  macOS arm64 and x86_64, Windows x86_64 — as archives with SLSA build-provenance
+  attestations and `SHA256SUMS-binaries`, and both crates carry
+  `[package.metadata.binstall]` so `cargo binstall` installs them without
+  compiling. A release rehearsal builds and smoke-tests every target.
+- **The trace format is published as a JSON Schema** (draft 2020-12):
+  `crates/mcp-conformance-core/schema/trace-event.schema.json`, also
+  `mcp_conformance_core::trace::EVENT_JSON_SCHEMA`, so a recorder in any language
+  can check its output. A test holds the schema and the reader to the same answer on
+  every corpus record and on one violation of each rule, and pins the one
+  divergence the schema documents (`1.0` for an integer).
+- `engine::try_validate` and `SeqOrderError`: for events built in code rather
+  than read by `reader::parse_trace`, the report or an error naming the first pair
+  out of `seq` order — where `validate` panics, as documented.
+  `Totals::judged_nothing` exposes the rule the CLI uses to refuse an empty or
+  contentless recording, so embedders can apply the same one.
+- `declared::select`, `Selection`, `RevisionSource` and `UnjudgeableRevisions`:
+  the CLI's revision choice as a library API, so embedders get the same rule.
+- `RegistrySet::latest` and `BUILTIN_REVISIONS` in `mcp-conformance-core`.
+
+### Fixed
+
+- **A trace `mcp-trace-capture` records at its defaults is one the validator reads at
+  its defaults.** The capture kept messages up to 64 MiB, the validator refused any
+  line over 1 MiB, so one large tool result (a base64 image is enough) made the whole
+  recording "malformed" (exit 3). Both limits now come from `mcp-conformance-core`
+  (`DEFAULT_MAX_MESSAGE_BYTES`, `LINE_ENVELOPE_BYTES`, `DEFAULT_MAX_LINE_BYTES` =
+  65 MiB), and the capture checks each line *as written*: re-serialization can grow a
+  message (`9e15` is written back as `9000000000000000.0`), so a message within the
+  limit whose line would not be is forwarded and counted as oversized, never written.
+  `validate` gains `--max-line-bytes` and `--max-events` (default event cap raised
+  from 100,000 to 1,000,000), and a trace over either limit is told which flag to
+  raise; `reader::Limits::new` lets embedders set both. A capture with a raised
+  `--max-message-bytes` prints the `--max-line-bytes` to validate with.
+- **The everything server's tap no longer alters traffic it cannot record.** A
+  request body over its 4 MiB recording cap reached the server as an empty body,
+  and an oversized JSON response reached the client as one — the tap's own first
+  rule is that it never changes an exchange. Both now pass through byte for byte
+  (what was buffered, then the rest of the stream) and are left out of the trace.
+- **The tap no longer stops recording an SSE stream at a split character.** Chunks
+  were decoded as UTF-8 one at a time, so a multi-byte character split across two
+  network reads ended the stream's recording. Frames are now cut on bytes and
+  decoded whole; a frame that is not UTF-8 is skipped on its own.
+- **The tap no longer holds a file descriptor per session for the life of the
+  server.** Each record opens its trace file for append and closes it; only the
+  next `seq` per file is kept.
+- **Every published crate now ships the licence text.** `license = "MIT"` names the
+  licence; MIT's notice must travel with each copy, and no release before this one
+  included a `LICENSE` file in any crate. Each crate now carries the root `LICENSE`,
+  and `cargo xtask license-files` (in `gates`) holds every copy byte-identical to it.
+- **`cargo xtask semver` no longer aborts on a crate's first release.** It checked
+  the whole workspace, and cargo-semver-checks stops at a crate with no published
+  baseline — so `release.yml` would have failed at 0.6.0 on `mcp-trace-capture`. The
+  gate now looks each publishable crate up in the crates.io index and excludes, by
+  name and out loud, one that is not there yet; any other answer fails it.
+- `requirements | head` (or any closed pipe) no longer panics.
+- `validate --quiet` with several `--revision`s is now tested end to end; a
+  mutation run showed the multi-revision findings-only rendering had no test that
+  could fail.
+
+## [0.5.1] - 2026-08-29
 
 **This is a patch release. No API changes, no breaking changes, and no behaviour
 changes — the only difference from `0.5.0` is one dependency version in
@@ -2618,7 +2777,8 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.6.0
 [0.5.1]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.1
 [0.5.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.0
 [0.4.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.4.0

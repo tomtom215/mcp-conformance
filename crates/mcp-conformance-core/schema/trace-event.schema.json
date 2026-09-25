@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/tomtom215/mcp-conformance/main/crates/mcp-conformance-core/schema/trace-event.schema.json",
+  "title": "MCP conformance trace event",
+  "description": "One record of an MCP conformance trace. A trace is a JSON Lines document: one event object per line, no blank lines, no byte-order mark, `seq` strictly increasing in document order. Line-level rules are outside JSON Schema and are enforced by the reader (mcp-trace-validator's `reader::parse_trace`), as is one type rule: `seq` and `status` must be written without a fractional part (`1`, not `1.0`), which JSON Schema's `integer` does not distinguish. Unknown members are ignored, so producers may add their own.",
+  "type": "object",
+  "required": ["seq", "direction", "transport", "kind"],
+  "properties": {
+    "seq": {
+      "description": "Capture-assigned sequence number: the only ordering authority within the trace.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "direction": {
+      "description": "Which party emitted the event.",
+      "enum": ["client-to-server", "server-to-client"]
+    },
+    "transport": {
+      "description": "The transport the session ran over.",
+      "enum": ["stdio", "streamable-http"]
+    },
+    "kind": {
+      "description": "Which of the three event shapes this is.",
+      "enum": ["message", "http", "lifecycle"]
+    },
+    "ts": {
+      "description": "Informational timestamp (RFC 3339). No check reads it.",
+      "type": ["string", "null"]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "message" } } },
+      "then": {
+        "description": "A JSON-RPC message, exactly as captured.",
+        "required": ["payload"]
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "http" } } },
+      "then": {
+        "description": "An HTTP-level observation (streamable HTTP only).",
+        "properties": {
+          "method": {
+            "description": "The request method, when the event records a client request. Read case-insensitively.",
+            "type": ["string", "null"]
+          },
+          "status": {
+            "description": "The response status, when the event records a response.",
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "headers": {
+            "description": "Recorded headers. Names are read case-insensitively; credential-bearing headers should not be recorded.",
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "lifecycle" } } },
+      "then": {
+        "description": "A transport lifecycle moment.",
+        "required": ["event"],
+        "properties": {
+          "event": { "enum": ["transport-open", "transport-close", "transport-abort"] }
+        }
+      }
+    }
+  ]
+}

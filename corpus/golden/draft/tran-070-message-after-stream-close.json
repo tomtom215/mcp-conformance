@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 38,
     "fail": 1,
@@ -190,7 +191,12 @@
           "seq": 4,
           "detail": "server sent a further message for request id 1, whose response stream closed at seq 3; a close is cancellation at this revision"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#cancellation",
+        "quote": "The server SHOULD stop work on the cancelled request as soon as practical and MUST NOT send any further messages for it.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#cancellation"
+      }
     },
     {
       "id": "TRAN-071",

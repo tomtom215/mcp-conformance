@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 36,
     "fail": 3,
@@ -250,7 +251,12 @@
           "seq": 0,
           "detail": "`Mcp-Name` carries \"=?base64?literal?=\" verbatim; a value matching the sentinel pattern must itself be Base64-encoded to stay unambiguous"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#value-encoding",
+        "quote": "To avoid ambiguity, clients MUST also Base64-encode any plain-ASCII value that matches the sentinel pattern (i.e., starts with `=?base64?` and ends with `?=`).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#value-encoding"
+      }
     },
     {
       "id": "TRAN-096",
@@ -452,7 +458,12 @@
           "seq": 3,
           "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/caching#cacheable-results",
+        "quote": "Servers MUST include caching hints on results with `resultType: \"complete\"` returned by the following operations: `server/discover`; `tools/list`; `prompts/list`; `resources/list`; `resources/templates/list`; `resources/read`",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cacheable-results"
+      }
     },
     {
       "id": "CACH-008",
@@ -614,7 +625,12 @@
           "seq": 3,
           "detail": "`resources/read` answered with an empty `contents` array, which is ambiguous between an empty resource and a missing one"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/resources#error-handling",
+        "quote": "Servers MUST NOT return an empty `contents` array for a non-existent resource.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling"
+      }
     },
     {
       "id": "RES-023",

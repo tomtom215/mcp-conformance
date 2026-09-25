@@ -254,7 +254,7 @@ second DoD line reflects the full inventory.
 - [x] Stateless state-machine variant alongside — not replacing — the `2025-11-25`
       machine, every transition and error edge unit- and property-tested.
       *(2026-06-14:
-      [`context::draft`](../../crates/mcp-trace-validator/src/context/draft.rs), behind the
+      [`context::stateless`](../../crates/mcp-trace-validator/src/context/stateless.rs) (named `context::draft` until 0.6.0), behind the
       `draft-2026-07-28` feature. The `2026-07-28` rework removes the
       `initialize`/`initialized` handshake (register 1.3, 1.5a; SEP-2575), so the variant's
       defining property is that a session is **operational from its first message** — no
@@ -403,9 +403,10 @@ Backlog opens at M0; the milestone closes only on merged outcomes.
       success — and the live site returns `200`. docs.rs rendered all four crates
       at `0.3.0` (`doc_status: true` on each `status.json`), so both clauses of
       this line now hold.)*
-- [ ] The `draft-2026-07-28` feature gate dropped (revision becomes default) — only after
-      the final text has shipped, M2.5 is complete, and the official scenarios for the
-      revision stabilize.
+- [x] The `draft-2026-07-28` feature gate dropped (revision becomes default).
+      *(2026-09-24, [ADR-0018](decisions/0018-judge-the-declared-revision.md): the text has
+      shipped and every in-scope page is entered; the suite-stability condition now gates
+      only the blocking `2026-07-28` agreement check.)*
 
 ## Standing workstreams
 

@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 33,
     "fail": 1,
@@ -415,7 +416,12 @@
           "seq": 2,
           "detail": "`prompts/get` carries the `requestState` issued for a `tools/call` request; it affects only that request's retry"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "They MUST NOT be used for any other request that the client may be sending in parallel.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#client-requirements-basic-workflow"
+      }
     },
     {
       "id": "MRTR-024",

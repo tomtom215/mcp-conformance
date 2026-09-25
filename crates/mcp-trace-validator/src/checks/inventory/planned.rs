@@ -18,22 +18,10 @@ use super::{ALL, find};
 use std::collections::HashSet;
 
 /// Whether `check` is a committed-but-unimplemented id (see [`PLANNED`]).
-// Const-evaluable only with the feature off, where the body is a literal `false`;
-// with it on, the slice lookup is not const. Following the lint would make the
-// signature depend on which features are enabled.
-#[allow(clippy::missing_const_for_fn)]
 fn is_planned(check: &str) -> bool {
-    #[cfg(feature = "draft-2026-07-28")]
-    let planned = PLANNED.contains(&check);
-    #[cfg(not(feature = "draft-2026-07-28"))]
-    let planned = {
-        let _ = check;
-        false
-    };
-    planned
+    PLANNED.contains(&check)
 }
 
-#[cfg(feature = "draft-2026-07-28")]
 /// Checks a registry entry names that this build does not implement yet.
 ///
 /// The engine reports such a requirement as `unsupported` — first-class in the
@@ -92,9 +80,6 @@ fn builtin_registry_and_check_inventory_cover_each_other_exactly() {
     }
     // The list retires itself: implementing a planned check without removing
     // its row fails here, so PLANNED can never quietly outlive its purpose.
-    // Feature-gated with the data — without it, the revision that names these
-    // is not described and nothing could reference them.
-    #[cfg(feature = "draft-2026-07-28")]
     for planned in PLANNED {
         assert!(
             find(planned).is_none(),

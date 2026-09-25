@@ -16,7 +16,8 @@ The internal workspace layout and dependency rules live in
 
 The validator judges a recorded **trace**, not a live session. Its engine is a
 pure function with no network, clock, or I/O. Whoever owns the socket — the
-server's session tap, the host's capture wrapper, or any external proxy —
+server's session tap, the host's capture wrapper, or `mcp-trace-capture` for any
+other implementation —
 produces the trace, assigning the total-order `seq` *at capture*. The judge only
 judges.
 

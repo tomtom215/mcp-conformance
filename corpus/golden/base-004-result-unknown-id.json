@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 16,
     "fail": 1,
@@ -35,7 +36,12 @@
           "seq": 3,
           "detail": "result response answers id 99, but that party has no outstanding request with that id (never sent, or already answered)"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic#result-responses",
+        "quote": "Result responses MUST include the same ID as the request they correspond to.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#result-responses"
+      }
     },
     {
       "id": "BASE-005",

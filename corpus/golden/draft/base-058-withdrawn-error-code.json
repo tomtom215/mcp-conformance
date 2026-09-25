@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 27,
     "fail": 2,
@@ -70,7 +71,12 @@
           "seq": 1,
           "detail": "error code -32002 is in the legacy sub-range (-32000..-32019), which 2026-07-28 implementations are not to use"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "New codes MUST NOT be allocated in this sub-range, and new implementations SHOULD NOT use codes from this sub-range at all.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#error-codes"
+      }
     },
     {
       "id": "BASE-057",
@@ -87,7 +93,12 @@
           "seq": 1,
           "detail": "error code -32002 — resource not found (2025-11-25 and earlier; replaced by -32602) — must not be emitted at 2026-07-28"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "Implementations of this protocol version MUST NOT emit these codes:",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#error-codes"
+      }
     },
     {
       "id": "BASE-060",

@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 56,
     "fail": 10,
@@ -120,7 +121,12 @@
           "seq": 33,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#_meta",
+        "quote": "Client requests carry the following `io.modelcontextprotocol/*` fields in `meta`; fields marked as required MUST be included on every request.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+      }
     },
     {
       "id": "BASE-031",
@@ -212,7 +218,12 @@
           "seq": 32,
           "detail": "client POST lacks the MCP-Protocol-Version header"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#protocol-version-header",
+        "quote": "Every POST request to the MCP endpoint MUST include an `MCP-Protocol-Version` header.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#protocol-version-header"
+      }
     },
     {
       "id": "TRAN-072",
@@ -224,7 +235,12 @@
           "seq": 12,
           "detail": "MCP-Protocol-Version header is \"2025-11-25\" but the body's `_meta` protocol version is \"2026-07-28\""
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#protocol-version-header",
+        "quote": "`MCP-Protocol-Version: 2026-07-28` The header value MUST match the `io.modelcontextprotocol/protocolVersion` field carried in the request body's `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#protocol-version-header"
+      }
     },
     {
       "id": "TRAN-073",
@@ -316,7 +332,12 @@
           "seq": 1,
           "detail": "the client's first request is `ping`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/discover#when-to-call",
+        "quote": "A client that supports both modern (per-request `meta`) and legacy (`initialize` handshake) servers SHOULD send `server/discover` first; see stdio: Backward Compatibility for the fallback rules.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/discover#when-to-call"
+      }
     },
     {
       "id": "VERS-001",
@@ -383,7 +404,12 @@
           "seq": 1,
           "detail": "the client's first request is `ping`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/stdio#backward-compatibility",
+        "quote": "A client that supports both modern (per-request-metadata) MCP versions and a legacy version that requires an `initialize` handshake SHOULD probe with [`server/discover`][server-discover] before sending any other request, setting its preferred modern version in `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility"
+      }
     },
     {
       "id": "MRTR-001",
@@ -410,7 +436,12 @@
           "seq": 33,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr"
+      }
     },
     {
       "id": "MRTR-003",
@@ -537,7 +568,12 @@
           "seq": 33,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/completion",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/completion"
+      }
     },
     {
       "id": "COMP-007",
@@ -564,7 +600,12 @@
           "seq": 33,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/pagination",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination"
+      }
     },
     {
       "id": "PAGE-010",
@@ -576,7 +617,12 @@
           "seq": 25,
           "detail": "tools/list cursor \"fabricated-by-the-probe\" was never issued as a nextCursor for that method in this session"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/pagination#implementation-guidelines",
+        "quote": "Clients MUST treat cursors as opaque tokens: Don't make assumptions about cursor format; Don't attempt to parse or modify cursors; Don't make any determination based on cursor value other than whether a non-null value was provided (e.g. an empty string is a valid cursor and thus MUST NOT be treated as the end of results)",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination#implementation-guidelines"
+      }
     },
     {
       "id": "PAGE-011",
@@ -623,7 +669,12 @@
           "seq": 33,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools"
+      }
     },
     {
       "id": "TOOL-019",
@@ -710,7 +761,12 @@
           "seq": 33,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/resources",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources"
+      }
     },
     {
       "id": "RES-012",
@@ -757,7 +813,12 @@
           "seq": 33,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/prompts",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/prompts"
+      }
     },
     {
       "id": "PROM-012",

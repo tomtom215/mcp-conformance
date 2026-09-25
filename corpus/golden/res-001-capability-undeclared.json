@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 17,
     "fail": 2,
@@ -115,7 +116,12 @@
           "seq": 3,
           "detail": "\"resources/list\" uses the server capability resources, which was not negotiated in this session"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#operation",
+        "quote": "Both parties MUST: Only use capabilities that were successfully negotiated",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#operation"
+      }
     },
     {
       "id": "LIFE-010",
@@ -250,7 +256,12 @@
           "seq": 4,
           "detail": "server answered \"resources/list\" without declaring the resources capability"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/resources#capabilities",
+        "quote": "Servers that support resources MUST declare the `resources` capability:",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/resources#capabilities"
+      }
     },
     {
       "id": "RES-004",

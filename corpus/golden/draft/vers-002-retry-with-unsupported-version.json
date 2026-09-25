@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "pass-with-warnings",
   "totals": {
     "pass": 31,
     "fail": 0,
@@ -295,7 +296,12 @@
           "seq": 2,
           "detail": "the request declares protocol version \"1899-01-01\", which the `supported` list in the -32022 at seq 1 does not offer (\"2026-07-28\")"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/versioning#protocol-version-negotiation",
+        "quote": "The client SHOULD select a mutually supported version from the `supported` list and retry the request, or surface an error to the user if no compatible version exists.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#protocol-version-negotiation"
+      }
     },
     {
       "id": "VERS-003",

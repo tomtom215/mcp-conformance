@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "pass-with-warnings",
   "totals": {
     "pass": 25,
     "fail": 0,
@@ -505,7 +506,12 @@
           "seq": 1,
           "detail": "the request declared log level \"verbose\", which is not one of the eight RFC 5424 levels, and drew a result rather than -32602"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/logging#error-handling",
+        "quote": "If the `io.modelcontextprotocol/logLevel` value carried in a request's `meta` is not a recognized log level, the server SHOULD reject that request with a standard JSON-RPC error: Invalid log level: `-32602` (Invalid params); Internal errors: `-32603` (Internal error)",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/logging#error-handling"
+      }
     },
     {
       "id": "TOOL-016",

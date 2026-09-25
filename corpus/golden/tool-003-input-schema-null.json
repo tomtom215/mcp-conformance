@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 23,
     "fail": 1,
@@ -195,7 +196,12 @@
           "seq": 4,
           "detail": "tool \"echo\" has an inputSchema that is not a JSON Schema object: null"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#tool",
+        "quote": "`inputSchema`: JSON Schema defining expected parameters; MUST be a valid JSON Schema object (not `null`)",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool"
+      }
     },
     {
       "id": "TOOL-005",

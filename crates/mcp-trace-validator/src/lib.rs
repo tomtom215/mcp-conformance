@@ -44,3 +44,4 @@ pub mod junit;
 pub mod multi;
 pub mod reader;
 pub mod report;
+pub mod sarif;

@@ -180,8 +180,8 @@ const fn concatenated<const N: usize>(first: &[Check], second: &[Check]) -> [Che
 }
 
 /// The backing storage for [`ALL`].
-static EVERY: [Check; SHIPPED.len() + draft_rows::DRAFT.len()] =
-    concatenated(SHIPPED, draft_rows::DRAFT);
+static EVERY: [Check; SHIPPED.len() + stateless_rows::ROWS.len()] =
+    concatenated(SHIPPED, stateless_rows::ROWS);
 
 /// Every check implemented by this build, in stable order.
 pub static ALL: &[Check] = &EVERY;
@@ -191,7 +191,7 @@ pub fn find(id: &str) -> Option<&'static Check> {
     ALL.iter().find(|check| check.id == id)
 }
 
-mod draft_rows;
+mod stateless_rows;
 
 #[cfg(test)]
 mod planned;

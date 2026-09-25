@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 23,
     "fail": 2,
@@ -55,7 +56,12 @@
           "seq": 8,
           "detail": "message is not a JSON-RPC request, notification, or response: message is not a JSON object"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic#messages",
+        "quote": "All messages between MCP clients and servers MUST follow the JSON-RPC 2.0 specification.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#messages"
+      }
     },
     {
       "id": "BASE-009",
@@ -172,7 +178,12 @@
           "seq": 8,
           "detail": "client HTTP POST body is not a single JSON-RPC request, notification, or response: message is not a JSON object"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "The body of the POST request MUST be a single JSON-RPC request, notification, or response.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#sending-messages-to-the-server"
+      }
     },
     {
       "id": "TRAN-029",

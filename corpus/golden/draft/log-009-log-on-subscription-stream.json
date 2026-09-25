@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 26,
     "fail": 1,
@@ -500,7 +501,12 @@
           "seq": 1,
           "detail": "`notifications/message` carries a subscription id, so it is travelling on a `subscriptions/listen` stream; logging is request-scoped"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/logging#per-request-log-level",
+        "quote": "`notifications/message` is request-scoped: the server MUST NOT deliver it on a `subscriptions/listen` stream or on any stream other than the one carrying the response to the request that set the log level.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/logging#per-request-log-level"
+      }
     },
     {
       "id": "LOG-010",

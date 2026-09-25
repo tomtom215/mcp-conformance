@@ -11,11 +11,12 @@
 
 use mcp_conformance_core::capability::{CapabilityGate, CapabilityParty};
 use mcp_conformance_core::requirement::{Registry, Requirement, Verification};
+use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::TraceEvent;
 
 use crate::checks;
 use crate::context::TraceContext;
-use crate::report::{Outcome, Report, RequirementReport, Totals};
+use crate::report::{ClauseSource, Outcome, Report, RequirementReport, Totals};
 
 /// Validates a parsed trace against a requirement registry.
 ///
@@ -40,12 +41,79 @@ use crate::report::{Outcome, Report, RequirementReport, Totals};
 /// documents ([`TraceContext::new`] documents the reasoning).
 #[must_use]
 pub fn validate(registry: &Registry, events: &[TraceEvent]) -> Report {
+    validate_ordered(registry, events)
+}
+
+/// [`validate`] for events that did not come from
+/// [`reader::parse_trace`](crate::reader::parse_trace): the same report, or an
+/// error naming the first pair of events out of `seq` order instead of a panic.
+///
+/// ```
+/// use mcp_conformance_core::requirement::Registry;
+/// use mcp_trace_validator::{engine, reader};
+///
+/// let registry = Registry::builtin_2025_11_25()?;
+/// let line = |seq| format!(r#"{{"seq":{seq},"direction":"client-to-server","transport":"stdio","kind":"lifecycle","event":"transport-open"}}"#);
+/// let mut events = reader::parse_trace(&format!("{}\n{}", line(0), line(1)), &reader::Limits::default())?;
+/// events.swap(0, 1);
+/// let error = engine::try_validate(&registry, &events).unwrap_err();
+/// assert_eq!((error.index, error.seq, error.previous), (1, 0, 1));
+/// # Ok::<(), Box<dyn core::error::Error>>(())
+/// ```
+///
+/// # Errors
+///
+/// [`SeqOrderError`] when `seq` is not strictly increasing across `events`.
+pub fn try_validate(registry: &Registry, events: &[TraceEvent]) -> Result<Report, SeqOrderError> {
+    events
+        .windows(2)
+        .position(|pair| pair[0].seq >= pair[1].seq)
+        .map_or_else(
+            || Ok(validate_ordered(registry, events)),
+            |position| {
+                Err(SeqOrderError {
+                    index: position + 1,
+                    seq: events[position + 1].seq,
+                    previous: events[position].seq,
+                })
+            },
+        )
+}
+
+/// Events out of `seq` order: the trace format requires `seq` strictly
+/// increasing, and several checks rely on it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct SeqOrderError {
+    /// Index in the slice of the first event whose `seq` is not greater than its
+    /// predecessor's.
+    pub index: usize,
+    /// That event's `seq`.
+    pub seq: u64,
+    /// The preceding event's `seq`.
+    pub previous: u64,
+}
+
+impl core::fmt::Display for SeqOrderError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "event {} has seq {}, not greater than the preceding seq {}; trace events \
+             must have strictly increasing seq",
+            self.index, self.seq, self.previous
+        )
+    }
+}
+
+impl core::error::Error for SeqOrderError {}
+
+fn validate_ordered(registry: &Registry, events: &[TraceEvent]) -> Report {
     let context = TraceContext::new(events);
     let mut totals = Totals::default();
     let mut rows = Vec::with_capacity(registry.requirements().len());
 
     for requirement in registry.requirements() {
-        let row = build_row(requirement, &context);
+        let row = build_row(requirement, registry.revision(), &context);
         tally(&mut totals, row.outcome);
         rows.push(row);
     }
@@ -53,12 +121,17 @@ pub fn validate(registry: &Registry, events: &[TraceEvent]) -> Report {
     Report {
         revision: registry.revision().to_string(),
         revision_mismatch: crate::declared::mismatch(registry.revision(), events),
+        revision_source: None,
         totals,
         requirements: rows,
     }
 }
 
-fn build_row(requirement: &Requirement, context: &TraceContext<'_>) -> RequirementReport {
+fn build_row(
+    requirement: &Requirement,
+    revision: ProtocolRevision,
+    context: &TraceContext<'_>,
+) -> RequirementReport {
     let mut row = RequirementReport {
         id: requirement.id.to_string(),
         level: requirement.level.keyword().to_owned(),
@@ -67,6 +140,7 @@ fn build_row(requirement: &Requirement, context: &TraceContext<'_>) -> Requireme
         exclusion: None,
         missing_checks: vec![],
         capability: None,
+        source: None,
     };
     match &requirement.verification {
         Verification::Excluded { exclusion } => {
@@ -111,6 +185,9 @@ fn build_row(requirement: &Requirement, context: &TraceContext<'_>) -> Requireme
         // deliberately, and the pre-set "unsupported" outcome is the conservative
         // reading until then.
         _ => {}
+    }
+    if matches!(row.outcome, Outcome::Fail | Outcome::Warn) {
+        row.source = Some(ClauseSource::new(requirement, revision));
     }
     row
 }
@@ -157,209 +234,4 @@ const fn classify_outcome(is_error_level: bool, clean: bool) -> Outcome {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
-mod tests {
-    use super::*;
-    use crate::reader::{Limits, parse_trace};
-    use mcp_conformance_core::requirement::Registry;
-
-    const HAPPY: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"lifecycle","event":"transport-open"}
-{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}
-{"seq":2,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}
-{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}"#;
-
-    #[test]
-    fn happy_path_passes_every_checked_requirement() {
-        use mcp_conformance_core::requirement::Verification;
-        let registry = Registry::builtin_2025_11_25().unwrap();
-        let events = parse_trace(HAPPY, &Limits::default()).unwrap();
-        let report = validate(&registry, &events);
-        assert!(!report.has_errors(), "{}", report.render_human());
-        assert!(!report.has_warnings(), "{}", report.render_human());
-        let documented_exclusions = registry
-            .requirements()
-            .iter()
-            .filter(|requirement| matches!(requirement.verification, Verification::Excluded { .. }))
-            .count();
-        assert_eq!(
-            usize::try_from(report.totals.excluded).unwrap(),
-            documented_exclusions,
-            "every documented exclusion reports as excluded, regardless of trace"
-        );
-        // This handshake declares no capabilities, so every gated requirement
-        // must surface as not-applicable — never as a vacuous pass.
-        let gated = registry
-            .requirements()
-            .iter()
-            .filter(|requirement| {
-                requirement.capability.is_some()
-                    && matches!(requirement.verification, Verification::Checks { .. })
-            })
-            .count();
-        assert_eq!(
-            usize::try_from(report.totals.not_applicable).unwrap(),
-            gated,
-            "{}",
-            report.render_human()
-        );
-        assert_eq!(report.totals.unsupported, 0);
-        // A bare handshake exercises almost nothing, and the report says so
-        // rather than crediting the session with clauses it never approached.
-        // PAGE-002 is the plainest case: no listing was ever paginated, so no
-        // cursor was ever presented for the opacity rule to bind to.
-        let pagination = report
-            .requirements
-            .iter()
-            .find(|row| row.id == "PAGE-002")
-            .expect("the 2025-11-25 registry carries PAGE-002");
-        assert_eq!(
-            pagination.outcome,
-            Outcome::NotObserved,
-            "{}",
-            report.render_human()
-        );
-        assert_eq!(
-            usize::try_from(
-                report.totals.pass
-                    + report.totals.fail
-                    + report.totals.warn
-                    + report.totals.excluded
-                    + report.totals.unsupported
-                    + report.totals.not_applicable
-                    + report.totals.not_observed
-            )
-            .unwrap(),
-            registry.requirements().len(),
-            "every requirement is accounted for exactly once"
-        );
-    }
-
-    /// One-requirement registry gated on `server.tools`, with a real check.
-    const GATED_REGISTRY: &str = r#"{
-        "revision": "2025-11-25",
-        "requirements": [
-            {"id": "TOOL-001", "level": "MUST", "actor": "server",
-             "capability": "server.tools",
-             "source": {"section": "server/tools#x", "quote": "MUST t"},
-             "checks": ["base.jsonrpc-version"]}
-        ]
-    }"#;
-
-    fn handshake(server_capabilities: &str) -> String {
-        format!(
-            r#"{{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"protocolVersion":"2025-11-25","capabilities":{{}},"clientInfo":{{"name":"t","version":"0"}}}}}}}}
-{{"seq":2,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{{"jsonrpc":"2.0","id":1,"result":{{"protocolVersion":"2025-11-25","capabilities":{server_capabilities},"serverInfo":{{"name":"s","version":"0"}}}}}}}}
-{{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{{"jsonrpc":"2.0","method":"notifications/initialized"}}}}"#
-        )
-    }
-
-    #[test]
-    fn undeclared_capability_reports_not_applicable_not_pass() {
-        let registry = Registry::from_json(GATED_REGISTRY).unwrap();
-        let trace = handshake(r#"{"prompts":{}}"#);
-        let events = parse_trace(&trace, &Limits::default()).unwrap();
-        let report = validate(&registry, &events);
-        assert_eq!(report.totals.not_applicable, 1);
-        assert_eq!(report.totals.pass, 0);
-        assert_eq!(
-            report.requirements[0].outcome,
-            crate::report::Outcome::NotApplicable
-        );
-        assert_eq!(
-            report.requirements[0].capability.as_deref(),
-            Some("server.tools")
-        );
-        assert_eq!(report.verdict(), crate::report::Verdict::Pass);
-    }
-
-    #[test]
-    fn declared_capability_runs_the_gated_checks() {
-        let registry = Registry::from_json(GATED_REGISTRY).unwrap();
-        let trace = handshake(r#"{"tools":{"listChanged":true}}"#);
-        let events = parse_trace(&trace, &Limits::default()).unwrap();
-        let report = validate(&registry, &events);
-        assert_eq!(report.totals.not_applicable, 0);
-        assert_eq!(report.totals.pass, 1);
-        assert!(report.requirements[0].capability.is_none());
-    }
-
-    #[test]
-    fn missing_checks_outrank_the_capability_gate() {
-        // `unsupported` must be a property of (registry, build), not of what one
-        // trace negotiated — a gated requirement with an unknown check is
-        // unsupported even when the capability was never declared.
-        let registry_json = r#"{
-            "revision": "2025-11-25",
-            "requirements": [
-                {"id": "TOOL-001", "level": "MUST", "actor": "server",
-                 "capability": "server.tools",
-                 "source": {"section": "server/tools#x", "quote": "MUST t"},
-                 "checks": ["future.not-built-yet"]}
-            ]
-        }"#;
-        let registry = Registry::from_json(registry_json).unwrap();
-        let report = validate(&registry, &[]);
-        assert_eq!(report.totals.unsupported, 1);
-        assert_eq!(report.totals.not_applicable, 0);
-    }
-
-    #[test]
-    fn unknown_check_reports_unsupported_not_silence() {
-        let registry_json = r#"{
-            "revision": "2025-11-25",
-            "requirements": [
-                {"id": "FUTR-001", "level": "MUST", "actor": "both",
-                 "source": {"section": "future#x", "quote": "MUST do future things"},
-                 "checks": ["future.not-built-yet"]}
-            ]
-        }"#;
-        let registry = Registry::from_json(registry_json).unwrap();
-        let report = validate(&registry, &[]);
-        assert_eq!(report.totals.unsupported, 1);
-        assert!(report.has_unsupported());
-        assert_eq!(
-            report.requirements[0].missing_checks,
-            ["future.not-built-yet"]
-        );
-    }
-
-    #[test]
-    fn empty_trace_passes_vacuously_with_gates_not_applicable() {
-        // The deliberate verdict for "nothing happened": no clause was
-        // violated, so the trace passes — while every capability-gated
-        // requirement reports not-applicable rather than a vacuous pass,
-        // and the totals make the vacuity visible. (Whether an *empty
-        // session* is acceptable evidence is the caller's question: the
-        // agreement check, for one, rejects empty tap directories.)
-        let registry = Registry::builtin_2025_11_25().unwrap();
-        let report = validate(&registry, &[]);
-        assert_eq!(report.verdict(), crate::report::Verdict::Pass);
-        assert_eq!(report.totals.fail, 0);
-        assert_eq!(report.totals.warn, 0);
-        assert_eq!(report.totals.unsupported, 0);
-        let gated = registry
-            .requirements()
-            .iter()
-            .filter(|requirement| {
-                requirement.capability.is_some()
-                    && matches!(
-                        requirement.verification,
-                        mcp_conformance_core::requirement::Verification::Checks { .. }
-                    )
-            })
-            .count();
-        assert_eq!(
-            usize::try_from(report.totals.not_applicable).unwrap(),
-            gated
-        );
-    }
-
-    #[test]
-    fn report_is_deterministic_across_runs() {
-        let registry = Registry::builtin_2025_11_25().unwrap();
-        let events = parse_trace(HAPPY, &Limits::default()).unwrap();
-        let a = serde_json::to_string(&validate(&registry, &events)).unwrap();
-        let b = serde_json::to_string(&validate(&registry, &events)).unwrap();
-        assert_eq!(a, b);
-    }
-}
+mod tests;

@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 36,
     "fail": 1,
@@ -520,7 +521,12 @@
           "seq": 3,
           "detail": "server declared the `tools` capability but answered `tools/list` with -32601; a declared capability must be served"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#capabilities",
+        "quote": "Servers that declare the `tools` capability MUST respond to `tools/list` requests with the set of tools currently available to the requesting client.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools#capabilities"
+      }
     },
     {
       "id": "TOOL-022",

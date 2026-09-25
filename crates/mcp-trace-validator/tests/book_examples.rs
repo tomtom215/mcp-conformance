@@ -8,11 +8,7 @@
 //! shelf life. The book is also the one place a reader meets the multi-revision
 //! report, and its whole point is that the numbers are honest — so the page
 //! quoting them is held to the tool, not to a reviewer's memory.
-//!
-//! Feature-gated because the example judges `2026-07-28`, which is not a
-//! default feature; without it there is no second revision to judge against.
 
-#![cfg(feature = "draft-2026-07-28")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use mcp_conformance_core::requirement::RegistrySet;

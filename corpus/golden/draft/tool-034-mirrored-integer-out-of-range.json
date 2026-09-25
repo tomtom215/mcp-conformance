@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 33,
     "fail": 1,
@@ -560,7 +561,12 @@
           "seq": 2,
           "detail": "the argument mirrored into `Mcp-Param-Region` is 9007199254740992, outside the IEEE 754 safe integer range"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#x-mcp-header",
+        "quote": "Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (−2<sup>53</sup>+1 to 2<sup>53</sup>−1) MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header"
+      }
     },
     {
       "id": "TOOL-038",

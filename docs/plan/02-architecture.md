@@ -17,7 +17,8 @@ mcp-conformance/
 │   ├── mcp-conformance-core/   # spec-as-data: requirement registry, traceability, trace schema
 │   ├── mcp-trace-validator/    # trace replay + validation engine; CLI binary
 │   ├── mcp-everything-server/  # reference server exercising every capability (on rmcp)
-│   └── mcp-reference-host/     # reference host / agent loop (on rmcp)
+│   ├── mcp-reference-host/     # reference host / agent loop (on rmcp)
+│   └── mcp-trace-capture/      # stdio wrapper + HTTP reverse proxy that record traces (no SDK)
 ├── xtask/                      # cargo xtask: orchestration of official-suite runs (publish = false)
 ├── conformance/                # committed suite baselines: expected-failures,
 │                               #   agreement divergences, coverage manifest
@@ -39,6 +40,7 @@ Naming was decided against verified crates.io availability in
 | `mcp-trace-validator` | `mcp-conformance-core` | rmcp | File/stdin reading in the CLI layer only; the engine is `&[TraceEvent] -> Report`, no I/O. |
 | `mcp-everything-server` | rmcp, tokio, `mcp-conformance-core` (for self-description) | `mcp-trace-validator` | stdio + streamable HTTP server. |
 | `mcp-reference-host` | rmcp, tokio | `mcp-trace-validator` | stdio + streamable HTTP client. |
+| `mcp-trace-capture` | `mcp-conformance-core`, tokio, axum, hyper, `hyper-rustls` | rmcp, `mcp-trace-validator` (except as a dev-dependency), reqwest's TLS features | Child process stdio; an HTTP listener and upstream client. |
 | `xtask` | anything (dev-only, unpublished) | — | Spawns SUTs and the official runner. |
 
 The arrows only point one way: **core ← validator**, and **core ← {server, host}** for
@@ -83,10 +85,16 @@ TraceEvent {
     seq:        u64                    // total order within the trace
     direction:  ClientToServer | ServerToClient
     transport:  Stdio | StreamableHttp
-    kind:       Message(JSON-RPC) | Http { status, headers subset } | Lifecycle(open/close/abort)
-    payload:    canonicalized JSON
+    kind:       Message { payload: JSON-RPC } | Http { method, status, headers subset }
+              | Lifecycle(open/close/abort)
 }
 ```
+
+A payload is stored as parsed JSON: every value is kept, but not the formatting —
+whitespace, member order (written sorted), or the spelling of a number (`1E2` as
+`100.0`). The normative, machine-checkable statement of one record is
+[`trace-event.schema.json`](../../crates/mcp-conformance-core/schema/trace-event.schema.json),
+held to the reader's behavior by `tests/trace_schema.rs`.
 
 Transport-level events are first-class because real requirements live there: `Host`-header
 validation (CVE-2026-42559 class), session headers, SSE resumption. A message-only trace
@@ -158,8 +166,8 @@ evaluates every active requirement. Design commitments:
    offending event `seq`, and the expected-vs-actual detail; the registry maps the ID
    back to its verbatim spec quote (`requirements` subcommand). A report a maintainer
    cannot act on is noise.
-4. **Reports as artifacts.** Output formats: human (terminal), JSON (machine), JUnit XML
-   (CI). Exit codes: `0` pass, `1` findings, `2` invalid invocation, `3` malformed trace —
+4. **Reports as artifacts.** Output formats: human (terminal), JSON (machine, with a
+   published JSON Schema), JUnit XML (CI), SARIF 2.1.0 (code scanning). Exit codes: `0` pass, `1` findings, `2` invalid invocation, `3` malformed trace —
    the a2a-rust TCK convention, extended.
 5. **No network.** The validator never dials anything. Capturing traces is the job of the
    host, the server's tap, or any external proxy; validating them is the validator's.
@@ -224,13 +232,13 @@ calibrated against the authority rather than asking anyone to trust it.
 
 ## Protocol-revision strategy
 
-- `2025-11-25` is the default revision everywhere.
-- `2026-07-28` support lands behind a `draft-2026-07-28` cargo feature while the RC is in
-  flux; registry entries gain `applies` ranges at roadmap M2.5 so the stateless rework is a
-  data change plus a state-machine variant, not a rewrite
-  ([register 1.2–1.5b](01-ecosystem-context.md)). The feature gate drops (becomes default)
-  only after the final spec text ships, M2.5 completes, and the official suite's scenarios
-  for it stabilize.
+- Every build judges both `2025-11-25` and `2026-07-28`. The validator judges a trace
+  against the revision it declares, the newest supported one when it declares none, and
+  refuses one that declares only unsupported revisions
+  ([ADR-0018](decisions/0018-judge-the-declared-revision.md)).
+- Registry entries carry `applies` ranges, so a new revision is a data change plus, where
+  the lifecycle changes, a state-machine variant — not a rewrite
+  ([register 1.2–1.5b](01-ecosystem-context.md)).
 - Versioning of our own crates follows SemVer with `#[non_exhaustive]` on protocol-facing
   enums and structs; pre-1.0 minor bumps may break, mirroring the honesty of the spec's own
   RC process.

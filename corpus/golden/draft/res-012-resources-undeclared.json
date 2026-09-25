@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 31,
     "fail": 1,
@@ -585,7 +586,12 @@
           "seq": 3,
           "detail": "server answered `resources/read` while its `server/discover` result declared no `resources` capability"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/resources#capabilities",
+        "quote": "Servers that support resources MUST declare the `resources` capability:",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources#capabilities"
+      }
     },
     {
       "id": "RES-013",

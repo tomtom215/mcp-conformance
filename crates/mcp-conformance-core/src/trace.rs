@@ -105,7 +105,8 @@ pub enum LifecycleEvent {
 pub enum EventBody {
     /// A JSON-RPC message, stored as parsed JSON.
     Message {
-        /// The message payload exactly as captured.
+        /// The message payload as parsed JSON: every value as captured, but not
+        /// its formatting (whitespace, member order, the spelling of a number).
         payload: Value,
     },
     /// An HTTP-level observation (Streamable HTTP transport only).
@@ -201,11 +202,107 @@ impl TraceEvent {
     }
 }
 
+/// The exact set of HTTP header names (lowercase) capture tooling records into traces.
+///
+/// This is the recording allowlist, public so a consumer can verify precisely
+/// what a capture keeps: everything absent from it — notably `authorization`
+/// and `cookie` — is never written to a trace ([05-security-model.md]'s
+/// redaction-by-construction posture). The everything server's tap and
+/// `mcp-trace-capture` both record exactly this set.
+///
+/// [05-security-model.md]: https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/05-security-model.md
+pub const RECORDED_HEADERS: [&str; 10] = [
+    "host",
+    "origin",
+    "accept",
+    "content-type",
+    "mcp-session-id",
+    "mcp-protocol-version",
+    "last-event-id",
+    // SEP-2243's request metadata headers and SEP-2570's streaming hint, all
+    // read by `2026-07-28` checks. Absent from this list until 2026-08-17,
+    // which made the tap report a conforming exchange as a violating one: the
+    // client sent `Mcp-Method`, the recording dropped it, and
+    // `transport.request-metadata-headers` reported the clause it proves.
+    "mcp-method",
+    "mcp-name",
+    "x-accel-buffering",
+];
+
+/// Header-name prefixes recorded in addition to [`RECORDED_HEADERS`].
+///
+/// SEP-2243 lets a tool designate an argument for a header of its own naming
+/// (`x-mcp-header` in the tool's `inputSchema`), which the client sends as
+/// `Mcp-Param-<name>`. The set of such names is defined by whatever server the
+/// capture sits in front of, so it cannot be enumerated here — a prefix is the
+/// only allowlist shape that can cover it.
+///
+/// This does not widen what a recording exposes. Every `Mcp-Param-*` value is
+/// by definition a copy of an argument in the `tools/call` body a capture
+/// already records verbatim; the prefix cannot match `authorization` or
+/// `cookie`, and no other header may use it.
+pub const RECORDED_HEADER_PREFIXES: [&str; 1] = ["mcp-param-"];
+
+/// The JSON Schema (draft 2020-12) of one trace record, for producers written
+/// without this crate: a recorder in any language can check its output against it.
+///
+/// It states every rule the reader applies to a single record, and a test runs
+/// both over the whole corpus and one violation of each rule. It cannot state
+/// the document-level rules (one record per line, no blank lines or byte-order
+/// mark, `seq` strictly increasing), and it accepts `1.0` where the reader wants
+/// `1`; its description says so.
+pub const EVENT_JSON_SCHEMA: &str = include_str!("../schema/trace-event.schema.json");
+
+/// The largest message a recorder captures by default, in bytes (64 MiB).
+///
+/// One definition for the whole toolkit, beside the format it bounds: a trace a
+/// recorder writes with its defaults must be one a reader accepts with its own.
+/// The two limits lived in different crates until 2026-09-25, at 64 MiB and
+/// 1 MiB, so a session carrying one large tool result — a base64 image is
+/// enough — was recorded faithfully and then refused whole as malformed.
+pub const DEFAULT_MAX_MESSAGE_BYTES: usize = 64 * 1024 * 1024;
+
+/// How much longer than its message limit a recorder lets a trace line be: room
+/// for the event around the payload (1 MiB).
+///
+/// Room, not a bound on growth. A recorder stores the payload re-serialized,
+/// and although that drops whitespace and never lengthens a string, a number
+/// can grow: `9e15` is written back as `9000000000000000.0`, so a message of
+/// such numbers nearly quadruples. `mcp-trace-capture` therefore checks the
+/// line it writes against `message limit + LINE_ENVELOPE_BYTES` and counts one
+/// that does not fit as oversized, which makes the bound hold by construction
+/// rather than by an argument about what payloads look like.
+pub const LINE_ENVELOPE_BYTES: usize = 1024 * 1024;
+
+/// The longest trace line a reader accepts by default, in bytes: exactly the
+/// longest line a recorder writes with its default message limit.
+pub const DEFAULT_MAX_LINE_BYTES: usize = DEFAULT_MAX_MESSAGE_BYTES + LINE_ENVELOPE_BYTES;
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn the_size_defaults_are_the_documented_values_and_add_up() {
+        assert_eq!(DEFAULT_MAX_MESSAGE_BYTES, 67_108_864, "64 MiB");
+        assert_eq!(LINE_ENVELOPE_BYTES, 1_048_576, "1 MiB");
+        assert_eq!(DEFAULT_MAX_LINE_BYTES, 68_157_440, "their sum, 65 MiB");
+    }
+
+    #[test]
+    fn the_event_schema_is_embedded_json() {
+        let schema: serde_json::Value = serde_json::from_str(EVENT_JSON_SCHEMA).unwrap();
+        assert_eq!(
+            schema["$schema"],
+            "https://json-schema.org/draft/2020-12/schema"
+        );
+        assert_eq!(
+            schema["required"],
+            json!(["seq", "direction", "transport", "kind"])
+        );
+    }
 
     #[test]
     fn new_builds_the_exact_event_with_no_timestamp() {

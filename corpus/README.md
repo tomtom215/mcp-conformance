@@ -237,7 +237,7 @@ whose method the capture did not record is judged by neither. These two captures
 were re-recorded so the method is present; that is why their `Recorded by` row
 reads 2026-08-20.
 
-**Why the runner's 23/23 and our 58-vs-59 were both right — and how the runner
+**Why the runner's 23/23 and our 60-vs-61 were both right — and how the runner
 caught up.** The suite's `2026-07-28` scenarios exercise features — list a
 thing, call a thing, read a thing — and a `2025-11-25` server answers all of
 them, because rmcp serves a per-request-versioned POST whichever revision the
@@ -257,8 +257,8 @@ measuring different things, and one of them saw this first. The pair is still
 the evidence for taking both readings — now with a worked example of the
 prose-level reading arriving earlier than the schema-level one.
 
-The 65 not-observed rows are the honest denominator: of the 124 clauses this
-revision's registry can judge, these sessions carried subject matter for 59.
+The 64 not-observed rows are the honest denominator: of the 125 clauses this
+revision's registry can judge, these sessions carried subject matter for 61.
 They open no subscription, present no cursor, draw no error, and send no
 malformed `_meta`, so those clauses are neither passed nor failed here — they
 are untested, and the report says which.

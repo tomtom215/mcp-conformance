@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "pass-with-warnings",
   "totals": {
     "pass": 19,
     "fail": 0,
@@ -280,7 +281,12 @@
           "seq": 6,
           "detail": "server returned a result for prompts/get \"review\" although the request omitted the required argument(s) [\"diff\"] it declared in prompts/list"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/prompts#implementation-considerations",
+        "quote": "Servers SHOULD validate prompt arguments before processing",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#implementation-considerations"
+      }
     },
     {
       "id": "LOG-001",

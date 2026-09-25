@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 18,
     "fail": 1,
@@ -305,7 +306,12 @@
           "seq": 0,
           "detail": "client capabilities extension identifier \"ui\" has no prefix; the prefix is optional in a `_meta` key but mandatory for an extension identifier"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/versioning#extension-negotiation",
+        "quote": "Extension identifiers MUST follow the `meta` key naming rules, with a mandatory prefix.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#extension-negotiation"
+      }
     },
     {
       "id": "VERS-008",

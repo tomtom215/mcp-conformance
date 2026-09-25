@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 27,
     "fail": 1,
@@ -600,7 +601,12 @@
           "seq": 1,
           "detail": "`resources/read` answered with an empty `contents` array, which is ambiguous between an empty resource and a missing one"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/resources#error-handling",
+        "quote": "Servers MUST NOT return an empty `contents` array for a non-existent resource.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling"
+      }
     },
     {
       "id": "RES-023",

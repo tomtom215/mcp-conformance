@@ -24,7 +24,7 @@ mod registry;
 mod set;
 
 pub use registry::{Registry, RegistryError};
-pub use set::RegistrySet;
+pub use set::{BUILTIN_REVISIONS, RegistrySet};
 
 /// RFC 2119 requirement level of a normative clause.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -177,6 +177,49 @@ pub struct SourceRef {
     pub quote: String,
 }
 
+impl SourceRef {
+    /// The published page for this clause at `revision`, anchor included:
+    /// `basic/lifecycle#initialization` at `2025-11-25` is
+    /// `https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization`.
+    /// A section naming a directory's `index` page links to the directory, which is
+    /// where the site publishes it.
+    ///
+    /// ```
+    /// # use mcp_conformance_core::requirement::SourceRef;
+    /// let source: SourceRef = serde_json::from_str(
+    ///     r#"{"section": "basic/index#_meta", "quote": "…"}"#,
+    /// )?;
+    /// assert_eq!(
+    ///     source.url("2026-07-28".parse()?),
+    ///     "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+    /// );
+    /// # Ok::<(), Box<dyn core::error::Error>>(())
+    /// ```
+    #[must_use]
+    pub fn url(&self, revision: ProtocolRevision) -> String {
+        let (page, anchor) = self
+            .section
+            .split_once('#')
+            .map_or((self.section.as_str(), None), |(page, anchor)| {
+                (page, Some(anchor))
+            });
+        let page = page
+            .strip_suffix("/index")
+            .or_else(|| (page == "index").then_some(""))
+            .unwrap_or(page);
+        let mut url = format!("https://modelcontextprotocol.io/specification/{revision}");
+        if !page.is_empty() {
+            url.push('/');
+            url.push_str(page);
+        }
+        if let Some(anchor) = anchor {
+            url.push('#');
+            url.push_str(anchor);
+        }
+        url
+    }
+}
+
 /// How a requirement is verified — the SEP-2484 traceability alternative: concrete
 /// checks, or a documented exclusion.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -238,6 +281,30 @@ impl Requirement {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_urls_link_the_published_page_and_anchor() {
+        let url = |section: &str| {
+            SourceRef {
+                section: section.to_owned(),
+                quote: String::new(),
+            }
+            .url("2025-11-25".parse().unwrap())
+        };
+        let base = "https://modelcontextprotocol.io/specification/2025-11-25";
+        assert_eq!(
+            url("basic/lifecycle#initialization"),
+            format!("{base}/basic/lifecycle#initialization")
+        );
+        // A directory's index page is published at the directory.
+        assert_eq!(url("basic/index#_meta"), format!("{base}/basic#_meta"));
+        // The revision's own index is the revision's root.
+        assert_eq!(url("index#overview"), format!("{base}#overview"));
+        assert_eq!(url("index"), base);
+        // A page named like an index but not one keeps its name.
+        assert_eq!(url("reindex#x"), format!("{base}/reindex#x"));
+        assert_eq!(url("server/tools"), format!("{base}/server/tools"));
+    }
 
     #[test]
     fn requirement_id_parsing() {

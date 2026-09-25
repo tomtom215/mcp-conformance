@@ -76,6 +76,16 @@ skip = [
     # so it re-fires the moment either version moves and the decision gets
     # re-made rather than inherited.
     { crate = "base64@0.22.1", reason = "rmcp 3.1.2 requires base64 0.23 while hyper-util 0.1.20 still requires 0.22; neither is ours to pin" },
+    # Introduced 2026-09-25 by mcp-trace-capture's `tls` feature: rustls's `ring`
+    # provider (ring 0.17.14) still requires getrandom 0.2 and windows-sys 0.52,
+    # where the rest of the graph has moved to getrandom 0.4 (rmcp) and
+    # windows-sys 0.61. Runtime dependencies, but of one binary only, and only in
+    # its TLS build. The alternatives cost more: rustls's other provider,
+    # aws-lc-rs, carries licences outside the allowlist above and needs a C
+    # toolchain to build; dropping HTTPS would leave the capture tool unable to
+    # record a remote server. Collapses when ring moves; the pins are exact.
+    { crate = "getrandom@0.2.17", reason = "ring 0.17 (mcp-trace-capture's TLS provider) still requires getrandom 0.2" },
+    { crate = "windows-sys@0.52.0", reason = "ring 0.17 (mcp-trace-capture's TLS provider) still requires windows-sys 0.52" },
     # Removed 2026-07-26: the wit-bindgen 0.51/0.57 split (rmcp's getrandom 0.4
     # vs proptest's dev-only getrandom 0.3) has collapsed — the lock now carries
     # only 0.57.1, so cargo-deny's unmatched-skip warning correctly retired it.

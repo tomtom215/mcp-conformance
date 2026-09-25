@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 25,
     "fail": 1,
@@ -445,7 +446,12 @@
           "seq": 1,
           "detail": "the `complete` result of `tools/list` carries no `ttlMs` caching hint"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/caching#cacheable-results",
+        "quote": "Servers MUST include caching hints on results with `resultType: \"complete\"` returned by the following operations: `server/discover`; `tools/list`; `prompts/list`; `resources/list`; `resources/templates/list`; `resources/read`",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cacheable-results"
+      }
     },
     {
       "id": "CACH-008",

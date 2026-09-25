@@ -115,6 +115,8 @@ fn differs_detects_a_non_adjacent_divergence() {
             Some(Outcome::Pass),
             Some(Outcome::Pass),
         ],
+        findings: vec![],
+        sources: vec![],
     };
     assert!(!uniform.differs());
     let diverges = MultiRow {
@@ -154,13 +156,78 @@ fn human_render_shows_each_revision_cell_and_marks_divergence() {
     assert!(text.contains("overall verdict: pass"), "{text}");
 }
 
+#[test]
+fn errors_name_what_went_wrong() {
+    assert_eq!(
+        MultiError::NoRevisions.to_string(),
+        "no revisions requested for multi-revision judgment"
+    );
+    assert_eq!(
+        MultiError::UnknownRevision("2024-01-01".parse().unwrap()).to_string(),
+        "registry set does not describe revision 2024-01-01"
+    );
+}
+
+/// JSON-RPC 1.0 at `seq` 0: every fixture clause fails wherever it is present.
+const WRONG_VERSION: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"1.0","id":1,"method":"ping"}}"#;
+
+#[test]
+fn findings_render_lists_only_rows_needing_attention_with_their_clause() {
+    let clean = validate_revisions(&set(), &revs(), &[]).unwrap();
+    assert!(clean.render_human().contains("LIFE-009"));
+    let quiet = clean.render_findings();
+    assert!(
+        !quiet.contains("BASE-001") && !quiet.contains("LIFE-009"),
+        "{quiet}"
+    );
+    assert!(quiet.contains("overall verdict: pass"), "{quiet}");
+
+    let events = parse_trace(WRONG_VERSION, &Limits::default()).unwrap();
+    let failing = validate_revisions(&set(), &revs(), &events).unwrap();
+    let quiet = failing.render_findings();
+    assert!(quiet.contains("BASE-001"), "{quiet}");
+    assert!(quiet.contains("\n        2026-07-28 seq 0: "), "{quiet}");
+    assert!(
+        quiet.contains(
+            "        spec: \"MUST jsonrpc 2.0\"\n        see:  \
+             https://modelcontextprotocol.io/specification/2026-07-28/d#z\n"
+        ),
+        "{quiet}"
+    );
+}
+
+#[test]
+fn json_omits_findings_and_sources_when_no_revision_has_any() {
+    let clean = validate_revisions(&set(), &revs(), &[]).unwrap();
+    let json = serde_json::to_string(&clean).unwrap();
+    assert!(!json.contains("\"findings\""), "{json}");
+    assert!(!json.contains("\"sources\""), "{json}");
+
+    let events = parse_trace(WRONG_VERSION, &Limits::default()).unwrap();
+    let failing = validate_revisions(&set(), &revs(), &events).unwrap();
+    let life = failing
+        .requirements
+        .iter()
+        .find(|row| row.id == "LIFE-009")
+        .unwrap();
+    assert_eq!(
+        life.sources
+            .iter()
+            .map(|source| source.as_ref().map(|source| source.url.as_str()))
+            .collect::<Vec<_>>(),
+        [
+            Some("https://modelcontextprotocol.io/specification/2025-11-25/l#y"),
+            None
+        ]
+    );
+}
+
 /// The premise of [`MultiRow::differs`]' documentation, checked rather than
 /// asserted: with per-revision extraction no clause is in force at two
 /// revisions, so every row is `absent` on one side. If this ever fails, the
 /// registries have started sharing entries and both that doc comment and
 /// the `*differs` marker become meaningful again — which is a change worth
 /// being told about.
-#[cfg(feature = "draft-2026-07-28")]
 #[test]
 fn the_shipped_registries_share_no_clause() {
     use mcp_conformance_core::requirement::RegistrySet;
@@ -232,7 +299,6 @@ fn judges_a_real_trace_and_is_deterministic() {
 
 // Needs a second shipped registry, for the reason `declared.rs` states.
 #[test]
-#[cfg(feature = "draft-2026-07-28")]
 fn a_run_that_judged_none_of_the_sessions_revisions_says_so() {
     // Naming `--revision` explicitly does not make judging a `2026-07-28`
     // recording against `2025-11-25` any less of a mistake, so the note is

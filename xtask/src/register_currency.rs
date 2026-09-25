@@ -449,23 +449,19 @@ mod tests {
         );
     }
 
+    /// Structure only. Whether the real register is *current* depends on the
+    /// wall clock, so asserting it here turned every pull request red once any
+    /// row aged past ninety days — the exact failure the module header assigns
+    /// to the weekly [`currency_gate`] instead. Staleness is tested above on
+    /// synthetic rows with fixed dates.
     #[test]
-    fn the_real_register_parses_and_is_current_today() {
+    fn the_real_register_parses() {
         let (text, today) = load().unwrap();
         let rows = parse(&text, &today).unwrap();
         assert!(
             rows.len() >= 68,
             "register shrank unexpectedly: {}",
             rows.len()
-        );
-        let stale = stale(&rows, &today);
-        assert!(
-            stale.is_empty(),
-            "rows past the 90-day rule: {:?}",
-            stale
-                .iter()
-                .map(|(index, age)| (&rows[*index].id, age))
-                .collect::<Vec<_>>()
         );
     }
 }

@@ -6,8 +6,8 @@
 This is the reader's guide to **mcp-conformance**, an independent, trace-based
 conformance toolkit for the [Model Context Protocol](https://modelcontextprotocol.io)
 (MCP). It judges whether an MCP implementation conforms to a specific spec
-revision — `2025-11-25` by default, `2026-07-28` behind a feature flag, or both
-at once in a single pass — and, just as importantly, it is built so that an
+revision — the one the recorded session declares, `2026-07-28` or `2025-11-25`,
+or both at once in a single pass — and, just as importantly, it is built so that an
 ecosystem with its own authoritative test suite has reason to trust the verdict.
 
 > **Status: pre-release.** The crates are published on crates.io at `0.x`;
@@ -19,13 +19,16 @@ ecosystem with its own authoritative test suite has reason to trust the verdict.
 
 The validator's input is a **trace**: an ordered, serialized record of a protocol
 interaction. Its engine is a pure function — `&[TraceEvent] -> Report` — with no
-network, no clock, and no I/O of its own. Capturing the trace is somebody else's
-job; judging it is the validator's only job. That split is what makes a verdict
+network, no clock, and no I/O of its own. Capturing the trace is
+`mcp-trace-capture`'s job — a stdio wrapper and HTTP proxy that forward bytes
+unchanged — and judging it is the validator's only job. That split is what makes a verdict
 deterministic, replayable, language- and SDK-agnostic, and — because it is
 reproducible from a committed file — auditable rather than a "trust us."
 
 The credibility mechanism is the **agreement check**: on every CI run the
-reference server is driven by the *official* conformance suite, the same sessions
+reference server is driven by the *official* conformance suite (pinned, at
+`2025-11-25`; the `2026-07-28` surface is measured weekly against the suite's
+pre-release), the same sessions
 are captured as traces, and this toolkit's verdicts are diffed against the
 official runner's. Agreement is the default; an unexplained divergence fails the
 build. A validator whose verdicts are checked against the recognized authority on
@@ -36,7 +39,8 @@ every commit is calibrated, not merely asserted to be correct.
 | Crate | What it is |
 |-------|------------|
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | The spec as data: the requirement registry, the trace schema, and RFC 8785 canonical JSON. Serde-only; no protocol SDK. |
-| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | The deterministic judgment engine and its CLI (human / JSON / JUnit reports, documented exit codes). |
+| `mcp-trace-capture` | The recorder: a stdio wrapper and HTTP reverse proxy that write a validator-ready trace of any MCP session, linking no SDK. Ships with the next release. |
+| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | The deterministic judgment engine and its CLI (human / JSON / JUnit / SARIF reports, documented exit codes). |
 | [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | A reference server on the official `rmcp` SDK that passes the suite's server scenarios, with a session tap that records traces for the agreement check. |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | A reference host (client) that passes the suite's client scenarios and captures host-side traces. |
 

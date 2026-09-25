@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 16,
     "fail": 1,
@@ -20,7 +21,12 @@
           "seq": 3,
           "detail": "request \"ping\" carries a boolean as its id; the ID must be a string or an integer"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic#requests",
+        "quote": "Requests MUST include a string or integer ID.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#requests"
+      }
     },
     {
       "id": "BASE-002",

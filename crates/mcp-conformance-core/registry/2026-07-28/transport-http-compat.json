@@ -35,7 +35,7 @@
         "introduced": "2026-07-28"
       },
       "source": {
-        "section": "basic/transports/streamable-http#httpsse-transport-2024-11-05",
+        "section": "basic/transports/streamable-http#http+sse-transport-2024-11-05",
         "quote": "New implementations SHOULD NOT adopt it; existing implementations SHOULD migrate to Streamable HTTP."
       },
       "exclusion": "Adopting or migrating away from a transport is a project decision, not a property of any session."

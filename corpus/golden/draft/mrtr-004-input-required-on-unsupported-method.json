@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 30,
     "fail": 1,
@@ -365,7 +366,12 @@
           "seq": 1,
           "detail": "`input_required` answers `resources/list`; this revision permits it only on prompts/get, resources/read, tools/call"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr#supported-requests",
+        "quote": "Servers MUST NOT send `InputRequiredResult` responses on any other client requests.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#supported-requests"
+      }
     },
     {
       "id": "MRTR-006",

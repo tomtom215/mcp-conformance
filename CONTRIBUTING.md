@@ -66,7 +66,10 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
     you are *not* asserting — a line as it used to read, or sample tool output
     — put it in backticks; code is a specimen, prose is a claim
 
-Gates 7–12 are exactly `cargo xtask gates`: they need nothing but a stable
+Gates 7–12, plus six structural checks — SPDX headers, a byte-identical copy of
+`LICENSE` in every published crate, the CI write-scope inventory, the toolchain pin,
+cross-revision registry continuity, and the ecosystem register's row shape — are
+exactly `cargo xtask gates`: they need nothing but a stable
 toolchain and the checked-out tree, CI's `doc` job runs that one command, and
 `cargo xtask ci` calls the same function — so what you run locally and what CI
 runs cannot drift apart. They used to be written out in the workflow, and two of

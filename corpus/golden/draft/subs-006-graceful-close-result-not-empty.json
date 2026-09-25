@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "pass-with-warnings",
   "totals": {
     "pass": 27,
     "fail": 0,
@@ -435,7 +436,12 @@
           "seq": 2,
           "detail": "the `subscriptions/listen` response carries `delivered`; a graceful closure's result carries no method-specific data beyond `resultType` and `_meta`"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/subscriptions#cancellation",
+        "quote": "The server tears it down (e.g., during shutdown) — it SHOULD send a successful `subscriptions/listen` response to signal a graceful end (see Graceful Closure), then close the stream.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/subscriptions#cancellation"
+      }
     },
     {
       "id": "SUBS-006",
@@ -447,7 +453,12 @@
           "seq": 2,
           "detail": "the `subscriptions/listen` response carries `delivered`; a graceful closure's result carries no method-specific data beyond `resultType` and `_meta`"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/subscriptions#graceful-closure",
+        "quote": "When the server ends a subscription on its own initiative (for example, during shutdown), it SHOULD respond to the original `subscriptions/listen` request with a completion result before closing the stream.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/subscriptions#graceful-closure"
+      }
     },
     {
       "id": "CACH-001",

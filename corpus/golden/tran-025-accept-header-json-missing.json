@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 24,
     "fail": 1,
@@ -160,7 +161,12 @@
           "seq": 4,
           "detail": "client POST Accept header \"text/event-stream\" does not list application/json; a POST must offer both application/json and text/event-stream"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "The client MUST include an `Accept` header, listing both `application/json` and `text/event-stream` as supported content types.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#sending-messages-to-the-server"
+      }
     },
     {
       "id": "TRAN-026",

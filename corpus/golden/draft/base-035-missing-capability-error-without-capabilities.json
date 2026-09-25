@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 29,
     "fail": 1,
@@ -130,7 +131,12 @@
           "seq": 1,
           "detail": "error -32021 has no `data.requiredCapabilities` naming the missing capabilities"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#_meta",
+        "quote": "If processing a request requires a capability the client did not include in `io.modelcontextprotocol/clientCapabilities`, the server MUST return a `MissingRequiredClientCapabilityError` (`-32021`) whose `data.requiredCapabilities` lists the missing capabilities.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+      }
     },
     {
       "id": "BASE-036",

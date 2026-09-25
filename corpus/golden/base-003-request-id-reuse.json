@@ -1,5 +1,6 @@
 {
   "revision": "2025-11-25",
+  "verdict": "fail",
   "totals": {
     "pass": 16,
     "fail": 1,
@@ -30,7 +31,12 @@
           "seq": 5,
           "detail": "request \"ping\" reuses id 2, already used by the same party at seq 3"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic#requests",
+        "quote": "The request ID MUST NOT have been previously used by the requestor within the same session.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#requests"
+      }
     },
     {
       "id": "BASE-004",

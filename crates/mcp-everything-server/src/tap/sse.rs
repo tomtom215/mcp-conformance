@@ -5,72 +5,54 @@
 
 /// Incremental SSE frame splitter: feed byte chunks, get the JSON payloads
 /// of completed `data:` frames. Carries partial frames across chunks.
+///
+/// Framing is done on bytes and text is decoded per complete frame, so a
+/// multi-byte character split across two chunks — which a network may do to
+/// any non-ASCII stream — is reassembled before it is decoded. A frame that is
+/// not UTF-8 is skipped on its own: frame boundaries are byte sequences, so one
+/// bad frame cannot desynchronize the ones after it.
 #[derive(Default)]
 pub(super) struct SseSplitter {
-    buffer: String,
-    /// Set once this stream can no longer be recorded faithfully — an
-    /// un-delimited frame outgrew the recording budget, or a non-UTF-8 chunk
-    /// arrived (recording after either would desynchronize frame boundaries
-    /// and capture garbage). The stream keeps flowing to the client; the tap
-    /// stops parsing it, loudly.
+    buffer: Vec<u8>,
+    /// Set once an un-delimited frame outgrew the recording budget. The stream
+    /// keeps flowing to the client; the tap stops parsing it, loudly.
     stopped: bool,
 }
 
 impl SseSplitter {
-    /// Consumes one chunk and returns the payloads of every frame it
-    /// completed. Non-UTF-8 chunks stop recording for this stream — resuming
-    /// at the next chunk could mis-frame everything after the gap — and the
-    /// bytes still flow to the client untouched.
+    /// Consumes one chunk and returns the payloads of every frame it completed.
     pub(super) fn push(&mut self, chunk: &[u8]) -> Vec<serde_json::Value> {
         if self.stopped {
             return Vec::new();
         }
-        let Ok(text) = std::str::from_utf8(chunk) else {
-            self.stopped = true;
-            self.buffer = String::new();
-            eprintln!(
-                "mcp-everything-server: tap stopped recording an SSE stream after \
-                 a non-UTF-8 chunk (the stream itself flows on)"
-            );
-            return Vec::new();
-        };
-        self.buffer.push_str(text);
+        self.buffer.extend_from_slice(chunk);
         let mut payloads = Vec::new();
-        // SSE events end at a blank line; tolerate both LF and CRLF framing.
+        let mut rest: &[u8] = &self.buffer;
         // The iteration bound is a real invariant, not decoration: every
         // completed frame consumes at least its boundary bytes, so an n-byte
         // buffer holds at most n frames. Bounding the loop makes an infinite
         // spin impossible even if frame-splitting were to stop consuming
         // input — a recording bug must never wedge the serving path.
         for _ in 0..=self.buffer.len() {
-            let Some((frame, rest)) = split_frame(&self.buffer) else {
+            let Some((frame, next)) = split_frame(rest) else {
                 break;
             };
-            let data = frame
-                .lines()
-                .filter_map(|line| {
-                    line.strip_prefix("data:")
-                        .map(|d| d.strip_prefix(' ').unwrap_or(d))
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
-            if !data.is_empty()
-                && let Ok(payload) = serde_json::from_str(&data)
-            {
+            if let Some(payload) = payload(frame) {
                 payloads.push(payload);
             }
-            self.buffer = rest;
+            rest = &rest[next..];
         }
+        let consumed = self.buffer.len() - rest.len();
+        self.buffer.drain(..consumed);
         // The JSON path bounds recorded bodies (MAX_RECORDED_BODY); without
         // the same bound here, one frame-boundary-free stream would grow
         // this buffer until the process dies. Recording is diagnostics — it
         // must never be the thing that takes the server down. The bound is
         // checked on the *residual* (after frame extraction), so any frame
-        // up to the budget itself still records; the buffer can transiently
-        // hold residual-plus-one-chunk, which network reads keep small.
+        // up to the budget itself still records.
         if self.buffer.len() > super::MAX_RECORDED_BODY {
             self.stopped = true;
-            self.buffer = String::new();
+            self.buffer = Vec::new();
             eprintln!(
                 "mcp-everything-server: tap stopped recording an SSE stream whose \
                  frame exceeded the recording budget"
@@ -80,11 +62,31 @@ impl SseSplitter {
     }
 }
 
-/// Splits `buffer` at the first SSE frame boundary (`\n\n` or `\r\n\r\n`),
-/// returning the frame and the remainder.
-fn split_frame(buffer: &str) -> Option<(String, String)> {
-    let lf = buffer.find("\n\n").map(|i| (i, 2));
-    let crlf = buffer.find("\r\n\r\n").map(|i| (i, 4));
+/// The JSON payload of one frame's `data:` lines, if it has one.
+fn payload(frame: &[u8]) -> Option<serde_json::Value> {
+    let Ok(text) = std::str::from_utf8(frame) else {
+        eprintln!("mcp-everything-server: tap skipped an SSE frame that is not UTF-8");
+        return None;
+    };
+    let data = text
+        .lines()
+        .filter_map(|line| {
+            line.strip_prefix("data:")
+                .map(|d| d.strip_prefix(' ').unwrap_or(d))
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    if data.is_empty() {
+        return None;
+    }
+    serde_json::from_str(&data).ok()
+}
+
+/// Finds the first SSE frame boundary (`\n\n` or `\r\n\r\n`) in `buffer`,
+/// returning the frame and the offset just past the boundary.
+fn split_frame(buffer: &[u8]) -> Option<(&[u8], usize)> {
+    let lf = find(buffer, b"\n\n").map(|i| (i, 2));
+    let crlf = find(buffer, b"\r\n\r\n").map(|i| (i, 4));
     let (index, width) = match (lf, crlf) {
         (Some((li, lw)), Some((ci, cw))) => {
             if ci < li {
@@ -96,10 +98,13 @@ fn split_frame(buffer: &str) -> Option<(String, String)> {
         (Some(found), None) | (None, Some(found)) => found,
         (None, None) => return None,
     };
-    Some((
-        buffer[..index].to_owned(),
-        buffer[index + width..].to_owned(),
-    ))
+    Some((&buffer[..index], index + width))
+}
+
+fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
 }
 
 #[cfg(test)]
@@ -132,60 +137,76 @@ mod tests {
         assert_eq!(splitter.push(b"data: 7\n\n"), vec![json!(7)]);
     }
 
+    /// `split_frame` as `(frame, remainder)` strings, for readable assertions.
+    fn split(buffer: &str) -> Option<(String, String)> {
+        split_frame(buffer.as_bytes()).map(|(frame, next)| {
+            (
+                String::from_utf8(frame.to_vec()).unwrap(),
+                buffer[next..].to_owned(),
+            )
+        })
+    }
+
     #[test]
     fn split_frame_returns_exact_frame_and_remainder() {
-        assert_eq!(split_frame("no boundary yet"), None);
+        assert_eq!(split("no boundary yet"), None);
         assert_eq!(
-            split_frame("data: 1\n\nrest"),
+            split("data: 1\n\nrest"),
             Some(("data: 1".to_owned(), "rest".to_owned()))
         );
         assert_eq!(
-            split_frame("data: 1\r\n\r\nrest"),
+            split("data: 1\r\n\r\nrest"),
             Some(("data: 1".to_owned(), "rest".to_owned()))
         );
         // An empty frame is still a frame: the boundary alone splits.
-        assert_eq!(
-            split_frame("\n\ntail"),
-            Some((String::new(), "tail".to_owned()))
-        );
+        assert_eq!(split("\n\ntail"), Some((String::new(), "tail".to_owned())));
     }
 
     #[test]
     fn split_frame_takes_the_earlier_boundary_when_both_framings_appear() {
         // CRLF boundary first: it must win even though an LF boundary follows.
         assert_eq!(
-            split_frame("a\r\n\r\nb\n\nc"),
+            split("a\r\n\r\nb\n\nc"),
             Some(("a".to_owned(), "b\n\nc".to_owned()))
         );
         // LF boundary first: it must win even though a CRLF boundary follows.
         assert_eq!(
-            split_frame("a\n\nb\r\n\r\nc"),
+            split("a\n\nb\r\n\r\nc"),
             Some(("a".to_owned(), "b\r\n\r\nc".to_owned()))
         );
         // A CRLF boundary consumes all four bytes: the frame carries no
         // trailing carriage return and the remainder starts after the
         // boundary, even at end of input.
-        assert_eq!(
-            split_frame("x\r\n\r\n"),
-            Some(("x".to_owned(), String::new()))
-        );
+        assert_eq!(split("x\r\n\r\n"), Some(("x".to_owned(), String::new())));
     }
 
     #[test]
-    fn splitter_stops_recording_after_a_non_utf8_chunk() {
-        // Recording must stop, not resync: a chunk dropped from the middle
-        // of a stream means later frame boundaries cannot be trusted, and a
-        // recorder that guesses records garbage as if it were wire truth.
+    fn a_character_split_across_chunks_is_reassembled() {
+        // "é" is 0xC3 0xA9: a network may deliver the two bytes separately.
+        let frame = "data: {\"text\":\"é日本\"}\n\n".as_bytes();
+        let cut = frame.iter().position(|&byte| byte == 0xC3).unwrap() + 1;
         let mut splitter = SseSplitter::default();
-        assert!(splitter.push(b"data: {\"a\":").is_empty());
-        assert!(splitter.push(&[0xFF, 0xFE]).is_empty());
-        assert!(splitter.stopped);
-        assert_eq!(splitter.buffer.capacity(), 0, "partial frame is freed");
-        let frame = b"data: {\"jsonrpc\":\"2.0\",\"method\":\"x\"}\n\n";
-        assert!(
-            splitter.push(frame).is_empty(),
-            "no frame after the gap is recorded"
+        assert!(splitter.push(&frame[..cut]).is_empty());
+        assert_eq!(splitter.push(&frame[cut..]), vec![json!({"text": "é日本"})]);
+        // Every split point, not just that one.
+        for cut in 1..frame.len() {
+            let mut splitter = SseSplitter::default();
+            let mut got = splitter.push(&frame[..cut]);
+            got.extend(splitter.push(&frame[cut..]));
+            assert_eq!(got, vec![json!({"text": "é日本"})], "cut at {cut}");
+        }
+    }
+
+    #[test]
+    fn a_frame_that_is_not_utf8_is_skipped_and_the_next_still_records() {
+        let mut splitter = SseSplitter::default();
+        let mut stream = b"data: {\"a\":1}\n\ndata: \xFF\xFE\n\n".to_vec();
+        stream.extend_from_slice(b"data: {\"b\":2}\n\n");
+        assert_eq!(
+            splitter.push(&stream),
+            vec![json!({"a": 1}), json!({"b": 2})]
         );
+        assert!(!splitter.stopped);
     }
 
     #[test]

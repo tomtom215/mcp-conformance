@@ -1,5 +1,6 @@
 {
   "revision": "2026-07-28",
+  "verdict": "fail",
   "totals": {
     "pass": 44,
     "fail": 2,
@@ -260,7 +261,12 @@
           "seq": 7,
           "detail": "the POST at seq 4 carried `Mcp-Param-Region: us-east1` against `params.arguments.region` = \"us-west1\"; the server answered it with a result instead of rejecting the mismatch"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#server-behavior-for-custom-headers",
+        "quote": "Any server that processes the message body MUST validate that encoded header values, after decoding if Base64-encoded, match the corresponding values in the request body.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers"
+      }
     },
     {
       "id": "TRAN-098",
@@ -277,7 +283,12 @@
           "seq": 7,
           "detail": "the POST at seq 4 carried `Mcp-Param-Region: us-east1` against `params.arguments.region` = \"us-west1\"; the server answered it with a result instead of rejecting the mismatch"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#server-validation",
+        "quote": "Servers that process the request body MUST reject requests where the values specified in the headers do not match the corresponding values in the request body.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-validation"
+      }
     },
     {
       "id": "TRAN-102",
