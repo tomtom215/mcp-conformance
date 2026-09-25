@@ -8,6 +8,7 @@ members = [
     "crates/mcp-trace-validator",
     "crates/mcp-everything-server",
     "crates/mcp-reference-host",
+    "crates/mcp-trace-capture",
     "xtask",
 ]
 

@@ -17,7 +17,8 @@ mcp-conformance/
 │   ├── mcp-conformance-core/   # spec-as-data: requirement registry, traceability, trace schema
 │   ├── mcp-trace-validator/    # trace replay + validation engine; CLI binary
 │   ├── mcp-everything-server/  # reference server exercising every capability (on rmcp)
-│   └── mcp-reference-host/     # reference host / agent loop (on rmcp)
+│   ├── mcp-reference-host/     # reference host / agent loop (on rmcp)
+│   └── mcp-trace-capture/      # stdio wrapper + HTTP reverse proxy that record traces (no SDK)
 ├── xtask/                      # cargo xtask: orchestration of official-suite runs (publish = false)
 ├── conformance/                # committed suite baselines: expected-failures,
 │                               #   agreement divergences, coverage manifest
@@ -39,6 +40,7 @@ Naming was decided against verified crates.io availability in
 | `mcp-trace-validator` | `mcp-conformance-core` | rmcp | File/stdin reading in the CLI layer only; the engine is `&[TraceEvent] -> Report`, no I/O. |
 | `mcp-everything-server` | rmcp, tokio, `mcp-conformance-core` (for self-description) | `mcp-trace-validator` | stdio + streamable HTTP server. |
 | `mcp-reference-host` | rmcp, tokio | `mcp-trace-validator` | stdio + streamable HTTP client. |
+| `mcp-trace-capture` | `mcp-conformance-core`, tokio, axum, hyper, `hyper-rustls` | rmcp, `mcp-trace-validator` (except as a dev-dependency), reqwest's TLS features | Child process stdio; an HTTP listener and upstream client. |
 | `xtask` | anything (dev-only, unpublished) | — | Spawns SUTs and the official runner. |
 
 The arrows only point one way: **core ← validator**, and **core ← {server, host}** for

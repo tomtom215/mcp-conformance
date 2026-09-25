@@ -11,8 +11,8 @@
 ## Principles
 
 - All publishable crates share one version and release together
-  (`mcp-conformance-core`, `mcp-trace-validator`, `mcp-everything-server`,
-  `mcp-reference-host`; `xtask` is never published).
+  (`mcp-conformance-core`, `mcp-trace-validator`, `mcp-trace-capture`,
+  `mcp-everything-server`, `mcp-reference-host`; `xtask` is never published).
 - [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html). Pre-1.0, minor releases may
   break APIs; the changelog says so explicitly when they do.
 - **Trusted publishing (OIDC)** to crates.io — no long-lived registry tokens exist
@@ -28,8 +28,17 @@
 Dependency order, with index-propagation waits between steps:
 
 1. `mcp-conformance-core` (no internal deps)
-2. `mcp-trace-validator` (depends on core)
+2. `mcp-trace-validator`, `mcp-trace-capture` (depend on core)
 3. `mcp-everything-server`, `mcp-reference-host`
+
+**A new crate needs a one-time bootstrap.** crates.io cannot configure trusted
+publishing for a crate that has never been published
+([register 2.14](docs/plan/01-ecosystem-context.md)), so the first release that
+includes a new crate — `mcp-trace-capture`, from 0.6.0 — needs the owner to publish
+that crate once with a crate-scoped, short-expiry token (the v0.1.0 procedure below),
+configure its trusted publisher, and revoke the token. Until then the OIDC-only
+publish job stops at that crate; it is resumable, so re-running the tag afterwards
+continues from there.
 
 ## v0.3.0 pre-flight (third audit, 2026-06-13)
 

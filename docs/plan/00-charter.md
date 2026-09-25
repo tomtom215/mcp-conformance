@@ -71,12 +71,13 @@ named priority area on the roadmap published 2026-08-22
 
 ## What we ship
 
-Four coupled artifacts in one Cargo workspace (boundaries in
+Five coupled artifacts in one Cargo workspace (boundaries in
 [02-architecture.md](02-architecture.md)):
 
 | Artifact | Crate | One-line definition |
 |----------|-------|---------------------|
 | Requirement registry | `mcp-conformance-core` | The MCP spec's normative clauses as data: stable IDs, RFC 2119 levels, source quotes, applicability, per-revision validity — plus the SEP-2484 traceability format. |
+| Trace capture | `mcp-trace-capture` | A stdio wrapper and HTTP reverse proxy that record any MCP session, in any language, as a trace the validator reads — forwarding bytes unchanged and linking no SDK ([ADR-0019](decisions/0019-a-recording-tap-is-not-a-gateway.md)). |
 | Trace validator | `mcp-trace-validator` | Library + CLI that replays a recorded protocol trace through a typed session state machine and reports pass/fail per requirement, deterministically, for any implementation in any language. |
 | Everything server | `mcp-everything-server` | A Rust server on rmcp exercising every protocol capability; built to pass the official suite's server scenarios at the Tier-1 bar and offered upstream. |
 | Reference host | `mcp-reference-host` | A native Rust MCP host/agent-loop on rmcp — the client-side system-under-test that proves the toolkit from the other side of the wire, with secure-by-default transport posture. |
@@ -106,7 +107,9 @@ Explicitly out of scope, with the reasoning preserved in
   Rust API client is a high-obsolescence dead end and several already exist.
 - **Not a Claude Agent SDK port.** The Agent SDK is a vendor product in Python and TypeScript;
   existing Rust "ports" are CLI subprocess wrappers.
-- **Not a gateway/proxy.** agentgateway (Linux Foundation) owns that space in Rust.
+- **Not a gateway.** agentgateway (Linux Foundation) owns that space in Rust. The recording
+  tap in `mcp-trace-capture` forwards bytes unchanged and does nothing else — no routing,
+  filtering, rewriting or authentication ([ADR-0019](decisions/0019-a-recording-tap-is-not-a-gateway.md)).
 - **Not a security scanner.** Tool-poisoning and server-auditing scanners (mcp-scan, agentox)
   are a different product; our security surface is protocol conformance and secure defaults.
 - **Not a hosted service.** Everything runs locally or in CI.

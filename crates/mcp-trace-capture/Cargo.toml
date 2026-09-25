@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+[package]
+name = "mcp-trace-capture"
+description = "Record any Model Context Protocol session as a validator-ready trace: a transparent stdio wrapper and HTTP reverse proxy that forward bytes unchanged"
+readme = "README.md"
+keywords = ["mcp", "conformance", "trace", "proxy", "testing"]
+categories = ["development-tools::testing", "command-line-utilities"]
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[features]
+default = ["cli", "tls"]
+# The binary. The library (recorder, stdio pump, HTTP proxy) needs no CLI parser.
+cli = ["dep:clap", "tokio/rt-multi-thread", "tokio/macros"]
+# HTTPS upstreams: rustls with the `ring` provider and the platform's root
+# certificates. Not reqwest's TLS features: those are shared with the reference
+# host through Cargo feature unification, and switching them on for this crate
+# changed that crate's behaviour in every workspace build.
+tls = ["dep:hyper-rustls", "dep:rustls"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
+
+[dependencies]
+# The trace schema this tool writes — the same types the validator reads, so a
+# capture cannot drift from what the judge accepts.
+mcp-conformance-core = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["process", "io-util", "io-std", "net", "sync", "signal"] }
+# HTTP listener. Already in the tree for the everything server.
+axum = { workspace = true }
+# HTTP upstream client: hyper directly, so request and response bodies stream
+# through as the endpoints sent them. Already in the tree under reqwest and axum.
+hyper = { version = ">=1.11, <2", default-features = false, features = ["client", "http1"] }
+hyper-util = { version = ">=0.1.20, <0.2", default-features = false, features = ["client-legacy", "http1", "tokio"] }
+futures = { version = ">=0.3.30, <0.4" }
+clap = { workspace = true, optional = true }
+hyper-rustls = { version = ">=0.27.10, <0.28", default-features = false, features = ["http1", "ring", "rustls-native-certs", "tls12"], optional = true }
+rustls = { version = ">=0.23.45, <0.24", default-features = false, features = ["ring", "std", "tls12"], optional = true }
+
+[dev-dependencies]
+# The tests' own HTTP client; plain HTTP to loopback, no TLS features.
+reqwest = { workspace = true }
+# End to end: the proxy in front of the real everything server, its trace judged
+# by the real validator.
+mcp-everything-server = { workspace = true }
+mcp-trace-validator = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+
+[[bin]]
+name = "mcp-trace-capture"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[lints]
+workspace = true

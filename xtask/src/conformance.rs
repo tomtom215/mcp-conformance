@@ -114,8 +114,15 @@ pub(crate) fn run() -> ExitCode {
         eprintln!("xtask: agreement — {message}");
         return ExitCode::FAILURE;
     }
-    client::run(&root, &suite)
+    if client::run(&root, &suite) != ExitCode::SUCCESS {
+        return ExitCode::FAILURE;
+    }
+    capture::run(&root, &suite)
 }
+
+/// The capture leg: `mcp-trace-capture` between real endpoints — stdio sessions
+/// judged clean at both revisions, and the suite green through the HTTP proxy.
+mod capture;
 
 /// The client leg: the host binary as the suite's SUT, plus the
 /// child-process transport's real-binary proof and the client-side

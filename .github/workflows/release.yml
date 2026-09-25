@@ -319,6 +319,7 @@ jobs:
           # depends only on core.
           publish_crate mcp-conformance-core
           publish_crate mcp-trace-validator
+          publish_crate mcp-trace-capture
           publish_crate mcp-everything-server
           publish_crate mcp-reference-host
 
@@ -327,7 +328,7 @@ jobs:
             echo ""
             echo "| Crate | Link |"
             echo "|-------|------|"
-            for crate in mcp-conformance-core mcp-trace-validator mcp-everything-server mcp-reference-host; do
+            for crate in mcp-conformance-core mcp-trace-validator mcp-trace-capture mcp-everything-server mcp-reference-host; do
               echo "| ${crate} | [crates.io](https://crates.io/crates/${crate}/${VERSION}) |"
             done
             echo ""
@@ -371,35 +372,40 @@ jobs:
         run: |
           rustup toolchain install ${{ matrix.toolchain }} --profile minimal --no-self-update
           rustup default ${{ matrix.toolchain }}
-      - name: cargo install mcp-trace-validator, exactly as the README tells users to
+      - name: cargo install the two user-facing tools, exactly as the README tells users to
         shell: bash
         run: |
           set -euo pipefail
           VERSION="${{ needs.verify.outputs.version }}"
-          # The sparse index can lag behind a completed publish at some CDN
-          # edges, so a miss here is retried before it is believed.
-          for attempt in 1 2 3 4 5; do
-            if cargo install mcp-trace-validator --version "${VERSION}"; then
-              installed=1; break
-            fi
-            echo "::warning::install attempt ${attempt} failed; the index may still be propagating"
-            sleep $(( attempt * 20 ))
+          for crate in mcp-trace-validator mcp-trace-capture; do
+            # The sparse index can lag behind a completed publish at some CDN
+            # edges, so a miss here is retried before it is believed.
+            installed=0
+            for attempt in 1 2 3 4 5; do
+              if cargo install "${crate}" --version "${VERSION}"; then
+                installed=1; break
+              fi
+              echo "::warning::${crate} install attempt ${attempt} failed; the index may still be propagating"
+              sleep $(( attempt * 20 ))
+            done
+            [[ "${installed}" == "1" ]] || { echo "::error::cargo install ${crate} failed after 5 attempts"; exit 1; }
           done
-          [[ "${installed:-0}" == "1" ]] || { echo "::error::cargo install failed after 5 attempts"; exit 1; }
-      - name: The installed binary runs and is the version we published
+      - name: The installed binaries run and are the version we published
         shell: bash
         run: |
           set -euo pipefail
           VERSION="${{ needs.verify.outputs.version }}"
           # Closes the loop: resolving and building is not the same as shipping
           # a binary that starts and reports itself correctly.
-          got="$(mcp-trace-validator --version)"
-          echo "installed: ${got}"
-          grep -qF "${VERSION}" <<<"${got}" || {
-            echo "::error::installed binary reports '${got}', expected ${VERSION}"
-            exit 1
-          }
-          mcp-trace-validator --help >/dev/null
+          for binary in mcp-trace-validator mcp-trace-capture; do
+            got="$("${binary}" --version)"
+            echo "installed: ${got}"
+            grep -qF "${VERSION}" <<<"${got}" || {
+              echo "::error::installed ${binary} reports '${got}', expected ${VERSION}"
+              exit 1
+            }
+            "${binary}" --help >/dev/null
+          done
       - name: The pinned graph is coherent too (`--locked`)
         # The unlocked install above is the user-facing command; this one proves
         # the Cargo.lock published inside the crate still resolves, so a future
@@ -407,4 +413,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo install mcp-trace-validator --version "${{ needs.verify.outputs.version }}" --locked --force
+          for crate in mcp-trace-validator mcp-trace-capture; do
+            cargo install "${crate}" --version "${{ needs.verify.outputs.version }}" --locked --force
+          done

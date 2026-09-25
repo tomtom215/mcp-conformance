@@ -38,6 +38,20 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **`mcp-trace-capture`, a new crate: record any MCP session as a trace.** Wrap a stdio
+  server (`mcp-trace-capture -o t.jsonl stdio -- <server> [args…]`, launched by the
+  client in the server's place) or proxy a streamable-HTTP one
+  (`mcp-trace-capture -o t.jsonl http --upstream <url>`), in any language, through any
+  SDK. Bytes are forwarded unchanged; each message is recorded before the bytes that
+  complete it are forwarded, so the order is causal; what cannot be recorded (non-JSON,
+  over `--max-message-bytes`) is forwarded intact and counted; only allowlisted headers
+  are written. `https://` upstreams are supported. CI now proves it end to end:
+  reference-host sessions through the wrapper judge clean at both revisions, and the
+  official suite passes 40/40 through the proxy
+  ([ADR-0019](docs/plan/decisions/0019-a-recording-tap-is-not-a-gateway.md)).
+- The header recording allowlist moves to `mcp_conformance_core::trace`
+  (`RECORDED_HEADERS`, `RECORDED_HEADER_PREFIXES`), shared by every recorder; the
+  everything server's tap re-exports it under the same names.
 - **Multi-revision reports carry every finding's `seq` and reason**, per revision,
   in human and JSON output (`findings` on each row, omitted when empty), and
   `--format junit` works for them: one `<testsuite>` per revision

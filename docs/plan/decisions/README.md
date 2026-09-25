@@ -35,6 +35,7 @@ or when the reasoning would otherwise live only in someone's head.
 | [0016](0016-no-reservation-primitive.md) | No Reservation Primitive — the Trace Is One Transport and the Spec Went Stateless | Rejected (third negative consequence refuted by 0017) |
 | [0017](0017-both-stranded-properties-were-already-settled.md) | Both Stranded Properties Were Already Settled — and the Rule That Settles One Is Thin | Accepted (corrects 0016; extends its decision 3) |
 | [0018](0018-judge-the-declared-revision.md) | Judge the Revision the Trace Declares, and Ship `2026-07-28` in Every Build | Accepted (replaces the feature-gate condition in 02-architecture and roadmap M5) |
+| [0019](0019-a-recording-tap-is-not-a-gateway.md) | A Recording Tap Is Not a Gateway — Ship `mcp-trace-capture` | Accepted (narrows 0002's gateway/proxy non-goal) |
 
 ## Process
 
