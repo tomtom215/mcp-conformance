@@ -26,7 +26,7 @@ use mcp_conformance_core::trace::TraceEvent;
 use serde::{Deserialize, Serialize};
 
 use crate::engine;
-use crate::report::{Finding, Outcome, RequirementReport, Totals, Verdict};
+use crate::report::{ClauseSource, Finding, Outcome, RequirementReport, Totals, Verdict};
 
 /// Error produced by a multi-revision run.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -80,6 +80,16 @@ pub struct MultiRow {
     /// Omitted from JSON when no revision has any, which is the common case.
     #[serde(default, skip_serializing_if = "no_findings")]
     pub findings: Vec<Vec<Finding>>,
+    /// The violated clause behind each `fail` or `warn` outcome, aligned by index
+    /// with [`MultiReport::revisions`] — per revision because the published page
+    /// is. Omitted from JSON when no revision has one.
+    #[serde(default, skip_serializing_if = "no_sources")]
+    pub sources: Vec<Option<ClauseSource>>,
+}
+
+/// Whether a row carries no clause source under any revision.
+fn no_sources(sources: &[Option<ClauseSource>]) -> bool {
+    sources.iter().all(Option::is_none)
 }
 
 /// Whether a row carries no finding under any revision.
@@ -194,27 +204,7 @@ impl MultiReport {
             {
                 continue;
             }
-            let _ = write!(out, "  {:<10} ({})", row.id, row.level);
-            for (revision, outcome) in self.revisions.iter().zip(&row.outcomes) {
-                let _ = write!(out, "  {revision}={}", cell_token(*outcome));
-            }
-            if row.differs() {
-                let _ = write!(out, "  *differs");
-            }
-            let _ = writeln!(out);
-            for (revision, findings) in self.revisions.iter().zip(&row.findings) {
-                for finding in findings {
-                    match finding.seq {
-                        Some(seq) => {
-                            let _ =
-                                writeln!(out, "        {revision} seq {seq}: {}", finding.detail);
-                        }
-                        None => {
-                            let _ = writeln!(out, "        {revision}: {}", finding.detail);
-                        }
-                    }
-                }
-            }
+            self.write_row(&mut out, row);
         }
         let _ = writeln!(out, "per revision:");
         for summary in &self.summaries {
@@ -230,6 +220,34 @@ impl MultiReport {
         let _ = writeln!(out, "overall verdict: {}", self.verdict());
         self.write_revision_mismatch(&mut out);
         out
+    }
+
+    /// One clause's row: its cell per revision, then each revision's findings and
+    /// the clause they break.
+    fn write_row(&self, out: &mut String, row: &MultiRow) {
+        let _ = write!(out, "  {:<10} ({})", row.id, row.level);
+        for (revision, outcome) in self.revisions.iter().zip(&row.outcomes) {
+            let _ = write!(out, "  {revision}={}", cell_token(*outcome));
+        }
+        if row.differs() {
+            let _ = write!(out, "  *differs");
+        }
+        let _ = writeln!(out);
+        for (index, (revision, findings)) in self.revisions.iter().zip(&row.findings).enumerate() {
+            for finding in findings {
+                match finding.seq {
+                    Some(seq) => {
+                        let _ = writeln!(out, "        {revision} seq {seq}: {}", finding.detail);
+                    }
+                    None => {
+                        let _ = writeln!(out, "        {revision}: {}", finding.detail);
+                    }
+                }
+            }
+            if let Some(Some(source)) = row.sources.get(index) {
+                source.write_human(out);
+            }
+        }
     }
 
     /// The revision-disagreement note, worded for a run that names its own
@@ -358,6 +376,10 @@ pub fn validate_revisions(
             findings: found
                 .iter()
                 .map(|row| row.map(|row| row.findings.clone()).unwrap_or_default())
+                .collect(),
+            sources: found
+                .iter()
+                .map(|row| row.and_then(|row| row.source.clone()))
                 .collect(),
         });
     }

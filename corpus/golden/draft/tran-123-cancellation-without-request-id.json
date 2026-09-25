@@ -335,7 +335,12 @@
           "seq": 1,
           "detail": "`notifications/cancelled` carries no `params.requestId`, so it names no request to cancel"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/stdio#cancellation",
+        "quote": "To cancel an in-flight request, the client MUST send a `notifications/cancelled` notification referencing the request's ID.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#cancellation"
+      }
     },
     {
       "id": "TRAN-124",

@@ -55,7 +55,12 @@
           "seq": 3,
           "detail": "jsonrpc member is \"1.0\", expected the string \"2.0\""
         }
-      ]
+      ],
+      "source": {
+        "section": "basic#messages",
+        "quote": "All messages between MCP clients and servers MUST follow the JSON-RPC 2.0 specification.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#messages"
+      }
     },
     {
       "id": "BASE-009",

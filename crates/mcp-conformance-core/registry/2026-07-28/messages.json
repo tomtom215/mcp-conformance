@@ -127,7 +127,7 @@
         "introduced": "2026-07-28"
       },
       "source": {
-        "section": "basic/index#resulttype",
+        "section": "basic/index#result-responses",
         "quote": "The set of supported `ResultType` values MUST be created from the set defined in the core protocol and include any additional values of supported extensions that are advertised via capabilities."
       },
       "exclusion": "The client's set of supported `ResultType` values is internal state assembled from the core protocol plus its advertised extensions; a trace shows the values a server sent, never the set the client was willing to accept."
@@ -140,7 +140,7 @@
         "introduced": "2026-07-28"
       },
       "source": {
-        "section": "basic/index#resulttype",
+        "section": "basic/index#result-responses",
         "quote": "A `resultType` of any value unrecognized by the client MUST be considered invalid."
       },
       "exclusion": "What a client 'considers invalid' is internal judgment. The observable consequence — a client refusing to proceed — is client conduct after receipt, outside a server-side trace, and indistinguishable from any other reason it stopped."
@@ -153,7 +153,7 @@
         "introduced": "2026-07-28"
       },
       "source": {
-        "section": "basic/index#resulttype",
+        "section": "basic/index#result-responses",
         "quote": "For backward compatibility with servers implementing earlier protocol versions, which do not include `resultType`, clients MUST treat an absent `resultType` as `\"complete\"`."
       },
       "exclusion": "The backward-compatibility rule binds the client's *interpretation* of an absent field, which leaves no wire artifact: the trace records that `resultType` was absent, not that the client read it as `complete`."

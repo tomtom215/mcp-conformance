@@ -12,7 +12,10 @@ use core::fmt;
 
 use serde::{Deserialize, Serialize};
 
+mod clause;
 mod human;
+
+pub use clause::ClauseSource;
 
 /// One concrete violation, addressed to a requirement and (where possible) an event.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -162,6 +165,11 @@ pub struct RequirementReport {
     /// The undeclared capability gate, when `outcome` is `not-applicable`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capability: Option<String>,
+    /// The violated clause, when `outcome` is `fail` or `warn` — the rows a reader
+    /// acts on. Other rows omit it; `mcp-trace-validator requirements` lists every
+    /// clause's source.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<ClauseSource>,
 }
 
 /// A complete validation report for one trace against one registry.
@@ -265,6 +273,7 @@ mod tests {
             exclusion: None,
             missing_checks: vec![],
             capability: None,
+            source: None,
         }
     }
 
@@ -278,6 +287,11 @@ mod tests {
             seq: Some(3),
             detail: "first message is \"tools/list\", expected \"initialize\"".to_owned(),
         }];
+        failed.source = Some(ClauseSource {
+            section: "basic/lifecycle#initialization".to_owned(),
+            quote: "The initialization phase MUST be the first interaction".to_owned(),
+            url: "https://example.test/basic/lifecycle#initialization".to_owned(),
+        });
         let mut excluded = row("TRAN-001", "MUST NOT", Outcome::Excluded);
         excluded.exclusion = Some("enforced at capture time".to_owned());
         let mut not_applicable = row("TOOL-001", "MUST", Outcome::NotApplicable);
@@ -324,6 +338,17 @@ mod tests {
         let text = sample().render_human();
         assert!(text.contains("FAIL  LIFE-001 (MUST)"), "{text}");
         assert!(text.contains("seq 3:"), "{text}");
+        // The clause follows the findings it explains, quoted, then its link — and
+        // only on the row that has one.
+        assert!(
+            text.contains(
+                "expected \"initialize\"\n        spec: \"The initialization phase MUST be \
+                 the first interaction\"\n        see:  \
+                 https://example.test/basic/lifecycle#initialization\n"
+            ),
+            "{text}"
+        );
+        assert_eq!(text.matches("spec: ").count(), 1, "{text}");
         assert!(
             text.contains("excluded: enforced at capture time"),
             "{text}"

@@ -125,7 +125,12 @@
           "seq": 1,
           "detail": "server asked for `elicitation/create`, which needs the `elicitation` capability, but the request's `clientCapabilities` did not declare it"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#_meta",
+        "quote": "A server MUST NOT rely on capabilities the client has not declared.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+      }
     },
     {
       "id": "BASE-035",
@@ -387,7 +392,12 @@
           "seq": 1,
           "detail": "server asked for `elicitation/create`, which needs the `elicitation` capability, but the request's `clientCapabilities` did not declare it"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "Servers MUST NOT send an `inputRequests` that the client has not declared support for in its capabilities.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#server-requirements-basic-workflow"
+      }
     },
     {
       "id": "MRTR-013",
@@ -399,7 +409,12 @@
           "seq": 1,
           "detail": "server asked for `elicitation/create`, which needs the `elicitation` capability, but the request's `clientCapabilities` did not declare it"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "For example, if a client does not declare support for `elicitation`, the server MUST NOT include any `elicitation/create` requests in the `inputRequests` field.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#server-requirements-basic-workflow"
+      }
     },
     {
       "id": "MRTR-015",

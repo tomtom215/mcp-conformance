@@ -114,9 +114,10 @@ fn render_row(out: &mut String, report: &Report, row: &crate::report::Requiremen
             for finding in &row.findings {
                 let _ = writeln!(
                     out,
-                    r#"      <failure message="{}">{}</failure>"#,
+                    r#"      <failure message="{}">{}{}</failure>"#,
                     escape(&finding.detail),
                     escape(&location(finding.seq, &finding.check)),
+                    escape(&clause_lines(row)),
                 );
             }
             out.push_str("    </testcase>\n");
@@ -135,6 +136,7 @@ fn render_row(out: &mut String, report: &Report, row: &crate::report::Requiremen
                     escape(&finding.detail)
                 );
             }
+            out.push_str(escape(clause_lines(row).trim_start()).as_str());
             out.push_str("</system-out>\n    </testcase>\n");
         }
         Outcome::Excluded
@@ -169,6 +171,15 @@ fn skip_reason(row: &crate::report::RequirementReport) -> String {
             row.missing_checks.join(", ")
         ),
     }
+}
+
+/// The violated clause as body text — `\nspec: "…"\nsee: <url>` — or nothing when
+/// the row carries no source. CI systems show a failure's body beside its message,
+/// so this is what puts the clause in front of the person reading the failure.
+fn clause_lines(row: &crate::report::RequirementReport) -> String {
+    row.source.as_ref().map_or_else(String::new, |source| {
+        format!("\nspec: \"{}\"\nsee: {}", source.quote, source.url)
+    })
 }
 
 fn location(seq: Option<u64>, check: &str) -> String {
@@ -236,6 +247,23 @@ mod tests {
         assert!(xml.contains("<skipped message="), "{xml}");
         // The LIFE-004 warning must NOT be a failure; its findings live in system-out.
         assert!(xml.contains("<system-out>"), "{xml}");
+        // Each carries its clause: the failure body under its location, the
+        // warning's after its findings, closing the element.
+        assert!(
+            xml.contains(
+                "at seq 0\nspec: &quot;The initialization phase MUST be the first interaction \
+                 between client and server.&quot;\nsee: \
+                 https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization</failure>"
+            ),
+            "{xml}"
+        );
+        assert!(
+            xml.contains(
+                "before the server has responded to the `initialize` request.&quot;\nsee: \
+                 https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization</system-out>"
+            ),
+            "{xml}"
+        );
         // Balanced tags, exactly once each.
         assert_eq!(xml.matches("<testsuites").count(), 1);
         assert_eq!(xml.matches("</testsuites>").count(), 1);
@@ -294,6 +322,7 @@ mod tests {
             exclusion: None,
             missing_checks: vec![],
             capability: None,
+            source: None,
         }
     }
 

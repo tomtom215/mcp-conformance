@@ -100,7 +100,12 @@
           "seq": 2,
           "detail": "server sent a \"roots/list\" request before receiving the initialized notification"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The server SHOULD NOT send requests other than pings and logging before receiving the `initialized` notification.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+      }
     },
     {
       "id": "LIFE-006",

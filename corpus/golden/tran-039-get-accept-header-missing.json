@@ -175,7 +175,12 @@
           "seq": 7,
           "detail": "client GET Accept header \"application/json\" does not list text/event-stream"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports#listening-for-messages-from-the-server",
+        "quote": "The client MUST include an `Accept` header, listing `text/event-stream` as a supported content type.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#listening-for-messages-from-the-server"
+      }
     },
     {
       "id": "TRAN-040",

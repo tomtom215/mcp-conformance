@@ -285,7 +285,12 @@
           "seq": 0,
           "detail": "the client's first request is `tools/list`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/discover#when-to-call",
+        "quote": "A client that supports both modern (per-request `meta`) and legacy (`initialize` handshake) servers SHOULD send `server/discover` first; see stdio: Backward Compatibility for the fallback rules.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/discover#when-to-call"
+      }
     },
     {
       "id": "VERS-001",
@@ -352,7 +357,12 @@
           "seq": 0,
           "detail": "the client's first request is `tools/list`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/stdio#backward-compatibility",
+        "quote": "A client that supports both modern (per-request-metadata) MCP versions and a legacy version that requires an `initialize` handshake SHOULD probe with [`server/discover`][server-discover] before sending any other request, setting its preferred modern version in `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility"
+      }
     },
     {
       "id": "MRTR-001",

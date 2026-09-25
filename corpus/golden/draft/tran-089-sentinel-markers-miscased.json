@@ -245,7 +245,12 @@
           "seq": 4,
           "detail": "header `mcp-param-region` carries \"=?BASE64?Y2Fmw6k=?=\", whose Base64 sentinel markers are miscased; they are case-sensitive and must be lowercase"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#value-encoding",
+        "quote": "These markers are case-sensitive and MUST appear exactly as shown (lowercase).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#value-encoding"
+      }
     },
     {
       "id": "TRAN-092",

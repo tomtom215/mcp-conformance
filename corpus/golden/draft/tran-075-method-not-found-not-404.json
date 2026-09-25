@@ -215,7 +215,12 @@
           "seq": 2,
           "detail": "`Method not found` (-32601) was returned with HTTP 200, not 404"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#protocol-version-header",
+        "quote": "If the server does not implement the requested RPC method, it MUST respond with `404 Not Found` and a JSON-RPC error with code `-32601` (`Method not found`).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#protocol-version-header"
+      }
     },
     {
       "id": "TRAN-077",

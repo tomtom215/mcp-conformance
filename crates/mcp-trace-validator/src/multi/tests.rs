@@ -116,6 +116,7 @@ fn differs_detects_a_non_adjacent_divergence() {
             Some(Outcome::Pass),
         ],
         findings: vec![],
+        sources: vec![],
     };
     assert!(!uniform.differs());
     let diverges = MultiRow {
@@ -153,6 +154,72 @@ fn human_render_shows_each_revision_cell_and_marks_divergence() {
     assert!(text.contains("2026-07-28=absent"), "{text}");
     assert!(text.contains("*differs"), "{text}");
     assert!(text.contains("overall verdict: pass"), "{text}");
+}
+
+#[test]
+fn errors_name_what_went_wrong() {
+    assert_eq!(
+        MultiError::NoRevisions.to_string(),
+        "no revisions requested for multi-revision judgment"
+    );
+    assert_eq!(
+        MultiError::UnknownRevision("2024-01-01".parse().unwrap()).to_string(),
+        "registry set does not describe revision 2024-01-01"
+    );
+}
+
+/// JSON-RPC 1.0 at `seq` 0: every fixture clause fails wherever it is present.
+const WRONG_VERSION: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"1.0","id":1,"method":"ping"}}"#;
+
+#[test]
+fn findings_render_lists_only_rows_needing_attention_with_their_clause() {
+    let clean = validate_revisions(&set(), &revs(), &[]).unwrap();
+    assert!(clean.render_human().contains("LIFE-009"));
+    let quiet = clean.render_findings();
+    assert!(
+        !quiet.contains("BASE-001") && !quiet.contains("LIFE-009"),
+        "{quiet}"
+    );
+    assert!(quiet.contains("overall verdict: pass"), "{quiet}");
+
+    let events = parse_trace(WRONG_VERSION, &Limits::default()).unwrap();
+    let failing = validate_revisions(&set(), &revs(), &events).unwrap();
+    let quiet = failing.render_findings();
+    assert!(quiet.contains("BASE-001"), "{quiet}");
+    assert!(quiet.contains("\n        2026-07-28 seq 0: "), "{quiet}");
+    assert!(
+        quiet.contains(
+            "        spec: \"MUST jsonrpc 2.0\"\n        see:  \
+             https://modelcontextprotocol.io/specification/2026-07-28/d#z\n"
+        ),
+        "{quiet}"
+    );
+}
+
+#[test]
+fn json_omits_findings_and_sources_when_no_revision_has_any() {
+    let clean = validate_revisions(&set(), &revs(), &[]).unwrap();
+    let json = serde_json::to_string(&clean).unwrap();
+    assert!(!json.contains("\"findings\""), "{json}");
+    assert!(!json.contains("\"sources\""), "{json}");
+
+    let events = parse_trace(WRONG_VERSION, &Limits::default()).unwrap();
+    let failing = validate_revisions(&set(), &revs(), &events).unwrap();
+    let life = failing
+        .requirements
+        .iter()
+        .find(|row| row.id == "LIFE-009")
+        .unwrap();
+    assert_eq!(
+        life.sources
+            .iter()
+            .map(|source| source.as_ref().map(|source| source.url.as_str()))
+            .collect::<Vec<_>>(),
+        [
+            Some("https://modelcontextprotocol.io/specification/2025-11-25/l#y"),
+            None
+        ]
+    );
 }
 
 /// The premise of [`MultiRow::differs`]' documentation, checked rather than

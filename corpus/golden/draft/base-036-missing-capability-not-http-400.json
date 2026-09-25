@@ -130,7 +130,12 @@
           "seq": 2,
           "detail": "error -32021 has `data.requiredCapabilities` that is not a `ClientCapabilities` object"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#_meta",
+        "quote": "If processing a request requires a capability the client did not include in `io.modelcontextprotocol/clientCapabilities`, the server MUST return a `MissingRequiredClientCapabilityError` (`-32021`) whose `data.requiredCapabilities` lists the missing capabilities.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+      }
     },
     {
       "id": "BASE-036",
@@ -142,7 +147,12 @@
           "seq": 1,
           "detail": "missing required client capability: error -32021 was returned with HTTP 500, not 400"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#_meta",
+        "quote": "On HTTP, the response status MUST be `400 Bad Request`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+      }
     },
     {
       "id": "BASE-039",

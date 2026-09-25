@@ -50,7 +50,12 @@
           "seq": 1,
           "detail": "error code is a non-integer number, expected an integer"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic#error-responses",
+        "quote": "Error codes MUST be integers.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#error-responses"
+      }
     },
     {
       "id": "BASE-008",

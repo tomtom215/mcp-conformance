@@ -280,7 +280,12 @@
           "seq": 1,
           "detail": "`server/discover` was answered with -32601 (method not found); 2026-07-28 servers must implement it"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/discover",
+        "quote": "`server/discover` lets a client query a server's supported protocol versions, capabilities, and identity before sending any other requests. Servers MUST implement it.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/discover"
+      }
     },
     {
       "id": "DISC-002",
@@ -307,7 +312,12 @@
           "seq": 1,
           "detail": "`server/discover` was answered with -32601 (method not found); 2026-07-28 servers must implement it"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/versioning#protocol-version-negotiation",
+        "quote": "Servers MUST implement `server/discover`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#protocol-version-negotiation"
+      }
     },
     {
       "id": "VERS-004",

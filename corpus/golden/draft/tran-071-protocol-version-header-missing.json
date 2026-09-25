@@ -195,7 +195,12 @@
           "seq": 0,
           "detail": "client POST lacks the MCP-Protocol-Version header"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#protocol-version-header",
+        "quote": "Every POST request to the MCP endpoint MUST include an `MCP-Protocol-Version` header.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#protocol-version-header"
+      }
     },
     {
       "id": "TRAN-072",
@@ -452,7 +457,12 @@
           "seq": 3,
           "detail": "the `complete` result of `tools/list` carries no `ttlMs` caching hint"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/caching#cacheable-results",
+        "quote": "Servers MUST include caching hints on results with `resultType: \"complete\"` returned by the following operations: `server/discover`; `tools/list`; `prompts/list`; `resources/list`; `resources/templates/list`; `resources/read`",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cacheable-results"
+      }
     },
     {
       "id": "CACH-008",

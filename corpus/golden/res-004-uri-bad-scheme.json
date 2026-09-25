@@ -248,7 +248,12 @@
           "seq": 4,
           "detail": "resource URI \"not a uri\" does not begin with an RFC 3986 scheme (ALPHA *( ALPHA / DIGIT / \"+\" / \"-\" / \".\" ) followed by \":\")"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/resources#custom-uri-schemes",
+        "quote": "Custom URI schemes MUST be in accordance with RFC3986, taking the above guidance in to account.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/resources#custom-uri-schemes"
+      }
     },
     {
       "id": "RES-006",

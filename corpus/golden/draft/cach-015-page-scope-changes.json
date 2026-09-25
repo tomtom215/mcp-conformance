@@ -455,7 +455,12 @@
           "seq": 3,
           "detail": "this `tools/list` page declares cacheScope \"public\" while the page at seq 1 in the same request declared \"private\""
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/caching#interaction-with-pagination",
+        "quote": "Servers MUST apply the same `cacheScope` to all response pages for a given list request.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#interaction-with-pagination"
+      }
     },
     {
       "id": "CACH-016",
@@ -467,7 +472,12 @@
           "seq": 3,
           "detail": "this `tools/list` page declares cacheScope \"public\" while the page at seq 1 in the same request declared \"private\""
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/caching#interaction-with-pagination",
+        "quote": "For example, if the first page of a `tools/list` response has `cacheScope: \"private\"`, all subsequent pages for that request MUST also be `\"private\"`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#interaction-with-pagination"
+      }
     },
     {
       "id": "COMP-006",

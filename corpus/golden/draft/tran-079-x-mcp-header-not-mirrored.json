@@ -225,7 +225,12 @@
           "seq": 4,
           "detail": "`tools/call` supplies `params.arguments.region`, which the tool designates for header `Mcp-Param-Region`, but the POST does not carry it"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#custom-headers-from-tool-parameters",
+        "quote": "When a server's tool definition includes `x-mcp-header` annotations, conforming clients MUST mirror the designated parameter values into HTTP headers.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#custom-headers-from-tool-parameters"
+      }
     },
     {
       "id": "TRAN-080",

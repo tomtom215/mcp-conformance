@@ -425,7 +425,12 @@
           "seq": 2,
           "detail": "subscription 1 was sent `notifications/prompts/list_changed`, which its filter did not set `promptsListChanged`"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/subscriptions#opening-a-stream",
+        "quote": "The server MUST NOT send notification types the client has not explicitly requested.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/subscriptions#opening-a-stream"
+      }
     },
     {
       "id": "SUBS-002",

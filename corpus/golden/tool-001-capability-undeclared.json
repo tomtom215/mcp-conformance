@@ -115,7 +115,12 @@
           "seq": 3,
           "detail": "\"tools/list\" uses the server capability tools, which was not negotiated in this session"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#operation",
+        "quote": "Both parties MUST: Only use capabilities that were successfully negotiated",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#operation"
+      }
     },
     {
       "id": "LIFE-010",
@@ -197,7 +202,12 @@
           "seq": 4,
           "detail": "server answered \"tools/list\" without declaring the tools capability"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#capabilities",
+        "quote": "Servers that support tools MUST declare the `tools` capability:",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#capabilities"
+      }
     },
     {
       "id": "TOOL-003",

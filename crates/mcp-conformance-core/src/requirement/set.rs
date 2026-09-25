@@ -361,7 +361,7 @@ mod tests {
         let draft = set.registry(rev("2026-07-28")).unwrap();
         assert!(
             !draft.requirements().is_empty(),
-            "the first area (basic/index#meta) has landed"
+            "the first area (basic/index#_meta) has landed"
         );
         // Every entry is one this revision introduced — nothing inherited by an
         // absent `applies` range, which is how a 2025-11-25 quote would leak in.

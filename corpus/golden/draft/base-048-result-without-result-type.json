@@ -50,7 +50,12 @@
           "seq": 1,
           "detail": "result has no `resultType`; 2026-07-28 requires it on every result"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#result-responses",
+        "quote": "The `result` MUST include a `resultType` field to indicate the type of the result.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#result-responses"
+      }
     },
     {
       "id": "BASE-052",

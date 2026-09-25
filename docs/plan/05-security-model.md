@@ -75,7 +75,8 @@ five. `scheduled.yml` triggers only on `schedule` and `workflow_dispatch`, so
 no fork or pull-request content reaches the token. And the issue body that job
 posts is composed from the committed deferral ledger and its own step
 outcomes. Two steps in that job read the network — `spec-drift` fetches
-specification text and `suite-currency` fetches npm dist-tags — and neither
+specification text and the published pages' HTML (for their heading anchors),
+and `suite-currency` fetches npm dist-tags — and neither
 step's fetched text is republished into an issue; the run log carries it.
 
 ## Secrets and data hygiene

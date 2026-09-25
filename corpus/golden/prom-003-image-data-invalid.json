@@ -265,7 +265,12 @@
           "seq": 4,
           "detail": "image content data is not valid base64"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/prompts#image-content",
+        "quote": "The image data MUST be base64-encoded and include a valid MIME type.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#image-content"
+      }
     },
     {
       "id": "PROM-004",

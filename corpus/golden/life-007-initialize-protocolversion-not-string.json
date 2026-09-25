@@ -85,7 +85,12 @@
           "seq": 0,
           "detail": "initialize params member protocolVersion should be a string"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "The client MUST initiate this phase by sending an `initialize` request containing: Protocol version supported; Client capabilities; Client implementation information",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+      }
     },
     {
       "id": "LIFE-003",
@@ -117,7 +122,12 @@
           "seq": 0,
           "detail": "initialize request protocolVersion is 20251125, expected a version string"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#version-negotiation",
+        "quote": "In the `initialize` request, the client MUST send a protocol version it supports.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation"
+      }
     },
     {
       "id": "LIFE-009",

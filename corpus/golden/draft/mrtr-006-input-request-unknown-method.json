@@ -370,7 +370,12 @@
           "seq": 1,
           "detail": "`inputRequests[listing]` asks for `tools/list`, which is not one of ElicitRequest, CreateMessageRequest or ListRootsRequest"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
+        "quote": "`inputRequests` values are request objects that MUST be one of `ElicitRequest`, `CreateMessageRequest`, or `ListRootsRequest`",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#server-requirements-basic-workflow"
+      }
     },
     {
       "id": "MRTR-011",

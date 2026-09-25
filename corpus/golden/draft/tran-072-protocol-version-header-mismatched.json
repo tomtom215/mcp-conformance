@@ -200,7 +200,12 @@
           "seq": 0,
           "detail": "MCP-Protocol-Version header is \"2025-11-25\" but the body's `_meta` protocol version is \"2026-07-28\""
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#protocol-version-header",
+        "quote": "`MCP-Protocol-Version: 2026-07-28` The header value MUST match the `io.modelcontextprotocol/protocolVersion` field carried in the request body's `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#protocol-version-header"
+      }
     },
     {
       "id": "TRAN-073",

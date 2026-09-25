@@ -410,7 +410,12 @@
           "seq": 2,
           "detail": "the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "The JSON-RPC `id` MUST be different between the initial request and the retry, as they are independent requests.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#client-requirements-basic-workflow"
+      }
     },
     {
       "id": "MRTR-020",
@@ -537,7 +542,12 @@
           "seq": 2,
           "detail": "the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#input-required-tool-results",
+        "quote": "Note that the JSON-RPC `id` MUST be different between the initial request and the retry.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools#input-required-tool-results"
+      }
     },
     {
       "id": "TOOL-025",

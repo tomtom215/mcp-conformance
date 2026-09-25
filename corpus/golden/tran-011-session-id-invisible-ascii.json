@@ -140,7 +140,12 @@
           "seq": 2,
           "detail": "session ID \"has space\" contains characters outside visible ASCII (0x21-0x7E)"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports#session-management",
+        "quote": "The session ID MUST only contain visible ASCII characters (ranging from 0x21 to 0x7E).",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management"
+      }
     },
     {
       "id": "TRAN-013",

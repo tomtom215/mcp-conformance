@@ -115,7 +115,12 @@
           "seq": 3,
           "detail": "\"notifications/message\" uses the server capability logging, which was not negotiated in this session"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#operation",
+        "quote": "Both parties MUST: Only use capabilities that were successfully negotiated",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#operation"
+      }
     },
     {
       "id": "LIFE-010",
@@ -296,7 +301,12 @@
           "seq": 3,
           "detail": "server emitted a log message notification without declaring the logging capability"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/logging#capabilities",
+        "quote": "Servers that emit log message notifications MUST declare the `logging` capability:",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/logging#capabilities"
+      }
     },
     {
       "id": "COMP-001",

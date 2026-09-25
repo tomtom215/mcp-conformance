@@ -55,7 +55,12 @@
           "seq": 3,
           "detail": "message is not a JSON-RPC request, notification, or response: message carries none of method, result, or error"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic#messages",
+        "quote": "All messages between MCP clients and servers MUST follow the JSON-RPC 2.0 specification.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#messages"
+      }
     },
     {
       "id": "BASE-009",
@@ -137,7 +142,12 @@
           "seq": 3,
           "detail": "message on stdout is not a valid MCP message: message carries none of method, result, or error"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports#stdio",
+        "quote": "The server MUST NOT write anything to its `stdout` that is not a valid MCP message.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#stdio"
+      }
     },
     {
       "id": "TRAN-005",

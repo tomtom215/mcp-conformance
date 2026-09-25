@@ -360,7 +360,12 @@
           "seq": 2,
           "detail": "the retry echoes `requestState` \"rewritten\" instead of the \"blob\" the `input_required` at seq 1 issued"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr#inputrequiredresult",
+        "quote": "Clients MUST NOT inspect, parse, modify, or make any assumptions about its contents.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#inputrequiredresult"
+      }
     },
     {
       "id": "MRTR-004",
@@ -402,7 +407,12 @@
           "seq": 2,
           "detail": "the retry echoes `requestState` \"rewritten\" instead of the \"blob\" the `input_required` at seq 1 issued"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "If an `InputRequiredResult` contains the `requestState` field, the client MUST echo back the exact value of that field when retrying the original request.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#client-requirements-basic-workflow"
+      }
     },
     {
       "id": "MRTR-017",
@@ -414,7 +424,12 @@
           "seq": 2,
           "detail": "the retry echoes `requestState` \"rewritten\" instead of the \"blob\" the `input_required` at seq 1 issued"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "Clients MUST NOT inspect, parse, modify, or make any assumptions about the `requestState` contents.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#client-requirements-basic-workflow"
+      }
     },
     {
       "id": "MRTR-018",

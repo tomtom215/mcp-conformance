@@ -280,7 +280,12 @@
           "seq": 4,
           "detail": "embedded resource carries neither text nor blob data"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/prompts#embedded-resources",
+        "quote": "Resources can contain either text or binary (blob) data and MUST include: A valid resource URI; The appropriate MIME type; Either text content or base64-encoded blob data",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#embedded-resources"
+      }
     },
     {
       "id": "PROM-008",

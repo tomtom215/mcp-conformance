@@ -525,7 +525,12 @@
           "seq": 3,
           "detail": "`tools/list` returned the same tools in a different order than the result at seq 1, though the set did not change"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#capabilities",
+        "quote": "Servers SHOULD return tools in a deterministic order (i.e., the same ordering across requests when the underlying set of tools has not changed).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools#capabilities"
+      }
     },
     {
       "id": "TOOL-023",

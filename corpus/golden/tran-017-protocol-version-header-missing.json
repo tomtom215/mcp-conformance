@@ -125,7 +125,12 @@
           "seq": 4,
           "detail": "client HTTP request after initialization lacks the MCP-Protocol-Version header"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#version-negotiation",
+        "quote": "If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation"
+      }
     },
     {
       "id": "TRAN-004",
@@ -157,7 +162,12 @@
           "seq": 4,
           "detail": "client HTTP request after initialization lacks the MCP-Protocol-Version header"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports#protocol-version-header",
+        "quote": "If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server, allowing the MCP server to respond based on the MCP protocol version.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header"
+      }
     },
     {
       "id": "TRAN-018",

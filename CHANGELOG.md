@@ -57,6 +57,19 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `--format junit` works for them: one `<testsuite>` per revision
   (`junit::render_all`). Previously the multi-revision path printed `fail` and
   nothing else, and refused JUnit.
+- **Every failing or warning row cites the clause it breaks.** Human output prints
+  the quote and its link under the findings (`spec: "…"`, `see: <url>`); JSON rows
+  carry `source: {section, quote, url}` (multi-revision rows: `sources`, one per
+  revision, because the published page is per revision); JUnit puts both in the
+  failure body and in a warning's `system-out`. `SourceRef::url` builds the link
+  from the registry's `section` at the judged revision. Other rows omit it —
+  `requirements` lists every clause's source.
+- **`cargo xtask spec-drift` also verifies every section anchor against the
+  published page's heading ids.** Checking it found 31 requirements whose anchors
+  the site does not publish — GitHub-style slugs where the site keeps punctuation
+  (`#meta` for `#_meta`, `#security--endpoint` for `#security-&-endpoint`,
+  `#https` for `#https//`, and three more), and `#resulttype`, an `#####` heading the
+  site gives no anchor (now its parent, `#result-responses`). All 31 are corrected.
 - `declared::select`, `Selection`, `RevisionSource` and `UnjudgeableRevisions`:
   the CLI's revision choice as a library API, so embedders get the same rule.
 - `RegistrySet::latest` and `BUILTIN_REVISIONS` in `mcp-conformance-core`.
@@ -64,6 +77,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 ### Fixed
 
 - `requirements | head` (or any closed pipe) no longer panics.
+- `validate --quiet` with several `--revision`s is now tested end to end; a
+  mutation run showed the multi-revision findings-only rendering had no test that
+  could fail.
 
 ## [0.5.1] - 2026-08-29
 

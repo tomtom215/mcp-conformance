@@ -165,7 +165,12 @@
           "seq": 0,
           "detail": "POST for `tools/call` lacks the required `Mcp-Name` header"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "The client MUST include the request metadata headers on each POST request.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#sending-messages"
+      }
     },
     {
       "id": "TRAN-059",

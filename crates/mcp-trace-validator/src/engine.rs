@@ -11,11 +11,12 @@
 
 use mcp_conformance_core::capability::{CapabilityGate, CapabilityParty};
 use mcp_conformance_core::requirement::{Registry, Requirement, Verification};
+use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::TraceEvent;
 
 use crate::checks;
 use crate::context::TraceContext;
-use crate::report::{Outcome, Report, RequirementReport, Totals};
+use crate::report::{ClauseSource, Outcome, Report, RequirementReport, Totals};
 
 /// Validates a parsed trace against a requirement registry.
 ///
@@ -45,7 +46,7 @@ pub fn validate(registry: &Registry, events: &[TraceEvent]) -> Report {
     let mut rows = Vec::with_capacity(registry.requirements().len());
 
     for requirement in registry.requirements() {
-        let row = build_row(requirement, &context);
+        let row = build_row(requirement, registry.revision(), &context);
         tally(&mut totals, row.outcome);
         rows.push(row);
     }
@@ -59,7 +60,11 @@ pub fn validate(registry: &Registry, events: &[TraceEvent]) -> Report {
     }
 }
 
-fn build_row(requirement: &Requirement, context: &TraceContext<'_>) -> RequirementReport {
+fn build_row(
+    requirement: &Requirement,
+    revision: ProtocolRevision,
+    context: &TraceContext<'_>,
+) -> RequirementReport {
     let mut row = RequirementReport {
         id: requirement.id.to_string(),
         level: requirement.level.keyword().to_owned(),
@@ -68,6 +73,7 @@ fn build_row(requirement: &Requirement, context: &TraceContext<'_>) -> Requireme
         exclusion: None,
         missing_checks: vec![],
         capability: None,
+        source: None,
     };
     match &requirement.verification {
         Verification::Excluded { exclusion } => {
@@ -112,6 +118,9 @@ fn build_row(requirement: &Requirement, context: &TraceContext<'_>) -> Requireme
         // deliberately, and the pre-set "unsupported" outcome is the conservative
         // reading until then.
         _ => {}
+    }
+    if matches!(row.outcome, Outcome::Fail | Outcome::Warn) {
+        row.source = Some(ClauseSource::new(requirement, revision));
     }
     row
 }
@@ -353,6 +362,62 @@ mod tests {
             usize::try_from(report.totals.not_applicable).unwrap(),
             gated
         );
+    }
+
+    #[test]
+    fn failing_and_warning_rows_carry_their_clause_and_no_other_row_does() {
+        let registry = Registry::from_json(
+            r#"{
+            "revision": "2026-07-28",
+            "requirements": [
+                {"id": "BASE-001", "level": "MUST", "actor": "both",
+                 "source": {"section": "basic/index#messages", "quote": "MUST be JSON-RPC 2.0"},
+                 "checks": ["base.jsonrpc-version"]},
+                {"id": "BASE-002", "level": "SHOULD", "actor": "both",
+                 "source": {"section": "basic/lifecycle", "quote": "SHOULD be JSON-RPC 2.0"},
+                 "checks": ["base.jsonrpc-version"]},
+                {"id": "BASE-003", "level": "MUST", "actor": "both",
+                 "source": {"section": "basic/index#requests", "quote": "MUST have an id"},
+                 "checks": ["base.request-id-type"]},
+                {"id": "BASE-004", "level": "MUST", "actor": "both",
+                 "source": {"section": "basic/index#auth", "quote": "MUST authorize"},
+                 "exclusion": "not observable"}
+            ]
+        }"#,
+        )
+        .unwrap();
+        let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"1.0","id":1,"method":"ping"}}"#;
+        let report = validate(&registry, &parse_trace(trace, &Limits::default()).unwrap());
+        let sources: Vec<_> = report
+            .requirements
+            .iter()
+            .map(|row| {
+                (
+                    row.outcome,
+                    row.source.as_ref().map(|source| source.url.as_str()),
+                )
+            })
+            .collect();
+        assert_eq!(
+            sources,
+            [
+                (
+                    Outcome::Fail,
+                    Some("https://modelcontextprotocol.io/specification/2026-07-28/basic#messages")
+                ),
+                (
+                    Outcome::Warn,
+                    Some(
+                        "https://modelcontextprotocol.io/specification/2026-07-28/basic/lifecycle"
+                    )
+                ),
+                (Outcome::Pass, None),
+                (Outcome::Excluded, None),
+            ]
+        );
+        let failed = report.requirements[0].source.as_ref().unwrap();
+        assert_eq!(failed.section, "basic/index#messages");
+        assert_eq!(failed.quote, "MUST be JSON-RPC 2.0");
     }
 
     #[test]

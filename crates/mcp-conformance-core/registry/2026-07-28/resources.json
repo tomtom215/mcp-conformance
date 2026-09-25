@@ -80,7 +80,7 @@
         "introduced": "2026-07-28"
       },
       "source": {
-        "section": "server/resources#https",
+        "section": "server/resources#https//",
         "quote": "Servers SHOULD use this scheme only when the client is able to fetch and load the resource directly from the web on its own\u2014that is, it doesn't need to read the resource via the MCP server."
       },
       "exclusion": "Turns on whether the client can fetch the resource itself, which is a fact about the client and its network, not about any message. The server's choice of scheme is visible; the condition that licenses it is not."
@@ -93,7 +93,7 @@
         "introduced": "2026-07-28"
       },
       "source": {
-        "section": "server/resources#https",
+        "section": "server/resources#https//",
         "quote": "For other use cases, servers SHOULD prefer to use another URI scheme, or define a custom one, even if the server will itself be downloading resource contents over the internet."
       },
       "exclusion": "Design guidance about which scheme to prefer, resolved before a URI is ever minted. Whether \"other use cases\" applies is the server author's judgement, and RES-018 checks the only part a trace can hold the result to: that a custom scheme is well-formed."

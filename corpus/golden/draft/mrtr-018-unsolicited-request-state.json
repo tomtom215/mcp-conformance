@@ -405,7 +405,12 @@
           "seq": 2,
           "detail": "the request carries a `requestState` that no `input_required` before it issued"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr#client-requirements-basic-workflow",
+        "quote": "If the `InputRequiredResult` does not contain a `requestState` field, the client MUST NOT include one in the retry.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#client-requirements-basic-workflow"
+      }
     },
     {
       "id": "MRTR-019",

@@ -110,7 +110,12 @@
           "seq": 0,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#_meta",
+        "quote": "Client requests carry the following `io.modelcontextprotocol/*` fields in `meta`; fields marked as required MUST be included on every request.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+      }
     },
     {
       "id": "BASE-031",
@@ -122,7 +127,12 @@
           "seq": 1,
           "detail": "request at seq 0 was missing a required `_meta` field; the server answered with a result rather than error -32602"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#_meta",
+        "quote": "A request missing any required field is malformed; the server MUST reject it with JSON-RPC error code `-32602` (Invalid params).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+      }
     },
     {
       "id": "BASE-032",
@@ -369,7 +379,12 @@
           "seq": 0,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/patterns/mrtr",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr"
+      }
     },
     {
       "id": "MRTR-003",
@@ -466,7 +481,12 @@
           "seq": 1,
           "detail": "the `complete` result of `tools/list` carries no `ttlMs` caching hint"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/caching#cacheable-results",
+        "quote": "Servers MUST include caching hints on results with `resultType: \"complete\"` returned by the following operations: `server/discover`; `tools/list`; `prompts/list`; `resources/list`; `resources/templates/list`; `resources/read`",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cacheable-results"
+      }
     },
     {
       "id": "CACH-008",
@@ -493,7 +513,12 @@
           "seq": 0,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/completion",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/completion"
+      }
     },
     {
       "id": "COMP-007",
@@ -510,7 +535,12 @@
           "seq": 0,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/pagination",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination"
+      }
     },
     {
       "id": "PAGE-010",
@@ -552,7 +582,12 @@
           "seq": 0,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools"
+      }
     },
     {
       "id": "TOOL-019",
@@ -629,7 +664,12 @@
           "seq": 0,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/resources",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources"
+      }
     },
     {
       "id": "RES-012",
@@ -666,7 +706,12 @@
           "seq": 0,
           "detail": "request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/prompts",
+        "quote": "Every request MUST include the required `meta` fields; see `meta`.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/prompts"
+      }
     },
     {
       "id": "PROM-012",

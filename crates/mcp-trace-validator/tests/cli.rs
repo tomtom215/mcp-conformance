@@ -529,6 +529,38 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
     assert_eq!(row["findings"][0], serde_json::json!([]));
     assert_eq!(row["findings"][1][0]["seq"], 2);
     assert_eq!(row["findings"][1][0]["check"], "mrtr.retry-id-differs");
+    // The clause is per revision, like the finding it explains: absent where the
+    // clause is, and linked to the judged revision's page where it failed.
+    assert_eq!(row["sources"][0], serde_json::Value::Null);
+    assert_eq!(
+        row["sources"][1]["url"],
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr\
+         #client-requirements-basic-workflow"
+    );
+    assert!(
+        text.contains(
+            "        spec: \"The JSON-RPC `id` MUST be different between the initial request \
+             and the retry, as they are independent requests.\"\n"
+        ),
+        "{text}"
+    );
+
+    let quiet = run(&[&["validate", "--quiet", trace], &both[..]].concat());
+    assert_eq!(quiet.status.code(), Some(1), "{quiet:?}");
+    let quiet = stdout(&quiet);
+    assert!(quiet.contains("MRTR-019"), "{quiet}");
+    assert!(!quiet.contains("=excluded"), "{quiet}");
+    let per_revision = |text: &str| {
+        text.lines()
+            .skip_while(|line| *line != "per revision:")
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        per_revision(&quiet),
+        per_revision(&text),
+        "--quiet hides rows, never counts"
+    );
 
     let junit = run(&[&["validate", trace, "--format", "junit"], &both[..]].concat());
     assert_eq!(junit.status.code(), Some(1), "{junit:?}");

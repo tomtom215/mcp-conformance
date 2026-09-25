@@ -111,6 +111,9 @@ fn write_row(out: &mut String, row: &super::RequirementReport) {
             }
         }
     }
+    if let Some(source) = &row.source {
+        source.write_human(out);
+    }
     if let Some(exclusion) = &row.exclusion {
         let _ = writeln!(out, "        excluded: {exclusion}");
     }
@@ -128,5 +131,15 @@ fn write_row(out: &mut String, row: &super::RequirementReport) {
             out,
             "        not observed: the session carried none of the traffic this clause binds to"
         );
+    }
+}
+
+impl super::ClauseSource {
+    /// The violated clause under a failing or warning row: the quote, then where
+    /// it is published. Shared with the multi-revision report, which prints the
+    /// same two lines.
+    pub(crate) fn write_human(&self, out: &mut String) {
+        let _ = writeln!(out, "        spec: \"{}\"", self.quote);
+        let _ = writeln!(out, "        see:  {}", self.url);
     }
 }

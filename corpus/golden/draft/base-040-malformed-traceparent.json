@@ -145,7 +145,12 @@
           "seq": 0,
           "detail": "params._meta.traceparent has trace-id \"xyz\"; expected 32 lowercase hex digits"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#_meta",
+        "quote": "When present, their values MUST follow W3C Trace Context and W3C Baggage formats respectively.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+      }
     },
     {
       "id": "TRAN-056",
@@ -452,7 +457,12 @@
           "seq": 1,
           "detail": "the `complete` result of `tools/list` carries no `ttlMs` caching hint"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/caching#cacheable-results",
+        "quote": "Servers MUST include caching hints on results with `resultType: \"complete\"` returned by the following operations: `server/discover`; `tools/list`; `prompts/list`; `resources/list`; `resources/templates/list`; `resources/read`",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cacheable-results"
+      }
     },
     {
       "id": "CACH-008",

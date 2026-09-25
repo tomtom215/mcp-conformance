@@ -170,7 +170,12 @@
           "seq": 2,
           "detail": "HTTP 200 Content-Type \"text/html\" is neither application/json nor text/event-stream"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "If the input is a JSON-RPC request, the server MUST either return `Content-Type: text/event-stream`, to initiate an SSE stream, or `Content-Type: application/json`, to return one JSON object.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#sending-messages-to-the-server"
+      }
     },
     {
       "id": "TRAN-039",
@@ -187,7 +192,12 @@
           "seq": 2,
           "detail": "HTTP 200 Content-Type \"text/html\" is neither application/json nor text/event-stream"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports#listening-for-messages-from-the-server",
+        "quote": "The server MUST either return `Content-Type: text/event-stream` in response to this HTTP GET, or else return HTTP 405 Method Not Allowed, indicating that the server does not offer an SSE stream at this endpoint.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#listening-for-messages-from-the-server"
+      }
     },
     {
       "id": "TRAN-049",

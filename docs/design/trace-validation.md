@@ -77,10 +77,11 @@ Three properties of this format carry weight:
 - **Verbatim source quotes.** Each entry stores the exact spec text it encodes,
   not a paraphrase. This makes the registry auditable against the published spec
   and lets a scheduled job (`cargo xtask spec-drift`) re-verify every quote
-  against the live text, so the registry cannot silently drift out of date as
-  the spec is edited. The `2025-11-25` registry is 142 entries (55 judged by
-  51 checks, 87 documented exclusions); the `2026-07-28` registry is 272 (125
-  judged, 147 excluded).
+  against the live text — and every section anchor against the published page,
+  since reports link each failing clause there — so the registry cannot silently
+  drift out of date as the spec is edited. The `2025-11-25` registry is 142
+  entries (55 judged by 51 checks, 87 documented exclusions); the `2026-07-28`
+  registry is 272 (125 judged, 147 excluded).
 - **`checks | exclusion` is an exclusive alternative.** A requirement either
   maps to one or more mechanical checks, or it carries a written reason it
   cannot be judged from a trace (e.g. server-internal state that never reaches

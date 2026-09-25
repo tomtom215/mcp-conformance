@@ -215,7 +215,12 @@
           "seq": 4,
           "detail": "tool name \"echo\" appears more than once in this tools/list result"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "Tool names SHOULD be unique within a server.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool-names"
+      }
     },
     {
       "id": "TOOL-009",

@@ -39,7 +39,7 @@
         "removed": "2026-07-28"
       },
       "source": {
-        "section": "server/resources#https",
+        "section": "server/resources#https//",
         "quote": "Servers SHOULD use this scheme only when the client is able to fetch and load the resource directly from the web on its own—that is, it doesn’t need to read the resource via the MCP server."
       },
       "exclusion": "Whether the client can fetch a URI on its own is a property of the client's environment, not of the recorded session."
@@ -98,7 +98,7 @@
         "removed": "2026-07-28"
       },
       "source": {
-        "section": "server/resources#https",
+        "section": "server/resources#https//",
         "quote": "For other use cases, servers SHOULD prefer to use another URI scheme, or define a custom one, even if the server will itself be downloading resource contents over the internet."
       },
       "exclusion": "The premise — whether the client could fetch the URI directly — is a property of the client's environment, not of the session (the RES-003 argument)."

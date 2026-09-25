@@ -115,7 +115,12 @@
           "seq": 3,
           "detail": "\"tools/list\" uses the server capability tools, which was not negotiated in this session"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#operation",
+        "quote": "Both parties MUST: Only use capabilities that were successfully negotiated",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#operation"
+      }
     },
     {
       "id": "LIFE-010",

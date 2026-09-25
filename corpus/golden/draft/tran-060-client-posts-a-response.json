@@ -40,7 +40,12 @@
           "seq": 5,
           "detail": "result response answers id 99, but that party has no outstanding request with that id (never sent, or already answered)"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#result-responses",
+        "quote": "Result responses MUST include the same ID as the request they correspond to.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#result-responses"
+      }
     },
     {
       "id": "BASE-047",
@@ -177,7 +182,12 @@
           "seq": 5,
           "detail": "client sent a JSON-RPC response; 2026-07-28 removed server-initiated requests, so there is nothing for one to answer"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "The client MUST NOT send JSON-RPC responses.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#sending-messages"
+      }
     },
     {
       "id": "TRAN-063",
@@ -339,7 +349,12 @@
           "seq": 5,
           "detail": "client sent a JSON-RPC response; 2026-07-28 removed server-initiated requests, so there is nothing for one to answer"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/stdio#sending-messages",
+        "quote": "The client MUST NOT write JSON-RPC responses.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#sending-messages"
+      }
     },
     {
       "id": "TRAN-120",
@@ -466,7 +481,12 @@
           "seq": 3,
           "detail": "the `complete` result of `tools/list` carries no `ttlMs` caching hint"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/caching#cacheable-results",
+        "quote": "Servers MUST include caching hints on results with `resultType: \"complete\"` returned by the following operations: `server/discover`; `tools/list`; `prompts/list`; `resources/list`; `resources/templates/list`; `resources/read`",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cacheable-results"
+      }
     },
     {
       "id": "CACH-008",

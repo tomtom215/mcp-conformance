@@ -265,7 +265,12 @@
           "seq": 2,
           "detail": "HeaderMismatch (-32020) was returned with HTTP 500, not 400"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#server-behavior-for-custom-headers",
+        "quote": "Servers MUST reject requests with a `400 Bad Request` HTTP status and JSON-RPC error code `-32020` (`HeaderMismatch`) if any validation fails.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers"
+      }
     },
     {
       "id": "TRAN-100",
@@ -282,7 +287,12 @@
           "seq": 2,
           "detail": "HeaderMismatch (-32020) was returned with HTTP 500, not 400"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#server-validation",
+        "quote": "When rejecting a request due to header validation failure, servers MUST return HTTP status `400 Bad Request` and MUST include a JSON-RPC error response using the following error code:",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-validation"
+      }
     },
     {
       "id": "DISC-001",

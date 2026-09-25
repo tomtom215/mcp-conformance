@@ -35,7 +35,12 @@
           "seq": 1,
           "detail": "request id 1 is already outstanding for this sender; 2026-07-28 forbids reusing an id before its response"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/index#requests",
+        "quote": "The request ID MUST NOT match the ID of any other request the sender has issued and not yet received a response for.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#requests"
+      }
     },
     {
       "id": "BASE-046",
@@ -452,7 +457,12 @@
           "seq": 2,
           "detail": "the `complete` result of `tools/list` carries no `ttlMs` caching hint"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/caching#cacheable-results",
+        "quote": "Servers MUST include caching hints on results with `resultType: \"complete\"` returned by the following operations: `server/discover`; `tools/list`; `prompts/list`; `resources/list`; `resources/templates/list`; `resources/read`",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cacheable-results"
+      }
     },
     {
       "id": "CACH-008",

@@ -145,7 +145,12 @@
           "seq": 4,
           "detail": "client HTTP request lacks the MCP-Session-Id header; the server assigned \"abc123\" at seq 2"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports#session-management",
+        "quote": "If an `MCP-Session-Id` is returned by the server during initialization, clients using the Streamable HTTP transport MUST include it in the `MCP-Session-Id` header on all of their subsequent HTTP requests.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management"
+      }
     },
     {
       "id": "TRAN-017",

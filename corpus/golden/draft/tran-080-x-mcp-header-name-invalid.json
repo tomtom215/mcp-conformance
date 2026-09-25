@@ -240,7 +240,12 @@
           "seq": 3,
           "detail": "property `region` designates `x-mcp-header` \"Bad Header\", which is not an HTTP field-name token (`1*tchar`, RFC 9110 §5.1)"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#schema-extension",
+        "quote": "MUST NOT be empty MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1) MUST NOT contain control characters, including carriage return (CR, `\\r`) or line feed (LF, `\\n`) MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema` MUST only be applied to parameters with primitive types (integer, string, boolean).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension"
+      }
     },
     {
       "id": "TRAN-086",
@@ -582,7 +587,12 @@
           "seq": 3,
           "detail": "property `region` designates `x-mcp-header` \"Bad Header\", which is not an HTTP field-name token (`1*tchar`, RFC 9110 §5.1)"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#x-mcp-header",
+        "quote": "MUST NOT be empty MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1) MUST NOT contain control characters, including carriage return (CR, `\\r`) or line feed (LF, `\\n`) MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema` MUST only be applied to parameters with primitive types (integer, string, boolean).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header"
+      }
     },
     {
       "id": "TOOL-034",

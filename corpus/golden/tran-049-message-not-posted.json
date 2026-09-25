@@ -185,7 +185,12 @@
           "seq": 8,
           "detail": "client JSON-RPC message rode an HTTP PUT request (seq 7); messages must be sent by POST"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "The client MUST use HTTP POST to send JSON-RPC messages to the MCP endpoint.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#sending-messages-to-the-server"
+      }
     },
     {
       "id": "TOOL-001",

@@ -115,7 +115,12 @@
           "seq": 3,
           "detail": "\"prompts/list\" uses the server capability prompts, which was not negotiated in this session"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#operation",
+        "quote": "Both parties MUST: Only use capabilities that were successfully negotiated",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#operation"
+      }
     },
     {
       "id": "LIFE-010",
@@ -267,7 +272,12 @@
           "seq": 4,
           "detail": "server answered \"prompts/list\" without declaring the prompts capability"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/prompts#capabilities",
+        "quote": "Servers that support prompts MUST declare the `prompts` capability during initialization:",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#capabilities"
+      }
     },
     {
       "id": "PROM-003",

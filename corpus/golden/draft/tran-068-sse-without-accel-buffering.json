@@ -185,7 +185,12 @@
           "seq": 2,
           "detail": "SSE response does not carry `X-Accel-Buffering: no`"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#receiving-messages",
+        "quote": "When initiating an SSE stream, servers SHOULD include the `X-Accel-Buffering: no` header in the HTTP response.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#receiving-messages"
+      }
     },
     {
       "id": "TRAN-070",

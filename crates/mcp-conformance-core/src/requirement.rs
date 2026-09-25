@@ -177,6 +177,49 @@ pub struct SourceRef {
     pub quote: String,
 }
 
+impl SourceRef {
+    /// The published page for this clause at `revision`, anchor included:
+    /// `basic/lifecycle#initialization` at `2025-11-25` is
+    /// `https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization`.
+    /// A section naming a directory's `index` page links to the directory, which is
+    /// where the site publishes it.
+    ///
+    /// ```
+    /// # use mcp_conformance_core::requirement::SourceRef;
+    /// let source: SourceRef = serde_json::from_str(
+    ///     r#"{"section": "basic/index#_meta", "quote": "…"}"#,
+    /// )?;
+    /// assert_eq!(
+    ///     source.url("2026-07-28".parse()?),
+    ///     "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+    /// );
+    /// # Ok::<(), Box<dyn core::error::Error>>(())
+    /// ```
+    #[must_use]
+    pub fn url(&self, revision: ProtocolRevision) -> String {
+        let (page, anchor) = self
+            .section
+            .split_once('#')
+            .map_or((self.section.as_str(), None), |(page, anchor)| {
+                (page, Some(anchor))
+            });
+        let page = page
+            .strip_suffix("/index")
+            .or_else(|| (page == "index").then_some(""))
+            .unwrap_or(page);
+        let mut url = format!("https://modelcontextprotocol.io/specification/{revision}");
+        if !page.is_empty() {
+            url.push('/');
+            url.push_str(page);
+        }
+        if let Some(anchor) = anchor {
+            url.push('#');
+            url.push_str(anchor);
+        }
+        url
+    }
+}
+
 /// How a requirement is verified — the SEP-2484 traceability alternative: concrete
 /// checks, or a documented exclusion.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

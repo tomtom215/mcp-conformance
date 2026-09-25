@@ -115,7 +115,12 @@
           "seq": 3,
           "detail": "\"completion/complete\" uses the server capability completions, which was not negotiated in this session"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#operation",
+        "quote": "Both parties MUST: Only use capabilities that were successfully negotiated",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#operation"
+      }
     },
     {
       "id": "LIFE-010",
@@ -301,7 +306,12 @@
           "seq": 4,
           "detail": "server answered completion/complete without declaring the completions capability"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/completion#capabilities",
+        "quote": "Servers that support completions MUST declare the `completions` capability:",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/completion#capabilities"
+      }
     },
     {
       "id": "PAGE-002",

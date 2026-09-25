@@ -470,7 +470,12 @@
           "seq": 3,
           "detail": "server answered `completion/complete` while its `server/discover` result declared no `completions` capability"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/utilities/completion#capabilities",
+        "quote": "Servers that support completions MUST declare the `completions` capability:",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/completion#capabilities"
+      }
     },
     {
       "id": "PAGE-006",

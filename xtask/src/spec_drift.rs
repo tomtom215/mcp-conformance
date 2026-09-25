@@ -28,6 +28,10 @@
 //! each page's MUST-family keyword count is committed beside the page list and
 //! recounted here. Together the two say the registry still quotes the spec
 //! accurately *and* still quotes all of it.
+//!
+//! A third check reads the page as the site publishes it: every `source.section`
+//! anchor must be a heading id there, because reports link failing clauses to it
+//! ([`anchors`]).
 
 // `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
 // opposite demands about items in a binary crate's private modules; this follows
@@ -40,6 +44,7 @@ use std::process::ExitCode;
 use mcp_conformance_core::requirement::{Registry, RegistrySet, Requirement};
 use serde::Deserialize;
 
+mod anchors;
 mod census;
 
 /// The revisions this gate verifies, each against its own published pages.
@@ -104,6 +109,7 @@ pub(crate) fn run() -> ExitCode {
     };
     let mut drifted = 0u32;
     let mut checked = 0u32;
+    let mut broken = 0u32;
     let mut verified: Vec<&str> = Vec::new();
     let mut skipped: Vec<&str> = Vec::new();
     for revision in REVISIONS {
@@ -120,19 +126,15 @@ pub(crate) fn run() -> ExitCode {
         verified.push(revision);
         match verify_revision(revision, &registry) {
             Ok(count) => {
-                checked += count.0;
-                drifted += count.1;
+                checked += count.quotes;
+                drifted += count.drifted;
+                broken += count.broken_anchors;
             }
             Err(()) => return ExitCode::FAILURE,
         }
     }
 
-    if drifted > 0 {
-        eprintln!(
-            "xtask: spec-drift — {drifted} quote(s) drifted from the published text. \
-             Re-read each clause: if the requirement changed, update the entry (and \
-             its checks or exclusion); if only the wording moved, refresh the quote."
-        );
+    if !explain_failures(drifted, broken) {
         return ExitCode::FAILURE;
     }
     // The count is of revisions *verified*, not of revisions looped over. It
@@ -141,8 +143,8 @@ pub(crate) fn run() -> ExitCode {
     // a gate overstating its own coverage, which is the failure this gate
     // exists to catch in other people's documents.
     eprintln!(
-        "xtask: spec-drift — {checked} quote(s) across {} revision(s) verified against \
-         the published text{}",
+        "xtask: spec-drift — {checked} quote(s) and their anchors across {} revision(s) \
+         verified against the published text{}",
         verified.len(),
         if skipped.is_empty() {
             String::new()
@@ -157,12 +159,42 @@ pub(crate) fn run() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// Verifies one revision's quotes against its own published pages.
+/// Says what to do about each kind of failure found; `true` when there were none.
+fn explain_failures(drifted: u32, broken: u32) -> bool {
+    if drifted > 0 {
+        eprintln!(
+            "xtask: spec-drift — {drifted} quote(s) drifted from the published text. \
+             Re-read each clause: if the requirement changed, update the entry (and \
+             its checks or exclusion); if only the wording moved, refresh the quote."
+        );
+    }
+    if broken > 0 {
+        eprintln!(
+            "xtask: spec-drift — {broken} section anchor(s) the published pages do not \
+             offer. Point each `source.section` at the heading id the page publishes \
+             (the nearest `####` or shallower heading: deeper ones get no anchor)."
+        );
+    }
+    drifted == 0 && broken == 0
+}
+
+/// What one revision's verification found.
+struct Counts {
+    /// Quotes checked.
+    quotes: u32,
+    /// Quotes no longer present in the published source.
+    drifted: u32,
+    /// Requirements whose section anchor the published page does not offer.
+    broken_anchors: u32,
+}
+
+/// Verifies one revision's quotes against its own published pages, and each
+/// quote's anchor against the page as the site renders it.
 ///
-/// Returns `(quotes checked, quotes drifted)`, or `Err(())` when the revision could not
-/// be verified at all — an unreadable sources file, a page/registry disagreement, or a
-/// failed fetch. An unverified page is not a verified page.
-fn verify_revision(revision: &str, registry: &Registry) -> Result<(u32, u32), ()> {
+/// Returns the [`Counts`], or `Err(())` when the revision could not be verified at
+/// all — an unreadable sources file, a page/registry disagreement, or a failed
+/// fetch. An unverified page is not a verified page.
+fn verify_revision(revision: &str, registry: &Registry) -> Result<Counts, ()> {
     let sources = load_sources(revision).map_err(|message| {
         eprintln!("xtask: spec-drift — {revision}: {message}");
     })?;
@@ -173,6 +205,7 @@ fn verify_revision(revision: &str, registry: &Registry) -> Result<(u32, u32), ()
 
     let mut checked = 0u32;
     let mut drifted = 0u32;
+    let mut broken = 0u32;
     let mut live_census: BTreeMap<String, u32> = BTreeMap::new();
     for (page, requirements) in &by_page {
         let url = format!("{}/{}", raw_base(revision), sources.in_scope[page]);
@@ -198,6 +231,7 @@ fn verify_revision(revision: &str, registry: &Registry) -> Result<(u32, u32), ()
         );
         checked += u32::try_from(requirements.len()).unwrap_or(u32::MAX);
         drifted += page_drifted;
+        broken += anchors::broken(registry, requirements)?;
     }
 
     // The other direction: the quotes above prove what the registry *has* is
@@ -215,7 +249,11 @@ fn verify_revision(revision: &str, registry: &Registry) -> Result<(u32, u32), ()
             drifted += u32::try_from(problems.len()).unwrap_or(u32::MAX);
         }
     }
-    Ok((checked, drifted))
+    Ok(Counts {
+        quotes: checked,
+        drifted,
+        broken_anchors: broken,
+    })
 }
 
 /// Registry requirements grouped by the page their `source.section` cites.

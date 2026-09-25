@@ -220,7 +220,12 @@
           "seq": 4,
           "detail": "tool \"doc\" returned an embedded resource, but the server did not declare the resources capability"
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#embedded-resources",
+        "quote": "Servers that use embedded resources SHOULD implement the `resources` capability:",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#embedded-resources"
+      }
     },
     {
       "id": "TOOL-010",

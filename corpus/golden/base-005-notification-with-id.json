@@ -40,7 +40,12 @@
           "seq": 2,
           "detail": "\"notifications/initialized\" is a notification method but the message carries an id; notifications must not include one"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic#notifications",
+        "quote": "Notifications MUST NOT include an ID.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#notifications"
+      }
     },
     {
       "id": "BASE-006",
@@ -97,7 +102,12 @@
           "seq": 1,
           "detail": "the server answered initialize here, but no notifications/initialized notification follows in the trace"
         }
-      ]
+      ],
+      "source": {
+        "section": "basic/lifecycle#initialization",
+        "quote": "After successful initialization, the client MUST send an `initialized` notification to indicate it is ready to begin normal operations",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+      }
     },
     {
       "id": "LIFE-004",

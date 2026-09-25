@@ -205,7 +205,12 @@
           "seq": 4,
           "detail": "tool name \"weather lookup,v2!\" contains characters outside A-Z, a-z, 0-9, underscore, hyphen, and dot: \" ,!\""
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "The following SHOULD be the only allowed characters: uppercase and lowercase ASCII letters (A-Z, a-z), digits (0-9), underscore (_), hyphen (-), and dot (.)",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool-names"
+      }
     },
     {
       "id": "TOOL-007",
@@ -217,7 +222,12 @@
           "seq": 4,
           "detail": "tool name \"weather lookup,v2!\" contains characters outside A-Z, a-z, 0-9, underscore, hyphen, and dot: \" ,!\""
         }
-      ]
+      ],
+      "source": {
+        "section": "server/tools#tool-names",
+        "quote": "Tool names SHOULD NOT contain spaces, commas, or other special characters.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool-names"
+      }
     },
     {
       "id": "TOOL-008",
