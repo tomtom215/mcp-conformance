@@ -27,6 +27,18 @@ cli = ["dep:clap"]
 draft-2026-07-28 = []
 
 # docs.rs builds with every feature enabled so feature-gated APIs are documented.
+# `cargo binstall mcp-trace-validator` downloads the attested prebuilt archive the release
+# workflow attaches (both CLIs per target; Linux is static musl) instead of
+# compiling. binstall falls back to building from source where no archive fits.
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/mcp-conformance-v{ version }-{ target }.tar.gz"
+bin-dir = "mcp-conformance-v{ version }-{ target }/{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-url = "{ repo }/releases/download/v{ version }/mcp-conformance-v{ version }-{ target }.zip"
+pkg-fmt = "zip"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--generate-link-to-definition"]

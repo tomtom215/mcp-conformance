@@ -6,8 +6,8 @@
 ## Scope
 
 All crates in this workspace (`mcp-conformance-core`, `mcp-trace-validator`,
-`mcp-everything-server`, `mcp-reference-host`), the trace corpus, and the CI
-configuration. The project's threat model lives in
+`mcp-trace-capture`, `mcp-everything-server`, `mcp-reference-host`), the prebuilt
+release binaries, the trace corpus, and the CI configuration. The project's threat model lives in
 [docs/plan/05-security-model.md](docs/plan/05-security-model.md).
 
 ## Supported versions
@@ -17,8 +17,8 @@ every release.
 
 | Version | Supported |
 | ------- | --------- |
-| 0.5.x   | yes       |
-| 0.4.x   | no        |
+| 0.6.x   | yes       |
+| 0.5.x   | no        |
 
 ## Reporting a vulnerability
 

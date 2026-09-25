@@ -137,9 +137,10 @@ carried the lockfile change, finding no mutants in changed code — the diff is
      `README.md`'s status line and `CITATION.cff`'s `version` (both enforced by
      `cargo xtask version-sync`, which fails the release otherwise), plus
      `CITATION.cff`'s `date-released`. Then `cargo update --workspace --offline`
-     to move the five workspace crates in `Cargo.lock` without dragging in
+     to move the workspace packages in `Cargo.lock` without dragging in
      dependency updates the release never measured — the diff should be exactly
-     five lines.
+     one version line per workspace package: six from 0.6.0 (the five published
+     crates and `xtask`).
    - Move `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD` in `CHANGELOG.md`; add a fresh
      `[Unreleased]` section. Update the link-reference definitions at the foot of
      the file too: add `[X.Y.Z]: …/releases/tag/vX.Y.Z` and repoint `[Unreleased]:`
@@ -169,8 +170,11 @@ carried the lockfile change, finding no mutants in changed code — the diff is
    re-runs the full gate set (including MSRV clippy/tests and cross-OS tests), packages
    all publishable crates with verification builds (`cargo package --workspace --exclude xtask --locked` — the
    workspace-wide dry run; per-crate `--dry-run` cannot resolve unpublished sibling
-   dependencies), attests SLSA build provenance over the `.crate` files, creates the
-   GitHub Release with the changelog excerpt and checksummed artifacts, then — behind
+   dependencies), attests SLSA build provenance over the `.crate` files, builds both
+   CLIs for five targets (Linux x86_64/aarch64 musl, macOS arm64/x86_64, Windows
+   x86_64) and attests each archive, creates the GitHub Release with the changelog
+   excerpt, the checksummed `.crate` files and the checksummed binary archives
+   (`SHA256SUMS-binaries`), then — behind
    the `release` environment's required-reviewer approval — re-packages,
    **byte-compares against the attested SHA256SUMS**, and publishes to crates.io in
    dependency order. Re-running a partially published tag is safe: already-published

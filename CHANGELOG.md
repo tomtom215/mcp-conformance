@@ -11,6 +11,26 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-25
+
+**This is a minor release with breaking behaviour changes and no Rust API
+break**, which pre-1.0 SemVer permits and this project states explicitly.
+`cargo xtask semver` (cargo-semver-checks 0.50.0) reports "no semver update
+required" for the four previously published crates against 0.5.1;
+`mcp-trace-capture` is new. What can break a caller is what the tools output and
+decide:
+
+| Surface | Change | Migration |
+|---------|--------|-----------|
+| `validate` CLI | Judges the revision the trace declares (else the newest), not always `2025-11-25` | `--revision 2025-11-25` restores the old judgment |
+| JSON report | Gains `verdict`; failing and warning rows gain `source`, multi-revision rows `sources` | A consumer that rejects unknown members: accept them, or validate against the published `report.schema.json` |
+| `JUnit` report | A failure's body and a warning's `system-out` end with the clause (`spec:`) and its link (`see:`) | Read the finding from the `message` attribute, which is unchanged |
+| `reader::Limits::default()` | Lines up to 65 MiB (was 1 MiB), up to 1,000,000 events (was 100,000) | `Limits::new(100_000, 1024 * 1024)` for the old caps |
+| Registry data | 31 `source.section` anchors corrected to the ones the spec site publishes (e.g. `basic/index#meta` → `basic/index#_meta`) | Key on the requirement ID, which did not change |
+| `context::draft` | Deprecated alias of `context::stateless` | Use `context::stateless`; the alias goes in the next minor |
+
+Each is stated again in the entry that introduced it, with the reasoning.
+
 ### Changed — breaking
 
 - **`validate` judges the revision the trace declares, and `2026-07-28` ships in
@@ -89,6 +109,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   (`crates/mcp-trace-validator/schema/report.schema.json`, `report::JSON_SCHEMA`):
   closed, so the test that validates every golden report and both CLI shapes against
   it proves each emitted member is documented.
+- **Prebuilt binaries.** Each release attaches `mcp-trace-validator` and
+  `mcp-trace-capture` for five targets — Linux x86_64 and aarch64 (static musl),
+  macOS arm64 and x86_64, Windows x86_64 — as archives with SLSA build-provenance
+  attestations and `SHA256SUMS-binaries`, and both crates carry
+  `[package.metadata.binstall]` so `cargo binstall` installs them without
+  compiling. A release rehearsal builds and smoke-tests every target.
 - **The trace format is published as a JSON Schema** (draft 2020-12):
   `crates/mcp-conformance-core/schema/trace-event.schema.json`, also
   `mcp_conformance_core::trace::EVENT_JSON_SCHEMA`, so a recorder in any language
@@ -2747,7 +2773,8 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.6.0
 [0.5.1]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.1
 [0.5.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.0
 [0.4.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.4.0
