@@ -121,6 +121,27 @@ re-measuring `0.5.0`. The diff-scoped mutation gate did run on the PR that
 carried the lockfile change, finding no mutants in changed code — the diff is
 `Cargo.lock` and `CHANGELOG.md` only.
 
+## v0.6.0 pre-flight (2026-09-25)
+
+Measured on the release branch, not asserted:
+
+| Leg | Result |
+|-----|--------|
+| `cargo xtask ci` (stable 1.98.1, incl. MSRV 1.88.0 clippy and `cargo deny`, none skipped) | green |
+| `cargo xtask semver` (cargo-semver-checks 0.50.0) | green — "no semver update required" for the four published crates at `0.5.1 -> 0.6.0`; `mcp-trace-capture` excluded as a first release (not in the crates.io index) |
+| `cargo package --workspace --exclude xtask --locked` | green — five crates packaged with verification builds, each now carrying `LICENSE` |
+| `cargo deny check` | green |
+| `cargo xtask spec-drift` | green — 414 quotes and their section anchors verified against the published text |
+| `cargo xtask conformance` | green — suite 0.1.16 40/40 with 30 agreement sessions, client leg 4 scenarios + agreement, capture leg (stdio at both revisions judged clean; the suite through the HTTP proxy) |
+| SARIF against the OASIS 2.1.0 schema (the new CI job's steps, run locally) | green — 126 logs valid |
+| diff-scoped mutants over the whole branch diff (`--all-features`, as `mutants.yml` runs it) | green — 374 mutants at `b79e861`: 345 caught, 29 unviable, **0 missed, 0 timeouts** (44 min, 2 jobs) |
+| Linux x86_64 musl binaries (the new `binaries` job's build, smoke and archive steps) | green — static-pie; the other four targets are first built by the rehearsal |
+| `Cargo.lock` diff | six version lines: the five published crates and `xtask` |
+
+Not yet run: the release rehearsal (`workflow_dispatch`), which is the first
+build of the macOS, Windows and aarch64 Linux archives, and the bootstrap
+publish of `mcp-trace-capture` (§Publish order) — both owner steps.
+
 ## Release checklist
 
 1. **Prepare** on a `release/vX.Y.Z` branch:
