@@ -100,6 +100,26 @@ jobs:
       - name: Test (all features)
         run: cargo test --workspace --all-features
 
+  # SARIF output against the OASIS SARIF 2.1.0 schema. The schema is fetched,
+  # not committed (its licence is the OASIS IPR policy, not an open-source one),
+  # from the URL the standard names as its own `id`, and pinned by SHA-256 so a
+  # changed file fails loudly instead of silently moving the target.
+  sarif-schema:
+    name: SARIF output valid under the OASIS schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Fetch the SARIF 2.1.0 schema (pinned by hash)
+        run: |
+          curl -sSfL --retry 3 -o "$RUNNER_TEMP/sarif-schema-2.1.0.json" \
+            https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json
+          echo "c3b4bb2d6093897483348925aaa73af03b3e3f4bd4ca38cef26dcb4212a2682e  $RUNNER_TEMP/sarif-schema-2.1.0.json" | sha256sum --check
+      - name: Every violation trace's SARIF log is valid
+        run: SARIF_SCHEMA="$RUNNER_TEMP/sarif-schema-2.1.0.json" cargo test -p mcp-trace-validator --test sarif -- --ignored
+
   doc:
     name: Documentation
     runs-on: ubuntu-latest

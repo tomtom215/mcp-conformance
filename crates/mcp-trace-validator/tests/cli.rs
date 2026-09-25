@@ -759,3 +759,42 @@ fn the_reader_limits_are_flags_and_a_trace_over_one_is_told_which() {
     assert_eq!(blank.status.code(), Some(3), "{blank:?}");
     assert!(!stderr(&blank).contains("hint:"), "{}", stderr(&blank));
 }
+
+#[test]
+fn sarif_is_a_validate_format_with_the_same_exit_codes() {
+    let trace = corpus("draft/violations/mrtr-019-retry-reuses-id.jsonl");
+    let trace = trace.to_str().unwrap();
+    let output = run(&["validate", trace, "--format", "sarif"]);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let log: serde_json::Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(log["version"], "2.1.0");
+    let result = &log["runs"][0]["results"][0];
+    assert_eq!(result["ruleId"], "MRTR-019");
+    assert_eq!(
+        result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"],
+        trace
+    );
+    assert_eq!(
+        result["locations"][0]["physicalLocation"]["region"]["startLine"],
+        3
+    );
+    // Several revisions give one run with each revision's findings.
+    let both = run(&[
+        "validate",
+        trace,
+        "--format",
+        "sarif",
+        "--revision",
+        "2025-11-25",
+        "--revision",
+        "2026-07-28",
+    ]);
+    assert_eq!(both.status.code(), Some(1), "{both:?}");
+    let log: serde_json::Value = serde_json::from_str(&stdout(&both)).unwrap();
+    assert_eq!(
+        log["runs"][0]["properties"]["revisions"],
+        serde_json::json!(["2025-11-25", "2026-07-28"])
+    );
+    let rejected = run(&["requirements", "--format", "sarif"]);
+    assert_eq!(rejected.status.code(), Some(2), "{rejected:?}");
+}

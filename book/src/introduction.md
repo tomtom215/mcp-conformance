@@ -40,7 +40,7 @@ every commit is calibrated, not merely asserted to be correct.
 |-------|------------|
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | The spec as data: the requirement registry, the trace schema, and RFC 8785 canonical JSON. Serde-only; no protocol SDK. |
 | `mcp-trace-capture` | The recorder: a stdio wrapper and HTTP reverse proxy that write a validator-ready trace of any MCP session, linking no SDK. Ships with the next release. |
-| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | The deterministic judgment engine and its CLI (human / JSON / JUnit reports, documented exit codes). |
+| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | The deterministic judgment engine and its CLI (human / JSON / JUnit / SARIF reports, documented exit codes). |
 | [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | A reference server on the official `rmcp` SDK that passes the suite's server scenarios, with a session tap that records traces for the agreement check. |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | A reference host (client) that passes the suite's client scenarios and captures host-side traces. |
 

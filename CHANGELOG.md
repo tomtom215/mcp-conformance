@@ -70,6 +70,16 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   (`#meta` for `#_meta`, `#security--endpoint` for `#security-&-endpoint`,
   `#https` for `#https//`, and three more), and `#resulttype`, an `#####` heading the
   site gives no anchor (now its parent, `#result-responses`). All 31 are corrected.
+- **`--format sarif`: SARIF 2.1.0 for code scanning.** One rule per violated clause
+  (the quote, its level, its link), one result per finding at the trace line holding
+  the event it names, unsupported clauses as invocation notifications; every judged
+  revision in one run, as GitHub code scanning requires (`sarif::render`). CI validates
+  the log of every violation trace against the OASIS schema, fetched from its official
+  URL and pinned by SHA-256 rather than vendored (its licence is the OASIS IPR policy).
+- **The JSON report is published as a JSON Schema**
+  (`crates/mcp-trace-validator/schema/report.schema.json`, `report::JSON_SCHEMA`):
+  closed, so the test that validates every golden report and both CLI shapes against
+  it proves each emitted member is documented.
 - **The trace format is published as a JSON Schema** (draft 2020-12):
   `crates/mcp-conformance-core/schema/trace-event.schema.json`, also
   `mcp_conformance_core::trace::EVENT_JSON_SCHEMA`, so a recorder in any language

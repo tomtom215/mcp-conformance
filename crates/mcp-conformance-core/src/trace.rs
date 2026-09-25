@@ -285,6 +285,26 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn the_size_defaults_are_the_documented_values_and_add_up() {
+        assert_eq!(DEFAULT_MAX_MESSAGE_BYTES, 67_108_864, "64 MiB");
+        assert_eq!(LINE_ENVELOPE_BYTES, 1_048_576, "1 MiB");
+        assert_eq!(DEFAULT_MAX_LINE_BYTES, 68_157_440, "their sum, 65 MiB");
+    }
+
+    #[test]
+    fn the_event_schema_is_embedded_json() {
+        let schema: serde_json::Value = serde_json::from_str(EVENT_JSON_SCHEMA).unwrap();
+        assert_eq!(
+            schema["$schema"],
+            "https://json-schema.org/draft/2020-12/schema"
+        );
+        assert_eq!(
+            schema["required"],
+            json!(["seq", "direction", "transport", "kind"])
+        );
+    }
+
+    #[test]
     fn new_builds_the_exact_event_with_no_timestamp() {
         let event = TraceEvent::new(
             7,

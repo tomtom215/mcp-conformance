@@ -41,8 +41,10 @@ Then judge it:
 mcp-trace-validator validate --quiet session.jsonl
 ```
 
-In CI, `--format junit` produces a test report and the exit code is the verdict
-(`0` pass, `1` findings, `2` bad invocation, `3` malformed trace).
+In CI, the exit code is the verdict (`0` pass, `1` findings, `2` bad invocation, `3`
+malformed trace); `--format junit` produces a test report, and `--format sarif` puts
+each finding on the trace line it concerns in GitHub code scanning (or any SARIF
+viewer).
 [`mcp-trace-capture`'s README](crates/mcp-trace-capture/README.md) covers what the
 recorder guarantees and what it leaves out.
 
@@ -67,8 +69,8 @@ verdict: fail
 ```
 
 - **Every finding cites the clause it breaks** — the event (`seq`), what was wrong,
-  the clause verbatim, and a link to it in the published revision; JSON and JUnit
-  output carry the same. The weekly spec-drift job re-verifies every quote against
+  the clause verbatim, and a link to it in the published revision; JSON, JUnit and
+  SARIF output carry the same. The weekly spec-drift job re-verifies every quote against
   the spec's source and every link's anchor against the published page.
 - **The revision is the one the session declares** — in `initialize`, in each
   request's `_meta`, or in the `MCP-Protocol-Version` header. A trace declaring no
@@ -122,7 +124,7 @@ audience in [docs/design/trace-validation.md](docs/design/trace-validation.md).
 | Crate | What it gives you |
 |-------|-------------------|
 | [`mcp-trace-capture`](crates/mcp-trace-capture) | **The recorder.** A stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write a validator-ready trace, recording each message before the bytes that complete it are forwarded. CI runs reference-host sessions through it at both revisions and requires them to judge clean, and runs the official suite through the proxy. New; ships with the next release. |
-| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Findings with the clause ID and the offending event `seq`, as human text (full or `--quiet`), JSON, or JUnit, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
+| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Findings with the clause ID and the offending event `seq`, as human text (full or `--quiet`), JSON (with a published JSON Schema), JUnit, or SARIF, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The spec as data.** Requirement registries for `2025-11-25` and `2026-07-28` whose every entry carries a verbatim spec quote, an RFC 2119 level, an optional capability gate, and either a mechanical check or a documented exclusion (the SEP-2484 traceability shape); a weekly job re-verifies every quote against the published text. Plus the JSON Lines trace schema and RFC 8785 canonical JSON. Serde only. |
 | [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk). It passes the pinned official suite's `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy. `--protocol-version 2026-07-28` serves the stateless revision; the suite's pre-release `2026-07-28` scenarios score **41 passing / 0 failing** against it, and five committed captures evidence **114 of the 125 judgeable clauses** between them. Its tap records each suite session for the calibration check. |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference client.** Passes all four of the official suite's `2025-11-25` client scenarios at the pinned version; bounded tool-use loops over stdio and streamable HTTP, scriptable sampling / elicitation / roots with no model-provider network use. |

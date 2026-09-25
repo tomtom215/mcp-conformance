@@ -104,6 +104,8 @@ enum Format {
     Json,
     /// `JUnit` XML (validate only), for CI test-report ingestion.
     Junit,
+    /// SARIF 2.1.0 (validate only), for code scanning: GitHub, GitLab, IDEs.
+    Sarif,
 }
 
 fn main() -> ExitCode {
@@ -173,7 +175,12 @@ fn run_validate_command(
     };
     if let Some(path) = registry {
         return match load_registry(path) {
-            Ok(registry) => emit_single(&engine::validate(&registry, &events), trace, output),
+            Ok(registry) => emit_single(
+                &engine::validate(&registry, &events),
+                &events,
+                trace,
+                output,
+            ),
             Err(message) => {
                 eprintln!("error: {message}");
                 EXIT_USAGE
@@ -208,7 +215,7 @@ fn run_validate_command(
         };
         let mut report = engine::validate(&registry, &events);
         report.revision_source = Some(source);
-        return emit_single(&report, trace, output);
+        return emit_single(&report, &events, trace, output);
     }
     run_validate_multi(&events, trace, output, &set, &chosen, source)
 }
@@ -305,7 +312,12 @@ fn verdict_to_code(verdict: Verdict, strict: bool) -> u8 {
 }
 
 /// Renders a single-revision report and maps its verdict to an exit code.
-fn emit_single(report: &Report, trace_source: &str, output: Output) -> u8 {
+fn emit_single(
+    report: &Report,
+    events: &[mcp_conformance_core::trace::TraceEvent],
+    trace_source: &str,
+    output: Output,
+) -> u8 {
     if judgeable::reject(report.totals, trace_source) {
         return EXIT_USAGE;
     }
@@ -320,8 +332,23 @@ fn emit_single(report: &Report, trace_source: &str, output: Output) -> u8 {
             }
         },
         Format::Junit => emit(&mcp_trace_validator::junit::render(report)),
+        Format::Sarif => emit(&mcp_trace_validator::sarif::render(
+            core::slice::from_ref(report),
+            artifact(trace_source, events),
+        )),
     }
     verdict_to_code(report.verdict(), output.strict)
+}
+
+/// What SARIF results point at: the trace as named, unless it was stdin.
+fn artifact<'a>(
+    trace_source: &'a str,
+    events: &'a [mcp_conformance_core::trace::TraceEvent],
+) -> mcp_trace_validator::sarif::Artifact<'a> {
+    mcp_trace_validator::sarif::Artifact {
+        uri: (trace_source != "-").then_some(trace_source),
+        events,
+    }
 }
 
 /// Multi-revision judgment: one trace against several revisions of a registry set, with
@@ -356,13 +383,20 @@ fn run_validate_multi(
                 return EXIT_USAGE;
             }
         },
-        Format::Junit => {
+        Format::Junit | Format::Sarif => {
             let reports: Vec<Report> = revisions
                 .iter()
                 .filter_map(|revision| set.registry(*revision))
                 .map(|registry| engine::validate(&registry, events))
                 .collect();
-            emit(&mcp_trace_validator::junit::render_all(&reports));
+            if matches!(output.format, Format::Junit) {
+                emit(&mcp_trace_validator::junit::render_all(&reports));
+            } else {
+                emit(&mcp_trace_validator::sarif::render(
+                    &reports,
+                    artifact(trace_source, events),
+                ));
+            }
         }
     }
     verdict_to_code(report.verdict(), output.strict)
@@ -381,8 +415,10 @@ fn run_requirements(
         }
     };
     match format {
-        Format::Junit => {
-            eprintln!("error: --format junit applies to validate, not requirements");
+        Format::Junit | Format::Sarif => {
+            eprintln!(
+                "error: --format junit and --format sarif apply to validate, not requirements"
+            );
             return EXIT_USAGE;
         }
         Format::Json => match serde_json::to_string_pretty(&registry) {

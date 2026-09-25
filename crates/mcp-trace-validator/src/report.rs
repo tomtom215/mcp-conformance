@@ -15,6 +15,14 @@ use serde::{Deserialize, Serialize};
 mod clause;
 mod human;
 
+/// The JSON Schema (draft 2020-12) of `validate --format json` output.
+///
+/// It describes a [`Report`], or a [`MultiReport`](crate::multi::MultiReport)
+/// when several revisions were judged. Closed, so the test that validates every
+/// golden report and both CLI shapes against it proves each emitted member is
+/// documented.
+pub const JSON_SCHEMA: &str = include_str!("../schema/report.schema.json");
+
 pub use clause::ClauseSource;
 
 /// One concrete violation, addressed to a requirement and (where possible) an event.

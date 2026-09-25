@@ -166,8 +166,8 @@ evaluates every active requirement. Design commitments:
    offending event `seq`, and the expected-vs-actual detail; the registry maps the ID
    back to its verbatim spec quote (`requirements` subcommand). A report a maintainer
    cannot act on is noise.
-4. **Reports as artifacts.** Output formats: human (terminal), JSON (machine), JUnit XML
-   (CI). Exit codes: `0` pass, `1` findings, `2` invalid invocation, `3` malformed trace —
+4. **Reports as artifacts.** Output formats: human (terminal), JSON (machine, with a
+   published JSON Schema), JUnit XML (CI), SARIF 2.1.0 (code scanning). Exit codes: `0` pass, `1` findings, `2` invalid invocation, `3` malformed trace —
    the a2a-rust TCK convention, extended.
 5. **No network.** The validator never dials anything. Capturing traces is the job of the
    host, the server's tap, or any external proxy; validating them is the validator's.

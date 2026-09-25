@@ -4,19 +4,28 @@
 # mcp-trace-validator
 
 Deterministic offline validation of recorded MCP protocol traces: replay a JSON Lines
-trace against the requirement registry and get requirement-level findings — spec clause,
-offending event `seq`, actionable detail — as human text, machine JSON, or JUnit XML.
+trace against the requirement registry and get requirement-level findings — the clause
+verbatim with its link, the offending event `seq`, actionable detail — as human text,
+JSON, JUnit XML, or SARIF.
 
 ```text
-mcp-trace-validator validate session.jsonl
+mcp-trace-validator validate session.jsonl                 # judged at the revision it declares
+mcp-trace-validator validate --quiet session.jsonl         # only what needs attention
 mcp-trace-validator validate - --format json < session.jsonl
-mcp-trace-validator requirements
-mcp-trace-validator validate session.jsonl --registry my-registry.json  # default: built-in 2025-11-25
+mcp-trace-validator validate session.jsonl --format sarif > results.sarif
+mcp-trace-validator validate session.jsonl --revision 2025-11-25 --revision 2026-07-28
+mcp-trace-validator requirements --revision 2025-11-25
 ```
+
+`--format sarif` is SARIF 2.1.0 for code scanning (GitHub, GitLab, IDE viewers): one
+rule per violated clause, one result per finding at the trace line holding its event.
+`--format json` is described by the JSON Schema at
+[`schema/report.schema.json`](schema/report.schema.json)
+(`report::JSON_SCHEMA`).
 
 A trace is JSON Lines — one event per line with a capture-assigned `seq`,
 `direction`, `transport`, and a `kind`-discriminated body (`message` carries the
-JSON-RPC payload verbatim):
+JSON-RPC payload), specified by `mcp-conformance-core`'s trace-event JSON Schema:
 
 ```jsonl
 {"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"my-host","version":"1.0.0"}}}}
