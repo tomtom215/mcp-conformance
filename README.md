@@ -184,10 +184,14 @@ Every check is falsified by a committed violation trace and examines a real subj
 
 A trace is JSON Lines: one event per line, each carrying a capture-assigned `seq`
 (the only ordering authority), a `direction`, a `transport`, and a `kind` —
-`message` events hold the JSON-RPC payload verbatim; `http` events record
+`message` events hold the JSON-RPC payload; `http` events record
 conformance-relevant headers, a response's status, and a client request's
-`method`; `lifecycle` events mark transport open/close. This `2025-11-25` session
-reuses a request ID:
+`method`; `lifecycle` events mark transport open/close. The format is published as
+a JSON Schema, [`trace-event.schema.json`](crates/mcp-conformance-core/schema/trace-event.schema.json)
+(also `mcp_conformance_core::trace::EVENT_JSON_SCHEMA`), so a recorder written in
+any language can check its output without this toolkit; a test holds the schema
+and the validator's reader to the same answer on every corpus record. This
+`2025-11-25` session reuses a request ID:
 
 <!-- The mdBook chapter book/src/trace-format.md embeds the example below via
      this anchor; readme_examples.rs pins it to the validator's real output. -->
@@ -205,6 +209,8 @@ event:
 ```text
   FAIL  BASE-003 (MUST NOT)
         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
+        spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
+        see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
 totals: 17 pass, 1 fail, 0 warn, 87 excluded, 0 unsupported, 6 not applicable, 31 not observed
 verdict: fail
 ```

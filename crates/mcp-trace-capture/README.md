@@ -62,9 +62,9 @@ certificates). SSE streams are relayed as they arrive, event by event.
 - **No credentials in the trace.** Only an allowlist of headers is recorded — the same
   list every capture in this project uses (`RECORDED_HEADERS` in
   `mcp-conformance-core`). `Authorization` and cookies are forwarded, never written.
-  **Message content is recorded in full** — as parsed JSON, so insignificant
-  whitespace is dropped and numbers are written in canonical form (`1E2` as `100.0`),
-  but every value is kept: review a trace before sharing it.
+  **Message content is recorded in full** — as parsed JSON, so whitespace, member
+  order (written sorted) and number spelling (`1E2` as `100.0`) are not kept, but
+  every value is: review a trace before sharing it.
 - **Crash-safe.** Every event is flushed as it is written; a killed capture keeps what
   it recorded.
 

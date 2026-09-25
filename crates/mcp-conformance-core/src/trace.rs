@@ -106,7 +106,7 @@ pub enum EventBody {
     /// A JSON-RPC message, stored as parsed JSON.
     Message {
         /// The message payload as parsed JSON: every value as captured, but not
-        /// its formatting (whitespace, the spelling of a number).
+        /// its formatting (whitespace, member order, the spelling of a number).
         payload: Value,
     },
     /// An HTTP-level observation (Streamable HTTP transport only).
@@ -242,6 +242,16 @@ pub const RECORDED_HEADERS: [&str; 10] = [
 /// already records verbatim; the prefix cannot match `authorization` or
 /// `cookie`, and no other header may use it.
 pub const RECORDED_HEADER_PREFIXES: [&str; 1] = ["mcp-param-"];
+
+/// The JSON Schema (draft 2020-12) of one trace record, for producers written
+/// without this crate: a recorder in any language can check its output against it.
+///
+/// It states every rule the reader applies to a single record, and a test runs
+/// both over the whole corpus and one violation of each rule. It cannot state
+/// the document-level rules (one record per line, no blank lines or byte-order
+/// mark, `seq` strictly increasing), and it accepts `1.0` where the reader wants
+/// `1`; its description says so.
+pub const EVENT_JSON_SCHEMA: &str = include_str!("../schema/trace-event.schema.json");
 
 /// The largest message a recorder captures by default, in bytes (64 MiB).
 ///

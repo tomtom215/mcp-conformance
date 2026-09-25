@@ -70,6 +70,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   (`#meta` for `#_meta`, `#security--endpoint` for `#security-&-endpoint`,
   `#https` for `#https//`, and three more), and `#resulttype`, an `#####` heading the
   site gives no anchor (now its parent, `#result-responses`). All 31 are corrected.
+- **The trace format is published as a JSON Schema** (draft 2020-12):
+  `crates/mcp-conformance-core/schema/trace-event.schema.json`, also
+  `mcp_conformance_core::trace::EVENT_JSON_SCHEMA`, so a recorder in any language
+  can check its output. A test holds the schema and the reader to the same answer on
+  every corpus record and on one violation of each rule, and pins the one
+  divergence the schema documents (`1.0` for an integer).
 - `declared::select`, `Selection`, `RevisionSource` and `UnjudgeableRevisions`:
   the CLI's revision choice as a library API, so embedders get the same rule.
 - `RegistrySet::latest` and `BUILTIN_REVISIONS` in `mcp-conformance-core`.

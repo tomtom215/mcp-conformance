@@ -85,10 +85,16 @@ TraceEvent {
     seq:        u64                    // total order within the trace
     direction:  ClientToServer | ServerToClient
     transport:  Stdio | StreamableHttp
-    kind:       Message(JSON-RPC) | Http { status, headers subset } | Lifecycle(open/close/abort)
-    payload:    canonicalized JSON
+    kind:       Message { payload: JSON-RPC } | Http { method, status, headers subset }
+              | Lifecycle(open/close/abort)
 }
 ```
+
+A payload is stored as parsed JSON: every value is kept, but not the formatting —
+whitespace, member order (written sorted), or the spelling of a number (`1E2` as
+`100.0`). The normative, machine-checkable statement of one record is
+[`trace-event.schema.json`](../../crates/mcp-conformance-core/schema/trace-event.schema.json),
+held to the reader's behavior by `tests/trace_schema.rs`.
 
 Transport-level events are first-class because real requirements live there: `Host`-header
 validation (CVE-2026-42559 class), session headers, SSE resumption. A message-only trace
