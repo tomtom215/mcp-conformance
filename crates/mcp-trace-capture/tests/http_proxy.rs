@@ -74,8 +74,26 @@ async fn proxy(
     Shared,
     impl FnOnce() -> tokio::task::JoinHandle<std::io::Result<http::Unrecorded>>,
 ) {
+    proxy_with_line_limit(
+        upstream,
+        max_message,
+        mcp_conformance_core::trace::DEFAULT_MAX_LINE_BYTES,
+    )
+    .await
+}
+
+/// [`proxy`], with the recorder's line limit set explicitly.
+async fn proxy_with_line_limit(
+    upstream: String,
+    max_message: usize,
+    max_line: usize,
+) -> (
+    SocketAddr,
+    Shared,
+    impl FnOnce() -> tokio::task::JoinHandle<std::io::Result<http::Unrecorded>>,
+) {
     let sink = Shared::default();
-    let recorder = Arc::new(Recorder::new(sink.clone()));
+    let recorder = Arc::new(Recorder::with_max_line(sink.clone(), max_line));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
@@ -314,6 +332,61 @@ async fn an_unreachable_upstream_is_a_502_recorded_as_a_transport_abort() {
             !text.contains(r#""status":502"#),
             "the proxy's 502 is not the server's response"
         );
+    })
+    .await;
+}
+
+/// A body, and an SSE event, within the message limit whose recorded line would
+/// not be — `9e15` is 4 bytes read and 18 written — are forwarded intact, counted
+/// as oversized, and left out of the trace.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_message_whose_line_would_outgrow_the_limit_is_counted_not_recorded() {
+    bounded(async {
+        let numbers = format!("[{}]", vec!["9e15"; 100].join(","));
+        assert!(numbers.len() < 1024);
+        let upstream = serve(axum::Router::new().route(
+            "/mcp",
+            post({
+                let numbers = numbers.clone();
+                move |body: String| async move {
+                    let content_type = if body == "sse" {
+                        "text/event-stream"
+                    } else {
+                        "application/json"
+                    };
+                    let body = if body == "sse" {
+                        format!("data: {numbers}\n\n")
+                    } else {
+                        numbers
+                    };
+                    Response::builder()
+                        .header("content-type", content_type)
+                        .body(Body::from(body))
+                        .unwrap()
+                }
+            }),
+        ))
+        .await;
+        let (address, sink, stop) =
+            proxy_with_line_limit(format!("http://{upstream}"), 1024, 1024).await;
+        let client = client();
+        for (request, expected) in [
+            ("\"json\"", numbers.clone()),
+            ("sse", format!("data: {numbers}\n\n")),
+        ] {
+            let response = client
+                .post(format!("http://{address}/mcp"))
+                .body(request)
+                .send()
+                .await
+                .unwrap();
+            assert_eq!(response.text().await.unwrap(), expected, "forwarded intact");
+        }
+        let unrecorded = stop().await.unwrap().unwrap();
+        assert_eq!(unrecorded.oversized, 2, "{unrecorded:?}");
+        let text = sink.text();
+        assert!(!text.contains("9000000000000000"), "{text}");
+        assert!(text.lines().all(|line| line.len() <= 1024), "{text}");
     })
     .await;
 }

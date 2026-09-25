@@ -24,7 +24,7 @@ use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 use tokio::process::Command;
 
 use crate::framing::{Line, LineSplitter, parse_json};
-use crate::recorder::Recorder;
+use crate::recorder::{NotRecorded, Recorder};
 
 /// What one direction carried that the trace could not hold.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -114,11 +114,14 @@ fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Ta
     match line {
         Line::Complete(bytes) => match parse_json(&bytes) {
             Some(payload) => {
-                recorder.record(
+                let outcome = recorder.record(
                     direction,
                     TransportKind::Stdio,
                     EventBody::Message { payload },
                 );
+                if outcome == Err(NotRecorded::TooLong) {
+                    tally.oversized.fetch_add(1, Ordering::Relaxed);
+                }
             }
             None => {
                 tally.not_json.fetch_add(1, Ordering::Relaxed);
@@ -231,7 +234,8 @@ pub async fn run(
 }
 
 fn lifecycle(recorder: &Recorder, direction: Direction, event: LifecycleEvent) {
-    recorder.record(
+    // Too small to be refused for length; a sink failure is reported by `finish`.
+    let _ = recorder.record(
         direction,
         TransportKind::Stdio,
         EventBody::Lifecycle { event },

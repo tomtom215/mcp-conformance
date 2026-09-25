@@ -21,6 +21,7 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
+use mcp_conformance_core::trace::{DEFAULT_MAX_LINE_BYTES, LINE_ENVELOPE_BYTES};
 use mcp_trace_capture::{DEFAULT_MAX_MESSAGE, Recorder, http, stdio};
 
 const EXIT_USAGE: u8 = 2;
@@ -139,7 +140,14 @@ fn open_output(cli: &Cli) -> Result<Recorder, String> {
         }
     })?;
     eprintln!("mcp-trace-capture: recording to {}", cli.output.display());
-    Ok(Recorder::new(BufWriter::new(file)))
+    let max_line = cli.max_message_bytes.saturating_add(LINE_ENVELOPE_BYTES);
+    if max_line > DEFAULT_MAX_LINE_BYTES {
+        eprintln!(
+            "mcp-trace-capture: lines may exceed the validator's default limit; judge \
+             this trace with `mcp-trace-validator validate --max-line-bytes {max_line}`"
+        );
+    }
+    Ok(Recorder::with_max_line(BufWriter::new(file), max_line))
 }
 
 async fn run_stdio(
@@ -226,8 +234,8 @@ fn report_unrecorded(side: &str, not_json: u64, oversized: u64) {
     }
     if oversized > 0 {
         eprintln!(
-            "mcp-trace-capture: {oversized} {side} message(s) exceeded --max-message-bytes \
-             and are not in the trace (forwarded unchanged)"
+            "mcp-trace-capture: {oversized} {side} message(s) were over the size limit \
+             (--max-message-bytes) and are not in the trace (forwarded unchanged)"
         );
     }
 }

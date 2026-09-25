@@ -24,7 +24,7 @@ pub mod http;
 pub mod recorder;
 pub mod stdio;
 
-pub use recorder::{Recorder, Summary};
+pub use recorder::{NotRecorded, Recorder, Summary};
 
 /// A future that resolves when this process is asked to stop: SIGINT or SIGTERM on
 /// Unix, Ctrl-C elsewhere.
@@ -61,7 +61,11 @@ pub fn shutdown_signal() -> std::io::Result<impl std::future::Future<Output = ()
 }
 
 /// The default largest message recorded, in bytes (64 MiB).
-pub const DEFAULT_MAX_MESSAGE: usize = 64 * 1024 * 1024;
+///
+/// The toolkit-wide
+/// [`DEFAULT_MAX_MESSAGE_BYTES`](mcp_conformance_core::trace::DEFAULT_MAX_MESSAGE_BYTES),
+/// which the validator's default line limit is sized to read back.
+pub const DEFAULT_MAX_MESSAGE: usize = mcp_conformance_core::trace::DEFAULT_MAX_MESSAGE_BYTES;
 
 #[cfg(test)]
 mod tests {

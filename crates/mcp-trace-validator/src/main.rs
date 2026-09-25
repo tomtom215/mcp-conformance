@@ -14,7 +14,6 @@
 
 use std::fmt::Write as _;
 use std::fs;
-use std::io::Read as _;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -25,6 +24,7 @@ use mcp_trace_validator::declared::{self, RevisionSource};
 use mcp_trace_validator::report::{Report, Verdict};
 use mcp_trace_validator::{engine, multi, reader};
 
+mod input;
 mod judgeable;
 
 const EXIT_OK: u8 = 0;
@@ -73,6 +73,13 @@ enum Command {
         /// the built-in one.
         #[arg(long)]
         registry_set: Option<PathBuf>,
+        /// The longest trace line accepted, in bytes. The default reads back
+        /// anything `mcp-trace-capture` writes at its default message limit.
+        #[arg(long, value_name = "BYTES", default_value_t = reader::Limits::default().max_line_bytes)]
+        max_line_bytes: usize,
+        /// The most events accepted in one trace.
+        #[arg(long, value_name = "N", default_value_t = reader::Limits::default().max_events)]
+        max_events: usize,
     },
     /// Print the requirement registry this build validates against.
     Requirements {
@@ -110,8 +117,11 @@ fn main() -> ExitCode {
             registry,
             revisions,
             registry_set,
+            max_line_bytes,
+            max_events,
         } => run_validate_command(
             &trace,
+            &reader::Limits::new(max_events, max_line_bytes),
             Output {
                 format,
                 strict,
@@ -144,6 +154,7 @@ struct Output {
 /// dispatches to single- or multi-revision judgment.
 fn run_validate_command(
     trace: &str,
+    limits: &reader::Limits,
     output: Output,
     registry: Option<&std::path::Path>,
     registry_set: Option<&std::path::Path>,
@@ -156,7 +167,7 @@ fn run_validate_command(
         );
         return EXIT_USAGE;
     }
-    let events = match read_events(trace) {
+    let events = match input::read_events(trace, limits) {
         Ok(events) => events,
         Err(code) => return code,
     };
@@ -236,18 +247,6 @@ fn choose_revisions(
     Ok((parsed, RevisionSource::Requested))
 }
 
-/// Reads and parses the trace, mapping failures to their exit codes.
-fn read_events(source: &str) -> Result<Vec<mcp_conformance_core::trace::TraceEvent>, u8> {
-    let document = read_trace_document(source).map_err(|message| {
-        eprintln!("error: {message}");
-        EXIT_USAGE
-    })?;
-    reader::parse_trace(&document, &reader::Limits::default()).map_err(|error| {
-        eprintln!("error: malformed trace: {error}");
-        EXIT_MALFORMED_TRACE
-    })
-}
-
 /// Loads a custom single-revision registry document.
 fn load_registry(path: &std::path::Path) -> Result<Registry, String> {
     let text = fs::read_to_string(path)
@@ -302,18 +301,6 @@ fn verdict_to_code(verdict: Verdict, strict: bool) -> u8 {
         // Unsupported — and, since Verdict is #[non_exhaustive], any future verdict — is
         // conservatively an invocation-level problem (registry/build mismatch).
         _ => EXIT_USAGE,
-    }
-}
-
-fn read_trace_document(source: &str) -> Result<String, String> {
-    if source == "-" {
-        let mut text = String::new();
-        std::io::stdin()
-            .read_to_string(&mut text)
-            .map_err(|error| format!("cannot read stdin: {error}"))?;
-        Ok(text)
-    } else {
-        fs::read_to_string(source).map_err(|error| format!("cannot read {source}: {error}"))
     }
 }
 

@@ -105,7 +105,8 @@ pub enum LifecycleEvent {
 pub enum EventBody {
     /// A JSON-RPC message, stored as parsed JSON.
     Message {
-        /// The message payload exactly as captured.
+        /// The message payload as parsed JSON: every value as captured, but not
+        /// its formatting (whitespace, the spelling of a number).
         payload: Value,
     },
     /// An HTTP-level observation (Streamable HTTP transport only).
@@ -241,6 +242,31 @@ pub const RECORDED_HEADERS: [&str; 10] = [
 /// already records verbatim; the prefix cannot match `authorization` or
 /// `cookie`, and no other header may use it.
 pub const RECORDED_HEADER_PREFIXES: [&str; 1] = ["mcp-param-"];
+
+/// The largest message a recorder captures by default, in bytes (64 MiB).
+///
+/// One definition for the whole toolkit, beside the format it bounds: a trace a
+/// recorder writes with its defaults must be one a reader accepts with its own.
+/// The two limits lived in different crates until 2026-09-25, at 64 MiB and
+/// 1 MiB, so a session carrying one large tool result — a base64 image is
+/// enough — was recorded faithfully and then refused whole as malformed.
+pub const DEFAULT_MAX_MESSAGE_BYTES: usize = 64 * 1024 * 1024;
+
+/// How much longer than its message limit a recorder lets a trace line be: room
+/// for the event around the payload (1 MiB).
+///
+/// Room, not a bound on growth. A recorder stores the payload re-serialized,
+/// and although that drops whitespace and never lengthens a string, a number
+/// can grow: `9e15` is written back as `9000000000000000.0`, so a message of
+/// such numbers nearly quadruples. `mcp-trace-capture` therefore checks the
+/// line it writes against `message limit + LINE_ENVELOPE_BYTES` and counts one
+/// that does not fit as oversized, which makes the bound hold by construction
+/// rather than by an argument about what payloads look like.
+pub const LINE_ENVELOPE_BYTES: usize = 1024 * 1024;
+
+/// The longest trace line a reader accepts by default, in bytes: exactly the
+/// longest line a recorder writes with its default message limit.
+pub const DEFAULT_MAX_LINE_BYTES: usize = DEFAULT_MAX_MESSAGE_BYTES + LINE_ENVELOPE_BYTES;
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]

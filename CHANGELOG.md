@@ -76,6 +76,18 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **A trace `mcp-trace-capture` records at its defaults is one the validator reads at
+  its defaults.** The capture kept messages up to 64 MiB, the validator refused any
+  line over 1 MiB, so one large tool result (a base64 image is enough) made the whole
+  recording "malformed" (exit 3). Both limits now come from `mcp-conformance-core`
+  (`DEFAULT_MAX_MESSAGE_BYTES`, `LINE_ENVELOPE_BYTES`, `DEFAULT_MAX_LINE_BYTES` =
+  65 MiB), and the capture checks each line *as written*: re-serialization can grow a
+  message (`9e15` is written back as `9000000000000000.0`), so a message within the
+  limit whose line would not be is forwarded and counted as oversized, never written.
+  `validate` gains `--max-line-bytes` and `--max-events` (default event cap raised
+  from 100,000 to 1,000,000), and a trace over either limit is told which flag to
+  raise; `reader::Limits::new` lets embedders set both. A capture with a raised
+  `--max-message-bytes` prints the `--max-line-bytes` to validate with.
 - `requirements | head` (or any closed pipe) no longer panics.
 - `validate --quiet` with several `--revision`s is now tested end to end; a
   mutation run showed the multi-revision findings-only rendering had no test that

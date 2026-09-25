@@ -42,7 +42,7 @@ use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, Transpor
 
 use crate::framing::{SseParser, parse_json};
 use crate::headers;
-use crate::recorder::Recorder;
+use crate::recorder::{NotRecorded, Recorder};
 
 #[cfg(feature = "tls")]
 type Connector = hyper_rustls::HttpsConnector<HttpConnector>;
@@ -206,7 +206,10 @@ impl Proxy {
     /// Records a request's `http` event and body, and returns the body to send
     /// upstream — `None` when the client's body could not be read.
     async fn record_request(&self, parts: &axum::http::request::Parts, body: Body) -> Option<Body> {
-        self.recorder.record(
+        // Metadata events cannot be refused for length (the line limit is at least
+        // 1 MiB, and HTTP header blocks are bounded far below it), and a sink
+        // failure is reported once, by `Recorder::finish`.
+        let _ = self.recorder.record(
             Direction::ClientToServer,
             TransportKind::StreamableHttp,
             EventBody::Http {
@@ -236,7 +239,7 @@ impl Proxy {
         upstream: axum::http::Response<hyper::body::Incoming>,
     ) -> Response {
         let (parts, incoming) = upstream.into_parts();
-        self.recorder.record(
+        let _ = self.recorder.record(
             Direction::ServerToClient,
             TransportKind::StreamableHttp,
             EventBody::Http {
@@ -270,6 +273,14 @@ impl Proxy {
         response
     }
 
+    /// Counts a message the recorder refused for its length — one whose bytes fit
+    /// the message limit but whose line, as written, would not.
+    fn count_refused(&self, recorded: Result<u64, NotRecorded>) {
+        if recorded == Err(NotRecorded::TooLong) {
+            self.counters.oversized.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
     /// Records a complete body: nothing for an empty one, a message for JSON.
     fn record_body(&self, direction: Direction, body: &[u8]) {
         if body.is_empty() {
@@ -277,11 +288,11 @@ impl Proxy {
         }
         match parse_json(body) {
             Some(payload) => {
-                self.recorder.record(
+                self.count_refused(self.recorder.record(
                     direction,
                     TransportKind::StreamableHttp,
                     EventBody::Message { payload },
-                );
+                ));
             }
             None => {
                 self.counters.not_json.fetch_add(1, Ordering::Relaxed);
@@ -304,11 +315,11 @@ impl Proxy {
             for data in parser.push(chunk) {
                 match parse_json(&data) {
                     Some(payload) => {
-                        self.recorder.record(
+                        self.count_refused(self.recorder.record(
                             Direction::ServerToClient,
                             TransportKind::StreamableHttp,
                             EventBody::Message { payload },
-                        );
+                        ));
                     }
                     None => {
                         self.counters.not_json.fetch_add(1, Ordering::Relaxed);
@@ -332,7 +343,7 @@ impl Proxy {
         self.counters
             .upstream_failures
             .fetch_add(1, Ordering::Relaxed);
-        self.recorder.record(
+        let _ = self.recorder.record(
             Direction::ServerToClient,
             TransportKind::StreamableHttp,
             EventBody::Lifecycle {
@@ -389,6 +400,28 @@ fn is_event_stream(headers: &HeaderMap) -> bool {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    /// `read_prefix` over `chunks` with a limit of 1024.
+    fn prefix_of(chunks: &[usize]) -> (usize, bool) {
+        let chunks: Vec<Result<Bytes, ()>> = chunks
+            .iter()
+            .map(|&len| Ok(Bytes::from(vec![b'x'; len])))
+            .collect();
+        let mut stream = futures::stream::iter(chunks);
+        let (prefix, complete) =
+            futures::executor::block_on(read_prefix(&mut stream, 1024)).unwrap();
+        (prefix.len(), complete)
+    }
+
+    #[test]
+    fn a_body_is_whole_up_to_the_limit_and_cut_as_soon_as_it_passes() {
+        assert_eq!(prefix_of(&[1024]), (1024, true));
+        assert_eq!(prefix_of(&[512, 512]), (1024, true));
+        assert_eq!(prefix_of(&[1025]), (1025, false));
+        // A chunk that jumps past the limit stops the read there: the rest of the
+        // body is streamed on, not buffered.
+        assert_eq!(prefix_of(&[600, 600, 600]), (1200, false));
+    }
 
     #[test]
     fn target_appends_the_request_path_to_the_upstream_path() {

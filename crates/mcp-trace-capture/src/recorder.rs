@@ -18,12 +18,26 @@
 use std::io::{self, Write};
 use std::sync::{Mutex, PoisonError};
 
-use mcp_conformance_core::trace::{Direction, EventBody, TraceEvent, TransportKind};
+use mcp_conformance_core::trace::{
+    DEFAULT_MAX_LINE_BYTES, Direction, EventBody, TraceEvent, TransportKind,
+};
 
 /// Appends trace events to a sink, one JSON object per line.
 #[derive(Debug)]
 pub struct Recorder {
     inner: Mutex<Inner>,
+    max_line: usize,
+}
+
+/// Why [`Recorder::record`] wrote nothing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum NotRecorded {
+    /// The event's line would exceed the recorder's line limit. Nothing was
+    /// written and no `seq` was used; later events are unaffected.
+    TooLong,
+    /// The sink has failed; nothing more is written.
+    SinkFailed,
 }
 
 struct Inner {
@@ -64,8 +78,16 @@ impl Summary {
 }
 
 impl Recorder {
-    /// A recorder writing to `sink`, starting at `seq` 0.
+    /// A recorder writing to `sink`, starting at `seq` 0, whose lines fit a
+    /// reader's default limit
+    /// ([`DEFAULT_MAX_LINE_BYTES`]).
     pub fn new(sink: impl Write + Send + 'static) -> Self {
+        Self::with_max_line(sink, DEFAULT_MAX_LINE_BYTES)
+    }
+
+    /// A recorder that writes no line longer than `max_line` bytes (newline
+    /// excluded, as a reader counts it).
+    pub fn with_max_line(sink: impl Write + Send + 'static, max_line: usize) -> Self {
         Self {
             inner: Mutex::new(Inner {
                 next_seq: 0,
@@ -73,38 +95,50 @@ impl Recorder {
                 failed: None,
                 dropped: 0,
             }),
+            max_line,
         }
     }
 
-    /// Records one event and returns its `seq`, or `None` once the sink has failed.
+    /// Records one event and returns its `seq`.
+    ///
+    /// # Errors
+    ///
+    /// [`NotRecorded::TooLong`] when the event's line would exceed the line
+    /// limit, and [`NotRecorded::SinkFailed`] once a write has failed.
     pub fn record(
         &self,
         direction: Direction,
         transport: TransportKind,
         body: EventBody,
-    ) -> Option<u64> {
+    ) -> Result<u64, NotRecorded> {
         // A panic while holding the lock can only come from the sink itself; the
         // counter and flag stay consistent either way, so the data is usable.
         let mut inner = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
         if inner.failed.is_some() {
             inner.dropped += 1;
-            return None;
+            return Err(NotRecorded::SinkFailed);
         }
         let seq = inner.next_seq;
         let event = TraceEvent::new(seq, direction, transport, body);
-        match write_line(&mut inner.sink, &event) {
+        let line = serde_json::to_vec(&event).map_err(io::Error::other);
+        if line.as_ref().is_ok_and(|line| line.len() > self.max_line) {
+            return Err(NotRecorded::TooLong);
+        }
+        match line.and_then(|line| write_line(&mut inner.sink, line)) {
             Ok(()) => {
                 inner.next_seq += 1;
-                Some(seq)
+                Ok(seq)
             }
             Err(error) => {
-                eprintln!(
-                    "mcp-trace-capture: cannot write the trace ({error}); the session \
-                     continues, but events from seq {seq} on are not recorded"
-                );
+                let message = error.to_string();
                 inner.failed = Some(error);
                 inner.dropped += 1;
-                None
+                drop(inner);
+                eprintln!(
+                    "mcp-trace-capture: cannot write the trace ({message}); the session \
+                     continues, but events from seq {seq} on are not recorded"
+                );
+                Err(NotRecorded::SinkFailed)
             }
         }
     }
@@ -125,8 +159,7 @@ impl Recorder {
     }
 }
 
-fn write_line(sink: &mut Box<dyn Write + Send>, event: &TraceEvent) -> io::Result<()> {
-    let mut line = serde_json::to_vec(event).map_err(io::Error::other)?;
+fn write_line(sink: &mut Box<dyn Write + Send>, mut line: Vec<u8>) -> io::Result<()> {
     line.push(b'\n');
     sink.write_all(&line)?;
     sink.flush()
@@ -183,14 +216,14 @@ mod tests {
         let recorder = Recorder::new(sink.clone());
         assert_eq!(
             recorder.record(Direction::ClientToServer, TransportKind::Stdio, open()),
-            Some(0)
+            Ok(0)
         );
         let message = EventBody::Message {
             payload: serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": "ping"}),
         };
         assert_eq!(
             recorder.record(Direction::ServerToClient, TransportKind::Stdio, message),
-            Some(1)
+            Ok(1)
         );
         let summary = recorder.finish();
         assert!(summary.is_complete());
@@ -211,23 +244,97 @@ mod tests {
         let recorder = Recorder::new(Failing { budget: 200 });
         assert_eq!(
             recorder.record(Direction::ClientToServer, TransportKind::Stdio, open()),
-            Some(0)
+            Ok(0)
         );
         let big = EventBody::Message {
             payload: serde_json::json!({"text": "x".repeat(500)}),
         };
         assert_eq!(
             recorder.record(Direction::ServerToClient, TransportKind::Stdio, big),
-            None
+            Err(NotRecorded::SinkFailed)
         );
         // Even an event that would fit is dropped once the sink has failed: a
         // trace with a hole in it is worse than a truncated one.
         assert_eq!(
             recorder.record(Direction::ClientToServer, TransportKind::Stdio, open()),
-            None
+            Err(NotRecorded::SinkFailed)
         );
         let summary = recorder.finish();
         assert!(!summary.is_complete());
         assert_eq!((summary.recorded, summary.dropped), (1, 2));
+    }
+
+    #[test]
+    fn a_line_over_the_limit_is_refused_without_using_a_seq() {
+        let sink = Shared::default();
+        let message = |text: &str| EventBody::Message {
+            payload: serde_json::json!({ "t": text }),
+        };
+        // The line for {"t":"ab"} at seq 0, measured rather than assumed.
+        let fits = serde_json::to_vec(&TraceEvent::new(
+            0,
+            Direction::ClientToServer,
+            TransportKind::Stdio,
+            message("ab"),
+        ))
+        .unwrap()
+        .len();
+        let recorder = Recorder::with_max_line(sink.clone(), fits);
+        let record = |text: &str| {
+            recorder.record(
+                Direction::ClientToServer,
+                TransportKind::Stdio,
+                message(text),
+            )
+        };
+        assert_eq!(record("abc"), Err(NotRecorded::TooLong));
+        assert_eq!(record("ab"), Ok(0), "exactly the limit is kept, at seq 0");
+        assert_eq!(record("abc"), Err(NotRecorded::TooLong));
+        let summary = recorder.finish();
+        assert!(
+            summary.is_complete(),
+            "a refused line is not a sink failure"
+        );
+        assert_eq!((summary.recorded, summary.dropped), (1, 0));
+        let text = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+        assert_eq!(text.lines().count(), 1);
+        assert_eq!(text.lines().next().unwrap().len(), fits);
+    }
+
+    #[test]
+    fn a_number_that_grows_when_rewritten_is_measured_as_written() {
+        // `9e15` is 4 bytes read and 18 written: the limit applies to the line
+        // as the trace holds it.
+        let payload: serde_json::Value = serde_json::from_str("[9e15]").unwrap();
+        assert_eq!(
+            serde_json::to_string(&payload).unwrap(),
+            "[9000000000000000.0]"
+        );
+        let body = || EventBody::Message {
+            payload: payload.clone(),
+        };
+        let written = serde_json::to_vec(&TraceEvent::new(
+            0,
+            Direction::ClientToServer,
+            TransportKind::Stdio,
+            body(),
+        ))
+        .unwrap()
+        .len();
+        let recorder = Recorder::with_max_line(Shared::default(), written - 1);
+        assert_eq!(
+            recorder.record(Direction::ClientToServer, TransportKind::Stdio, body()),
+            Err(NotRecorded::TooLong)
+        );
+    }
+
+    #[test]
+    fn debug_shows_the_counters_not_the_sink() {
+        let recorder = Recorder::new(Shared::default());
+        let _ = recorder.record(Direction::ClientToServer, TransportKind::Stdio, open());
+        let debug = format!("{recorder:?}");
+        assert!(debug.contains("next_seq: 1"), "{debug}");
+        assert!(debug.contains("dropped: 0"), "{debug}");
+        assert!(debug.contains(".."), "the sink is elided: {debug}");
     }
 }

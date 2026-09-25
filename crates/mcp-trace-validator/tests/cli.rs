@@ -516,6 +516,8 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
         "{text}"
     );
     assert!(text.contains("(requested)"), "{text}");
+    // Without --quiet every clause is listed, including those needing nothing.
+    assert!(text.contains("=excluded"), "{text}");
 
     let json = run(&[&["validate", trace, "--format", "json"], &both[..]].concat());
     let report: serde_json::Value = serde_json::from_str(&stdout(&json)).unwrap();
@@ -718,4 +720,42 @@ fn a_write_error_other_than_a_closed_pipe_is_reported() {
         String::from_utf8_lossy(&output.stderr).contains("cannot write output"),
         "{output:?}"
     );
+}
+
+#[test]
+fn the_reader_limits_are_flags_and_a_trace_over_one_is_told_which() {
+    let trace = corpus("draft/violations/mrtr-019-retry-reuses-id.jsonl");
+    let trace = trace.to_str().unwrap();
+    let text = std::fs::read_to_string(trace).unwrap();
+    let longest = text.lines().map(str::len).max().unwrap();
+    let events = text.lines().count();
+
+    let short = longest - 1;
+    let output = run(&["validate", trace, "--max-line-bytes", &short.to_string()]);
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    assert!(
+        stderr(&output).contains(&format!(
+            "hint: if the recording is sound, re-run with --max-line-bytes {longest} or more"
+        )),
+        "{}",
+        stderr(&output)
+    );
+    let exact = run(&["validate", trace, "--max-line-bytes", &longest.to_string()]);
+    assert_eq!(exact.status.code(), Some(1), "{exact:?}");
+
+    let few = (events - 1).to_string();
+    let output = run(&["validate", trace, "--max-events", &few]);
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    assert!(
+        stderr(&output).contains(&format!("re-run with --max-events above {few}")),
+        "{}",
+        stderr(&output)
+    );
+    let all = run(&["validate", trace, "--max-events", &events.to_string()]);
+    assert_eq!(all.status.code(), Some(1), "{all:?}");
+
+    // Any other malformation gets no limit hint.
+    let blank = run(&["validate", corpus("README.md").to_str().unwrap()]);
+    assert_eq!(blank.status.code(), Some(3), "{blank:?}");
+    assert!(!stderr(&blank).contains("hint:"), "{}", stderr(&blank));
 }

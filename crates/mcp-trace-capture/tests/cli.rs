@@ -28,6 +28,9 @@ fn scratch(name: &str) -> PathBuf {
     path
 }
 
+/// Runs `command` with `input` on its stdin, collecting its output. The input is
+/// written from its own thread: written first, anything larger than the pipe
+/// buffers would deadlock against a child that echoes it.
 fn run_with_stdin(mut command: Command, input: &[u8]) -> Output {
     let mut child = command
         .stdin(Stdio::piped())
@@ -35,8 +38,12 @@ fn run_with_stdin(mut command: Command, input: &[u8]) -> Output {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    child.stdin.take().unwrap().write_all(input).unwrap();
-    child.wait_with_output().unwrap()
+    let mut stdin = child.stdin.take().unwrap();
+    let input = input.to_vec();
+    let writer = std::thread::spawn(move || stdin.write_all(&input));
+    let output = child.wait_with_output().unwrap();
+    writer.join().unwrap().unwrap();
+    output
 }
 
 #[cfg(unix)]
@@ -129,7 +136,7 @@ fn non_json_server_output_is_forwarded_and_reported_not_recorded() {
         stderr.contains("1 server message(s) were not JSON"),
         "{stderr}"
     );
-    assert!(!stderr.contains("exceeded"), "{stderr}");
+    assert!(!stderr.contains("size limit"), "{stderr}");
 }
 
 /// The server exits while the client still holds its end open — the session ends
@@ -250,11 +257,11 @@ fn oversized_and_non_json_counts_are_reported_only_when_non_zero() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     // The long line crossed in both directions; nothing was non-JSON.
     assert!(
-        stderr.contains("1 client message(s) exceeded --max-message-bytes"),
+        stderr.contains("1 client message(s) were over the size limit"),
         "{stderr}"
     );
     assert!(
-        stderr.contains("1 server message(s) exceeded --max-message-bytes"),
+        stderr.contains("1 server message(s) were over the size limit"),
         "{stderr}"
     );
     assert!(!stderr.contains("were not JSON"), "{stderr}");
@@ -491,4 +498,84 @@ fn the_readme_stdio_quickstart_records_a_session() {
         4,
         "open, request, echo, close: {text}"
     );
+}
+
+/// The defaults agree end to end: a message just under the capture's default limit
+/// is recorded, and the trace reads back under the validator's default limits. A
+/// message within the limit whose line would grow past it — `9e15` is written
+/// back as `9000000000000000.0` — is forwarded, counted, and kept out of the trace
+/// rather than making the trace unreadable.
+#[cfg(unix)]
+#[test]
+fn a_trace_recorded_at_the_default_limits_reads_back_under_the_validators() {
+    use mcp_trace_validator::reader::{Limits, parse_trace};
+
+    let trace = scratch("default-limits");
+    let head = r#"{"jsonrpc":"2.0","method":"x","params":{"s":""#;
+    let tail = "\"}}";
+    let fill = mcp_trace_capture::DEFAULT_MAX_MESSAGE - head.len() - tail.len();
+    let mut input = format!("{head}{}{tail}\n", "a".repeat(fill)).into_bytes();
+    assert_eq!(input.len(), mcp_trace_capture::DEFAULT_MAX_MESSAGE + 1);
+    // 20 MiB of numbers read, over 70 MiB written.
+    let numbers = vec!["9e15"; 20 * 1024 * 1024 / 5].join(",");
+    input.extend_from_slice(format!("[{numbers}]\n").as_bytes());
+
+    let mut command = binary();
+    command.args(["-o", trace.to_str().unwrap(), "stdio", "--", "cat"]);
+    let output = run_with_stdin(command, &input);
+    let text = std::fs::read_to_string(&trace).unwrap();
+    std::fs::remove_file(&trace).ok();
+    assert!(output.status.success(), "{:?}", output.status);
+    assert_eq!(output.stdout.len(), input.len(), "every byte is forwarded");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("1 client message(s) were over the size limit"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("1 server message(s) were over the size limit"),
+        "{stderr}"
+    );
+
+    let events = parse_trace(&text, &Limits::default()).expect("readable at the defaults");
+    let messages = events
+        .iter()
+        .filter(|event| event.message_payload().is_some())
+        .count();
+    // The large message, in each direction; the numbers in neither.
+    assert_eq!(messages, 2);
+    let longest = text.lines().map(str::len).max().unwrap();
+    assert!(
+        longest > mcp_trace_capture::DEFAULT_MAX_MESSAGE,
+        "{longest}"
+    );
+    assert!(longest <= Limits::default().max_line_bytes, "{longest}");
+}
+
+/// A message limit above the default makes lines the validator's default refuses
+/// possible, and the capture names the flag and value to validate with — only then.
+#[cfg(unix)]
+#[test]
+fn a_raised_message_limit_names_the_validator_flag_to_match() {
+    let trace = scratch("raised-limit");
+    let run = |limit: Option<&str>| {
+        let mut command = binary();
+        command.args(["-o", trace.to_str().unwrap(), "--force"]);
+        if let Some(limit) = limit {
+            command.args(["--max-message-bytes", limit]);
+        }
+        command.args(["stdio", "--", "cat"]);
+        let output = run_with_stdin(command, b"{}\n");
+        String::from_utf8_lossy(&output.stderr).into_owned()
+    };
+    let raised = run(Some("70000000"));
+    assert!(
+        raised.contains("mcp-trace-validator validate --max-line-bytes 71048576"),
+        "{raised}"
+    );
+    let at_default = run(Some(&mcp_trace_capture::DEFAULT_MAX_MESSAGE.to_string()));
+    assert!(!at_default.contains("--max-line-bytes"), "{at_default}");
+    let unset = run(None);
+    std::fs::remove_file(&trace).ok();
+    assert!(!unset.contains("--max-line-bytes"), "{unset}");
 }

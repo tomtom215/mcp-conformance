@@ -176,3 +176,39 @@ async fn a_response_is_never_recorded_before_its_request() {
     })
     .await;
 }
+
+/// A line within the message limit whose recorded form would exceed the line
+/// limit — `9e15` is written back as `9000000000000000.0` — is forwarded and
+/// counted as oversized, not written.
+#[tokio::test]
+async fn a_line_that_would_outgrow_the_line_limit_is_counted_as_oversized() {
+    bounded(async {
+        let sink = Shared::default();
+        let recorder = Recorder::with_max_line(sink.clone(), 100);
+        let input = format!("[{}]\n{{\"ok\":1}}\n", ["9e15"; 10].join(","));
+        let (forward, mut forwarded) = tokio::io::duplex(1024);
+        let unrecorded = pump(
+            &recorder,
+            Direction::ServerToClient,
+            input.as_bytes(),
+            forward,
+            1024,
+        )
+        .await
+        .unwrap();
+        let mut out = Vec::new();
+        forwarded.read_to_end(&mut out).await.unwrap();
+        assert_eq!(out, input.as_bytes());
+        assert_eq!(
+            unrecorded,
+            Unrecorded {
+                not_json: 0,
+                oversized: 1
+            }
+        );
+        let written = events(&sink);
+        assert_eq!(written.len(), 1);
+        assert_eq!(written[0].seq, 0, "the refused line used no seq");
+    })
+    .await;
+}

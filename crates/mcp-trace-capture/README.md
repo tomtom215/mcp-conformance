@@ -52,11 +52,19 @@ certificates). SSE streams are relayed as they arrive, event by event.
   forwarded, so a response is never recorded ahead of its request.
 - **Nothing altered to fit the trace.** A message that is not JSON, or is larger than
   `--max-message-bytes` (default 64 MiB), is forwarded intact, left out of the trace,
-  and counted in the summary printed at exit.
+  and counted in the summary printed at exit. So is the rare message within the limit
+  whose recorded line would not be (below).
+- **Readable by the validator as recorded.** No trace line is longer than
+  `--max-message-bytes` plus 1 MiB, checked on the line as written — which, at the
+  default, is exactly the longest line `mcp-trace-validator` accepts by default. With
+  a larger `--max-message-bytes`, the capture prints the `--max-line-bytes` value to
+  validate with.
 - **No credentials in the trace.** Only an allowlist of headers is recorded — the same
   list every capture in this project uses (`RECORDED_HEADERS` in
   `mcp-conformance-core`). `Authorization` and cookies are forwarded, never written.
-  **Message bodies are recorded verbatim**: review a trace before sharing it.
+  **Message content is recorded in full** — as parsed JSON, so insignificant
+  whitespace is dropped and numbers are written in canonical form (`1E2` as `100.0`),
+  but every value is kept: review a trace before sharing it.
 - **Crash-safe.** Every event is flushed as it is written; a killed capture keeps what
   it recorded.
 
