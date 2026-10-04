@@ -33,7 +33,10 @@ serde = { version = ">=1.0.220, <2", features = ["derive"] }
 # float_roundtrip is required correctness, not an optimization preference: without
 # it serde_json's float *parsing* may be 1 ULP off its own output, which breaks
 # parse(canonical(v)) == v — caught by the canonical-JSON property tests.
-serde_json = { version = ">=1.0.127, <2", features = ["float_roundtrip"] }
+# The floor is 1.0.143 because the jsonschema dev-dependency needs
+# `CompactFormatter: Default`, added there; one floor for normal and dev use
+# keeps `-Z direct-minimal-versions` resolvable (two floors conflict).
+serde_json = { version = ">=1.0.143, <2", features = ["float_roundtrip"] }
 
 # CLI parsing — binaries only, behind each crate's `cli` feature
 # (docs/plan/decisions/0005-cli-argument-parsing.md).
