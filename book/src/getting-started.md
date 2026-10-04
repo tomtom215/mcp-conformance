@@ -66,7 +66,7 @@ MCP trace validation — revision 2025-11-25 (declared by the trace)
         seq 5: request "ping" reuses id 2, already used by the same party at seq 3
         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
-totals: 16 pass, 1 fail, 0 warn, 87 excluded, 0 unsupported, 14 not applicable, 24 not observed
+totals: 16 pass, 1 fail, 0 warn, 86 excluded, 0 unsupported, 14 not applicable, 25 not observed
 verdict: fail
 ```
 

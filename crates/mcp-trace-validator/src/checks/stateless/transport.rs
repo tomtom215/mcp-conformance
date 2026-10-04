@@ -22,7 +22,7 @@ use serde_json::Value;
 use super::super::support::decode_base64;
 use crate::context::TraceContext;
 
-pub(in crate::checks::stateless) mod framing;
+pub(in crate::checks) mod framing;
 mod headers;
 mod stdio;
 mod stream;

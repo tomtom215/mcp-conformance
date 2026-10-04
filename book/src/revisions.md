@@ -20,8 +20,8 @@ changelog and becomes a measurement.
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
 | Registry entries | 142 | 273 |
-| Judged by a named check | 55 | 123 |
-| Carrying a documented exclusion | 87 | 150 |
+| Judged by a named check | 56 | 124 |
+| Carrying a documented exclusion | 86 | 149 |
 | Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -79,8 +79,8 @@ And the verdict splits:
 
 ```text
 per revision:
-  2025-11-25: 17 pass, 0 fail, 0 warn, 87 excluded, 0 unsupported, 14 not applicable, 24 not observed — verdict pass
-  2026-07-28: 14 pass, 8 fail, 0 warn, 150 excluded, 0 unsupported, 0 not applicable, 101 not observed — verdict fail
+  2025-11-25: 17 pass, 0 fail, 0 warn, 86 excluded, 0 unsupported, 14 not applicable, 25 not observed — verdict pass
+  2026-07-28: 14 pass, 8 fail, 0 warn, 149 excluded, 0 unsupported, 0 not applicable, 102 not observed — verdict fail
 overall verdict: fail
 ```
 
@@ -156,7 +156,7 @@ usually are.
   scenarios score **42 passing / 0 failing** against it.
 - Five committed captures — a conforming session over each transport, a *probe*
   session of deliberately malformed requests, and the official runner's two —
-  evidence **112 of the 123 judgeable clauses** between them. What no capture
+  evidence **112 of the 124 judgeable clauses** between them. What no capture
   reaches is named, one clause at a time, in [the corpus chapter](corpus.md).
 - `cargo xtask draft-readiness` re-runs that measurement and **ratchets** it
   against a committed baseline: any change in either direction fails the build,

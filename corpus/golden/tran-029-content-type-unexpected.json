@@ -3,12 +3,12 @@
   "verdict": "fail",
   "totals": {
     "pass": 23,
-    "fail": 2,
+    "fail": 1,
     "warn": 0,
-    "excluded": 87,
+    "excluded": 86,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 16
+    "not_observed": 18
   },
   "requirements": [
     {
@@ -162,6 +162,11 @@
       "outcome": "pass"
     },
     {
+      "id": "TRAN-027",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-029",
       "level": "MUST",
       "outcome": "fail",
@@ -169,7 +174,7 @@
         {
           "check": "transport.success-content-type",
           "seq": 2,
-          "detail": "HTTP 200 Content-Type \"text/html\" is neither application/json nor text/event-stream"
+          "detail": "HTTP 200 answering a JSON-RPC request has Content-Type \"text/html\"; it must be application/json or text/event-stream"
         }
       ],
       "source": {
@@ -186,19 +191,7 @@
     {
       "id": "TRAN-040",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "transport.success-content-type",
-          "seq": 2,
-          "detail": "HTTP 200 Content-Type \"text/html\" is neither application/json nor text/event-stream"
-        }
-      ],
-      "source": {
-        "section": "basic/transports#listening-for-messages-from-the-server",
-        "quote": "The server MUST either return `Content-Type: text/event-stream` in response to this HTTP GET, or else return HTTP 405 Method Not Allowed, indicating that the server does not offer an SSE stream at this endpoint.",
-        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#listening-for-messages-from-the-server"
-      }
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-049",

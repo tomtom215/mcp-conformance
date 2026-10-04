@@ -215,7 +215,7 @@
         "section": "basic/transports#session-management",
         "quote": "When a client receives HTTP 404 in response to a request containing an `MCP-Session-Id`, it MUST start a new session by sending a new `InitializeRequest` without a session ID attached."
       },
-      "exclusion": "The trace schema records HTTP request and response observations as independent events without request/response correlation, so 'in response to' cannot be established offline. Revisit when host-side capture lands (roadmap M3)."
+      "exclusion": "A 404 is attributed to the request it answered when the recording's order is unambiguous, but not to the moment the client read it: a recorder logs the status as it passes, and the client may already have sent further requests on the old session. Requests after the 404 therefore do not show the client ignored it, and a client that stops instead of reconnecting sends nothing to judge."
     },
     {
       "id": "TRAN-017",

@@ -35,6 +35,11 @@
 //!   streams is another request's.
 //!   A status no recorded exchange awaited — a hand-built or partial trace with
 //!   response framing only — frames the message immediately after it.
+//! - **Exchanges** ([`Framing::exchanges`]): each response status attributed
+//!   to one client `http` event — its verb, the message it carried when that
+//!   pairing is certain, and the response's status and headers. A status no
+//!   recorded exchange awaited is listed too, with no request side, noting
+//!   whether a JSON-RPC response followed it.
 //! - **Unreadable ids** ([`Framing::unidentified_answers`]): a response whose
 //!   `id` is null is tied to a request only when it is the first message after
 //!   a status that is unambiguously that request's — the one case where "the
@@ -55,21 +60,75 @@ use crate::context::TraceContext;
 struct Slot<'a> {
     /// The `seq` of the client `http` event.
     seq: u64,
+    /// The request's HTTP method, when recorded.
+    method: Option<&'a str>,
     /// The request's headers.
     headers: &'a BTreeMap<String, String>,
     /// Whether this exchange carries a body to pair (not a `GET` or `DELETE`).
     has_body: bool,
     /// The paired request message: its `seq` and `id` text, once paired.
     request: Option<(u64, Option<String>)>,
+    /// The paired message itself, once paired.
+    carried: Option<&'a Value>,
     /// Whether a status arrived while this slot and another both awaited one,
     /// so that a later status cannot be told apart as this slot's.
     tainted: bool,
 }
 
+/// One HTTP exchange whose response status the trace attributes.
+#[derive(Debug, Clone, Copy)]
+pub(in crate::checks) struct Exchange<'a> {
+    /// The client `http` event: its `seq`, method and headers. `None` for a
+    /// status no recorded exchange awaited.
+    pub request: Option<(u64, Option<&'a str>, &'a BTreeMap<String, String>)>,
+    /// The message the request carried, when the pairing is certain.
+    pub carried: Option<&'a Value>,
+    /// The response status event's `seq`.
+    pub status_seq: u64,
+    /// The response status.
+    pub status: u16,
+    /// The response headers.
+    pub headers: &'a BTreeMap<String, String>,
+    /// Whether a JSON-RPC response was the first server message after the status.
+    pub framed_response: bool,
+}
+
+impl Exchange<'_> {
+    /// The request's HTTP method, when the exchange has a recorded request.
+    pub(in crate::checks) fn method(&self) -> Option<&str> {
+        self.request.and_then(|(_, method, _)| method)
+    }
+
+    /// Whether the exchange carried a JSON-RPC request: known from the paired
+    /// body, or — with no request side recorded — from a response following
+    /// the status.
+    pub(in crate::checks) fn carried_request(&self) -> bool {
+        self.carried.map_or_else(
+            || self.request.is_none() && self.framed_response,
+            |payload| {
+                payload.get("method").is_some() && payload.get("id").is_some_and(|id| !id.is_null())
+            },
+        )
+    }
+
+    /// The response's media type, lowercased and without parameters.
+    pub(in crate::checks) fn media_type(&self) -> Option<String> {
+        self.headers.get("content-type").map(|content_type| {
+            content_type
+                .split(';')
+                .next()
+                .unwrap_or_default()
+                .trim()
+                .to_ascii_lowercase()
+        })
+    }
+}
+
 /// The order-derived HTTP framing of a trace.
 #[derive(Debug, Default)]
-pub(in crate::checks::stateless) struct Framing<'a> {
+pub(in crate::checks) struct Framing<'a> {
     posts: Vec<Post<'a>>,
+    exchanges: Vec<Exchange<'a>>,
     /// Response message `seq` → the status `(seq, code)` it rode.
     statuses: BTreeMap<u64, (u64, u16)>,
     /// Null-`id` response message `seq` → the `seq` of the request message it
@@ -79,7 +138,7 @@ pub(in crate::checks::stateless) struct Framing<'a> {
 
 impl<'a> Framing<'a> {
     /// Derives the framing of `context`'s Streamable HTTP events in one pass.
-    pub(in crate::checks::stateless) fn new(context: &'a TraceContext<'_>) -> Self {
+    pub(in crate::checks) fn new(context: &'a TraceContext<'_>) -> Self {
         let mut builder = Builder::default();
         for event in context.events() {
             if event.transport == TransportKind::StreamableHttp {
@@ -92,6 +151,12 @@ impl<'a> Framing<'a> {
     /// The POSTs whose headers and body the trace pairs unambiguously, in order.
     pub(in crate::checks::stateless) fn posts(&self) -> &[Post<'a>] {
         &self.posts
+    }
+
+    /// The exchanges whose response status the trace attributes, in the order
+    /// their statuses were recorded.
+    pub(in crate::checks) fn exchanges(&self) -> &[Exchange<'a>] {
+        &self.exchanges
     }
 
     /// The status the response message at `seq` rode, when the trace says.
@@ -125,6 +190,9 @@ struct Builder<'a> {
     /// The status just recorded, and whose it is, until a server message
     /// follows it.
     fresh_status: Option<((u64, u16), Owner)>,
+    /// The exchange the status just recorded was attributed to, until a server
+    /// message follows it.
+    fresh_exchange: Option<usize>,
 }
 
 /// Whose response a status began.
@@ -164,9 +232,11 @@ impl<'a> Builder<'a> {
                 }
                 self.awaiting.push(Slot {
                     seq: event.seq,
+                    method: method.as_deref(),
                     headers,
                     has_body,
                     request: None,
+                    carried: None,
                     tainted: false,
                 });
             }
@@ -176,10 +246,11 @@ impl<'a> Builder<'a> {
             (
                 EventBody::Http {
                     status: Some(status),
+                    headers,
                     ..
                 },
                 Direction::ServerToClient,
-            ) => self.response_began(Some((event.seq, *status))),
+            ) => self.response_began(Some((event.seq, *status, headers))),
             // The capture records a proxy-side upstream failure in place of the
             // status the exchange never got: it ends one exchange, and says
             // nothing about which.
@@ -225,6 +296,7 @@ impl<'a> Builder<'a> {
             return;
         };
         slot.request = Some((seq, id));
+        slot.carried = Some(payload);
         self.framing.posts.push(Post {
             seq: slot.seq,
             message_seq: seq,
@@ -234,10 +306,14 @@ impl<'a> Builder<'a> {
     }
 
     /// A response status (or an abort standing in for one) ends one exchange.
-    fn response_began(&mut self, status: Option<(u64, u16)>) {
+    fn response_began(&mut self, status: Option<(u64, u16, &'a BTreeMap<String, String>)>) {
         self.fresh_status = None;
+        self.fresh_exchange = None;
         if self.awaiting.is_empty() {
-            self.fresh_status = status.map(|status| (status, Owner::Unaccounted));
+            if let Some((seq, code, headers)) = status {
+                self.fresh_status = Some(((seq, code), Owner::Unaccounted));
+                self.push_exchange(None, None, seq, code, headers);
+            }
             return;
         }
         let ambiguous = self.awaiting.len() > 1;
@@ -249,7 +325,19 @@ impl<'a> Builder<'a> {
                 waiting.tainted = true;
             }
         }
-        let Some(status) = status else { return };
+        let Some((status_seq, code, headers)) = status else {
+            return;
+        };
+        let status = (status_seq, code);
+        if !ambiguous && !slot.tainted {
+            self.push_exchange(
+                Some((slot.seq, slot.method, slot.headers)),
+                slot.carried,
+                status_seq,
+                code,
+                headers,
+            );
+        }
         let attributed = (!ambiguous && !slot.tainted)
             .then_some(slot.request)
             .flatten();
@@ -265,12 +353,37 @@ impl<'a> Builder<'a> {
         }
     }
 
+    fn push_exchange(
+        &mut self,
+        request: Option<(u64, Option<&'a str>, &'a BTreeMap<String, String>)>,
+        carried: Option<&'a Value>,
+        status_seq: u64,
+        status: u16,
+        headers: &'a BTreeMap<String, String>,
+    ) {
+        self.fresh_exchange = Some(self.framing.exchanges.len());
+        self.framing.exchanges.push(Exchange {
+            request,
+            carried,
+            status_seq,
+            status,
+            headers,
+            framed_response: false,
+        });
+    }
+
     fn server_message(&mut self, seq: u64, payload: &Value) {
         let fresh = self.fresh_status.take();
+        let fresh_exchange = self.fresh_exchange.take();
         let is_response = payload.get("method").is_none()
             && (payload.get("result").is_some() || payload.get("error").is_some());
         if !is_response {
             return;
+        }
+        if let Some(exchange) =
+            fresh_exchange.and_then(|index| self.framing.exchanges.get_mut(index))
+        {
+            exchange.framed_response = true;
         }
         match (id_text(payload), fresh) {
             (Some(id), fresh) => {

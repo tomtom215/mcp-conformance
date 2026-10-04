@@ -189,12 +189,7 @@
     {
       "id": "TRAN-055",
       "level": "MUST",
-      "exclusion": "Adds to TRAN-056's verb obligation that each message ride a *new* POST — one request per message. The verb is recorded and judged (TRAN-056); whether each message had its own request is HTTP framing the trace summarizes rather than reproduces. Same split as TRAN-024/TRAN-049 at 2025-11-25."
-    },
-    {
-      "id": "TRAN-061",
-      "level": "MUST",
-      "exclusion": "A `202 Accepted` carries no body and answers a notification, which has no id to correlate it with; the trace records the status but cannot tie it to the message it accepted. Same reasoning as TRAN-027 at 2025-11-25."
+      "exclusion": "Adds to TRAN-056's verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a non-object body — TRAN-059 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded. Same split as TRAN-024/TRAN-049 at 2025-11-25."
     },
     {
       "id": "TRAN-062",

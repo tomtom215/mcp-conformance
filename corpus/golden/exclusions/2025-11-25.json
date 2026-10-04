@@ -164,7 +164,7 @@
     {
       "id": "TRAN-016",
       "level": "MUST",
-      "exclusion": "The trace schema records HTTP request and response observations as independent events without request/response correlation, so 'in response to' cannot be established offline. Revisit when host-side capture lands (roadmap M3)."
+      "exclusion": "A 404 is attributed to the request it answered when the recording's order is unambiguous, but not to the moment the client read it: a recorder logs the status as it passes, and the client may already have sent further requests on the old session. Requests after the 404 therefore do not show the client ignored it, and a client that stops instead of reconnecting sends nothing to judge."
     },
     {
       "id": "TRAN-019",
@@ -194,12 +194,7 @@
     {
       "id": "TRAN-024",
       "level": "MUST",
-      "exclusion": "Adds to TRAN-049's verb obligation that each message ride a *new* POST — one request per message. The verb is recorded and judged (TRAN-049); the request boundary each message rode is HTTP framing a trace summarizes rather than reproduces, and the endpoint it was addressed to is not recorded at all, so what this clause adds stays invisible."
-    },
-    {
-      "id": "TRAN-027",
-      "level": "MUST",
-      "exclusion": "The trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it."
+      "exclusion": "Adds to TRAN-049's verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a batch array — TRAN-026 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded."
     },
     {
       "id": "TRAN-028",

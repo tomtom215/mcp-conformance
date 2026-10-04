@@ -12,7 +12,7 @@
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "Every JSON-RPC message sent from the client MUST be a new HTTP POST request to the MCP endpoint."
       },
-      "exclusion": "Adds to TRAN-049's verb obligation that each message ride a *new* POST — one request per message. The verb is recorded and judged (TRAN-049); the request boundary each message rode is HTTP framing a trace summarizes rather than reproduces, and the endpoint it was addressed to is not recorded at all, so what this clause adds stays invisible."
+      "exclusion": "Adds to TRAN-049's verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a batch array — TRAN-026 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded."
     },
     {
       "id": "TRAN-025",
@@ -55,7 +55,9 @@
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "If the server accepts the input, the server MUST return HTTP status code 202 Accepted with no body."
       },
-      "exclusion": "The trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it."
+      "checks": [
+        "transport.accepted-input-status"
+      ]
     },
     {
       "id": "TRAN-028",
@@ -229,7 +231,7 @@
         "quote": "The server MUST either return `Content-Type: text/event-stream` in response to this HTTP GET, or else return HTTP 405 Method Not Allowed, indicating that the server does not offer an SSE stream at this endpoint."
       },
       "checks": [
-        "transport.success-content-type"
+        "transport.get-content-type"
       ]
     },
     {

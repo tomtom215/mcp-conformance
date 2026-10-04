@@ -42,9 +42,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 57 | 98 |
-| Excluded rows the ledger holds | 87 | 150 |
-| Distinct not-observed sets across them | 29 | 79 |
+| Goldens | 59 | 99 |
+| Excluded rows the ledger holds | 86 | 149 |
+| Distinct not-observed sets across them | 30 | 80 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -176,7 +176,9 @@ example).
 | `tran-039-get-accept-header-missing.jsonl` | TRAN-039 (a standalone-stream GET offering `application/json` only) |
 | `tran-049-message-not-posted.jsonl` | TRAN-049 (a `ping` sent by `PUT` after a clean handshake) |
 | `tran-026-http-post-batch.jsonl` | TRAN-026 (a batch array POSTed after a clean handshake) |
-| `tran-029-content-type-unexpected.jsonl` | TRAN-029, TRAN-040 (shared `transport.success-content-type` check) |
+| `tran-027-notification-answered-200.jsonl` | TRAN-027 (the `notifications/initialized` POST answered `200` instead of `202 Accepted`) |
+| `tran-029-content-type-unexpected.jsonl` | TRAN-029 (an `initialize` request answered `200` with `Content-Type: text/html`) |
+| `tran-040-get-answered-json.jsonl` | TRAN-040 (a standalone-stream GET answered `200` with `application/json` rather than `text/event-stream` or `405`) |
 
 ### `2026-07-28` captured (`corpus/draft/captured/`)
 
@@ -192,7 +194,7 @@ two reports is attributable to that one change.
 | Server | `mcp-everything-server` serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-04 | same run, second leg |
 | Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
-| Our verdict | 59 pass, **1 fail**, 0 warn, 63 not observed, 150 excluded | **60 pass, 0 fail, 0 warn**, 63 not observed, 150 excluded |
+| Our verdict | 59 pass, **1 fail**, 0 warn, 64 not observed, 149 excluded | **60 pass, 0 fail, 0 warn**, 64 not observed, 149 excluded |
 | The official runner's verdict | **38 passing / 4 failing** | **42 passing / 0 failing** |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
@@ -257,7 +259,7 @@ measuring different things, and one of them saw this first. The pair is still
 the evidence for taking both readings — now with a worked example of the
 prose-level reading arriving earlier than the schema-level one.
 
-The 63 not-observed rows are the honest denominator: of the 123 clauses this
+The 64 not-observed rows are the honest denominator: of the 124 clauses this
 revision's registry can judge, these sessions carried subject matter for 60.
 They open no subscription, present no cursor, draw no error, and send no
 malformed `_meta`, so those clauses are neither passed nor failed here — they
@@ -276,7 +278,7 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all four prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **81 pass, 0 fail, 0 warn**, 42 not observed, 150 excluded |
+| Our verdict | **81 pass, 0 fail, 0 warn**, 43 not observed, 149 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -299,9 +301,9 @@ header and status clauses, which no stdio recording can carry, and this one
 evidences the subscription, MRTR, prompts, resources, logging, completion and
 error-code clauses, which theirs never reach.
 
-**What the 42 not-observed rows still are, and why.** Twenty-four are
+**What the 43 not-observed rows still are, and why.** Twenty-five are
 Streamable HTTP clauses in the `TRAN-056`…`TRAN-102` band that a stdio
-recording structurally cannot carry — the band holds 26 judged clauses, and
+recording structurally cannot carry — the band holds 27 judged clauses, and
 the two a stdio session does reach (`TRAN-060`, `TRAN-066`) are judged here.
 Eight are server *rejection* rules — `BASE-031`, `BASE-032`, `BASE-035`,
 `BASE-036`, `VERS-001`, `VERS-002`, `VERS-008`, `LOG-010` —
@@ -327,7 +329,7 @@ captures). The remaining four are reachable and not yet driven:
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | 159 events — the stdio session's 85 messages plus 74 `http` events carrying status and headers |
-| Our verdict | **92 pass, 0 fail, 0 warn**, 31 not observed, 150 excluded |
+| Our verdict | **92 pass, 0 fail, 0 warn**, 32 not observed, 149 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -340,7 +342,7 @@ in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 92 of the 123 judgeable clauses it is the best-covered capture here. Its 31
+At 92 of the 124 judgeable clauses it is the best-covered capture here. Its 32
 not-observed rows include the server-rejection rules a conforming client never
 triggers, the pagination and `x-mcp-header` clauses this server's surface does
 not reach, and `TOOL-022` (rmcp's client caches `tools/list` under the
@@ -430,16 +432,16 @@ read as a specimen instead.
 <!-- draft-coverage:begin (generated by `cargo xtask draft-coverage`; do not edit by hand) -->
 | Capture | Judged | pass | fail | warn | Not observed |
 |---------|-------:|-----:|-----:|-----:|-------------:|
-| `official-suite-2026-07-28-scenarios` | 60 | 59 | 1 | 0 | 63 |
-| `official-suite-2026-07-28-stateless` | 60 | 60 | 0 | 0 | 63 |
-| `probe-2026-07-28-http` | 66 | 55 | 9 | 2 | 57 |
-| `reference-host-2026-07-28-http` | 92 | 92 | 0 | 0 | 31 |
-| `reference-host-2026-07-28-stdio` | 81 | 81 | 0 | 0 | 42 |
-| **Union** | **112** | | | | **11** |
+| `official-suite-2026-07-28-scenarios` | 60 | 59 | 1 | 0 | 64 |
+| `official-suite-2026-07-28-stateless` | 60 | 60 | 0 | 0 | 64 |
+| `probe-2026-07-28-http` | 66 | 55 | 9 | 2 | 58 |
+| `reference-host-2026-07-28-http` | 92 | 92 | 0 | 0 | 32 |
+| `reference-host-2026-07-28-stdio` | 81 | 81 | 0 | 0 | 43 |
+| **Union** | **112** | | | | **12** |
 
-Across all 5 captures, **112 of the 123 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 5 captures, **112 of the 124 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
-The 11 clauses no capture reaches: `CACH-015`, `CACH-016`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-096`, `VERS-004`.
+The 12 clauses no capture reaches: `CACH-015`, `CACH-016`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TRAN-061`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-096`, `VERS-004`.
 <!-- draft-coverage:end -->
 
 The probe session closed the largest group — the rejection rules — and the
@@ -518,6 +520,7 @@ falsifies exactly the requirement it is named for.
 | `stdio-x-mcp-header-large-integer.jsonl` | The `tool-034` session over **stdio**: an `x-mcp-header`-annotated integer argument of 2^53. Mirroring is a Streamable HTTP mechanism ("Clients using other transports (e.g., stdio) MAY ignore `x-mcp-header` annotations entirely"), so no value is put through a header and TOOL-034 does not bind; until 2026-10-04 it failed the MUST here. |
 | `tran-058-request-metadata-headers-missing.jsonl` | POST carries neither `Mcp-Method` nor `Mcp-Name` (TRAN-058) |
 | `tran-060-client-posts-a-response.jsonl` | Client POSTs a JSON-RPC response (TRAN-060). Also falsifies BASE-046: at this revision a server cannot issue the request such a response would answer, so an unsolicited id is the only shape the violation can take. |
+| `tran-061-notification-answered-200.jsonl` | A `notifications/cancelled` POST answered `200` instead of `202 Accepted` (TRAN-061) |
 | `tran-066-independent-server-request.jsonl` | Server sends `elicitation/create` as its own request on the response stream instead of an MRTR input request (TRAN-066) |
 | `tran-068-sse-without-accel-buffering.jsonl` | SSE response omits `X-Accel-Buffering: no` (TRAN-068, SHOULD → warn) |
 | `tran-070-message-after-stream-close.jsonl` | Server answers a request whose response stream had already closed, which this revision treats as cancellation (TRAN-070) — the close is attributable because exactly one request is in flight when it is recorded |

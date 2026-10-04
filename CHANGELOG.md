@@ -206,6 +206,16 @@ Each is stated again in the entry that introduced it, with the reasoning.
   only), a sampling request carrying `tools` without `sampling.tools`, and a
   task-augmented `tools/call` without the server's `tasks.requests.tools.call` —
   each a MUST NOT on its own page.
+- **HTTP status and `Content-Type` are judged per exchange.** `TRAN-029`/`TRAN-063`
+  and `TRAN-040` shared one check that accepted either media type on any `200`, so a
+  GET answered with JSON passed, a request answered `202` was never examined, and a
+  bad POST response also failed the GET clause. Each response is now tied to the
+  request it answered when the recording's order allows (overlapping exchanges are
+  left unjudged rather than guessed): a request must get JSON or an event stream, a
+  GET an event stream, each against its own clause. `TRAN-027`/`TRAN-061` — an
+  accepted notification or response is answered `202` — are judged for the first
+  time (they were excluded as uncorrelatable). `TRAN-016` and `TRAN-024`/`TRAN-055`
+  stay excluded, with reasons that now say what the trace does and does not show.
 - `validate` exits `2` when the report cannot be written (it exited `0`, leaving CI to
   upload a truncated file), and `3`, with the line, for a trace that is not UTF-8 (with
   a hint for UTF-16).
