@@ -307,6 +307,9 @@ jobs:
       # attested and shipped, so nothing compiled into them may come from a
       # restored cache. A clean build per target costs minutes, once per release.
       - name: Build both CLIs
+        # bash on every OS: Windows' default shell, PowerShell, reads "$TARGET"
+        # as an (empty) PowerShell variable, not the environment.
+        shell: bash
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
           TARGET: ${{ matrix.target }}
