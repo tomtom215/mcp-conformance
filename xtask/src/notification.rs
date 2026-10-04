@@ -39,7 +39,7 @@ pub(crate) const WORKFLOW: &str = ".github/workflows/scheduled.yml";
 pub(crate) const OPEN_STEP: &str = "Open or update the tracking issue";
 
 /// The step that closes it once every gate is green.
-pub(crate) const CLOSE_STEP: &str = "Close the tracking issue once all three gates are green";
+pub(crate) const CLOSE_STEP: &str = "Close the tracking issue once all five gates are green";
 
 /// The `run:` block of the named step, dedented to a runnable script.
 ///
