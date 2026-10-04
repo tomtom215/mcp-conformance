@@ -34,6 +34,7 @@ decide:
 | `JUnit` report | Suites and test cases name the trace (suite name, `classname` prefix, `file`); under `--strict` warnings are `<failure>`s | Match suites by revision inside the name, or pass the trace on stdin for the old names |
 | SARIF | `partialFingerprints` key is `mcpConformanceFinding/v2`, free of `seq`; under `--strict` warnings are level `error` | Alerts keyed on the v1 fingerprint are reopened once |
 | `CACH-001` (2026-07-28) | Requires `cacheScope` as well as `ttlMs` on cacheable results | Send both hints, as the schema's `CacheableResult` requires |
+| `PAGE-010`, `PAGE-011` (2026-07-28) | Excluded: a cursor no result in the session issued no longer shows the cursor was made up or invalid | None; gate on them only at `2025-11-25` (`PAGE-002`, `PAGE-003`) |
 | `BASE-055` (2026-07-28) | Split: allocating a reserved code stays `BASE-055` (now excluded); using a legacy code is `BASE-083`, a SHOULD NOT that warns | Gate on `BASE-083` where `BASE-055` was |
 | `mcp-reference-host` | `cli` is a default feature, so `cargo install mcp-reference-host` installs the binary | Library users: `default-features = false` |
 
@@ -48,6 +49,15 @@ Each is stated again in the entry that introduced it, with the reasoning.
 - **`CACH-001` requires both caching hints.** The page defines "caching hints" as
   `ttlMs` and `cacheScope`, and the schema requires both; the check accepted `ttlMs`
   alone.
+- **`PAGE-010` and `PAGE-011` are excluded at `2026-07-28`.** Both were judged by
+  watching for a cursor no result in the session had issued. `2026-07-28` drops
+  "Don't persist cursors across sessions", and its caching page tells clients to
+  re-fetch an expired cached page "using its cursor" — a cursor that may predate the
+  recording. Such a cursor is no longer evidence that the client made it up or that
+  it is invalid, so the checks could fail a conforming client or server. Their
+  `2025-11-25` counterparts (`PAGE-002`, `PAGE-003`) still judge it. The draft
+  violation trace built on the old witness is retired; the registry is now 123 judged
+  and 150 excluded.
 - **`BASE-055` is split** so that using a legacy error code is the SHOULD NOT the
   spec makes it (`BASE-083`, a warning), while allocating one stays a MUST NOT.
 - **`validate` judges the revision the trace declares, and `2026-07-28` ships in

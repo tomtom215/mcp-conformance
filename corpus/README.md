@@ -42,9 +42,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 57 | 99 |
-| Excluded rows the ledger holds | 87 | 148 |
-| Distinct not-observed sets across them | 29 | 80 |
+| Goldens | 57 | 98 |
+| Excluded rows the ledger holds | 87 | 150 |
+| Distinct not-observed sets across them | 29 | 79 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -192,7 +192,7 @@ two reports is attributable to that one change.
 | Server | `mcp-everything-server` serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-04 | same run, second leg |
 | Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
-| Our verdict | 59 pass, **1 fail**, 0 warn, 65 not observed, 148 excluded | **60 pass, 0 fail, 0 warn**, 65 not observed, 148 excluded |
+| Our verdict | 59 pass, **1 fail**, 0 warn, 63 not observed, 150 excluded | **60 pass, 0 fail, 0 warn**, 63 not observed, 150 excluded |
 | The official runner's verdict | **38 passing / 4 failing** | **42 passing / 0 failing** |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
@@ -257,8 +257,8 @@ measuring different things, and one of them saw this first. The pair is still
 the evidence for taking both readings — now with a worked example of the
 prose-level reading arriving earlier than the schema-level one.
 
-The 64 not-observed rows are the honest denominator: of the 125 clauses this
-revision's registry can judge, these sessions carried subject matter for 61.
+The 63 not-observed rows are the honest denominator: of the 123 clauses this
+revision's registry can judge, these sessions carried subject matter for 60.
 They open no subscription, present no cursor, draw no error, and send no
 malformed `_meta`, so those clauses are neither passed nor failed here — they
 are untested, and the report says which.
@@ -276,7 +276,7 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all four prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **81 pass, 0 fail, 0 warn**, 44 not observed, 148 excluded |
+| Our verdict | **81 pass, 0 fail, 0 warn**, 42 not observed, 150 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -299,26 +299,25 @@ header and status clauses, which no stdio recording can carry, and this one
 evidences the subscription, MRTR, prompts, resources, logging, completion and
 error-code clauses, which theirs never reach.
 
-**What the 47 not-observed rows still are, and why.** Twenty-three are
-Streamable HTTP clauses in the `TRAN-057`…`TRAN-102` band that a stdio
-recording structurally cannot carry — the band holds 25 judged clauses, and
+**What the 42 not-observed rows still are, and why.** Twenty-four are
+Streamable HTTP clauses in the `TRAN-056`…`TRAN-102` band that a stdio
+recording structurally cannot carry — the band holds 26 judged clauses, and
 the two a stdio session does reach (`TRAN-060`, `TRAN-066`) are judged here.
-Nine are server *rejection* rules — `BASE-031`, `BASE-032`, `BASE-035`,
-`BASE-036`, `VERS-001`, `VERS-002`, `VERS-008`, `LOG-010`, `PAGE-011` —
+Eight are server *rejection* rules — `BASE-031`, `BASE-032`, `BASE-035`,
+`BASE-036`, `VERS-001`, `VERS-002`, `VERS-008`, `LOG-010` —
 reachable only by a client that deliberately sends something malformed, which
 this session does not: it is the conforming capture, and a probe session is a
-separate recording with a separate expected report. Six need surface this
-server does not have (`CACH-015`/`CACH-016` and `PAGE-010` need a catalog
-large enough to paginate; `TOOL-033`/`TOOL-034` need an `x-mcp-header`
+separate recording with a separate expected report. Five need surface this
+server does not have (`CACH-015`/`CACH-016` need a catalog large enough to
+paginate; `TOOL-033`/`TOOL-034` need an `x-mcp-header`
 designation; `PROM-017` needs a prompt carrying audio). `TOOL-022` is the
 interesting one: rmcp's client caches `tools/list` under the server's own
 `ttlMs`, so a second listing never reaches the wire — a conforming client
 cannot exercise the deterministic-order clause within the TTL, which is a
 property of the caching feature working rather than a gap to close (the
 official suite's runner does not cache, and judges it on both of its
-captures). The remaining eight are reachable and not yet driven:
-`TRAN-123`/`TRAN-124` cancellation, `TRAN-128` and `DISC-002`'s dual-era
-probe, `MRTR-024`, `BASE-040`, `BASE-047`, and `VERS-004`.
+captures). The remaining four are reachable and not yet driven:
+`TRAN-128` and `DISC-002`'s dual-era probe, `MRTR-024`, and `VERS-004`.
 
 #### The HTTP capture of the same session
 
@@ -328,7 +327,7 @@ probe, `MRTR-024`, `BASE-040`, `BASE-047`, and `VERS-004`.
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | 159 events — the stdio session's 85 messages plus 74 `http` events carrying status and headers |
-| Our verdict | **92 pass, 0 fail, 0 warn**, 33 not observed, 148 excluded |
+| Our verdict | **92 pass, 0 fail, 0 warn**, 31 not observed, 150 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -341,8 +340,8 @@ in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 92 of the 125 judgeable clauses it is the best-covered capture here. Its 33
-not-observed rows are the server-rejection rules a conforming client never
+At 92 of the 123 judgeable clauses it is the best-covered capture here. Its 31
+not-observed rows include the server-rejection rules a conforming client never
 triggers, the pagination and `x-mcp-header` clauses this server's surface does
 not reach, and `TOOL-022` (rmcp's client caches `tools/list` under the
 server's own `ttlMs`, so a second listing never reaches the wire).
@@ -357,9 +356,9 @@ server's own `ttlMs`, so a second listing never reaches the wire).
 | Contents | A `_meta` envelope missing a required field; an unimplemented protocol version and the retry after it; a header/body version mismatch; an unknown method; a log level outside RFC 5424's eight; a fabricated cursor; a tool needing a capability the request never declared; and the removed `initialize` handshake |
 | Our verdict | Judged against [`conformance/probe-baseline.json`](../conformance/probe-baseline.json), not for cleanliness |
 
-**A conforming client cannot exercise a rejection rule.** Fifteen clauses of
-this revision say what a server owes a request it must *not* serve, and every
-one of them reported *not observed* on every recording here, because nothing
+**A conforming client cannot exercise a rejection rule.** The clauses of
+this revision that say what a server owes a request it must *not* serve all
+reported *not observed* on every recording here, because nothing
 had ever sent such a request. This file is that request, nine times over.
 
 The probes are built outside rmcp, and that is the point rather than a
@@ -371,8 +370,7 @@ bytes here are the fixture.
 **Its verdict is a ledger, not a pass.** The probe breaks client-side clauses
 by construction: `BASE-030` because its first request omits a required `_meta`
 field, `TRAN-071`/`TRAN-072` because two probes are about exactly those
-headers, `PAGE-010` because a fabricated cursor is a fabricated cursor.
-Demanding a clean report would mean demanding a probe that probes nothing. So
+headers. Demanding a clean report would mean demanding a probe that probes nothing. So
 every finding is listed in `conformance/probe-baseline.json` with a reason, and
 the gate holds the set in both directions: a finding not in the ledger is a new
 defect or a regression, and a listed finding that stopped occurring is either a
@@ -383,7 +381,16 @@ server-side findings — the server served a request naming log level
 `"chatty"`, and honoured a cursor it never issued — which went into the ledger
 as open defects. When they were fixed, the gate refused the change until their
 entries were retired, which is the half of a ratchet that is easy to leave
-out. All ten rejection clauses the probe exercises now pass.
+out. Every rejection clause the probe reaches now passes; thirteen clauses pass
+on this capture and on no other (`BASE-031`, `BASE-032`, `BASE-035`,
+`BASE-036`, `LOG-010`, `TRAN-073`, `TRAN-074`, `TRAN-075`, `TRAN-098`,
+`TRAN-102`, `VERS-001`, `VERS-002`, `VERS-008`). The fabricated cursor is still
+sent, and judged by nothing: on 2026-10-04 `PAGE-010` and `PAGE-011` were
+excluded at this revision, because its caching rules make a cursor issued
+before the recording began a valid one (the registry entries record the
+reasoning). The server still refuses it, and
+`a_fabricated_cursor_is_refused_on_the_stateless_revision` in
+`mcp-everything-server`'s tests holds it to that.
 
 **Its provenance is weaker than the pair above, and deliberately labelled so.**
 Both ends of this session are ours: the official suite drives servers over
@@ -423,14 +430,14 @@ read as a specimen instead.
 <!-- draft-coverage:begin (generated by `cargo xtask draft-coverage`; do not edit by hand) -->
 | Capture | Judged | pass | fail | warn | Not observed |
 |---------|-------:|-----:|-----:|-----:|-------------:|
-| `official-suite-2026-07-28-scenarios` | 60 | 59 | 1 | 0 | 65 |
-| `official-suite-2026-07-28-stateless` | 60 | 60 | 0 | 0 | 65 |
-| `probe-2026-07-28-http` | 68 | 56 | 10 | 2 | 57 |
-| `reference-host-2026-07-28-http` | 92 | 92 | 0 | 0 | 33 |
-| `reference-host-2026-07-28-stdio` | 81 | 81 | 0 | 0 | 44 |
-| **Union** | **114** | | | | **11** |
+| `official-suite-2026-07-28-scenarios` | 60 | 59 | 1 | 0 | 63 |
+| `official-suite-2026-07-28-stateless` | 60 | 60 | 0 | 0 | 63 |
+| `probe-2026-07-28-http` | 66 | 55 | 9 | 2 | 57 |
+| `reference-host-2026-07-28-http` | 92 | 92 | 0 | 0 | 31 |
+| `reference-host-2026-07-28-stdio` | 81 | 81 | 0 | 0 | 42 |
+| **Union** | **112** | | | | **11** |
 
-Across all 5 captures, **114 of the 125 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 5 captures, **112 of the 123 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
 The 11 clauses no capture reaches: `CACH-015`, `CACH-016`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-096`, `VERS-004`.
 <!-- draft-coverage:end -->
@@ -550,7 +557,6 @@ falsifies exactly the requirement it is named for.
 | `log-008-log-for-request-without-level.jsonl` | The same session, except the second call — no `logLevel`, and the only request in flight — receives a log (LOG-008). An earlier request *did* ask for logs, so the session-wide reading passed this until 2026-10-04; with one request in flight the notification can only be that request's. |
 | `log-009-log-on-subscription-stream.jsonl` | A log notification tagged with a subscription id, so travelling on a subscription's stream (LOG-009) |
 | `log-010-unrecognized-log-level-accepted.jsonl` | A request declaring log level `verbose`, served rather than rejected with `-32602` (LOG-010) |
-| `page-011-unissued-cursor-accepted.jsonl` | A `tools/list` presenting a cursor the session never issued, answered with a result (PAGE-011). Also falsifies PAGE-002 at its own revision's registry, and PAGE-010 here — the fabricated cursor is the client's defect and this clause's antecedent. |
 | `cach-001-cacheable-result-without-hints.jsonl` | A `complete` `tools/list` result with no `ttlMs` caching hint (CACH-001) |
 | `cach-001-ttl-without-cache-scope.jsonl` | A `complete` `tools/list` result carrying `ttlMs` but no `cacheScope` (CACH-001). The page defines "caching hints" as both fields ("Cacheable Results in MCP use two fields to provide caching hints"), and the schema's `CacheableResult` requires both; until 2026-10-04 the check accepted `ttlMs` alone. Three single-issue fixtures that had carried `ttlMs` without a scope (`res-012`, `tool-022`, `tool-034`) gained `"cacheScope":"public"` so they stay single-issue. |
 | `cach-008-negative-ttl.jsonl` | `ttlMs: -1`, which servers must never provide (CACH-008) |

@@ -48,11 +48,6 @@
       "why": "One probe deliberately disagrees between its `MCP-Protocol-Version` header and its body's `_meta` version. That disagreement is the antecedent of TRAN-073 and TRAN-098 — a server must reject it with `HeaderMismatch` under HTTP 400 — and both pass on this recording."
     },
     {
-      "requirement": "PAGE-010",
-      "fault": "probe",
-      "why": "One probe presents a cursor no server issued, which is precisely what the client-side opacity clause forbids. It is the antecedent of PAGE-011, the server-side rule it exists to exercise — and PAGE-011 now passes on this recording, which is the whole point of sending it."
-    },
-    {
       "requirement": "DISC-002",
       "fault": "probe",
       "why": "The session shows both eras — a legacy `initialize` and modern `_meta` requests — and does not open with `server/discover`. That is the dual-era antecedent, and it is unavoidable here: probing what a modern server owes a legacy handshake means sending one, in a session that also sends modern requests."

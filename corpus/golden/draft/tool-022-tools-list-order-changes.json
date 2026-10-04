@@ -5,10 +5,10 @@
     "pass": 31,
     "fail": 0,
     "warn": 1,
-    "excluded": 148,
+    "excluded": 150,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 93
+    "not_observed": 91
   },
   "requirements": [
     {
@@ -470,16 +470,6 @@
       "id": "PAGE-006",
       "level": "MUST",
       "outcome": "pass"
-    },
-    {
-      "id": "PAGE-010",
-      "level": "MUST",
-      "outcome": "not-observed"
-    },
-    {
-      "id": "PAGE-011",
-      "level": "SHOULD",
-      "outcome": "not-observed"
     },
     {
       "id": "LOG-007",
