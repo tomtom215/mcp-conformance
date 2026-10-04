@@ -14,7 +14,7 @@ use std::collections::BTreeSet;
 use serde_json::Value;
 
 use super::super::super::FindingSink;
-use super::super::http_status_for;
+use super::framing::Framing;
 use super::{
     META_PROTOCOL_VERSION, Match, Post, compare, designations_by_tool, header_safe, mirrors, posts,
     posts_by_message, sentinel_payload,
@@ -71,13 +71,14 @@ pub(in crate::checks) fn header_mismatch_status(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
+    let framing = Framing::new(context);
     for (event, _, _) in context.messages() {
         if answer_code(event) != Some(HEADER_MISMATCH) {
             continue;
         }
         // Only judged where the recording carries HTTP framing; on stdio there
         // is no status to hold the error against.
-        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+        let Some((status_seq, status)) = framing.status_for(event.seq) else {
             continue;
         };
         sink.examined();
@@ -244,6 +245,7 @@ pub(in crate::checks) fn unsupported_version_status(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
+    let framing = Framing::new(context);
     let handshakes = legacy_handshake_ids(context);
     for (event, _, _) in context.messages() {
         if answer_code(event) != Some(UNSUPPORTED_VERSION) {
@@ -265,7 +267,7 @@ pub(in crate::checks) fn unsupported_version_status(
         {
             continue;
         }
-        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+        let Some((status_seq, status)) = framing.status_for(event.seq) else {
             continue;
         };
         sink.examined();
@@ -360,6 +362,7 @@ fn declared_versions(context: &TraceContext<'_>) -> Option<BTreeSet<String>> {
 
 /// `TRAN-075`: an unimplemented method draws `404 Not Found` with `-32601`.
 pub(in crate::checks) fn unknown_method_404(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    let framing = Framing::new(context);
     // A POST is the only way to reach the endpoint at this revision, so a trace
     // without HTTP framing carries no status to judge and reports nothing.
     if posts(context).is_empty() {
@@ -369,7 +372,7 @@ pub(in crate::checks) fn unknown_method_404(context: &TraceContext<'_>, sink: &m
         if answer_code(event) != Some(METHOD_NOT_FOUND) {
             continue;
         }
-        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+        let Some((status_seq, status)) = framing.status_for(event.seq) else {
             continue;
         };
         sink.examined();

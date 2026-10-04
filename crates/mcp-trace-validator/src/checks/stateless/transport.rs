@@ -21,8 +21,8 @@ use serde_json::Value;
 
 use super::super::support::decode_base64;
 use crate::context::TraceContext;
-use mcp_conformance_core::trace::{Direction, EventBody, TransportKind};
 
+pub(in crate::checks::stateless) mod framing;
 mod headers;
 mod stdio;
 mod stream;
@@ -104,39 +104,13 @@ impl Post<'_> {
     }
 }
 
-/// Every client POST in the trace, in capture order.
-///
-/// The tap records an `http` event and then the message it carried, so the
-/// pairing is "the next client message after this client `http` event". A trace
-/// without HTTP framing (stdio) yields nothing, which is correct: these clauses
-/// bind the Streamable HTTP transport only.
+/// Every client POST in the trace whose headers and body the recording pairs
+/// unambiguously, in capture order — see [`framing`] for why overlapping POSTs
+/// are left unpaired rather than paired by guess. A trace without HTTP framing
+/// (stdio) yields nothing, which is correct: these clauses bind the Streamable
+/// HTTP transport only.
 pub(super) fn posts<'a>(context: &'a TraceContext<'_>) -> Vec<Post<'a>> {
-    let mut out = Vec::new();
-    let events = context.events();
-    for (index, event) in events.iter().enumerate() {
-        if event.direction != Direction::ClientToServer
-            || event.transport != TransportKind::StreamableHttp
-        {
-            continue;
-        }
-        let EventBody::Http { headers, .. } = &event.body else {
-            continue;
-        };
-        let framed = events[index + 1..]
-            .iter()
-            .find(|later| later.direction == Direction::ClientToServer);
-        if let Some(framed) = framed
-            && let Some(payload) = framed.message_payload()
-        {
-            out.push(Post {
-                seq: event.seq,
-                message_seq: framed.seq,
-                headers,
-                payload,
-            });
-        }
-    }
-    out
+    framing::Framing::new(context).posts().to_vec()
 }
 
 /// The POSTs of the trace keyed by the `seq` of the message each framed — the

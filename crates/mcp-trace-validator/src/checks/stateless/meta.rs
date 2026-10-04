@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use serde_json::Value;
 
 use super::super::FindingSink;
-use super::http_status_for;
+use super::transport::framing::Framing;
 use crate::context::TraceContext;
 use mcp_conformance_core::trace::Direction;
 
@@ -184,6 +184,7 @@ fn http_status_for_error(
     clause: &str,
     answering: Option<&BTreeMap<String, u64>>,
 ) {
+    let framing = Framing::new(context);
     for (event, _, _) in context.messages() {
         if !matches!(event.direction, Direction::ServerToClient) {
             continue;
@@ -209,7 +210,7 @@ fn http_status_for_error(
         }
         // Only judged when the recording actually carries HTTP framing; on stdio
         // there is no status to check, and a trace without one evidences nothing.
-        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+        let Some((status_seq, status)) = framing.status_for(event.seq) else {
             continue;
         };
         sink.examined();
