@@ -9,8 +9,8 @@ verbatim with its link, the offending event `seq`, actionable detail — as huma
 JSON, JUnit XML, or SARIF.
 
 ```text
-mcp-trace-validator validate session.jsonl                 # judged at the revision it declares
-mcp-trace-validator validate --quiet session.jsonl         # only what needs attention
+mcp-trace-validator validate session.jsonl                 # what needs attention, at the revision it declares
+mcp-trace-validator validate --all session.jsonl           # every clause, with exclusion reasons
 mcp-trace-validator validate - --format json < session.jsonl
 mcp-trace-validator validate session.jsonl --format sarif > results.sarif
 mcp-trace-validator validate session.jsonl --revision 2025-11-25 --revision 2026-07-28

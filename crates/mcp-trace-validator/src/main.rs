@@ -51,6 +51,10 @@ enum Command {
     /// `_meta`, or the `MCP-Protocol-Version` header); a trace declaring none is judged
     /// against the newest supported revision. `--revision` overrides the choice; naming
     /// several judges the trace under each, clause by clause.
+    #[command(
+        after_help = "Exit status: 0 pass (warnings pass unless --strict), 1 a clause \
+        failed, 2 bad invocation or nothing judgeable or output not written, 3 malformed trace."
+    )]
     Validate {
         /// Path to the trace document, or `-` for stdin.
         trace: String,
@@ -60,9 +64,15 @@ enum Command {
         /// Treat SHOULD-level findings (warnings) as failures.
         #[arg(long)]
         strict: bool,
-        /// Human output: print only failing, warning and unsupported clauses (the
-        /// totals still count every clause). JSON and `JUnit` are unaffected.
+        /// Human output: list every clause with its outcome, and the reason for
+        /// each exclusion. By default only failing, warning and unsupported
+        /// clauses are listed (the totals always count every clause). JSON,
+        /// `JUnit` and SARIF always carry every clause.
         #[arg(short, long)]
+        all: bool,
+        /// Accepted for compatibility: the findings-only listing it selected is
+        /// now the default.
+        #[arg(short, long, hide = true, conflicts_with = "all")]
         quiet: bool,
         /// Path to a custom single-revision registry JSON document, used instead of the
         /// built-in registries. Mutually exclusive with `--revision` and `--registry-set`.
@@ -118,7 +128,8 @@ fn main() -> ExitCode {
             trace,
             format,
             strict,
-            quiet,
+            all,
+            quiet: _,
             registry,
             revisions,
             registry_set,
@@ -130,7 +141,7 @@ fn main() -> ExitCode {
             Output {
                 format,
                 strict,
-                quiet,
+                all,
             },
             registry.as_deref(),
             registry_set.as_deref(),
@@ -151,8 +162,8 @@ struct Output {
     format: Format,
     /// SHOULD-level findings fail the run.
     strict: bool,
-    /// Human output lists only the clauses that need attention.
-    quiet: bool,
+    /// Human output lists every clause, not only those needing attention.
+    all: bool,
 }
 
 /// Runs `validate`: reads the trace, chooses the revisions to judge it against, and
@@ -326,8 +337,8 @@ fn emit_single(
         return EXIT_USAGE;
     }
     let written = match output.format {
-        Format::Human if output.quiet => emit(&report.render_findings()),
-        Format::Human => emit(&report.render_human()),
+        Format::Human if output.all => emit(&report.render_human()),
+        Format::Human => emit(&report.render_findings()),
         Format::Json => match serde_json::to_string_pretty(report) {
             Ok(json) => emit(&format!("{json}\n")),
             Err(error) => {
@@ -381,8 +392,8 @@ fn run_validate_multi(
         return EXIT_USAGE;
     }
     let written = match output.format {
-        Format::Human if output.quiet => emit(&report.render_findings()),
-        Format::Human => emit(&report.render_human()),
+        Format::Human if output.all => emit(&report.render_human()),
+        Format::Human => emit(&report.render_findings()),
         Format::Json => match serde_json::to_string_pretty(&report) {
             Ok(json) => emit(&format!("{json}\n")),
             Err(error) => {

@@ -46,7 +46,7 @@ mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000
 Then judge it:
 
 ```text
-mcp-trace-validator validate --quiet session.jsonl
+mcp-trace-validator validate session.jsonl
 ```
 
 In CI, the exit code is the verdict (`0` pass, `1` findings, `2` bad invocation, `3`
@@ -62,7 +62,7 @@ A client that retries a multi-round-trip request with the id of the original —
 two are independent requests under `2026-07-28` and must not share one:
 
 ```text
-$ mcp-trace-validator validate --quiet session.jsonl
+$ mcp-trace-validator validate session.jsonl
 MCP trace validation — revision 2026-07-28 (declared by the trace)
   FAIL  MRTR-019 (MUST)
         seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
@@ -94,8 +94,8 @@ verdict: fail
 - **An empty recording is a bad invocation**, not a pass: the shape a broken capture
   step produces should fail the build.
 
-Without `--quiet` every clause is listed with its outcome and, for exclusions, the
-reason. `--format json` gives the whole report as data.
+The report lists what needs attention; `--all` lists every clause with its outcome
+and, for exclusions, the reason. `--format json` gives the whole report as data.
 
 ## How this relates to other tools
 

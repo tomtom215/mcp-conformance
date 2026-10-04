@@ -62,13 +62,13 @@ fn the_inline_trace_example_produces_exactly_the_quoted_output() {
 
 #[test]
 fn the_opening_example_is_what_the_cli_prints_for_the_trace_it_depicts() {
-    // The first example depicts `validate --quiet` on the committed MRTR-019
-    // violation trace. Every line it quotes is checked against the output the CLI
-    // produces for that trace: the revision chosen the way the CLI chooses it, and
-    // the findings-only rendering `--quiet` selects.
+    // The first example depicts `validate` on the committed MRTR-019 violation
+    // trace. Every line it quotes is checked against the output the CLI produces
+    // for that trace: the revision chosen the way the CLI chooses it, and the
+    // findings-only rendering that is the default.
     let readme = readme();
     let example_at = readme
-        .find("validate --quiet session.jsonl\nMCP trace validation")
+        .find("validate session.jsonl\nMCP trace validation")
         .expect("the opening example");
     let open_at = readme[..example_at]
         .rfind("```text")
@@ -98,6 +98,6 @@ fn the_opening_example_is_what_the_cli_prints_for_the_trace_it_depicts() {
     assert_eq!(
         quoted_lines,
         rendered.lines().collect::<Vec<_>>(),
-        "the README's opening example must be exactly what `validate --quiet` prints"
+        "the README's opening example must be exactly what `validate` prints"
     );
 }

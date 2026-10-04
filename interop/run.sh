@@ -52,7 +52,7 @@ judge() {
     printf 'PASS  %-24s revision %s, verdict %s\n' "$name" "$revision" "$verdict"
   else
     printf 'FAIL  %-24s exit %s, revision %s (want %s), verdict %s\n' "$name" "$status" "$revision" "$want" "$verdict"
-    "$VALIDATOR" validate --quiet "$OUT/$name.jsonl" || true
+    "$VALIDATOR" validate "$OUT/$name.jsonl" || true
     failures=$((failures + 1))
   fi
 }
@@ -87,7 +87,7 @@ judge py-http 2026-07-28
 #    naming the revision, rather than judged against another revision's rules.
 INTEROP_SDK=sdk-2025-06-18 node ts-client.mjs stdio "$CAPTURE" -o "$OUT/ts-2025-06-18.jsonl" stdio -- node "$EVERYTHING" stdio
 status=0
-"$VALIDATOR" validate --quiet "$OUT/ts-2025-06-18.jsonl" 2> "$OUT/ts-2025-06-18.stderr" || status=$?
+"$VALIDATOR" validate "$OUT/ts-2025-06-18.jsonl" 2> "$OUT/ts-2025-06-18.stderr" || status=$?
 if [[ $status -eq 2 ]] && grep -q '2025-06-18' "$OUT/ts-2025-06-18.stderr"; then
   printf 'PASS  %-24s refused with exit 2, naming 2025-06-18\n' ts-2025-06-18
 else

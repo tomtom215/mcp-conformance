@@ -509,7 +509,7 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
     let trace = trace.to_str().unwrap();
     let both = ["--revision", "2025-11-25", "--revision", "2026-07-28"];
 
-    let human = run(&[&["validate", trace], &both[..]].concat());
+    let human = run(&[&["validate", "--all", trace], &both[..]].concat());
     assert_eq!(human.status.code(), Some(1), "{human:?}");
     let text = stdout(&human);
     assert!(
@@ -517,7 +517,7 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
         "{text}"
     );
     assert!(text.contains("(requested)"), "{text}");
-    // Without --quiet every clause is listed, including those needing nothing.
+    // With --all every clause is listed, including those needing nothing.
     assert!(text.contains("=excluded"), "{text}");
 
     let json = run(&[&["validate", trace, "--format", "json"], &both[..]].concat());
@@ -559,27 +559,31 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
 }
 
 #[test]
-fn quiet_lists_only_what_needs_attention_and_keeps_every_total() {
+fn the_default_lists_only_what_needs_attention_and_keeps_every_total() {
     let trace = corpus("draft/violations/mrtr-019-retry-reuses-id.jsonl");
-    let full = run(&["validate", trace.to_str().unwrap()]);
+    let all = run(&["validate", "--all", trace.to_str().unwrap()]);
+    let default = run(&["validate", trace.to_str().unwrap()]);
+    // `--quiet` selected the findings-only listing before it became the default;
+    // it is still accepted and changes nothing.
     let quiet = run(&["validate", "--quiet", trace.to_str().unwrap()]);
-    assert_eq!(quiet.status.code(), full.status.code());
-    let (full, quiet) = (stdout(&full), stdout(&quiet));
-    assert!(full.contains("  EXCL  "), "{full}");
+    assert_eq!(default.status.code(), all.status.code());
+    assert_eq!(stdout(&quiet), stdout(&default));
+    let (all, default) = (stdout(&all), stdout(&default));
+    assert!(all.contains("  EXCL  "), "{all}");
     assert!(
-        !quiet.contains("  EXCL  ") && !quiet.contains("  PASS  "),
-        "{quiet}"
+        !default.contains("  EXCL  ") && !default.contains("  PASS  "),
+        "{default}"
     );
-    assert!(quiet.contains("FAIL  MRTR-019"), "{quiet}");
+    assert!(default.contains("FAIL  MRTR-019"), "{default}");
     let totals = |text: &str| {
         text.lines()
             .find(|line| line.starts_with("totals:"))
             .map(str::to_owned)
     };
     assert_eq!(
-        totals(&quiet),
-        totals(&full),
-        "--quiet hides rows, never counts"
+        totals(&default),
+        totals(&all),
+        "the default hides rows, never counts"
     );
 }
 
@@ -791,12 +795,12 @@ fn sarif_is_a_validate_format_with_the_same_exit_codes() {
 }
 
 #[test]
-fn quiet_multi_revision_output_hides_rows_never_counts() {
+fn default_multi_revision_output_hides_rows_never_counts() {
     let trace = corpus("draft/violations/mrtr-019-retry-reuses-id.jsonl");
     let trace = trace.to_str().unwrap();
     let both = ["--revision", "2025-11-25", "--revision", "2026-07-28"];
-    let text = stdout(&run(&[&["validate", trace], &both[..]].concat()));
-    let quiet = run(&[&["validate", "--quiet", trace], &both[..]].concat());
+    let text = stdout(&run(&[&["validate", "--all", trace], &both[..]].concat()));
+    let quiet = run(&[&["validate", trace], &both[..]].concat());
     assert_eq!(quiet.status.code(), Some(1), "{quiet:?}");
     let quiet = stdout(&quiet);
     assert!(quiet.contains("MRTR-019"), "{quiet}");
@@ -810,7 +814,7 @@ fn quiet_multi_revision_output_hides_rows_never_counts() {
     assert_eq!(
         per_revision(&quiet),
         per_revision(&text),
-        "--quiet hides rows, never counts"
+        "the default hides rows, never counts"
     );
 }
 
@@ -853,7 +857,7 @@ fn a_trace_of_two_sessions_says_so() {
     }
     let path = std::env::temp_dir().join(format!("two-sessions-{}.jsonl", std::process::id()));
     std::fs::write(&path, twice).unwrap();
-    let output = run(&["validate", "--quiet", path.to_str().unwrap()]);
+    let output = run(&["validate", path.to_str().unwrap()]);
     std::fs::remove_file(&path).ok();
     assert!(stderr(&output).contains("records 2 sessions"), "{output:?}");
 
