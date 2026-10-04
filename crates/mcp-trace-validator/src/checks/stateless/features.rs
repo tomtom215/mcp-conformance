@@ -128,32 +128,62 @@ pub(in crate::checks) fn x_mcp_header_integer_range(
     }
 }
 
-/// `RES-022`: `resources/read` never answers with an empty `contents` array.
+/// `RES-022`: "Servers MUST NOT return an empty `contents` array for a
+/// non-existent resource."
 ///
-/// The specification forbids the shape outright and says why in the same breath:
-/// "An empty array is ambiguous — it could mean the resource exists but has no
-/// content, or that it doesn't exist at all." Because the objection is the
-/// ambiguity, the shape alone is the violation, and no reading of the server's
-/// intent is needed to report it.
+/// The clause binds a *non-existent* resource, and its next sentence concedes
+/// the other reading of the same shape: an empty array "could mean the resource
+/// exists but has no content". So the shape alone convicts nothing — judged that
+/// way until 2026-10-04, this reported servers for faithfully returning an
+/// existing resource with no content. Whether a resource exists is the server's
+/// own knowledge (the reason RES-019 is excluded), and the one place a trace
+/// carries the server's word on it is a not-found answer: `-32602`, the code
+/// this revision assigns, or the withdrawn `-32002`. An empty `contents` for a
+/// URI the same session also answered as not found is the violation, and every
+/// answer about such a URI the subject; any other empty `contents` is left
+/// unjudged.
 pub(in crate::checks) fn read_contents_non_empty(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
+    let uri_of = |exchange: &crate::context::Exchange<'_>| {
+        exchange
+            .params
+            .and_then(|params| params.get("uri"))
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+    };
+    let missing: BTreeSet<String> = context
+        .exchanges_for("resources/read")
+        .filter(|exchange| {
+            let code = exchange
+                .response
+                .message_payload()
+                .and_then(|payload| payload.get("error")?.get("code")?.as_i64());
+            matches!(code, Some(-32602 | -32002))
+        })
+        .filter_map(|exchange| uri_of(&exchange))
+        .collect();
     for exchange in context.exchanges_for("resources/read") {
-        let Some(contents) = exchange
+        let Some(uri) = uri_of(&exchange).filter(|uri| missing.contains(uri)) else {
+            continue;
+        };
+        // The subject is every answer about a resource the server has said is
+        // missing — the not-found error itself being the conforming one.
+        sink.examined();
+        let empty = exchange
             .result
             .and_then(|result| result.get("contents"))
             .and_then(Value::as_array)
-        else {
-            continue;
-        };
-        sink.examined();
-        if contents.is_empty() {
+            .is_some_and(Vec::is_empty);
+        if empty {
             sink.push(
                 Some(exchange.response.seq),
-                "`resources/read` answered with an empty `contents` array, which is ambiguous \
-                 between an empty resource and a missing one"
-                    .to_owned(),
+                format!(
+                    "`resources/read` of {uri:?} answered with an empty `contents` array, \
+                     though this session also answered that URI as not found; a missing \
+                     resource must draw an error, not an ambiguous empty result"
+                ),
             );
         }
     }

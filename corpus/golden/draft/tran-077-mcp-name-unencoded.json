@@ -3,12 +3,12 @@
   "verdict": "fail",
   "totals": {
     "pass": 34,
-    "fail": 5,
+    "fail": 4,
     "warn": 0,
     "excluded": 147,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 86
+    "not_observed": 87
   },
   "requirements": [
     {
@@ -642,19 +642,7 @@
     {
       "id": "RES-022",
       "level": "MUST NOT",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "resources.read-contents-non-empty",
-          "seq": 3,
-          "detail": "`resources/read` answered with an empty `contents` array, which is ambiguous between an empty resource and a missing one"
-        }
-      ],
-      "source": {
-        "section": "server/resources#error-handling",
-        "quote": "Servers MUST NOT return an empty `contents` array for a non-existent resource.",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling"
-      }
+      "outcome": "not-observed"
     },
     {
       "id": "RES-023",
