@@ -210,7 +210,7 @@
         "section": "basic/transports/streamable-http#cancellation",
         "quote": "Closing the SSE response stream MUST be treated by the server as cancellation of that request."
       },
-      "exclusion": "How a server *treats* a closed stream is internal: cancellation is a decision, and the trace shows only that the transport ended. The observable consequence — messages sent afterwards — is TRAN-071's business."
+      "exclusion": "How a server *treats* a closed stream is internal: cancellation is a decision, and the trace shows only that the transport ended. The observable consequence — messages sent afterwards — is TRAN-070's business."
     },
     {
       "id": "TRAN-070",
