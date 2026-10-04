@@ -200,7 +200,12 @@ Each is stated again in the entry that introduced it, with the reasoning.
     supplied it.
 - **Missed violations:** `application/json-seq` passed as `application/json`;
   `TRAN-073`/`096` did not judge refusals carrying `id: null`; `LOG-008` missed a log
-  for a request that did not opt in.
+  for a request that did not opt in;
+  `LIFE-009` (2025-11-25) judged top-level capabilities only, and now also convicts
+  an elicitation in a mode the client did not declare (`elicitation: {}` is form
+  only), a sampling request carrying `tools` without `sampling.tools`, and a
+  task-augmented `tools/call` without the server's `tasks.requests.tools.call` —
+  each a MUST NOT on its own page.
 - `validate` exits `2` when the report cannot be written (it exited `0`, leaving CI to
   upload a truncated file), and `3`, with the line, for a trace that is not UTF-8 (with
   a hint for UTF-16).

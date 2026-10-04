@@ -9,10 +9,20 @@
 //! `initialize` result (nothing was negotiated *or* the trace is truncated — the
 //! handshake checks own that finding); it judges only sessions whose negotiation
 //! outcome is visible.
+//!
+//! Three uses depend on a sub-capability that the method alone does not show, and
+//! each is a MUST NOT in the `2025-11-25` text of the page that defines it:
+//! an elicitation in a mode the client did not declare (`client/elicitation`:
+//! "Servers MUST NOT send elicitation requests with modes that are not supported by
+//! the client"), a sampling request carrying `tools` without `sampling.tools`
+//! (`client/sampling`), and a task-augmented `tools/call` without the server's
+//! `tasks.requests.tools.call` (`basic/utilities/tasks`). Those pages are not in
+//! this revision's registry, so this clause is where the rules are judged.
 
 use mcp_conformance_core::capability::CapabilityParty;
 use mcp_conformance_core::message::MessageKind;
-use mcp_conformance_core::trace::Direction;
+use mcp_conformance_core::trace::{Direction, TraceEvent};
+use serde_json::Value;
 
 use super::FindingSink;
 use super::support::{Declaration, client_capability, server_capability};
@@ -157,10 +167,7 @@ pub(super) fn negotiated_capabilities_only(context: &TraceContext<'_>, sink: &mu
         let Some((_, _, party, path)) = gate else {
             continue;
         };
-        let declared = match party {
-            CapabilityParty::Server => server_capability(context, path),
-            CapabilityParty::Client => client_capability(context, path),
-        };
+        let declared = declaration(context, *party, path);
         if matches!(declared, Declaration::Unknowable) {
             // No initialize result, so neither side's declarations are in this
             // trace. The message is gated on something the capture cannot show,
@@ -171,6 +178,13 @@ pub(super) fn negotiated_capabilities_only(context: &TraceContext<'_>, sink: &mu
         // declarations are readable; one that sent none put nothing to the
         // test, however long it ran.
         sink.examined();
+        let (path, declared): (&[&str], Declaration) = match declared {
+            Declaration::Withheld => (path, declared),
+            _ => match sub_capability(context, event, method) {
+                Some((sub_path, sub_declared)) => (sub_path, sub_declared),
+                None => continue,
+            },
+        };
         if matches!(declared, Declaration::Withheld) {
             let owner = match party {
                 CapabilityParty::Server => "server",
@@ -184,6 +198,54 @@ pub(super) fn negotiated_capabilities_only(context: &TraceContext<'_>, sink: &mu
                 ),
             );
         }
+    }
+}
+
+fn declaration(context: &TraceContext<'_>, party: CapabilityParty, path: &[&str]) -> Declaration {
+    match party {
+        CapabilityParty::Server => server_capability(context, path),
+        CapabilityParty::Client => client_capability(context, path),
+    }
+}
+
+/// The sub-capability this use of `method` depends on, beyond the one the method
+/// table names, with whether it was declared. The owning party is the method's.
+fn sub_capability(
+    context: &TraceContext<'_>,
+    event: &TraceEvent,
+    method: &str,
+) -> Option<(&'static [&'static str], Declaration)> {
+    let params = event.message_payload()?.get("params")?;
+    match method {
+        "elicitation/create" => {
+            // `mode` defaults to form; `elicitation: {}` declares form mode only.
+            if params.get("mode").and_then(Value::as_str) == Some("url") {
+                let path: &[&str] = &["elicitation", "url"];
+                return Some((path, client_capability(context, path)));
+            }
+            let path: &[&str] = &["elicitation", "form"];
+            let declared = match client_capability(context, path) {
+                Declaration::Withheld
+                    if matches!(
+                        client_capability(context, &["elicitation", "url"]),
+                        Declaration::Withheld
+                    ) =>
+                {
+                    Declaration::Declared
+                }
+                other => other,
+            };
+            Some((path, declared))
+        }
+        "sampling/createMessage" if params.get("tools").is_some() => {
+            let path: &[&str] = &["sampling", "tools"];
+            Some((path, client_capability(context, path)))
+        }
+        "tools/call" if params.get("task").is_some() => {
+            let path: &[&str] = &["tasks", "requests", "tools", "call"];
+            Some((path, server_capability(context, path)))
+        }
+        _ => None,
     }
 }
 
@@ -274,6 +336,81 @@ mod tests {
             outcome.subjects, 0,
             "a session with no handshake shows neither compliance nor violation"
         );
+    }
+
+    fn elicit(client_capabilities: &str, params: &str) -> Vec<String> {
+        findings_for(&format!(
+            "{}\n{{\"seq\":3,\"direction\":\"server-to-client\",\"transport\":\"stdio\",\"kind\":\"message\",\"payload\":{{\"jsonrpc\":\"2.0\",\"id\":\"s1\",\"method\":\"elicitation/create\",\"params\":{params}}}}}",
+            handshake(client_capabilities, "{}")
+        ))
+    }
+
+    #[test]
+    fn an_elicitation_mode_the_client_did_not_declare_is_a_finding() {
+        let url = r#"{"mode":"url","message":"m","url":"https://example.com","elicitationId":"e"}"#;
+        let form = r#"{"message":"m","requestedSchema":{"type":"object","properties":{}}}"#;
+        // `elicitation: {}` is form mode only.
+        let findings = elicit(r#"{"elicitation":{}}"#, url);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("elicitation.url"), "{findings:?}");
+        assert!(elicit(r#"{"elicitation":{}}"#, form).is_empty());
+        // A URL-only client was not offered form mode, the default.
+        let findings = elicit(r#"{"elicitation":{"url":{}}}"#, form);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("elicitation.form"), "{findings:?}");
+        assert!(elicit(r#"{"elicitation":{"url":{}}}"#, url).is_empty());
+        assert!(elicit(r#"{"elicitation":{"form":{},"url":{}}}"#, form).is_empty());
+        // No elicitation at all is still reported once, against the parent.
+        let findings = elicit("{}", url);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(
+            findings[0]
+                .ends_with("capability elicitation, which was not negotiated in this session"),
+            "{findings:?}"
+        );
+    }
+
+    #[test]
+    fn tool_enabled_sampling_needs_sampling_tools() {
+        let request = r#"{"seq":3,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":"s1","method":"sampling/createMessage","params":{"messages":[],"maxTokens":10,"tools":[{"name":"t","inputSchema":{"type":"object"}}]}}}"#;
+        let findings = findings_for(&format!(
+            "{}\n{request}",
+            handshake(r#"{"sampling":{}}"#, "{}")
+        ));
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("sampling.tools"), "{findings:?}");
+        let declared = format!(
+            "{}\n{request}",
+            handshake(r#"{"sampling":{"tools":{}}}"#, "{}")
+        );
+        assert!(findings_for(&declared).is_empty());
+        let plain = request.replace(
+            r#","tools":[{"name":"t","inputSchema":{"type":"object"}}]"#,
+            "",
+        );
+        assert!(
+            findings_for(&format!(
+                "{}\n{plain}",
+                handshake(r#"{"sampling":{}}"#, "{}")
+            ))
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn a_task_augmented_call_needs_the_servers_task_support() {
+        let call = r#"{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"t","task":{"ttl":1000}}}}"#;
+        let findings = findings_for(&format!("{}\n{call}", handshake("{}", r#"{"tools":{}}"#)));
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(
+            findings[0].contains("tasks.requests.tools.call"),
+            "{findings:?}"
+        );
+        let declared = handshake(
+            "{}",
+            r#"{"tools":{},"tasks":{"requests":{"tools":{"call":{}}}}}"#,
+        );
+        assert!(findings_for(&format!("{declared}\n{call}")).is_empty());
     }
 
     #[test]
