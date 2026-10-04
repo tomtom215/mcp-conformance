@@ -412,4 +412,23 @@ mod tests {
         assert!(run_check("base.result-id-matches", &trace).is_empty());
         assert!(run_check("base.error-id-matches", &trace).is_empty());
     }
+
+    #[test]
+    fn an_error_answering_a_malformed_request_with_a_readable_id_is_correlated() {
+        // The client sends malformed requests whose ids are still readable; the
+        // server answers each with -32600 echoing the id, as BASE-009 requires.
+        // The null-id escape hatch is only for an id that could not be read.
+        let trace = format!(
+            "{INIT}\n{}\n{}\n{}\n{}",
+            r#"{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":7,"method":5}}"#,
+            r#"{"seq":2,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":7,"error":{"code":-32600,"message":"Invalid Request"}}}"#,
+            r#"{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":"x","params":{}}}"#,
+            r#"{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":"x","error":{"code":-32600,"message":"Invalid Request"}}}"#,
+        );
+        assert!(run_check("base.error-id-matches", &trace).is_empty());
+
+        // An error answering an id nobody sent is still a finding.
+        let unsolicited = trace.replace(r#""id":"x","error""#, r#""id":"y","error""#);
+        assert_eq!(run_check("base.error-id-matches", &unsolicited).len(), 1);
+    }
 }
