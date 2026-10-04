@@ -553,8 +553,14 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
     assert_eq!(junit.status.code(), Some(1), "{junit:?}");
     let xml = stdout(&junit);
     assert_eq!(xml.matches("<testsuite ").count(), 2, "{xml}");
-    assert!(xml.contains("mcp-trace-validator (2025-11-25)"), "{xml}");
-    assert!(xml.contains("mcp-trace-validator (2026-07-28)"), "{xml}");
+    assert!(
+        xml.contains("mrtr-019-retry-reuses-id.jsonl (2025-11-25)\""),
+        "{xml}"
+    );
+    assert!(
+        xml.contains("mrtr-019-retry-reuses-id.jsonl (2026-07-28)\""),
+        "{xml}"
+    );
     assert!(xml.contains("[mrtr.retry-id-differs] at seq 2"), "{xml}");
 }
 
@@ -867,4 +873,70 @@ fn a_trace_of_two_sessions_says_so() {
         corpus("good/stdio-minimal-init.jsonl").to_str().unwrap(),
     ]);
     assert!(!stderr(&single).contains("sessions"), "{single:?}");
+}
+
+/// `--strict` fails the run on a warning, so the machine reports say so too: a
+/// `JUnit` `<failure>` and a SARIF `error`, not a passing test case and a
+/// `warning` beside a red CI step.
+#[test]
+fn strict_reports_agree_with_the_strict_exit_status() {
+    let trace = corpus("draft/violations/base-060-app-code-in-reserved-range.jsonl");
+    let trace = trace.to_str().unwrap();
+    let lenient = run(&["validate", "--format", "junit", trace]);
+    assert_eq!(lenient.status.code(), Some(0), "{lenient:?}");
+    assert!(stdout(&lenient).contains(r#"<testsuites tests="272" failures="0""#));
+    let strict = run(&["validate", "--strict", "--format", "junit", trace]);
+    assert_eq!(strict.status.code(), Some(1), "{strict:?}");
+    let xml = stdout(&strict);
+    assert!(
+        xml.contains(r#"<testsuites tests="272" failures="1""#),
+        "{xml}"
+    );
+    assert!(xml.contains("<failure message="), "{xml}");
+
+    let sarif =
+        |args: &[&str]| -> serde_json::Value { serde_json::from_str(&stdout(&run(args))).unwrap() };
+    let lenient = sarif(&["validate", "--format", "sarif", trace]);
+    assert_eq!(lenient["runs"][0]["results"][0]["level"], "warning");
+    let strict = sarif(&["validate", "--strict", "--format", "sarif", trace]);
+    assert_eq!(strict["runs"][0]["results"][0]["level"], "error");
+}
+
+/// A re-recorded trace moves every `seq`; code scanning must see the same
+/// alerts, not close and reopen them, so fingerprints do not carry `seq`.
+#[test]
+fn sarif_fingerprints_survive_a_re_recording() {
+    let original =
+        std::fs::read_to_string(corpus("violations/base-003-request-id-reuse.jsonl")).unwrap();
+    // The same session, recorded with every seq shifted by 100.
+    let shifted: String = original
+        .lines()
+        .map(|line| {
+            let mut event: serde_json::Value = serde_json::from_str(line).unwrap();
+            event["seq"] = serde_json::json!(event["seq"].as_u64().unwrap() + 100);
+            format!("{event}\n")
+        })
+        .collect::<Vec<_>>()
+        .concat();
+    let path = std::env::temp_dir().join(format!("shifted-{}.jsonl", std::process::id()));
+    std::fs::write(&path, shifted).unwrap();
+    let fingerprints = |trace: &str| -> Vec<serde_json::Value> {
+        let log: serde_json::Value =
+            serde_json::from_str(&stdout(&run(&["validate", "--format", "sarif", trace]))).unwrap();
+        log["runs"][0]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|result| result["partialFingerprints"].clone())
+            .collect()
+    };
+    let before = fingerprints(
+        corpus("violations/base-003-request-id-reuse.jsonl")
+            .to_str()
+            .unwrap(),
+    );
+    let after = fingerprints(path.to_str().unwrap());
+    std::fs::remove_file(&path).ok();
+    assert!(!before.is_empty());
+    assert_eq!(before, after);
 }

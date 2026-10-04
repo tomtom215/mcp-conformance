@@ -21,7 +21,7 @@ use mcp_conformance_core::requirement::{Registry, RegistrySet};
 use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_trace_validator::declared::{self, RevisionSource};
 use mcp_trace_validator::report::{Report, Verdict};
-use mcp_trace_validator::{engine, multi, reader};
+use mcp_trace_validator::{engine, junit, multi, reader, sarif};
 
 mod emit;
 mod input;
@@ -312,7 +312,7 @@ fn parse_revisions(revisions: &[String]) -> Result<Vec<ProtocolRevision>, String
 fn verdict_to_code(verdict: Verdict, strict: bool) -> u8 {
     if strict && verdict == Verdict::PassWithWarnings {
         eprintln!(
-            "note: --strict — the SHOULD-level findings above are treated as failures, \
+            "note: --strict — SHOULD-level findings are treated as failures, \
              so this run exits {EXIT_FINDINGS} despite a verdict of {verdict}"
         );
     }
@@ -346,10 +346,14 @@ fn emit_single(
                 return EXIT_USAGE;
             }
         },
-        Format::Junit => emit(&mcp_trace_validator::junit::render(report)),
-        Format::Sarif => emit(&mcp_trace_validator::sarif::render(
+        Format::Junit => emit(&mcp_trace_validator::junit::render_with(
+            core::slice::from_ref(report),
+            &junit_options(trace_source, output.strict),
+        )),
+        Format::Sarif => emit(&mcp_trace_validator::sarif::render_with(
             core::slice::from_ref(report),
             artifact(trace_source, events),
+            &sarif::Options::default().strict(output.strict),
         )),
     };
     if !written {
@@ -359,6 +363,17 @@ fn emit_single(
 }
 
 /// What SARIF results point at: the trace as named, unless it was stdin.
+/// `JUnit` options naming the trace (not stdin, which has no name) and carrying
+/// `--strict`, so the report agrees with the exit status.
+fn junit_options(trace_source: &str, strict: bool) -> junit::Options {
+    let options = if trace_source == "-" {
+        junit::Options::default()
+    } else {
+        junit::Options::for_trace(trace_source)
+    };
+    options.strict(strict)
+}
+
 fn artifact<'a>(
     trace_source: &'a str,
     events: &'a [mcp_conformance_core::trace::TraceEvent],
@@ -408,11 +423,15 @@ fn run_validate_multi(
                 .map(|registry| engine::validate(&registry, events))
                 .collect();
             if matches!(output.format, Format::Junit) {
-                emit(&mcp_trace_validator::junit::render_all(&reports))
+                emit(&mcp_trace_validator::junit::render_with(
+                    &reports,
+                    &junit_options(trace_source, output.strict),
+                ))
             } else {
-                emit(&mcp_trace_validator::sarif::render(
+                emit(&mcp_trace_validator::sarif::render_with(
                     &reports,
                     artifact(trace_source, events),
+                    &sarif::Options::default().strict(output.strict),
                 ))
             }
         }

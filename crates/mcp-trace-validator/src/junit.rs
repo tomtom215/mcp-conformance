@@ -58,10 +58,63 @@ pub fn render(report: &Report) -> String {
 /// ```
 #[must_use]
 pub fn render_all(reports: &[Report]) -> String {
+    render_with(reports, &Options::default())
+}
+
+/// How [`render_with`] presents a run.
+#[derive(Debug, Clone, Default)]
+#[non_exhaustive]
+pub struct Options {
+    /// The trace the reports judge, as the caller named it. Names each suite and
+    /// becomes each test case's `file` and `classname` prefix, so a CI report
+    /// aggregating several traces can tell their identically named clauses apart.
+    pub trace: Option<String>,
+    /// Render SHOULD-level findings (warnings) as `<failure>`s, matching a run
+    /// whose exit status `--strict` makes them fail. Without it a warning is a
+    /// passing test case with its findings in `<system-out>`.
+    pub strict: bool,
+}
+
+impl Options {
+    /// Options naming `trace`, otherwise the defaults.
+    #[must_use]
+    pub fn for_trace(trace: impl Into<String>) -> Self {
+        Self {
+            trace: Some(trace.into()),
+            strict: false,
+        }
+    }
+
+    /// These options, with warnings rendered as failures.
+    #[must_use]
+    pub const fn strict(mut self, strict: bool) -> Self {
+        self.strict = strict;
+        self
+    }
+}
+
+/// Renders several single-revision reports as one `JUnit` document, as
+/// [`render_all`] does, with the presentation `options` choose.
+///
+/// ```
+/// use mcp_conformance_core::requirement::Registry;
+/// use mcp_trace_validator::{engine, junit};
+///
+/// let registry = Registry::builtin_2025_11_25()?;
+/// let report = engine::validate(&registry, &[]);
+/// let xml = junit::render_with(&[report], &junit::Options::for_trace("session.jsonl"));
+/// assert!(xml.contains(r#"<testsuite name="session.jsonl (2025-11-25)""#));
+/// # Ok::<(), Box<dyn core::error::Error>>(())
+/// ```
+#[must_use]
+pub fn render_with(reports: &[Report], options: &Options) -> String {
     let mut out = String::new();
     out.push_str(r#"<?xml version="1.0" encoding="UTF-8"?>"#);
     out.push('\n');
-    let counts: Vec<(u32, u32, u32)> = reports.iter().map(counts).collect();
+    let counts: Vec<(u32, u32, u32)> = reports
+        .iter()
+        .map(|report| counts(report, options.strict))
+        .collect();
     let (tests, failures, skipped) = counts.iter().fold((0, 0, 0), |sum, count| {
         (sum.0 + count.0, sum.1 + count.1, sum.2 + count.2)
     });
@@ -70,13 +123,15 @@ pub fn render_all(reports: &[Report]) -> String {
         r#"<testsuites tests="{tests}" failures="{failures}" skipped="{skipped}">"#
     );
     for (report, (tests, failures, skipped)) in reports.iter().zip(counts) {
+        let suite = options.trace.as_deref().unwrap_or("mcp-trace-validator");
         let _ = writeln!(
             out,
-            r#"  <testsuite name="mcp-trace-validator ({})" tests="{tests}" failures="{failures}" skipped="{skipped}">"#,
+            r#"  <testsuite name="{} ({})" tests="{tests}" failures="{failures}" skipped="{skipped}">"#,
+            escape(suite),
             escape(&report.revision)
         );
         for row in &report.requirements {
-            render_row(&mut out, report, row);
+            render_row(&mut out, report, row, options);
         }
         out.push_str("  </testsuite>\n");
     }
@@ -84,33 +139,63 @@ pub fn render_all(reports: &[Report]) -> String {
     out
 }
 
-/// `(tests, failures, skipped)` for one report.
-const fn counts(report: &Report) -> (u32, u32, u32) {
+/// `(tests, failures, skipped)` for one report; warnings count as failures when
+/// `strict` renders them as such.
+const fn counts(report: &Report, strict: bool) -> (u32, u32, u32) {
     let totals = report.totals;
     let skipped =
         totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
+    let failures = if strict {
+        totals.fail + totals.warn
+    } else {
+        totals.fail
+    };
     (
         totals.pass + totals.fail + totals.warn + skipped,
-        totals.fail,
+        failures,
         skipped,
     )
 }
 
-fn render_row(out: &mut String, report: &Report, row: &crate::report::RequirementReport) {
+/// A test case's identifying attributes: its class, and the trace as a `file`
+/// attribute when one is named.
+fn case_attributes(report: &Report, options: &Options) -> String {
+    options.trace.as_deref().map_or_else(
+        || {
+            format!(
+                r#"classname="{}""#,
+                escape(&format!("mcp.{}", report.revision))
+            )
+        },
+        |trace| {
+            format!(
+                r#"classname="{}" file="{}""#,
+                escape(&format!("{trace}.mcp.{}", report.revision)),
+                escape(trace)
+            )
+        },
+    )
+}
+
+fn render_row(
+    out: &mut String,
+    report: &Report,
+    row: &crate::report::RequirementReport,
+    options: &Options,
+) {
     let name = escape(&format!("{} ({})", row.id, row.level));
-    let classname = escape(&format!("mcp.{}", report.revision));
-    match row.outcome {
+    let attrs = case_attributes(report, options);
+    let outcome = if options.strict && row.outcome == Outcome::Warn {
+        Outcome::Fail
+    } else {
+        row.outcome
+    };
+    match outcome {
         Outcome::Pass => {
-            let _ = writeln!(
-                out,
-                r#"    <testcase classname="{classname}" name="{name}"/>"#
-            );
+            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}"/>"#);
         }
         Outcome::Fail => {
-            let _ = writeln!(
-                out,
-                r#"    <testcase classname="{classname}" name="{name}">"#
-            );
+            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
             for finding in &row.findings {
                 let _ = writeln!(
                     out,
@@ -123,10 +208,7 @@ fn render_row(out: &mut String, report: &Report, row: &crate::report::Requiremen
             out.push_str("    </testcase>\n");
         }
         Outcome::Warn => {
-            let _ = writeln!(
-                out,
-                r#"    <testcase classname="{classname}" name="{name}">"#
-            );
+            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
             out.push_str("      <system-out>");
             for finding in &row.findings {
                 let _ = writeln!(
@@ -145,7 +227,7 @@ fn render_row(out: &mut String, report: &Report, row: &crate::report::Requiremen
         | Outcome::NotObserved => {
             let _ = writeln!(
                 out,
-                r#"    <testcase classname="{classname}" name="{name}"><skipped message="{}"/></testcase>"#,
+                r#"    <testcase {attrs} name="{name}"><skipped message="{}"/></testcase>"#,
                 escape(&skip_reason(row))
             );
         }
