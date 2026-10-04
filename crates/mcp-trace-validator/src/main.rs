@@ -176,6 +176,7 @@ fn run_validate_command(
         Ok(events) => events,
         Err(code) => return code,
     };
+    judgeable::note_sessions(mcp_trace_validator::sessions::recorded_sessions(&events));
     if let Some(path) = registry {
         return match load_registry(path) {
             Ok(registry) => emit_single(

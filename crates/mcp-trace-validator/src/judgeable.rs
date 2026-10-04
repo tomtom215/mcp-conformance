@@ -11,6 +11,19 @@
 use mcp_trace_validator::multi::MultiReport;
 use mcp_trace_validator::report::Totals;
 
+/// Says so when the trace records more than one session: it is judged as one,
+/// so findings that span the sessions are artifacts of recording them together.
+pub(crate) fn note_sessions(sessions: usize) {
+    if sessions > 1 {
+        eprintln!(
+            "note: this trace records {sessions} sessions and is judged as one; findings \
+             that span them (a request id reused across sessions, a session id that \
+             changed) come from recording them together. Record one session per trace: \
+             one client connection per mcp-trace-capture run."
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests;
 

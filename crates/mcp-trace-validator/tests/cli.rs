@@ -835,3 +835,36 @@ fn a_report_that_cannot_be_written_is_a_failure_not_a_pass() {
         assert!(stderr(&output).contains("cannot write output"), "{args:?}");
     }
 }
+
+/// Two handshakes in one trace — a proxy left running across two client runs —
+/// draw findings that are artifacts of recording them together; the CLI says so.
+#[test]
+fn a_trace_of_two_sessions_says_so() {
+    let session = std::fs::read_to_string(corpus("good/stdio-minimal-init.jsonl")).unwrap();
+    let events: Vec<serde_json::Value> = session
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    let twice: String = events
+        .iter()
+        .chain(&events)
+        .cloned()
+        .enumerate()
+        .map(|(seq, mut event)| {
+            event["seq"] = serde_json::json!(seq);
+            format!("{event}\n")
+        })
+        .collect();
+    let path = std::env::temp_dir().join(format!("two-sessions-{}.jsonl", std::process::id()));
+    std::fs::write(&path, twice).unwrap();
+    let output = run(&["validate", "--quiet", path.to_str().unwrap()]);
+    std::fs::remove_file(&path).ok();
+    assert!(stderr(&output).contains("records 2 sessions"), "{output:?}");
+
+    let single = run(&[
+        "validate",
+        "--quiet",
+        corpus("good/stdio-minimal-init.jsonl").to_str().unwrap(),
+    ]);
+    assert!(!stderr(&single).contains("sessions"), "{single:?}");
+}
