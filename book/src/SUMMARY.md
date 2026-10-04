@@ -5,6 +5,14 @@
 
 [Introduction](introduction.md)
 
+# Using the toolkit
+
+- [Getting started](getting-started.md)
+- [Using it in CI](ci.md)
+- [Troubleshooting](troubleshooting.md)
+
+# How it works
+
 - [Architecture](architecture.md)
 - [The trace format](trace-format.md)
 - [Two revisions at once](revisions.md)

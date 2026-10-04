@@ -22,6 +22,11 @@
       "exclusion": "The backward-compatibility rule binds the client's *interpretation* of an absent field, which leaves no wire artifact: the trace records that `resultType` was absent, not that the client read it as `complete`."
     },
     {
+      "id": "BASE-055",
+      "level": "MUST NOT",
+      "exclusion": "Binds allocation — assigning a new meaning to a code in -32000..-32019 — which is an act of whoever defines codes, not a message. A code observed on the wire carries no record of when or by whom it was allocated, so a legacy code in use is indistinguishable from a newly allocated one. Its use is the sentence's other half, BASE-083, which is a SHOULD NOT and is checked at that level: until 2026-10-04 this entry carried both halves at MUST NOT and reported every use of -32000 as a MUST failure."
+    },
+    {
       "id": "BASE-056",
       "level": "MUST NOT",
       "exclusion": "What a receiver assumes about a legacy code's meaning is internal; only conduct following from the assumption could surface, and attributing it requires the assumption. Same boundary as BASE-025 for reserved `_meta` keys."
@@ -184,12 +189,7 @@
     {
       "id": "TRAN-055",
       "level": "MUST",
-      "exclusion": "Adds to TRAN-056's verb obligation that each message ride a *new* POST — one request per message. The verb is recorded and judged (TRAN-056); whether each message had its own request is HTTP framing the trace summarizes rather than reproduces. Same split as TRAN-024/TRAN-049 at 2025-11-25."
-    },
-    {
-      "id": "TRAN-061",
-      "level": "MUST",
-      "exclusion": "A `202 Accepted` carries no body and answers a notification, which has no id to correlate it with; the trace records the status but cannot tie it to the message it accepted. Same reasoning as TRAN-027 at 2025-11-25."
+      "exclusion": "Adds to TRAN-056's verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a non-object body — TRAN-059 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded. Same split as TRAN-024/TRAN-049 at 2025-11-25."
     },
     {
       "id": "TRAN-062",
@@ -214,7 +214,7 @@
     {
       "id": "TRAN-069",
       "level": "MUST",
-      "exclusion": "How a server *treats* a closed stream is internal: cancellation is a decision, and the trace shows only that the transport ended. The observable consequence — messages sent afterwards — is TRAN-071's business."
+      "exclusion": "How a server *treats* a closed stream is internal: cancellation is a decision, and the trace shows only that the transport ended. The observable consequence — messages sent afterwards — is TRAN-070's business."
     },
     {
       "id": "TRAN-076",
@@ -579,12 +579,22 @@
     {
       "id": "PAGE-008",
       "level": "SHOULD",
-      "exclusion": "Cursor stability is a property across time and sessions — the same cursor presented later must still resolve — which one recording cannot exhibit. The graceful half is stated concretely by PAGE-011, and that is where it is judged."
+      "exclusion": "Cursor stability is a property across time and sessions — the same cursor presented later must still resolve — which one recording cannot exhibit. The graceful half is stated concretely by PAGE-011, which is excluded at this revision for the reason it records."
     },
     {
       "id": "PAGE-009",
       "level": "SHOULD",
       "exclusion": "Both bind how a client reads a result it already has. Stopping because `nextCursor` was absent and stopping for any other reason produce the same session: no further request."
+    },
+    {
+      "id": "PAGE-010",
+      "level": "MUST",
+      "exclusion": "A recording's witness for a cursor the client made up — one no result in the session issued — does not hold at this revision. 2026-07-28 drops 2025-11-25's \"Don't persist cursors across sessions\" and has no sessions to persist across; its caching page says \"When a cached page expires, the client SHOULD re-fetch that page using its cursor\", a cursor issued before the recording began. A parsed or altered cursor is indistinguishable on the wire from such a one."
+    },
+    {
+      "id": "PAGE-011",
+      "level": "SHOULD",
+      "exclusion": "Whether a cursor is invalid is the server's knowledge. At 2025-11-25 a cursor no result in the session issued witnesses it (cursors must not outlive a session, and 2025-11-25's PAGE-003 judges that); at this revision a cursor issued before the recording began is a valid one the client should re-present (server/utilities/caching), so a server accepting it may be conforming. The everything server still rejects cursors its own scheme did not issue; the probe capture exercises that."
     },
     {
       "id": "LOG-006",

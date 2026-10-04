@@ -111,18 +111,29 @@ fn declared_required_arguments<'a>(
 ///   carries exactly `-32602` is `PROM-007`'s enumeration, and that requirement stays
 ///   excluded because its other two cases (invalid name, internal error) remain
 ///   server-side ground truth.
+/// - At `2026-07-28` a `prompts/get` may be answered `resultType: "input_required"`
+///   (`GetPromptResult | InputRequiredResult` in the schema): the server asking for
+///   what it lacks, which is validation rather than processing. Neither that answer
+///   nor the retry carrying `inputResponses` is judged — the retry's result may rest
+///   on the input the server asked for.
 pub(super) fn arguments_validated(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let declared = declared_required_arguments(context);
     if declared.is_empty() {
         return;
     }
     for exchange in context.exchanges_for("prompts/get") {
-        if exchange.result.is_none() {
+        let Some(result) = exchange.result else {
+            continue;
+        };
+        if result.get("resultType").and_then(Value::as_str) == Some("input_required") {
             continue;
         }
         let Some(params) = exchange.params else {
             continue;
         };
+        if params.get("inputResponses").is_some() {
+            continue;
+        }
         let Some(name) = params.get("name").and_then(Value::as_str) else {
             continue;
         };
@@ -338,6 +349,38 @@ mod tests {
 {"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"prompts":[{"name":"review","arguments":[{"name":"diff","required":true}]}]}}}"#;
         let trace = format!("{HANDSHAKE}\n{list}\n{get}\n{RESULT}");
         assert_eq!(findings_for("prompts.arguments-validated", &trace).len(), 1);
+    }
+
+    #[test]
+    fn asking_for_the_missing_input_is_not_serving_the_prompt() {
+        // 2026-07-28: an InputRequiredResult is the server declining to proceed
+        // until the client supplies input, so it is not a served prompt.
+        let asked = r#"{"seq":6,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"result":{"resultType":"input_required","inputRequests":{"diff":{"method":"elicitation/create","params":{"mode":"form","message":"Which diff?","requestedSchema":{"type":"object","properties":{"diff":{"type":"string"}}}}}}}}}"#;
+        let trace = listed_then_called(r#"{"tone":"terse"}"#, asked);
+        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+    }
+
+    #[test]
+    fn a_retry_answering_the_servers_request_is_not_judged() {
+        // The retry still omits `diff`, but carries the input the server asked
+        // for; its result may rest on that input.
+        let retry = r#"{"seq":7,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":4,"method":"prompts/get","params":{"name":"review","arguments":{"tone":"terse"},"inputResponses":{"diff":{"action":"accept","content":{"diff":"d"}}}}}}
+{"seq":8,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":4,"result":{"messages":[]}}}"#;
+        let asked = r#"{"seq":6,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"result":{"resultType":"input_required","inputRequests":{"diff":{"method":"elicitation/create","params":{"mode":"form","message":"Which diff?","requestedSchema":{"type":"object","properties":{"diff":{"type":"string"}}}}}}}}}"#;
+        let trace = format!(
+            "{}\n{retry}",
+            listed_then_called(r#"{"tone":"terse"}"#, asked)
+        );
+        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+        // Without the input responses the same retry is judged as before.
+        let unanswered = trace.replace(
+            r#","inputResponses":{"diff":{"action":"accept","content":{"diff":"d"}}}"#,
+            "",
+        );
+        assert_eq!(
+            findings_for("prompts.arguments-validated", &unanswered).len(),
+            1
+        );
     }
 
     #[test]

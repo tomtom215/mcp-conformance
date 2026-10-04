@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 27,
+    "pass": 34,
     "fail": 1,
     "warn": 0,
-    "excluded": 147,
+    "excluded": 149,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 97
+    "not_observed": 89
   },
   "requirements": [
     {
@@ -49,37 +49,37 @@
     {
       "id": "BASE-052",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-053",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-054",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
-      "outcome": "not-observed"
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
+      "outcome": "pass"
     },
     {
       "id": "BASE-057",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-058",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-060",
       "level": "SHOULD",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "BASE-062",
@@ -165,6 +165,11 @@
       "id": "TRAN-060",
       "level": "MUST NOT",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-061",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-063",
@@ -472,16 +477,6 @@
       "outcome": "pass"
     },
     {
-      "id": "PAGE-010",
-      "level": "MUST",
-      "outcome": "not-observed"
-    },
-    {
-      "id": "PAGE-011",
-      "level": "SHOULD",
-      "outcome": "not-observed"
-    },
-    {
       "id": "LOG-007",
       "level": "MUST",
       "outcome": "not-observed"
@@ -598,8 +593,8 @@
       "findings": [
         {
           "check": "resources.read-contents-non-empty",
-          "seq": 1,
-          "detail": "`resources/read` answered with an empty `contents` array, which is ambiguous between an empty resource and a missing one"
+          "seq": 3,
+          "detail": "`resources/read` of \"file:///project/gone.txt\" answered with an empty `contents` array, though this session also answered that URI as not found; a missing resource must draw an error, not an ambiguous empty result"
         }
       ],
       "source": {

@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 26,
+    "pass": 28,
     "fail": 1,
     "warn": 0,
-    "excluded": 147,
+    "excluded": 149,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 98
+    "not_observed": 95
   },
   "requirements": [
     {
@@ -62,8 +62,8 @@
       "outcome": "not-observed"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
       "outcome": "not-observed"
     },
     {
@@ -165,6 +165,11 @@
       "id": "TRAN-060",
       "level": "MUST NOT",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-061",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-063",
@@ -338,8 +343,8 @@
       "findings": [
         {
           "check": "transport.no-messages-after-cancel-notification",
-          "seq": 2,
-          "detail": "server sent a response for request 1, which the client cancelled at seq 1"
+          "seq": 4,
+          "detail": "server sent a response for request 1, which the client cancelled at seq 1 — after answering a request sent later than that cancellation, so after reading it"
         }
       ],
       "source": {
@@ -451,12 +456,12 @@
     {
       "id": "CACH-001",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "CACH-008",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "CACH-015",
@@ -482,16 +487,6 @@
       "id": "PAGE-006",
       "level": "MUST",
       "outcome": "pass"
-    },
-    {
-      "id": "PAGE-010",
-      "level": "MUST",
-      "outcome": "not-observed"
-    },
-    {
-      "id": "PAGE-011",
-      "level": "SHOULD",
-      "outcome": "not-observed"
     },
     {
       "id": "LOG-007",

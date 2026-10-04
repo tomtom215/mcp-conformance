@@ -46,6 +46,24 @@ fn responses_match_requests(
                     outstanding.insert((event.direction, to_canonical_string(id)), event.seq);
                 }
             }
+            // A malformed request whose id can still be read — `"method": 5`, or
+            // no `method` at all — is answered with an error that "MUST have the
+            // same ID as the request it corresponds to"; the null-id escape hatch
+            // is only for an id that "could not be read". So a readable id on an
+            // unclassifiable, non-response message opens an outstanding request
+            // like any other. Server negative tests send exactly these.
+            MessageKind::Invalid { .. } => {
+                let readable_id = event.message_payload().and_then(|payload| {
+                    let response_shaped =
+                        payload.get("result").is_some() || payload.get("error").is_some();
+                    payload
+                        .get("id")
+                        .filter(|id| !response_shaped && (id.is_string() || id.is_number()))
+                });
+                if let Some(id) = readable_id {
+                    outstanding.insert((event.direction, to_canonical_string(id)), event.seq);
+                }
+            }
             MessageKind::Result { id } => {
                 if want_results {
                     // The subject is a response of the flavour this pass

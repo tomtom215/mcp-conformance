@@ -10,6 +10,7 @@
 use mcp_everything_server::EverythingServer;
 use mcp_reference_host::handler::{HostEvent, HostHandler};
 use mcp_reference_host::run::{CallPolicy, PlannedCall, RunPlan, StopReason, run};
+use mcp_reference_host::scenario::{ScenarioPlan, plan_for};
 use mcp_reference_host::script::InteractionScript;
 use rmcp::ServiceExt as _;
 use rmcp::service::{RoleClient, RunningService};
@@ -37,6 +38,7 @@ fn call(tool: &str, arguments: &serde_json::Value) -> PlannedCall {
     PlannedCall {
         tool: tool.to_owned(),
         arguments: arguments.as_object().cloned(),
+        fails_by_design: false,
     }
 }
 
@@ -44,7 +46,7 @@ fn call(tool: &str, arguments: &serde_json::Value) -> PlannedCall {
 async fn scripted_plan_completes_with_pinned_outcomes() {
     let (client, _) = connect(InteractionScript::default()).await;
     let plan = RunPlan {
-        turn_limit: 10,
+        turn_limit: Some(10),
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![
             call("echo", &serde_json::json!({"message": "hi"})),
@@ -74,7 +76,7 @@ async fn scripted_plan_completes_with_pinned_outcomes() {
 async fn turn_limit_stops_the_loop_mid_plan() {
     let (client, _) = connect(InteractionScript::default()).await;
     let plan = RunPlan {
-        turn_limit: 1,
+        turn_limit: Some(1),
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![
             call("echo", &serde_json::json!({"message": "one"})),
@@ -88,6 +90,10 @@ async fn turn_limit_stops_the_loop_mid_plan() {
     assert_eq!(report.stop, StopReason::TurnLimit);
     assert_eq!(report.turns, 1, "exactly one call was spent: {report:?}");
     assert_eq!(report.outcomes.len(), 1);
+    assert_eq!(
+        report.planned, 3,
+        "the report knows what was left: {report:?}"
+    );
     client.cancel().await.expect("clean shutdown");
 }
 
@@ -95,7 +101,7 @@ async fn turn_limit_stops_the_loop_mid_plan() {
 async fn protocol_errors_exhaust_the_budget() {
     let (client, _) = connect(InteractionScript::default()).await;
     let plan = RunPlan {
-        turn_limit: 10,
+        turn_limit: Some(10),
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![
             call("no-such-tool", &serde_json::json!({})),
@@ -119,7 +125,7 @@ async fn in_band_tool_errors_count_against_the_budget_too() {
     // persistently failing tool.
     let (client, _) = connect(InteractionScript::default()).await;
     let plan = RunPlan {
-        turn_limit: 10,
+        turn_limit: Some(10),
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![call("test_error_handling", &serde_json::json!({}))]),
         log_level: None,
@@ -140,7 +146,7 @@ async fn in_band_tool_errors_count_against_the_budget_too() {
 async fn a_budget_tolerates_exactly_its_count() {
     let (client, _) = connect(InteractionScript::default()).await;
     let plan = RunPlan {
-        turn_limit: 10,
+        turn_limit: Some(10),
         error_budget: 1,
         calls: CallPolicy::Scripted(vec![
             call("no-such-tool", &serde_json::json!({})),
@@ -166,7 +172,7 @@ async fn cancellation_wins_before_any_call() {
     let cancel = CancellationToken::new();
     cancel.cancel();
     let plan = RunPlan {
-        turn_limit: 10,
+        turn_limit: Some(10),
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![call("echo", &serde_json::json!({"message": "no"}))]),
         log_level: None,
@@ -188,7 +194,7 @@ async fn sep1034_defaults_round_trip_through_a_real_elicitation() {
     // arrived on the wire (BTreeMap key order).
     let (client, handler) = connect(InteractionScript::default()).await;
     let plan = RunPlan {
-        turn_limit: 1,
+        turn_limit: Some(1),
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![call(
             "test_elicitation_sep1034_defaults",
@@ -225,7 +231,7 @@ async fn url_elicitation_round_trips_consent_and_completion() {
     // consent recorded, id spent exactly once, by name.
     let (client, handler) = connect(InteractionScript::default()).await;
     let plan = RunPlan {
-        turn_limit: 1,
+        turn_limit: Some(1),
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![call("test_url_elicitation", &serde_json::json!({}))]),
         log_level: None,
@@ -260,7 +266,7 @@ async fn url_elicitation_decline_sends_no_completion() {
     };
     let (client, handler) = connect(script).await;
     let plan = RunPlan {
-        turn_limit: 1,
+        turn_limit: Some(1),
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![call("test_url_elicitation", &serde_json::json!({}))]),
         log_level: None,
@@ -284,7 +290,7 @@ async fn url_elicitation_decline_sends_no_completion() {
 async fn sampling_is_answered_from_the_script() {
     let (client, handler) = connect(InteractionScript::default()).await;
     let plan = RunPlan {
-        turn_limit: 1,
+        turn_limit: Some(1),
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![call(
             "test_sampling",
@@ -312,7 +318,7 @@ async fn discovery_policy_calls_every_tool_with_synthesized_arguments() {
     // the known-good tools must succeed.
     let (client, _) = connect(InteractionScript::default()).await;
     let plan = RunPlan {
-        turn_limit: 64,
+        turn_limit: Some(64),
         error_budget: 16,
         calls: CallPolicy::EachDiscoveredToolOnce,
         log_level: None,
@@ -373,7 +379,7 @@ async fn listing_failure_spends_the_budget_and_the_budget_decides() {
     let exhausted = run(
         &client,
         &RunPlan {
-            turn_limit: 5,
+            turn_limit: Some(5),
             error_budget: 0,
             calls: CallPolicy::EachDiscoveredToolOnce,
             log_level: None,
@@ -395,7 +401,7 @@ async fn listing_failure_spends_the_budget_and_the_budget_decides() {
     let tolerated = run(
         &client,
         &RunPlan {
-            turn_limit: 5,
+            turn_limit: Some(5),
             error_budget: 1,
             calls: CallPolicy::EachDiscoveredToolOnce,
             log_level: None,
@@ -410,4 +416,70 @@ async fn listing_failure_spends_the_budget_and_the_budget_decides() {
         "one error within a budget of one, nothing left to call: {tolerated:?}"
     );
     assert_eq!(tolerated.errors, 1);
+}
+
+#[tokio::test]
+async fn the_generic_plan_completes_against_the_everything_server_by_default() {
+    // The toolkit's own pairing under the generic plan's own bounds: no turn
+    // cap below the plan, no error budget. The server's tool that fails by
+    // design answers as documented and is recorded, not counted; every other
+    // tool must still succeed for the run to complete.
+    let (client, _) = connect(InteractionScript::default()).await;
+    let ScenarioPlan::Agent { plan, .. } = plan_for(None) else {
+        panic!("the generic plan is an agent plan");
+    };
+    assert_eq!(plan.error_budget, 0, "the default budget stays strict");
+    let report = run(&client, &plan, &CancellationToken::new()).await;
+    assert_eq!(report.stop, StopReason::Completed, "{report:?}");
+    assert_eq!(report.errors, 0, "{report:?}");
+    assert_eq!(report.expected_failures, 1, "{report:?}");
+    assert_eq!(report.turns, report.planned, "every listed tool was called");
+    assert!(report.turns > 16, "more tools than the old fixed cap of 16");
+    let documented = report
+        .outcomes
+        .iter()
+        .find(|outcome| outcome.tool == "test_error_handling")
+        .expect("discovered and called");
+    assert!(documented.expected_failure, "{documented:?}");
+    assert!(
+        documented.result.is_err(),
+        "still recorded as the error it is"
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn a_tool_documented_to_fail_is_still_held_to_its_documentation() {
+    // The expectation is checked, not waived: a success, or a protocol error
+    // in place of the in-band result, counts like any other error.
+    let (client, _) = connect(InteractionScript::default()).await;
+    let expect_failure = |tool: &str, arguments: &serde_json::Value| PlannedCall {
+        fails_by_design: true,
+        ..call(tool, arguments)
+    };
+    let plan = RunPlan {
+        turn_limit: None,
+        error_budget: 2,
+        calls: CallPolicy::Scripted(vec![
+            expect_failure("echo", &serde_json::json!({"message": "fine"})),
+            expect_failure("no-such-tool", &serde_json::json!({})),
+            expect_failure("test_error_handling", &serde_json::json!({})),
+        ]),
+        log_level: None,
+        trace_parent: None,
+    };
+    let report = run(&client, &plan, &CancellationToken::new()).await;
+    assert_eq!(report.stop, StopReason::Completed, "{report:?}");
+    assert_eq!(
+        report.errors, 2,
+        "the success and the protocol error: {report:?}"
+    );
+    assert_eq!(report.expected_failures, 1, "{report:?}");
+    let flags: Vec<bool> = report
+        .outcomes
+        .iter()
+        .map(|outcome| outcome.expected_failure)
+        .collect();
+    assert_eq!(flags, [false, false, true]);
+    client.cancel().await.expect("clean shutdown");
 }

@@ -308,3 +308,163 @@ fn a_shortfall_should_draw_another_round_not_an_error() {
     ]);
     assert!(findings_for(REASKED, &unanswered).is_empty());
 }
+
+/// A request `id` for `tools/call` of tool `name`, whose `params` also carry `extra`.
+fn call(seq: u64, id: u64, name: &str, extra: &str) -> String {
+    client(
+        seq,
+        &format!(
+            r#"{{"jsonrpc":"2.0","id":{id},"method":"tools/call","params":{{"name":"{name}"{extra}}}}}"#
+        ),
+    )
+}
+
+/// Two concurrent rounds — `a` asking for `login` with state `sa`, `b` asking
+/// for `llm` with state `sb` — then both retries, `b`'s first.
+fn interleaved(retry_a: &str, retry_b: &str) -> String {
+    trace(&[
+        call(0, 1, "a", ""),
+        call(1, 2, "b", ""),
+        input_required(2, 1, &format!(r#",{ELICIT},"requestState":"sa""#)),
+        input_required(
+            3,
+            2,
+            r#","inputRequests":{"llm":{"method":"sampling/createMessage","params":{}}},"requestState":"sb""#,
+        ),
+        call(4, 4, "b", retry_b),
+        call(5, 3, "a", retry_a),
+    ])
+}
+
+#[test]
+fn interleaved_rounds_pair_by_the_state_each_retry_echoes() {
+    // The official Python SDK's shape for two concurrent tool calls. Paired by
+    // recency, `a`'s retry was judged against `b`'s round and failed four MUSTs.
+    let conforming = interleaved(
+        r#","inputResponses":{"login":{}},"requestState":"sa""#,
+        r#","inputResponses":{"llm":{}},"requestState":"sb""#,
+    );
+    for check in [CARRIES_RESPONSES, ECHOED, UNSOLICITED, ID_DIFFERS, REASKED] {
+        assert!(findings_for(check, &conforming).is_empty(), "{check}");
+    }
+}
+
+#[test]
+fn an_altered_state_is_still_judged_against_the_request_it_repeats() {
+    // No round issued "tampered", but only one round answered tool `a`.
+    let altered = interleaved(
+        r#","inputResponses":{"login":{}},"requestState":"tampered""#,
+        r#","inputResponses":{"llm":{}},"requestState":"sb""#,
+    );
+    let findings = findings_for(ECHOED, &altered);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].contains("\"sa\""), "{findings:?}");
+}
+
+#[test]
+fn rounds_that_would_be_judged_differently_leave_a_retry_unjudged() {
+    // Two open rounds of the same tool with different states, and a retry that
+    // echoes neither: either pairing is a guess, so nothing is reported.
+    let ambiguous = trace(&[
+        call(0, 1, "a", ""),
+        call(1, 2, "a", ""),
+        input_required(2, 1, &format!(r#",{ELICIT},"requestState":"s1""#)),
+        input_required(3, 2, &format!(r#",{ELICIT},"requestState":"s2""#)),
+        call(4, 3, "a", r#","inputResponses":{"login":{}}"#),
+    ]);
+    for check in [CARRIES_RESPONSES, ECHOED, UNSOLICITED, ID_DIFFERS] {
+        assert!(findings_for(check, &ambiguous).is_empty(), "{check}");
+    }
+    // Rounds that ask for the same thing with no state are interchangeable, so
+    // the shortfall is still reported whichever one the retry answers.
+    let interchangeable = trace(&[
+        call(0, 1, "a", ""),
+        call(1, 2, "a", ""),
+        input_required(2, 1, &format!(",{ELICIT}")),
+        input_required(3, 2, &format!(",{ELICIT}")),
+        call(4, 3, "a", r#","inputResponses":{}"#),
+    ]);
+    assert_eq!(findings_for(CARRIES_RESPONSES, &interchangeable).len(), 1);
+}
+
+/// The originating request id of the round `retry_seq`'s retry pairs with, or
+/// why it pairs with none.
+fn paired_origin(document: &str, retry_seq: u64) -> Result<String, &'static str> {
+    use super::pairing::{Pairing, retries_with_rounds};
+    let events = crate::checks::stateless::testkit::events(document);
+    let context = crate::context::TraceContext::new(&events);
+    let pairs = retries_with_rounds(&context);
+    let (_, pairing) = pairs
+        .iter()
+        .find(|(retry, _)| retry.seq == retry_seq)
+        .ok_or("not a retry in the trace")?;
+    match pairing {
+        Pairing::Round(round) => Ok(round.origin.1.to_string()),
+        Pairing::Ambiguous => Err("ambiguous"),
+        Pairing::Unseen => Err("unseen"),
+    }
+}
+
+const SAMPLE: &str = r#""inputRequests":{"llm":{"method":"sampling/createMessage","params":{}}}"#;
+
+#[test]
+fn a_retry_pairs_with_the_round_for_its_own_tool() {
+    // Two open rounds asking for different inputs, no state: only the round
+    // for the same tool can be the one.
+    let document = trace(&[
+        call(0, 1, "a", ""),
+        call(1, 2, "b", ""),
+        input_required(2, 1, &format!(",{ELICIT}")),
+        input_required(3, 2, &format!(",{SAMPLE}")),
+        call(4, 3, "b", r#","inputResponses":{"llm":{}}"#),
+    ]);
+    assert_eq!(paired_origin(&document, 4), Ok("2".to_owned()));
+}
+
+#[test]
+fn a_resource_read_retry_pairs_by_its_uri() {
+    let read = |seq: u64, id: u64, uri: &str, extra: &str| {
+        client(
+            seq,
+            &format!(
+                r#"{{"jsonrpc":"2.0","id":{id},"method":"resources/read","params":{{"uri":"{uri}"{extra}}}}}"#
+            ),
+        )
+    };
+    let document = trace(&[
+        read(0, 1, "file:///x", ""),
+        read(1, 2, "file:///y", ""),
+        input_required(2, 1, &format!(",{ELICIT}")),
+        input_required(3, 2, &format!(",{SAMPLE}")),
+        read(4, 3, "file:///y", r#","inputResponses":{"llm":{}}"#),
+    ]);
+    assert_eq!(paired_origin(&document, 4), Ok("2".to_owned()));
+}
+
+#[test]
+fn a_retry_pairs_only_with_rounds_of_its_own_method() {
+    // A prompt and a tool share the name `t`; the tools/call retry answers the
+    // tools/call round.
+    let document = trace(&[
+        request(0, 1, "prompts/get", ""),
+        request(1, 2, "tools/call", ""),
+        input_required(2, 1, &format!(",{ELICIT}")),
+        input_required(3, 2, &format!(",{SAMPLE}")),
+        request(4, 3, "tools/call", r#","inputResponses":{"llm":{}}"#),
+    ]);
+    assert_eq!(paired_origin(&document, 4), Ok("2".to_owned()));
+}
+
+#[test]
+fn rounds_that_ask_for_nothing_are_interchangeable() {
+    // Two rounds of the same tool, neither asking for input nor issuing state
+    // (load shedding): any pairing judges the same, so the latest is taken.
+    let document = trace(&[
+        call(0, 1, "a", ""),
+        call(1, 2, "a", ""),
+        input_required(2, 1, ""),
+        input_required(3, 2, ""),
+        call(4, 3, "a", r#","inputResponses":{}"#),
+    ]);
+    assert_eq!(paired_origin(&document, 4), Ok("2".to_owned()));
+}

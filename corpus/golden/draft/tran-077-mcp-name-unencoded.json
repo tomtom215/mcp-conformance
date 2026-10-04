@@ -3,9 +3,9 @@
   "verdict": "fail",
   "totals": {
     "pass": 34,
-    "fail": 5,
+    "fail": 4,
     "warn": 0,
-    "excluded": 147,
+    "excluded": 149,
     "unsupported": 0,
     "not_applicable": 0,
     "not_observed": 86
@@ -62,8 +62,8 @@
       "outcome": "not-observed"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
       "outcome": "not-observed"
     },
     {
@@ -165,6 +165,11 @@
       "id": "TRAN-060",
       "level": "MUST NOT",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-061",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-063",
@@ -481,6 +486,11 @@
           "check": "caching.hints-on-cacheable-results",
           "seq": 3,
           "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
+        },
+        {
+          "check": "caching.hints-on-cacheable-results",
+          "seq": 3,
+          "detail": "the `complete` result of `resources/read` carries no `cacheScope` caching hint"
         }
       ],
       "source": {
@@ -518,16 +528,6 @@
       "id": "PAGE-006",
       "level": "MUST",
       "outcome": "pass"
-    },
-    {
-      "id": "PAGE-010",
-      "level": "MUST",
-      "outcome": "not-observed"
-    },
-    {
-      "id": "PAGE-011",
-      "level": "SHOULD",
-      "outcome": "not-observed"
     },
     {
       "id": "LOG-007",
@@ -642,19 +642,7 @@
     {
       "id": "RES-022",
       "level": "MUST NOT",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "resources.read-contents-non-empty",
-          "seq": 3,
-          "detail": "`resources/read` answered with an empty `contents` array, which is ambiguous between an empty resource and a missing one"
-        }
-      ],
-      "source": {
-        "section": "server/resources#error-handling",
-        "quote": "Servers MUST NOT return an empty `contents` array for a non-existent resource.",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling"
-      }
+      "outcome": "not-observed"
     },
     {
       "id": "RES-023",

@@ -21,7 +21,10 @@
 //! revision rather than by which reads better.
 
 use rmcp::RoleServer;
-use rmcp::model::{ClientCapabilities, ElicitationCapability, ErrorData, SamplingCapability};
+use rmcp::model::{
+    ClientCapabilities, ElicitationCapability, ErrorData, SamplingCapability,
+    UrlElicitationCapability,
+};
 use rmcp::service::RequestContext;
 
 use crate::server::ServedRevision;
@@ -35,8 +38,13 @@ mod tests;
 pub(super) enum Required {
     /// `sampling/createMessage`.
     Sampling,
-    /// `elicitation/create`, in either mode.
+    /// `elicitation/create`, in form mode — which a bare `elicitation: {}`
+    /// declares.
     Elicitation,
+    /// `elicitation/create` in URL mode, which only `elicitation.url`
+    /// declares: "Servers MUST NOT send elicitation requests with modes that
+    /// are not supported by the client" (`client/elicitation`, 2025-11-25).
+    UrlElicitation,
 }
 
 impl Required {
@@ -45,14 +53,19 @@ impl Required {
         match self {
             Self::Sampling => "sampling",
             Self::Elicitation => "elicitation",
+            Self::UrlElicitation => "elicitation.url",
         }
     }
 
     /// Whether `declared` includes it.
-    const fn declared_in(self, declared: &ClientCapabilities) -> bool {
+    fn declared_in(self, declared: &ClientCapabilities) -> bool {
         match self {
             Self::Sampling => declared.sampling.is_some(),
             Self::Elicitation => declared.elicitation.is_some(),
+            Self::UrlElicitation => declared
+                .elicitation
+                .as_ref()
+                .is_some_and(|elicitation| elicitation.url.is_some()),
         }
     }
 
@@ -66,6 +79,10 @@ impl Required {
         match self {
             Self::Sampling => required.sampling = Some(SamplingCapability::default()),
             Self::Elicitation => required.elicitation = Some(ElicitationCapability::default()),
+            Self::UrlElicitation => {
+                required.elicitation =
+                    Some(ElicitationCapability::new().with_url(UrlElicitationCapability::new()));
+            }
         }
         required
     }

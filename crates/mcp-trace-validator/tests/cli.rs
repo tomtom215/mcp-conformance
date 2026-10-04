@@ -11,6 +11,7 @@
 #![cfg(feature = "cli")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use std::fmt::Write as _;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -37,6 +38,39 @@ fn stdout(output: &Output) -> String {
 
 fn stderr(output: &Output) -> String {
     String::from_utf8(output.stderr.clone()).unwrap()
+}
+
+#[test]
+fn a_session_the_server_never_answered_is_refused() {
+    // The capture recorded the client's initialize and an upstream it could not
+    // reach. Every clause the client's side reaches passes, so without this
+    // refusal the run reads `verdict: pass`, exit 0, for a server that was down.
+    let contents = concat!(
+        r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"1"}}}}"#,
+        "\n",
+        r#"{"seq":1,"direction":"server-to-client","transport":"streamable-http","kind":"lifecycle","event":"transport-abort"}"#,
+        "\n"
+    );
+    let path = write_temp("never-answered", contents);
+    for args in [
+        vec!["validate"],
+        vec![
+            "validate",
+            "--revision",
+            "2025-11-25",
+            "--revision",
+            "2026-07-28",
+        ],
+    ] {
+        let mut args = args;
+        args.push(path.to_str().unwrap());
+        let output = run(&args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("none from the server"), "{stderr}");
+        assert!(stderr.contains("could not be reached"), "{stderr}");
+    }
+    std::fs::remove_file(&path).ok();
 }
 
 #[test]
@@ -79,6 +113,12 @@ fn a_trace_that_judges_nothing_is_refused_rather_than_passed() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(
             stderr.contains("judged no requirement at all"),
+            "{tag}: {stderr}"
+        );
+        // Only the refusal: a note about the revision a contentless trace did
+        // not declare would bury it.
+        assert!(
+            !stderr.contains("declares no protocol revision"),
             "{tag}: {stderr}"
         );
         // And the same refusal in multi-revision mode, which reaches the
@@ -508,7 +548,7 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
     let trace = trace.to_str().unwrap();
     let both = ["--revision", "2025-11-25", "--revision", "2026-07-28"];
 
-    let human = run(&[&["validate", trace], &both[..]].concat());
+    let human = run(&[&["validate", "--all", trace], &both[..]].concat());
     assert_eq!(human.status.code(), Some(1), "{human:?}");
     let text = stdout(&human);
     assert!(
@@ -516,7 +556,7 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
         "{text}"
     );
     assert!(text.contains("(requested)"), "{text}");
-    // Without --quiet every clause is listed, including those needing nothing.
+    // With --all every clause is listed, including those needing nothing.
     assert!(text.contains("=excluded"), "{text}");
 
     let json = run(&[&["validate", trace, "--format", "json"], &both[..]].concat());
@@ -552,33 +592,43 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
     assert_eq!(junit.status.code(), Some(1), "{junit:?}");
     let xml = stdout(&junit);
     assert_eq!(xml.matches("<testsuite ").count(), 2, "{xml}");
-    assert!(xml.contains("mcp-trace-validator (2025-11-25)"), "{xml}");
-    assert!(xml.contains("mcp-trace-validator (2026-07-28)"), "{xml}");
+    assert!(
+        xml.contains("mrtr-019-retry-reuses-id.jsonl (2025-11-25)\""),
+        "{xml}"
+    );
+    assert!(
+        xml.contains("mrtr-019-retry-reuses-id.jsonl (2026-07-28)\""),
+        "{xml}"
+    );
     assert!(xml.contains("[mrtr.retry-id-differs] at seq 2"), "{xml}");
 }
 
 #[test]
-fn quiet_lists_only_what_needs_attention_and_keeps_every_total() {
+fn the_default_lists_only_what_needs_attention_and_keeps_every_total() {
     let trace = corpus("draft/violations/mrtr-019-retry-reuses-id.jsonl");
-    let full = run(&["validate", trace.to_str().unwrap()]);
+    let all = run(&["validate", "--all", trace.to_str().unwrap()]);
+    let default = run(&["validate", trace.to_str().unwrap()]);
+    // `--quiet` selected the findings-only listing before it became the default;
+    // it is still accepted and changes nothing.
     let quiet = run(&["validate", "--quiet", trace.to_str().unwrap()]);
-    assert_eq!(quiet.status.code(), full.status.code());
-    let (full, quiet) = (stdout(&full), stdout(&quiet));
-    assert!(full.contains("  EXCL  "), "{full}");
+    assert_eq!(default.status.code(), all.status.code());
+    assert_eq!(stdout(&quiet), stdout(&default));
+    let (all, default) = (stdout(&all), stdout(&default));
+    assert!(all.contains("  EXCL  "), "{all}");
     assert!(
-        !quiet.contains("  EXCL  ") && !quiet.contains("  PASS  "),
-        "{quiet}"
+        !default.contains("  EXCL  ") && !default.contains("  PASS  "),
+        "{default}"
     );
-    assert!(quiet.contains("FAIL  MRTR-019"), "{quiet}");
+    assert!(default.contains("FAIL  MRTR-019"), "{default}");
     let totals = |text: &str| {
         text.lines()
             .find(|line| line.starts_with("totals:"))
             .map(str::to_owned)
     };
     assert_eq!(
-        totals(&quiet),
-        totals(&full),
-        "--quiet hides rows, never counts"
+        totals(&default),
+        totals(&all),
+        "the default hides rows, never counts"
     );
 }
 
@@ -790,12 +840,12 @@ fn sarif_is_a_validate_format_with_the_same_exit_codes() {
 }
 
 #[test]
-fn quiet_multi_revision_output_hides_rows_never_counts() {
+fn default_multi_revision_output_hides_rows_never_counts() {
     let trace = corpus("draft/violations/mrtr-019-retry-reuses-id.jsonl");
     let trace = trace.to_str().unwrap();
     let both = ["--revision", "2025-11-25", "--revision", "2026-07-28"];
-    let text = stdout(&run(&[&["validate", trace], &both[..]].concat()));
-    let quiet = run(&[&["validate", "--quiet", trace], &both[..]].concat());
+    let text = stdout(&run(&[&["validate", "--all", trace], &both[..]].concat()));
+    let quiet = run(&[&["validate", trace], &both[..]].concat());
     assert_eq!(quiet.status.code(), Some(1), "{quiet:?}");
     let quiet = stdout(&quiet);
     assert!(quiet.contains("MRTR-019"), "{quiet}");
@@ -809,6 +859,205 @@ fn quiet_multi_revision_output_hides_rows_never_counts() {
     assert_eq!(
         per_revision(&quiet),
         per_revision(&text),
-        "--quiet hides rows, never counts"
+        "the default hides rows, never counts"
+    );
+}
+
+/// A report that could not be written is not a verdict a CI step can rely on:
+/// writing to a full device exits `2`, where it used to print an error and
+/// exit with the verdict's `0`, leaving CI to upload a truncated SARIF file.
+/// A reader closing the pipe early (`| head`) is still not an error.
+#[cfg(target_os = "linux")]
+#[test]
+fn a_report_that_cannot_be_written_is_a_failure_not_a_pass() {
+    let trace = corpus("good/stdio-minimal-init.jsonl");
+    for args in [
+        vec!["validate", "--format", "sarif", trace.to_str().unwrap()],
+        vec!["validate", trace.to_str().unwrap()],
+        vec!["requirements"],
+    ] {
+        let output = binary()
+            .args(&args)
+            .stdout(std::fs::File::create("/dev/full").unwrap())
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {output:?}");
+        assert!(stderr(&output).contains("cannot write output"), "{args:?}");
+    }
+}
+
+/// Two handshakes in one trace — a proxy left running across two client runs —
+/// draw findings that are artifacts of recording them together; the CLI says so.
+#[test]
+fn a_trace_of_two_sessions_says_so() {
+    let session = std::fs::read_to_string(corpus("good/stdio-minimal-init.jsonl")).unwrap();
+    let events: Vec<serde_json::Value> = session
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    let mut twice = String::new();
+    for (seq, mut event) in events.iter().chain(&events).cloned().enumerate() {
+        event["seq"] = serde_json::json!(seq);
+        writeln!(twice, "{event}").unwrap();
+    }
+    let path = std::env::temp_dir().join(format!("two-sessions-{}.jsonl", std::process::id()));
+    std::fs::write(&path, twice).unwrap();
+    let output = run(&["validate", path.to_str().unwrap()]);
+    std::fs::remove_file(&path).ok();
+    assert!(stderr(&output).contains("records 2 sessions"), "{output:?}");
+
+    let single = run(&[
+        "validate",
+        "--quiet",
+        corpus("good/stdio-minimal-init.jsonl").to_str().unwrap(),
+    ]);
+    assert!(!stderr(&single).contains("sessions"), "{single:?}");
+}
+
+/// `--strict` fails the run on a warning, so the machine reports say so too: a
+/// `JUnit` `<failure>` and a SARIF `error`, not a passing test case and a
+/// `warning` beside a red CI step.
+#[test]
+fn strict_reports_agree_with_the_strict_exit_status() {
+    let trace = corpus("draft/violations/base-060-app-code-in-reserved-range.jsonl");
+    let trace = trace.to_str().unwrap();
+    let lenient = run(&["validate", "--format", "junit", trace]);
+    assert_eq!(lenient.status.code(), Some(0), "{lenient:?}");
+    let failures = |xml: &str| {
+        let at = xml.find("<testsuites ").unwrap();
+        xml[at..].split('"').nth(3).unwrap().to_owned()
+    };
+    assert_eq!(failures(&stdout(&lenient)), "0");
+    let strict = run(&["validate", "--strict", "--format", "junit", trace]);
+    assert_eq!(strict.status.code(), Some(1), "{strict:?}");
+    let xml = stdout(&strict);
+    assert_eq!(failures(&xml), "1", "{xml}");
+    assert!(xml.contains("<failure message="), "{xml}");
+
+    let sarif =
+        |args: &[&str]| -> serde_json::Value { serde_json::from_str(&stdout(&run(args))).unwrap() };
+    let lenient = sarif(&["validate", "--format", "sarif", trace]);
+    assert_eq!(lenient["runs"][0]["results"][0]["level"], "warning");
+    let strict = sarif(&["validate", "--strict", "--format", "sarif", trace]);
+    assert_eq!(strict["runs"][0]["results"][0]["level"], "error");
+}
+
+/// A re-recorded trace moves every `seq`; code scanning must see the same
+/// alerts, not close and reopen them, so fingerprints do not carry `seq`.
+#[test]
+fn sarif_fingerprints_survive_a_re_recording() {
+    let original =
+        std::fs::read_to_string(corpus("violations/base-003-request-id-reuse.jsonl")).unwrap();
+    // The same session, recorded with every seq shifted by 100.
+    let shifted: String = original
+        .lines()
+        .map(|line| {
+            let mut event: serde_json::Value = serde_json::from_str(line).unwrap();
+            event["seq"] = serde_json::json!(event["seq"].as_u64().unwrap() + 100);
+            format!("{event}\n")
+        })
+        .collect::<Vec<_>>()
+        .concat();
+    let path = std::env::temp_dir().join(format!("shifted-{}.jsonl", std::process::id()));
+    std::fs::write(&path, shifted).unwrap();
+    let fingerprints = |trace: &str| -> Vec<serde_json::Value> {
+        let log: serde_json::Value =
+            serde_json::from_str(&stdout(&run(&["validate", "--format", "sarif", trace]))).unwrap();
+        log["runs"][0]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|result| result["partialFingerprints"].clone())
+            .collect()
+    };
+    let before = fingerprints(
+        corpus("violations/base-003-request-id-reuse.jsonl")
+            .to_str()
+            .unwrap(),
+    );
+    let after = fingerprints(path.to_str().unwrap());
+    std::fs::remove_file(&path).ok();
+    assert!(!before.is_empty());
+    assert_eq!(before, after);
+}
+
+/// JSON Lines is UTF-8: other bytes are a malformed trace (exit 3) located by
+/// line, like every other malformation — not an unreadable file (exit 2).
+#[test]
+fn a_trace_that_is_not_utf8_is_malformed_and_located() {
+    let good = std::fs::read(corpus("good/stdio-minimal-init.jsonl")).unwrap();
+    let mut bytes = good.clone();
+    bytes.extend_from_slice(b"{\"seq\":99,\"x\":\"\xff\"}\n");
+    let path = std::env::temp_dir().join(format!("not-utf8-{}.jsonl", std::process::id()));
+    std::fs::write(&path, bytes).unwrap();
+    let output = run(&["validate", path.to_str().unwrap()]);
+    std::fs::remove_file(&path).ok();
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    let lines = good.split(|byte| *byte == b'\n').count();
+    assert!(
+        stderr(&output).contains(&format!("line {lines}: not valid UTF-8")),
+        "{output:?}"
+    );
+
+    // UTF-16 (a byte-order mark first) is named, with the usual cause.
+    let mut utf16 = vec![0xFF, 0xFE];
+    utf16.extend(good.iter().flat_map(|byte| [*byte, 0]));
+    std::fs::write(&path, utf16).unwrap();
+    let output = run(&["validate", path.to_str().unwrap()]);
+    std::fs::remove_file(&path).ok();
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    assert!(stderr(&output).contains("the file is UTF-16"), "{output:?}");
+}
+
+/// Several traces in one run: one document per format, a section per trace in
+/// human output, and the worst trace's exit status — a trace that cannot be
+/// judged among good ones still fails the run.
+#[test]
+fn several_traces_are_judged_together_and_the_worst_decides() {
+    let good = corpus("good/stdio-minimal-init.jsonl");
+    let bad = corpus("violations/base-003-request-id-reuse.jsonl");
+    let (good, bad) = (good.to_str().unwrap(), bad.to_str().unwrap());
+
+    let human = run(&["validate", good, bad]);
+    assert_eq!(human.status.code(), Some(1), "{human:?}");
+    let text = stdout(&human);
+    assert!(text.contains(&format!("==> {good} <==")), "{text}");
+    assert!(text.contains(&format!("==> {bad} <==")), "{text}");
+    assert!(text.contains("FAIL  BASE-003"), "{text}");
+    // The whole line: with every trace judged, no "not judged" clause.
+    assert!(
+        text.contains("2 traces: 1 pass, 0 pass-with-warnings, 1 fail\n"),
+        "{text}"
+    );
+    assert!(text.contains("overall verdict: fail"), "{text}");
+
+    // Two passing traces pass.
+    assert_eq!(run(&["validate", good, good]).status.code(), Some(0));
+
+    // A malformed trace among good ones: judged ones are reported, it is
+    // counted as not judged, and its exit status (3) is the run's.
+    let path = std::env::temp_dir().join(format!("broken-{}.jsonl", std::process::id()));
+    std::fs::write(&path, "not json\n").unwrap();
+    let mixed = run(&["validate", good, path.to_str().unwrap()]);
+    std::fs::remove_file(&path).ok();
+    assert_eq!(mixed.status.code(), Some(3), "{mixed:?}");
+    assert!(
+        stdout(&mixed).contains("2 traces: 1 pass, 0 pass-with-warnings, 0 fail, 1 not judged")
+    );
+
+    let junit = stdout(&run(&["validate", "--format", "junit", good, bad]));
+    assert_eq!(junit.matches("<?xml").count(), 1, "one document: {junit}");
+    assert_eq!(junit.matches("<testsuite ").count(), 2, "{junit}");
+
+    let sarif: serde_json::Value =
+        serde_json::from_str(&stdout(&run(&["validate", "--format", "sarif", good, bad]))).unwrap();
+    assert_eq!(sarif["runs"].as_array().map(Vec::len), Some(1), "one run");
+
+    // stdin cannot be mixed with files: it can only be read once.
+    let mixed_stdin = run(&["validate", good, "-"]);
+    assert_eq!(mixed_stdin.status.code(), Some(2), "{mixed_stdin:?}");
+    assert!(
+        stderr(&mixed_stdin).contains("`-` (stdin) can only be validated on its own"),
+        "{mixed_stdin:?}"
     );
 }

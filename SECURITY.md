@@ -17,8 +17,9 @@ every release.
 
 | Version | Supported |
 | ------- | --------- |
-| 0.6.x   | yes       |
-| 0.5.x   | no        |
+| 0.6.x   | yes, once published (prepared, not yet released) |
+| 0.5.x   | yes, until 0.6.0 is published |
+| < 0.5   | no        |
 
 ## Reporting a vulnerability
 

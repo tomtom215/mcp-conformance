@@ -40,7 +40,7 @@
         "section": "server/utilities/pagination#implementation-guidelines",
         "quote": "Servers SHOULD: Provide stable cursors; Handle invalid cursors gracefully"
       },
-      "exclusion": "Cursor stability is a property across time and sessions \u2014 the same cursor presented later must still resolve \u2014 which one recording cannot exhibit. The graceful half is stated concretely by PAGE-011, and that is where it is judged."
+      "exclusion": "Cursor stability is a property across time and sessions \u2014 the same cursor presented later must still resolve \u2014 which one recording cannot exhibit. The graceful half is stated concretely by PAGE-011, which is excluded at this revision for the reason it records."
     },
     {
       "id": "PAGE-009",
@@ -66,9 +66,7 @@
         "section": "server/utilities/pagination#implementation-guidelines",
         "quote": "Clients MUST treat cursors as opaque tokens: Don't make assumptions about cursor format; Don't attempt to parse or modify cursors; Don't make any determination based on cursor value other than whether a non-null value was provided (e.g. an empty string is a valid cursor and thus MUST NOT be treated as the end of results)"
       },
-      "checks": [
-        "pagination.cursor-opacity"
-      ]
+      "exclusion": "A recording's witness for a cursor the client made up — one no result in the session issued — does not hold at this revision. 2026-07-28 drops 2025-11-25's \"Don't persist cursors across sessions\" and has no sessions to persist across; its caching page says \"When a cached page expires, the client SHOULD re-fetch that page using its cursor\", a cursor issued before the recording began. A parsed or altered cursor is indistinguishable on the wire from such a one."
     },
     {
       "id": "PAGE-011",
@@ -81,9 +79,7 @@
         "section": "server/utilities/pagination#error-handling",
         "quote": "Invalid cursors SHOULD result in an error with code -32602 (Invalid params)."
       },
-      "checks": [
-        "pagination.invalid-cursor-rejected"
-      ]
+      "exclusion": "Whether a cursor is invalid is the server's knowledge. At 2025-11-25 a cursor no result in the session issued witnesses it (cursors must not outlive a session, and 2025-11-25's PAGE-003 judges that); at this revision a cursor issued before the recording began is a valid one the client should re-present (server/utilities/caching), so a server accepting it may be conforming. The everything server still rejects cursors its own scheme did not issue; the probe capture exercises that."
     }
   ]
 }

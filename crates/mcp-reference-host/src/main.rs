@@ -29,6 +29,7 @@ use std::process::ExitCode;
 use clap::Parser as _;
 use cli::{Cli, LogLevel};
 use mcp_reference_host::capture::{CaptureTransport, RecordingTransport};
+use mcp_reference_host::diagnose::{self, Target};
 use mcp_reference_host::handler::HostHandler;
 use mcp_reference_host::run::{RunPlan, StopReason, run};
 use mcp_reference_host::scenario::{ScenarioPlan, plan_for};
@@ -125,18 +126,26 @@ async fn agent_over(
     match (url, server_cmd) {
         (Some(url), None) => {
             let transport = mcp_reference_host::connect::streamable_http(&url);
-            recorded(
-                transport,
-                CaptureTransport::StreamableHttp,
-                trace_dir,
-                session,
-            )
-            .await
+            let kind = CaptureTransport::StreamableHttp;
+            recorded(transport, kind, trace_dir, session, Target::Url(url)).await
         }
         (None, Some(command)) => match mcp_reference_host::connect::child_process(&command) {
-            Ok(transport) => recorded(transport, CaptureTransport::Stdio, trace_dir, session).await,
+            Ok(transport) => {
+                let kind = CaptureTransport::Stdio;
+                recorded(
+                    transport,
+                    kind,
+                    trace_dir,
+                    session,
+                    Target::Command(command),
+                )
+                .await
+            }
             Err(error) => {
-                eprintln!("mcp-reference-host: cannot spawn {command:?}: {error}");
+                eprintln!(
+                    "mcp-reference-host: {}",
+                    diagnose::spawn_failure(&command, &error)
+                );
                 ExitCode::FAILURE
             }
         },
@@ -167,19 +176,21 @@ struct Session {
 }
 
 /// Runs `session` over `transport`, wrapping it in the recorder when the
-/// operator asked for a trace.
+/// operator asked for a trace. `target` is what the transport reaches, named
+/// in the diagnostic should the session fail to start.
 async fn recorded<T: Transport<rmcp::service::RoleClient> + 'static>(
     transport: T,
     kind: CaptureTransport,
     trace_dir: Option<PathBuf>,
     session: Session,
+    target: Target,
 ) -> ExitCode {
     match trace_dir {
         Some(dir) => match recording(transport, kind, &dir) {
-            Ok(transport) => agent_run(transport, session).await,
+            Ok(transport) => agent_run(transport, session, &target).await,
             Err(code) => code,
         },
-        None => agent_run(transport, session).await,
+        None => agent_run(transport, session, &target).await,
     }
 }
 
@@ -187,8 +198,8 @@ async fn recorded<T: Transport<rmcp::service::RoleClient> + 'static>(
 ///
 /// The scenario table's bounds are a *contract* with the official suite, so
 /// they are the default and never rewritten in place; an override is for a run
-/// the suite does not define — a recording sweeping every tool, where meeting
-/// `test_error_handling` is the point rather than a failure.
+/// the suite does not define, such as a recording that must reach every tool
+/// even past an unexpected failure.
 fn overridden(
     plan: ScenarioPlan,
     error_budget: Option<u32>,
@@ -204,7 +215,7 @@ fn overridden(
         plan.error_budget = error_budget;
     }
     if let Some(turn_limit) = turn_limit {
-        plan.turn_limit = turn_limit;
+        plan.turn_limit = Some(turn_limit);
     }
     // Left `None` unless asked: the suite's scenarios judge a session that
     // requested no logs, and a host that asked anyway would change what the
@@ -283,6 +294,7 @@ fn recording<T>(
 async fn agent_run(
     transport: impl Transport<rmcp::service::RoleClient> + 'static,
     session: Session,
+    target: &Target,
 ) -> ExitCode {
     let Session {
         script,
@@ -298,7 +310,12 @@ async fn agent_run(
     {
         Ok(client) => client,
         Err(error) => {
-            eprintln!("mcp-reference-host: initialization failed: {error}");
+            // Said in the operator's words: rmcp's own `Display` names the
+            // transport's generic type and buries the cause (`diagnose`).
+            eprintln!(
+                "mcp-reference-host: {}",
+                diagnose::initialization_failure(target, &error)
+            );
             return ExitCode::FAILURE;
         }
     };

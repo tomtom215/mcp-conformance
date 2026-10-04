@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 27,
-    "fail": 1,
-    "warn": 1,
-    "excluded": 147,
+    "pass": 40,
+    "fail": 3,
+    "warn": 0,
+    "excluded": 149,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 96
+    "not_observed": 81
   },
   "requirements": [
     {
@@ -62,8 +62,8 @@
       "outcome": "not-observed"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
       "outcome": "not-observed"
     },
     {
@@ -144,22 +144,34 @@
     {
       "id": "TRAN-056",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-057",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-058",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.request-metadata-headers",
+          "seq": 12,
+          "detail": "`Mcp-Name` header is \"beta\" but `params.name` is \"alpha\""
+        }
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "The client MUST include the request metadata headers on each POST request.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#sending-messages"
+      }
     },
     {
       "id": "TRAN-059",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-060",
@@ -167,9 +179,14 @@
       "outcome": "pass"
     },
     {
-      "id": "TRAN-063",
+      "id": "TRAN-061",
       "level": "MUST",
       "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-063",
+      "level": "MUST",
+      "outcome": "pass"
     },
     {
       "id": "TRAN-066",
@@ -189,12 +206,12 @@
     {
       "id": "TRAN-071",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-072",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-073",
@@ -214,7 +231,7 @@
     {
       "id": "TRAN-077",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-079",
@@ -229,22 +246,22 @@
     {
       "id": "TRAN-086",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-087",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-089",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-092",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-096",
@@ -254,7 +271,19 @@
     {
       "id": "TRAN-097",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.header-body-match-validated",
+          "seq": 15,
+          "detail": "the POST at seq 12 carried `Mcp-Name: beta` against `params.name` = \"alpha\"; the server answered it with a result instead of rejecting the mismatch"
+        }
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#server-behavior-for-custom-headers",
+        "quote": "Any server that processes the message body MUST validate that encoded header values, after decoding if Base64-encoded, match the corresponding values in the request body.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers"
+      }
     },
     {
       "id": "TRAN-098",
@@ -264,7 +293,19 @@
     {
       "id": "TRAN-100",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.header-body-match-validated",
+          "seq": 15,
+          "detail": "the POST at seq 12 carried `Mcp-Name: beta` against `params.name` = \"alpha\"; the server answered it with a result instead of rejecting the mismatch"
+        }
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#server-validation",
+        "quote": "Servers that process the request body MUST reject requests where the values specified in the headers do not match the corresponding values in the request body.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-validation"
+      }
     },
     {
       "id": "TRAN-102",
@@ -309,12 +350,12 @@
     {
       "id": "TRAN-117",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-118",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-119",
@@ -472,40 +513,6 @@
       "outcome": "pass"
     },
     {
-      "id": "PAGE-010",
-      "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "pagination.cursor-opacity",
-          "seq": 0,
-          "detail": "tools/list cursor \"fabricated\" was never issued as a nextCursor for that method in this session"
-        }
-      ],
-      "source": {
-        "section": "server/utilities/pagination#implementation-guidelines",
-        "quote": "Clients MUST treat cursors as opaque tokens: Don't make assumptions about cursor format; Don't attempt to parse or modify cursors; Don't make any determination based on cursor value other than whether a non-null value was provided (e.g. an empty string is a valid cursor and thus MUST NOT be treated as the end of results)",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination#implementation-guidelines"
-      }
-    },
-    {
-      "id": "PAGE-011",
-      "level": "SHOULD",
-      "outcome": "warn",
-      "findings": [
-        {
-          "check": "pagination.invalid-cursor-rejected",
-          "seq": 1,
-          "detail": "`tools/list` presented the cursor \"fabricated\", which this session never issued, and the server answered with a result rather than -32602"
-        }
-      ],
-      "source": {
-        "section": "server/utilities/pagination#error-handling",
-        "quote": "Invalid cursors SHOULD result in an error with code -32602 (Invalid params).",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination#error-handling"
-      }
-    },
-    {
       "id": "LOG-007",
       "level": "MUST",
       "outcome": "not-observed"
@@ -553,22 +560,22 @@
     {
       "id": "TOOL-025",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TOOL-027",
       "level": "SHOULD",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TOOL-029",
       "level": "SHOULD NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TOOL-030",
       "level": "SHOULD",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TOOL-033",

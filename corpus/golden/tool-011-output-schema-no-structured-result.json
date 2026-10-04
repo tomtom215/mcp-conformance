@@ -5,10 +5,10 @@
     "pass": 24,
     "fail": 1,
     "warn": 0,
-    "excluded": 87,
+    "excluded": 86,
     "unsupported": 0,
     "not_applicable": 6,
-    "not_observed": 24
+    "not_observed": 25
   },
   "requirements": [
     {
@@ -162,6 +162,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-027",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-029",
       "level": "MUST",
       "outcome": "not-observed"
@@ -229,7 +234,7 @@
         {
           "check": "tools.output-schema-structured-result",
           "seq": 6,
-          "detail": "tool \"weather\" declares an outputSchema but this result carries no structuredContent object"
+          "detail": "tool \"weather\" declares an outputSchema but this result carries no structuredContent"
         }
       ],
       "source": {

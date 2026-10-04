@@ -180,6 +180,14 @@ impl rmcp::ClientHandler for HostHandler {
             .enable_elicitation()
             .enable_roots()
             .build();
+        // Both elicitation modes, since `answer_elicitation` answers both: a
+        // bare `elicitation: {}` declares form mode only, and a server must
+        // not send URL mode to a client that did not declare it.
+        info.capabilities.elicitation = Some(
+            rmcp::model::ElicitationCapability::new()
+                .with_form(rmcp::model::FormElicitationCapability::default())
+                .with_url(rmcp::model::UrlElicitationCapability::new()),
+        );
         info
     }
 

@@ -212,7 +212,20 @@
       },
       "source": {
         "section": "basic/index#error-codes",
-        "quote": "New codes MUST NOT be allocated in this sub-range, and new implementations SHOULD NOT use codes from this sub-range at all."
+        "quote": "New codes MUST NOT be allocated in this sub-range"
+      },
+      "exclusion": "Binds allocation — assigning a new meaning to a code in -32000..-32019 — which is an act of whoever defines codes, not a message. A code observed on the wire carries no record of when or by whom it was allocated, so a legacy code in use is indistinguishable from a newly allocated one. Its use is the sentence's other half, BASE-083, which is a SHOULD NOT and is checked at that level: until 2026-10-04 this entry carried both halves at MUST NOT and reported every use of -32000 as a MUST failure."
+    },
+    {
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "new implementations SHOULD NOT use codes from this sub-range at all."
       },
       "checks": [
         "base.error-code-legacy-subrange"

@@ -11,14 +11,14 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
-## [0.6.0] - 2026-09-25
+Everything below ships as **0.6.0**, prepared on `main` and not yet published
+(crates.io serves 0.5.1). It moves under a dated `## [0.6.0]` heading in the
+commit that releases it.
 
-**This is a minor release with breaking behaviour changes and no Rust API
-break**, which pre-1.0 SemVer permits and this project states explicitly.
-`cargo xtask semver` (cargo-semver-checks 0.50.0) reports "no semver update
-required" for the four previously published crates against 0.5.1;
-`mcp-trace-capture` is new. What can break a caller is what the tools output and
-decide:
+**This is a minor release with breaking behaviour changes and one Rust API
+break, in `mcp-reference-host`'s run types**, which pre-1.0 SemVer permits and
+this project states explicitly. `mcp-trace-capture` is new. Besides that API
+change, what can break a caller is what the tools output and decide:
 
 | Surface | Change | Migration |
 |---------|--------|-----------|
@@ -28,11 +28,45 @@ decide:
 | `reader::Limits::default()` | Lines up to 65 MiB (was 1 MiB), up to 1,000,000 events (was 100,000) | `Limits::new(100_000, 1024 * 1024)` for the old caps |
 | Registry data | 31 `source.section` anchors corrected to the ones the spec site publishes (e.g. `basic/index#meta` → `basic/index#_meta`) | Key on the requirement ID, which did not change |
 | `context::draft` | Deprecated alias of `context::stateless` | Use `context::stateless`; the alias goes in the next minor |
+| `validate` human output | Lists failing, warning and unsupported clauses only (the totals still count every clause) | `--all` lists every clause, as before |
+| `JUnit` report | Suites and test cases name the trace (suite name, `classname` prefix, `file`); under `--strict` warnings are `<failure>`s | Match suites by revision inside the name, or pass the trace on stdin for the old names |
+| SARIF | `partialFingerprints` key is `mcpConformanceFinding/v2`, free of `seq`; under `--strict` warnings are level `error` | Alerts keyed on the v1 fingerprint are reopened once |
+| `CACH-001` (2026-07-28) | Requires `cacheScope` as well as `ttlMs` on cacheable results | Send both hints, as the schema's `CacheableResult` requires |
+| `PAGE-010`, `PAGE-011` (2026-07-28) | Excluded: a cursor no result in the session issued no longer shows the cursor was made up or invalid | None; gate on them only at `2025-11-25` (`PAGE-002`, `PAGE-003`) |
+| `BASE-055` (2026-07-28) | Split: allocating a reserved code stays `BASE-055` (now excluded); using a legacy code is `BASE-083`, a SHOULD NOT that warns | Gate on `BASE-083` where `BASE-055` was |
+| `mcp-reference-host` | `cli` is a default feature, so `cargo install mcp-reference-host` installs the binary | Library users: `default-features = false` |
+| `mcp-reference-host` library | `RunPlan::turn_limit` is `Option<u32>`; `PlannedCall`, `CallOutcome`, `RunReport` gain fields | `turn_limit: Some(n)`, `fails_by_design: false` for the old behaviour |
 
 Each is stated again in the entry that introduced it, with the reasoning.
 
 ### Changed — breaking
 
+- **`mcp-reference-host`'s run types grew the fields the two fixes below
+  need.** `RunPlan::turn_limit` is now `Option<u32>` (`None`: one turn per
+  planned call); `PlannedCall` gains `fails_by_design`, `CallOutcome` gains
+  `expected_failure`, and `RunReport` gains `planned` and `expected_failures`.
+  Code that builds these with struct literals must name the new fields —
+  `turn_limit: Some(n)` keeps the old cap, and `fails_by_design: false` the old
+  counting. Pre-1.0 SemVer permits this in a minor release; it is stated here
+  so nobody has to find it from a compile error.
+- **The human report lists what needs attention.** It printed all ~270 clauses, so a
+  single failure scrolled away; it now prints failing, warning and unsupported clauses
+  with their findings, then the totals and the verdict. `--all` lists every clause.
+  `--quiet`, which selected this view in the 0.6.0 pre-release, is accepted and hidden.
+- **`CACH-001` requires both caching hints.** The page defines "caching hints" as
+  `ttlMs` and `cacheScope`, and the schema requires both; the check accepted `ttlMs`
+  alone.
+- **`PAGE-010` and `PAGE-011` are excluded at `2026-07-28`.** Both were judged by
+  watching for a cursor no result in the session had issued. `2026-07-28` drops
+  "Don't persist cursors across sessions", and its caching page tells clients to
+  re-fetch an expired cached page "using its cursor" — a cursor that may predate the
+  recording. Such a cursor is no longer evidence that the client made it up or that
+  it is invalid, so the checks could fail a conforming client or server. Their
+  `2025-11-25` counterparts (`PAGE-002`, `PAGE-003`) still judge it. The draft
+  violation trace built on the old witness is retired; the registry is now 123 judged
+  and 150 excluded.
+- **`BASE-055` is split** so that using a legacy error code is the SHOULD NOT the
+  spec makes it (`BASE-083`, a warning), while allocating one stays a MUST NOT.
 - **`validate` judges the revision the trace declares, and `2026-07-28` ships in
   every build.** Until now a default install judged every trace against `2025-11-25`,
   so a conforming `2026-07-28` session failed `LIFE-001` (and often `BASE-003`) with
@@ -62,6 +96,43 @@ Each is stated again in the entry that introduced it, with the reasoning.
 
 ### Added
 
+- **`mcp-trace-capture` writes a trace per session: `{session}` in `-o`.** The
+  validator judges a trace as one session, but a test suite records many: a client
+  relaunches its stdio servers (each launch with `--force` overwrote the last
+  session's trace), and one HTTP proxy carries every client session of a run. Now
+  `-o 'traces/{session}.jsonl'` writes `traces/001.jsonl`, `traces/002.jsonl`, … —
+  each trace from `seq` 0, each ended with its own `transport-close`. A stdio
+  wrapper takes the lowest number whose file does not exist yet, so every launch gets
+  its own. The proxy starts the next file when a session begins — a request naming
+  an `Mcp-Session-Id` it has not seen, or an `initialize` naming none — and records
+  each later exchange in the trace of the session its `Mcp-Session-Id` names, so
+  interleaved sessions separate too; an exchange naming no session (all of
+  `2026-07-28`, which has none) goes to the session begun most recently. Traffic is
+  forwarded exactly as before: only the file an event lands in changes. A number is
+  claimed by creating its file exclusively, so no existing file is overwritten,
+  `--force` or not, and two launches at once cannot share one. Without `{session}`
+  nothing changes; the existing warning about a trace holding several sessions now
+  suggests `{session}` when the proxy wrote it. Library: `numbered::Numbered`,
+  `traces::Traces` and `http::serve_traces`; `http::serve` keeps its signature. A `-o`
+  path that contained `{session}` literally now names numbered traces.
+- **Several traces in one run.** `validate traces/*.jsonl` judges each, prints a
+  section per trace and a tally, writes one JUnit document and one SARIF run, and exits
+  with the worst trace's status; a trace that cannot be judged counts. The JSON form is
+  an envelope added to `report.schema.json`. Library: `junit::render_traces`,
+  `sarif::render_traces`, and `Verdict::most_severe` (the most severe of several
+  verdicts, as the CLI ranks them: unsupported over fail over warnings over pass).
+- **A GitHub Action** (`action.yml`): validates the traces it is given, writes SARIF
+  and JUnit, summarizes the findings, and fails the step on them; it builds the CLI
+  from its own ref or downloads a release's checksum-verified binaries.
+- **`judge::judge`**, the CLI's verdict in one library call, refusing a contentless
+  trace instead of passing it.
+- **A note when a trace records more than one session** (validator and capture): two
+  clients in one file draw findings that are artifacts of recording them together.
+- **The book has a user guide**: getting started, using it in CI, troubleshooting.
+- **An interop CI job**: the official TypeScript and Python SDKs talk to each other
+  through `mcp-trace-capture` over stdio and HTTP, and every session must judge clean
+  at the revision its SDK speaks.
+- `mcp-trace-capture` warns when `--listen` is not a loopback address.
 - **`mcp-trace-capture`, a new crate: record any MCP session as a trace.** Wrap a stdio
   server (`mcp-trace-capture -o t.jsonl stdio -- <server> [args…]`, launched by the
   client in the server's place) or proxy a streamable-HTTP one
@@ -132,6 +203,120 @@ Each is stated again in the entry that introduced it, with the reasoning.
 
 ### Fixed
 
+- **The reference host passes against this project's own everything-server
+  with default flags.** `mcp-reference-host --server-cmd mcp-everything-server`
+  exited 1 twice over: the server's `test_error_handling` tool exhausted the
+  zero error budget, and once the budget was raised the generic plan's fixed
+  cap of 16 turns stopped it with two of the server's 18 tools uncalled. Both
+  fixes keep the checks the host makes:
+  - A tool the official suite defines as failing by design — matched by its
+    exact name, `test_error_handling`, from the `tools-call-error` scenario —
+    is planned *expecting* its in-band `isError: true` result. That result is
+    recorded and shown (`ok   test_error_handling: failed as documented, not
+    counted (…)`) instead of being counted. The expectation is held both ways:
+    the same tool *succeeding*, or answering with a protocol error instead of
+    the in-band result, still counts as an error, and an ordinary tool's error
+    result counts exactly as before. The default error budget stays 0.
+  - The generic plan no longer has a fixed turn cap. It calls each listed tool
+    once, so it is finite by construction; the cap only ever truncated a
+    server with more tools than 16, and `--deadline-secs` still bounds the
+    time. `--turn-limit` still caps a run, and when it does the message now
+    counts what it left out and names the value that fits: `stopped at the
+    --turn-limit of 16 with 2 of 18 planned call(s) not made (0 error(s));
+    --turn-limit 18 would let every call run`.
+
+  The suite's own client scenarios publish one tool each, none of them
+  `test_error_handling`, so their plans call exactly what they did. `cargo
+  xtask draft-capture` passes `--error-budget` and `--turn-limit` explicitly
+  and records the same session as before.
+- **The reference host says why a session could not start, instead of
+  printing rmcp's types.** A refused port printed `initialization failed: Send
+  message error Transport [rmcp::transport::worker::WorkerTransport<…reqwest…>]
+  error: Client error: error sending request for url (…)`. The new `diagnose`
+  module walks the error's source chain by type — down to the `io::Error` under
+  reqwest, or the HTTP status rmcp reports — and says it in the operator's
+  words:
+  - `cannot connect to http://127.0.0.1:1/mcp: connection refused — is the
+    server running, and listening on that port?`
+  - `http://127.0.0.1:8080/wrong: the server answered 404 Not Found — is the
+    MCP endpoint path right?` (at both revisions; `2026-07-28` reports it
+    through `server/discover`)
+  - `the server command "false" exited before the session started — run it by
+    hand to see why`
+  - `cannot start the server command "/no/such/server": /no/such/server was not
+    found — check the path, or that it is on PATH`
+
+  Exit codes are unchanged: each of these is still a run failure, exit 1.
+- **Wrong verdicts on conforming traffic**, each reproduced on real SDK recordings
+  or the spec's own examples:
+  - a session teardown `DELETE` answered `200` with no body (what the official
+    TypeScript SDK sends) failed `TRAN-029`/`TRAN-040`;
+  - `TOOL-011`/`TOOL-040` judged a multi-round-trip tool's `input_required` interim
+    result, and a task-augmented call's `CreateTaskResult`, as the tool's result, and
+    demanded an object `structuredContent` where `2026-07-28` allows any value;
+  - a dual-era client's `server/discover` probe, refused by a legacy server before it
+    falls back to `initialize`, failed `LIFE-001` and, over HTTP, made the trace be
+    judged under `2026-07-28` too;
+  - an error echoing a malformed request's readable id failed `BASE-009`;
+  - an `initialize` retried after an error was never recorded, so every
+    capability-gated clause afterwards went unjudged and `LIFE-005` warned falsely;
+  - at `2026-07-28`: parallel multi-round-trip retries paired with the wrong round;
+    concurrent HTTP requests paired with the wrong body; the stdio subscription
+    teardown failed `BASE-039`/`SUBS-001`; `RES-022` convicted any empty read;
+    `TRAN-070` treated an upstream abort as cancelling every request; `TRAN-097`/`100`
+    compared integers as text; `TRAN-124` ignored the cancellation race; `TOOL-034`
+    applied to stdio; `BASE-031`/`032` ignored the order of a reused id;
+    a recording whose server never answered — the capture could not reach it, or
+    the client's `initialize` went unanswered — passed on the client's clauses
+    alone; it is now refused with exit 2 (`JudgeError::NeverAnswered` in the
+    library), as an empty recording is;
+    `LIFE-001` blamed the client when a server wrote a non-JSON line (a log banner)
+    to stdout before `initialize`;
+    `PROM-020` warned when a server answered a `prompts/get` missing a required
+    argument by asking for input (`input_required`), or served the retry that
+    supplied it.
+- **Missed violations:** `application/json-seq` passed as `application/json`;
+  `TRAN-073`/`096` did not judge refusals carrying `id: null`; `LOG-008` missed a log
+  for a request that did not opt in;
+  `LIFE-009` (2025-11-25) judged top-level capabilities only, and now also convicts
+  an elicitation in a mode the client did not declare (`elicitation: {}` is form
+  only), a sampling request carrying `tools` without `sampling.tools`, and a
+  task-augmented `tools/call` without the server's `tasks.requests.tools.call` —
+  each a MUST NOT on its own page — and a `tasks/list` or `tasks/cancel` sent to a
+  party that did not declare `tasks.list` or `tasks.cancel`.
+- **`mcp-everything-server` sent URL-mode elicitations to form-only clients.**
+  `test_url_elicitation` checked only that the client declared `elicitation`,
+  but `elicitation: {}` is form mode only and servers "MUST NOT send elicitation
+  requests with modes that are not supported by the client". It now requires
+  `elicitation.url` and refuses otherwise. Found by the `LIFE-009` sub-capability
+  check above, on the conformance gate's own reference-host session.
+  `mcp-reference-host`, which answers both modes, now declares
+  `elicitation: {"form": {}, "url": {}}` rather than a bare `{}`.
+- **HTTP status and `Content-Type` are judged per exchange.** `TRAN-029`/`TRAN-063`
+  and `TRAN-040` shared one check that accepted either media type on any `200`, so a
+  GET answered with JSON passed, a request answered `202` was never examined, and a
+  bad POST response also failed the GET clause. Each response is now tied to the
+  request it answered when the recording's order allows (overlapping exchanges are
+  left unjudged rather than guessed): a request must get JSON or an event stream, a
+  GET an event stream, each against its own clause. `TRAN-027`/`TRAN-061` — an
+  accepted notification or response is answered `202` — are judged for the first
+  time (they were excluded as uncorrelatable). `TRAN-016` and `TRAN-024`/`TRAN-055`
+  stay excluded, with reasons that now say what the trace does and does not show.
+- `validate` exits `2` when the report cannot be written (it exited `0`, leaving CI to
+  upload a truncated file), and `3`, with the line, for a trace that is not UTF-8 (with
+  a hint for UTF-16).
+- **`mcp-trace-capture`:** non-JSON stdio lines are recorded (as string payloads) and
+  judged, instead of dropped; stop signals reach a wrapped server's whole process group,
+  so a launcher (`npx`, `uv run`) no longer strands it; the HTTP proxy stops promptly
+  with event streams open; an upstream response cut off mid-body reaches the client as
+  the same truncation instead of a proxy-made `502`; a request's headers and body are
+  recorded together under concurrency; a run that fails to start leaves no empty trace
+  behind; `--upstream`'s query string is kept and credentials in it are refused.
+- **Release:** `mcp-trace-capture` published third would have failed every time (it
+  dev-depends on a crate published after it); resuming a partly published tag failed
+  on the first crate; the publish job no longer compiles anything while it holds the
+  crates.io token; Windows binaries link the C runtime statically.
+- The weekly dependency-floor job resolves again (one `serde_json` floor, 1.0.143).
 - **A trace `mcp-trace-capture` records at its defaults is one the validator reads at
   its defaults.** The capture kept messages up to 64 MiB, the validator refused any
   line over 1 MiB, so one large tool result (a base64 image is enough) made the whole
@@ -2777,8 +2962,7 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.6.0...HEAD
-[0.6.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.6.0
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.5.1...HEAD
 [0.5.1]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.1
 [0.5.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.0
 [0.4.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.4.0

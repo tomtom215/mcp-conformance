@@ -19,9 +19,9 @@ changelog and becomes a measurement.
 
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Registry entries | 142 | 272 |
-| Judged by a named check | 55 | 125 |
-| Carrying a documented exclusion | 87 | 147 |
+| Registry entries | 142 | 273 |
+| Judged by a named check | 56 | 124 |
+| Carrying a documented exclusion | 86 | 149 |
 | Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -79,14 +79,14 @@ And the verdict splits:
 
 ```text
 per revision:
-  2025-11-25: 17 pass, 0 fail, 0 warn, 87 excluded, 0 unsupported, 14 not applicable, 24 not observed — verdict pass
-  2026-07-28: 14 pass, 8 fail, 0 warn, 147 excluded, 0 unsupported, 0 not applicable, 103 not observed — verdict fail
+  2025-11-25: 17 pass, 0 fail, 0 warn, 86 excluded, 0 unsupported, 14 not applicable, 25 not observed — verdict pass
+  2026-07-28: 14 pass, 8 fail, 0 warn, 149 excluded, 0 unsupported, 0 not applicable, 102 not observed — verdict fail
 overall verdict: fail
 ```
 
 A conforming session today, and eight concrete failures tomorrow. Both summary
 lines account for **every** clause in their revision — the counts add up to 142
-and 272 — because a line that quietly omits an outcome is a line that overstates
+and 273 — because a line that quietly omits an outcome is a line that overstates
 what was measured.
 
 > The example above is executed by a test (`book_examples.rs`) against the real
@@ -153,10 +153,10 @@ usually are.
 
 - The reference server serves the stateless surface with
   `--protocol-version 2026-07-28`, and the official suite's `2026-07-28`
-  scenarios score **41 passing / 0 failing** against it.
+  scenarios score **42 passing / 0 failing** against it.
 - Five committed captures — a conforming session over each transport, a *probe*
   session of deliberately malformed requests, and the official runner's two —
-  evidence **114 of the 125 judgeable clauses** between them. What no capture
+  evidence **112 of the 124 judgeable clauses** between them. What no capture
   reaches is named, one clause at a time, in [the corpus chapter](corpus.md).
 - `cargo xtask draft-readiness` re-runs that measurement and **ratchets** it
   against a committed baseline: any change in either direction fails the build,

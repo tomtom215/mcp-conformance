@@ -52,15 +52,15 @@ pub(crate) struct Cli {
     pub(crate) deadline_secs: u64,
     /// Let the run continue past this many errors. Overrides the scenario
     /// plan's budget, which is `0` because the suite's scenarios judge a
-    /// clean run; a recording sweeping every tool meets `test_error_handling`,
-    /// whose whole job is to return one.
+    /// clean run. A tool documented to fail (the suite's
+    /// `test_error_handling`) answering with its error result is expected and
+    /// not counted; it succeeding, or any other tool failing, is.
     #[arg(long, value_name = "N")]
     pub(crate) error_budget: Option<u32>,
-    /// Cap the run at this many turns, overriding the scenario plan's, which
-    /// is `16` for the generic plan. That bound is sized for the suite's
-    /// scenarios, which publish one tool each; this workspace's own
-    /// everything-server publishes more than sixteen, so a run meant to reach
-    /// every tool needs a higher cap — `cargo xtask draft-capture` passes 32.
+    /// Cap the run at this many turns. By default the generic plan allows one
+    /// turn per tool the server lists — the plan is finite already, and
+    /// `--deadline-secs` bounds the time — so this is only for stopping
+    /// sooner.
     #[arg(long, value_name = "N")]
     pub(crate) turn_limit: Option<u32>,
     /// Open a `subscriptions/listen` stream before the tool loop and drain it

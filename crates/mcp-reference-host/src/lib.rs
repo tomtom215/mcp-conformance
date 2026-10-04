@@ -36,6 +36,9 @@
 //! - [`connect`] — the two real transports, from rmcp's official client
 //!   features: child-process stdio (feature `proc`) and streamable HTTP
 //!   (feature `http`).
+//! - [`diagnose`] — errors for humans: why a session could not start (a
+//!   refused port, a wrong endpoint path, a stdio server that exited), found by
+//!   walking the error's source chain rather than printing rmcp's types.
 //! - [`scenario`] — the pinned suite's client scenarios as plans; one table,
 //!   governed by the suite pin (ADR-0009).
 //! - `resume` (feature `http`) — the compliant SSE-resumption dance rmcp
@@ -47,6 +50,7 @@
 pub mod cancel;
 pub mod capture;
 pub mod connect;
+pub mod diagnose;
 pub mod handler;
 #[cfg(feature = "http")]
 pub mod probe;

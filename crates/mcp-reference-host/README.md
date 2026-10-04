@@ -20,7 +20,16 @@ for the conformance toolkit (roadmap M3, ADR-0009), built on
   with schema-derived arguments (local `$ref`s resolved, enum shapes sampled),
   under an explicit stop-condition lattice — cancellation, turn limit, error
   budget, completion — every variant a tested stop reason against the real
-  `mcp-everything-server`.
+  `mcp-everything-server`. The generic plan passes against that server with
+  default flags: it allows one turn per listed tool, and plans the suite's
+  `test_error_handling` *expecting* its `isError: true` result, which is
+  recorded rather than counted (that tool succeeding, or any other tool
+  failing, still counts against the zero error budget).
+- `diagnose` — errors for humans: a session that cannot start is reported as
+  its cause (`cannot connect to http://127.0.0.1:1/mcp: connection refused`,
+  `…/wrong: the server answered 404 Not Found — is the MCP endpoint path
+  right?`, a stdio server that exited or was not found), found by walking the
+  error's source chain rather than printing rmcp's transport types.
 - `retry` — the deterministic exponential-backoff policy (caller-supplied
   jitter, `Retry-After` honoring with hard caps) the transport layer builds on.
 - `connect` — the two real transports, from rmcp's official client features:
@@ -37,7 +46,9 @@ for the conformance toolkit (roadmap M3, ADR-0009), built on
   `StreamableHttpClient` seam because rmcp's own transport (measured at 1.7) lost an
   in-flight request when its POST SSE stream closes early (measured; ADR-0009
   §Amendment).
-- the binary (feature `cli`) — the official suite's client SUT: the runner
+- the binary (feature `cli`, on by default: `cargo install mcp-reference-host`
+  installs it; library users opt out with `default-features = false`) — the
+  official suite's client SUT: the runner
   appends the scenario server's URL as the final argument and names the
   scenario in `MCP_CONFORMANCE_SCENARIO`; `scenario.rs` is the one table
   mapping names to plans. All four `2025-11-25` protocol scenarios pass at

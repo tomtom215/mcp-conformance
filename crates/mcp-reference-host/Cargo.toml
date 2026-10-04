@@ -21,7 +21,13 @@ all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
 
 [features]
-default = []
+# The binary by default, as ADR-0005 sets for every crate here that ships one
+# (validator, everything-server, capture): `cargo install mcp-reference-host`
+# must install it. With `default = []` that command built nothing — the bin's
+# `required-features = ["cli"]` was never met. Library consumers (the handlers,
+# the agent loop) use `default-features = false`, which drops clap, the child-
+# process transport and the reqwest stack; CI lints and tests that mode.
+default = ["cli"]
 # Child-process transport: the host spawns a stdio server (`--server-cmd`).
 proc = ["rmcp/transport-child-process", "tokio/process"]
 # Streamable HTTP transport plus the SSE-resumption client (`resume`), which

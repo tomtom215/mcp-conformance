@@ -70,14 +70,7 @@ worth saying plainly, because an anchor decaying is harder to notice than an ite
 pattern is no longer a caution about backlog hygiene. It is the dominant outcome: a gaps-based
 backlog has now been overtaken upstream more often than it has been filed against.
 
-Row 3.7 is the one that changes who this page is addressed to. It named 4t145 and jokemanfire as
-the most active maintainers; neither has committed to rust-sdk in ninety days, and 4t145 not
-since 2025-10-13. Over the 181 commits since 2026-05-26 the most active author is **Dale Seo**
-(67), ahead of Jack Amadeo (13) and Alex Hancock (10). Both resolve to people already named on
-this page, and the git identities carry the proof rather than the resemblance: Dale Seo commits as
-`5466341+DaleSeo@users.noreply.github.com` — the `DaleSeo` who approved and merged the community
-`enumNames` fix in item 9 — and `7698802 chore: declare and check MSRV (#1034)`, item 3's PR, is
-authored by Jack Amadeo.
+Row 3.7 changes who this page is addressed to: the two people it named as the most active maintainers are not the ones merging and reviewing current work, per the commit log. Engagement goes through the rust-sdk team and the maintainers active on each relevant issue — the ones who reviewed and merged backlog items 3 and 9.
 The evidence for the current maintainer picture was already on this page, in two items, and was
 never carried back to the row that claimed otherwise. **And [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) — item 1's
 offer, the only entry still anchored to a gap the ecosystem publishes — appears to have been

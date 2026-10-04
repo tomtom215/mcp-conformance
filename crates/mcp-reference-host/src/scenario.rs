@@ -53,7 +53,7 @@ pub fn plan_for(scenario: Option<&str>) -> ScenarioPlan {
             // The handshake happens on connect; an empty plan then exits
             // cleanly — exactly what the scenario's checks judge.
             plan: RunPlan {
-                turn_limit: 0,
+                turn_limit: Some(0),
                 error_budget: 0,
                 calls: CallPolicy::Scripted(Vec::new()),
                 log_level: None,
@@ -66,10 +66,15 @@ pub fn plan_for(scenario: Option<&str>) -> ScenarioPlan {
         // schema-derived arguments, answer interactions from the default
         // script. Both named scenarios publish exactly one tool, so "each
         // once" is precisely the call they require.
+        //
+        // No fixed turn cap: the plan is one call per listed tool, so it is
+        // already finite, and the cap of 16 this used to carry only truncated
+        // servers with more tools than that — this workspace's own
+        // everything-server among them. The binary's deadline bounds the time.
         _ => ScenarioPlan::Agent {
             script: InteractionScript::default(),
             plan: RunPlan {
-                turn_limit: 16,
+                turn_limit: None,
                 error_budget: 0,
                 calls: CallPolicy::EachDiscoveredToolOnce,
                 log_level: None,
@@ -115,7 +120,10 @@ mod tests {
                 matches!(plan.calls, CallPolicy::EachDiscoveredToolOnce),
                 "{scenario:?}"
             );
-            assert!(plan.turn_limit >= 1, "{scenario:?} must afford a call");
+            assert_eq!(
+                plan.turn_limit, None,
+                "{scenario:?} must afford every call it plans"
+            );
             // SEP-1034 hinges on this policy: defaults filled, not invented.
             assert_eq!(script.elicitation, ElicitationPolicy::AcceptWithDefaults);
         }

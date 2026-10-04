@@ -3,12 +3,12 @@
   "verdict": "fail",
   "totals": {
     "pass": 27,
-    "fail": 2,
-    "warn": 0,
-    "excluded": 147,
+    "fail": 1,
+    "warn": 1,
+    "excluded": 149,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 96
+    "not_observed": 95
   },
   "requirements": [
     {
@@ -62,19 +62,19 @@
       "outcome": "pass"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
-      "outcome": "fail",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
+      "outcome": "warn",
       "findings": [
         {
           "check": "base.error-code-legacy-subrange",
           "seq": 1,
-          "detail": "error code -32002 is in the legacy sub-range (-32000..-32019), which 2026-07-28 implementations are not to use"
+          "detail": "error code -32002 is in the legacy sub-range (-32000..-32019), which new 2026-07-28 implementations should not use"
         }
       ],
       "source": {
         "section": "basic/index#error-codes",
-        "quote": "New codes MUST NOT be allocated in this sub-range, and new implementations SHOULD NOT use codes from this sub-range at all.",
+        "quote": "new implementations SHOULD NOT use codes from this sub-range at all.",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#error-codes"
       }
     },
@@ -189,6 +189,11 @@
       "id": "TRAN-060",
       "level": "MUST NOT",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-061",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-063",
@@ -494,16 +499,6 @@
       "id": "PAGE-006",
       "level": "MUST",
       "outcome": "pass"
-    },
-    {
-      "id": "PAGE-010",
-      "level": "MUST",
-      "outcome": "not-observed"
-    },
-    {
-      "id": "PAGE-011",
-      "level": "SHOULD",
-      "outcome": "not-observed"
     },
     {
       "id": "LOG-007",

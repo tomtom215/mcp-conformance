@@ -244,3 +244,25 @@ fn judged_nothing_is_only_a_run_with_clauses_it_never_reached() {
     );
     assert!(!totals(0, 0, 0, 0, 0).judged_nothing(), "nothing to reach");
 }
+
+#[test]
+fn the_most_severe_verdict_ranks_unsupported_over_fail_over_warnings_over_pass() {
+    use super::Verdict;
+    use super::Verdict::{Fail, Pass, PassWithWarnings, Unsupported};
+    assert_eq!(Verdict::most_severe([]), None);
+    assert_eq!(Verdict::most_severe([Pass]), Some(Pass));
+    assert_eq!(
+        Verdict::most_severe([Pass, PassWithWarnings, Pass]),
+        Some(PassWithWarnings)
+    );
+    assert_eq!(
+        Verdict::most_severe([PassWithWarnings, Fail, Pass]),
+        Some(Fail)
+    );
+    assert_eq!(Verdict::most_severe([Fail, PassWithWarnings]), Some(Fail));
+    assert_eq!(Verdict::most_severe([Unsupported, Fail]), Some(Unsupported));
+    assert_eq!(
+        Verdict::most_severe([Fail, Unsupported, Pass]),
+        Some(Unsupported)
+    );
+}

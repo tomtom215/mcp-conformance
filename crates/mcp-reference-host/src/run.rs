@@ -24,7 +24,13 @@ use tokio_util::sync::CancellationToken;
 #[derive(Debug, Clone)]
 pub struct RunPlan {
     /// Maximum tool calls before the loop stops with [`StopReason::TurnLimit`].
-    pub turn_limit: u32,
+    ///
+    /// `None` allows exactly as many turns as the plan has calls. Every plan is
+    /// finite by construction — a script, or one call per tool in a single
+    /// listing — so the plan is already the bound; a fixed number under it only
+    /// truncates a server that publishes more tools than someone guessed.
+    /// `Some` is for a caller that wants a tighter cap than the plan.
+    pub turn_limit: Option<u32>,
     /// Errors tolerated before [`StopReason::ErrorBudgetExhausted`]: the run
     /// stops once `errors > error_budget` (a budget of 0 stops on the first).
     pub error_budget: u32,
@@ -66,6 +72,30 @@ pub struct PlannedCall {
     pub tool: String,
     /// Arguments object (`None` for tools taking none).
     pub arguments: Option<Map<String, Value>>,
+    /// The tool is documented to fail: an in-band `isError: true` result is
+    /// the answer it promises, so it is recorded as expected rather than
+    /// counted against the error budget.
+    ///
+    /// The expectation is held both ways: a *success* from such a tool, or a
+    /// protocol error instead of the in-band result, still counts — the call
+    /// is checked against its documentation, not excused from checking.
+    pub fails_by_design: bool,
+}
+
+/// Tools a server publishes *in order to* fail, by the name that says so.
+///
+/// `test_error_handling` is the official suite's contract, not this
+/// workspace's invention: the `tools-call-error` server scenario (suite
+/// `0.1.16`) requires a tool of exactly that name to answer with an in-band
+/// `isError: true` result. Matched by exact name rather than by reading the
+/// description, so a third-party tool whose prose merely mentions errors is
+/// judged like any other.
+pub const FAILS_BY_DESIGN: &[&str] = &["test_error_handling"];
+
+/// Whether `tool` is one of the [`FAILS_BY_DESIGN`] tools.
+#[must_use]
+pub fn fails_by_design(tool: &str) -> bool {
+    FAILS_BY_DESIGN.contains(&tool)
 }
 
 /// Why the loop stopped. Exactly one reason per run.
@@ -89,6 +119,10 @@ pub struct CallOutcome {
     /// `Ok` carries the first text block (empty string when none); `Err`
     /// carries the protocol error or in-band tool error, rendered.
     pub result: Result<String, String>,
+    /// The call was [`PlannedCall::fails_by_design`] and answered with the
+    /// in-band error result it documents: `result` is `Err`, and it is not
+    /// counted in [`RunReport::errors`].
+    pub expected_failure: bool,
 }
 
 /// The completed run, accounted.
@@ -96,8 +130,15 @@ pub struct CallOutcome {
 pub struct RunReport {
     /// Tool calls executed (= `outcomes.len()`).
     pub turns: u32,
-    /// Errors observed (protocol errors and in-band `isError` results).
+    /// Calls the plan held, once resolved (the listing's length under
+    /// [`CallPolicy::EachDiscoveredToolOnce`]).
+    pub planned: u32,
+    /// Errors observed (protocol errors and in-band `isError` results), less
+    /// the expected failures.
     pub errors: u32,
+    /// In-band error results from [`PlannedCall::fails_by_design`] calls —
+    /// the answer those tools document, so not counted in `errors`.
+    pub expected_failures: u32,
     /// Why the loop ended.
     pub stop: StopReason,
     /// Per-call observations, in execution order.
@@ -126,7 +167,9 @@ pub async fn run<S: Service<RoleClient>>(
     let peer: &Peer<RoleClient> = client.peer();
     let mut report = RunReport {
         turns: 0,
+        planned: 0,
         errors: 0,
+        expected_failures: 0,
         stop: StopReason::Completed,
         outcomes: Vec::new(),
     };
@@ -138,20 +181,26 @@ pub async fn run<S: Service<RoleClient>>(
         }
         return report;
     };
+    report.planned = u32::try_from(calls.len()).unwrap_or(u32::MAX);
+    let turn_limit = plan.turn_limit.unwrap_or(report.planned);
 
     for call in calls {
         if cancel.is_cancelled() {
             report.stop = StopReason::Cancelled;
             return report;
         }
-        if report.turns >= plan.turn_limit {
+        if report.turns >= turn_limit {
             report.stop = StopReason::TurnLimit;
             return report;
         }
 
         // The loop owns the plan entry: move the arguments instead of
         // cloning them (clippy 1.88's assigning_clones caught the clone).
-        let PlannedCall { tool, arguments } = call;
+        let PlannedCall {
+            tool,
+            arguments,
+            fails_by_design,
+        } = call;
         let mut params = CallToolRequestParams::new(tool.clone());
         params.arguments = arguments;
         // Set before the call so rmcp's own `_meta` injection (protocol
@@ -162,8 +211,17 @@ pub async fn run<S: Service<RoleClient>>(
         let outcome = client.call_tool(params).await;
         report.turns += 1;
 
-        let result = judge_outcome(outcome, &mut report.errors);
-        report.outcomes.push(CallOutcome { tool, result });
+        let (result, expected_failure) = judge_outcome(outcome, fails_by_design);
+        if expected_failure {
+            report.expected_failures += 1;
+        } else if result.is_err() {
+            report.errors += 1;
+        }
+        report.outcomes.push(CallOutcome {
+            tool,
+            result,
+            expected_failure,
+        });
 
         if report.errors > plan.error_budget {
             report.stop = StopReason::ErrorBudgetExhausted;
@@ -195,12 +253,17 @@ fn call_meta(plan: &RunPlan) -> Option<RequestMetaObject> {
     Some(meta)
 }
 
-/// Renders one call's outcome, counting protocol errors and in-band
-/// `isError` results against `errors`.
+/// Renders one call's outcome, and whether it was the failure the tool
+/// documents.
+///
+/// Every `Err` that is not an expected failure is an error the caller counts:
+/// protocol errors, in-band `isError` results from ordinary tools, and a
+/// success from a tool [`fails_by_design`] — which broke its documentation as
+/// surely as an ordinary tool that failed.
 fn judge_outcome(
     outcome: Result<rmcp::model::CallToolResult, rmcp::ServiceError>,
-    errors: &mut u32,
-) -> Result<String, String> {
+    fails_by_design: bool,
+) -> (Result<String, String>, bool) {
     match outcome {
         Ok(result) => {
             let text = result
@@ -209,17 +272,18 @@ fn judge_outcome(
                 .and_then(|content| content.as_text())
                 .map(|text| text.text.clone())
                 .unwrap_or_default();
-            if result.is_error == Some(true) {
-                *errors += 1;
-                Err(format!("tool error: {text}"))
-            } else {
-                Ok(text)
+            match (result.is_error == Some(true), fails_by_design) {
+                (true, expected) => (Err(format!("tool error: {text}")), expected),
+                (false, true) => (
+                    Err(format!(
+                        "documented to fail with an error result, but succeeded: {text}"
+                    )),
+                    false,
+                ),
+                (false, false) => (Ok(text), false),
             }
         }
-        Err(error) => {
-            *errors += 1;
-            Err(error.to_string())
-        }
+        Err(error) => (Err(error.to_string()), false),
     }
 }
 
@@ -240,6 +304,7 @@ async fn resolve_calls(
                     .map(|tool| PlannedCall {
                         tool: tool.name.to_string(),
                         arguments: Some(synthesize_arguments(&tool.input_schema)),
+                        fails_by_design: fails_by_design(&tool.name),
                     })
                     .collect(),
             ),
@@ -248,6 +313,7 @@ async fn resolve_calls(
                 report.outcomes.push(CallOutcome {
                     tool: "tools/list".to_owned(),
                     result: Err(error.to_string()),
+                    expected_failure: false,
                 });
                 None
             }
@@ -343,157 +409,4 @@ fn resolve_local_refs<'a>(root: &'a Map<String, Value>, mut schema: &'a Value) -
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
-mod tests {
-    use super::*;
-
-    fn plan(log_level: Option<LoggingLevel>, trace_parent: Option<&str>) -> RunPlan {
-        RunPlan {
-            turn_limit: 1,
-            error_budget: 0,
-            calls: CallPolicy::EachDiscoveredToolOnce,
-            log_level,
-            trace_parent: trace_parent.map(str::to_owned),
-        }
-    }
-
-    /// Each field alone must still produce a `_meta`, which is the arm the
-    /// capture cannot exercise: it sets both, so an `and` here would behave
-    /// identically on every recording and on every test that drives one.
-    #[test]
-    fn either_field_alone_is_enough_to_carry_a_meta() {
-        assert!(call_meta(&plan(None, None)).is_none(), "neither asked for");
-
-        let logging = call_meta(&plan(Some(LoggingLevel::Debug), None)).unwrap();
-        assert!(logging.get_traceparent().is_none(), "{logging:?}");
-        assert!(
-            serde_json::to_string(&logging)
-                .unwrap()
-                .contains("logLevel"),
-            "{logging:?}"
-        );
-
-        let traced = call_meta(&plan(
-            None,
-            Some("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),
-        ))
-        .unwrap();
-        assert_eq!(
-            traced.get_traceparent(),
-            Some("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01")
-        );
-        assert!(
-            !serde_json::to_string(&traced).unwrap().contains("logLevel"),
-            "{traced:?}"
-        );
-
-        let both = call_meta(&plan(
-            Some(LoggingLevel::Debug),
-            Some("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),
-        ))
-        .unwrap();
-        assert!(both.get_traceparent().is_some(), "{both:?}");
-        assert!(
-            serde_json::to_string(&both).unwrap().contains("logLevel"),
-            "{both:?}"
-        );
-    }
-
-    #[test]
-    fn synthesized_arguments_cover_required_properties_only() {
-        let schema: Map<String, Value> = serde_json::from_value(serde_json::json!({
-            "type": "object",
-            "properties": {
-                "a": { "type": "number" },
-                "b": { "type": "number" },
-                "note": { "type": "string" }
-            },
-            "required": ["a", "b"]
-        }))
-        .unwrap();
-        let arguments = synthesize_arguments(&schema);
-        assert_eq!(arguments.len(), 2, "{arguments:?}");
-        assert_eq!(arguments["a"], 7);
-        assert_eq!(arguments["b"], 7);
-    }
-
-    #[test]
-    fn synthesized_arguments_respect_types_and_enums() {
-        let schema: Map<String, Value> = serde_json::from_value(serde_json::json!({
-            "type": "object",
-            "properties": {
-                "city": { "type": "string", "enum": ["New York", "Chicago"] },
-                "flag": { "type": "boolean" },
-                "items": { "type": "array" },
-                "config": { "type": "object" },
-                "message": { "type": "string" }
-            },
-            "required": ["city", "flag", "items", "config", "message"]
-        }))
-        .unwrap();
-        let arguments = synthesize_arguments(&schema);
-        assert_eq!(arguments["city"], "New York", "first enum value wins");
-        assert_eq!(arguments["flag"], true);
-        assert_eq!(arguments["items"], serde_json::json!([]));
-        assert_eq!(
-            arguments["config"],
-            serde_json::json!({}),
-            "object-typed requirements get an empty object, not a string"
-        );
-        assert_eq!(arguments["message"], "probe");
-    }
-
-    #[test]
-    fn schemars_ref_enums_resolve_to_their_first_const() {
-        // The exact shape `#[derive(JsonSchema)]` emits for a Rust enum:
-        // the property is a `$ref` into `$defs`, and the definition is a
-        // `oneOf` of `const` variants (get-structured-content's Location).
-        let schema: Map<String, Value> = serde_json::from_value(serde_json::json!({
-            "$defs": {
-                "Location": {
-                    "oneOf": [
-                        { "const": "New York", "type": "string" },
-                        { "const": "Chicago", "type": "string" }
-                    ]
-                }
-            },
-            "type": "object",
-            "properties": { "location": { "$ref": "#/$defs/Location" } },
-            "required": ["location"]
-        }))
-        .unwrap();
-        assert_eq!(synthesize_arguments(&schema)["location"], "New York");
-    }
-
-    #[test]
-    fn unresolvable_and_cyclic_refs_degrade_to_the_string_probe() {
-        // A dangling ref and a two-node cycle: the resolver must stay
-        // bounded and total, never loop or panic.
-        let schema: Map<String, Value> = serde_json::from_value(serde_json::json!({
-            "$defs": {
-                "A": { "$ref": "#/$defs/B" },
-                "B": { "$ref": "#/$defs/A" }
-            },
-            "type": "object",
-            "properties": {
-                "dangling": { "$ref": "#/$defs/Missing" },
-                "cyclic": { "$ref": "#/$defs/A" }
-            },
-            "required": ["dangling", "cyclic"]
-        }))
-        .unwrap();
-        let arguments = synthesize_arguments(&schema);
-        assert_eq!(arguments["dangling"], "probe");
-        assert_eq!(arguments["cyclic"], "probe");
-    }
-
-    #[test]
-    fn no_required_block_synthesizes_the_empty_call() {
-        let schema: Map<String, Value> = serde_json::from_value(serde_json::json!({
-            "type": "object",
-            "properties": { "opt": { "type": "string" } }
-        }))
-        .unwrap();
-        assert!(synthesize_arguments(&schema).is_empty());
-    }
-}
+mod tests;

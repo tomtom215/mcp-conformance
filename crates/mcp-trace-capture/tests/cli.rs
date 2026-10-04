@@ -113,9 +113,33 @@ fn the_servers_exit_code_passes_through_and_its_failure_is_an_abort() {
     assert!(text.contains(r#""event":"transport-abort""#), "{text}");
 }
 
+/// The validator's outcome for requirement `id` over `trace`, judged at `revision`.
+#[cfg(unix)]
+fn outcome_of(trace: &str, revision: &str, id: &str) -> mcp_trace_validator::report::Outcome {
+    let events = mcp_trace_validator::reader::parse_trace(
+        trace,
+        &mcp_trace_validator::reader::Limits::default(),
+    )
+    .unwrap();
+    let set = mcp_conformance_core::requirement::RegistrySet::builtin().unwrap();
+    let registry = set.registry(revision.parse().unwrap()).unwrap();
+    let report = mcp_trace_validator::engine::validate(&registry, &events);
+    report
+        .requirements
+        .iter()
+        .find(|requirement| requirement.id == id)
+        .unwrap_or_else(|| panic!("{id} is judged at {revision}"))
+        .outcome
+}
+
+/// A server that logs to stdout breaks the stdio transport (TRAN-004 at
+/// 2025-11-25, TRAN-117 at 2026-07-28). The bytes still reach the client
+/// unchanged; the trace now holds the line as a string payload, so the validator
+/// convicts it instead of judging the session clean.
 #[cfg(unix)]
 #[test]
-fn non_json_server_output_is_forwarded_and_reported_not_recorded() {
+fn non_json_lines_are_forwarded_and_recorded_for_the_validator_to_convict() {
+    use mcp_trace_validator::report::Outcome;
     let trace = scratch("notjson");
     let mut command = binary();
     command.args([
@@ -125,22 +149,30 @@ fn non_json_server_output_is_forwarded_and_reported_not_recorded() {
         "--",
         "sh",
         "-c",
-        "echo 'log line on stdout'; echo '{\"jsonrpc\":\"2.0\",\"method\":\"x\"}'",
+        "echo 'log line on stdout'; echo '{\"jsonrpc\":\"2.0\",\"method\":\"x\"}'; cat >/dev/null",
     ]);
-    let output = run_with_stdin(command, b"");
+    let output = run_with_stdin(command, b"client noise\n");
     let text = std::fs::read_to_string(&trace).unwrap();
     std::fs::remove_file(&trace).ok();
     assert_eq!(
         String::from_utf8_lossy(&output.stdout),
         "log line on stdout\n{\"jsonrpc\":\"2.0\",\"method\":\"x\"}\n"
     );
-    assert!(!text.contains("log line"));
+    assert!(text.contains(r#""payload":"log line on stdout""#), "{text}");
+    assert!(text.contains(r#""payload":"client noise""#), "{text}");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("1 server message(s) were not JSON"),
+        stderr.contains("1 server line(s) were not JSON"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("1 client line(s) were not JSON"),
         "{stderr}"
     );
     assert!(!stderr.contains("size limit"), "{stderr}");
+    assert_eq!(outcome_of(&text, "2025-11-25", "TRAN-004"), Outcome::Fail);
+    assert_eq!(outcome_of(&text, "2025-11-25", "TRAN-005"), Outcome::Fail);
+    assert_eq!(outcome_of(&text, "2026-07-28", "TRAN-117"), Outcome::Fail);
 }
 
 /// The server exits while the client still holds its end open — the session ends
@@ -176,7 +208,7 @@ fn client_side_counts_survive_a_server_that_exits_first() {
     assert!(output.status.success(), "{output:?}");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("1 client message(s) were not JSON"),
+        stderr.contains("1 client line(s) were not JSON"),
         "{stderr}"
     );
     // The server closed the session, and that is the trace's last word.
@@ -396,6 +428,16 @@ fn http_mode_stops_cleanly_and_reports_unreachable_upstreams() {
         !stderr.iter().any(|line| line.contains("could not reach")),
         "{stderr:?}"
     );
+    assert!(
+        !stderr.iter().any(|line| line.contains("cut off")),
+        "{stderr:?}"
+    );
+    assert!(
+        stderr
+            .iter()
+            .any(|line| line.contains(&format!("forwarding to http://127.0.0.1:{port}/ "))),
+        "{stderr:?}"
+    );
     std::fs::remove_file(&trace).ok();
 
     // A request the upstream cannot answer: 502 from the proxy, and the summary.
@@ -415,6 +457,57 @@ fn http_mode_stops_cleanly_and_reports_unreachable_upstreams() {
         stderr
             .iter()
             .any(|line| line.contains("1 request(s) could not reach the upstream")),
+        "{stderr:?}"
+    );
+    std::fs::remove_file(&trace).ok();
+}
+
+/// The proxy announces its upstream with the query masked (it can carry
+/// credentials), and says how many responses the upstream cut off mid-body —
+/// only when one was.
+#[cfg(unix)]
+#[test]
+fn http_mode_announces_its_upstream_and_reports_cut_responses() {
+    use std::io::{Read as _, Write as _};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    // An upstream that answers 200 and dies mid-body.
+    std::thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let mut buffer = [0_u8; 4096];
+            let _ = stream.read(&mut buffer);
+            let _ = stream.write_all(
+                b"HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 100\r\n\r\n{\"jsonrpc\":",
+            );
+        }
+    });
+    let upstream = format!("http://127.0.0.1:{port}/mcp?key=s3cret");
+    let trace = scratch("http-cut");
+    let (mut child, address, lines) = start_proxy(&trace, &upstream);
+    let mut stream = std::net::TcpStream::connect(&address).unwrap();
+    stream
+        .write_all(b"POST /mcp HTTP/1.1\r\nhost: localhost\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{}")
+        .unwrap();
+    let mut response = Vec::new();
+    let _ = stream.read_to_end(&mut response);
+    assert!(response.starts_with(b"HTTP/1.1 200"), "{response:?}");
+    assert_eq!(interrupt(&mut child).code(), Some(0));
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let stderr: Vec<String> = lines.try_iter().collect();
+    assert!(
+        stderr.iter().any(|line| line.contains(&format!(
+            "forwarding to http://127.0.0.1:{port}/mcp?… (Ctrl-C to stop)"
+        ))),
+        "{stderr:?}"
+    );
+    assert!(
+        !stderr.iter().any(|line| line.contains("s3cret")),
+        "{stderr:?}"
+    );
+    assert!(
+        stderr
+            .iter()
+            .any(|line| line.contains("1 response(s) were cut off by the upstream mid-body")),
         "{stderr:?}"
     );
     std::fs::remove_file(&trace).ok();
@@ -550,7 +643,14 @@ fn a_trace_recorded_at_the_default_limits_reads_back_under_the_validators() {
     let output = run_with_stdin(command, &input);
     let text = std::fs::read_to_string(&trace).unwrap();
     std::fs::remove_file(&trace).ok();
-    assert!(output.status.success(), "{:?}", output.status);
+    // The capture's stderr says why a run failed — a full disk under this
+    // test's trace (over 100 MiB) is a write failure (exit 3), not a capture bug.
+    assert!(
+        output.status.success(),
+        "{:?}: {}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert_eq!(output.stdout.len(), input.len(), "every byte is forwarded");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
@@ -603,4 +703,214 @@ fn a_raised_message_limit_names_the_validator_flag_to_match() {
     let unset = run(None);
     std::fs::remove_file(&trace).ok();
     assert!(!unset.contains("--max-line-bytes"), "{unset}");
+}
+
+/// A run that never started a session leaves nothing behind: no trace file (which
+/// would make the next run without `--force` refuse to start) and no "validate
+/// with" hint pointing at a trace that does not exist.
+#[test]
+fn a_run_that_fails_to_start_leaves_no_trace_file() {
+    let occupied = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let busy = occupied.local_addr().unwrap().to_string();
+    let cases: [&[&str]; 3] = [
+        &["stdio", "--", "definitely-not-a-real-mcp-server-binary"],
+        &["http", "--upstream", "ftp://example.com"],
+        &[
+            "http",
+            "--upstream",
+            "http://127.0.0.1:9",
+            "--listen",
+            &busy,
+        ],
+    ];
+    for (index, args) in cases.iter().enumerate() {
+        let trace = scratch(&format!("no-start-{index}"));
+        let output = binary()
+            .args(["-o", trace.to_str().unwrap()])
+            .args(*args)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {output:?}");
+        assert!(!trace.exists(), "{args:?} left {}", trace.display());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(!stderr.contains("validate with"), "{args:?}: {stderr}");
+        assert!(!stderr.contains("recording to"), "{args:?}: {stderr}");
+    }
+}
+
+/// A trace that cannot be created once the server has started is a usage error
+/// that names the cause and leaves nothing of the server running. (The capture
+/// fails before the script below can start its child, so this cannot tell a
+/// group kill from a kill of the leader; `stdio::tests` covers that.)
+#[cfg(unix)]
+#[test]
+fn a_trace_that_cannot_be_created_after_the_server_started_ends_it() {
+    let dir = std::env::temp_dir().join(format!(
+        "mcp-trace-capture-uncreatable-{}",
+        std::process::id()
+    ));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    let marker = dir.join("marker");
+    let trace = dir.join("absent").join("trace.jsonl");
+    // The server's own child outlives the server unless its group is ended.
+    let script = format!("(sleep 1; touch '{}') & wait", marker.display());
+    let output = binary()
+        .args([
+            "-o",
+            trace.to_str().unwrap(),
+            "stdio",
+            "--",
+            "sh",
+            "-c",
+            &script,
+        ])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("cannot create"), "{stderr}");
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    assert!(
+        !marker.exists(),
+        "the server's child ran on after the capture"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// An existing trace is refused before the server is started, not after: a
+/// server's side effects should not happen for a run that cannot record them.
+#[cfg(unix)]
+#[test]
+fn an_existing_trace_is_refused_before_the_server_starts() {
+    let trace = scratch("exists-early");
+    std::fs::write(&trace, "keep me\n").unwrap();
+    let marker = scratch("exists-early-marker");
+    let output = binary()
+        .args(["-o", trace.to_str().unwrap(), "stdio", "--", "touch"])
+        .arg(&marker)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(!marker.exists(), "the server was started");
+    assert_eq!(std::fs::read_to_string(&trace).unwrap(), "keep me\n");
+    std::fs::remove_file(&trace).ok();
+}
+
+/// `-o -` reads as "stdout" but would create a file named `-` — and in stdio mode
+/// stdout is the session itself. It is refused with a message saying so.
+#[test]
+fn dash_as_the_output_is_refused() {
+    let dir = std::env::temp_dir().join(format!("mcp-trace-capture-dash-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let output = binary()
+        .args(["-o", "-", "stdio", "--", "true"])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(!dir.join("-").exists());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("-o -"),
+        "{output:?}"
+    );
+    std::fs::remove_dir(&dir).ok();
+}
+
+/// Credentials in `--upstream` would be silently dropped (the proxy never sends
+/// them) and echoed to the terminal; they are refused, and not repeated.
+#[test]
+fn an_upstream_with_credentials_is_refused_without_echoing_them() {
+    let trace = scratch("userinfo");
+    let output = binary()
+        .args(["-o", trace.to_str().unwrap(), "http", "--upstream"])
+        .arg("http://user:hunter2@127.0.0.1:9/mcp")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stderr.contains("hunter2"), "{stderr}");
+    assert!(stderr.contains("credentials"), "{stderr}");
+    assert!(!trace.exists());
+}
+
+/// Listening beyond loopback exposes a relay that forwards credentials; the
+/// proxy says so when it starts.
+#[cfg(unix)]
+#[test]
+fn listening_beyond_loopback_is_warned_about() {
+    use std::io::BufRead as _;
+    let trace = scratch("wide");
+    let mut child = binary()
+        .args([
+            "-o",
+            trace.to_str().unwrap(),
+            "http",
+            "--listen",
+            "0.0.0.0:0",
+        ])
+        .args(["--upstream", "http://127.0.0.1:9"])
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut before_listening = Vec::new();
+    for line in std::io::BufReader::new(child.stderr.take().unwrap())
+        .lines()
+        .map_while(Result::ok)
+    {
+        if line.contains("listening on") {
+            break;
+        }
+        before_listening.push(line);
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_file(&trace).ok();
+    assert!(
+        before_listening
+            .iter()
+            .any(|line| line.contains("warning") && line.contains("0.0.0.0")),
+        "{before_listening:?}"
+    );
+}
+
+/// The validator judges a trace as one session. A capture that saw several —
+/// two `initialize` requests here — says so at exit, rather than leaving the
+/// user to puzzle over "id reused" findings.
+#[cfg(unix)]
+#[test]
+fn a_trace_holding_several_sessions_is_warned_about() {
+    let trace = scratch("sessions");
+    let initialize = |id: u32| {
+        format!("{{\"jsonrpc\":\"2.0\",\"id\":{id},\"method\":\"initialize\",\"params\":{{}}}}\n")
+    };
+    let mut command = binary();
+    command.args(["-o", trace.to_str().unwrap(), "stdio", "--", "cat"]);
+    let output = run_with_stdin(command, initialize(1).as_bytes());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("this trace holds"),
+        "one session: {stderr}"
+    );
+
+    let mut command = binary();
+    command.args([
+        "--force",
+        "-o",
+        trace.to_str().unwrap(),
+        "stdio",
+        "--",
+        "cat",
+    ]);
+    let output = run_with_stdin(
+        command,
+        format!("{}{}", initialize(1), initialize(1)).as_bytes(),
+    );
+    std::fs::remove_file(&trace).ok();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("warning: this trace holds 2 sessions"),
+        "{stderr}"
+    );
 }

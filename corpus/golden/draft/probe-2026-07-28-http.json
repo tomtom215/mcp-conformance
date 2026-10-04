@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 56,
-    "fail": 10,
+    "pass": 55,
+    "fail": 9,
     "warn": 2,
-    "excluded": 147,
+    "excluded": 149,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 57
+    "not_observed": 58
   },
   "requirements": [
     {
@@ -62,8 +62,8 @@
       "outcome": "pass"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
       "outcome": "pass"
     },
     {
@@ -187,6 +187,11 @@
       "id": "TRAN-060",
       "level": "MUST NOT",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-061",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-063",
@@ -606,28 +611,6 @@
         "quote": "Every request MUST include the required `meta` fields; see `meta`.",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination"
       }
-    },
-    {
-      "id": "PAGE-010",
-      "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "pagination.cursor-opacity",
-          "seq": 25,
-          "detail": "tools/list cursor \"fabricated-by-the-probe\" was never issued as a nextCursor for that method in this session"
-        }
-      ],
-      "source": {
-        "section": "server/utilities/pagination#implementation-guidelines",
-        "quote": "Clients MUST treat cursors as opaque tokens: Don't make assumptions about cursor format; Don't attempt to parse or modify cursors; Don't make any determination based on cursor value other than whether a non-null value was provided (e.g. an empty string is a valid cursor and thus MUST NOT be treated as the end of results)",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination#implementation-guidelines"
-      }
-    },
-    {
-      "id": "PAGE-011",
-      "level": "SHOULD",
-      "outcome": "pass"
     },
     {
       "id": "LOG-007",

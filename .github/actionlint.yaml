@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# actionlint configuration (ci.yml `workflow-lint`). Every entry is a finding
+# judged and kept, with its reason; nothing here silences a class of check
+# across the tree.
+paths:
+  .github/workflows/scheduled.yml:
+    ignore:
+      # The claims-expire notification builds a Markdown issue body with
+      # printf, and its single-quoted backticks are Markdown code spans, meant
+      # literally — expansion there is exactly what the quoting prevents
+      # (nothing fetched from the network may reach the body). A
+      # `# shellcheck disable` directive is not honoured through actionlint's
+      # script extraction (checked with actionlint 1.7.12), hence this entry.
+      - 'SC2016:'

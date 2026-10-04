@@ -104,7 +104,15 @@ const SHIPPED: &[Check] = &[
     ),
     check!(
         "transport.success-content-type",
-        transport::success_content_type
+        transport::request_success_content_type
+    ),
+    check!(
+        "transport.get-content-type",
+        transport::get_stream_content_type
+    ),
+    check!(
+        "transport.accepted-input-status",
+        transport::accepted_input_status
     ),
     check!("tools.capability-declared", tools::capability_declared),
     check!("tools.input-schema-object", tools::input_schema_object),

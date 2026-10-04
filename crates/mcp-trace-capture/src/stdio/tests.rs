@@ -42,13 +42,16 @@ fn events(sink: &Shared) -> Vec<TraceEvent> {
         .collect()
 }
 
+/// Every line is in the trace: a JSON one as its value, any other — log output,
+/// a blank line, a truncated message, invalid UTF-8 — as a string payload, the
+/// form the validator judges as "not a valid MCP message" (TRAN-004/TRAN-005).
+/// Leaving them out made a server that writes logs to stdout judge clean.
 #[tokio::test]
-async fn bytes_pass_through_unchanged_and_unrecordable_lines_are_counted() {
+async fn bytes_pass_through_unchanged_and_non_json_lines_are_recorded_as_strings() {
     bounded(async {
         let sink = Shared::default();
         let recorder = Recorder::new(sink.clone());
-        let input: &[u8] =
-            b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\r\nnot json\n\n{\"partial\":tr";
+        let input: &[u8] = b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\r\nnot json\r\n\nbad \xff byte\n{\"partial\":tr";
         let (mut writer, reader) = tokio::io::duplex(64);
         let (forward, mut forwarded) = tokio::io::duplex(1024);
         let feeder = tokio::spawn(async move {
@@ -64,18 +67,29 @@ async fn bytes_pass_through_unchanged_and_unrecordable_lines_are_counted() {
         let mut out = Vec::new();
         forwarded.read_to_end(&mut out).await.unwrap();
         assert_eq!(out, input, "the peer receives exactly what was sent");
-        // The unterminated final line is recorded only if it is JSON; this one is not.
         assert_eq!(
             unrecorded,
             Unrecorded {
-                not_json: 3,
+                not_json: 4,
                 oversized: 0
             }
         );
-        let trace = events(&sink);
-        assert_eq!(trace.len(), 1);
-        assert!(
-            matches!(&trace[0].body, EventBody::Message { payload } if payload["method"] == "ping")
+        let payloads: Vec<serde_json::Value> = events(&sink)
+            .into_iter()
+            .map(|event| match event.body {
+                EventBody::Message { payload } => payload,
+                other => panic!("only messages are recorded here: {other:?}"),
+            })
+            .collect();
+        assert_eq!(
+            payloads,
+            [
+                serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": "ping"}),
+                serde_json::json!("not json"),
+                serde_json::json!(""),
+                serde_json::json!("bad \u{FFFD} byte"),
+                serde_json::json!("{\"partial\":tr"),
+            ]
         );
     })
     .await;
@@ -209,6 +223,39 @@ async fn a_line_that_would_outgrow_the_line_limit_is_counted_as_oversized() {
         let written = events(&sink);
         assert_eq!(written.len(), 1);
         assert_eq!(written[0].seq, 0, "the refused line used no seq");
+    })
+    .await;
+}
+
+/// Killing a server ends every process in its group: the child a launcher
+/// started outlives a kill of the launcher alone.
+#[cfg(unix)]
+#[tokio::test]
+async fn kill_ends_the_servers_whole_process_group() {
+    bounded(async {
+        let dir = std::env::temp_dir().join(format!(
+            "mcp-trace-capture-kill-group-{}",
+            std::process::id()
+        ));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let marker = dir.join("marker");
+        let script = format!(
+            "(sleep 1; touch '{}') & echo started; wait",
+            marker.display()
+        );
+        let mut server = super::spawn("sh".as_ref(), &["-c".into(), script.into()]).unwrap();
+        // The child exists once the script has gone on to announce it.
+        let mut line = String::new();
+        BufReader::new(&mut server.stdout)
+            .read_line(&mut line)
+            .await
+            .unwrap();
+        assert_eq!(line, "started\n");
+        server.kill().await;
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        assert!(!marker.exists(), "the server's child ran on after the kill");
+        std::fs::remove_dir_all(&dir).ok();
     })
     .await;
 }

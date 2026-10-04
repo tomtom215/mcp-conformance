@@ -244,8 +244,9 @@ impl EverythingServer {
     ///
     /// # Errors
     ///
-    /// Errors when the client did not advertise the `elicitation`
-    /// capability, or when the elicitation request itself fails.
+    /// Errors when the client did not advertise URL-mode elicitation
+    /// (`elicitation.url`; a bare `elicitation: {}` is form mode only), or
+    /// when the elicitation request itself fails.
     #[tool(description = "URL-mode elicitation round trip for conformance testing")]
     pub async fn test_url_elicitation(
         &self,
@@ -254,7 +255,7 @@ impl EverythingServer {
         // Server-unique id: URL elicitations are completed *by id*, and a
         // process-wide counter keeps concurrent calls distinct.
         static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-        capability::require(&context, self.revision(), Required::Elicitation)?;
+        capability::require(&context, self.revision(), Required::UrlElicitation)?;
         let elicitation_id = format!(
             "url-elic-{}",
             NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)

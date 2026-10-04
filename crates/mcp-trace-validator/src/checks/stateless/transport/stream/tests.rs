@@ -129,3 +129,38 @@ fn cancellation_binds_messages_strictly_after_the_close() {
     lines.push(answer);
     assert!(findings_for(check, &trace(&lines)).is_empty());
 }
+
+#[test]
+fn a_close_with_several_requests_in_flight_cancels_none_of_them() {
+    let check = "transport.no-messages-after-cancellation";
+    let second = client(
+        2,
+        &format!(r#"{{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{{{META}}}}}"#),
+    );
+    let mut lines = call(0);
+    lines.push(second);
+    lines.push(close(3));
+    lines.push(server(
+        4,
+        r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
+    ));
+    // Which of the two streams closed is unknown; neither answer is convicted.
+    assert!(findings_for(check, &trace(&lines)).is_empty());
+}
+
+#[test]
+fn a_transport_abort_is_not_a_cancellation() {
+    // The capture proxy records an upstream failure — answered 502 by the
+    // proxy itself — as an abort. The client closed nothing.
+    let check = "transport.no-messages-after-cancellation";
+    let mut lines = call(0);
+    lines.push(
+        r#"{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"lifecycle","event":"transport-abort"}"#
+            .to_owned(),
+    );
+    lines.push(server(
+        3,
+        r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
+    ));
+    assert!(findings_for(check, &trace(&lines)).is_empty());
+}

@@ -167,3 +167,32 @@ fn only_a_bom_at_the_very_start_of_the_stream_is_skipped() {
         [b"1".to_vec()]
     );
 }
+
+/// The limit applies to the line, not its terminator: a `\r\n`-terminated line of
+/// exactly the limit is kept wherever the input is cut, and one byte more is not.
+#[test]
+fn a_crlf_line_of_exactly_the_limit_is_kept() {
+    let input = b"abcd\r\nabcde\r\nok\r\n";
+    for cut in 0..=input.len() {
+        let mut splitter = LineSplitter::new(4);
+        let mut out = splitter.push(&input[..cut]);
+        out.extend(splitter.push(&input[cut..]));
+        out.extend(splitter.finish());
+        assert_eq!(
+            out,
+            [
+                Line::Complete(b"abcd".to_vec()),
+                Line::Oversized,
+                Line::Complete(b"ok".to_vec()),
+            ],
+            "cut at {cut}"
+        );
+    }
+    // Unterminated at end of stream, with and without a stray `\r`.
+    let mut splitter = LineSplitter::new(4);
+    assert!(splitter.push(b"abcd\r").is_empty());
+    assert_eq!(splitter.finish(), Some(Line::Complete(b"abcd".to_vec())));
+    let mut splitter = LineSplitter::new(4);
+    assert!(splitter.push(b"abcde").is_empty());
+    assert_eq!(splitter.finish(), Some(Line::Oversized));
+}

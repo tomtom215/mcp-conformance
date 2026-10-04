@@ -105,3 +105,33 @@ fn combined_totals_sums_every_revision_and_every_field() {
     let empty = multi(totals(0, 0, 0, 0, 7), totals(0, 0, 0, 0, 9));
     assert!(refusal(combined(&empty), "c.jsonl").is_some());
 }
+
+#[test]
+fn a_never_answered_session_names_its_source_and_its_reason() {
+    use mcp_trace_validator::reader::{Limits, parse_trace};
+    let initialize = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":0,"method":"initialize","params":{}}}"#;
+    let abort = r#"{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"lifecycle","event":"transport-abort"}"#;
+    let events = |document: &str| parse_trace(document, &Limits::default()).unwrap();
+
+    let unanswered = super::never_answered(&events(initialize), "traces/a.jsonl").unwrap();
+    assert!(
+        unanswered.starts_with("error: traces/a.jsonl records 1 client message(s)"),
+        "{unanswered}"
+    );
+    assert!(
+        unanswered.contains("its initialize request was never answered"),
+        "{unanswered}"
+    );
+    assert!(!unanswered.contains("could not be reached"), "{unanswered}");
+
+    let unreachable =
+        super::never_answered(&events(&format!("{initialize}\n{abort}")), "-").unwrap();
+    assert!(
+        unreachable.starts_with("error: the trace on stdin records"),
+        "{unreachable}"
+    );
+    assert!(
+        unreachable.contains("1 transport-abort(s): the server could not be reached"),
+        "{unreachable}"
+    );
+}

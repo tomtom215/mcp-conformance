@@ -12,20 +12,20 @@
 //! | 2    | Invocation, registry, or check-inventory problem (including `unsupported` outcomes) |
 //! | 3    | The trace document itself was malformed |
 
-use std::fmt::Write as _;
 use std::fs;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use mcp_conformance_core::requirement::{Registry, RegistrySet, Verification};
+use mcp_conformance_core::requirement::{Registry, RegistrySet};
 use mcp_conformance_core::revision::ProtocolRevision;
-use mcp_trace_validator::declared::{self, RevisionSource};
-use mcp_trace_validator::report::{Report, Verdict};
-use mcp_trace_validator::{engine, multi, reader};
+use mcp_trace_validator::reader;
 
+mod emit;
 mod input;
 mod judgeable;
+mod requirements;
+mod validate;
 
 const EXIT_OK: u8 = 0;
 const EXIT_FINDINGS: u8 = 1;
@@ -48,18 +48,31 @@ enum Command {
     /// `_meta`, or the `MCP-Protocol-Version` header); a trace declaring none is judged
     /// against the newest supported revision. `--revision` overrides the choice; naming
     /// several judges the trace under each, clause by clause.
+    #[command(
+        after_help = "Exit status: 0 pass (warnings pass unless --strict), 1 a clause \
+        failed, 2 bad invocation or nothing judgeable or output not written, 3 malformed trace."
+    )]
     Validate {
-        /// Path to the trace document, or `-` for stdin.
-        trace: String,
+        /// Paths to the trace documents (one or more), or `-` for stdin alone.
+        /// Several traces give one report per format: a section each in human
+        /// output, one `JUnit` document, one SARIF run.
+        #[arg(required = true, num_args = 1..)]
+        traces: Vec<String>,
         /// Output format.
         #[arg(long, value_enum, default_value_t = Format::Human)]
         format: Format,
         /// Treat SHOULD-level findings (warnings) as failures.
         #[arg(long)]
         strict: bool,
-        /// Human output: print only failing, warning and unsupported clauses (the
-        /// totals still count every clause). JSON and `JUnit` are unaffected.
+        /// Human output: list every clause with its outcome, and the reason for
+        /// each exclusion. By default only failing, warning and unsupported
+        /// clauses are listed (the totals always count every clause). JSON,
+        /// `JUnit` and SARIF always carry every clause.
         #[arg(short, long)]
+        all: bool,
+        /// Accepted for compatibility: the findings-only listing it selected is
+        /// now the default.
+        #[arg(short, long, hide = true, conflicts_with = "all")]
         quiet: bool,
         /// Path to a custom single-revision registry JSON document, used instead of the
         /// built-in registries. Mutually exclusive with `--revision` and `--registry-set`.
@@ -112,146 +125,37 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let code = match cli.command {
         Command::Validate {
-            trace,
+            traces,
             format,
             strict,
-            quiet,
+            all,
+            quiet: _,
             registry,
             revisions,
             registry_set,
             max_line_bytes,
             max_events,
-        } => run_validate_command(
-            &trace,
+        } => validate::run(
+            &traces,
             &reader::Limits::new(max_events, max_line_bytes),
-            Output {
+            validate::Output {
                 format,
                 strict,
-                quiet,
+                all,
             },
-            registry.as_deref(),
-            registry_set.as_deref(),
-            &revisions,
+            &validate::Sources {
+                registry: registry.as_deref(),
+                registry_set: registry_set.as_deref(),
+                revisions: &revisions,
+            },
         ),
         Command::Requirements {
             format,
             registry,
             revision,
-        } => run_requirements(format, registry.as_deref(), revision.as_deref()),
+        } => requirements::run(format, registry.as_deref(), revision.as_deref()),
     };
     ExitCode::from(code)
-}
-
-/// How `validate` presents its report.
-#[derive(Debug, Clone, Copy)]
-struct Output {
-    format: Format,
-    /// SHOULD-level findings fail the run.
-    strict: bool,
-    /// Human output lists only the clauses that need attention.
-    quiet: bool,
-}
-
-/// Runs `validate`: reads the trace, chooses the revisions to judge it against, and
-/// dispatches to single- or multi-revision judgment.
-fn run_validate_command(
-    trace: &str,
-    limits: &reader::Limits,
-    output: Output,
-    registry: Option<&std::path::Path>,
-    registry_set: Option<&std::path::Path>,
-    revisions: &[String],
-) -> u8 {
-    if registry.is_some() && (registry_set.is_some() || !revisions.is_empty()) {
-        eprintln!(
-            "error: --registry names one custom registry; it cannot be combined with \
-             --revision or --registry-set"
-        );
-        return EXIT_USAGE;
-    }
-    let events = match input::read_events(trace, limits) {
-        Ok(events) => events,
-        Err(code) => return code,
-    };
-    if let Some(path) = registry {
-        return match load_registry(path) {
-            Ok(registry) => emit_single(
-                &engine::validate(&registry, &events),
-                &events,
-                trace,
-                output,
-            ),
-            Err(message) => {
-                eprintln!("error: {message}");
-                EXIT_USAGE
-            }
-        };
-    }
-    let set = match load_registry_set(registry_set) {
-        Ok(set) => set,
-        Err(message) => {
-            eprintln!("error: {message}");
-            return EXIT_USAGE;
-        }
-    };
-    let (chosen, source) = match choose_revisions(&set, revisions, &events) {
-        Ok(choice) => choice,
-        Err(message) => {
-            eprintln!("error: {message}");
-            return EXIT_USAGE;
-        }
-    };
-    if source == RevisionSource::Default {
-        eprintln!(
-            "note: the trace declares no protocol revision; judging it against {}, the \
-             newest supported (use --revision to choose)",
-            chosen[0]
-        );
-    }
-    if let [revision] = chosen.as_slice() {
-        let Some(registry) = set.registry(*revision) else {
-            eprintln!("error: registry set does not describe revision {revision}");
-            return EXIT_USAGE;
-        };
-        let mut report = engine::validate(&registry, &events);
-        report.revision_source = Some(source);
-        return emit_single(&report, &events, trace, output);
-    }
-    run_validate_multi(&events, trace, output, &set, &chosen, source)
-}
-
-/// The revisions to judge against: the `--revision` flags when given, otherwise the
-/// trace's own declaration ([`declared::select`]).
-fn choose_revisions(
-    set: &RegistrySet,
-    revisions: &[String],
-    events: &[mcp_conformance_core::trace::TraceEvent],
-) -> Result<(Vec<ProtocolRevision>, RevisionSource), String> {
-    if revisions.is_empty() {
-        return declared::select(set.revisions(), events)
-            .map(|selection| (selection.revisions, selection.source))
-            .map_err(|error| {
-                format!(
-                    "{error}\nhint: pass --revision YYYY-MM-DD to judge it against a \
-                     supported revision anyway"
-                )
-            });
-    }
-    let parsed = parse_revisions(revisions)?;
-    if let Some(unknown) = parsed
-        .iter()
-        .find(|revision| !set.revisions().contains(revision))
-    {
-        return Err(format!(
-            "registry set does not describe revision {unknown} (supported: {})",
-            set.revisions()
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
-    }
-    Ok((parsed, RevisionSource::Requested))
 }
 
 /// Loads a custom single-revision registry document.
@@ -282,216 +186,4 @@ fn parse_revisions(revisions: &[String]) -> Result<Vec<ProtocolRevision>, String
                 .map_err(|error| error.to_string())
         })
         .collect()
-}
-
-/// The exit code a verdict maps to, shared by single- and multi-revision runs so the
-/// 0/1/2 contract has one definition. `--strict` promotes warnings to findings.
-///
-/// When it does, it says so on stderr. The report's own `verdict:` line is a
-/// property of the trace and is deliberately not rewritten by an invocation
-/// flag — a golden report must not depend on how the CLI was called — which
-/// left a run ending `verdict: pass-with-warnings` and exiting 1, with nothing
-/// anywhere connecting the two. The note is the missing sentence, and stderr is
-/// where it belongs: stdout carries the report, including the JSON and `JUnit` a
-/// machine reads.
-fn verdict_to_code(verdict: Verdict, strict: bool) -> u8 {
-    if strict && verdict == Verdict::PassWithWarnings {
-        eprintln!(
-            "note: --strict — the SHOULD-level findings above are treated as failures, \
-             so this run exits {EXIT_FINDINGS} despite a verdict of {verdict}"
-        );
-    }
-    match verdict {
-        Verdict::Fail => EXIT_FINDINGS,
-        Verdict::PassWithWarnings if strict => EXIT_FINDINGS,
-        Verdict::PassWithWarnings | Verdict::Pass => EXIT_OK,
-        // Unsupported — and, since Verdict is #[non_exhaustive], any future verdict — is
-        // conservatively an invocation-level problem (registry/build mismatch).
-        _ => EXIT_USAGE,
-    }
-}
-
-/// Renders a single-revision report and maps its verdict to an exit code.
-fn emit_single(
-    report: &Report,
-    events: &[mcp_conformance_core::trace::TraceEvent],
-    trace_source: &str,
-    output: Output,
-) -> u8 {
-    if judgeable::reject(report.totals, trace_source) {
-        return EXIT_USAGE;
-    }
-    match output.format {
-        Format::Human if output.quiet => emit(&report.render_findings()),
-        Format::Human => emit(&report.render_human()),
-        Format::Json => match serde_json::to_string_pretty(report) {
-            Ok(json) => emit(&format!("{json}\n")),
-            Err(error) => {
-                eprintln!("error: cannot serialize report: {error}");
-                return EXIT_USAGE;
-            }
-        },
-        Format::Junit => emit(&mcp_trace_validator::junit::render(report)),
-        Format::Sarif => emit(&mcp_trace_validator::sarif::render(
-            core::slice::from_ref(report),
-            artifact(trace_source, events),
-        )),
-    }
-    verdict_to_code(report.verdict(), output.strict)
-}
-
-/// What SARIF results point at: the trace as named, unless it was stdin.
-fn artifact<'a>(
-    trace_source: &'a str,
-    events: &'a [mcp_conformance_core::trace::TraceEvent],
-) -> mcp_trace_validator::sarif::Artifact<'a> {
-    mcp_trace_validator::sarif::Artifact {
-        uri: (trace_source != "-").then_some(trace_source),
-        events,
-    }
-}
-
-/// Multi-revision judgment: one trace against several revisions of a registry set, with
-/// per-clause applicability differences in the report. `JUnit` renders one suite per
-/// revision.
-fn run_validate_multi(
-    events: &[mcp_conformance_core::trace::TraceEvent],
-    trace_source: &str,
-    output: Output,
-    set: &RegistrySet,
-    revisions: &[ProtocolRevision],
-    source: RevisionSource,
-) -> u8 {
-    let mut report = match multi::validate_revisions(set, revisions, events) {
-        Ok(report) => report,
-        Err(error) => {
-            eprintln!("error: {error}");
-            return EXIT_USAGE;
-        }
-    };
-    report.revision_source = Some(source);
-    if judgeable::reject(judgeable::combined(&report), trace_source) {
-        return EXIT_USAGE;
-    }
-    match output.format {
-        Format::Human if output.quiet => emit(&report.render_findings()),
-        Format::Human => emit(&report.render_human()),
-        Format::Json => match serde_json::to_string_pretty(&report) {
-            Ok(json) => emit(&format!("{json}\n")),
-            Err(error) => {
-                eprintln!("error: cannot serialize report: {error}");
-                return EXIT_USAGE;
-            }
-        },
-        Format::Junit | Format::Sarif => {
-            let reports: Vec<Report> = revisions
-                .iter()
-                .filter_map(|revision| set.registry(*revision))
-                .map(|registry| engine::validate(&registry, events))
-                .collect();
-            if matches!(output.format, Format::Junit) {
-                emit(&mcp_trace_validator::junit::render_all(&reports));
-            } else {
-                emit(&mcp_trace_validator::sarif::render(
-                    &reports,
-                    artifact(trace_source, events),
-                ));
-            }
-        }
-    }
-    verdict_to_code(report.verdict(), output.strict)
-}
-
-fn run_requirements(
-    format: Format,
-    registry_path: Option<&std::path::Path>,
-    revision: Option<&str>,
-) -> u8 {
-    let registry = match requirements_registry(registry_path, revision) {
-        Ok(registry) => registry,
-        Err(message) => {
-            eprintln!("error: {message}");
-            return EXIT_USAGE;
-        }
-    };
-    match format {
-        Format::Junit | Format::Sarif => {
-            eprintln!(
-                "error: --format junit and --format sarif apply to validate, not requirements"
-            );
-            return EXIT_USAGE;
-        }
-        Format::Json => match serde_json::to_string_pretty(&registry) {
-            Ok(json) => emit(&format!("{json}\n")),
-            Err(error) => {
-                eprintln!("error: cannot serialize registry: {error}");
-                return EXIT_USAGE;
-            }
-        },
-        Format::Human => {
-            let mut out = format!("requirement registry — revision {}\n", registry.revision());
-            for requirement in registry.requirements() {
-                let verification = match &requirement.verification {
-                    Verification::Checks { checks } => format!("checks: {}", checks.join(", ")),
-                    Verification::Excluded { .. } => "excluded".to_owned(),
-                    // Foreign #[non_exhaustive] enum: future arms surface visibly.
-                    _ => "unrecognized verification".to_owned(),
-                };
-                let _ = writeln!(
-                    out,
-                    "  {} {:<9} ({}) — {}",
-                    requirement.id,
-                    requirement.level.keyword(),
-                    verification,
-                    requirement.source.quote
-                );
-            }
-            emit(&out);
-        }
-    }
-    EXIT_OK
-}
-
-/// The registry `requirements` prints: a custom file, or a built-in revision (the
-/// newest by default).
-fn requirements_registry(
-    registry_path: Option<&std::path::Path>,
-    revision: Option<&str>,
-) -> Result<Registry, String> {
-    if let Some(path) = registry_path {
-        return load_registry(path);
-    }
-    let set = load_registry_set(None)?;
-    let revision = match revision {
-        Some(text) => text
-            .parse::<ProtocolRevision>()
-            .map_err(|error| error.to_string())?,
-        None => set
-            .latest()
-            .ok_or_else(|| "the built-in registry set describes no revision".to_owned())?,
-    };
-    set.registry(revision).ok_or_else(|| {
-        format!(
-            "no built-in registry for revision {revision} (supported: {})",
-            set.revisions()
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
-    })
-}
-
-/// Writes `text` to stdout. A reader that closed the pipe early (`… | head`) has
-/// what it wanted; that ends the output, it is not an error — `print!` would panic.
-fn emit(text: &str) {
-    use std::io::Write as _;
-    let mut stdout = std::io::stdout().lock();
-    if let Err(error) = stdout
-        .write_all(text.as_bytes())
-        .and_then(|()| stdout.flush())
-        && error.kind() != std::io::ErrorKind::BrokenPipe
-    {
-        eprintln!("error: cannot write output: {error}");
-    }
 }

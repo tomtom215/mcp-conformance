@@ -4,9 +4,11 @@
 //! Tests for the per-request logging clauses.
 //!
 //! `logging/setLevel` is gone, so the level rides `_meta` and the checks turn on
-//! whether *any* request in the session asked for logs. The case worth pinning
-//! is a session that did ask: attributing a notification to one request is not
-//! possible on a shared channel, so the check must stop there rather than guess.
+//! whether *any* request in the session asked for logs, and — when exactly one
+//! request is in flight — whether *that* one did. The case worth pinning is a
+//! session with several requests in flight: attributing a notification to one
+//! of them is not possible on a shared channel, so the check must stop there
+//! rather than guess.
 
 use crate::checks::stateless::testkit::{client, findings_for, server, trace};
 
@@ -116,4 +118,40 @@ fn a_request_that_sets_no_level_is_not_judged_for_its_validity() {
         ),
     ]);
     assert!(findings_for(INVALID, &session).is_empty());
+}
+
+/// A server result answering `id`.
+fn answer(seq: u64, id: u64) -> String {
+    server(
+        seq,
+        &format!(r#"{{"jsonrpc":"2.0","id":{id},"result":{{"resultType":"complete"}}}}"#),
+    )
+}
+
+#[test]
+fn a_log_while_only_an_unopted_request_is_in_flight_is_reported() {
+    // Request 1 asked for logs and was answered; request 2 did not ask, and is
+    // the only request a log arriving now could belong to.
+    let session = trace(&[
+        request(0, 1, r#""info""#),
+        answer(1, 1),
+        request(2, 2, ""),
+        log(3, None),
+        answer(4, 2),
+    ]);
+    let findings = findings_for(REQUESTED, &session);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].contains("seq 2"), "{findings:?}");
+}
+
+#[test]
+fn a_log_with_several_requests_in_flight_is_attributed_to_none() {
+    let session = trace(&[
+        request(0, 1, r#""info""#),
+        request(1, 2, ""),
+        log(2, None),
+        answer(3, 1),
+        answer(4, 2),
+    ]);
+    assert!(findings_for(REQUESTED, &session).is_empty());
 }

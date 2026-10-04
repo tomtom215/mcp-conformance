@@ -71,3 +71,29 @@ fn a_declaration_is_recognized_only_for_the_capability_it_declares() {
     assert!(!Required::Elicitation.declared_in(&sampling_only));
     assert!(!Required::Sampling.declared_in(&ClientCapabilities::default()));
 }
+
+#[test]
+fn url_mode_needs_its_own_declaration() {
+    // `elicitation: {}` is form mode only (client/elicitation, 2025-11-25);
+    // sending a URL-mode request to such a client is what LIFE-009 convicts.
+    let declared = |json: serde_json::Value| -> ClientCapabilities {
+        serde_json::from_value(json).expect("client capabilities")
+    };
+    let bare = declared(serde_json::json!({ "elicitation": {} }));
+    assert!(Required::Elicitation.declared_in(&bare));
+    assert!(!Required::UrlElicitation.declared_in(&bare));
+    let both = declared(serde_json::json!({ "elicitation": { "form": {}, "url": {} } }));
+    assert!(Required::UrlElicitation.declared_in(&both));
+
+    let error = refusal(ServedRevision::V2025_11_25, Required::UrlElicitation);
+    assert_eq!(error.code, rmcp::model::ErrorCode::INVALID_REQUEST);
+    assert!(
+        error.message.contains("elicitation.url"),
+        "{}",
+        error.message
+    );
+    assert_eq!(
+        required_capabilities(ServedRevision::V2026_07_28, Required::UrlElicitation),
+        serde_json::json!({ "elicitation": { "url": {} } })
+    );
+}

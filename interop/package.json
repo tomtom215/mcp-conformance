@@ -1,0 +1,12 @@
+{
+  "name": "mcp-conformance-interop",
+  "private": true,
+  "description": "Pinned official MCP SDKs for the cross-SDK interop check (run.sh)",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.0",
+    "@modelcontextprotocol/server-everything": "2026.8.31",
+    "sdk-2025-06-18": "npm:@modelcontextprotocol/sdk@1.13.0"
+  }
+}

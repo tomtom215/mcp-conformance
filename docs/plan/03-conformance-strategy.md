@@ -142,7 +142,7 @@ informational SHOULD warning on the suite's version-compat probe.
   design* — it exists to hear upstream churn coming — and stays at the registry's revision,
   so it is signal to read, never a gate.
 - **Measure** the next revision separately and *gate* it: `DRAFT_SUITE_VERSION` in
-  `xtask/src/draft_readiness.rs` pins an exact alpha (`0.2.0-alpha.11`) and runs the
+  `xtask/src/draft_readiness.rs` pins an exact alpha (`0.2.0-alpha.12`) and runs the
   runner's `2026-07-28` scenarios against the server once per revision the server can
   serve, ratcheting every check's status against `conformance/draft-readiness.json`. Floating and pinned are not
   interchangeable here: a tracking job wants the newest thing upstream has, a ratchet
@@ -173,7 +173,7 @@ informational SHOULD warning on the suite's version-compat probe.
   registry on every `cargo test`. Keeping the two apart matters because they have
   disagreed, usefully. Through `0.2.0-alpha.9` the runner scored 23/23 against a
   `2025-11-25` server *and* a `2026-07-28` one — it could not tell them apart — while the
-  registry separated them — 60 pass, 1 fail against the first and 61 pass, 0 fail
+  registry separated them — 59 pass, 1 fail against the first and 60 pass, 0 fail
   against the second, with 64 clauses not observed on each — the single failure
   being CACH-001, no `ttlMs` on cacheable results.
   `alpha.11` closes that gap from the other side: its new `wire-schema-valid` check

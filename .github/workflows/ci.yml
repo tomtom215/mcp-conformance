@@ -44,6 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - name: Check formatting
@@ -67,8 +69,13 @@ jobs:
       RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain
-        run: rustup toolchain install ${{ matrix.rust }} --profile minimal --component clippy --no-self-update
+        # bash on every OS: Windows' default shell, PowerShell, reads
+        # "$RUSTUP_TOOLCHAIN" as an (empty) PowerShell variable.
+        shell: bash
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component clippy --no-self-update
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Clippy (default features)
         run: cargo clippy --workspace --all-targets -- -D warnings
@@ -90,8 +97,12 @@ jobs:
       RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain
-        run: rustup toolchain install ${{ matrix.rust }} --profile minimal --no-self-update
+        # bash on every OS, for the reason given in the clippy job.
+        shell: bash
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Test (default features)
         run: cargo test --workspace
@@ -109,6 +120,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -125,6 +138,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -148,6 +163,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -174,6 +191,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # Pinned to the release tag's commit (not the floating `v2` tag's
       # annotated-tag object, which the 2026-06-11 audit found this line
       # carrying: such an object survives only as an unreferenced blob in
@@ -188,6 +207,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -205,6 +226,8 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain
         # `RUSTUP_TOOLCHAIN` below, not `rustup default`: rust-toolchain.toml is
         # a directory override and outranks the default, so a job that wants a
@@ -224,6 +247,8 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchains
         run: |
           rustup toolchain install nightly --profile minimal --no-self-update
@@ -263,6 +288,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -278,3 +305,141 @@ jobs:
           path: target/conformance/
           if-no-files-found: warn
           retention-days: 30
+
+  # Independent traffic: the official TypeScript and Python SDKs talk to each
+  # other (TS client -> TS everything server at 2025-11-25, Python client ->
+  # Python server at 2026-07-28, each over stdio and streamable HTTP), recorded
+  # through mcp-trace-capture and judged by mcp-trace-validator. Every session
+  # must judge `pass` at the revision its SDK speaks, and a 2025-06-18 session
+  # from an older SDK must be refused with exit 2. SDK versions are pinned by
+  # interop/package-lock.json and the hash-locked interop/requirements.txt.
+  interop:
+    name: Interop (official TypeScript and Python SDKs through capture)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build the recorder and the validator
+        run: cargo build --locked -p mcp-trace-capture -p mcp-trace-validator
+      - name: Install the pinned SDKs (Node and Python are preinstalled on the runner image)
+        working-directory: interop
+        run: |
+          node --version && python3 --version
+          npm ci --no-audit --no-fund
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet --require-hashes -r requirements.txt
+      - name: Record and judge five sessions
+        working-directory: interop
+        run: PYTHON="$PWD/.venv/bin/python" ./run.sh ../target/debug
+      - name: Upload traces and reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: interop-traces
+          path: interop/out/
+          if-no-files-found: warn
+          retention-days: 30
+
+  # The workflows themselves, linted: actionlint (expression and type checks,
+  # shellcheck over every `run:` script) and zizmor (GitHub Actions security
+  # audits: injection, credential persistence, cache poisoning, unpinned uses,
+  # excessive permissions, Dependabot cooldown). Both tools are fetched at an
+  # exact version and verified by hash before they run, the same rule the
+  # actions themselves follow. A finding a change cannot fix is suppressed
+  # inline, beside its stated reason (`# zizmor: ignore[...]`,
+  # .github/actionlint.yaml) — never by lowering the persona.
+  #
+  # zizmor runs --offline: its online audits (impostor commits, tag/SHA
+  # mismatches) need API access this job does not request. The pins were
+  # checked against upstream tags by hand on 2026-10-04; Dependabot keeps
+  # them current.
+  workflow-lint:
+    name: Workflow lint (actionlint + zizmor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ACTIONLINT_VERSION: "1.7.12"
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+      ZIZMOR_VERSION: "1.30.1"
+      # zizmor-1.30.1-py3-none-manylinux_2_28_x86_64.whl, from PyPI's JSON API.
+      ZIZMOR_SHA256: eee12266b793cb87ad4a7e3af2e72404f8a63e3de5eb099b80bf7b1cfd232a8e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install actionlint (release tarball, SHA-256 checked)
+        run: |
+          set -euo pipefail
+          url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL --retry 3 -o "$RUNNER_TEMP/actionlint.tar.gz" "$url"
+          echo "${ACTIONLINT_SHA256}  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+      - name: actionlint (with shellcheck)
+        run: |
+          set -euo pipefail
+          # The runner image ships ShellCheck; actionlint silently skips
+          # script checks without it, so its absence is an error here.
+          shellcheck --version
+          "$RUNNER_TEMP/actionlint" -color
+      - name: Install zizmor (exact version, hash-locked wheel)
+        run: |
+          set -euo pipefail
+          printf 'zizmor==%s --hash=sha256:%s\n' "$ZIZMOR_VERSION" "$ZIZMOR_SHA256" > "$RUNNER_TEMP/zizmor-requirements.txt"
+          python3 -m venv "$RUNNER_TEMP/zizmor"
+          "$RUNNER_TEMP/zizmor/bin/pip" install --quiet --require-hashes --only-binary=:all: --no-deps \
+            -r "$RUNNER_TEMP/zizmor-requirements.txt"
+      - name: zizmor (workflows and dependabot.yml)
+        run: '"$RUNNER_TEMP/zizmor/bin/zizmor" --offline --format=github .github/'
+
+  # The repository's own GitHub Action (action.yml), run as a user would run
+  # it: built from this checkout, over passing traces (exit 0, reports written)
+  # and over a violating one (exit 1, the step fails, the reports still written).
+  action:
+    name: GitHub Action (action.yml over the corpus)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Shared by both runs of the action, so the second build is incremental.
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # `./`, not the newer `$/` self-repository form zizmor suggests: the
+      # pinned actionlint (1.7.12) rejects `$/`, and this job's point is to run
+      # the action.yml of the commit under test, which `./` names exactly.
+      - name: Passing traces
+        id: pass
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          traces: corpus/good/*.jsonl corpus/draft/good/*.jsonl
+          sarif-file: pass.sarif
+          junit-file: pass.xml
+      - name: A violating trace
+        id: fail
+        continue-on-error: true
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          traces: corpus/violations/base-003-request-id-reuse.jsonl
+          sarif-file: fail.sarif
+          junit-file: fail.xml
+      - name: The action reported what each run decided
+        shell: bash
+        env:
+          PASS_CODE: ${{ steps.pass.outputs.exit-code }}
+          FAIL_CODE: ${{ steps.fail.outputs.exit-code }}
+          FAIL_OUTCOME: ${{ steps.fail.outcome }}
+        run: |
+          set -euo pipefail
+          [[ "$PASS_CODE" == 0 ]] || { echo "::error::passing traces exited ${PASS_CODE}"; exit 1; }
+          [[ "$FAIL_CODE" == 1 ]] || { echo "::error::violating trace exited ${FAIL_CODE}, expected 1"; exit 1; }
+          [[ "$FAIL_OUTCOME" == failure ]] || { echo "::error::the failing run's step did not fail"; exit 1; }
+          jq -e '.runs[0].results | length == 0' pass.sarif
+          jq -e '.runs[0].results[0].ruleId == "BASE-003"' fail.sarif
+          grep -q '<failure' fail.xml

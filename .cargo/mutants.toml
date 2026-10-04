@@ -43,4 +43,19 @@ exclude_re = [
     # at once — so `<` and `<=` are observably identical and no test can
     # separate them.
     "replace < with <= in split_frame",
+    # Equivalent mutants, the same argument as session_id_echoed's: each
+    # compares the seqs of two different events, and one event owns one seq,
+    # so equality cannot occur and `<` and `<=` are observably identical.
+    # mark_read: a cancellation's seq against the seq of the request a server
+    # message answers. retries_with_rounds: a round's (server result) seq
+    # against a retry's (client request) seq.
+    "replace < with <= in mark_read",
+    "replace < with <= in retries_with_rounds",
+    # Equivalent mutants: `events[index + 1..]` becoming `events[index * 1..]`
+    # only adds the event at `index` itself to the scan, and the next filter
+    # drops it — failed_discover_probes keeps only the opposite direction to
+    # the probe, handshakes only server-to-client events after a client
+    # initialize. No trace can separate them.
+    "replace \\+ with \\* in failed_discover_probes",
+    "replace \\+ with \\* in handshakes",
 ]

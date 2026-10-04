@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+# The one direct dependency; requirements.txt is its hash-pinned lock
+# (uv pip compile --generate-hashes --python-version 3.11 requirements.in -o requirements.txt).
+mcp==2.3.0

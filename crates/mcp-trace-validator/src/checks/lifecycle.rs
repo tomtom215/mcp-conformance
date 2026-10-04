@@ -9,7 +9,7 @@
 
 use mcp_conformance_core::message::MessageKind;
 use mcp_conformance_core::revision::ProtocolRevision;
-use mcp_conformance_core::trace::Direction;
+use mcp_conformance_core::trace::{Direction, TraceEvent};
 use serde_json::Value;
 
 use super::FindingSink;
@@ -20,8 +20,25 @@ use crate::context::{Phase, TraceContext};
 /// request. A trace with no messages examines nothing and reports *not observed*
 /// (ADR-0012); the CLI declines such a trace outright, because it is a capture
 /// that failed rather than a session that conformed.
+///
+/// A dual-era client's `server/discover` probe that no result answered, and the
+/// server's error reply to it, are not the interaction this clause orders: the
+/// `2026-07-28` backward-compatibility procedure has the client probe first and
+/// fall back to `initialize` against a legacy server, which is what such a
+/// trace records. The first message after them is the one judged.
 pub(super) fn first_interaction_initialize(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    let Some((event, kind, _)) = context.messages().next() else {
+    let probes = crate::declared::failed_discover_probes(context.events());
+    let part_of_a_probe = |event: &TraceEvent, kind: &MessageKind<'_>| {
+        let reply = event.direction == Direction::ServerToClient
+            && matches!(kind, MessageKind::Error { .. });
+        probes.contains(&event.seq) || (!probes.is_empty() && reply)
+    };
+    // A line that is not a JSON-RPC message — a server's log banner on stdout —
+    // is no interaction: TRAN-004/TRAN-005 and BASE-008 judge it, and counting
+    // it here would convict the client of the server's noise.
+    let Some((event, kind, _)) = context.messages().find(|(event, kind, _)| {
+        !part_of_a_probe(event, kind) && !matches!(kind, MessageKind::Invalid { .. })
+    }) else {
         return;
     };
     sink.examined();
@@ -126,8 +143,11 @@ pub(super) fn client_requests_before_init_response(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
+    // A dual-era client's failed discovery probe precedes `initialize` by
+    // design (see `first_interaction_initialize`).
+    let probes = crate::declared::failed_discover_probes(context.events());
     for (event, kind, phase) in context.messages() {
-        if event.direction != Direction::ClientToServer {
+        if event.direction != Direction::ClientToServer || probes.contains(&event.seq) {
             continue;
         }
         if !matches!(
@@ -322,6 +342,50 @@ mod tests {
             direction_name(Direction::ServerToClient),
             "server to client"
         );
+    }
+
+    #[test]
+    fn after_a_failed_probe_only_its_error_reply_is_set_aside() {
+        // A dual-era client's probe and the server's refusal precede the
+        // handshake; a server notification after them is still the first
+        // interaction, and it is not the client's initialize.
+        use crate::context::TraceContext;
+        use crate::reader::{Limits, parse_trace};
+        let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"Method not found"}}}
+{"seq":2,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"x"}}}
+{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"1"}}}}"#;
+        let events = parse_trace(trace, &Limits::default()).expect("valid trace");
+        let context = TraceContext::new(&events);
+        let findings = crate::checks::find("lifecycle.first-interaction-initialize")
+            .expect("check exists")
+            .run(&context)
+            .findings;
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert_eq!(findings[0].seq, Some(2));
+    }
+
+    #[test]
+    fn a_server_banner_before_initialize_is_not_the_clients_interaction() {
+        // A server that logs to stdout breaks TRAN-004 (and BASE-008); the
+        // client, which did open with `initialize`, broke nothing here.
+        use crate::context::TraceContext;
+        use crate::reader::{Limits, parse_trace};
+        let initialize = r#"{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"1"}}}}"#;
+        let banner = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":"Server starting..."}"#;
+        let run = |doc: &str| {
+            let events = parse_trace(doc, &Limits::default()).expect("valid trace");
+            let context = TraceContext::new(&events);
+            crate::checks::find("lifecycle.first-interaction-initialize")
+                .expect("check exists")
+                .run(&context)
+        };
+        let outcome = run(&format!("{banner}\n{initialize}"));
+        assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
+        assert_eq!(outcome.subjects, 1, "the initialize is still judged");
+        // A real message ahead of initialize still fails.
+        let ping = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":0,"method":"ping"}}"#;
+        assert_eq!(run(&format!("{ping}\n{initialize}")).findings.len(), 1);
     }
 
     #[test]

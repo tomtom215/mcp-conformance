@@ -141,7 +141,12 @@ pub(in crate::checks) fn request_id_unique_in_flight(
     }
 }
 
-/// `BASE-055`: the `-32000`..`-32019` legacy sub-range is closed to new use.
+/// `BASE-083`: "new implementations SHOULD NOT use codes from this sub-range
+/// at all" — the `-32000`..`-32019` legacy sub-range.
+///
+/// A SHOULD NOT, so a use is a warning. The same sentence's MUST NOT binds
+/// *allocating* new codes there (BASE-055), which no message evidences; the
+/// two halves shared one MUST NOT entry until 2026-10-04.
 pub(in crate::checks) fn error_code_legacy_subrange(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
@@ -153,7 +158,7 @@ pub(in crate::checks) fn error_code_legacy_subrange(
                 Some(seq),
                 format!(
                     "error code {code} is in the legacy sub-range (-32000..-32019), \
-                     which 2026-07-28 implementations are not to use"
+                     which new 2026-07-28 implementations should not use"
                 ),
             );
         }

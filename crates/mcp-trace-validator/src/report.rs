@@ -271,6 +271,25 @@ pub enum Verdict {
     Unsupported,
 }
 
+impl Verdict {
+    /// The most severe of `verdicts` — unsupported over fail over warnings over
+    /// pass, the order a report derives its own — or `None` when there are none.
+    pub fn most_severe(verdicts: impl IntoIterator<Item = Self>) -> Option<Self> {
+        verdicts
+            .into_iter()
+            .max_by_key(|verdict| verdict.severity())
+    }
+
+    const fn severity(self) -> u8 {
+        match self {
+            Self::Pass => 0,
+            Self::PassWithWarnings => 1,
+            Self::Fail => 2,
+            Self::Unsupported => 3,
+        }
+    }
+}
+
 impl fmt::Display for Verdict {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let text = match self {

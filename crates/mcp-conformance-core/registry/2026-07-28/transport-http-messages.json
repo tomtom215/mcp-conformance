@@ -12,7 +12,7 @@
         "section": "basic/transports/streamable-http#sending-messages",
         "quote": "Every JSON-RPC message sent from the client MUST be a new HTTP POST request to the MCP endpoint."
       },
-      "exclusion": "Adds to TRAN-056's verb obligation that each message ride a *new* POST — one request per message. The verb is recorded and judged (TRAN-056); whether each message had its own request is HTTP framing the trace summarizes rather than reproduces. Same split as TRAN-024/TRAN-049 at 2025-11-25."
+      "exclusion": "Adds to TRAN-056's verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a non-object body — TRAN-059 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded. Same split as TRAN-024/TRAN-049 at 2025-11-25."
     },
     {
       "id": "TRAN-056",
@@ -100,7 +100,9 @@
         "section": "basic/transports/streamable-http#sending-messages",
         "quote": "If the server accepts it, the server MUST return HTTP status code `202 Accepted` with no body."
       },
-      "exclusion": "A `202 Accepted` carries no body and answers a notification, which has no id to correlate it with; the trace records the status but cannot tie it to the message it accepted. Same reasoning as TRAN-027 at 2025-11-25."
+      "checks": [
+        "transport.accepted-input-status"
+      ]
     },
     {
       "id": "TRAN-062",
@@ -210,7 +212,7 @@
         "section": "basic/transports/streamable-http#cancellation",
         "quote": "Closing the SSE response stream MUST be treated by the server as cancellation of that request."
       },
-      "exclusion": "How a server *treats* a closed stream is internal: cancellation is a decision, and the trace shows only that the transport ended. The observable consequence — messages sent afterwards — is TRAN-071's business."
+      "exclusion": "How a server *treats* a closed stream is internal: cancellation is a decision, and the trace shows only that the transport ended. The observable consequence — messages sent afterwards — is TRAN-070's business."
     },
     {
       "id": "TRAN-070",

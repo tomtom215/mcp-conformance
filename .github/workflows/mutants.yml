@@ -37,6 +37,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Install toolchain
         run: |
           rustup show active-toolchain
@@ -46,7 +47,12 @@ jobs:
       - name: Install cargo-mutants
         run: cargo install cargo-mutants --locked
       - name: Compute PR diff
-        run: git diff "origin/${{ github.base_ref }}..." > pr.diff
+        # Through the environment, not interpolated into the script: the
+        # trigger's branch filter limits base_ref to `main` today, but a value
+        # spliced into shell source is only as safe as every future filter.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git diff "origin/${BASE_REF}..." > pr.diff
       - name: Run mutants on changed code
         # `-- --all-features` is load-bearing: without it, feature-gated code
         # (the everything-server's `tap`) is never compiled into the mutated

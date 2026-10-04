@@ -5,10 +5,10 @@
     "pass": 19,
     "fail": 7,
     "warn": 1,
-    "excluded": 147,
+    "excluded": 149,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 98
+    "not_observed": 97
   },
   "requirements": [
     {
@@ -62,8 +62,8 @@
       "outcome": "pass"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
       "outcome": "pass"
     },
     {
@@ -182,6 +182,11 @@
       "id": "TRAN-060",
       "level": "MUST NOT",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-061",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-063",
@@ -550,16 +555,6 @@
         "quote": "Every request MUST include the required `meta` fields; see `meta`.",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination"
       }
-    },
-    {
-      "id": "PAGE-010",
-      "level": "MUST",
-      "outcome": "not-observed"
-    },
-    {
-      "id": "PAGE-011",
-      "level": "SHOULD",
-      "outcome": "not-observed"
     },
     {
       "id": "LOG-007",

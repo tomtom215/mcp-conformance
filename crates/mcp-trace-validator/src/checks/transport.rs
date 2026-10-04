@@ -20,9 +20,13 @@ use crate::context::TraceContext;
 
 mod accept;
 mod post;
+mod status;
 
 pub(super) use accept::{client_get_accept_header, client_post_accept_header};
 pub(super) use post::client_messages_use_post;
+pub(super) use status::{
+    accepted_input_status, get_stream_content_type, request_success_content_type,
+};
 
 /// `TRAN-004`: nothing on the server's stdout that is not a valid MCP message.
 pub(super) fn stdio_server_output_valid(context: &TraceContext<'_>, sink: &mut FindingSink) {
@@ -203,50 +207,6 @@ fn negotiated_version<'a>(context: &TraceContext<'a>) -> Option<(u64, &'a str)> 
     Some((seq, version))
 }
 
-/// `TRAN-029`/`TRAN-040`: an HTTP 200 from the MCP endpoint must declare
-/// `Content-Type: application/json` or `Content-Type: text/event-stream`.
-///
-/// Both clauses demand one of the same two content types for their success
-/// case (POST answering a request; GET opening a stream), so the check is
-/// sound without knowing the request method. Non-200 paths (202 accepted,
-/// error statuses, 405) carry no such obligation and are not examined.
-pub(super) fn success_content_type(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    for event in context.events() {
-        if event.direction != Direction::ServerToClient {
-            continue;
-        }
-        let EventBody::Http {
-            status: Some(200),
-            headers,
-            ..
-        } = &event.body
-        else {
-            continue;
-        };
-        sink.examined();
-        match headers.get("content-type") {
-            None => sink.push(
-                Some(event.seq),
-                "HTTP 200 response carries no Content-Type header; the MCP endpoint \
-                 must answer with application/json or text/event-stream"
-                    .to_owned(),
-            ),
-            Some(content_type) => {
-                let lowered = content_type.to_ascii_lowercase();
-                if !lowered.contains("application/json") && !lowered.contains("text/event-stream") {
-                    sink.push(
-                        Some(event.seq),
-                        format!(
-                            "HTTP 200 Content-Type {content_type:?} is neither application/json \
-                             nor text/event-stream"
-                        ),
-                    );
-                }
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -395,33 +355,5 @@ mod tests {
         let client = findings_for("transport.stdio-client-input-valid", trace);
         assert_eq!(client.len(), 1, "{client:?}");
         assert!(client[0].contains("not a JSON object"), "{client:?}");
-    }
-
-    #[test]
-    fn success_content_type_judges_only_200_responses() {
-        // 200 with a content type outside the two allowed.
-        let html = http_session(r#"{"content-type":"text/html"}"#, "{}");
-        let findings = findings_for("transport.success-content-type", &html);
-        assert_eq!(findings.len(), 1, "{findings:?}");
-        assert!(findings[0].contains("text/html"), "{findings:?}");
-
-        // 200 with no content type at all.
-        let none = http_session("{}", "{}");
-        let findings = findings_for("transport.success-content-type", &none);
-        assert_eq!(findings.len(), 1, "{findings:?}");
-        assert!(findings[0].contains("no Content-Type"), "{findings:?}");
-
-        // SSE and JSON answers both pass; a 202 is not examined.
-        for ok in [
-            r#"{"content-type":"text/event-stream"}"#,
-            r#"{"content-type":"application/json; charset=utf-8"}"#,
-        ] {
-            assert!(
-                findings_for("transport.success-content-type", &http_session(ok, "{}")).is_empty(),
-                "{ok}"
-            );
-        }
-        let accepted = r#"{"seq":0,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":202}"#;
-        assert!(findings_for("transport.success-content-type", accepted).is_empty());
     }
 }

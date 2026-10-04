@@ -199,3 +199,78 @@ fn select_does_not_count_a_refused_request() {
     let selection = select(BUILTIN_REVISIONS, &events(document)).unwrap();
     assert_eq!(selection.source, RevisionSource::Default);
 }
+
+/// A dual-era client against a legacy Streamable HTTP server: the
+/// `server/discover` probe draws an HTTP 400 whose JSON-RPC error carries
+/// `id: null`, and the client falls back to `initialize` (the shape the
+/// official Python SDK records against the TypeScript everything server).
+const DUAL_ERA_FALLBACK: &str = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"accept":"application/json, text/event-stream","content-type":"application/json","mcp-method":"server/discover","mcp-protocol-version":"2026-07-28"}}
+{"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}}
+{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":400,"headers":{"content-type":"application/json"}}
+{"seq":3,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":"Bad Request: Server not initialized"}}}
+{"seq":4,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"accept":"application/json, text/event-stream","content-type":"application/json"}}
+{"seq":5,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"0"}}}}
+{"seq":6,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":200,"headers":{"content-type":"application/json","mcp-session-id":"s1"}}
+{"seq":7,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}
+{"seq":8,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"accept":"application/json, text/event-stream","content-type":"application/json","mcp-session-id":"s1","mcp-protocol-version":"2025-11-25"}}
+{"seq":9,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}
+{"seq":10,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":202}"#;
+
+#[test]
+fn a_failed_discovery_probe_declares_nothing() {
+    let trace = events(DUAL_ERA_FALLBACK);
+    assert_eq!(
+        failed_discover_probes(&trace)
+            .into_iter()
+            .collect::<Vec<_>>(),
+        [1]
+    );
+    assert_eq!(declared_revisions(&trace), ["2025-11-25"]);
+
+    // Answered with a result, the probe is a 2026-07-28 session's discovery.
+    let answered = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","supportedVersions":["2026-07-28"],"capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}"#;
+    assert!(failed_discover_probes(&events(answered)).is_empty());
+    assert_eq!(declared_revisions(&events(answered)), ["2026-07-28"]);
+}
+
+#[test]
+fn a_dual_era_fallback_is_a_conforming_handshake_session() {
+    let registry = mcp_conformance_core::requirement::Registry::builtin_2025_11_25().unwrap();
+    let report = crate::engine::validate(&registry, &events(DUAL_ERA_FALLBACK));
+    let outcome = |id: &str| {
+        report
+            .requirements
+            .iter()
+            .find(|row| row.id == id)
+            .map(|row| row.outcome)
+            .unwrap()
+    };
+    assert_eq!(
+        outcome("LIFE-001"),
+        crate::report::Outcome::Pass,
+        "the probe precedes initialize by design"
+    );
+    assert_eq!(
+        outcome("LIFE-004"),
+        crate::report::Outcome::Pass,
+        "the probe is not a request in the window"
+    );
+    assert_eq!(report.totals.fail, 0, "{report:#?}");
+}
+
+#[test]
+fn a_probe_is_answered_only_by_a_response_carrying_its_own_id() {
+    // The server's next response answers an earlier request, not the probe;
+    // the probe's own answer is an error, so the probe failed.
+    let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":5,"method":"ping"}}
+{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}}
+{"seq":2,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":5,"result":{}}}
+{"seq":3,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"Method not found"}}}"#;
+    assert_eq!(
+        failed_discover_probes(&events(trace))
+            .into_iter()
+            .collect::<Vec<_>>(),
+        [1]
+    );
+}

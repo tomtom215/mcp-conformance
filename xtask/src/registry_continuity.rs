@@ -46,10 +46,18 @@ use crate::spec_drift::quote::normalize;
 /// or fixed, and a row whose pair has stopped disagreeing must be retired. A
 /// row is a decision someone made on the record — not a way to quiet the gate.
 ///
-/// Empty, and that is the point of it still existing: the four disagreements
-/// that existed when this was written were all defects, and the next one has
-/// somewhere to be justified rather than nowhere to be noticed.
-const JUSTIFIED: &[(&str, &str, &str)] = &[];
+/// The four disagreements that existed when this was written were all defects.
+/// The first justified one came with 2026-07-28's caching rules: the same
+/// sentence about invalid cursors is judged at one revision and not the other,
+/// because what a recording can witness about a cursor changed.
+const JUSTIFIED: &[(&str, &str, &str)] = &[(
+    "PAGE-003",
+    "PAGE-011",
+    "2025-11-25 forbids persisting cursors across sessions, so a cursor no result in the \
+     session issued is invalid and a recording can witness it; 2026-07-28 tells clients to \
+     re-present cursors from expired cached pages, which may predate the recording, so the \
+     same observation no longer shows the cursor was invalid",
+)];
 
 /// One clause as the registry states it, reduced to the facts both entries owe
 /// each other.

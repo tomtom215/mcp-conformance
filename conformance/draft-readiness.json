@@ -2,7 +2,7 @@
   "_policy": "Measured by `cargo xtask draft-readiness`: the status of every check the official runner's 2026-07-28 scenarios report against the everything server, once per revision the server can serve. Scenario keys are `<served revision>/<scenario>`: the 2025-11-25 leg measures migration distance, the 2026-07-28 leg measures the server's own stateless mode. The gate fails on ANY change — a lost pass is a regression, a gained one is progress that gets recorded deliberately (BLESS=1) in the commit that earned it. Statuses are verbatim: INFO is the runner's informational outcome and is neither a pass nor a failure. Passing the runner is not the same as conforming: these scenarios come from a pre-release suite, so the check set itself can still move, and the runner judges a subset of what the registry in this workspace judges.",
   "failing": 4,
   "informational": 0,
-  "passing": 78,
+  "passing": 80,
   "scenarios": {
     "2025-11-25/completion-complete": {
       "completion-complete": "SUCCESS",
@@ -82,6 +82,7 @@
     },
     "2025-11-25/tools-list": {
       "tools-list": "SUCCESS",
+      "tools-list-deterministic-order": "SUCCESS",
       "tools-name-format": "SUCCESS",
       "wire-schema-valid": "SUCCESS"
     },
@@ -163,10 +164,11 @@
     },
     "2026-07-28/tools-list": {
       "tools-list": "SUCCESS",
+      "tools-list-deterministic-order": "SUCCESS",
       "tools-name-format": "SUCCESS",
       "wire-schema-valid": "SUCCESS"
     }
   },
   "spec": "2026-07-28",
-  "suite": "0.2.0-alpha.11"
+  "suite": "0.2.0-alpha.12"
 }

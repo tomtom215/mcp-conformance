@@ -15,9 +15,11 @@ members = [
 [workspace.package]
 edition = "2024"
 # MSRV policy (docs/plan/decisions/0008-msrv-1.88.md): 1.88 is the lowest bound
-# we verify in CI. It is forced by rmcp (undeclared upstream): rmcp's `macros`
-# feature pulls darling 0.23.0, which requires 1.88 (empirically re-verified
-# 2026-06-15, ADR-0008 §Correction). Our own code also uses let-chains (1.88).
+# we verify in CI. It is forced by rmcp: rmcp's `macros` feature pulls darling,
+# which requires 1.88 (measured on darling 0.23.0 on 2026-06-15, ADR-0008
+# §Correction). Both now declare it: rmcp 3.4.1 `rust-version = "1.88"`, and
+# darling 0.24.0 — the version Cargo.lock resolves today — `1.88.0` (sparse
+# index, 2026-10-04). Our own code also uses let-chains (1.88).
 # Bumps are minor releases with a changelog entry.
 rust-version = "1.88"
 version = "0.6.0"
@@ -33,7 +35,10 @@ serde = { version = ">=1.0.220, <2", features = ["derive"] }
 # float_roundtrip is required correctness, not an optimization preference: without
 # it serde_json's float *parsing* may be 1 ULP off its own output, which breaks
 # parse(canonical(v)) == v — caught by the canonical-JSON property tests.
-serde_json = { version = ">=1.0.127, <2", features = ["float_roundtrip"] }
+# The floor is 1.0.143 because the jsonschema dev-dependency needs
+# `CompactFormatter: Default`, added there; one floor for normal and dev use
+# keeps `-Z direct-minimal-versions` resolvable (two floors conflict).
+serde_json = { version = ">=1.0.143, <2", features = ["float_roundtrip"] }
 
 # CLI parsing — binaries only, behind each crate's `cli` feature
 # (docs/plan/decisions/0005-cli-argument-parsing.md).

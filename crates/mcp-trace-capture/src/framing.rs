@@ -13,9 +13,10 @@ use serde_json::Value;
 /// Splits a byte stream into newline-terminated lines.
 ///
 /// The stdio transport delimits messages with `\n`; a trailing `\r` is tolerated and
-/// removed. A line longer than `max_line` is not buffered further: it is reported as
-/// oversized and discarded up to its newline, so a runaway writer cannot exhaust the
-/// capture's memory. The bytes themselves are forwarded by the caller regardless.
+/// removed, and does not count toward the limit. A line longer than `max_line` is
+/// not buffered further: it is reported as oversized and discarded up to its
+/// newline, so a runaway writer cannot exhaust the capture's memory. The bytes
+/// themselves are forwarded by the caller regardless.
 #[derive(Debug)]
 pub struct LineSplitter {
     buffer: Vec<u8>,
@@ -49,25 +50,31 @@ impl LineSplitter {
         while let Some(end) = chunk.iter().position(|&byte| byte == b'\n') {
             let (head, rest) = chunk.split_at(end);
             chunk = &rest[1..];
-            if self.discarding {
-                self.discarding = false;
+            if std::mem::take(&mut self.discarding) {
                 lines.push(Line::Oversized);
                 continue;
             }
-            if self.buffer.len() + head.len() > self.max_line {
+            let carriage_return = head
+                .last()
+                .or_else(|| self.buffer.last())
+                .is_some_and(|&byte| byte == b'\r');
+            let length = self.buffer.len() + head.len() - usize::from(carriage_return);
+            if length > self.max_line {
                 self.buffer.clear();
                 lines.push(Line::Oversized);
                 continue;
             }
             self.buffer.extend_from_slice(head);
             let mut line = std::mem::take(&mut self.buffer);
-            if line.last() == Some(&b'\r') {
+            if carriage_return {
                 line.pop();
             }
             lines.push(Line::Complete(line));
         }
+        // One byte of room beyond the limit: a line of exactly the limit may still
+        // be waiting for the `\n` of its `\r\n`.
         if !self.discarding {
-            if self.buffer.len() + chunk.len() > self.max_line {
+            if self.buffer.len() + chunk.len() > self.max_line.saturating_add(1) {
                 self.buffer.clear();
                 self.discarding = true;
             } else {
@@ -85,6 +92,9 @@ impl LineSplitter {
         let mut line = std::mem::take(&mut self.buffer);
         if line.last() == Some(&b'\r') {
             line.pop();
+        }
+        if line.len() > self.max_line {
+            return Some(Line::Oversized);
         }
         (!line.is_empty()).then_some(Line::Complete(line))
     }

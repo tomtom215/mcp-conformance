@@ -2,12 +2,42 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/tomtom215/mcp-conformance/main/crates/mcp-trace-validator/schema/report.schema.json",
   "title": "mcp-trace-validator JSON report",
-  "description": "The output of `mcp-trace-validator validate --format json`: a single-revision report, or a multi-revision one when several revisions were judged. It describes the release it ships with, closed (`additionalProperties: false`) so a test can prove every emitted member is documented; a later release may add members, and says so in its changelog. Absent optional members mean 'nothing to say' — they are omitted rather than written as null or empty.",
+  "description": "The output of `mcp-trace-validator validate --format json`: a single-revision report, a multi-revision one when several revisions were judged, or, for several traces, an envelope holding one of those per trace. It describes the release it ships with, closed (`additionalProperties: false`) so a test can prove every emitted member is documented; a later release may add members, and says so in its changelog. Absent optional members mean 'nothing to say' — they are omitted rather than written as null or empty.",
   "oneOf": [
     { "$ref": "#/$defs/report" },
-    { "$ref": "#/$defs/multiReport" }
+    { "$ref": "#/$defs/multiReport" },
+    { "$ref": "#/$defs/traceReports" }
   ],
   "$defs": {
+    "traceReports": {
+      "description": "Several traces judged in one run (`validate` given more than one trace): each trace's report in the shape it would have alone, the most severe verdict across them, and how many named traces could not be judged at all (their reasons are on stderr, and they count toward the exit status).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verdict", "traces", "unjudged"],
+      "properties": {
+        "verdict": {
+          "description": "The most severe of the traces' verdicts; null when no trace could be judged.",
+          "oneOf": [{ "$ref": "#/$defs/verdict" }, { "type": "null" }]
+        },
+        "traces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["trace", "report"],
+            "properties": {
+              "trace": { "description": "The trace as it was named on the command line.", "type": "string" },
+              "report": { "oneOf": [{ "$ref": "#/$defs/report" }, { "$ref": "#/$defs/multiReport" }] }
+            }
+          }
+        },
+        "unjudged": {
+          "description": "Named traces that could not be judged: unreadable, malformed, of an unsupported revision, or judging nothing.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
     "revision": {
       "description": "A protocol revision.",
       "type": "string",

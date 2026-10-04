@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 29,
+    "pass": 30,
     "fail": 4,
     "warn": 0,
-    "excluded": 147,
+    "excluded": 149,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 92
+    "not_observed": 90
   },
   "requirements": [
     {
@@ -74,8 +74,8 @@
       "outcome": "not-observed"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
       "outcome": "not-observed"
     },
     {
@@ -189,6 +189,11 @@
         "quote": "The client MUST NOT send JSON-RPC responses.",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#sending-messages"
       }
+    },
+    {
+      "id": "TRAN-061",
+      "level": "MUST",
+      "outcome": "pass"
     },
     {
       "id": "TRAN-063",
@@ -481,6 +486,11 @@
           "check": "caching.hints-on-cacheable-results",
           "seq": 3,
           "detail": "the `complete` result of `tools/list` carries no `ttlMs` caching hint"
+        },
+        {
+          "check": "caching.hints-on-cacheable-results",
+          "seq": 3,
+          "detail": "the `complete` result of `tools/list` carries no `cacheScope` caching hint"
         }
       ],
       "source": {
@@ -518,16 +528,6 @@
       "id": "PAGE-006",
       "level": "MUST",
       "outcome": "pass"
-    },
-    {
-      "id": "PAGE-010",
-      "level": "MUST",
-      "outcome": "not-observed"
-    },
-    {
-      "id": "PAGE-011",
-      "level": "SHOULD",
-      "outcome": "not-observed"
     },
     {
       "id": "LOG-007",
