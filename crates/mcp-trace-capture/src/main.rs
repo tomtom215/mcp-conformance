@@ -22,7 +22,8 @@ use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 use mcp_conformance_core::trace::{DEFAULT_MAX_LINE_BYTES, LINE_ENVELOPE_BYTES};
-use mcp_trace_capture::{DEFAULT_MAX_MESSAGE, Recorder, http, stdio};
+use mcp_conformance_core::trace::{Direction, LifecycleEvent, TransportKind};
+use mcp_trace_capture::{DEFAULT_MAX_MESSAGE, Recorder, Signals, http, stdio};
 
 const EXIT_USAGE: u8 = 2;
 const EXIT_INCOMPLETE: u8 = 3;
@@ -202,10 +203,10 @@ async fn run_http(
         }
     };
     let bound = listener.local_addr().unwrap_or(listen);
-    // Registered before the address is announced: a client (or a test) may signal
+    // Installed before the address is announced: a client (or a test) may signal
     // the moment it reads that line.
-    let shutdown = match mcp_trace_capture::shutdown_signal() {
-        Ok(shutdown) => shutdown,
+    let signals = match Signals::install() {
+        Ok(signals) => signals,
         Err(error) => {
             eprintln!("mcp-trace-capture: cannot install a signal handler: {error}");
             return EXIT_USAGE;
@@ -214,7 +215,58 @@ async fn run_http(
     eprintln!(
         "mcp-trace-capture: listening on http://{bound}, forwarding to {upstream} (Ctrl-C to stop)"
     );
-    match http::serve(listener, Arc::clone(recorder), options, shutdown).await {
+    serve_until_stopped(listener, recorder, options, signals).await
+}
+
+/// Serves until a request to stop, then lets the proxy stop within its grace
+/// period — or at once on a second request.
+async fn serve_until_stopped(
+    listener: tokio::net::TcpListener,
+    recorder: &Arc<Recorder>,
+    options: http::Options,
+    mut signals: Signals,
+) -> u8 {
+    let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
+    let serving = http::serve(listener, Arc::clone(recorder), options, async {
+        let _ = stopped.await;
+    });
+    tokio::pin!(serving);
+    let first = tokio::select! {
+        served = &mut serving => return http_summary(served),
+        first = signals.recv() => first,
+    };
+    eprintln!(
+        "mcp-trace-capture: {}: stopping; open event streams are ended, other requests get \
+         {}s (signal again to stop now)",
+        first.name(),
+        mcp_trace_capture::STOP_GRACE.as_secs()
+    );
+    let _ = stop.send(());
+    tokio::select! {
+        served = &mut serving => http_summary(served),
+        again = signals.recv() => {
+            let _ = recorder.close(
+                Direction::ClientToServer,
+                TransportKind::StreamableHttp,
+                LifecycleEvent::TransportClose,
+            );
+            eprintln!(
+                "mcp-trace-capture: {} again: stopped without waiting for open requests",
+                again.name()
+            );
+            exit_code_of_stop(again)
+        }
+    }
+}
+
+/// The exit code for a capture a second signal stopped: as a shell reports a
+/// process that signal ended.
+fn exit_code_of_stop(stop: mcp_trace_capture::Stop) -> u8 {
+    u8::try_from(128 + stop.number()).unwrap_or(1)
+}
+
+fn http_summary(served: std::io::Result<http::Unrecorded>) -> u8 {
+    match served {
         Ok(unrecorded) => {
             report_unrecorded("session", unrecorded.not_json, unrecorded.oversized);
             if unrecorded.upstream_failures > 0 {

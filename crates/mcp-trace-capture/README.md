@@ -87,7 +87,10 @@ mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000 --liste
 # client URL: http://127.0.0.1:8080/mcp   (request paths are appended to --upstream's)
 ```
 
-Stop it with Ctrl-C. `https://` upstreams work (rustls, the platform's root
+Stop it with Ctrl-C (or `SIGTERM`/`SIGHUP`). Open event streams — an MCP client keeps
+a GET stream open for its whole session — are ended at once; other requests in flight
+get 3 seconds to finish. The trace is then closed with a `transport-close` event and
+the summary printed. A second signal stops at once. `https://` upstreams work (rustls, the platform's root
 certificates). SSE streams are relayed as they arrive, event by event.
 
 ## What it guarantees
@@ -138,6 +141,7 @@ certificates). SSE streams are relayed as they arrive, event by event.
 |------|---------|
 | server's | `stdio`: the wrapped server's exit code (128 + signal if a signal ended it, on Unix — 137 for a server killed after the grace period) |
 | 0 | `http`: stopped cleanly with a complete trace |
+| 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests |
 | 2 | Bad arguments, an existing output file (`--force` overwrites), a server that would not start, an address that would not bind |
 | 3 | The session ran but the trace is incomplete (a write failed), when the code would otherwise be 0 |
 

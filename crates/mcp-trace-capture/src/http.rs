@@ -24,7 +24,7 @@
 //! **Limits.** A body or SSE event larger than the message limit is forwarded intact
 //! and counted, not recorded: the proxy never alters traffic to fit its trace.
 
-use std::future::Future;
+use std::future::{Future, IntoFuture as _};
 use std::io;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -34,6 +34,9 @@ use axum::http::uri::Uri;
 use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
+
+use mcp_conformance_core::trace::{Direction, LifecycleEvent, TransportKind};
+use tokio::sync::watch;
 
 use crate::recorder::Recorder;
 
@@ -59,6 +62,11 @@ pub struct Options {
     /// the proxy sent. Wrong for a virtually hosted remote server, which routes on
     /// `Host`.
     pub preserve_host: bool,
+    /// How long open connections get to finish once [`serve`]'s `shutdown`
+    /// resolves, before the proxy stops without them. Event streams do not wait
+    /// for it: they are ended at once (an MCP client holds a GET stream open for
+    /// its whole session, so waiting for one to finish would never stop).
+    pub grace: std::time::Duration,
 }
 
 impl Options {
@@ -81,6 +89,7 @@ impl Options {
             upstream,
             max_message,
             preserve_host: false,
+            grace: crate::STOP_GRACE,
         })
     }
 }
@@ -120,9 +129,16 @@ struct Proxy {
     client: Client<Connector, Body>,
     options: Options,
     counters: Counters,
+    /// Becomes `true` when the proxy is shutting down.
+    stopping: watch::Receiver<bool>,
 }
 
-/// Serves the proxy on `listener` until `shutdown` resolves.
+/// Serves the proxy on `listener` until `shutdown` resolves, then stops.
+///
+/// Stopping ends every open event stream (cleanly, between two chunks the
+/// upstream sent), gives other connections [`Options::grace`] to finish, and
+/// closes the trace with a `transport-close` event — so a client holding a stream
+/// open cannot keep the proxy running.
 ///
 /// # Errors
 ///
@@ -134,19 +150,53 @@ pub async fn serve(
     options: Options,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> io::Result<Unrecorded> {
+    let (stop, stopping) = watch::channel(false);
+    let grace = options.grace;
     let proxy = Arc::new(Proxy {
         recorder,
         client: Client::builder(TokioExecutor::new()).build(connector()?),
         options,
         counters: Counters::default(),
+        stopping: stopping.clone(),
     });
     let app = axum::Router::new()
         .fallback(relay::forward)
         .with_state(Arc::clone(&proxy));
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown)
-        .await?;
+    let server = axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            shutdown.await;
+            let _ = stop.send(true);
+        })
+        .into_future();
+    tokio::pin!(server);
+    let waited_out = async {
+        stopped(stopping).await;
+        tokio::time::sleep(grace).await;
+    };
+    tokio::select! {
+        result = &mut server => result?,
+        () = waited_out => {
+            eprintln!(
+                "mcp-trace-capture: connections still open {}s after the stop request are \
+                 closed unfinished",
+                grace.as_secs_f32()
+            );
+        }
+    }
+    let _ = proxy.recorder.close(
+        Direction::ClientToServer,
+        TransportKind::StreamableHttp,
+        LifecycleEvent::TransportClose,
+    );
     Ok(proxy.counters.snapshot())
+}
+
+/// Resolves once `stopping` is `true`; never, if its sender went away without
+/// setting it.
+async fn stopped(mut stopping: watch::Receiver<bool>) {
+    if stopping.wait_for(|stopping| *stopping).await.is_err() {
+        std::future::pending::<()>().await;
+    }
 }
 
 /// The upstream connector: HTTPS and HTTP with the `tls` feature, HTTP without.

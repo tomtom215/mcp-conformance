@@ -154,28 +154,33 @@ impl Proxy {
     {
         let mut parser = SseParser::new(self.options.max_message);
         let mut oversized_seen = 0;
-        stream.inspect_ok(move |chunk| {
-            for data in parser.push(chunk) {
-                match parse_json(&data) {
-                    Some(payload) => {
-                        self.count_refused(self.recorder.record(
-                            Direction::ServerToClient,
-                            TransportKind::StreamableHttp,
-                            EventBody::Message { payload },
-                        ));
-                    }
-                    None => {
-                        self.counters.not_json.fetch_add(1, Ordering::Relaxed);
+        // At shutdown the stream ends between two chunks, so the client sees a
+        // stream that closed rather than a proxy that will not stop.
+        let stopping = super::stopped(self.stopping.clone());
+        stream
+            .inspect_ok(move |chunk| {
+                for data in parser.push(chunk) {
+                    match parse_json(&data) {
+                        Some(payload) => {
+                            self.count_refused(self.recorder.record(
+                                Direction::ServerToClient,
+                                TransportKind::StreamableHttp,
+                                EventBody::Message { payload },
+                            ));
+                        }
+                        None => {
+                            self.counters.not_json.fetch_add(1, Ordering::Relaxed);
+                        }
                     }
                 }
-            }
-            // The parser's count only grows; add what this chunk contributed.
-            let oversized = parser.oversized();
-            self.counters
-                .oversized
-                .fetch_add(oversized - oversized_seen, Ordering::Relaxed);
-            oversized_seen = oversized;
-        })
+                // The parser's count only grows; add what this chunk contributed.
+                let oversized = parser.oversized();
+                self.counters
+                    .oversized
+                    .fetch_add(oversized - oversized_seen, Ordering::Relaxed);
+                oversized_seen = oversized;
+            })
+            .take_until(stopping)
     }
 
     /// The upstream could not be reached or failed mid-response. The 502 is the
