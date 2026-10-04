@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 33,
+    "pass": 32,
     "fail": 1,
     "warn": 0,
-    "excluded": 147,
+    "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 91
+    "not_observed": 92
   },
   "requirements": [
     {
@@ -62,8 +62,8 @@
       "outcome": "not-observed"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
       "outcome": "not-observed"
     },
     {
@@ -159,7 +159,7 @@
     {
       "id": "TRAN-059",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-060",
@@ -309,12 +309,12 @@
     {
       "id": "TRAN-117",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-118",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-119",

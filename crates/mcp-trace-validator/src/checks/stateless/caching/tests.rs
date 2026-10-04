@@ -33,7 +33,7 @@ fn complete(seq: u64, id: u64, body: &str) -> String {
 }
 
 #[test]
-fn every_cacheable_operation_must_carry_a_ttl() {
+fn every_cacheable_operation_must_carry_both_hints() {
     for method in [
         "server/discover",
         "tools/list",
@@ -43,25 +43,31 @@ fn every_cacheable_operation_must_carry_a_ttl() {
         "resources/read",
     ] {
         let bare = trace(&[request(0, 1, method, ""), complete(1, 1, "")]);
-        assert_eq!(findings_for(HINTS, &bare).len(), 1, "{method} needs a hint");
+        assert_eq!(
+            findings_for(HINTS, &bare).len(),
+            2,
+            "{method} needs both hints"
+        );
 
         let hinted = trace(&[
             request(0, 1, method, ""),
-            complete(1, 1, r#","ttlMs":1000"#),
+            complete(1, 1, r#","ttlMs":1000,"cacheScope":"public""#),
         ]);
         assert!(findings_for(HINTS, &hinted).is_empty(), "{method}");
     }
 }
 
 #[test]
-fn a_cache_scope_is_not_required_by_any_clause() {
-    // `ttlMs` alone satisfies the clause: nothing on the page makes `cacheScope`
-    // mandatory, and demanding it would be inventing a rule.
+fn a_ttl_without_a_scope_is_half_the_hints() {
+    // "Cacheable Results in MCP use two fields to provide caching hints":
+    // `ttlMs` alone is not "caching hints", and the schema requires both.
     let session = trace(&[
         request(0, 1, "tools/list", ""),
         complete(1, 1, r#","ttlMs":0"#),
     ]);
-    assert!(findings_for(HINTS, &session).is_empty());
+    let findings = findings_for(HINTS, &session);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].contains("cacheScope"), "{findings:?}");
 }
 
 #[test]

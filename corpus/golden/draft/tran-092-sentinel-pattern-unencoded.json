@@ -3,12 +3,12 @@
   "verdict": "fail",
   "totals": {
     "pass": 36,
-    "fail": 3,
+    "fail": 2,
     "warn": 0,
-    "excluded": 147,
+    "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 86
+    "not_observed": 87
   },
   "requirements": [
     {
@@ -62,8 +62,8 @@
       "outcome": "not-observed"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
       "outcome": "not-observed"
     },
     {
@@ -457,6 +457,11 @@
           "check": "caching.hints-on-cacheable-results",
           "seq": 3,
           "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
+        },
+        {
+          "check": "caching.hints-on-cacheable-results",
+          "seq": 3,
+          "detail": "the `complete` result of `resources/read` carries no `cacheScope` caching hint"
         }
       ],
       "source": {
@@ -618,19 +623,7 @@
     {
       "id": "RES-022",
       "level": "MUST NOT",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "resources.read-contents-non-empty",
-          "seq": 3,
-          "detail": "`resources/read` answered with an empty `contents` array, which is ambiguous between an empty resource and a missing one"
-        }
-      ],
-      "source": {
-        "section": "server/resources#error-handling",
-        "quote": "Servers MUST NOT return an empty `contents` array for a non-existent resource.",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling"
-      }
+      "outcome": "not-observed"
     },
     {
       "id": "RES-023",

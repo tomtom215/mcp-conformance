@@ -126,11 +126,47 @@ fn read(contents: &str) -> String {
     ])
 }
 
+/// `read(contents)` preceded by an earlier read of the same URI that the
+/// server answered with `code` — the server's own word on whether it exists.
+fn read_after_error(code: i64, contents: &str) -> String {
+    let mut lines = vec![
+        client(
+            0,
+            r#"{"jsonrpc":"2.0","id":7,"method":"resources/read","params":{"uri":"file:///a","_meta":{}}}"#,
+        ),
+        server(
+            1,
+            &format!(
+                r#"{{"jsonrpc":"2.0","id":7,"error":{{"code":{code},"message":"no such resource"}}}}"#
+            ),
+        ),
+    ];
+    lines.extend(read(contents).lines().enumerate().map(|(index, line)| {
+        line.replacen(
+            &format!(r#""seq":{index}"#),
+            &format!(r#""seq":{}"#, index + 2),
+            1,
+        )
+    }));
+    trace(&lines)
+}
+
 #[test]
-fn an_empty_contents_array_is_reported() {
-    let findings = findings_for(CONTENTS, &read("[]"));
-    assert_eq!(findings.len(), 1, "{findings:?}");
-    assert!(findings[0].contains("ambiguous"), "{findings:?}");
+fn an_empty_contents_array_for_a_missing_resource_is_reported() {
+    for code in [-32602, -32002] {
+        let findings = findings_for(CONTENTS, &read_after_error(code, "[]"));
+        assert_eq!(findings.len(), 1, "{code}: {findings:?}");
+        assert!(findings[0].contains("not found"), "{findings:?}");
+    }
+    // Some other error says nothing about existence.
+    assert!(findings_for(CONTENTS, &read_after_error(-32603, "[]")).is_empty());
+}
+
+#[test]
+fn an_empty_contents_array_alone_is_not_evidence_of_a_missing_resource() {
+    // "It could mean the resource exists but has no content": the clause binds
+    // only a non-existent resource, and nothing here says this one is.
+    assert!(findings_for(CONTENTS, &read("[]")).is_empty());
 }
 
 #[test]

@@ -94,13 +94,28 @@ fn other_notifications_are_not_this_clauses_business() {
     assert!(findings_for(REFERENCES, &unrelated).is_empty());
 }
 
+/// A later client request (`id` 5) and its answer: proof the server has read
+/// everything the client sent before it.
+fn read_past(seq: u64) -> [String; 2] {
+    [
+        request(seq, 5, None),
+        server(
+            seq + 1,
+            r#"{"jsonrpc":"2.0","id":5,"result":{"resultType":"complete"}}"#,
+        ),
+    ]
+}
+
 #[test]
 fn answering_a_cancelled_request_is_the_violation() {
+    let [later, answered] = read_past(2);
     let session = trace(&[
         request(0, 1, None),
         cancel(1, r#","params":{"requestId":1}"#),
+        later,
+        answered,
         server(
-            2,
+            4,
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
         ),
     ]);
@@ -115,6 +130,24 @@ fn answering_a_cancelled_request_is_the_violation() {
         r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32603,"message":"x"}}"#,
     );
     assert_eq!(findings_for(AFTER, &errored).len(), 1);
+}
+
+#[test]
+fn an_answer_racing_the_cancellation_is_not_convicted() {
+    // "The request SHOULD still be in-flight, but due to communication latency,
+    // it is always possible that this notification MAY arrive after the request
+    // has already finished": nothing shows the server had read the cancellation
+    // before writing this answer.
+    let session = trace(&[
+        request(0, 1, Some("tok-1")),
+        cancel(1, r#","params":{"requestId":1}"#),
+        progress(2, "tok-1"),
+        server(
+            3,
+            r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
+        ),
+    ]);
+    assert!(findings_for(AFTER, &session).is_empty());
 }
 
 #[test]
@@ -149,10 +182,13 @@ fn a_different_request_may_still_be_answered() {
 fn progress_for_a_cancelled_request_is_a_further_message() {
     // Correlated by the token the request opted into, not by JSON-RPC id — the
     // only link a progress notification carries.
+    let [later, answered] = read_past(2);
     let session = trace(&[
         request(0, 1, Some("tok-1")),
         cancel(1, r#","params":{"requestId":1}"#),
-        progress(2, "tok-1"),
+        later,
+        answered,
+        progress(4, "tok-1"),
     ]);
     let findings = findings_for(AFTER, &session);
     assert_eq!(findings.len(), 1, "{findings:?}");
@@ -181,10 +217,13 @@ fn a_cancellation_for_a_request_the_recording_never_saw_still_binds() {
     // The prohibition is on the id, not on this trace having witnessed the
     // request open — a recording that starts mid-session must not excuse the
     // server from honouring a cancellation it received.
+    let [later, answered] = read_past(1);
     let session = trace(&[
         cancel(0, r#","params":{"requestId":9}"#),
+        later,
+        answered,
         server(
-            1,
+            3,
             r#"{"jsonrpc":"2.0","id":9,"result":{"resultType":"complete"}}"#,
         ),
     ]);

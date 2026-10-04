@@ -22,6 +22,11 @@
       "exclusion": "The backward-compatibility rule binds the client's *interpretation* of an absent field, which leaves no wire artifact: the trace records that `resultType` was absent, not that the client read it as `complete`."
     },
     {
+      "id": "BASE-055",
+      "level": "MUST NOT",
+      "exclusion": "Binds allocation — assigning a new meaning to a code in -32000..-32019 — which is an act of whoever defines codes, not a message. A code observed on the wire carries no record of when or by whom it was allocated, so a legacy code in use is indistinguishable from a newly allocated one. Its use is the sentence's other half, BASE-083, which is a SHOULD NOT and is checked at that level: until 2026-10-04 this entry carried both halves at MUST NOT and reported every use of -32000 as a MUST failure."
+    },
+    {
       "id": "BASE-056",
       "level": "MUST NOT",
       "exclusion": "What a receiver assumes about a legacy code's meaning is internal; only conduct following from the assumption could surface, and attributing it requires the assumption. Same boundary as BASE-025 for reserved `_meta` keys."
@@ -214,7 +219,7 @@
     {
       "id": "TRAN-069",
       "level": "MUST",
-      "exclusion": "How a server *treats* a closed stream is internal: cancellation is a decision, and the trace shows only that the transport ended. The observable consequence — messages sent afterwards — is TRAN-071's business."
+      "exclusion": "How a server *treats* a closed stream is internal: cancellation is a decision, and the trace shows only that the transport ended. The observable consequence — messages sent afterwards — is TRAN-070's business."
     },
     {
       "id": "TRAN-076",

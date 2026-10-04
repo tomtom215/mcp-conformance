@@ -12,11 +12,11 @@
 //! **How a retry is identified, and why it matters.** Nothing in the protocol
 //! labels a request as a retry, so these checks use the two fields that exist
 //! only for that purpose: a client request carrying `inputResponses` or
-//! `requestState` is a retry, of the most recent `input_required` before it.
-//! That is exact for a serial session and is the only correlation the wire
-//! supports; the specification itself contemplates parallel requests
-//! (MRTR-020), and where a session interleaves rounds these checks would pair a
-//! retry with the wrong round. A request carrying neither field is never treated
+//! `requestState` is a retry. Which round it answers is decided by the state it
+//! echoes, then by the request it repeats, and left undecided when rounds that
+//! would be judged differently both fit — see [`pairing`], which explains why
+//! "the most recent round" convicted conforming parallel clients. A request
+//! carrying neither field is never treated
 //! as a retry, which is what keeps an ordinary follow-up request — a second
 //! `tools/call` for something else entirely — from being judged as one.
 //!
@@ -27,14 +27,16 @@
 
 use std::collections::BTreeMap;
 
-use mcp_conformance_core::trace::Direction;
 use serde_json::{Map, Value};
 
 use super::super::FindingSink;
 use crate::context::TraceContext;
 
+mod pairing;
 #[cfg(test)]
 mod tests;
+
+use pairing::{Pairing, Retry, Round, retries, retries_with_rounds, rounds};
 
 /// The client requests that may draw an `InputRequiredResult` (#supported-requests).
 const SUPPORTED: &[&str] = &["prompts/get", "resources/read", "tools/call"];
@@ -42,109 +44,6 @@ const SUPPORTED: &[&str] = &["prompts/get", "resources/read", "tools/call"];
 /// The request objects an `inputRequests` value may be.
 const INPUT_REQUEST_METHODS: &[&str] =
     &["elicitation/create", "sampling/createMessage", "roots/list"];
-
-/// The `resultType` that marks a round as incomplete.
-const INPUT_REQUIRED: &str = "input_required";
-
-/// An `InputRequiredResult` and the request it answered.
-#[derive(Debug, Clone, Copy)]
-struct Round<'a> {
-    /// The `seq` of the result.
-    seq: u64,
-    /// The originating request's `seq`, `id` text and `method`.
-    origin: (u64, &'a Value, &'a str),
-    /// The `inputRequests` map, when the result carried one.
-    requests: Option<&'a Map<String, Value>>,
-    /// The `requestState` blob, when the result carried one.
-    state: Option<&'a Value>,
-}
-
-/// A client request that identifies itself as a retry.
-#[derive(Debug, Clone, Copy)]
-struct Retry<'a> {
-    seq: u64,
-    id: &'a Value,
-    method: &'a str,
-    responses: Option<&'a Map<String, Value>>,
-    state: Option<&'a Value>,
-}
-
-/// Every `input_required` answer in the trace, paired with its originating request.
-///
-/// Driven from exchanges, so a result whose request is not in the recording is
-/// skipped: without the request there is no method to judge against and no id to
-/// compare a retry's against.
-fn rounds<'a>(context: &'a TraceContext<'_>) -> Vec<Round<'a>> {
-    context
-        .exchanges()
-        .filter_map(|exchange| {
-            let result = exchange.result?;
-            if result.get("resultType").and_then(Value::as_str) != Some(INPUT_REQUIRED) {
-                return None;
-            }
-            let id = exchange.request.message_payload()?.get("id")?;
-            Some(Round {
-                seq: exchange.response.seq,
-                origin: (exchange.request.seq, id, exchange.method),
-                requests: result.get("inputRequests").and_then(Value::as_object),
-                state: result.get("requestState"),
-            })
-        })
-        .collect()
-}
-
-/// Every client request carrying a retry's marker fields, in trace order.
-fn retries<'a>(context: &'a TraceContext<'_>) -> Vec<Retry<'a>> {
-    context
-        .messages()
-        .filter_map(|(event, _, _)| {
-            if event.direction != Direction::ClientToServer {
-                return None;
-            }
-            let payload = event.message_payload()?;
-            let method = payload.get("method")?.as_str()?;
-            let id = payload.get("id").filter(|id| !id.is_null())?;
-            let params = payload.get("params")?;
-            let responses = params.get("inputResponses").and_then(Value::as_object);
-            let state = params.get("requestState");
-            (responses.is_some() || state.is_some()).then_some(Retry {
-                seq: event.seq,
-                id,
-                method,
-                responses,
-                state,
-            })
-        })
-        .collect()
-}
-
-/// Each retry paired with the round it answers: the most recent one before it.
-///
-/// One ordered pass rather than a `round.seq < retry.seq` comparison. A round is
-/// a server *result* and a retry a client *request*, so no two can share a `seq`
-/// — which makes `<` and `<=` indistinguishable by construction, a difference no
-/// trace could ever exhibit and therefore no test could ever catch. Walking the
-/// messages in order states the intent directly instead.
-fn retries_with_rounds<'a>(context: &'a TraceContext<'_>) -> Vec<(Retry<'a>, Option<Round<'a>>)> {
-    let rounds: BTreeMap<u64, Round<'a>> = rounds(context)
-        .into_iter()
-        .map(|round| (round.seq, round))
-        .collect();
-    let retries: BTreeMap<u64, Retry<'a>> = retries(context)
-        .into_iter()
-        .map(|retry| (retry.seq, retry))
-        .collect();
-    let mut latest: Option<Round<'a>> = None;
-    let mut out = Vec::new();
-    for (event, _, _) in context.messages() {
-        if let Some(round) = rounds.get(&event.seq) {
-            latest = Some(*round);
-        } else if let Some(retry) = retries.get(&event.seq) {
-            out.push((*retry, latest));
-        }
-    }
-    out
-}
 
 /// `MRTR-004`: `InputRequiredResult` answers only the three supported requests.
 pub(in crate::checks) fn input_required_supported_methods(
@@ -220,8 +119,8 @@ pub(in crate::checks) fn retry_carries_input_responses(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    for (retry, round) in retries_with_rounds(context) {
-        let Some(round) = round else {
+    for (retry, pairing) in retries_with_rounds(context) {
+        let Some(round) = pairing.round() else {
             continue;
         };
         // The subject is a retry of a round that actually asked for something:
@@ -266,8 +165,8 @@ fn missing_keys(round: &Round<'_>, retry: &Retry<'_>) -> Vec<String> {
 /// changed value is the only wire-visible form of "modified" — inspecting and
 /// parsing leave no trace — so a finding here is a true finding for all three.
 pub(in crate::checks) fn request_state_echoed(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    for (retry, round) in retries_with_rounds(context) {
-        let Some(round) = round else {
+    for (retry, pairing) in retries_with_rounds(context) {
+        let Some(round) = pairing.round() else {
             continue;
         };
         let Some(issued) = round.state else { continue };
@@ -299,12 +198,17 @@ pub(in crate::checks) fn no_unsolicited_request_state(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    for (retry, round) in retries_with_rounds(context) {
+    for (retry, pairing) in retries_with_rounds(context) {
         if retry.state.is_none() {
             continue;
         }
+        let issued = match pairing {
+            Pairing::Round(round) => round.state,
+            Pairing::Unseen => None,
+            // Rounds that would answer differently: no verdict on a guess.
+            Pairing::Ambiguous => continue,
+        };
         sink.examined();
-        let issued = round.and_then(|round| round.state);
         if issued.is_none() {
             sink.push(
                 Some(retry.seq),
@@ -318,8 +222,8 @@ pub(in crate::checks) fn no_unsolicited_request_state(
 
 /// `MRTR-019`: the retry is a new request, with a new id.
 pub(in crate::checks) fn retry_id_differs(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    for (retry, round) in retries_with_rounds(context) {
-        let Some(round) = round else {
+    for (retry, pairing) in retries_with_rounds(context) {
+        let Some(round) = pairing.round() else {
             continue;
         };
         sink.examined();
@@ -383,7 +287,7 @@ pub(in crate::checks) fn request_state_scoped_to_retry(
 pub(in crate::checks) fn missing_input_reasked(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let paired: BTreeMap<u64, (Retry<'_>, Option<Round<'_>>)> = retries_with_rounds(context)
         .into_iter()
-        .map(|(retry, round)| (retry.seq, (retry, round)))
+        .map(|(retry, pairing)| (retry.seq, (retry, pairing.round())))
         .collect();
     for exchange in context.exchanges() {
         let Some((retry, Some(round))) = paired.get(&exchange.request.seq).copied() else {

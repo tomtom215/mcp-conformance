@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 31,
+    "pass": 30,
     "fail": 1,
     "warn": 0,
-    "excluded": 147,
+    "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 93
+    "not_observed": 94
   },
   "requirements": [
     {
@@ -62,8 +62,8 @@
       "outcome": "not-observed"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
       "outcome": "not-observed"
     },
     {
@@ -606,7 +606,7 @@
     {
       "id": "RES-022",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "RES-023",

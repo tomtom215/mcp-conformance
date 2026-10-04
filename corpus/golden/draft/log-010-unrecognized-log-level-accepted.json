@@ -5,7 +5,7 @@
     "pass": 25,
     "fail": 0,
     "warn": 1,
-    "excluded": 147,
+    "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
     "not_observed": 99
@@ -62,8 +62,8 @@
       "outcome": "not-observed"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
       "outcome": "not-observed"
     },
     {

@@ -170,7 +170,7 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 
 | Area | Requirements | Checked | Excluded | Capability-gated |
 |------|-------------:|--------:|---------:|-----------------:|
-| BASE | 57 | 26 | 31 | 0 |
+| BASE | 58 | 26 | 32 | 0 |
 | TRAN | 80 | 33 | 47 | 0 |
 | DISC | 4 | 2 | 2 | 0 |
 | VERS | 8 | 5 | 3 | 0 |
@@ -183,9 +183,9 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | TOOL | 29 | 14 | 15 | 0 |
 | RES | 13 | 6 | 7 | 0 |
 | PROM | 11 | 7 | 4 | 0 |
-| **Total** | **272** | **125** | **147** | **0** |
+| **Total** | **273** | **125** | **148** | **0** |
 
-272 requirements: 125 judged by 100 distinct trace checks, 147 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+273 requirements: 125 judged by 100 distinct trace checks, 148 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 **`2025-11-25`**
 

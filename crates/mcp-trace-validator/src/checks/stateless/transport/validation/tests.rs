@@ -314,3 +314,41 @@ fn the_removed_handshake_is_outside_the_status_rule() {
         "{requested}"
     );
 }
+
+/// A tool designating integer `n` for `Mcp-Param-N`, then a served call whose
+/// header carries `header` against `"n": 42`.
+fn integer_call(header: &str) -> String {
+    trace(&[
+        server(
+            0,
+            r#"{"jsonrpc":"2.0","id":9,"result":{"resultType":"complete","tools":[{"name":"q","inputSchema":{"type":"object","properties":{"n":{"type":"integer","x-mcp-header":"N"}}}}]}}"#,
+        ),
+        post(
+            1,
+            &format!(
+                r#"{{"mcp-protocol-version":"2026-07-28","mcp-method":"tools/call","mcp-name":"q","mcp-param-n":"{header}"}}"#
+            ),
+        ),
+        client(
+            2,
+            &format!(
+                r#"{{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{{"name":"q","arguments":{{"n":42}},{META}}}}}"#
+            ),
+        ),
+        status(3, 200),
+        server(4, RESULT),
+    ])
+}
+
+#[test]
+fn integer_values_are_compared_as_numbers() {
+    // TRAN-101: "servers SHOULD compare the header value and the body value
+    // numerically rather than as strings (e.g., `42.0` and `42` are considered
+    // equal)". A server that does is not failing to reject a mismatch.
+    let check = "transport.header-body-match-validated";
+    assert!(findings_for(check, &integer_call("42.0")).is_empty());
+    assert_eq!(findings_for(check, &integer_call("41")).len(), 1);
+    // A string-typed value keeps the textual comparison.
+    let text = integer_call("42.0").replace(r#""n":42"#, r#""n":"42""#);
+    assert_eq!(findings_for(check, &text).len(), 1);
+}

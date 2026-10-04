@@ -38,24 +38,43 @@ fn is_log(event: &mcp_conformance_core::trace::TraceEvent, kind: &MessageKind<'_
 /// `LOG-008`: `notifications/message` only for a request that asked for it.
 ///
 /// The level rides `_meta.io.modelcontextprotocol/logLevel` on the request, and a
-/// log notification belongs to the response stream of the request that set it.
-/// On a recording this is judged by the one thing that survives: if *no* request
-/// in the session set a log level, no `notifications/message` may appear at all.
-/// Attributing a notification to a particular request is not possible on stdio,
-/// where one channel carries everything, so a session with at least one
-/// level-setting request is not judged further.
+/// log notification belongs to the request that set it — but carries nothing
+/// naming that request. Two readings are sound, and both are judged:
+///
+/// - If *no* request in the session set a level, no `notifications/message` may
+///   appear at all.
+/// - If exactly one client request is in flight when the notification arrives
+///   (sent, not yet answered; a `subscriptions/listen` stream does not count, as
+///   LOG-009 forbids logs on it), the notification can only be that request's,
+///   so that request must have set a level. This reaches a session in which
+///   *some* request asked for logs and the server logged against another one,
+///   which the first reading alone passed. With several requests in flight the
+///   notification is attributable to none, and is not judged further.
 pub(in crate::checks) fn level_requested(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let any_requested = context.messages().any(|(event, _, _)| {
         event.direction == Direction::ClientToServer
-            && event.message_payload().is_some_and(|payload| {
-                payload
-                    .get("params")
-                    .and_then(|params| params.get("_meta"))
-                    .and_then(|meta| meta.get(LOG_LEVEL))
-                    .is_some()
-            })
+            && event.message_payload().is_some_and(requests_logs)
     });
+    // Client requests in flight: id text → (seq, whether it set a level).
+    let mut in_flight: std::collections::BTreeMap<String, (u64, bool)> =
+        std::collections::BTreeMap::new();
     for (event, kind, _) in context.messages() {
+        let Some(payload) = event.message_payload() else {
+            continue;
+        };
+        if event.direction == Direction::ClientToServer {
+            if let MessageKind::Request { method, id } = kind
+                && *method != "subscriptions/listen"
+            {
+                in_flight.insert(id.to_string(), (event.seq, requests_logs(payload)));
+            }
+            continue;
+        }
+        if let MessageKind::Result { id: Some(id) } | MessageKind::Error { id: Some(id), .. } = kind
+        {
+            in_flight.remove(&id.to_string());
+            continue;
+        }
         if !is_log(event, kind) {
             continue;
         }
@@ -70,8 +89,27 @@ pub(in crate::checks) fn level_requested(context: &TraceContext<'_>, sink: &mut 
                  carried `io.modelcontextprotocol/logLevel`"
                     .to_owned(),
             );
+        } else if in_flight.len() == 1
+            && let Some((request_seq, false)) = in_flight.values().next().copied()
+        {
+            sink.push(
+                Some(event.seq),
+                format!(
+                    "server emitted `notifications/message` while the only request in flight \
+                     (seq {request_seq}) carried no `io.modelcontextprotocol/logLevel`"
+                ),
+            );
         }
     }
+}
+
+/// Whether a client message's `_meta` opts into log messages.
+fn requests_logs(payload: &Value) -> bool {
+    payload
+        .get("params")
+        .and_then(|params| params.get("_meta"))
+        .and_then(|meta| meta.get(LOG_LEVEL))
+        .is_some()
 }
 
 /// `LOG-009`: log notifications stay off a `subscriptions/listen` stream.

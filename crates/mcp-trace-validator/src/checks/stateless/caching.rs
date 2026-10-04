@@ -37,10 +37,12 @@ const COMPLETE: &str = "complete";
 
 /// `CACH-001`: cacheable results carry caching hints.
 ///
-/// `ttlMs` is the hint required, and `cacheScope` is not: no clause on the page
-/// makes the scope mandatory, while CACH-008 governs the TTL's value and CACH-006
-/// treats an absent TTL as a legacy server. Demanding a `cacheScope` would be
-/// inventing a rule the specification declines to state.
+/// "Caching hints" is the page's own term for both fields — "Cacheable Results
+/// in MCP use two fields to provide caching hints to clients: … `ttlMs` … and
+/// `cacheScope`" — and the schema's `CacheableResult` makes both required. This
+/// check demanded `ttlMs` alone until 2026-10-04, on the reading that no clause
+/// mandated the scope; the clause that mandates "caching hints" mandates the
+/// two fields that term names.
 ///
 /// A retry's result is exempt. CACH-003 says a result produced through MRTR
 /// "MUST NOT be cached", and the page's own treatment of `input_required`
@@ -68,16 +70,17 @@ pub(in crate::checks) fn hints_on_cacheable_results(
             continue;
         }
         sink.examined();
-        if result.get("ttlMs").is_some() {
-            continue;
+        for hint in ["ttlMs", "cacheScope"] {
+            if result.get(hint).is_none() {
+                sink.push(
+                    Some(exchange.response.seq),
+                    format!(
+                        "the `complete` result of `{}` carries no `{hint}` caching hint",
+                        exchange.method
+                    ),
+                );
+            }
         }
-        sink.push(
-            Some(exchange.response.seq),
-            format!(
-                "the `complete` result of `{}` carries no `ttlMs` caching hint",
-                exchange.method
-            ),
-        );
     }
 }
 

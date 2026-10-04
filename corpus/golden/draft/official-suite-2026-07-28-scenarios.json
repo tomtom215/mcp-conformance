@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 60,
+    "pass": 59,
     "fail": 1,
     "warn": 0,
-    "excluded": 147,
+    "excluded": 148,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 64
+    "not_observed": 65
   },
   "requirements": [
     {
@@ -62,8 +62,8 @@
       "outcome": "not-observed"
     },
     {
-      "id": "BASE-055",
-      "level": "MUST NOT",
+      "id": "BASE-083",
+      "level": "SHOULD NOT",
       "outcome": "not-observed"
     },
     {
@@ -448,8 +448,18 @@
         },
         {
           "check": "caching.hints-on-cacheable-results",
+          "seq": 62,
+          "detail": "the `complete` result of `resources/list` carries no `cacheScope` caching hint"
+        },
+        {
+          "check": "caching.hints-on-cacheable-results",
           "seq": 66,
           "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
+        },
+        {
+          "check": "caching.hints-on-cacheable-results",
+          "seq": 66,
+          "detail": "the `complete` result of `resources/read` carries no `cacheScope` caching hint"
         },
         {
           "check": "caching.hints-on-cacheable-results",
@@ -458,8 +468,18 @@
         },
         {
           "check": "caching.hints-on-cacheable-results",
+          "seq": 70,
+          "detail": "the `complete` result of `resources/read` carries no `cacheScope` caching hint"
+        },
+        {
+          "check": "caching.hints-on-cacheable-results",
           "seq": 74,
           "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
+        },
+        {
+          "check": "caching.hints-on-cacheable-results",
+          "seq": 74,
+          "detail": "the `complete` result of `resources/read` carries no `cacheScope` caching hint"
         }
       ],
       "source": {
@@ -621,7 +641,7 @@
     {
       "id": "RES-022",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "RES-023",

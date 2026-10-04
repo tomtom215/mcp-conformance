@@ -14,7 +14,7 @@ use std::collections::BTreeSet;
 use serde_json::Value;
 
 use super::super::super::FindingSink;
-use super::super::http_status_for;
+use super::framing::Framing;
 use super::{
     META_PROTOCOL_VERSION, Match, Post, compare, designations_by_tool, header_safe, mirrors, posts,
     posts_by_message, sentinel_payload,
@@ -71,13 +71,14 @@ pub(in crate::checks) fn header_mismatch_status(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
+    let framing = Framing::new(context);
     for (event, _, _) in context.messages() {
         if answer_code(event) != Some(HEADER_MISMATCH) {
             continue;
         }
         // Only judged where the recording carries HTTP framing; on stdio there
         // is no status to hold the error against.
-        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+        let Some((status_seq, status)) = framing.status_for(event.seq) else {
             continue;
         };
         sink.examined();
@@ -92,6 +93,33 @@ pub(in crate::checks) fn header_mismatch_status(
     }
 }
 
+/// Every answered request as `(request message seq, response event)`: the
+/// exchanges the ids pair, plus the null-`id` answers the HTTP framing ties to
+/// their POST.
+///
+/// The second half exists for a refusal that drops the id. Recorded off the
+/// official Python SDK's server: a POST whose `MCP-Protocol-Version` disagreed
+/// with its body drew `400 {"id":null,"error":{"code":-32600,...}}`. Paired by
+/// id, that answer belonged to no request, and TRAN-073 reported *not observed*
+/// for a POST the server had in fact answered with the wrong code.
+fn answered<'t>(
+    context: &TraceContext<'t>,
+    framing: &Framing<'_>,
+) -> Vec<(u64, &'t mcp_conformance_core::trace::TraceEvent)> {
+    let mut out: Vec<_> = context
+        .exchanges()
+        .map(|exchange| (exchange.request.seq, exchange.response))
+        .collect();
+    let events = context.events();
+    for (response, request) in framing.unidentified_answers() {
+        if let Some(event) = events.iter().find(|event| event.seq == response) {
+            out.push((request, event));
+        }
+    }
+    out.sort_by_key(|(_, response)| response.seq);
+    out
+}
+
 /// Reports every exchange whose POST carried `fault` yet drew something other
 /// than a `HeaderMismatch` rejection — the shared body of TRAN-073 and TRAN-096.
 fn rejected_for(
@@ -99,9 +127,14 @@ fn rejected_for(
     sink: &mut FindingSink,
     fault: impl Fn(&Post<'_>) -> Option<String>,
 ) {
-    let by_message = posts_by_message(context);
-    for exchange in context.exchanges() {
-        let Some(post) = by_message.get(&exchange.request.seq) else {
+    let framing = Framing::new(context);
+    let by_message: std::collections::BTreeMap<u64, Post<'_>> = framing
+        .posts()
+        .iter()
+        .map(|post| (post.message_seq, *post))
+        .collect();
+    for (request_seq, response) in answered(context, &framing) {
+        let Some(post) = by_message.get(&request_seq) else {
             continue;
         };
         let Some(reason) = fault(post) else {
@@ -110,10 +143,10 @@ fn rejected_for(
         // The subject is a POST that actually carried the fault; a session whose
         // POSTs were all well-formed never puts the rejection rule to the test.
         sink.examined();
-        let code = answer_code(exchange.response);
+        let code = answer_code(response);
         if code != Some(HEADER_MISMATCH) {
             sink.push(
-                Some(exchange.response.seq),
+                Some(response.seq),
                 format!(
                     "the POST at seq {} {reason}; the server answered with {} instead of \
                      rejecting it with {HEADER_MISMATCH} (HeaderMismatch)",
@@ -181,7 +214,8 @@ pub(in crate::checks) fn header_body_match_validated(
                 continue;
             };
             sink.examined();
-            if compare(sent, &mirror.value) == Match::Mismatch {
+            if compare(sent, &mirror.value) == Match::Mismatch && !numerically_equal(&mirror, sent)
+            {
                 sink.push(
                     Some(exchange.response.seq),
                     format!(
@@ -193,6 +227,42 @@ pub(in crate::checks) fn header_body_match_validated(
             }
         }
     }
+}
+
+/// Whether an integer-valued mirror's header names the same number as the body.
+///
+/// TRAN-101: "When validating integer parameter values, servers SHOULD compare
+/// the header value and the body value numerically rather than as strings (e.g.,
+/// `42.0` and `42` are considered equal)." A server that does so and serves
+/// `Mcp-Param-N: 42.0` against `n: 42` followed the specification's own advice,
+/// so the pair is not a mismatch it failed to reject.
+fn numerically_equal(mirror: &super::Mirror, sent: &str) -> bool {
+    mirror.integer && canonical_integer(sent).is_some_and(|sent| sent == mirror.value)
+}
+
+/// A decimal numeral naming an integer, in the body's canonical spelling
+/// (`42.0`, `+42` and `042` → `42`); `None` for anything else. Exact decimal
+/// text throughout: a float would round past 2^53, where TOOL-034 lives.
+fn canonical_integer(text: &str) -> Option<String> {
+    let text = text.trim();
+    let (negative, digits) = match text.as_bytes().first()? {
+        b'-' => (true, &text[1..]),
+        b'+' => (false, &text[1..]),
+        _ => (false, text),
+    };
+    let (whole, fraction) = digits.split_once('.').unwrap_or((digits, ""));
+    if whole.is_empty()
+        || !whole.bytes().all(|byte| byte.is_ascii_digit())
+        || !fraction.bytes().all(|byte| byte == b'0')
+    {
+        return None;
+    }
+    let whole = whole.trim_start_matches('0');
+    Some(match (whole.is_empty(), negative) {
+        (true, _) => "0".to_owned(),
+        (false, true) => format!("-{whole}"),
+        (false, false) => whole.to_owned(),
+    })
 }
 
 /// `TRAN-074`: an unsupported protocol version draws
@@ -244,6 +314,7 @@ pub(in crate::checks) fn unsupported_version_status(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
+    let framing = Framing::new(context);
     let handshakes = legacy_handshake_ids(context);
     for (event, _, _) in context.messages() {
         if answer_code(event) != Some(UNSUPPORTED_VERSION) {
@@ -265,7 +336,7 @@ pub(in crate::checks) fn unsupported_version_status(
         {
             continue;
         }
-        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+        let Some((status_seq, status)) = framing.status_for(event.seq) else {
             continue;
         };
         sink.examined();
@@ -360,6 +431,7 @@ fn declared_versions(context: &TraceContext<'_>) -> Option<BTreeSet<String>> {
 
 /// `TRAN-075`: an unimplemented method draws `404 Not Found` with `-32601`.
 pub(in crate::checks) fn unknown_method_404(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    let framing = Framing::new(context);
     // A POST is the only way to reach the endpoint at this revision, so a trace
     // without HTTP framing carries no status to judge and reports nothing.
     if posts(context).is_empty() {
@@ -369,7 +441,7 @@ pub(in crate::checks) fn unknown_method_404(context: &TraceContext<'_>, sink: &m
         if answer_code(event) != Some(METHOD_NOT_FOUND) {
             continue;
         }
-        let Some((status_seq, status)) = http_status_for(context, event.seq) else {
+        let Some((status_seq, status)) = framing.status_for(event.seq) else {
             continue;
         };
         sink.examined();
