@@ -3,7 +3,9 @@
 
 # Releasing
 
-> **Status:** the latest release is v0.5.1 (2026-08-29). Every release since v0.2.0
+> **Status:** v0.6.0 (dated 2026-10-04) is released by tagging the commit that
+> carries this line, per §Publishing v0.6.0; the release before it is v0.5.1
+> (2026-08-29). Every release since v0.2.0
 > has published through OIDC trusted publishing only; the bootstrap token that
 > published v0.1.0 is revoked (ADR-0007 §Correction). The dated pre-flight records
 > below are history, kept for their method.
@@ -201,6 +203,26 @@ Measured on the release branch, not asserted:
 Not yet run: the release rehearsal (`workflow_dispatch`), which is the first
 build of the macOS, Windows and aarch64 Linux archives, and the bootstrap
 publish of `mcp-trace-capture` (§Publish order) — both owner steps.
+
+## v0.6.0 pre-flight (2026-10-04, release commit)
+
+Re-run on the release commit, because the 2026-09-25 record above predates
+most of what 0.6.0 ships (PR #59 alone added 29,494 lines). Measured, not
+asserted:
+
+| Leg | Result |
+|-----|--------|
+| `cargo xtask ci` (stable 1.98.1) | green — every gate, `cargo deny` (0.20.2) included; MSRV clippy reports SKIPPED there and is the next row |
+| MSRV clippy (1.88.0) × 3 feature modes | green; each crate prints one `unknown lint: clippy::unused_async_trait_impl` warning, a lint 1.88's clippy does not have — not promoted by `-D warnings`, and not new |
+| `cargo package --workspace --exclude xtask --locked` | green — five crates packaged with verification builds |
+| `cargo xtask semver` (cargo-semver-checks 0.50.0) | green — "no semver update required" for the four published crates; `mcp-trace-capture` excluded as a first release |
+| the same check as if the bump were a patch (`--release-type patch`), to list the breaks a minor bump licenses | one lint, `constructible_struct_adds_field`, in `mcp-reference-host` only: `PlannedCall.fails_by_design`, `CallOutcome.expected_failure`, `RunReport.planned`, `RunReport.expected_failures` — each declared in `[0.6.0]`'s breaking-changes table. `RunPlan::turn_limit`'s change to `Option<u32>` is declared there too; this check did not list it. |
+| `version-sync`, `changelog-links` (in `ci`) | green — README and `CITATION.cff` state `0.6.0`; seven version headings, `[Unreleased]` compares against `v0.6.0` |
+| diff-scoped mutants (PR #59's gate, CI) | green on `1e70c0f` |
+
+The full `--all-features` mutation sweep and the `workflow_dispatch`
+rehearsal run in CI from the `release/v0.6.0` branch; their outcomes belong in
+the release PR, not in this file.
 
 ## Release checklist
 

@@ -11,9 +11,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
-Everything below ships as **0.6.0**, prepared on `main` and not yet published
-(crates.io serves 0.5.1). It moves under a dated `## [0.6.0]` heading in the
-commit that releases it.
+## [0.6.0] - 2026-10-04
 
 **This is a minor release with breaking behaviour changes and one Rust API
 break, in `mcp-reference-host`'s run types**, which pre-1.0 SemVer permits and
@@ -2962,7 +2960,8 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.6.0
 [0.5.1]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.1
 [0.5.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.0
 [0.4.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.4.0

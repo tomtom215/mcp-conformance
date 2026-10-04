@@ -10,15 +10,13 @@ uses — the tools read and write bytes on the wire.
 ## Install
 
 ```text
-cargo install --locked --git https://github.com/tomtom215/mcp-conformance mcp-trace-capture mcp-trace-validator
+cargo install mcp-trace-capture mcp-trace-validator
 ```
 
-That builds the current source, which is what this book describes. From the `0.6.0`
-release on, `cargo install mcp-trace-capture mcp-trace-validator` installs the
-published crates, and `cargo binstall mcp-trace-capture mcp-trace-validator` fetches
-prebuilt binaries instead of compiling (Linux x86_64 and aarch64, macOS, Windows
-x86_64). Until then crates.io serves `0.5.1`, which judges every trace against
-`2025-11-25` and has no capture tool.
+`cargo binstall mcp-trace-capture mcp-trace-validator` fetches prebuilt binaries
+instead of compiling (Linux x86_64 and aarch64, macOS, Windows x86_64). To build
+the unreleased source, which may be ahead of the release:
+`cargo install --locked --git https://github.com/tomtom215/mcp-conformance mcp-trace-capture mcp-trace-validator`.
 
 ## Record a session
 
