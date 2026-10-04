@@ -1,9 +1,9 @@
 {
   "revision": "2026-07-28",
-  "verdict": "fail",
+  "verdict": "pass",
   "totals": {
-    "pass": 32,
-    "fail": 1,
+    "pass": 33,
+    "fail": 0,
     "warn": 0,
     "excluded": 148,
     "unsupported": 0,
@@ -159,7 +159,7 @@
     {
       "id": "TRAN-059",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-060",
@@ -309,12 +309,12 @@
     {
       "id": "TRAN-117",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-118",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-119",
@@ -554,19 +554,7 @@
     {
       "id": "TOOL-034",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "tools.x-mcp-header-integer-range",
-          "seq": 2,
-          "detail": "the argument mirrored into `Mcp-Param-Region` is 9007199254740992, outside the IEEE 754 safe integer range"
-        }
-      ],
-      "source": {
-        "section": "server/tools#x-mcp-header",
-        "quote": "Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (−2<sup>53</sup>+1 to 2<sup>53</sup>−1) MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints.",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header"
-      }
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-038",

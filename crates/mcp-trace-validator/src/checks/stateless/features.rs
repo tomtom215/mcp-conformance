@@ -11,7 +11,7 @@
 
 use std::collections::BTreeSet;
 
-use mcp_conformance_core::trace::Direction;
+use mcp_conformance_core::trace::{Direction, TransportKind};
 use serde_json::Value;
 
 use super::super::FindingSink;
@@ -87,7 +87,12 @@ pub(in crate::checks) fn x_mcp_header_integer_range(
     // the clause binds the value the *client* sent, and a call the server never
     // answered carries exactly the same out-of-range argument.
     for (event, _, _) in context.messages() {
-        if event.direction != Direction::ClientToServer {
+        // Mirroring is a Streamable HTTP mechanism: "Clients using other
+        // transports (e.g., stdio) MAY ignore `x-mcp-header` annotations
+        // entirely", so on stdio no value is mirrored and none is bound.
+        if event.direction != Direction::ClientToServer
+            || event.transport != TransportKind::StreamableHttp
+        {
             continue;
         }
         let Some(payload) = event.message_payload() else {
