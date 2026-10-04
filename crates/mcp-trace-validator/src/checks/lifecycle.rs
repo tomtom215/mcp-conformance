@@ -33,10 +33,12 @@ pub(super) fn first_interaction_initialize(context: &TraceContext<'_>, sink: &mu
             && matches!(kind, MessageKind::Error { .. });
         probes.contains(&event.seq) || (!probes.is_empty() && reply)
     };
-    let Some((event, kind, _)) = context
-        .messages()
-        .find(|(event, kind, _)| !part_of_a_probe(event, kind))
-    else {
+    // A line that is not a JSON-RPC message — a server's log banner on stdout —
+    // is no interaction: TRAN-004/TRAN-005 and BASE-008 judge it, and counting
+    // it here would convict the client of the server's noise.
+    let Some((event, kind, _)) = context.messages().find(|(event, kind, _)| {
+        !part_of_a_probe(event, kind) && !matches!(kind, MessageKind::Invalid { .. })
+    }) else {
         return;
     };
     sink.examined();
@@ -340,6 +342,29 @@ mod tests {
             direction_name(Direction::ServerToClient),
             "server to client"
         );
+    }
+
+    #[test]
+    fn a_server_banner_before_initialize_is_not_the_clients_interaction() {
+        // A server that logs to stdout breaks TRAN-004 (and BASE-008); the
+        // client, which did open with `initialize`, broke nothing here.
+        use crate::context::TraceContext;
+        use crate::reader::{Limits, parse_trace};
+        let initialize = r#"{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"1"}}}}"#;
+        let banner = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":"Server starting..."}"#;
+        let run = |doc: &str| {
+            let events = parse_trace(doc, &Limits::default()).expect("valid trace");
+            let context = TraceContext::new(&events);
+            crate::checks::find("lifecycle.first-interaction-initialize")
+                .expect("check exists")
+                .run(&context)
+        };
+        let outcome = run(&format!("{banner}\n{initialize}"));
+        assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
+        assert_eq!(outcome.subjects, 1, "the initialize is still judged");
+        // A real message ahead of initialize still fails.
+        let ping = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":0,"method":"ping"}}"#;
+        assert_eq!(run(&format!("{ping}\n{initialize}")).findings.len(), 1);
     }
 
     #[test]
