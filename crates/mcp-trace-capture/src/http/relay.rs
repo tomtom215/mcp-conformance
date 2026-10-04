@@ -50,61 +50,67 @@ pub(super) async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -
 impl Proxy {
     /// Records a request's `http` event and body, and returns the body to send
     /// upstream — `None` when the client's body could not be read.
+    ///
+    /// The body is read (up to the message limit) before anything is recorded,
+    /// and the `http` event and the message are then written together: the
+    /// validator reads a message with the headers beside it, and a concurrent
+    /// exchange recorded between the two would pair this body with its headers.
     async fn record_request(&self, parts: &axum::http::request::Parts, body: Body) -> Option<Body> {
         // Metadata events cannot be refused for length (the line limit is at least
         // 1 MiB, and HTTP header blocks are bounded far below it), and a sink
         // failure is reported once, by `Recorder::finish`.
-        let _ = self.recorder.record(
-            Direction::ClientToServer,
-            TransportKind::StreamableHttp,
-            EventBody::Http {
-                method: Some(parts.method.as_str().to_owned()),
-                status: None,
-                headers: headers::recorded(&parts.headers),
-            },
-        );
+        let http = EventBody::Http {
+            method: Some(parts.method.as_str().to_owned()),
+            status: None,
+            headers: headers::recorded(&parts.headers),
+        };
         let mut stream = body.into_data_stream();
         let prefix = read_prefix(&mut stream, self.options.max_message).await;
-        match prefix.end {
-            End::Complete => {
-                self.record_body(Direction::ClientToServer, &prefix.bytes);
-                Some(Body::from(prefix.bytes))
-            }
+        let (message, forward) = match prefix.end {
+            End::Complete => (
+                self.message_of(&prefix.bytes),
+                Some(Body::from(prefix.bytes)),
+            ),
             End::Over => {
                 self.counters.oversized.fetch_add(1, Ordering::Relaxed);
-                Some(then_rest(prefix.bytes, stream))
+                (None, Some(then_rest(prefix.bytes, stream)))
             }
-            End::Failed(_) => None,
-        }
+            End::Failed(_) => (None, None),
+        };
+        self.record_together(Direction::ClientToServer, http, message);
+        forward
     }
 
     /// Records the upstream's response and relays it to the client.
+    ///
+    /// For a JSON body, the status event and the message are written together,
+    /// for the reason [`Proxy::record_request`] gives. An event stream's status is
+    /// recorded at once: its messages follow over time, each as it is relayed.
     async fn relay_response(
         self: &Arc<Self>,
         upstream: axum::http::Response<hyper::body::Incoming>,
     ) -> Response {
         let (parts, incoming) = upstream.into_parts();
-        let _ = self.recorder.record(
-            Direction::ServerToClient,
-            TransportKind::StreamableHttp,
-            EventBody::Http {
-                method: None,
-                status: Some(parts.status.as_u16()),
-                headers: headers::recorded(&parts.headers),
-            },
-        );
+        let http = EventBody::Http {
+            method: None,
+            status: Some(parts.status.as_u16()),
+            headers: headers::recorded(&parts.headers),
+        };
         let mut stream = Body::new(incoming).into_data_stream();
         let body = if is_event_stream(&parts.headers) {
+            self.record_together(Direction::ServerToClient, http, None);
             Body::from_stream(Arc::clone(self).record_events(stream))
         } else {
             let prefix = read_prefix(&mut stream, self.options.max_message).await;
             match prefix.end {
                 End::Complete => {
-                    self.record_body(Direction::ServerToClient, &prefix.bytes);
+                    let message = self.message_of(&prefix.bytes);
+                    self.record_together(Direction::ServerToClient, http, message);
                     Body::from(prefix.bytes)
                 }
                 End::Over => {
                     self.counters.oversized.fetch_add(1, Ordering::Relaxed);
+                    self.record_together(Direction::ServerToClient, http, None);
                     then_rest(prefix.bytes, stream)
                 }
                 // The status and headers are the upstream's and are relayed as
@@ -112,6 +118,7 @@ impl Proxy {
                 // error, so the client sees the same truncation it would have
                 // seen directly — not a 502 the proxy made up.
                 End::Failed(error) => {
+                    self.record_together(Direction::ServerToClient, http, None);
                     self.upstream_cut(&error);
                     // Yield once first, so the head and the bytes before the cut
                     // are flushed to the client before the error aborts it.
@@ -131,30 +138,37 @@ impl Proxy {
         response
     }
 
+    /// Writes an `http` event and the message its body carried, if any, as
+    /// adjacent lines.
+    fn record_together(&self, direction: Direction, http: EventBody, message: Option<EventBody>) {
+        let mut events = vec![(direction, TransportKind::StreamableHttp, http)];
+        events.extend(message.map(|message| (direction, TransportKind::StreamableHttp, message)));
+        let mut results = self.recorder.record_all(events).into_iter();
+        // The http event cannot be refused for length (see `record_request`).
+        let _ = results.next();
+        if let Some(message) = results.next() {
+            self.count_refused(message);
+        }
+    }
+
+    /// The message a complete body carries: none for an empty one; for one that
+    /// is not JSON, none, counted.
+    fn message_of(&self, body: &[u8]) -> Option<EventBody> {
+        if body.is_empty() {
+            return None;
+        }
+        let payload = parse_json(body);
+        if payload.is_none() {
+            self.counters.not_json.fetch_add(1, Ordering::Relaxed);
+        }
+        payload.map(|payload| EventBody::Message { payload })
+    }
+
     /// Counts a message the recorder refused for its length — one whose bytes fit
     /// the message limit but whose line, as written, would not.
     fn count_refused(&self, recorded: Result<u64, NotRecorded>) {
         if recorded == Err(NotRecorded::TooLong) {
             self.counters.oversized.fetch_add(1, Ordering::Relaxed);
-        }
-    }
-
-    /// Records a complete body: nothing for an empty one, a message for JSON.
-    fn record_body(&self, direction: Direction, body: &[u8]) {
-        if body.is_empty() {
-            return;
-        }
-        match parse_json(body) {
-            Some(payload) => {
-                self.count_refused(self.recorder.record(
-                    direction,
-                    TransportKind::StreamableHttp,
-                    EventBody::Message { payload },
-                ));
-            }
-            None => {
-                self.counters.not_json.fetch_add(1, Ordering::Relaxed);
-            }
         }
     }
 

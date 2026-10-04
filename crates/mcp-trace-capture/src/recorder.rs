@@ -120,6 +120,20 @@ impl Recorder {
         self.write(&mut inner, direction, transport, body)
     }
 
+    /// Records several events as adjacent lines — no other event is written
+    /// between them — and returns each one's outcome, in order. An event refused
+    /// (too long, say) takes no `seq`, and the others are still written.
+    pub fn record_all(
+        &self,
+        events: impl IntoIterator<Item = (Direction, TransportKind, EventBody)>,
+    ) -> Vec<Result<u64, NotRecorded>> {
+        let mut inner = self.lock();
+        events
+            .into_iter()
+            .map(|(direction, transport, body)| self.write(&mut inner, direction, transport, body))
+            .collect()
+    }
+
     /// Records the trace's closing lifecycle event and seals it: every later
     /// [`Recorder::record`] is refused with [`NotRecorded::Closed`], so the close
     /// stays the last event even if a task still relaying records after it. A
@@ -427,5 +441,22 @@ mod tests {
         assert_eq!((summary.recorded, summary.dropped), (2, 0));
         let text = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
         assert!(text.lines().last().unwrap().contains("transport-close"));
+    }
+
+    #[test]
+    fn events_recorded_together_are_adjacent_and_a_refused_one_takes_no_seq() {
+        let sink = Shared::default();
+        let recorder = Recorder::with_max_line(sink.clone(), 200);
+        let big = EventBody::Message {
+            payload: serde_json::json!({"text": "x".repeat(500)}),
+        };
+        let results = recorder.record_all([
+            (Direction::ClientToServer, TransportKind::Stdio, open()),
+            (Direction::ClientToServer, TransportKind::Stdio, big),
+            (Direction::ClientToServer, TransportKind::Stdio, open()),
+        ]);
+        assert_eq!(results, [Ok(0), Err(NotRecorded::TooLong), Ok(1)]);
+        let text = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+        assert_eq!(text.lines().count(), 2);
     }
 }
