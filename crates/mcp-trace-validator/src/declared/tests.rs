@@ -258,3 +258,19 @@ fn a_dual_era_fallback_is_a_conforming_handshake_session() {
     );
     assert_eq!(report.totals.fail, 0, "{report:#?}");
 }
+
+#[test]
+fn a_probe_is_answered_only_by_a_response_carrying_its_own_id() {
+    // The server's next response answers an earlier request, not the probe;
+    // the probe's own answer is an error, so the probe failed.
+    let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":5,"method":"ping"}}
+{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}}
+{"seq":2,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":5,"result":{}}}
+{"seq":3,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"Method not found"}}}"#;
+    assert_eq!(
+        failed_discover_probes(&events(trace))
+            .into_iter()
+            .collect::<Vec<_>>(),
+        [1]
+    );
+}

@@ -119,7 +119,8 @@ Each is stated again in the entry that introduced it, with the reasoning.
   section per trace and a tally, writes one JUnit document and one SARIF run, and exits
   with the worst trace's status; a trace that cannot be judged counts. The JSON form is
   an envelope added to `report.schema.json`. Library: `junit::render_traces`,
-  `sarif::render_traces`.
+  `sarif::render_traces`, and `Verdict::most_severe` (the most severe of several
+  verdicts, as the CLI ranks them: unsupported over fail over warnings over pass).
 - **A GitHub Action** (`action.yml`): validates the traces it is given, writes SARIF
   and JUnit, summarizes the findings, and fails the step on them; it builds the CLI
   from its own ref or downloads a release's checksum-verified binaries.

@@ -242,3 +242,28 @@ fn warn_about_sessions(sessions: &Sessions, hint: Hint) {
         );
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_existing_file_is_refused_for_what_it_is_and_others_say_why() {
+        let dir =
+            std::env::temp_dir().join(format!("mcp-trace-capture-output-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let existing = dir.join("trace.jsonl");
+        std::fs::write(&existing, "keep\n").unwrap();
+        let error = create(&existing, false).unwrap_err();
+        assert!(error.contains("exists; appending"), "{error}");
+        assert_eq!(std::fs::read_to_string(&existing).unwrap(), "keep\n");
+        let missing = dir.join("absent").join("trace.jsonl");
+        let error = create(&missing, false).unwrap_err();
+        assert!(error.starts_with("cannot create "), "{error}");
+        assert!(create(&existing, true).is_ok());
+        assert_eq!(std::fs::read_to_string(&existing).unwrap(), "");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}

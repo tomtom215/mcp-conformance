@@ -428,6 +428,16 @@ fn http_mode_stops_cleanly_and_reports_unreachable_upstreams() {
         !stderr.iter().any(|line| line.contains("could not reach")),
         "{stderr:?}"
     );
+    assert!(
+        !stderr.iter().any(|line| line.contains("cut off")),
+        "{stderr:?}"
+    );
+    assert!(
+        stderr
+            .iter()
+            .any(|line| line.contains(&format!("forwarding to http://127.0.0.1:{port}/ "))),
+        "{stderr:?}"
+    );
     std::fs::remove_file(&trace).ok();
 
     // A request the upstream cannot answer: 502 from the proxy, and the summary.
@@ -447,6 +457,57 @@ fn http_mode_stops_cleanly_and_reports_unreachable_upstreams() {
         stderr
             .iter()
             .any(|line| line.contains("1 request(s) could not reach the upstream")),
+        "{stderr:?}"
+    );
+    std::fs::remove_file(&trace).ok();
+}
+
+/// The proxy announces its upstream with the query masked (it can carry
+/// credentials), and says how many responses the upstream cut off mid-body —
+/// only when one was.
+#[cfg(unix)]
+#[test]
+fn http_mode_announces_its_upstream_and_reports_cut_responses() {
+    use std::io::{Read as _, Write as _};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    // An upstream that answers 200 and dies mid-body.
+    std::thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let mut buffer = [0_u8; 4096];
+            let _ = stream.read(&mut buffer);
+            let _ = stream.write_all(
+                b"HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 100\r\n\r\n{\"jsonrpc\":",
+            );
+        }
+    });
+    let upstream = format!("http://127.0.0.1:{port}/mcp?key=s3cret");
+    let trace = scratch("http-cut");
+    let (mut child, address, lines) = start_proxy(&trace, &upstream);
+    let mut stream = std::net::TcpStream::connect(&address).unwrap();
+    stream
+        .write_all(b"POST /mcp HTTP/1.1\r\nhost: localhost\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{}")
+        .unwrap();
+    let mut response = Vec::new();
+    let _ = stream.read_to_end(&mut response);
+    assert!(response.starts_with(b"HTTP/1.1 200"), "{response:?}");
+    assert_eq!(interrupt(&mut child).code(), Some(0));
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let stderr: Vec<String> = lines.try_iter().collect();
+    assert!(
+        stderr.iter().any(|line| line.contains(&format!(
+            "forwarding to http://127.0.0.1:{port}/mcp?… (Ctrl-C to stop)"
+        ))),
+        "{stderr:?}"
+    );
+    assert!(
+        !stderr.iter().any(|line| line.contains("s3cret")),
+        "{stderr:?}"
+    );
+    assert!(
+        stderr
+            .iter()
+            .any(|line| line.contains("1 response(s) were cut off by the upstream mid-body")),
         "{stderr:?}"
     );
     std::fs::remove_file(&trace).ok();
@@ -675,6 +736,45 @@ fn a_run_that_fails_to_start_leaves_no_trace_file() {
         assert!(!stderr.contains("validate with"), "{args:?}: {stderr}");
         assert!(!stderr.contains("recording to"), "{args:?}: {stderr}");
     }
+}
+
+/// A trace that cannot be created once the server has started ends the server
+/// and everything it started, not only the process the capture spawned.
+#[cfg(unix)]
+#[test]
+fn a_trace_that_cannot_be_created_ends_the_servers_whole_process_group() {
+    let dir = std::env::temp_dir().join(format!(
+        "mcp-trace-capture-uncreatable-{}",
+        std::process::id()
+    ));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    let marker = dir.join("marker");
+    let trace = dir.join("absent").join("trace.jsonl");
+    // The server's own child outlives the server unless its group is ended.
+    let script = format!("(sleep 1; touch '{}') & wait", marker.display());
+    let output = binary()
+        .args([
+            "-o",
+            trace.to_str().unwrap(),
+            "stdio",
+            "--",
+            "sh",
+            "-c",
+            &script,
+        ])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("cannot create"), "{stderr}");
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    assert!(
+        !marker.exists(),
+        "the server's child ran on after the capture"
+    );
+    std::fs::remove_dir_all(&dir).ok();
 }
 
 /// An existing trace is refused before the server is started, not after: a

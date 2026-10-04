@@ -378,13 +378,7 @@ fn summary(judged: &[Judged], unjudged: usize) -> String {
 /// The most severe verdict, in the order a report derives its own: unsupported
 /// over fail over warnings over pass.
 fn worst(verdicts: impl Iterator<Item = Verdict>) -> Option<Verdict> {
-    let rank = |verdict: &Verdict| match verdict {
-        Verdict::Pass => 0,
-        Verdict::PassWithWarnings => 1,
-        Verdict::Fail => 2,
-        _ => 3,
-    };
-    verdicts.max_by_key(rank)
+    Verdict::most_severe(verdicts)
 }
 
 /// The exit code a verdict maps to, shared by every path so the 0/1/2 contract

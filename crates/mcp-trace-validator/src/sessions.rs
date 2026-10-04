@@ -147,6 +147,16 @@ mod tests {
     }
 
     #[test]
+    fn only_the_response_carrying_the_initialize_id_completes_a_handshake() {
+        // The server's next response answers something else; the initialize
+        // itself is refused, so no session began.
+        let other_first = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":9,"result":{}}}
+{"seq":2,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"no"}}}"#;
+        assert_eq!(count(other_first), 0);
+    }
+
+    #[test]
     fn distinct_assigned_session_ids_count_as_sessions() {
         let assigned = |seq: u64, id: &str| {
             format!(

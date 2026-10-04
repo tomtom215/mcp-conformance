@@ -351,4 +351,37 @@ fn integer_values_are_compared_as_numbers() {
     // A string-typed value keeps the textual comparison.
     let text = integer_call("42.0").replace(r#""n":42"#, r#""n":"42""#);
     assert_eq!(findings_for(check, &text).len(), 1);
+    // Integers outside the positive i64 range are integers too: a negative one
+    // (i64 only) and one past i64::MAX (u64 only).
+    for (body, header) in [
+        ("-42", "-42.0"),
+        ("18446744073709551615", "18446744073709551615.0"),
+    ] {
+        let call = integer_call(header).replace(r#""n":42"#, &format!(r#""n":{body}"#));
+        assert!(findings_for(check, &call).is_empty(), "{body}");
+    }
+}
+
+#[test]
+fn canonical_integer_spells_integers_as_the_body_does_and_refuses_the_rest() {
+    use super::canonical_integer;
+    for (text, expected) in [
+        ("42", Some("42")),
+        (" 42 ", Some("42")),
+        ("+42", Some("42")),
+        ("-42", Some("-42")),
+        ("042", Some("42")),
+        ("42.0", Some("42")),
+        ("42.000", Some("42")),
+        ("-0", Some("0")),
+        ("0", Some("0")),
+        ("", None),
+        ("-", None),
+        ("+.0", None),
+        ("4x", None),
+        ("42.5", None),
+        ("1e3", None),
+    ] {
+        assert_eq!(canonical_integer(text).as_deref(), expected, "{text:?}");
+    }
 }

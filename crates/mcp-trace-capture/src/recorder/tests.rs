@@ -246,6 +246,11 @@ fn sessions_are_counted_from_initialize_requests_and_session_ids() {
         TransportKind::Stdio,
         initialize(1),
     );
+    let _ = recorder.record(
+        Direction::ClientToServer,
+        TransportKind::Stdio,
+        initialize(2),
+    );
     // A server echoing the method name is not a client starting a session.
     let _ = recorder.record(
         Direction::ServerToClient,
@@ -260,7 +265,7 @@ fn sessions_are_counted_from_initialize_requests_and_session_ids() {
         );
     }
     let sessions = recorder.finish().sessions;
-    assert_eq!(sessions.initialize_requests, 1);
+    assert_eq!(sessions.initialize_requests, 2);
     assert_eq!(sessions.session_ids.len(), 2);
     assert_eq!(sessions.count(), 2);
 }

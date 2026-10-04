@@ -291,6 +291,18 @@ mod tests {
     const INIT: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}"#;
 
     #[test]
+    fn a_malformed_response_opens_no_request_to_answer() {
+        // `method` is not a string, so the message is unclassifiable; it also
+        // carries `result`, so it is a malformed response, not a request whose
+        // id can be read. A client response with the same id answers nothing.
+        let trace = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":5,"id":7,"result":{}}}
+{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":7,"result":{}}}"#;
+        let findings = run_check("base.result-id-matches", trace);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert_eq!(findings[0].seq, Some(1));
+    }
+
+    #[test]
     fn a_response_shaped_message_is_judged_on_its_result_member_alone() {
         // The two cases `classify` can hand this check, and the reason it only
         // asks about `result`: an id-bearing, method-less message that it

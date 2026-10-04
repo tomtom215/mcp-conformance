@@ -345,6 +345,27 @@ mod tests {
     }
 
     #[test]
+    fn after_a_failed_probe_only_its_error_reply_is_set_aside() {
+        // A dual-era client's probe and the server's refusal precede the
+        // handshake; a server notification after them is still the first
+        // interaction, and it is not the client's initialize.
+        use crate::context::TraceContext;
+        use crate::reader::{Limits, parse_trace};
+        let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"Method not found"}}}
+{"seq":2,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"x"}}}
+{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"1"}}}}"#;
+        let events = parse_trace(trace, &Limits::default()).expect("valid trace");
+        let context = TraceContext::new(&events);
+        let findings = crate::checks::find("lifecycle.first-interaction-initialize")
+            .expect("check exists")
+            .run(&context)
+            .findings;
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert_eq!(findings[0].seq, Some(2));
+    }
+
+    #[test]
     fn a_server_banner_before_initialize_is_not_the_clients_interaction() {
         // A server that logs to stdout breaks TRAN-004 (and BASE-008); the
         // client, which did open with `initialize`, broke nothing here.

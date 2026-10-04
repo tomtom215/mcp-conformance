@@ -249,3 +249,24 @@ fn a_server_exiting_under_a_writing_client_is_always_the_closer() {
         std::fs::remove_file(&trace).ok();
     }
 }
+
+/// After a stop request, what still holds the server's stdout once the server
+/// exits — a child it started on the way out — gets the grace period to finish,
+/// and its last line is relayed and recorded rather than killed mid-flight.
+#[test]
+fn output_written_after_the_server_exits_on_a_stop_is_kept() {
+    let trace = scratch("late", "jsonl");
+    let script = r#"trap '(sleep 0.5; echo "{\"jsonrpc\":\"2.0\",\"method\":\"late\"}") & exit 0' TERM; echo '{"jsonrpc":"2.0","method":"ready"}'; while :; do sleep 0.1; done"#;
+    let (mut capture, stdin) = start(&trace, script);
+    capture.signal("TERM");
+    capture.wait_within(Duration::from_secs(10));
+    drop(stdin);
+    let text = std::fs::read_to_string(&trace).unwrap();
+    assert!(
+        text.lines().any(|line| {
+            serde_json::from_str::<serde_json::Value>(line).unwrap()["payload"]["method"] == "late"
+        }),
+        "{text}"
+    );
+    std::fs::remove_file(&trace).ok();
+}

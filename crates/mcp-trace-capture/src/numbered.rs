@@ -182,6 +182,8 @@ mod tests {
             .unwrap()
             .unwrap();
         let error = missing.create_next(1).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::NotFound, "{error}");
+        assert!(error.to_string().starts_with("cannot create "), "{error}");
         assert!(error.to_string().contains("absent"), "{error}");
         std::fs::remove_dir_all(&dir).ok();
     }

@@ -82,17 +82,7 @@ impl Judgment {
     /// warnings over pass.
     #[must_use]
     pub fn verdict(&self) -> Verdict {
-        let rank = |verdict: &Verdict| match verdict {
-            Verdict::Pass => 0,
-            Verdict::PassWithWarnings => 1,
-            Verdict::Fail => 2,
-            _ => 3,
-        };
-        self.reports
-            .iter()
-            .map(Report::verdict)
-            .max_by_key(rank)
-            .unwrap_or(Verdict::Pass)
+        Verdict::most_severe(self.reports.iter().map(Report::verdict)).unwrap_or(Verdict::Pass)
     }
 }
 
@@ -147,4 +137,51 @@ pub fn judge(document: &str) -> Result<Judgment, JudgeError> {
         return Err(JudgeError::NothingJudged);
     }
     Ok(Judgment { reports })
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use std::error::Error as _;
+
+    use super::{JudgeError, judge};
+
+    const INITIALIZE_2025_06_18: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"c","version":"0"}}}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}"#;
+
+    #[test]
+    fn each_refusal_says_why_and_keeps_its_cause() {
+        let malformed = judge("not json").unwrap_err();
+        assert!(matches!(malformed, JudgeError::Malformed(_)));
+        assert!(
+            malformed.to_string().starts_with("malformed trace: "),
+            "{malformed}"
+        );
+        assert!(malformed.source().is_some());
+
+        let unsupported = judge(INITIALIZE_2025_06_18).unwrap_err();
+        assert!(matches!(unsupported, JudgeError::UnsupportedRevision(_)));
+        assert!(
+            unsupported.to_string().contains("2025-06-18"),
+            "{unsupported}"
+        );
+        assert!(unsupported.source().is_some());
+
+        let empty = judge("").unwrap_err();
+        assert!(
+            empty.to_string().contains("judged no requirement"),
+            "{empty}"
+        );
+        assert!(empty.source().is_none());
+
+        let unanswered = judge(INITIALIZE_2025_06_18.lines().next().unwrap()).unwrap_err();
+        assert!(matches!(unanswered, JudgeError::NeverAnswered(_)));
+        assert!(
+            unanswered
+                .to_string()
+                .contains("the server sent no message"),
+            "{unanswered}"
+        );
+        assert!(unanswered.source().is_none());
+    }
 }

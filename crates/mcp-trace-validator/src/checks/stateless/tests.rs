@@ -147,3 +147,56 @@ fn a_stdio_trace_has_no_framing() {
     assert!(framing.posts().is_empty());
     assert_eq!(framing.status_for(1), None);
 }
+
+#[test]
+fn an_abort_ends_one_exchange_so_the_next_is_attributable() {
+    // The proxy records an upstream failure in place of the status the first
+    // POST never got. That ends it, so the second POST, alone in flight, owns
+    // the next status. Ignoring the abort would leave two exchanges awaiting
+    // one status, and nothing attributed.
+    let abort = r#"{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"lifecycle","event":"transport-abort"}"#;
+    let lines = [
+        post(0, ACCEPT),
+        request(1, 1),
+        abort.to_owned(),
+        post(3, ACCEPT),
+        request(4, 2),
+        status(5, 200),
+        answer(6, "2"),
+    ];
+    with_framing(&lines, |framing| {
+        let exchanges = framing.exchanges();
+        assert_eq!(exchanges.len(), 1, "{exchanges:?}");
+        assert_eq!(exchanges[0].request.map(|(seq, ..)| seq), Some(3));
+        assert_eq!(exchanges[0].status, 200);
+    });
+}
+
+#[test]
+fn a_body_pairs_with_the_post_awaiting_one_not_a_get() {
+    // A GET carries no body, so a client message arriving while one is open
+    // belongs to the POST.
+    let get = r#"{"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"GET","headers":{}}"#;
+    let lines = [post(0, ACCEPT), get.to_owned(), request(2, 1)];
+    with_framing(&lines, |framing| {
+        let posts = framing.posts();
+        assert_eq!(posts.len(), 1);
+        assert_eq!((posts[0].seq, posts[0].message_seq), (0, 2));
+    });
+}
+
+#[test]
+fn only_a_result_or_error_counts_as_a_framed_response() {
+    // An object with neither `method` nor `result`/`error` is not a response,
+    // so it does not make a status no exchange awaited into a request's answer.
+    let lines = [status(0, 200), server(1, r#"{"jsonrpc":"2.0","id":5}"#)];
+    with_framing(&lines, |framing| {
+        let exchanges = framing.exchanges();
+        assert_eq!(exchanges.len(), 1);
+        assert!(!exchanges[0].framed_response);
+    });
+    let answered = [status(0, 200), answer(1, "5")];
+    with_framing(&answered, |framing| {
+        assert!(framing.exchanges()[0].framed_response);
+    });
+}

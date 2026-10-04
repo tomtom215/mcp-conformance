@@ -157,3 +157,35 @@ fn paths_become_uri_references() {
     // A drive letter needs its separator: `C:` alone is a relative name.
     assert_eq!(uri_reference("C:t"), "C%3At");
 }
+
+#[test]
+fn numbers_fold_to_one_mark_and_text_stays() {
+    assert_eq!(fold_numbers("seq 12: id 3a, 007"), "seq #: id #a, #");
+    assert_eq!(fold_numbers("no digits"), "no digits");
+    assert_eq!(fold_numbers(""), "");
+}
+
+#[test]
+fn identical_findings_in_one_trace_get_distinct_fingerprints() {
+    // Two messages break the same clause the same way; folded, their details
+    // are equal, so only the per-trace occurrence count tells them apart.
+    let trace = format!(
+        "{WRONG_VERSION}\n{}",
+        WRONG_VERSION
+            .replace(r#""seq":0"#, r#""seq":1"#)
+            .replace(r#""id":1"#, r#""id":2"#)
+    );
+    let events = parse_trace(&trace, &Limits::default()).unwrap();
+    let registry = Registry::builtin_2025_11_25().unwrap();
+    let report = crate::engine::validate(&registry, &events);
+    let log = log(&[report], Some("t.jsonl"), &events);
+    let fingerprints: Vec<&Value> = log["runs"][0]["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|result| result["ruleId"] == "BASE-008")
+        .map(|result| &result["partialFingerprints"]["mcpConformanceFinding/v2"])
+        .collect();
+    assert_eq!(fingerprints.len(), 2, "{log}");
+    assert_ne!(fingerprints[0], fingerprints[1]);
+}

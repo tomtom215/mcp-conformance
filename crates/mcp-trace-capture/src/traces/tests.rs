@@ -99,6 +99,25 @@ fn each_session_gets_its_own_file_with_seq_from_zero() {
 }
 
 #[test]
+fn a_number_is_not_reused_within_a_run_even_once_its_file_is_gone() {
+    let dir = scratch("no-reuse");
+    let traces = per_session(&dir);
+    let first = traces.route(None, Some(INITIALIZE));
+    std::fs::remove_file(dir.join("001.jsonl")).unwrap();
+    let second = traces.route(None, Some(INITIALIZE));
+    record(&second);
+    let finished = traces.finish();
+    let paths: Vec<Option<PathBuf>> = finished.iter().map(|f| f.path.clone()).collect();
+    assert_eq!(
+        paths,
+        [Some(dir.join("001.jsonl")), Some(dir.join("002.jsonl"))]
+    );
+    assert!(!dir.join("001.jsonl").exists());
+    drop(first);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn an_id_first_seen_on_a_request_begins_a_session_and_keeps_it() {
     let dir = scratch("unknown-id");
     let traces = per_session(&dir);

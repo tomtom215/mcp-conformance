@@ -1024,8 +1024,9 @@ fn several_traces_are_judged_together_and_the_worst_decides() {
     assert!(text.contains(&format!("==> {good} <==")), "{text}");
     assert!(text.contains(&format!("==> {bad} <==")), "{text}");
     assert!(text.contains("FAIL  BASE-003"), "{text}");
+    // The whole line: with every trace judged, no "not judged" clause.
     assert!(
-        text.contains("2 traces: 1 pass, 0 pass-with-warnings, 1 fail"),
+        text.contains("2 traces: 1 pass, 0 pass-with-warnings, 1 fail\n"),
         "{text}"
     );
     assert!(text.contains("overall verdict: fail"), "{text}");
@@ -1055,4 +1056,8 @@ fn several_traces_are_judged_together_and_the_worst_decides() {
     // stdin cannot be mixed with files: it can only be read once.
     let mixed_stdin = run(&["validate", good, "-"]);
     assert_eq!(mixed_stdin.status.code(), Some(2), "{mixed_stdin:?}");
+    assert!(
+        stderr(&mixed_stdin).contains("`-` (stdin) can only be validated on its own"),
+        "{mixed_stdin:?}"
+    );
 }

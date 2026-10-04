@@ -197,3 +197,22 @@ fn skip_accounting_and_location_text_are_exact() {
     assert_eq!(location(None, "x.y"), "[x.y]");
     assert_eq!(location(Some(3), "x.y"), "[x.y] at seq 3");
 }
+
+#[test]
+fn test_cases_carry_the_trace_in_their_class_and_file() {
+    let report = report_for(VIOLATION);
+    let plain = render(&report);
+    assert!(plain.contains(r#"classname="mcp.2025-11-25""#), "{plain}");
+    assert!(!plain.contains(" file="), "{plain}");
+    let named = render_with(
+        &[report],
+        &Options {
+            trace: Some("traces/a.jsonl".to_owned()),
+            strict: false,
+        },
+    );
+    assert!(
+        named.contains(r#"classname="traces/a.jsonl.mcp.2025-11-25" file="traces/a.jsonl""#),
+        "{named}"
+    );
+}
