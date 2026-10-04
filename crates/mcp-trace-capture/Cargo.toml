@@ -61,9 +61,9 @@ rustls = { version = ">=0.23.45, <0.24", default-features = false, features = ["
 # Unix: signalling the wrapped server's whole process group (`killpg`), so a
 # launcher (`npx`, `uv run`, `sh -c`) cannot strand the real server. Safe
 # bindings, since this workspace forbids `unsafe`; already in the tree through
-# rmcp's process-wrap.
+# rmcp's process-wrap, whose floor (0.31.1) this one must not undercut.
 [target.'cfg(unix)'.dependencies]
-nix = { version = ">=0.31, <0.32", default-features = false, features = ["signal"] }
+nix = { version = ">=0.31.1, <0.32", default-features = false, features = ["signal"] }
 
 [dev-dependencies]
 # The tests' own HTTP client; plain HTTP to loopback, no TLS features.
