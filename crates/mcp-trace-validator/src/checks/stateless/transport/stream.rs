@@ -116,28 +116,45 @@ pub(in crate::checks) fn accel_buffering_header(
 /// `TRAN-070`: nothing further is sent for a request whose stream was closed.
 ///
 /// The revision makes closing a request's SSE response stream the cancellation
-/// signal (TRAN-069), so the recorded form of that signal is a transport close
-/// or abort on Streamable HTTP. Judged only against ids still outstanding when
-/// it happened: a message answering a request the server had already completed
-/// is a different defect, and not one this clause reaches.
-/// One pass over the events, flipping at the close rather than comparing
-/// sequence numbers against it. A `seq` comparison would be untestable here:
-/// the close is a lifecycle event, so no *message* can ever share its `seq`,
-/// and `<` versus `<=` would be a distinction no trace could exhibit.
+/// signal (TRAN-069), so the recorded form of that signal is an orderly
+/// `transport-close` on Streamable HTTP. Two readings this check used to make
+/// are gone, because both convicted servers of cancellations that never
+/// happened:
+///
+/// - **A close names no request.** The lifecycle event carries no id, and a
+///   stream is one request's. It is attributed only when exactly one request is
+///   in flight; with several, which stream ended is unknown and nothing is
+///   judged. Read as cancelling *every* request in flight, one closed stream
+///   failed the server for answering all the others.
+/// - **An abort is not a cancellation.** `transport-abort` records a transport
+///   that *failed* — the capture proxy writes it when the upstream server could
+///   not be reached or broke mid-response, and answers the client 502 itself.
+///   That is not the client closing its stream, and the server is not told of
+///   any cancellation by it.
+///
+/// One pass over the events, cancelling at the close rather than comparing
+/// sequence numbers against it: the close is a lifecycle event, so no message
+/// can share its `seq`, and `<` versus `<=` would be untestable.
 pub(in crate::checks) fn no_messages_after_cancellation(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
     let mut outstanding: BTreeSet<String> = BTreeSet::new();
-    let mut closed_at: Option<u64> = None;
+    // Cancelled request id → the seq of the close that cancelled it.
+    let mut cancelled: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
     for event in context.events() {
-        if let Some(closed_at) = closed_at {
-            report_after_close(event, &outstanding, closed_at, sink);
-        } else if is_cancellation(event) {
-            closed_at = Some(event.seq);
-        } else {
-            track_outstanding(event, &mut outstanding);
+        if is_cancellation(event) {
+            if outstanding.len() == 1
+                && let Some(id) = outstanding.pop_first()
+            {
+                cancelled.insert(id, event.seq);
+            }
+            continue;
         }
+        if !cancelled.is_empty() {
+            report_after_close(event, &cancelled, sink);
+        }
+        track_outstanding(event, &mut outstanding, &mut cancelled);
     }
 }
 
@@ -146,7 +163,7 @@ fn is_cancellation(event: &mcp_conformance_core::trace::TraceEvent) -> bool {
     let closed = matches!(
         event.body,
         EventBody::Lifecycle {
-            event: LifecycleEvent::TransportClose | LifecycleEvent::TransportAbort
+            event: LifecycleEvent::TransportClose
         }
     );
     closed && event.transport == TransportKind::StreamableHttp
@@ -157,6 +174,7 @@ fn is_cancellation(event: &mcp_conformance_core::trace::TraceEvent) -> bool {
 fn track_outstanding(
     event: &mcp_conformance_core::trace::TraceEvent,
     outstanding: &mut BTreeSet<String>,
+    cancelled: &mut std::collections::BTreeMap<String, u64>,
 ) {
     let Some(payload) = event.message_payload() else {
         return;
@@ -165,17 +183,18 @@ fn track_outstanding(
         return;
     };
     if payload.get("method").is_some() {
+        // A new request reusing a cancelled id is a new request.
+        cancelled.remove(&id.to_string());
         outstanding.insert(id.to_string());
     } else {
         outstanding.remove(&id.to_string());
     }
 }
 
-/// Reports a server message for an id that was still in flight at the close.
+/// Reports a server message for a request whose stream was closed.
 fn report_after_close(
     event: &mcp_conformance_core::trace::TraceEvent,
-    outstanding: &BTreeSet<String>,
-    closed_at: u64,
+    cancelled: &std::collections::BTreeMap<String, u64>,
     sink: &mut FindingSink,
 ) {
     if event.direction != Direction::ServerToClient {
@@ -191,7 +210,7 @@ fn report_after_close(
     // The subject is a server message carrying an id *after* the close: before
     // one, nothing is forbidden, and a session with no close is untested.
     sink.examined();
-    if outstanding.contains(&id.to_string()) {
+    if let Some(closed_at) = cancelled.get(&id.to_string()) {
         sink.push(
             Some(event.seq),
             format!(

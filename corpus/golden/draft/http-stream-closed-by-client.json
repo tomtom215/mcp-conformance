@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "pass",
   "totals": {
-    "pass": 59,
+    "pass": 41,
     "fail": 0,
     "warn": 0,
     "excluded": 147,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 66
+    "not_observed": 84
   },
   "requirements": [
     {
@@ -139,7 +139,7 @@
     {
       "id": "BASE-040",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-056",
@@ -184,7 +184,7 @@
     {
       "id": "TRAN-070",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-071",
@@ -219,12 +219,12 @@
     {
       "id": "TRAN-079",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-080",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-086",
@@ -274,7 +274,7 @@
     {
       "id": "DISC-001",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "DISC-002",
@@ -294,12 +294,12 @@
     {
       "id": "VERS-003",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "VERS-004",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "VERS-008",
@@ -449,12 +449,12 @@
     {
       "id": "CACH-015",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "CACH-016",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "COMP-006",
@@ -474,7 +474,7 @@
     {
       "id": "PAGE-010",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "PAGE-011",
@@ -509,12 +509,12 @@
     {
       "id": "TOOL-019",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-020",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-022",
@@ -529,32 +529,32 @@
     {
       "id": "TOOL-025",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-027",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-029",
       "level": "SHOULD NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-030",
       "level": "SHOULD",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-033",
       "level": "MUST NOT",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-034",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-038",
@@ -579,7 +579,7 @@
     {
       "id": "RES-012",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "RES-013",
@@ -589,7 +589,7 @@
     {
       "id": "RES-018",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "not-observed"
     },
     {
       "id": "RES-022",
