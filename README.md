@@ -8,22 +8,25 @@ Record any MCP session — any language, any SDK, stdio or streamable HTTP — a
 out which of the specification's requirements it met, which it broke, where, and
 which it never exercised.
 
-**Status: `0.6.0` on [crates.io](https://crates.io/crates/mcp-trace-validator)**
-(`cargo install mcp-trace-capture mcp-trace-validator`), published with SLSA
-build-provenance attestations. Pre-1.0: the API and the verdicts may change between
-minor releases, and the [changelog](CHANGELOG.md) says so when they do.
+**Status: `0.6.0`, prepared for release and not yet published.** crates.io still
+serves [`0.5.1`](https://crates.io/crates/mcp-trace-validator), which predates
+`mcp-trace-capture` and most of what this page describes (it judges every trace
+against `2025-11-25`), so until `0.6.0` is out, install from source as below.
+Pre-1.0: the API and the verdicts may change between minor releases, and the
+[changelog](CHANGELOG.md) says so when they do.
 
 ## Quickstart
 
 ```text
-cargo install mcp-trace-capture mcp-trace-validator
+cargo install --locked --git https://github.com/tomtom215/mcp-conformance mcp-trace-capture mcp-trace-validator
 ```
 
-Or skip the compile: `cargo binstall mcp-trace-capture mcp-trace-validator` fetches
-the prebuilt archive each release attaches for Linux (static, x86_64 and aarch64),
-macOS (arm64 and x86_64) or Windows (x86_64), with build-provenance attestations
-(`gh attestation verify <archive> --repo tomtom215/mcp-conformance`) and
-`SHA256SUMS-binaries` beside it.
+From `0.6.0` on, `cargo install mcp-trace-capture mcp-trace-validator` installs the
+published crates, and `cargo binstall mcp-trace-capture mcp-trace-validator` skips
+the compile: each release attaches prebuilt archives for Linux (static, x86_64 and
+aarch64), macOS (arm64 and x86_64) and Windows (x86_64), with SLSA build-provenance
+attestations (`gh attestation verify <archive> --repo tomtom215/mcp-conformance`)
+and `SHA256SUMS-binaries` beside them.
 
 Record a session. For a **stdio** server, configure your client to launch the
 capture wrapper instead of the server:
