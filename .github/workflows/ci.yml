@@ -278,3 +278,40 @@ jobs:
           path: target/conformance/
           if-no-files-found: warn
           retention-days: 30
+
+  # Independent traffic: the official TypeScript and Python SDKs talk to each
+  # other (TS client -> TS everything server at 2025-11-25, Python client ->
+  # Python server at 2026-07-28, each over stdio and streamable HTTP), recorded
+  # through mcp-trace-capture and judged by mcp-trace-validator. Every session
+  # must judge `pass` at the revision its SDK speaks, and a 2025-06-18 session
+  # from an older SDK must be refused with exit 2. SDK versions are pinned by
+  # interop/package-lock.json and the hash-locked interop/requirements.txt.
+  interop:
+    name: Interop (official TypeScript and Python SDKs through capture)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build the recorder and the validator
+        run: cargo build --locked -p mcp-trace-capture -p mcp-trace-validator
+      - name: Install the pinned SDKs (Node and Python are preinstalled on the runner image)
+        working-directory: interop
+        run: |
+          node --version && python3 --version
+          npm ci --no-audit --no-fund
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet --require-hashes -r requirements.txt
+      - name: Record and judge five sessions
+        working-directory: interop
+        run: PYTHON="$PWD/.venv/bin/python" ./run.sh ../target/debug
+      - name: Upload traces and reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: interop-traces
+          path: interop/out/
+          if-no-files-found: warn
+          retention-days: 30
