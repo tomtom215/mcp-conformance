@@ -92,9 +92,19 @@ pub(in crate::checks) fn cancel_notification_references_request(
 /// Two ways a later server message can be "for" the cancelled request, and both
 /// are judged: a response correlated by JSON-RPC `id`, and a
 /// `notifications/progress` correlated by the `progressToken` the request itself
-/// carried in `_meta`. Stopping at the first would leave the clause's "any
-/// further messages" covering only the answer the server had probably already
-/// decided not to send.
+/// carried in `_meta`.
+///
+/// **When "after" is evidence.** A recording orders what crossed the pipe, not
+/// what the server had read: a response the server wrote before reading the
+/// cancellation lands after it in the trace, and basic/patterns/cancellation
+/// names that race outright — the notification "MAY arrive after the request has
+/// already finished", and "Both parties MUST handle these race conditions
+/// gracefully". Convicting every later message reported servers for a race the
+/// specification expects. stdio delivers the client's messages in order, so the
+/// server has demonstrably read a cancellation once it answers a request the
+/// client sent *after* it; from then on, a message for the cancelled request is
+/// one it sent knowing. Before that point the trace cannot tell the two apart
+/// and nothing is reported.
 ///
 /// Cancellations of ids the trace never opened are still honoured, because the
 /// prohibition is on the id, not on this recording having witnessed its request.
@@ -104,26 +114,25 @@ pub(in crate::checks) fn no_messages_after_cancel_notification(
 ) {
     // Request id (canonical text) → the progress token it opted into, if any.
     let mut tokens: BTreeMap<String, String> = BTreeMap::new();
-    // Cancelled request id → the seq of the notification that cancelled it. An
-    // id enters this map at the cancellation and is judged only for what comes
-    // *after*, which is the ordering the clause states — expressed by when the
-    // entry appears rather than by comparing sequence numbers later. A
-    // cancellation is a client notification and the messages judged are
-    // server-sent, so `seq > cancelled_at` and `seq >= cancelled_at` would be
-    // the same rule, and no trace could tell them apart.
-    let mut cancelled: BTreeMap<String, u64> = BTreeMap::new();
+    // Request id → the seq of the latest client request carrying it.
+    let mut sent_at: BTreeMap<String, u64> = BTreeMap::new();
+    // Cancelled request id → (seq of the cancellation, whether the server has
+    // demonstrably read it).
+    let mut cancelled: BTreeMap<String, (u64, bool)> = BTreeMap::new();
     for event in context.events() {
         if let Some((method, params)) = client_notification(event) {
             if method == CANCELLED
                 && let Some(id) = params.and_then(|params| params.get("requestId"))
                 && !id.is_null()
             {
-                cancelled.entry(id.to_string()).or_insert(event.seq);
+                cancelled
+                    .entry(id.to_string())
+                    .or_insert((event.seq, false));
             }
             continue;
         }
         if event.direction == Direction::ClientToServer {
-            record_progress_token(event, &mut tokens);
+            record_request(event, &mut tokens, &mut sent_at);
             continue;
         }
         if cancelled.is_empty() {
@@ -134,14 +143,50 @@ pub(in crate::checks) fn no_messages_after_cancel_notification(
         // which.
         sink.examined();
         report_if_cancelled(event, &tokens, &cancelled, sink);
+        mark_read(event, &sent_at, &mut cancelled);
     }
 }
 
-/// Remembers the `_meta.progressToken` a client request opted into.
-fn record_progress_token(event: &TraceEvent, tokens: &mut BTreeMap<String, String>) {
+/// Marks every cancellation the server has demonstrably read: one recorded
+/// before a request this server message answers.
+fn mark_read(
+    event: &TraceEvent,
+    sent_at: &BTreeMap<String, u64>,
+    cancelled: &mut BTreeMap<String, (u64, bool)>,
+) {
     let Some(payload) = event.message_payload() else {
         return;
     };
+    if payload.get("method").is_some() {
+        return;
+    }
+    let Some(answered_at) = payload
+        .get("id")
+        .filter(|id| !id.is_null())
+        .and_then(|id| sent_at.get(&id.to_string()))
+    else {
+        return;
+    };
+    for (cancelled_at, read) in cancelled.values_mut() {
+        *read |= *cancelled_at < *answered_at;
+    }
+}
+
+/// Remembers when a client request was sent, and the `_meta.progressToken`
+/// it opted into.
+fn record_request(
+    event: &TraceEvent,
+    tokens: &mut BTreeMap<String, String>,
+    sent_at: &mut BTreeMap<String, u64>,
+) {
+    let Some(payload) = event.message_payload() else {
+        return;
+    };
+    if payload.get("method").is_some()
+        && let Some(id) = payload.get("id").filter(|id| !id.is_null())
+    {
+        sent_at.insert(id.to_string(), event.seq);
+    }
     let (Some(id), Some(token)) = (
         payload.get("id").filter(|id| !id.is_null()),
         payload
@@ -158,7 +203,7 @@ fn record_progress_token(event: &TraceEvent, tokens: &mut BTreeMap<String, Strin
 fn report_if_cancelled(
     event: &TraceEvent,
     tokens: &BTreeMap<String, String>,
-    cancelled: &BTreeMap<String, u64>,
+    cancelled: &BTreeMap<String, (u64, bool)>,
     sink: &mut FindingSink,
 ) {
     let Some(payload) = event.message_payload() else {
@@ -182,14 +227,15 @@ fn report_if_cancelled(
         });
     for (id, what) in [(answered, "a response"), (progressed, "progress")] {
         let Some(id) = id else { continue };
-        let Some(&cancelled_at) = cancelled.get(&id) else {
+        let Some(&(cancelled_at, true)) = cancelled.get(&id) else {
             continue;
         };
         sink.push(
             Some(event.seq),
             format!(
                 "server sent {what} for request {id}, which the client cancelled at \
-                 seq {cancelled_at}"
+                 seq {cancelled_at} — after answering a request sent later than that \
+                 cancellation, so after reading it"
             ),
         );
     }

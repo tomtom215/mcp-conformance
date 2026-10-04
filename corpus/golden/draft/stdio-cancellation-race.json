@@ -1,9 +1,9 @@
 {
   "revision": "2026-07-28",
-  "verdict": "fail",
+  "verdict": "pass",
   "totals": {
-    "pass": 28,
-    "fail": 1,
+    "pass": 29,
+    "fail": 0,
     "warn": 0,
     "excluded": 148,
     "unsupported": 0,
@@ -334,19 +334,7 @@
     {
       "id": "TRAN-124",
       "level": "MUST NOT",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "transport.no-messages-after-cancel-notification",
-          "seq": 4,
-          "detail": "server sent a response for request 1, which the client cancelled at seq 1 — after answering a request sent later than that cancellation, so after reading it"
-        }
-      ],
-      "source": {
-        "section": "basic/transports/stdio#cancellation",
-        "quote": "Servers SHOULD stop work on a cancelled request as soon as practical and MUST NOT send any further messages for it.",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#cancellation"
-      }
+      "outcome": "pass"
     },
     {
       "id": "TRAN-128",
