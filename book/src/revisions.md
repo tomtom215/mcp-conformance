@@ -153,7 +153,7 @@ usually are.
 
 - The reference server serves the stateless surface with
   `--protocol-version 2026-07-28`, and the official suite's `2026-07-28`
-  scenarios score **41 passing / 0 failing** against it.
+  scenarios score **42 passing / 0 failing** against it.
 - Five committed captures — a conforming session over each transport, a *probe*
   session of deliberately malformed requests, and the official runner's two —
   evidence **114 of the 125 judgeable clauses** between them. What no capture

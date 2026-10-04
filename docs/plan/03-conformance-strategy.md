@@ -142,7 +142,7 @@ informational SHOULD warning on the suite's version-compat probe.
   design* — it exists to hear upstream churn coming — and stays at the registry's revision,
   so it is signal to read, never a gate.
 - **Measure** the next revision separately and *gate* it: `DRAFT_SUITE_VERSION` in
-  `xtask/src/draft_readiness.rs` pins an exact alpha (`0.2.0-alpha.11`) and runs the
+  `xtask/src/draft_readiness.rs` pins an exact alpha (`0.2.0-alpha.12`) and runs the
   runner's `2026-07-28` scenarios against the server once per revision the server can
   serve, ratcheting every check's status against `conformance/draft-readiness.json`. Floating and pinned are not
   interchangeable here: a tracking job wants the newest thing upstream has, a ratchet

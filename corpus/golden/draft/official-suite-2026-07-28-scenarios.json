@@ -443,22 +443,22 @@
       "findings": [
         {
           "check": "caching.hints-on-cacheable-results",
-          "seq": 54,
+          "seq": 62,
           "detail": "the `complete` result of `resources/list` carries no `ttlMs` caching hint"
         },
         {
           "check": "caching.hints-on-cacheable-results",
-          "seq": 58,
-          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 62,
-          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
           "seq": 66,
+          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
+        },
+        {
+          "check": "caching.hints-on-cacheable-results",
+          "seq": 70,
+          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
+        },
+        {
+          "check": "caching.hints-on-cacheable-results",
+          "seq": 74,
           "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
         }
       ],

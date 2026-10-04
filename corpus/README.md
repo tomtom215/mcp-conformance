@@ -188,12 +188,12 @@ two reports is attributable to that one change.
 
 | Field | `official-suite-2026-07-28-scenarios.jsonl` | `official-suite-2026-07-28-stateless.jsonl` |
 |---|---|---|
-| Client | The **official MCP conformance suite**, `0.2.0-alpha.11`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` holds) | The same client, the same scenarios, the same run |
+| Client | The **official MCP conformance suite**, `0.2.0-alpha.12`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` holds) | The same client, the same scenarios, the same run |
 | Server | `mcp-everything-server` serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode |
-| Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-08-20 | same run, second leg |
-| Contents | 91 events / 22 POST exchanges | 91 events / 22 POST exchanges |
+| Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-04 | same run, second leg |
+| Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
 | Our verdict | 60 pass, **1 fail**, 0 warn, 64 not observed, 147 excluded | **61 pass, 0 fail, 0 warn**, 64 not observed, 147 excluded |
-| The official runner's verdict | **37 passing / 4 failing** | **41 passing / 0 failing** |
+| The official runner's verdict | **38 passing / 4 failing** | **42 passing / 0 failing** |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
 `resources/{list,read}`, `prompts/{list,get}` and progress notifications; every
