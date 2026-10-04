@@ -194,7 +194,10 @@ Each is stated again in the entry that introduced it, with the reasoning.
     teardown failed `BASE-039`/`SUBS-001`; `RES-022` convicted any empty read;
     `TRAN-070` treated an upstream abort as cancelling every request; `TRAN-097`/`100`
     compared integers as text; `TRAN-124` ignored the cancellation race; `TOOL-034`
-    applied to stdio; `BASE-031`/`032` ignored the order of a reused id.
+    applied to stdio; `BASE-031`/`032` ignored the order of a reused id;
+    `PROM-020` warned when a server answered a `prompts/get` missing a required
+    argument by asking for input (`input_required`), or served the retry that
+    supplied it.
 - **Missed violations:** `application/json-seq` passed as `application/json`;
   `TRAN-073`/`096` did not judge refusals carrying `id: null`; `LOG-008` missed a log
   for a request that did not opt in.
