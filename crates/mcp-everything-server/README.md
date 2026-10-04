@@ -29,8 +29,9 @@ server scenarios (pinned suite 0.1.16, enforced in CI via
   not define — SEP-2663 moves tasks to an extension in `2026-07-28`).
   **URL-mode elicitation** closed when the reference host landed its
   URL-capable handler: `test_url_elicitation` sends a `mode: "url"`
-  `elicitation/create` and, on consent, the completion notification for the
-  issued id — the host↔server round trip is pinned end to end in
+  `elicitation/create` (only to a client that declared `elicitation.url`; a
+  bare `elicitation: {}` is form mode only) and, on consent, the completion
+  notification for the issued id — the host↔server round trip is pinned end to end in
   `mcp-reference-host`'s `agent_loop` tests.
 - `server::ServedRevision` — the protocol revision an instance serves, chosen
   at construction (`EverythingServer::serving`, or `--protocol-version` on the

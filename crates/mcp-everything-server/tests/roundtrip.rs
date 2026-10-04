@@ -1232,9 +1232,13 @@ impl UrlModeClient {
 impl rmcp::ClientHandler for UrlModeClient {
     fn get_info(&self) -> rmcp::model::ClientInfo {
         let mut info = rmcp::model::ClientInfo::default();
-        info.capabilities = rmcp::model::ClientCapabilities::builder()
-            .enable_elicitation()
-            .build();
+        // URL mode must be declared: a bare `elicitation: {}` is form mode
+        // only, and the server must not send this client a URL elicitation.
+        info.capabilities = rmcp::model::ClientCapabilities::builder().build();
+        info.capabilities.elicitation = Some(
+            rmcp::model::ElicitationCapability::new()
+                .with_url(rmcp::model::UrlElicitationCapability::new()),
+        );
         info
     }
 
@@ -1355,6 +1359,25 @@ async fn url_elicitation_decline_sends_no_completion() {
     assert!(
         completions.is_empty(),
         "declined consent must not be completed: {completions:?}"
+    );
+    client.cancel().await.expect("clean shutdown");
+}
+
+#[tokio::test]
+async fn url_elicitation_is_refused_to_a_form_only_client() {
+    // `elicitation: {}` declares form mode only (client/elicitation,
+    // 2025-11-25): "Servers MUST NOT send elicitation requests with modes
+    // that are not supported by the client."
+    let (client, handler) = connect_interactive().await;
+    let outcome = client
+        .call_tool(CallToolRequestParams::new("test_url_elicitation"))
+        .await;
+    let error = mcp_error(outcome);
+    assert_eq!(error.code, ErrorCode::INVALID_REQUEST, "{error:?}");
+    assert!(error.message.contains("elicitation.url"), "{error:?}");
+    assert!(
+        handler.elicitations.lock().unwrap().is_empty(),
+        "no elicitation reached the client"
     );
     client.cancel().await.expect("clean shutdown");
 }

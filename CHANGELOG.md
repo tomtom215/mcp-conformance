@@ -209,6 +209,14 @@ Each is stated again in the entry that introduced it, with the reasoning.
   task-augmented `tools/call` without the server's `tasks.requests.tools.call` —
   each a MUST NOT on its own page — and a `tasks/list` or `tasks/cancel` sent to a
   party that did not declare `tasks.list` or `tasks.cancel`.
+- **`mcp-everything-server` sent URL-mode elicitations to form-only clients.**
+  `test_url_elicitation` checked only that the client declared `elicitation`,
+  but `elicitation: {}` is form mode only and servers "MUST NOT send elicitation
+  requests with modes that are not supported by the client". It now requires
+  `elicitation.url` and refuses otherwise. Found by the `LIFE-009` sub-capability
+  check above, on the conformance gate's own reference-host session.
+  `mcp-reference-host`, which answers both modes, now declares
+  `elicitation: {"form": {}, "url": {}}` rather than a bare `{}`.
 - **HTTP status and `Content-Type` are judged per exchange.** `TRAN-029`/`TRAN-063`
   and `TRAN-040` shared one check that accepted either media type on any `200`, so a
   GET answered with JSON passed, a request answered `202` was never examined, and a
