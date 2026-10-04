@@ -94,6 +94,7 @@ fn collect(events: &[TraceEvent]) -> BTreeSet<ProtocolRevision> {
 /// any registry describes it.
 fn collect_all(events: &[TraceEvent]) -> BTreeSet<ProtocolRevision> {
     let refused = refused_request_ids(events);
+    let probes = failed_discover_probes(events);
     let mut found: BTreeSet<ProtocolRevision> = BTreeSet::new();
     let mut pending_header: Option<&str> = None;
     for event in events {
@@ -107,7 +108,7 @@ fn collect_all(events: &[TraceEvent]) -> BTreeSet<ProtocolRevision> {
                 // of a revision that never happened. A response carries the
                 // answer, so it is always evidence; so is a notification, which
                 // has no id to be refused by.
-                if is_refused(payload, &refused) {
+                if is_refused(payload, &refused) || probes.contains(&event.seq) {
                     pending_header = None;
                     continue;
                 }
@@ -145,6 +146,42 @@ fn refused_request_ids(events: &[TraceEvent]) -> BTreeSet<String> {
         .filter_map(|payload| payload.get("id"))
         .map(ToString::to_string)
         .collect()
+}
+
+/// The `seq` of every client `server/discover` request that no result answered.
+///
+/// A dual-era client "SHOULD probe with `server/discover`" and, on "`-32601`
+/// Method not found, any other error, or [no response]", fall back to the
+/// `initialize` handshake (`2026-07-28` stdio §Backward Compatibility). Such a
+/// probe declares a revision the session then did not run under; against a
+/// legacy Streamable HTTP server the refusal is often an HTTP 400 whose JSON-RPC
+/// error carries `id: null`, which the id-keyed [`refused_request_ids`] cannot
+/// attribute. A probe counts as answered only by a *result* carrying its id,
+/// found scanning forward from the probe, so a later request reusing the id
+/// cannot vouch for it.
+pub(crate) fn failed_discover_probes(events: &[TraceEvent]) -> BTreeSet<u64> {
+    let mut failed = BTreeSet::new();
+    for (index, event) in events.iter().enumerate() {
+        let Some(payload) = event.message_payload() else {
+            continue;
+        };
+        if payload.get("method").and_then(Value::as_str) != Some("server/discover") {
+            continue;
+        }
+        let Some(id) = payload.get("id") else {
+            continue;
+        };
+        let answered = events[index + 1..]
+            .iter()
+            .filter(|later| later.direction != event.direction)
+            .filter_map(TraceEvent::message_payload)
+            .find(|later| later.get("method").is_none() && later.get("id") == Some(id))
+            .is_some_and(|response| response.get("result").is_some());
+        if !answered {
+            failed.insert(event.seq);
+        }
+    }
+    failed
 }
 
 /// Whether this message is a request whose id was answered with an error.

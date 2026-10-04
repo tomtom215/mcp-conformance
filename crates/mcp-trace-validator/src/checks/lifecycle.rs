@@ -9,7 +9,7 @@
 
 use mcp_conformance_core::message::MessageKind;
 use mcp_conformance_core::revision::ProtocolRevision;
-use mcp_conformance_core::trace::Direction;
+use mcp_conformance_core::trace::{Direction, TraceEvent};
 use serde_json::Value;
 
 use super::FindingSink;
@@ -20,8 +20,23 @@ use crate::context::{Phase, TraceContext};
 /// request. A trace with no messages examines nothing and reports *not observed*
 /// (ADR-0012); the CLI declines such a trace outright, because it is a capture
 /// that failed rather than a session that conformed.
+///
+/// A dual-era client's `server/discover` probe that no result answered, and the
+/// server's error reply to it, are not the interaction this clause orders: the
+/// `2026-07-28` backward-compatibility procedure has the client probe first and
+/// fall back to `initialize` against a legacy server, which is what such a
+/// trace records. The first message after them is the one judged.
 pub(super) fn first_interaction_initialize(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    let Some((event, kind, _)) = context.messages().next() else {
+    let probes = crate::declared::failed_discover_probes(context.events());
+    let part_of_a_probe = |event: &TraceEvent, kind: &MessageKind<'_>| {
+        let reply = event.direction == Direction::ServerToClient
+            && matches!(kind, MessageKind::Error { .. });
+        probes.contains(&event.seq) || (!probes.is_empty() && reply)
+    };
+    let Some((event, kind, _)) = context
+        .messages()
+        .find(|(event, kind, _)| !part_of_a_probe(event, kind))
+    else {
         return;
     };
     sink.examined();
@@ -126,8 +141,11 @@ pub(super) fn client_requests_before_init_response(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
+    // A dual-era client's failed discovery probe precedes `initialize` by
+    // design (see `first_interaction_initialize`).
+    let probes = crate::declared::failed_discover_probes(context.events());
     for (event, kind, phase) in context.messages() {
-        if event.direction != Direction::ClientToServer {
+        if event.direction != Direction::ClientToServer || probes.contains(&event.seq) {
             continue;
         }
         if !matches!(
