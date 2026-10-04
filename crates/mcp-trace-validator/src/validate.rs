@@ -216,7 +216,10 @@ fn judge_in_set(
     } else {
         (requested.to_vec(), RevisionSource::Requested)
     };
-    if source == RevisionSource::Default {
+    // A trace with no messages is refused as contentless right after this; a
+    // note about the revision it did not declare would only bury that.
+    let has_messages = events.iter().any(|event| event.message_payload().is_some());
+    if source == RevisionSource::Default && has_messages {
         eprintln!(
             "note: {prefix}the trace declares no protocol revision; judging it against {}, \
              the newest supported (use --revision to choose)",

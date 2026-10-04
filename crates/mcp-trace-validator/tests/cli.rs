@@ -82,6 +82,12 @@ fn a_trace_that_judges_nothing_is_refused_rather_than_passed() {
             stderr.contains("judged no requirement at all"),
             "{tag}: {stderr}"
         );
+        // Only the refusal: a note about the revision a contentless trace did
+        // not declare would bury it.
+        assert!(
+            !stderr.contains("declares no protocol revision"),
+            "{tag}: {stderr}"
+        );
         // And the same refusal in multi-revision mode, which reaches the
         // engine by a different path.
         let output = run(&[
