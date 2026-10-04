@@ -35,6 +35,13 @@ on:
 permissions:
   contents: read
 
+# One run at a time: a manual dispatch overlapping the Monday run would race it
+# on the tracking issue (two comments, or a close beside a comment). Queued,
+# never cancelled — a half-finished sweep reports nothing.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 env:
   # Every JavaScript action pinned here already declares `node24` (verified
   # 2026-07-26 at the pinned SHAs: actions/checkout v7.0.1 and Swatinem/rust-cache;
@@ -53,6 +60,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -62,23 +71,54 @@ jobs:
         run: cargo audit
 
   full-mutants:
-    name: Mutants (full sweep)
+    name: Mutants (full sweep, shard ${{ matrix.shard }}/8)
     # Skipped by a `claims`-scoped dispatch; see the `only` input above.
     if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
+    # Sharded because one job stopped fitting: the sweep took 3.4–4.4 h on the
+    # 0.5.x tree (1726 mutants), and the first run on 0.6.0 (mcp-trace-capture
+    # and SARIF added; ~374 more mutants) hit GitHub's 6-hour job cap on
+    # 2026-09-28 and was cancelled with no results. Eight shards put each at an
+    # estimated 35–45 minutes of mutants (scaled from those timings, not yet
+    # measured) plus its own baseline build; the timeout is a
+    # wedge-guard well under the cap, so a stuck shard fails visibly and the
+    # other seven still report.
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-mutants
         run: cargo install cargo-mutants --locked
       # The standard (docs/plan/04-engineering-standards.md): zero surviving mutants
-      # in every shipped crate (xtask is excluded via .cargo/mutants.toml).
-      - name: Full workspace sweep
+      # in every shipped crate (xtask is excluded via .cargo/mutants.toml, which
+      # every shard reads, as do `mutants.yml` and `cargo xtask mutants`).
+      - name: Full workspace sweep (this shard)
         # `-- --all-features` for the same reason as the PR gate: mutation
-        # coverage must include feature-gated code (see mutants.yml).
-        run: cargo mutants --workspace --no-shuffle -- --all-features
+        # coverage must include feature-gated code (see mutants.yml). The flags
+        # are the PR gate's and `cargo xtask mutants`'s, plus `--shard`, which
+        # partitions the one deterministic (`--no-shuffle`) mutant list so the
+        # eight shards together cover it exactly once.
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: cargo mutants --workspace --no-shuffle --shard "${SHARD}/8" -- --all-features
+      - name: Upload this shard's outcomes
+        # Missed, caught and timeout lists per shard: the evidence a red shard
+        # is read from, and on a green run the record that it ran at all.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mutants-shard-${{ matrix.shard }}-${{ github.run_id }}
+          path: mutants.out/
+          if-no-files-found: warn
+          retention-days: 30
 
   # Early warning on the suite's next line (docs/plan/03-conformance-strategy.md:
   # "track the 0.2.0-alpha line in a scheduled, non-blocking CI job"). The npm
@@ -94,6 +134,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -115,6 +157,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -128,6 +172,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain
         run: |
           rustup toolchain install nightly --profile minimal --no-self-update
@@ -155,7 +201,7 @@ jobs:
             echo "::error::cargo fuzz list named no targets; nothing would be fuzzed"
             exit 1
           fi
-          echo "fuzzing: $(echo $targets | tr '\n' ' ')"
+          echo "fuzzing: ${targets//$'\n'/ }"
           for target in $targets; do
             cargo +nightly fuzz run "$target" -- -max_total_time=300
           done
@@ -186,6 +232,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install nightly toolchain (with rust-src for the careful sysroot)
         run: rustup toolchain install nightly --profile minimal --component rust-src --no-self-update
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -236,15 +284,23 @@ jobs:
             note: i686 32-bit
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain (with the ${{ matrix.rust_target }} std target)
+        env:
+          RUST_TARGET: ${{ matrix.rust_target }}
         run: |
           rustup show active-toolchain
-          rustup target add ${{ matrix.rust_target }}
+          rustup target add "$RUST_TARGET"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install the cross toolchain for ${{ matrix.note }}
+        env:
+          APT_PACKAGES: ${{ matrix.apt }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y ${{ matrix.apt }}
+          # Word-split on purpose: the matrix value is a package list.
+          # shellcheck disable=SC2086
+          sudo apt-get install -y $APT_PACKAGES
       - name: Build and run the engine suite on ${{ matrix.note }}
         run: cargo xtask cross-arch
 
@@ -265,6 +321,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install nightly (for -Z direct-minimal-versions) and stable
         run: |
           rustup toolchain install nightly --profile minimal --no-self-update
@@ -287,6 +345,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -340,6 +400,8 @@ jobs:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -466,7 +528,7 @@ jobs:
             printf '### claims-expire notification\n\n'
             printf 'Tracking issue **%s**. A red run without this line means the notification step did not finish.\n' "$action"
           } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
-      - name: Close the tracking issue once all three gates are green
+      - name: Close the tracking issue once all five gates are green
         if: success()
         shell: bash
         run: |
@@ -474,7 +536,7 @@ jobs:
           number="$(gh issue list --state open --limit 200 --json number,title \
             | jq -r --arg title "$ISSUE_TITLE" 'map(select(.title == $title)) | .[0].number // empty')"
           if [[ -n "$number" ]]; then
-            gh issue close "$number" --comment "All three gates are green as of ${RUN_URL} — closing. A later red run files a fresh issue, so each incident keeps its own history."
-            printf '### claims-expire notification\n\nTracking issue **#%s closed** — all three gates are green.\n' "$number" \
+            gh issue close "$number" --comment "All five gates are green as of ${RUN_URL} — closing. A later red run files a fresh issue, so each incident keeps its own history."
+            printf '### claims-expire notification\n\nTracking issue **#%s closed** — all five gates are green.\n' "$number" \
               >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           fi

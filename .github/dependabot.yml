@@ -10,6 +10,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Supply-chain cooldown: a release is proposed only once it has been public
+    # for a week, the window in which a compromised publish is usually found
+    # and yanked. Security updates are not delayed by this.
+    cooldown:
+      default-days: 7
     groups:
       # Routine drift: one reviewable PR, expected to be mergeable on green CI.
       cargo-dependencies:
@@ -35,6 +40,58 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Cooldown: as for the workspace cargo entry.
+    cooldown:
+      default-days: 7
     groups:
       actions:
+        patterns: ["*"]
+  # The fuzz harness is its own workspace with its own Cargo.lock (fuzz/Cargo.toml
+  # explains why), so the root entry above never sees it.
+  - package-ecosystem: cargo
+    directory: /fuzz
+    schedule:
+      interval: weekly
+    # Cooldown: as for the workspace cargo entry.
+    cooldown:
+      default-days: 7
+    groups:
+      fuzz:
+        patterns: ["*"]
+  # The interop check's pinned official SDKs (interop/, ci.yml `interop`).
+  - package-ecosystem: npm
+    directory: /interop
+    schedule:
+      interval: weekly
+    # Cooldown: as for the workspace cargo entry.
+    cooldown:
+      default-days: 7
+    groups:
+      interop-npm:
+        patterns: ["*"]
+    ignore:
+      # Deliberately old: an npm alias of the TypeScript SDK at 1.13.0, kept to
+      # produce a 2025-06-18 session that the validator must refuse (run.sh,
+      # step 5). Bumping it would remove the session the check exists for.
+      # If Dependabot keys the alias by its target package instead, a bump
+      # arrives inside the SDK group and the interop job fails on step 5 — a
+      # visible failure, not a silent one.
+      - dependency-name: "sdk-2025-06-18"
+  # requirements.txt is a `uv pip compile --generate-hashes` lock of
+  # requirements.in. The `uv` ecosystem (not `pip`) is the one that recompiles
+  # such files: it reads the header's `uv pip compile` command, keeps
+  # `--generate-hashes` when the lock carries hashes and honours
+  # `--python-version` (dependabot-core uv/lib/dependabot/uv/file_updater/
+  # compile_file_updater.rb), so the hashes are regenerated, not left stale.
+  # The recompile rewrites the file's header, which is why the SPDX gate
+  # exempts this generated lock as it does Cargo.lock.
+  - package-ecosystem: uv
+    directory: /interop
+    schedule:
+      interval: weekly
+    # Cooldown: as for the workspace cargo entry.
+    cooldown:
+      default-days: 7
+    groups:
+      interop-python:
         patterns: ["*"]

@@ -37,7 +37,9 @@ for the conformance toolkit (roadmap M3, ADR-0009), built on
   `StreamableHttpClient` seam because rmcp's own transport (measured at 1.7) lost an
   in-flight request when its POST SSE stream closes early (measured; ADR-0009
   §Amendment).
-- the binary (feature `cli`) — the official suite's client SUT: the runner
+- the binary (feature `cli`, on by default: `cargo install mcp-reference-host`
+  installs it; library users opt out with `default-features = false`) — the
+  official suite's client SUT: the runner
   appends the scenario server's URL as the final argument and names the
   scenario in `MCP_CONFORMANCE_SCENARIO`; `scenario.rs` is the one table
   mapping names to plans. All four `2025-11-25` protocol scenarios pass at

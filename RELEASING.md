@@ -25,20 +25,80 @@
 
 ## Publish order
 
-Dependency order, with index-propagation waits between steps:
+`release.yml`'s `PUBLISH_ORDER`, one crate at a time:
 
-1. `mcp-conformance-core` (no internal deps)
-2. `mcp-trace-validator`, `mcp-trace-capture` (depend on core)
-3. `mcp-everything-server`, `mcp-reference-host`
+1. `mcp-conformance-core`
+2. `mcp-trace-validator` (core)
+3. `mcp-everything-server` (core, optional; validator, dev)
+4. `mcp-reference-host` (core, everything-server, validator — all dev)
+5. `mcp-trace-capture` (core; everything-server and validator, dev)
+
+**Dev-dependencies count.** `cargo publish` resolves a crate's dev-dependencies
+against crates.io too, so a crate published before a sibling it names only in
+`[dev-dependencies]` fails with `failed to select a version for the requirement`
+(reproduced 2026-10-04 with cargo 1.98.1). The order before 0.6.0 put
+`mcp-trace-capture` third, ahead of `mcp-everything-server`, which would have
+failed every time. The `verify` job now checks `PUBLISH_ORDER` against
+`cargo metadata`'s edges, dev included, on every run, rehearsals too.
+
+**Resuming.** cargo 1.98 refuses an existing version before uploading with
+`crate X@V already exists on crates.io index` (seen directly with
+`cargo publish --dry-run` against 0.5.1); the publish step treats that line, and
+the registry's own `already uploaded`, as success and moves on. Until 0.6.0 it
+matched only `already uploaded`, so the documented resume would have failed on
+the first crate. Only transient failures are retried (HTTP 5xx, curl
+network/timeout codes, a sibling not yet visible in the index); any other error,
+such as trusted publishing refusing a crate with no publisher configured, fails
+at once.
 
 **A new crate needs a one-time bootstrap.** crates.io cannot configure trusted
 publishing for a crate that has never been published
 ([register 2.14](docs/plan/01-ecosystem-context.md)), so the first release that
-includes a new crate — `mcp-trace-capture`, from 0.6.0 — needs the owner to publish
-that crate once with a crate-scoped, short-expiry token (the v0.1.0 procedure below),
-configure its trusted publisher, and revoke the token. Until then the OIDC-only
-publish job stops at that crate; it is resumable, so re-running the tag afterwards
-continues from there.
+includes a new crate needs one token publish by the owner — the procedure for
+`mcp-trace-capture` is the next section.
+
+## Publishing v0.6.0 (first release of `mcp-trace-capture`)
+
+What is verified, as of 2026-10-04: no `v0.6.0` tag exists and crates.io has
+no `mcp-trace-capture`. The 2026-09-25 `workflow_dispatch` run (36129306642)
+published nothing *by design* — `github-release`, `publish` and
+`verify-install` run only when the ref is a tag, and nothing in the workflow
+creates one. `cargo package --no-verify` from a git checkout of `v0.5.1`
+reproduced the published 0.5.1 `.crate` bytes exactly, both workspace-wide and
+per crate, so a local publish from the tag is expected to match the attested
+`SHA256SUMS` (step 4 checks it rather than assuming it).
+
+What only the owner can check, in crates.io and GitHub settings: whether
+crates.io now offers trusted-publisher setup for a crate that does not exist yet
+(if it does, configure it for `mcp-trace-capture` before step 2 and skip steps
+3–5); that each existing crate's trusted publisher names repository
+`tomtom215/mcp-conformance`, workflow `release.yml`, environment `release`; and
+that the `release` environment still requires a reviewer and only admits `v*`
+tags.
+
+1. Prepare and merge the release commit (checklist step 1 below).
+2. Tag and push: `git tag -a v0.6.0 -m "Release v0.6.0" && git push origin v0.6.0`.
+   Approve the `release` environment when `publish` pauses. Expected: four
+   crates publish; `mcp-trace-capture`, last, fails at once (no trusted
+   publisher). The GitHub Release with every asset already exists by then.
+3. On crates.io, create a token: name `mcp-trace-capture bootstrap`, expiry 7
+   days, scope **publish-new** only, crate pattern `mcp-trace-capture`.
+4. From a clean checkout of the tag (the pinned toolchain installs itself):
+   ```text
+   git checkout v0.6.0
+   cargo package -p mcp-trace-capture --locked --no-verify
+   gh release download v0.6.0 -p SHA256SUMS -O /tmp/SHA256SUMS
+   (cd target/package && grep mcp-trace-capture /tmp/SHA256SUMS | sha256sum --check)
+   CARGO_REGISTRY_TOKEN=<token> cargo publish -p mcp-trace-capture --locked
+   ```
+   Stop if the checksum does not match: the bytes would differ from the attested
+   ones.
+5. On crates.io → `mcp-trace-capture` → Settings → Trusted Publishing → GitHub:
+   owner `tomtom215`, repository `mcp-conformance`, workflow `release.yml`,
+   environment `release`; enable "Trusted Publishing only". Revoke the token.
+6. In the tag's Release run, **Re-run failed jobs**. `publish` skips all five
+   crates as already published; `verify-install` then runs for the first time
+   for this release.
 
 ## v0.3.0 pre-flight (third audit, 2026-06-13)
 
@@ -162,7 +222,8 @@ publish of `mcp-trace-capture` (§Publish order) — both owner steps.
      dependency updates the release never measured — the diff should be exactly
      one version line per workspace package: six from 0.6.0 (the five published
      crates and `xtask`).
-   - Move `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD` in `CHANGELOG.md`; add a fresh
+   - Move `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD` in `CHANGELOG.md`, dropping
+     any "prepared, not yet published" intro paragraph; add a fresh
      `[Unreleased]` section. Update the link-reference definitions at the foot of
      the file too: add `[X.Y.Z]: …/releases/tag/vX.Y.Z` and repoint `[Unreleased]:`
      to `…/compare/vX.Y.Z...HEAD` (`cargo xtask changelog-links` enforces both —
@@ -185,6 +246,11 @@ publish of `mcp-trace-capture` (§Publish order) — both owner steps.
      say the changelog states so explicitly, and a reader upgrading should not
      have to find that out from `cargo build`.
    - Update the supported-versions table in `SECURITY.md`.
+   - Undo the unpublished-state wording, in this same commit: set
+     `CITATION.cff`'s `date-released`; return `README.md`'s **Status:** line to
+     "on crates.io" wording and its Quickstart to
+     `cargo install mcp-trace-capture mcp-trace-validator` (from the `--git`
+     install used while unpublished).
 2. **Merge** via PR (CI must be green; no exceptions for release PRs).
 3. **Tag**: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` on `main`; push the tag.
 4. **Automation** (`release.yml`): validates tag ↔ version ↔ changelog agreement,
@@ -196,17 +262,22 @@ publish of `mcp-trace-capture` (§Publish order) — both owner steps.
    x86_64) and attests each archive, creates the GitHub Release with the changelog
    excerpt, the checksummed `.crate` files and the checksummed binary archives
    (`SHA256SUMS-binaries`), then — behind
-   the `release` environment's required-reviewer approval — re-packages,
-   **byte-compares against the attested SHA256SUMS**, and publishes to crates.io in
-   dependency order. Re-running a partially published tag is safe: already-published
-   crates are skipped and the chain resumes.
+   the `release` environment's required-reviewer approval — re-packages with
+   `--no-verify` (the publish job compiles nothing while it holds the OIDC
+   grant), **byte-compares against the attested SHA256SUMS**, and publishes to
+   crates.io in `PUBLISH_ORDER` (§Publish order). Re-running a partially published
+   tag ("Re-run failed jobs") skips the crates already on crates.io and continues
+   the chain.
    Rehearse first: `Actions → Release → Run workflow` from the `release/vX.Y.Z`
    branch runs every gate and packaging step but can never publish.
 5. **Verify**: crates on crates.io and docs on docs.rs — both still eyeball
    steps. The install path is **no longer one of them**: the `verify-install`
-   job (added v0.4.0) runs `cargo install mcp-trace-validator` on a clean,
-   uncached runner on both stable and MSRV the moment `publish` finishes, then
-   runs the installed binary and checks it reports the published version.
+   job (added v0.4.0) runs `cargo install` for `mcp-trace-validator` and
+   `mcp-trace-capture` on a clean, uncached runner, on both stable and the MSRV,
+   once `publish` has succeeded (so after a resumed publish, only when the re-run
+   finishes the chain). It checks each installed binary reports the published
+   version and answers `--help`, then repeats the install with `--locked` to
+   prove the `Cargo.lock` shipped inside each crate still resolves.
    It is a detector rather than a gate — by the time it runs the version is
    immutable on crates.io — but the bug it exists for is a packaging one (a
    file missing from the `.crate` that every pre-publish gate passes, because
@@ -220,8 +291,11 @@ publish of `mcp-trace-capture` (§Publish order) — both owner steps.
 
 ## When publishing fails mid-way
 
-First, simply re-run the `publish` job: "already uploaded" crates are skipped and the
-chain resumes. If the failure is in the code itself, fix forward: bump the patch
+First, read the failure: `publish` retries only transient errors, so anything
+else is a real refusal (a missing trusted publisher, a manifest error). Once its
+cause is fixed outside the tagged tree — a crates.io setting, a bootstrap publish —
+re-run the failed jobs: crates already on crates.io ("already exists on crates.io
+index" / "already uploaded") are skipped and the chain resumes. If the failure is in the code itself, fix forward: bump the patch
 version for all crates, update the changelog, re-tag. Versions are never re-published
 and tags are never moved.
 
