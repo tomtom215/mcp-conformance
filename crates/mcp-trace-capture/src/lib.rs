@@ -13,8 +13,9 @@
 //!
 //! Both write the same JSON Lines trace ([`mcp_conformance_core::trace`]), record a
 //! message before forwarding the bytes that complete it — so `seq` order is causal —
-//! and never alter traffic to fit the trace: what cannot be recorded (non-JSON output,
-//! a message over the size limit) is forwarded intact and counted. Neither depends on
+//! and never alter traffic to fit the trace: what cannot be recorded (a message over
+//! the size limit) is forwarded intact and counted. A stdio line that is not JSON is
+//! recorded as a string payload, for the validator to judge. Neither depends on
 //! any MCP SDK, so the trace describes the bytes on the wire, not one SDK's reading of
 //! them.
 

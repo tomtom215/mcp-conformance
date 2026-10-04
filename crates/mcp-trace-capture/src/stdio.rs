@@ -26,15 +26,16 @@ use tokio::process::Command;
 use crate::framing::{Line, LineSplitter, parse_json};
 use crate::recorder::{NotRecorded, Recorder};
 
-/// What one direction carried that the trace could not hold.
+/// What one direction carried that was not a JSON message.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Unrecorded {
-    /// Lines that were not JSON (including blank lines). The stdio transport allows
-    /// only messages on stdout, so on the server side each is itself a finding the
-    /// trace format cannot yet represent.
+    /// Lines that were not JSON (including blank lines). Each is recorded as a
+    /// message whose payload is the line as a JSON string, so the validator judges
+    /// it as what it is — something on the stream that is not a valid MCP message
+    /// (`TRAN-004`/`TRAN-005`, `TRAN-117`) — rather than the trace hiding it.
     pub not_json: u64,
-    /// Lines longer than the message limit.
+    /// Lines longer than the message limit, forwarded but not recorded.
     pub oversized: u64,
 }
 
@@ -112,21 +113,25 @@ where
 
 fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Tally) {
     match line {
-        Line::Complete(bytes) => match parse_json(&bytes) {
-            Some(payload) => {
-                let outcome = recorder.record(
-                    direction,
-                    TransportKind::Stdio,
-                    EventBody::Message { payload },
-                );
-                if outcome == Err(NotRecorded::TooLong) {
-                    tally.oversized.fetch_add(1, Ordering::Relaxed);
-                }
-            }
-            None => {
+        Line::Complete(bytes) => {
+            let parsed = parse_json(&bytes);
+            let is_json = parsed.is_some();
+            // A line that is not JSON is still what crossed the wire: record it as a
+            // string (lossy UTF-8) so the validator can judge it.
+            let payload = parsed.unwrap_or_else(|| {
+                serde_json::Value::String(String::from_utf8_lossy(&bytes).into_owned())
+            });
+            let outcome = recorder.record(
+                direction,
+                TransportKind::Stdio,
+                EventBody::Message { payload },
+            );
+            if outcome == Err(NotRecorded::TooLong) {
+                tally.oversized.fetch_add(1, Ordering::Relaxed);
+            } else if !is_json {
                 tally.not_json.fetch_add(1, Ordering::Relaxed);
             }
-        },
+        }
         Line::Oversized => {
             tally.oversized.fetch_add(1, Ordering::Relaxed);
         }

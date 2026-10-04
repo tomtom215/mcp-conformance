@@ -113,9 +113,33 @@ fn the_servers_exit_code_passes_through_and_its_failure_is_an_abort() {
     assert!(text.contains(r#""event":"transport-abort""#), "{text}");
 }
 
+/// The validator's outcome for requirement `id` over `trace`, judged at `revision`.
+#[cfg(unix)]
+fn outcome_of(trace: &str, revision: &str, id: &str) -> mcp_trace_validator::report::Outcome {
+    let events = mcp_trace_validator::reader::parse_trace(
+        trace,
+        &mcp_trace_validator::reader::Limits::default(),
+    )
+    .unwrap();
+    let set = mcp_conformance_core::requirement::RegistrySet::builtin().unwrap();
+    let registry = set.registry(revision.parse().unwrap()).unwrap();
+    let report = mcp_trace_validator::engine::validate(&registry, &events);
+    report
+        .requirements
+        .iter()
+        .find(|requirement| requirement.id == id)
+        .unwrap_or_else(|| panic!("{id} is judged at {revision}"))
+        .outcome
+}
+
+/// A server that logs to stdout breaks the stdio transport (TRAN-004 at
+/// 2025-11-25, TRAN-117 at 2026-07-28). The bytes still reach the client
+/// unchanged; the trace now holds the line as a string payload, so the validator
+/// convicts it instead of judging the session clean.
 #[cfg(unix)]
 #[test]
-fn non_json_server_output_is_forwarded_and_reported_not_recorded() {
+fn non_json_lines_are_forwarded_and_recorded_for_the_validator_to_convict() {
+    use mcp_trace_validator::report::Outcome;
     let trace = scratch("notjson");
     let mut command = binary();
     command.args([
@@ -125,22 +149,30 @@ fn non_json_server_output_is_forwarded_and_reported_not_recorded() {
         "--",
         "sh",
         "-c",
-        "echo 'log line on stdout'; echo '{\"jsonrpc\":\"2.0\",\"method\":\"x\"}'",
+        "echo 'log line on stdout'; echo '{\"jsonrpc\":\"2.0\",\"method\":\"x\"}'; cat >/dev/null",
     ]);
-    let output = run_with_stdin(command, b"");
+    let output = run_with_stdin(command, b"client noise\n");
     let text = std::fs::read_to_string(&trace).unwrap();
     std::fs::remove_file(&trace).ok();
     assert_eq!(
         String::from_utf8_lossy(&output.stdout),
         "log line on stdout\n{\"jsonrpc\":\"2.0\",\"method\":\"x\"}\n"
     );
-    assert!(!text.contains("log line"));
+    assert!(text.contains(r#""payload":"log line on stdout""#), "{text}");
+    assert!(text.contains(r#""payload":"client noise""#), "{text}");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("1 server message(s) were not JSON"),
+        stderr.contains("1 server line(s) were not JSON"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("1 client line(s) were not JSON"),
         "{stderr}"
     );
     assert!(!stderr.contains("size limit"), "{stderr}");
+    assert_eq!(outcome_of(&text, "2025-11-25", "TRAN-004"), Outcome::Fail);
+    assert_eq!(outcome_of(&text, "2025-11-25", "TRAN-005"), Outcome::Fail);
+    assert_eq!(outcome_of(&text, "2026-07-28", "TRAN-117"), Outcome::Fail);
 }
 
 /// The server exits while the client still holds its end open — the session ends
@@ -176,7 +208,7 @@ fn client_side_counts_survive_a_server_that_exits_first() {
     assert!(output.status.success(), "{output:?}");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("1 client message(s) were not JSON"),
+        stderr.contains("1 client line(s) were not JSON"),
         "{stderr}"
     );
     // The server closed the session, and that is the trace's last word.

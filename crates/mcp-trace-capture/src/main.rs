@@ -158,8 +158,8 @@ async fn run_stdio(
 ) -> u8 {
     match stdio::run(Arc::clone(recorder), program, args, max_message).await {
         Ok(outcome) => {
-            report_unrecorded("client", outcome.client.not_json, outcome.client.oversized);
-            report_unrecorded("server", outcome.server.not_json, outcome.server.oversized);
+            report_stdio("client", outcome.client);
+            report_stdio("server", outcome.server);
             exit_code_of(outcome.status)
         }
         Err(error) => {
@@ -223,6 +223,19 @@ async fn run_http(
             EXIT_USAGE
         }
     }
+}
+
+/// The stdio summary: non-JSON lines are in the trace (as string payloads), so
+/// they are reported as findings to look for rather than as gaps in it.
+fn report_stdio(side: &str, unrecorded: stdio::Unrecorded) {
+    if unrecorded.not_json > 0 {
+        eprintln!(
+            "mcp-trace-capture: {} {side} line(s) were not JSON; each is recorded as a \
+             string payload, which the validator reports as not a valid MCP message",
+            unrecorded.not_json
+        );
+    }
+    report_unrecorded(side, 0, unrecorded.oversized);
 }
 
 fn report_unrecorded(side: &str, not_json: u64, oversized: u64) {

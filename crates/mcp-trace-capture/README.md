@@ -92,10 +92,16 @@ certificates). SSE streams are relayed as they arrive, event by event.
   repository's CI checks that on every run.
 - **Causal order.** Each message is recorded before the bytes that complete it are
   forwarded, so a response is never recorded ahead of its request.
-- **Nothing altered to fit the trace.** A message that is not JSON, or is larger than
-  `--max-message-bytes` (default 64 MiB), is forwarded intact, left out of the trace,
-  and counted in the summary printed at exit. So is the rare message within the limit
-  whose recorded line would not be (below).
+- **Nothing altered to fit the trace.** A message larger than `--max-message-bytes`
+  (default 64 MiB) is forwarded intact, left out of the trace, and counted in the
+  summary printed at exit. So is the rare message within the limit whose recorded
+  line would not be (below), and, over HTTP, a body or SSE event that is not JSON.
+- **Nothing on a stdio stream goes unjudged.** A stdio line that is not JSON — a log
+  line on the server's stdout, a blank line, a truncated message — is forwarded
+  intact and recorded as a message whose payload is the line as a JSON string
+  (invalid UTF-8 replaced, line terminator removed). The validator reports it as
+  not a valid MCP message (`TRAN-004`/`TRAN-005` at 2025-11-25, `TRAN-117` at
+  2026-07-28), and the exit summary counts it.
 - **Readable by the validator as recorded.** No trace line is longer than
   `--max-message-bytes` plus 1 MiB, checked on the line as written — which, at the
   default, is exactly the longest line `mcp-trace-validator` accepts by default. With
@@ -115,9 +121,6 @@ certificates). SSE streams are relayed as they arrive, event by event.
 - **One session per trace.** The validator judges a trace as one session. Record one
   client at a time, or run one proxy per client: concurrent clients through one proxy
   interleave, and request ids reused across them read as reuse within one session.
-- **Non-JSON stdout is not representable.** The trace format has no event for bytes
-  that are not a message, so a server printing log lines to stdout — itself a stdio
-  transport violation — is reported in the exit summary rather than judged.
 - **The SDK-independent path.** The wrapper and proxy link no MCP SDK; what is recorded
   is what crossed the wire.
 
