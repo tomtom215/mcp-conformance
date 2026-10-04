@@ -226,3 +226,36 @@ async fn a_line_that_would_outgrow_the_line_limit_is_counted_as_oversized() {
     })
     .await;
 }
+
+/// Killing a server ends every process in its group: the child a launcher
+/// started outlives a kill of the launcher alone.
+#[cfg(unix)]
+#[tokio::test]
+async fn kill_ends_the_servers_whole_process_group() {
+    bounded(async {
+        let dir = std::env::temp_dir().join(format!(
+            "mcp-trace-capture-kill-group-{}",
+            std::process::id()
+        ));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let marker = dir.join("marker");
+        let script = format!(
+            "(sleep 1; touch '{}') & echo started; wait",
+            marker.display()
+        );
+        let mut server = super::spawn("sh".as_ref(), &["-c".into(), script.into()]).unwrap();
+        // The child exists once the script has gone on to announce it.
+        let mut line = String::new();
+        BufReader::new(&mut server.stdout)
+            .read_line(&mut line)
+            .await
+            .unwrap();
+        assert_eq!(line, "started\n");
+        server.kill().await;
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        assert!(!marker.exists(), "the server's child ran on after the kill");
+        std::fs::remove_dir_all(&dir).ok();
+    })
+    .await;
+}

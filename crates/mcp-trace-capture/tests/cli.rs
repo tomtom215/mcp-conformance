@@ -738,11 +738,13 @@ fn a_run_that_fails_to_start_leaves_no_trace_file() {
     }
 }
 
-/// A trace that cannot be created once the server has started ends the server
-/// and everything it started, not only the process the capture spawned.
+/// A trace that cannot be created once the server has started is a usage error
+/// that names the cause and leaves nothing of the server running. (The capture
+/// fails before the script below can start its child, so this cannot tell a
+/// group kill from a kill of the leader; `stdio::tests` covers that.)
 #[cfg(unix)]
 #[test]
-fn a_trace_that_cannot_be_created_ends_the_servers_whole_process_group() {
+fn a_trace_that_cannot_be_created_after_the_server_started_ends_it() {
     let dir = std::env::temp_dir().join(format!(
         "mcp-trace-capture-uncreatable-{}",
         std::process::id()
