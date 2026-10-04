@@ -10,18 +10,19 @@
 //! | server's | `stdio`: the wrapped server's own exit code, passed through (128 + signal when it was killed by one, on Unix) |
 //! | 0    | `http`: stopped cleanly with a complete trace |
 //! | 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests |
-//! | 2    | Invocation problem: bad arguments, an existing output file, a server that would not start, an address that would not bind (no trace file is created) |
-//! | 3    | The session ran but the trace is incomplete (a write failed); only when the exit code would otherwise be 0 |
+//! | 2    | Invocation problem: bad arguments, an existing output file, a misplaced `{session}` or a missing directory for it, a server that would not start, an address that would not bind (no trace file is created) |
+//! | 3    | The session ran but a trace is incomplete (a write failed); only when the exit code would otherwise be 0 |
 
 use std::ffi::OsString;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
-use mcp_conformance_core::trace::{Direction, LifecycleEvent, TransportKind};
-use mcp_trace_capture::{DEFAULT_MAX_MESSAGE, Recorder, Signals, http, stdio};
+use mcp_conformance_core::trace::LifecycleEvent;
+use mcp_trace_capture::traces::Traces;
+use mcp_trace_capture::{DEFAULT_MAX_MESSAGE, Signals, http, stdio};
 
 pub mod output;
 
@@ -31,7 +32,12 @@ const EXIT_USAGE: u8 = 2;
 #[derive(Debug, Parser)]
 #[command(name = "mcp-trace-capture", version, about, long_about = None)]
 struct Cli {
-    /// Where to write the trace (JSON Lines).
+    /// Where to write the trace (JSON Lines); `{session}` in the file name numbers a
+    /// trace per session.
+    ///
+    /// With `{session}` in the file name, each session gets its own numbered file
+    /// (`traces/{session}.jsonl` writes `traces/001.jsonl`, `002`, …), and no
+    /// existing file is ever overwritten.
     #[arg(
         short,
         long,
@@ -40,7 +46,7 @@ struct Cli {
         global = true
     )]
     output: PathBuf,
-    /// Overwrite the output file if it exists.
+    /// Overwrite the output file if it exists (not needed with `{session}`).
     #[arg(long, global = true)]
     force: bool,
     /// The largest message recorded, in bytes; larger ones are forwarded unrecorded.
@@ -76,10 +82,13 @@ enum Mode {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    if let Err(message) = output::check(&cli.output, cli.force) {
-        eprintln!("mcp-trace-capture: {message}");
-        return ExitCode::from(EXIT_USAGE);
-    }
+    let target = match output::check(&cli.output, cli.force) {
+        Ok(target) => target,
+        Err(message) => {
+            eprintln!("mcp-trace-capture: {message}");
+            return ExitCode::from(EXIT_USAGE);
+        }
+    };
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -91,12 +100,12 @@ fn main() -> ExitCode {
         }
     };
     let code = match &cli.mode {
-        Mode::Stdio { command } => runtime.block_on(run_stdio(&cli, command)),
+        Mode::Stdio { command } => runtime.block_on(run_stdio(&cli, &target, command)),
         Mode::Http {
             upstream,
             listen,
             preserve_host,
-        } => runtime.block_on(run_http(&cli, upstream, *listen, *preserve_host)),
+        } => runtime.block_on(run_http(&cli, &target, upstream, *listen, *preserve_host)),
     };
     // A client blocked on this process's stdin would otherwise hold the runtime open.
     runtime.shutdown_background();
@@ -104,7 +113,7 @@ fn main() -> ExitCode {
 }
 
 /// Starts the server, then creates the trace, then relays the session.
-async fn run_stdio(cli: &Cli, command: &[OsString]) -> u8 {
+async fn run_stdio(cli: &Cli, target: &output::Target, command: &[OsString]) -> u8 {
     let Some((program, args)) = command.split_first() else {
         return EXIT_USAGE; // clap requires the command
     };
@@ -117,8 +126,8 @@ async fn run_stdio(cli: &Cli, command: &[OsString]) -> u8 {
             return EXIT_USAGE;
         }
     };
-    let recorder = match output::open(&cli.output, cli.force, cli.max_message_bytes) {
-        Ok(recorder) => recorder,
+    let (recorder, path) = match output::open(target, cli.force, cli.max_message_bytes) {
+        Ok(opened) => opened,
         Err(message) => {
             eprintln!("mcp-trace-capture: {message}");
             server.kill().await;
@@ -151,12 +160,13 @@ async fn run_stdio(cli: &Cli, command: &[OsString]) -> u8 {
             1
         }
     };
-    output::finish(&recorder, &cli.output, code)
+    output::finish(&recorder, &path, code)
 }
 
 /// Checks the upstream and binds, then creates the trace, then serves.
 async fn run_http(
     cli: &Cli,
+    target: &output::Target,
     upstream: &axum::http::Uri,
     listen: SocketAddr,
     preserve_host: bool,
@@ -188,8 +198,8 @@ async fn run_http(
             return EXIT_USAGE;
         }
     };
-    let recorder = match output::open(&cli.output, cli.force, cli.max_message_bytes) {
-        Ok(recorder) => recorder,
+    let (traces, path) = match output::traces(target, cli.force, cli.max_message_bytes) {
+        Ok(opened) => opened,
         Err(message) => {
             eprintln!("mcp-trace-capture: {message}");
             return EXIT_USAGE;
@@ -206,8 +216,8 @@ async fn run_http(
         "mcp-trace-capture: listening on http://{bound}, forwarding to {} (Ctrl-C to stop)",
         shown(upstream)
     );
-    let code = serve_until_stopped(listener, &recorder, options, signals).await;
-    output::finish(&recorder, &cli.output, code)
+    let code = serve_until_stopped(listener, &traces, options, signals).await;
+    output::finish_traces(&traces, path.as_deref().map(Path::new), code)
 }
 
 /// The upstream as announced: without its query, which can carry credentials.
@@ -229,12 +239,12 @@ fn shown(upstream: &axum::http::Uri) -> String {
 /// period — or at once on a second request.
 async fn serve_until_stopped(
     listener: tokio::net::TcpListener,
-    recorder: &Arc<Recorder>,
+    traces: &Arc<Traces>,
     options: http::Options,
     mut signals: Signals,
 ) -> u8 {
     let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
-    let serving = http::serve(listener, Arc::clone(recorder), options, async {
+    let serving = http::serve_traces(listener, Arc::clone(traces), options, async {
         let _ = stopped.await;
     });
     tokio::pin!(serving);
@@ -252,11 +262,7 @@ async fn serve_until_stopped(
     tokio::select! {
         served = &mut serving => http_summary(served),
         again = signals.recv() => {
-            let _ = recorder.close(
-                Direction::ClientToServer,
-                TransportKind::StreamableHttp,
-                LifecycleEvent::TransportClose,
-            );
+            traces.close_all(LifecycleEvent::TransportClose);
             eprintln!(
                 "mcp-trace-capture: {} again: stopped without waiting for open requests",
                 again.name()

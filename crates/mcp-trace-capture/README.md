@@ -40,9 +40,11 @@ status. (Elsewhere, Ctrl-C ends the server.)
 
 Clients launch a stdio server from a command and its arguments; the wrapper goes in
 front of both. Two things matter when a client, not you, starts it: give `-o` an
-**absolute path** (the client's working directory is its own), and pass **`--force`**
-or a fresh path per run, because the wrapper refuses to overwrite an existing trace
-and a client relaunches its servers.
+**absolute path** (the client's working directory is its own), and put
+**`{session}`** in the file name. A client relaunches its servers, and the wrapper
+never overwrites a trace: with `{session}` each launch takes the next free number
+(`my-server-001.jsonl`, `my-server-002.jsonl`, …), so every session is kept. Without
+it, a second launch refuses to start unless `--force` lets it overwrite the first.
 
 The `mcpServers` shape most desktop clients use:
 
@@ -51,7 +53,7 @@ The `mcpServers` shape most desktop clients use:
   "mcpServers": {
     "my-server": {
       "command": "mcp-trace-capture",
-      "args": ["-o", "/tmp/my-server.jsonl", "--force", "stdio", "--", "python", "/path/to/my_server.py"]
+      "args": ["-o", "/tmp/my-server-{session}.jsonl", "stdio", "--", "python", "/path/to/my_server.py"]
     }
   }
 }
@@ -64,19 +66,20 @@ moves behind `--`:
 ```python
 StdioServerParameters(
     command="mcp-trace-capture",
-    args=["-o", "/tmp/session.jsonl", "--force", "stdio", "--", "python", "my_server.py"],
+    args=["-o", "/tmp/traces/{session}.jsonl", "stdio", "--", "python", "my_server.py"],
 )
 ```
 
 ```typescript
 new StdioClientTransport({
   command: "mcp-trace-capture",
-  args: ["-o", "/tmp/session.jsonl", "--force", "stdio", "--", "node", "build/index.js"],
+  args: ["-o", "/tmp/traces/{session}.jsonl", "stdio", "--", "node", "build/index.js"],
 });
 ```
 
-After the session, `mcp-trace-validator validate /tmp/session.jsonl`; in CI,
-`--format sarif` or `--format junit` and the exit code.
+The directory must exist. After the sessions, `mcp-trace-validator validate
+/tmp/traces/*.jsonl` judges each trace; in CI, `--format sarif` or `--format junit`
+and the exit code.
 
 ## Streamable HTTP servers
 
@@ -141,11 +144,15 @@ event.
 
 ## Limits, stated plainly
 
-- **One session per trace.** The validator judges a trace as one session. Record one
-  client at a time, or run one proxy per client: concurrent clients through one proxy
-  interleave, and request ids reused across them read as reuse within one session.
-  The capture warns at exit when its trace holds more than one session (more than one
-  client `initialize` request, or more than one `Mcp-Session-Id`).
+- **One session per trace.** The validator judges a trace as one session. With
+  `{session}` in `-o`, the HTTP proxy writes each client session to its own numbered
+  file: a session begins with an `initialize`, or with an `Mcp-Session-Id` the proxy
+  has not seen, and every later exchange naming that id goes to its trace.
+  `2026-07-28` traffic carries no session id and no `initialize`, so the proxy cannot
+  tell its clients apart: it is all one trace, and concurrent `2026-07-28` clients
+  need a proxy each. Without `{session}`, everything goes to the one file, and the
+  capture warns at exit when it holds more than one session (more than one client
+  `initialize` request, or more than one `Mcp-Session-Id`).
 - **The SDK-independent path.** The wrapper and proxy link no MCP SDK; what is recorded
   is what crossed the wire.
 
@@ -156,8 +163,8 @@ event.
 | server's | `stdio`: the wrapped server's exit code (128 + signal if a signal ended it, on Unix — 137 for a server killed after the grace period) |
 | 0 | `http`: stopped cleanly with a complete trace |
 | 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests |
-| 2 | Bad arguments (`-o -` among them: the trace needs a path), an existing output file (`--force` overwrites), a server that would not start, an address that would not bind. No trace file is created: the file is made only once the session can start |
-| 3 | The session ran but the trace is incomplete (a write failed), when the code would otherwise be 0 |
+| 2 | Bad arguments (`-o -` among them: the trace needs a path), an existing output file (`--force` overwrites), `{session}` outside the file name or more than once, a `{session}` path whose directory does not exist, a server that would not start, an address that would not bind. No trace file is created: the file is made only once the session can start |
+| 3 | The session ran but a trace is incomplete (a write failed), when the code would otherwise be 0 |
 
 ## License
 

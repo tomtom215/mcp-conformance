@@ -32,9 +32,11 @@ after `--`:
 mcp-trace-capture -o session.jsonl stdio -- python my_server.py
 ```
 
-When a client launches it from its configuration file, give `-o` an absolute path and
-add `--force` (clients relaunch servers, and the wrapper otherwise refuses to overwrite
-a trace). [The capture tool's README](https://github.com/tomtom215/mcp-conformance/tree/main/crates/mcp-trace-capture#in-a-clients-configuration)
+When a client launches it from its configuration file, give `-o` an absolute path
+with `{session}` in the file name — `-o /tmp/traces/{session}.jsonl` — so each launch
+writes the next numbered trace (`001.jsonl`, `002.jsonl`, …). Clients relaunch
+servers, and the wrapper never overwrites a trace, so without `{session}` the second
+launch would refuse to start unless `--force` let it overwrite the first. [The capture tool's README](https://github.com/tomtom215/mcp-conformance/tree/main/crates/mcp-trace-capture#in-a-clients-configuration)
 shows the configuration for desktop clients and for the Python and TypeScript SDKs'
 stdio clients.
 
@@ -48,9 +50,12 @@ mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000
 
 Stop the proxy with Ctrl-C when the session is over.
 
-Record **one session per trace**: one client connection per capture run. A trace is
-judged as one session, so two clients recorded together look like one client breaking
-the rules (the validator says so when it sees more than one handshake).
+Record **one session per trace**. A trace is judged as one session, so two clients
+recorded together look like one client breaking the rules (the validator says so when
+it sees more than one handshake). For a proxy that serves several clients, put
+`{session}` in `-o` and it writes each client session to its own file. `2026-07-28`
+sessions carry no session id for it to tell them apart by, so run one proxy per client
+there.
 
 ## Judge it
 

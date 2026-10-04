@@ -96,6 +96,25 @@ Each is stated again in the entry that introduced it, with the reasoning.
 
 ### Added
 
+- **`mcp-trace-capture` writes a trace per session: `{session}` in `-o`.** The
+  validator judges a trace as one session, but a test suite records many: a client
+  relaunches its stdio servers (each launch with `--force` overwrote the last
+  session's trace), and one HTTP proxy carries every client session of a run. Now
+  `-o 'traces/{session}.jsonl'` writes `traces/001.jsonl`, `traces/002.jsonl`, … —
+  each trace from `seq` 0, each ended with its own `transport-close`. A stdio
+  wrapper takes the lowest number whose file does not exist yet, so every launch gets
+  its own. The proxy starts the next file when a session begins — a request naming
+  an `Mcp-Session-Id` it has not seen, or an `initialize` naming none — and records
+  each later exchange in the trace of the session its `Mcp-Session-Id` names, so
+  interleaved sessions separate too; an exchange naming no session (all of
+  `2026-07-28`, which has none) goes to the session begun most recently. Traffic is
+  forwarded exactly as before: only the file an event lands in changes. A number is
+  claimed by creating its file exclusively, so no existing file is overwritten,
+  `--force` or not, and two launches at once cannot share one. Without `{session}`
+  nothing changes; the existing warning about a trace holding several sessions now
+  suggests `{session}` when the proxy wrote it. Library: `numbered::Numbered`,
+  `traces::Traces` and `http::serve_traces`; `http::serve` keeps its signature. A `-o`
+  path that contained `{session}` literally now names numbered traces.
 - **Several traces in one run.** `validate traces/*.jsonl` judges each, prints a
   section per trace and a tally, writes one JUnit document and one SARIF run, and exits
   with the worst trace's status; a trace that cannot be judged counts. The JSON form is

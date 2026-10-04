@@ -22,8 +22,8 @@ judges it anyway, if the differences do not matter to you.
 **`note: this trace records 2 sessions and is judged as one`.** Two clients, or one
 client twice, were recorded into one file — a proxy left running across test runs, or
 a client that reconnected. Findings that span them (a request id the second session
-reuses, a session id that changed) come from recording them together. Record one
-session per trace.
+reuses, a session id that changed) come from recording them together. Put `{session}`
+in the capture's `-o` (`-o traces/{session}.jsonl`) to get a trace per session.
 
 **`note: the trace declares no protocol revision; judging it against 2026-07-28`.**
 The recording holds no `initialize`, no `_meta` protocol version and no
@@ -45,8 +45,9 @@ recorder:
 ## The capture tool
 
 **`… exists; appending would break the trace's sequence numbers`** (exit 2). The
-output file is there from an earlier run. Use a new path, or `--force` to overwrite —
-the usual choice in a client's configuration, which relaunches servers.
+output file is there from an earlier run. Put `{session}` in the file name for a new
+numbered trace each run — the usual choice in a client's configuration, which
+relaunches servers — or use `--force` to overwrite.
 
 **The server works directly but not through the HTTP proxy, with `403`.** The server
 checks the `Host` header, which the proxy rewrites to name the upstream. Add

@@ -15,21 +15,23 @@ official SDKs' stdio clients, the server's command moves behind `--`:
 ```python
 StdioServerParameters(
     command="mcp-trace-capture",
-    args=["-o", "traces/tools.jsonl", "--force", "stdio", "--", "python", "my_server.py"],
+    args=["-o", "traces/{session}.jsonl", "stdio", "--", "python", "my_server.py"],
 )
 ```
 
 For an HTTP server, start the proxy before the tests and stop it after:
 
 ```text
-mcp-trace-capture -o traces/http.jsonl http --upstream http://127.0.0.1:3000 &
+mcp-trace-capture -o 'traces/http-{session}.jsonl' http --upstream http://127.0.0.1:3000 &
 proxy=$!
 npm test          # with the client pointed at http://127.0.0.1:8080/mcp
 kill -INT $proxy
 wait $proxy
 ```
 
-Give each test session its own trace file. The repository's
+`{session}` gives each test session its own numbered trace: each launch of the stdio
+wrapper, and each client session through the proxy (the `traces/` directory must
+exist). The repository's
 [`interop/`](https://github.com/tomtom215/mcp-conformance/tree/main/interop) directory
 does exactly this with the official TypeScript and Python SDKs, and its `run.sh` is a
 working example of both transports.

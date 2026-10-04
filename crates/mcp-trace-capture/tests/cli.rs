@@ -582,7 +582,14 @@ fn a_trace_recorded_at_the_default_limits_reads_back_under_the_validators() {
     let output = run_with_stdin(command, &input);
     let text = std::fs::read_to_string(&trace).unwrap();
     std::fs::remove_file(&trace).ok();
-    assert!(output.status.success(), "{:?}", output.status);
+    // The capture's stderr says why a run failed — a full disk under this
+    // test's trace (over 100 MiB) is a write failure (exit 3), not a capture bug.
+    assert!(
+        output.status.success(),
+        "{:?}: {}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert_eq!(output.stdout.len(), input.len(), "every byte is forwarded");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(

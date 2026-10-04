@@ -35,10 +35,11 @@ use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
 
-use mcp_conformance_core::trace::{Direction, LifecycleEvent, TransportKind};
+use mcp_conformance_core::trace::LifecycleEvent;
 use tokio::sync::watch;
 
 use crate::recorder::Recorder;
+use crate::traces::Traces;
 
 mod relay;
 mod target;
@@ -143,7 +144,7 @@ impl Counters {
 
 #[derive(Debug)]
 struct Proxy {
-    recorder: Arc<Recorder>,
+    traces: Arc<Traces>,
     client: Client<Connector, Body>,
     options: Options,
     counters: Counters,
@@ -151,27 +152,44 @@ struct Proxy {
     stopping: watch::Receiver<bool>,
 }
 
-/// Serves the proxy on `listener` until `shutdown` resolves, then stops.
-///
-/// Stopping ends every open event stream (cleanly, between two chunks the
-/// upstream sent), gives other connections [`Options::grace`] to finish, and
-/// closes the trace with a `transport-close` event — so a client holding a stream
-/// open cannot keep the proxy running.
+/// Serves the proxy on `listener` until `shutdown` resolves, then stops, with
+/// every session recorded into `recorder` — [`serve_traces`] with
+/// [`Traces::one`].
 ///
 /// # Errors
 ///
-/// The platform's root certificates could not be loaded (`tls` builds), or the
-/// server failed.
+/// As [`serve_traces`].
 pub async fn serve(
     listener: tokio::net::TcpListener,
     recorder: Arc<Recorder>,
     options: Options,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> io::Result<Unrecorded> {
+    serve_traces(listener, Arc::new(Traces::one(recorder)), options, shutdown).await
+}
+
+/// Serves the proxy on `listener` until `shutdown` resolves, then stops, with
+/// each exchange recorded into the trace `traces` routes it to.
+///
+/// Stopping ends every open event stream (cleanly, between two chunks the
+/// upstream sent), gives other connections [`Options::grace`] to finish, and
+/// closes every trace with a `transport-close` event — so a client holding a
+/// stream open cannot keep the proxy running.
+///
+/// # Errors
+///
+/// The platform's root certificates could not be loaded (`tls` builds), or the
+/// server failed.
+pub async fn serve_traces(
+    listener: tokio::net::TcpListener,
+    traces: Arc<Traces>,
+    options: Options,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> io::Result<Unrecorded> {
     let (stop, stopping) = watch::channel(false);
     let grace = options.grace;
     let proxy = Arc::new(Proxy {
-        recorder,
+        traces,
         client: Client::builder(TokioExecutor::new()).build(connector()?),
         options,
         counters: Counters::default(),
@@ -201,11 +219,7 @@ pub async fn serve(
             );
         }
     }
-    let _ = proxy.recorder.close(
-        Direction::ClientToServer,
-        TransportKind::StreamableHttp,
-        LifecycleEvent::TransportClose,
-    );
+    proxy.traces.close_all(LifecycleEvent::TransportClose);
     Ok(proxy.counters.snapshot())
 }
 
