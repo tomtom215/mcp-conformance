@@ -9,24 +9,23 @@
 //! |------|---------|
 //! | server's | `stdio`: the wrapped server's own exit code, passed through (128 + signal when it was killed by one, on Unix) |
 //! | 0    | `http`: stopped cleanly with a complete trace |
-//! | 2    | Invocation problem: bad arguments, an existing output file, a server that would not start, an address that would not bind |
+//! | 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests |
+//! | 2    | Invocation problem: bad arguments, an existing output file, a server that would not start, an address that would not bind (no trace file is created) |
 //! | 3    | The session ran but the trace is incomplete (a write failed); only when the exit code would otherwise be 0 |
 
 use std::ffi::OsString;
-use std::fs::OpenOptions;
-use std::io::BufWriter;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
-use mcp_conformance_core::trace::{DEFAULT_MAX_LINE_BYTES, LINE_ENVELOPE_BYTES};
 use mcp_conformance_core::trace::{Direction, LifecycleEvent, TransportKind};
 use mcp_trace_capture::{DEFAULT_MAX_MESSAGE, Recorder, Signals, http, stdio};
 
+pub mod output;
+
 const EXIT_USAGE: u8 = 2;
-const EXIT_INCOMPLETE: u8 = 3;
 
 /// Record a Model Context Protocol session as a trace for `mcp-trace-validator`.
 #[derive(Debug, Parser)]
@@ -77,13 +76,10 @@ enum Mode {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    let recorder = match open_output(&cli) {
-        Ok(recorder) => Arc::new(recorder),
-        Err(message) => {
-            eprintln!("mcp-trace-capture: {message}");
-            return ExitCode::from(EXIT_USAGE);
-        }
-    };
+    if let Err(message) = output::check(&cli.output, cli.force) {
+        eprintln!("mcp-trace-capture: {message}");
+        return ExitCode::from(EXIT_USAGE);
+    }
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -94,70 +90,49 @@ fn main() -> ExitCode {
             return ExitCode::from(EXIT_USAGE);
         }
     };
-    let code = match cli.mode {
-        Mode::Stdio { mut command } => {
-            let program = command.remove(0);
-            runtime.block_on(run_stdio(
-                &recorder,
-                program,
-                command,
-                cli.max_message_bytes,
-            ))
-        }
+    let code = match &cli.mode {
+        Mode::Stdio { command } => runtime.block_on(run_stdio(&cli, command)),
         Mode::Http {
             upstream,
             listen,
             preserve_host,
-        } => runtime.block_on(run_http(
-            &recorder,
-            upstream,
-            listen,
-            cli.max_message_bytes,
-            preserve_host,
-        )),
+        } => runtime.block_on(run_http(&cli, upstream, *listen, *preserve_host)),
     };
     // A client blocked on this process's stdin would otherwise hold the runtime open.
     runtime.shutdown_background();
-    finish(&recorder, &cli.output, code)
+    ExitCode::from(code)
 }
 
-fn open_output(cli: &Cli) -> Result<Recorder, String> {
-    let mut options = OpenOptions::new();
-    options.write(true);
-    if cli.force {
-        options.create(true).truncate(true);
-    } else {
-        options.create_new(true);
-    }
-    let file = options.open(&cli.output).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::AlreadyExists {
-            format!(
-                "{} exists; appending would break the trace's sequence numbers \
-                 (use --force to overwrite, or -o for another path)",
-                cli.output.display()
-            )
-        } else {
-            format!("cannot create {}: {error}", cli.output.display())
+/// Starts the server, then creates the trace, then relays the session.
+async fn run_stdio(cli: &Cli, command: &[OsString]) -> u8 {
+    let Some((program, args)) = command.split_first() else {
+        return EXIT_USAGE; // clap requires the command
+    };
+    let started = Signals::install()
+        .and_then(|signals| stdio::spawn(program, args).map(|server| (signals, server)));
+    let (signals, server) = match started {
+        Ok(started) => started,
+        Err(error) => {
+            eprintln!("mcp-trace-capture: {error}");
+            return EXIT_USAGE;
         }
-    })?;
-    eprintln!("mcp-trace-capture: recording to {}", cli.output.display());
-    let max_line = cli.max_message_bytes.saturating_add(LINE_ENVELOPE_BYTES);
-    if max_line > DEFAULT_MAX_LINE_BYTES {
-        eprintln!(
-            "mcp-trace-capture: lines may exceed the validator's default limit; judge \
-             this trace with `mcp-trace-validator validate --max-line-bytes {max_line}`"
-        );
-    }
-    Ok(Recorder::with_max_line(BufWriter::new(file), max_line))
-}
-
-async fn run_stdio(
-    recorder: &Arc<Recorder>,
-    program: OsString,
-    args: Vec<OsString>,
-    max_message: usize,
-) -> u8 {
-    match stdio::run(Arc::clone(recorder), program, args, max_message).await {
+    };
+    let recorder = match output::open(&cli.output, cli.force, cli.max_message_bytes) {
+        Ok(recorder) => recorder,
+        Err(message) => {
+            eprintln!("mcp-trace-capture: {message}");
+            server.kill().await;
+            return EXIT_USAGE;
+        }
+    };
+    let code = match stdio::run_server(
+        Arc::clone(&recorder),
+        server,
+        signals,
+        cli.max_message_bytes,
+    )
+    .await
+    {
         Ok(outcome) => {
             if let Some(stop) = outcome.stop {
                 eprintln!(
@@ -173,19 +148,20 @@ async fn run_stdio(
         }
         Err(error) => {
             eprintln!("mcp-trace-capture: {error}");
-            EXIT_USAGE
+            1
         }
-    }
+    };
+    output::finish(&recorder, &cli.output, code)
 }
 
+/// Checks the upstream and binds, then creates the trace, then serves.
 async fn run_http(
-    recorder: &Arc<Recorder>,
-    upstream: axum::http::Uri,
+    cli: &Cli,
+    upstream: &axum::http::Uri,
     listen: SocketAddr,
-    max_message: usize,
     preserve_host: bool,
 ) -> u8 {
-    let options = match http::Options::new(upstream.clone(), max_message) {
+    let options = match http::Options::new(upstream.clone(), cli.max_message_bytes) {
         Ok(mut options) => {
             options.preserve_host = preserve_host;
             options
@@ -212,10 +188,41 @@ async fn run_http(
             return EXIT_USAGE;
         }
     };
+    let recorder = match output::open(&cli.output, cli.force, cli.max_message_bytes) {
+        Ok(recorder) => recorder,
+        Err(message) => {
+            eprintln!("mcp-trace-capture: {message}");
+            return EXIT_USAGE;
+        }
+    };
+    if !bound.ip().is_loopback() {
+        eprintln!(
+            "mcp-trace-capture: warning: {bound} is not a loopback address; anyone who can \
+             reach it can send requests through this proxy, credentials and all, and have \
+             them recorded"
+        );
+    }
     eprintln!(
-        "mcp-trace-capture: listening on http://{bound}, forwarding to {upstream} (Ctrl-C to stop)"
+        "mcp-trace-capture: listening on http://{bound}, forwarding to {} (Ctrl-C to stop)",
+        shown(upstream)
     );
-    serve_until_stopped(listener, recorder, options, signals).await
+    let code = serve_until_stopped(listener, &recorder, options, signals).await;
+    output::finish(&recorder, &cli.output, code)
+}
+
+/// The upstream as announced: without its query, which can carry credentials.
+fn shown(upstream: &axum::http::Uri) -> String {
+    let path = upstream.path();
+    let authority = upstream
+        .authority()
+        .map_or("", |authority| authority.as_str());
+    let scheme = upstream.scheme_str().unwrap_or("http");
+    let query = if upstream.query().is_some() {
+        "?…"
+    } else {
+        ""
+    };
+    format!("{scheme}://{authority}{path}{query}")
 }
 
 /// Serves until a request to stop, then lets the proxy stop within its grace
@@ -318,28 +325,6 @@ fn report_unrecorded(side: &str, not_json: u64, oversized: u64) {
              (--max-message-bytes) and are not in the trace (forwarded unchanged)"
         );
     }
-}
-
-fn finish(recorder: &Recorder, output: &std::path::Path, code: u8) -> ExitCode {
-    let summary = recorder.finish();
-    if let Some(error) = &summary.error {
-        eprintln!(
-            "mcp-trace-capture: the trace at {} is incomplete: {} event(s) recorded, {} lost \
-             after a write failed ({error})",
-            output.display(),
-            summary.recorded,
-            summary.dropped
-        );
-        return ExitCode::from(if code == 0 { EXIT_INCOMPLETE } else { code });
-    }
-    eprintln!(
-        "mcp-trace-capture: recorded {} event(s) to {}; validate with \
-         `mcp-trace-validator validate {}`",
-        summary.recorded,
-        output.display(),
-        output.display()
-    );
-    ExitCode::from(code)
 }
 
 /// The wrapped server's exit code, as a shell would report it.

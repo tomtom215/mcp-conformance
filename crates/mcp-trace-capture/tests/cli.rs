@@ -636,3 +636,132 @@ fn a_raised_message_limit_names_the_validator_flag_to_match() {
     std::fs::remove_file(&trace).ok();
     assert!(!unset.contains("--max-line-bytes"), "{unset}");
 }
+
+/// A run that never started a session leaves nothing behind: no trace file (which
+/// would make the next run without `--force` refuse to start) and no "validate
+/// with" hint pointing at a trace that does not exist.
+#[test]
+fn a_run_that_fails_to_start_leaves_no_trace_file() {
+    let occupied = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let busy = occupied.local_addr().unwrap().to_string();
+    let cases: [&[&str]; 3] = [
+        &["stdio", "--", "definitely-not-a-real-mcp-server-binary"],
+        &["http", "--upstream", "ftp://example.com"],
+        &[
+            "http",
+            "--upstream",
+            "http://127.0.0.1:9",
+            "--listen",
+            &busy,
+        ],
+    ];
+    for (index, args) in cases.iter().enumerate() {
+        let trace = scratch(&format!("no-start-{index}"));
+        let output = binary()
+            .args(["-o", trace.to_str().unwrap()])
+            .args(*args)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {output:?}");
+        assert!(!trace.exists(), "{args:?} left {}", trace.display());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(!stderr.contains("validate with"), "{args:?}: {stderr}");
+        assert!(!stderr.contains("recording to"), "{args:?}: {stderr}");
+    }
+}
+
+/// An existing trace is refused before the server is started, not after: a
+/// server's side effects should not happen for a run that cannot record them.
+#[cfg(unix)]
+#[test]
+fn an_existing_trace_is_refused_before_the_server_starts() {
+    let trace = scratch("exists-early");
+    std::fs::write(&trace, "keep me\n").unwrap();
+    let marker = scratch("exists-early-marker");
+    let output = binary()
+        .args(["-o", trace.to_str().unwrap(), "stdio", "--", "touch"])
+        .arg(&marker)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(!marker.exists(), "the server was started");
+    assert_eq!(std::fs::read_to_string(&trace).unwrap(), "keep me\n");
+    std::fs::remove_file(&trace).ok();
+}
+
+/// `-o -` reads as "stdout" but would create a file named `-` — and in stdio mode
+/// stdout is the session itself. It is refused with a message saying so.
+#[test]
+fn dash_as_the_output_is_refused() {
+    let dir = std::env::temp_dir().join(format!("mcp-trace-capture-dash-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let output = binary()
+        .args(["-o", "-", "stdio", "--", "true"])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(!dir.join("-").exists());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("-o -"),
+        "{output:?}"
+    );
+    std::fs::remove_dir(&dir).ok();
+}
+
+/// Credentials in `--upstream` would be silently dropped (the proxy never sends
+/// them) and echoed to the terminal; they are refused, and not repeated.
+#[test]
+fn an_upstream_with_credentials_is_refused_without_echoing_them() {
+    let trace = scratch("userinfo");
+    let output = binary()
+        .args(["-o", trace.to_str().unwrap(), "http", "--upstream"])
+        .arg("http://user:hunter2@127.0.0.1:9/mcp")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stderr.contains("hunter2"), "{stderr}");
+    assert!(stderr.contains("credentials"), "{stderr}");
+    assert!(!trace.exists());
+}
+
+/// Listening beyond loopback exposes a relay that forwards credentials; the
+/// proxy says so when it starts.
+#[cfg(unix)]
+#[test]
+fn listening_beyond_loopback_is_warned_about() {
+    use std::io::BufRead as _;
+    let trace = scratch("wide");
+    let mut child = binary()
+        .args([
+            "-o",
+            trace.to_str().unwrap(),
+            "http",
+            "--listen",
+            "0.0.0.0:0",
+        ])
+        .args(["--upstream", "http://127.0.0.1:9"])
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut before_listening = Vec::new();
+    for line in std::io::BufReader::new(child.stderr.take().unwrap())
+        .lines()
+        .map_while(Result::ok)
+    {
+        if line.contains("listening on") {
+            break;
+        }
+        before_listening.push(line);
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_file(&trace).ok();
+    assert!(
+        before_listening
+            .iter()
+            .any(|line| line.contains("warning") && line.contains("0.0.0.0")),
+        "{before_listening:?}"
+    );
+}

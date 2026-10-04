@@ -53,7 +53,8 @@ type Connector = HttpConnector;
 #[non_exhaustive]
 pub struct Options {
     /// The server's base URL. Request paths are appended to its path, so
-    /// `http://localhost:3000` forwards `/mcp` to `http://localhost:3000/mcp`.
+    /// `http://localhost:3000` forwards `/mcp` to `http://localhost:3000/mcp`; its
+    /// query, if any, is kept, and the request's appended to it.
     pub upstream: Uri,
     /// The largest body or SSE event recorded; larger ones are forwarded unrecorded.
     pub max_message: usize,
@@ -75,8 +76,20 @@ impl Options {
     /// # Errors
     ///
     /// `upstream` is not an absolute `http` URL, or an `https` one in a build
-    /// without the `tls` feature.
+    /// without the `tls` feature, or it carries credentials (`user:password@`).
     pub fn new(upstream: Uri, max_message: usize) -> Result<Self, String> {
+        // Checked first, and the URL not repeated: the proxy would never send these
+        // credentials, and echoing them would put a password on the terminal.
+        if upstream
+            .authority()
+            .is_some_and(|authority| authority.as_str().contains('@'))
+        {
+            return Err(
+                "the URL carries credentials (user:password@), which the proxy would not \
+                 send; have the client send them instead, e.g. as an Authorization header"
+                    .to_owned(),
+            );
+        }
         match (upstream.scheme_str(), upstream.authority()) {
             (Some("http"), Some(_)) => {}
             (Some("https"), Some(_)) if cfg!(feature = "tls") => {}

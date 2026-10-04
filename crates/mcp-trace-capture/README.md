@@ -87,11 +87,18 @@ mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000 --liste
 # client URL: http://127.0.0.1:8080/mcp   (request paths are appended to --upstream's)
 ```
 
+An upstream URL's own query (`https://host/mcp?key=…`) is kept, and each request's
+query is appended to it. Credentials in the URL (`user:password@`) are refused: the
+proxy would not send them, so have the client send them as a header. The proxy
+listens on loopback unless `--listen` says otherwise, and warns when it does — anyone
+who can reach a non-loopback address can send requests through it.
+
 Stop it with Ctrl-C (or `SIGTERM`/`SIGHUP`). Open event streams — an MCP client keeps
 a GET stream open for its whole session — are ended at once; other requests in flight
 get 3 seconds to finish. The trace is then closed with a `transport-close` event and
-the summary printed. A second signal stops at once. `https://` upstreams work (rustls, the platform's root
-certificates). SSE streams are relayed as they arrive, event by event.
+the summary printed. A second signal stops at once. `https://` upstreams work (rustls,
+the platform's root certificates). SSE streams are relayed as they arrive, event by
+event.
 
 ## What it guarantees
 
@@ -147,7 +154,7 @@ certificates). SSE streams are relayed as they arrive, event by event.
 | server's | `stdio`: the wrapped server's exit code (128 + signal if a signal ended it, on Unix — 137 for a server killed after the grace period) |
 | 0 | `http`: stopped cleanly with a complete trace |
 | 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests |
-| 2 | Bad arguments, an existing output file (`--force` overwrites), a server that would not start, an address that would not bind |
+| 2 | Bad arguments (`-o -` among them: the trace needs a path), an existing output file (`--force` overwrites), a server that would not start, an address that would not bind. No trace file is created: the file is made only once the session can start |
 | 3 | The session ran but the trace is incomplete (a write failed), when the code would otherwise be 0 |
 
 ## License

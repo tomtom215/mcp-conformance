@@ -6,11 +6,19 @@
 use axum::http::uri::{PathAndQuery, Uri};
 use axum::http::{HeaderMap, header};
 
-/// `upstream` with the request's path appended to its own, and the request's query.
+/// `upstream` with the request's path appended to its own, and the request's
+/// query appended to the upstream's (an upstream such as
+/// `https://host/mcp?key=…` keeps its key).
 pub(super) fn target(upstream: &Uri, path_and_query: Option<&PathAndQuery>) -> Uri {
     let base = upstream.path().trim_end_matches('/');
     let path = path_and_query.map_or("/", PathAndQuery::path);
-    let joined = path_and_query.and_then(PathAndQuery::query).map_or_else(
+    let request_query = path_and_query.and_then(PathAndQuery::query);
+    let query = match (upstream.query(), request_query) {
+        (Some(own), Some(request)) => Some(format!("{own}&{request}")),
+        (Some(only), None) | (None, Some(only)) => Some(only.to_owned()),
+        (None, None) => None,
+    };
+    let joined = query.map_or_else(
         || format!("{base}{path}"),
         |query| format!("{base}{path}?{query}"),
     );

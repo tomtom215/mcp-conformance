@@ -84,3 +84,26 @@ fn event_streams_are_recognised_with_parameters_and_any_case() {
     assert!(!is_event_stream(&with("application/json")));
     assert!(!is_event_stream(&HeaderMap::new()));
 }
+
+#[test]
+fn the_upstreams_query_is_kept_and_the_requests_appended() {
+    let pq = |text: &str| text.parse::<PathAndQuery>().unwrap();
+    let keyed: Uri = "http://h:1/base?key=k".parse().unwrap();
+    assert_eq!(
+        target(&keyed, Some(&pq("/mcp?x=1"))).to_string(),
+        "http://h:1/base/mcp?key=k&x=1"
+    );
+    assert_eq!(
+        target(&keyed, Some(&pq("/mcp"))).to_string(),
+        "http://h:1/base/mcp?key=k"
+    );
+}
+
+#[test]
+fn an_upstream_with_credentials_is_refused_without_repeating_them() {
+    let uri = |text: &str| text.parse::<Uri>().unwrap();
+    let error = Options::new(uri("http://user:hunter2@example.com/mcp"), 1).unwrap_err();
+    assert!(!error.contains("hunter2"), "{error}");
+    assert!(error.contains("credentials"), "{error}");
+    assert!(Options::new(uri("http://user@example.com"), 1).is_err());
+}
