@@ -19,9 +19,9 @@ changelog and becomes a measurement.
 
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Registry entries | 142 | 272 |
+| Registry entries | 142 | 273 |
 | Judged by a named check | 55 | 125 |
-| Carrying a documented exclusion | 87 | 147 |
+| Carrying a documented exclusion | 87 | 148 |
 | Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -80,13 +80,13 @@ And the verdict splits:
 ```text
 per revision:
   2025-11-25: 17 pass, 0 fail, 0 warn, 87 excluded, 0 unsupported, 14 not applicable, 24 not observed — verdict pass
-  2026-07-28: 14 pass, 8 fail, 0 warn, 147 excluded, 0 unsupported, 0 not applicable, 103 not observed — verdict fail
+  2026-07-28: 14 pass, 8 fail, 0 warn, 148 excluded, 0 unsupported, 0 not applicable, 103 not observed — verdict fail
 overall verdict: fail
 ```
 
 A conforming session today, and eight concrete failures tomorrow. Both summary
 lines account for **every** clause in their revision — the counts add up to 142
-and 272 — because a line that quietly omits an outcome is a line that overstates
+and 273 — because a line that quietly omits an outcome is a line that overstates
 what was measured.
 
 > The example above is executed by a test (`book_examples.rs`) against the real

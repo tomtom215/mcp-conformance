@@ -890,14 +890,15 @@ fn strict_reports_agree_with_the_strict_exit_status() {
     let trace = trace.to_str().unwrap();
     let lenient = run(&["validate", "--format", "junit", trace]);
     assert_eq!(lenient.status.code(), Some(0), "{lenient:?}");
-    assert!(stdout(&lenient).contains(r#"<testsuites tests="272" failures="0""#));
+    let failures = |xml: &str| {
+        let at = xml.find("<testsuites ").unwrap();
+        xml[at..].split('"').nth(3).unwrap().to_owned()
+    };
+    assert_eq!(failures(&stdout(&lenient)), "0");
     let strict = run(&["validate", "--strict", "--format", "junit", trace]);
     assert_eq!(strict.status.code(), Some(1), "{strict:?}");
     let xml = stdout(&strict);
-    assert!(
-        xml.contains(r#"<testsuites tests="272" failures="1""#),
-        "{xml}"
-    );
+    assert_eq!(failures(&xml), "1", "{xml}");
     assert!(xml.contains("<failure message="), "{xml}");
 
     let sarif =

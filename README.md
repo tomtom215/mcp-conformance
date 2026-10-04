@@ -89,7 +89,7 @@ MCP trace validation — revision 2026-07-28 (declared by the trace)
         seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
         spec: "Note that the JSON-RPC `id` MUST be different between the initial request and the retry."
         see:  https://modelcontextprotocol.io/specification/2026-07-28/server/tools#input-required-tool-results
-totals: 37 pass, 2 fail, 0 warn, 147 excluded, 0 unsupported, 0 not applicable, 86 not observed
+totals: 37 pass, 2 fail, 0 warn, 148 excluded, 0 unsupported, 0 not applicable, 86 not observed
 verdict: fail
 ```
 
