@@ -54,9 +54,7 @@ fn serve(revision: ServedRevision) -> String {
 #[test]
 fn completed_run_exits_zero_and_renders_the_record() {
     // The initialize scenario's empty plan completes against any healthy
-    // server (the tool-calling plans are exercised against the suite's own
-    // scenario servers, whose surfaces they fit — the everything server's
-    // test_error_handling would rightly exhaust a zero error budget).
+    // server; the generic plan's own run is the test after the next.
     let url = serve_everything();
     let output = Command::new(env!("CARGO_BIN_EXE_mcp-reference-host"))
         .env("MCP_CONFORMANCE_SCENARIO", "initialize")
@@ -98,34 +96,57 @@ fn the_cancellation_round_renders_what_it_cancelled_and_what_followed() {
 }
 
 #[test]
-fn exhausted_error_budget_exits_one() {
-    // The generic plan calls every tool once with a zero error budget;
-    // test_error_handling fails by design, so the run must stop exhausted
-    // and the binary must exit 1 — the `Completed && clean_shutdown`
-    // calculation, observed from outside.
+fn the_everything_server_passes_with_default_flags_on_both_revisions() {
+    // The toolkit's own pairing, with nothing but the server's address: the
+    // generic plan must call every listed tool (more than the old fixed cap
+    // of 16) and exit 0. `test_error_handling` answers with the error result
+    // it is documented to return, which is recorded and not counted.
+    for (revision, url) in [
+        ("2025-11-25", serve_everything()),
+        ("2026-07-28", serve_stateless()),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_mcp-reference-host"))
+            .args(["--protocol-version", revision])
+            .arg(&url)
+            .output()
+            .expect("binary runs");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(output.status.success(), "{revision}: {stderr}");
+        assert!(stderr.contains("with 0 error(s)"), "{revision}: {stderr}");
+        assert!(
+            stderr.contains("plus 1 expected error result(s)"),
+            "{revision}: {stderr}"
+        );
+        assert!(
+            stderr.contains("  ok   test_error_handling: failed as documented"),
+            "{revision}: the documented failure is shown, not hidden: {stderr}"
+        );
+        assert!(!stderr.contains("err  "), "{revision}: {stderr}");
+    }
+}
+
+#[test]
+fn a_turn_limit_stop_exits_one_and_says_what_would_suffice() {
+    // A run that does not complete must exit 1 — the `Completed &&
+    // clean_shutdown` calculation, observed from outside — and the reason
+    // names how many calls were left and the value that fits them all.
     let url = serve_everything();
     let output = Command::new(env!("CARGO_BIN_EXE_mcp-reference-host"))
+        .args(["--turn-limit", "3"])
         .arg(&url)
         .output()
         .expect("binary runs");
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     let stderr = String::from_utf8_lossy(&output.stderr);
-    // The reason names the flag that changes it and the number behind it.
-    // Printing the `StopReason` variant instead is what this replaced: the
-    // default budget is 0 and this server ships a tool that fails by design,
-    // so this is what a first run against it always looks like.
     assert!(
-        stderr.contains("exceeds the --error-budget of 0"),
+        stderr.contains("stopped at the --turn-limit of 3 with "),
         "{stderr}"
     );
-    assert!(stderr.contains("Raise --error-budget"), "{stderr}");
+    assert!(stderr.contains("planned call(s) not made"), "{stderr}");
+    assert!(stderr.contains("would let every call run"), "{stderr}");
     assert!(
-        !stderr.contains("ErrorBudgetExhausted"),
+        !stderr.contains("TurnLimit"),
         "the Rust variant name is not the user-facing sentence: {stderr}"
-    );
-    assert!(
-        stderr.contains("err  "),
-        "the failing call is rendered: {stderr}"
     );
 }
 
@@ -302,4 +323,58 @@ fn probe_without_a_url_is_an_invocation_error() {
         .output()
         .expect("binary runs");
     assert_eq!(output.status.code(), Some(2), "{output:?}");
+}
+
+/// Runs the binary with `args` and returns its exit code and stderr.
+fn host(args: &[&str]) -> (Option<i32>, String) {
+    let output = Command::new(env!("CARGO_BIN_EXE_mcp-reference-host"))
+        .args(args)
+        .output()
+        .expect("binary runs");
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    // Whatever the failure, no Rust type name reaches the operator.
+    for leak in ["rmcp::", "reqwest::", "WorkerTransport", "Transport ["] {
+        assert!(!stderr.contains(leak), "{leak} leaked: {stderr}");
+    }
+    (output.status.code(), stderr)
+}
+
+#[test]
+fn a_closed_port_is_reported_as_a_refused_connection() {
+    // Bound then released: a loopback port nothing listens on.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+    let url = format!("http://{}/mcp", listener.local_addr().unwrap());
+    drop(listener);
+    for revision in ["2025-11-25", "2026-07-28"] {
+        let (code, stderr) = host(&["--protocol-version", revision, &url]);
+        assert_eq!(code, Some(1), "{revision}: {stderr}");
+        assert!(
+            stderr.contains(&format!("cannot connect to {url}: connection refused")),
+            "{revision}: {stderr}"
+        );
+    }
+}
+
+#[test]
+fn a_wrong_endpoint_path_is_reported_as_the_404_it_drew() {
+    let url = serve_everything().replace("/mcp", "/wrong");
+    let (code, stderr) = host(&[&url]);
+    assert_eq!(code, Some(1), "{stderr}");
+    assert!(
+        stderr.contains(&format!(
+            "{url}: the server answered 404 Not Found — is the MCP endpoint path right?"
+        )),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn a_server_command_that_does_not_exist_is_named() {
+    let (code, stderr) = host(&["--server-cmd", "/no/such/mcp-server --stdio"]);
+    assert_eq!(code, Some(1), "{stderr}");
+    assert!(
+        stderr.contains("/no/such/mcp-server was not found"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("os error"), "{stderr}");
 }

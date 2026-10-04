@@ -16,7 +16,7 @@
 
 use std::process::ExitCode;
 
-use mcp_reference_host::run::{RunPlan, RunReport, StopReason};
+use mcp_reference_host::run::{CallOutcome, RunPlan, RunReport, StopReason};
 use mcp_reference_host::sweep::SweepReport;
 
 /// Sends the probe session and reports what each malformed request drew.
@@ -84,21 +84,33 @@ pub(crate) fn cancel(outcome: &Result<mcp_reference_host::cancel::CancelReport, 
 pub(crate) fn run(report: &RunReport, plan: &RunPlan) {
     eprintln!("mcp-reference-host: {}", stopped(report, plan));
     for outcome in &report.outcomes {
-        match &outcome.result {
-            Ok(text) => eprintln!("  ok   {}: {text}", outcome.tool),
-            Err(error) => eprintln!("  err  {}: {error}", outcome.tool),
-        }
+        eprintln!("{}", call_line(outcome));
+    }
+}
+
+/// One call's line in the run record.
+///
+/// An expected failure reads `ok`, because the tool did what it documents,
+/// and says so — a bare `err` in a run that exits 0 would look like the host
+/// had stopped counting.
+fn call_line(outcome: &CallOutcome) -> String {
+    match (&outcome.result, outcome.expected_failure) {
+        (Ok(text), _) => format!("  ok   {}: {text}", outcome.tool),
+        (Err(error), true) => format!(
+            "  ok   {}: failed as documented, not counted ({error})",
+            outcome.tool
+        ),
+        (Err(error), false) => format!("  err  {}: {error}", outcome.tool),
     }
 }
 
 /// Why the loop ended, as a sentence naming the flag that changes it.
 ///
 /// This used to print the `StopReason` variant with `{:?}`, which named the
-/// condition in Rust's words and the remedy in nobody's. The default plan
-/// tolerates no errors, so a `--sweep` over the everything server — whose tool
-/// list deliberately contains `test_error_handling` — always ends
-/// `ErrorBudgetExhausted` and exits 1. That outcome is correct; a reader who
-/// has to find `--error-budget` in `--help` to learn why is not.
+/// condition in Rust's words and the remedy in nobody's: a reader who has to
+/// find `--error-budget` or `--turn-limit` in `--help` to learn why a run
+/// stopped has been told too little. A turn-limit stop also says how many
+/// calls it left unmade and the value that would have let them all run.
 ///
 /// Matched exhaustively on purpose (a same-crate enum): a new [`StopReason`]
 /// must force a deliberate sentence here rather than fall into a wildcard that
@@ -106,22 +118,29 @@ pub(crate) fn run(report: &RunReport, plan: &RunPlan) {
 fn stopped(report: &RunReport, plan: &RunPlan) -> String {
     let RunReport {
         turns,
+        planned,
         errors,
+        expected_failures,
         stop,
         ..
     } = report;
     match stop {
+        StopReason::Completed if *expected_failures > 0 => format!(
+            "completed {turns} turn(s) with {errors} error(s), plus {expected_failures} \
+             expected error result(s) from tools documented to fail"
+        ),
         StopReason::Completed => {
             format!("completed {turns} turn(s) with {errors} error(s)")
         }
         StopReason::TurnLimit => format!(
-            "stopped at the --turn-limit of {} with calls still planned ({errors} error(s))",
-            plan.turn_limit
+            "stopped at the --turn-limit of {} with {} of {planned} planned call(s) \
+             not made ({errors} error(s)); --turn-limit {planned} would let every call run",
+            plan.turn_limit.unwrap_or(*planned),
+            planned.saturating_sub(*turns)
         ),
         StopReason::ErrorBudgetExhausted => format!(
             "stopped after {turns} turn(s): {errors} error(s) exceeds the --error-budget of \
-             {}. Raise --error-budget to run past them — a server whose tool list includes an \
-             error-returning tool (this workspace's `test_error_handling`) needs at least 1",
+             {}. Raise --error-budget to run past them",
             plan.error_budget
         ),
         StopReason::Cancelled => {
@@ -135,7 +154,7 @@ mod tests {
     use super::*;
     use mcp_reference_host::run::CallPolicy;
 
-    fn plan(turn_limit: u32, error_budget: u32) -> RunPlan {
+    fn plan(turn_limit: Option<u32>, error_budget: u32) -> RunPlan {
         RunPlan {
             turn_limit,
             error_budget,
@@ -148,7 +167,9 @@ mod tests {
     fn report(stop: StopReason, turns: u32, errors: u32) -> RunReport {
         RunReport {
             turns,
+            planned: 18,
             errors,
+            expected_failures: 0,
             stop,
             outcomes: Vec::new(),
         }
@@ -158,7 +179,7 @@ mod tests {
     fn the_error_budget_stop_names_the_flag_and_the_number() {
         let line = stopped(
             &report(StopReason::ErrorBudgetExhausted, 10, 1),
-            &plan(20, 0),
+            &plan(Some(20), 0),
         );
         assert!(line.contains("--error-budget of 0"), "{line}");
         assert!(line.contains("1 error(s)"), "{line}");
@@ -168,17 +189,49 @@ mod tests {
     }
 
     #[test]
+    fn the_turn_limit_stop_counts_what_is_left_and_names_the_value_that_fits() {
+        let capped = stopped(&report(StopReason::TurnLimit, 16, 0), &plan(Some(16), 0));
+        assert_eq!(
+            capped,
+            "stopped at the --turn-limit of 16 with 2 of 18 planned call(s) not made \
+             (0 error(s)); --turn-limit 18 would let every call run"
+        );
+    }
+
+    #[test]
     fn every_other_stop_reads_as_a_sentence_too() {
-        let done = stopped(&report(StopReason::Completed, 12, 0), &plan(20, 0));
+        let done = stopped(&report(StopReason::Completed, 12, 0), &plan(None, 0));
         assert_eq!(done, "completed 12 turn(s) with 0 error(s)");
 
-        let capped = stopped(&report(StopReason::TurnLimit, 20, 0), &plan(20, 0));
-        assert!(capped.contains("--turn-limit of 20"), "{capped}");
+        let documented = RunReport {
+            expected_failures: 1,
+            ..report(StopReason::Completed, 18, 0)
+        };
+        assert_eq!(
+            stopped(&documented, &plan(None, 0)),
+            "completed 18 turn(s) with 0 error(s), plus 1 expected error result(s) from \
+             tools documented to fail"
+        );
 
-        let stopped_early = stopped(&report(StopReason::Cancelled, 3, 0), &plan(20, 0));
+        let stopped_early = stopped(&report(StopReason::Cancelled, 3, 0), &plan(None, 0));
         assert!(
             stopped_early.starts_with("cancelled after 3"),
             "{stopped_early}"
+        );
+    }
+
+    #[test]
+    fn an_expected_failure_reads_ok_and_says_why() {
+        let outcome = |result: Result<&str, &str>, expected_failure| CallOutcome {
+            tool: "t".to_owned(),
+            result: result.map(str::to_owned).map_err(str::to_owned),
+            expected_failure,
+        };
+        assert_eq!(call_line(&outcome(Ok("fine"), false)), "  ok   t: fine");
+        assert_eq!(call_line(&outcome(Err("boom"), false)), "  err  t: boom");
+        assert_eq!(
+            call_line(&outcome(Err("boom"), true)),
+            "  ok   t: failed as documented, not counted (boom)"
         );
     }
 }

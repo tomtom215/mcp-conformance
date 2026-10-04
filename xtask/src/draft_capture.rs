@@ -32,8 +32,8 @@
 //! The flags below are the capture's definition, not an operator's taste, and
 //! each buys clauses no other flag reaches:
 //!
-//! - the error budget, because sweeping every tool meets `test_error_handling`,
-//!   whose whole job is to return an error result;
+//! - the error budget and the turn limit, pinned rather than left to the
+//!   host's defaults, so the recorded session does not move when they do;
 //! - `--subscribe`, because `subscriptions/listen` is a long-lived request
 //!   rather than a tool, so no sweep of the tool list would ever reach it;
 //! - `--sweep`, because the tool list is a fraction of the surface — without it
@@ -90,10 +90,12 @@ const PROBE_BASELINE: &str = "conformance/probe-baseline.json";
 
 /// How many error *results* the tool loop tolerates.
 ///
-/// `test_error_handling` returns one by design, and a capture that stopped
-/// there would omit every tool after it alphabetically — including
-/// `test_sampling`, the one that exercises an MRTR sampling round. Four is
-/// slack for that one plus room to notice if the number grows.
+/// `test_error_handling` returns one by design, which the host now records as
+/// expected rather than counting; the budget predates that and is kept so the
+/// session — and so the committed recording — stays exactly as it was. A
+/// capture that stopped at an unexpected error would omit every tool after it
+/// alphabetically, including `test_sampling`, the one that exercises an MRTR
+/// sampling round; four is slack for noticing if errors appear.
 ///
 /// The feature sweep's own expected failure — the read of a URI the catalog
 /// does not contain — is not counted here: the sweep records every step and
@@ -109,6 +111,9 @@ const ERROR_BUDGET: &str = "4";
 const LOG_LEVEL: &str = "debug";
 
 /// Turn cap, above the tool count so the sweep is not silently truncated.
+///
+/// The host's default is now one turn per listed tool, which can never
+/// truncate; the explicit cap is kept for the same reason as the budget.
 const TURN_LIMIT: &str = "32";
 
 pub(crate) fn run(bless: bool) -> ExitCode {

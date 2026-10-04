@@ -50,7 +50,7 @@ async fn http_transport_completes_a_scripted_loop() {
     let client = handler.clone().serve(transport).await.expect("initializes");
 
     let plan = RunPlan {
-        turn_limit: 4,
+        turn_limit: Some(4),
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![
             PlannedCall {
@@ -58,10 +58,12 @@ async fn http_transport_completes_a_scripted_loop() {
                 arguments: serde_json::json!({"message": "over http"})
                     .as_object()
                     .cloned(),
+                fails_by_design: false,
             },
             PlannedCall {
                 tool: "add".to_owned(),
                 arguments: serde_json::json!({"a": 19, "b": 23}).as_object().cloned(),
+                fails_by_design: false,
             },
         ]),
         log_level: None,
@@ -93,11 +95,12 @@ async fn captured_http_session_validates_through_the_real_engine() {
     let handler = HostHandler::new(InteractionScript::default());
     let client = handler.clone().serve(transport).await.expect("initializes");
     let plan = RunPlan {
-        turn_limit: 2,
+        turn_limit: Some(2),
         error_budget: 0,
         calls: CallPolicy::Scripted(vec![PlannedCall {
             tool: "test_elicitation_sep1034_defaults".to_owned(),
             arguments: None,
+            fails_by_design: false,
         }]),
         log_level: None,
         trace_parent: None,

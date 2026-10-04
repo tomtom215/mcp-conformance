@@ -15,12 +15,10 @@ Everything below ships as **0.6.0**, prepared on `main` and not yet published
 (crates.io serves 0.5.1). It moves under a dated `## [0.6.0]` heading in the
 commit that releases it.
 
-**This is a minor release with breaking behaviour changes and no Rust API
-break**, which pre-1.0 SemVer permits and this project states explicitly.
-`cargo xtask semver` (cargo-semver-checks 0.50.0) reports "no semver update
-required" for the four previously published crates against 0.5.1;
-`mcp-trace-capture` is new. What can break a caller is what the tools output and
-decide:
+**This is a minor release with breaking behaviour changes and one Rust API
+break, in `mcp-reference-host`'s run types**, which pre-1.0 SemVer permits and
+this project states explicitly. `mcp-trace-capture` is new. Besides that API
+change, what can break a caller is what the tools output and decide:
 
 | Surface | Change | Migration |
 |---------|--------|-----------|
@@ -37,11 +35,20 @@ decide:
 | `PAGE-010`, `PAGE-011` (2026-07-28) | Excluded: a cursor no result in the session issued no longer shows the cursor was made up or invalid | None; gate on them only at `2025-11-25` (`PAGE-002`, `PAGE-003`) |
 | `BASE-055` (2026-07-28) | Split: allocating a reserved code stays `BASE-055` (now excluded); using a legacy code is `BASE-083`, a SHOULD NOT that warns | Gate on `BASE-083` where `BASE-055` was |
 | `mcp-reference-host` | `cli` is a default feature, so `cargo install mcp-reference-host` installs the binary | Library users: `default-features = false` |
+| `mcp-reference-host` library | `RunPlan::turn_limit` is `Option<u32>`; `PlannedCall`, `CallOutcome`, `RunReport` gain fields | `turn_limit: Some(n)`, `fails_by_design: false` for the old behaviour |
 
 Each is stated again in the entry that introduced it, with the reasoning.
 
 ### Changed — breaking
 
+- **`mcp-reference-host`'s run types grew the fields the two fixes below
+  need.** `RunPlan::turn_limit` is now `Option<u32>` (`None`: one turn per
+  planned call); `PlannedCall` gains `fails_by_design`, `CallOutcome` gains
+  `expected_failure`, and `RunReport` gains `planned` and `expected_failures`.
+  Code that builds these with struct literals must name the new fields —
+  `turn_limit: Some(n)` keeps the old cap, and `fails_by_design: false` the old
+  counting. Pre-1.0 SemVer permits this in a minor release; it is stated here
+  so nobody has to find it from a compile error.
 - **The human report lists what needs attention.** It printed all ~270 clauses, so a
   single failure scrolled away; it now prints failing, warning and unsupported clauses
   with their findings, then the totals and the verdict. `--all` lists every clause.
@@ -176,6 +183,50 @@ Each is stated again in the entry that introduced it, with the reasoning.
 
 ### Fixed
 
+- **The reference host passes against this project's own everything-server
+  with default flags.** `mcp-reference-host --server-cmd mcp-everything-server`
+  exited 1 twice over: the server's `test_error_handling` tool exhausted the
+  zero error budget, and once the budget was raised the generic plan's fixed
+  cap of 16 turns stopped it with two of the server's 18 tools uncalled. Both
+  fixes keep the checks the host makes:
+  - A tool the official suite defines as failing by design — matched by its
+    exact name, `test_error_handling`, from the `tools-call-error` scenario —
+    is planned *expecting* its in-band `isError: true` result. That result is
+    recorded and shown (`ok   test_error_handling: failed as documented, not
+    counted (…)`) instead of being counted. The expectation is held both ways:
+    the same tool *succeeding*, or answering with a protocol error instead of
+    the in-band result, still counts as an error, and an ordinary tool's error
+    result counts exactly as before. The default error budget stays 0.
+  - The generic plan no longer has a fixed turn cap. It calls each listed tool
+    once, so it is finite by construction; the cap only ever truncated a
+    server with more tools than 16, and `--deadline-secs` still bounds the
+    time. `--turn-limit` still caps a run, and when it does the message now
+    counts what it left out and names the value that fits: `stopped at the
+    --turn-limit of 16 with 2 of 18 planned call(s) not made (0 error(s));
+    --turn-limit 18 would let every call run`.
+
+  The suite's own client scenarios publish one tool each, none of them
+  `test_error_handling`, so their plans call exactly what they did. `cargo
+  xtask draft-capture` passes `--error-budget` and `--turn-limit` explicitly
+  and records the same session as before.
+- **The reference host says why a session could not start, instead of
+  printing rmcp's types.** A refused port printed `initialization failed: Send
+  message error Transport [rmcp::transport::worker::WorkerTransport<…reqwest…>]
+  error: Client error: error sending request for url (…)`. The new `diagnose`
+  module walks the error's source chain by type — down to the `io::Error` under
+  reqwest, or the HTTP status rmcp reports — and says it in the operator's
+  words:
+  - `cannot connect to http://127.0.0.1:1/mcp: connection refused — is the
+    server running, and listening on that port?`
+  - `http://127.0.0.1:8080/wrong: the server answered 404 Not Found — is the
+    MCP endpoint path right?` (at both revisions; `2026-07-28` reports it
+    through `server/discover`)
+  - `the server command "false" exited before the session started — run it by
+    hand to see why`
+  - `cannot start the server command "/no/such/server": /no/such/server was not
+    found — check the path, or that it is on PATH`
+
+  Exit codes are unchanged: each of these is still a run failure, exit 1.
 - **Wrong verdicts on conforming traffic**, each reproduced on real SDK recordings
   or the spec's own examples:
   - a session teardown `DELETE` answered `200` with no body (what the official
