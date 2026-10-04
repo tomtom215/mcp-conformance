@@ -30,9 +30,21 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  incremental:
-    name: Mutants (PR diff)
+  shards:
+    name: Mutants (PR diff, shard ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
+    # Sharded because one job took 1 h 45 min – 2 h on PR #59's diff (776
+    # mutants). `--shard k/4` partitions the one deterministic (`--no-shuffle`)
+    # mutant list after the diff filter, so the four shards together cover it
+    # exactly once — the scheduled full sweep (scheduled.yml) shards the same
+    # way, eight-wide. Each shard pays its own baseline build and test. The
+    # timeout is a wedge guard: a stuck shard fails visibly and the other three
+    # still report.
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,9 +65,37 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: git diff "origin/${BASE_REF}..." > pr.diff
-      - name: Run mutants on changed code
+      - name: Run mutants on changed code (this shard)
         # `-- --all-features` is load-bearing: without it, feature-gated code
         # (the everything-server's `tap`) is never compiled into the mutated
         # build, so its mutants "pass" in zero seconds without a single test
         # running — 45 such phantom misses on PR #8 exposed this.
-        run: cargo mutants --workspace --no-shuffle --in-diff pr.diff -- --all-features
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: cargo mutants --workspace --no-shuffle --in-diff pr.diff --shard "${SHARD}/4" -- --all-features
+      - name: Upload this shard's outcomes
+        # The missed, caught and timeout lists: what a red shard is read from.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mutants-pr-shard-${{ matrix.shard }}-${{ github.run_id }}
+          path: mutants.out/
+          if-no-files-found: warn
+          retention-days: 14
+
+  incremental:
+    # The one check that reports the gate, under the name it had before it was
+    # sharded, so a branch-protection rule naming "Mutants (PR diff)" keeps
+    # working. It passes only when every shard passed; a skipped or cancelled
+    # shard fails it, as a failed one does.
+    name: Mutants (PR diff)
+    needs: shards
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard passed
+        env:
+          SHARDS: ${{ needs.shards.result }}
+        run: |
+          echo "shards: ${SHARDS}"
+          [[ "${SHARDS}" == "success" ]]
