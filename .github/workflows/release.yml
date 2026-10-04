@@ -20,7 +20,9 @@
 #   - cargo-semver-checks gates API compatibility against the crates.io
 #     baseline in `verify`, so a declared behavioral break is never confused
 #     with an accidental, undeclared API-signature break;
-#   - `workflow_dispatch` rehearses every gate without publishing anything.
+#   - `workflow_dispatch` rehearses every gate without publishing anything;
+#   - the publish job compiles nothing: it holds the OIDC grant, so no
+#     dependency build script or restored cache runs beside it.
 
 name: Release
 
@@ -50,6 +52,18 @@ env:
   # A release must not be the first place a runtime cutover is discovered.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   CARGO_TERM_COLOR: always
+  # The published crates, in the order they reach crates.io. `cargo publish`
+  # resolves a crate's dev-dependencies against the registry as well as its
+  # normal ones, so every workspace sibling a crate names in ANY dependency
+  # table must already be published. The edges (verified from `cargo metadata`;
+  # the verify job re-checks them on every run):
+  #   validator         -> core (normal)
+  #   everything-server -> core (normal, optional), validator (dev)
+  #   reference-host    -> core, everything-server, validator (all dev)
+  #   capture           -> core (normal), everything-server, validator (dev)
+  PUBLISH_ORDER: >-
+    mcp-conformance-core mcp-trace-validator mcp-everything-server
+    mcp-reference-host mcp-trace-capture
 
 jobs:
   # ── Gate 1: tag ↔ version ↔ changelog agreement, full local gate set ───────
@@ -63,13 +77,21 @@ jobs:
       is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchains (stable + MSRV)
         run: |
           # The pinned toolchain comes from rust-toolchain.toml, with clippy
           # and rustfmt among its components; 1.88.0 is the MSRV leg's.
           rustup show active-toolchain
           rustup toolchain install 1.88.0 --profile minimal --component clippy --no-self-update
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # Cached: this job and `tests` run gates and produce no release artifact
+      # and hold no write scope. The caches a tag run can read are the ones
+      # runs on `main` (or this tag) wrote, and writing those takes the same
+      # push access that could edit this workflow outright. The jobs whose
+      # output is signed or published (`package`, `binaries`, `publish`) do
+      # not restore a cache at all.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 # zizmor: ignore[cache-poisoning]
       - name: Tag, workspace version, and changelog agree
         id: meta
         shell: bash
@@ -106,7 +128,10 @@ jobs:
         # Compiled from source with --locked rather than the Docker-image action:
         # immune to registry-pull flakes at the moment that matters most.
         run: |
-          cargo install cargo-deny --locked
+          # Pinned: the version a gate runs is part of the gate. 0.20.2 is the
+          # version cargo-deny-action's pinned image runs in ci.yml, so PR CI
+          # and the release judge with the same tool.
+          cargo install cargo-deny --version 0.20.2 --locked
           cargo deny check
       - name: cargo-semver-checks (declared breaks are not accidental API breaks)
         # The verdict-as-contract gate (design note §9): an API-breaking change
@@ -118,8 +143,39 @@ jobs:
         # baseline), which a release verify job already is. Compiled from source
         # with --locked, like cargo-deny above.
         run: |
-          cargo install cargo-semver-checks --locked
+          # Pinned for the same reason; 0.50.0 is the version every pre-flight
+          # since v0.5.0 recorded, and the one the v0.6.0 rehearsal resolved.
+          cargo install cargo-semver-checks --version 0.50.0 --locked
           cargo xtask semver
+      - name: Publish order respects every internal dependency edge (dev included)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A crate published before a sibling it names — even only as a
+          # dev-dependency — fails `cargo publish` with "failed to select a
+          # version", mid-chain. Check PUBLISH_ORDER against the manifests.
+          cargo metadata --no-deps --format-version 1 > "$RUNNER_TEMP/meta.json"
+          read -r -a order <<< "$PUBLISH_ORDER"
+          declare -A pos
+          for i in "${!order[@]}"; do pos[${order[$i]}]=$i; done
+          publishable="$(jq -r '.packages[] | select(.publish != []) | .name' "$RUNNER_TEMP/meta.json" | sort)"
+          listed="$(printf '%s\n' "${order[@]}" | sort)"
+          if [[ "$publishable" != "$listed" ]]; then
+            echo "::error::PUBLISH_ORDER does not list exactly the publishable crates: ${publishable//$'\n'/ }"
+            exit 1
+          fi
+          bad=0
+          while read -r crate dep kind; do
+            [[ -n "${pos[$crate]:-}" && -n "${pos[$dep]:-}" ]] || continue
+            if (( pos[$dep] >= pos[$crate] )); then
+              echo "::error::${crate} (${kind}-depends on ${dep}) is published before it"
+              bad=1
+            fi
+          done < <(jq -r '[.packages[].name] as $ws | .packages[] | .name as $n
+                          | .dependencies[] | select(.name as $d | $ws | index($d))
+                          | "\($n) \(.name) \(.kind // "normal")"' "$RUNNER_TEMP/meta.json")
+          exit "$bad"
+
 
   # ── Gate 2: cross-platform tests, mirroring the ci.yml matrix ──────────────
   tests:
@@ -134,10 +190,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain
         run: |
           rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # Cached for the reason given in `verify`: gates only, no artifact.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 # zizmor: ignore[cache-poisoning]
       - name: Test (all features)
         run: cargo test --workspace --all-features
 
@@ -152,10 +211,14 @@ jobs:
       attestations: write # store the attestation in the repository
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain
         run: |
           rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # No rust-cache: this job signs what it builds (id-token +
+      # attestations), so it starts from a clean target directory rather than
+      # one restored from another run.
       - name: Package all publishable crates (verification builds included)
         # The workspace-wide dry-run: per-crate `publish --dry-run` cannot
         # resolve unpublished sibling dependencies on a first release, while
@@ -163,6 +226,19 @@ jobs:
         # `cargo package --workspace` still packages it (observed in v0.1.0,
         # whose release carries a stray xtask crate file) — exclude it.
         run: cargo package --workspace --exclude xtask --locked
+      - name: Exactly the published crates, at this version, and nothing else
+        shell: bash
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          cd target/package
+          read -r -a order <<< "$PUBLISH_ORDER"
+          for crate in "${order[@]}"; do
+            [[ -f "${crate}-${VERSION}.crate" ]] || { echo "::error::missing ${crate}-${VERSION}.crate"; exit 1; }
+          done
+          count="$(find . -maxdepth 1 -name '*.crate' | wc -l)"
+          [[ "$count" -eq "${#order[@]}" ]] || { echo "::error::${count} .crate files, expected ${#order[@]}"; ls; exit 1; }
       - name: Generate SHA-256 checksums
         shell: bash
         run: |
@@ -207,54 +283,80 @@ jobs:
           - { target: aarch64-unknown-linux-musl, os: ubuntu-24.04-arm, archive: tar.gz }
           - { target: x86_64-apple-darwin, os: macos-latest, archive: tar.gz }
           - { target: aarch64-apple-darwin, os: macos-latest, archive: tar.gz }
-          - { target: x86_64-pc-windows-msvc, os: windows-latest, archive: zip }
+          # crt-static: link the C runtime statically, so the archive does not
+          # depend on VCRUNTIME140.dll being installed (the Windows analogue
+          # of the static musl builds above). Applied through RUSTFLAGS with
+          # an explicit --target, so it reaches the target artifacts only,
+          # never host build scripts or proc macros.
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, archive: zip, rustflags: "-C target-feature=+crt-static" }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain and target
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
         run: |
           rustup show active-toolchain
-          rustup target add ${{ matrix.target }}
+          rustup target add "$TARGET"
       - name: Install the musl C toolchain (ring compiles C)
         if: contains(matrix.target, 'musl')
         run: sudo apt-get update && sudo apt-get install -y musl-tools
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          key: ${{ matrix.target }}
+      # No rust-cache, for the reason given in `package`: these archives are
+      # attested and shipped, so nothing compiled into them may come from a
+      # restored cache. A clean build per target costs minutes, once per release.
       - name: Build both CLIs
-        run: cargo build --release --locked --target ${{ matrix.target }} -p mcp-trace-validator -p mcp-trace-capture --bins
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+          TARGET: ${{ matrix.target }}
+        run: cargo build --release --locked --target "$TARGET" -p mcp-trace-validator -p mcp-trace-capture --bins
       - name: Smoke-test the binaries (native targets)
         # The x86_64 macOS build is cross-compiled on an arm64 runner, where
         # running it depends on Rosetta being on the image; it is built and
         # archived, not run.
         if: matrix.target != 'x86_64-apple-darwin'
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
-          BIN="target/${{ matrix.target }}/release"
-          VERSION="${{ needs.verify.outputs.version }}"
+          BIN="target/${TARGET}/release"
           "$BIN/mcp-trace-validator" --version | grep -Fx "mcp-trace-validator ${VERSION}"
           "$BIN/mcp-trace-capture" --version | grep -Fx "mcp-trace-capture ${VERSION}"
-          "$BIN/mcp-trace-validator" validate corpus/draft/violations/mrtr-019-retry-reuses-id.jsonl --quiet \
-            && { echo "::error::a violation trace passed"; exit 1; } || [[ $? -eq 1 ]]
+          # A violation trace must exit 1 (findings): 0 means it passed, and 2
+          # means the binary could not judge it at all. Both fail the step.
+          status=0
+          "$BIN/mcp-trace-validator" validate corpus/draft/violations/mrtr-019-retry-reuses-id.jsonl --quiet || status=$?
+          if [[ "$status" -ne 1 ]]; then
+            echo "::error::a violation trace exited ${status}, expected 1"
+            exit 1
+          fi
       - name: Archive
         id: archive
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          ARCHIVE: ${{ matrix.archive }}
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
-          NAME="mcp-conformance-v${{ needs.verify.outputs.version }}-${{ matrix.target }}"
+          # This name is what each crate's [package.metadata.binstall] pkg-url
+          # and bin-dir templates expect; change both together.
+          NAME="mcp-conformance-v${VERSION}-${TARGET}"
           EXT=""
-          [[ "${{ matrix.target }}" == *windows* ]] && EXT=".exe"
+          if [[ "$TARGET" == *windows* ]]; then EXT=".exe"; fi
           mkdir "$NAME"
-          cp "target/${{ matrix.target }}/release/mcp-trace-validator${EXT}" \
-             "target/${{ matrix.target }}/release/mcp-trace-capture${EXT}" \
+          cp "target/${TARGET}/release/mcp-trace-validator${EXT}" \
+             "target/${TARGET}/release/mcp-trace-capture${EXT}" \
              LICENSE README.md "$NAME/"
-          if [[ "${{ matrix.archive }}" == zip ]]; then
+          if [[ "$ARCHIVE" == zip ]]; then
             7z a -tzip "$NAME.zip" "$NAME" > /dev/null
           else
             tar -czf "$NAME.tar.gz" "$NAME"
           fi
-          echo "file=$NAME.${{ matrix.archive }}" >> "$GITHUB_OUTPUT"
+          echo "file=$NAME.${ARCHIVE}" >> "$GITHUB_OUTPUT"
       - name: Attest build provenance (SLSA)
         if: github.ref_type == 'tag'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
@@ -278,6 +380,8 @@ jobs:
       contents: write # create the release and upload assets
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Download release artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -297,13 +401,15 @@ jobs:
           set -euo pipefail
           cd release-binaries
           ls
-          [[ $(ls | wc -l) -eq 5 ]] || { echo "::error::expected 5 archives"; exit 1; }
+          count="$(find . -maxdepth 1 -type f | wc -l)"
+          [[ "$count" -eq 5 ]] || { echo "::error::expected 5 archives, found ${count}"; exit 1; }
           sha256sum ./* | tee ../SHA256SUMS-binaries
       - name: Extract changelog section
         shell: bash
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
-          VERSION="${{ needs.verify.outputs.version }}"
           awk -v ver="${VERSION}" '
             $0 ~ "^## \\[" ver "\\]" { flag = 1; next }
             /^## \[/ { flag = 0 }
@@ -315,12 +421,13 @@ jobs:
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
+          IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
         shell: bash
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
           PRE_FLAG=""
-          [[ "${{ needs.verify.outputs.is_prerelease }}" == "true" ]] && PRE_FLAG="--prerelease"
+          if [[ "$IS_PRERELEASE" == "true" ]]; then PRE_FLAG="--prerelease"; fi
           # Idempotent: a re-run (or a release created via the web UI alongside
           # the tag) updates in place instead of failing.
           if gh release view "$TAG" &>/dev/null; then
@@ -351,12 +458,21 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC exchange with crates.io (trusted publishing)
+    # Nothing in this job compiles. It holds the OIDC grant that crates.io's
+    # trusted publisher accepts (workflow release.yml + environment release),
+    # so it must not run code it did not write: no dependency build script, no
+    # proc macro, no cache restored from another run. The verification builds
+    # already ran — `package` above (`cargo package` without --no-verify) and
+    # the full gate set in `verify` — so here packaging and publishing both
+    # pass --no-verify, and the byte comparison against the attested
+    # SHA256SUMS stays the fail-closed check that the bytes are the same.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain
         run: |
           rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Download attested artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -364,15 +480,16 @@ jobs:
           path: attested/
       - name: Prove packaging determinism against the attested checksums
         # `cargo publish` re-packages from source, so what reaches crates.io is
-        # this job's build. Byte-comparing it against the attested SHA256SUMS
-        # makes "the attestation covers what was published" a checked fact
-        # rather than an assumption.
+        # this job's packaging. Byte-comparing it against the attested
+        # SHA256SUMS makes "the attestation covers these bytes" a checked fact
+        # rather than an assumption. `--check --strict` fails on any mismatch
+        # or malformed line, and every attested file must be present.
         shell: bash
         run: |
           set -euo pipefail
-          cargo package --workspace --exclude xtask --locked
+          cargo package --workspace --exclude xtask --locked --no-verify
           cd target/package
-          sha256sum --check ../../attested/SHA256SUMS
+          sha256sum --check --strict ../../attested/SHA256SUMS
       - name: Authenticate with crates.io (OIDC trusted publishing)
         # This 30-minute OIDC-minted token is the only credential this workflow
         # can publish with — there is no token fallback (ADR-0007 §Correction).
@@ -381,57 +498,71 @@ jobs:
       - name: Publish in dependency order (idempotent, resumable)
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.oidc.outputs.token }}
+          VERSION: ${{ needs.verify.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="${{ needs.verify.outputs.version }}"
 
           # Resumable fix-forward (a2a-rust pattern, minus yank recovery — this
-          # project never yanks to repair a release): "already uploaded" is
-          # success, so re-running a partially published tag skips completed
-          # crates and continues the chain; transient failures retry with
-          # backoff. cargo itself (>= 1.66) blocks after each publish until the
-          # crate is visible in the index, so dependents always resolve.
+          # project never yanks to repair a release). A version already on
+          # crates.io is success, so re-running a partially published tag
+          # skips completed crates and continues the chain. cargo reports that
+          # case before uploading as "crate X@V already exists on crates.io
+          # index"; "already uploaded" is the registry's own wording when the
+          # pre-check races. Both are matched.
+          #
+          # Only transient failures are retried: HTTP 5xx, curl's network and
+          # timeout codes, and a sibling not yet visible in the index (cargo
+          # waits for each upload to appear, but gives up after a minute and
+          # carries on). Anything else — a 4xx such as a trusted-publishing
+          # refusal for a crate with no publisher configured, a manifest
+          # error — cannot succeed on retry and fails at once, with the log.
+          already='already (uploaded|exists on)'
+          transient='status 5[0-9][0-9]|\[(6|7|28|35|52|55|56)\] |[Tt]imed out|[Tt]imeout was reached|[Cc]onnection (reset|refused|closed)|failed to select a version for the requirement `mcp-'
+
           publish_crate() {
-            local crate="$1" max_attempts=5 attempt=1
+            local crate="$1" max_attempts=5 attempt=1 log="${RUNNER_TEMP}/publish-${1}.log"
             echo "::group::cargo publish — ${crate} v${VERSION}"
-            while (( attempt <= max_attempts )); do
-              if cargo publish -p "$crate" --locked 2>&1 | tee "/tmp/publish-${crate}.log"; then
+            while true; do
+              if cargo publish -p "$crate" --locked --no-verify 2>&1 | tee "$log"; then
                 echo "::endgroup::"
                 return 0
               fi
-              if grep -q "already uploaded" "/tmp/publish-${crate}.log"; then
+              if grep -qE "$already" "$log"; then
                 echo "::warning::${crate} v${VERSION} already on crates.io — resuming with the next crate"
                 echo "::endgroup::"
                 return 0
               fi
-              if (( attempt < max_attempts )); then
-                local wait=$(( 2 ** attempt ))
-                echo "::warning::publish failed — retrying in ${wait}s (attempt ${attempt}/${max_attempts})"
-                sleep "$wait"
-                attempt=$(( attempt + 1 ))
-              else
+              if ! grep -qE "$transient" "$log"; then
+                echo "::error::cargo publish -p ${crate} failed with a non-transient error (log above); not retrying"
+                echo "::endgroup::"
+                return 1
+              fi
+              if (( attempt >= max_attempts )); then
                 echo "::error::cargo publish -p ${crate} failed after ${max_attempts} attempts"
                 echo "::endgroup::"
                 return 1
               fi
+              local wait=$(( 10 * 2 ** (attempt - 1) ))
+              echo "::warning::transient publish failure — retrying in ${wait}s (attempt ${attempt}/${max_attempts})"
+              sleep "$wait"
+              attempt=$(( attempt + 1 ))
             done
           }
 
-          # Dependency order: core has no internal deps; everything else
-          # depends only on core.
-          publish_crate mcp-conformance-core
-          publish_crate mcp-trace-validator
-          publish_crate mcp-trace-capture
-          publish_crate mcp-everything-server
-          publish_crate mcp-reference-host
+          # PUBLISH_ORDER (workflow env) lists every crate after each sibling it
+          # names in any dependency table; the verify job checked that.
+          read -r -a order <<< "$PUBLISH_ORDER"
+          for crate in "${order[@]}"; do
+            publish_crate "$crate"
+          done
 
           {
             echo "## Published v${VERSION} to crates.io"
             echo ""
             echo "| Crate | Link |"
             echo "|-------|------|"
-            for crate in mcp-conformance-core mcp-trace-validator mcp-trace-capture mcp-everything-server mcp-reference-host; do
+            for crate in "${order[@]}"; do
               echo "| ${crate} | [crates.io](https://crates.io/crates/${crate}/${VERSION}) |"
             done
             echo ""
@@ -472,14 +603,17 @@ jobs:
       contents: read
     steps:
       - name: Install toolchain
+        env:
+          TOOLCHAIN: ${{ matrix.toolchain }}
         run: |
-          rustup toolchain install ${{ matrix.toolchain }} --profile minimal --no-self-update
-          rustup default ${{ matrix.toolchain }}
+          rustup toolchain install "$TOOLCHAIN" --profile minimal --no-self-update
+          rustup default "$TOOLCHAIN"
       - name: cargo install the two user-facing tools, exactly as the README tells users to
         shell: bash
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
-          VERSION="${{ needs.verify.outputs.version }}"
           for crate in mcp-trace-validator mcp-trace-capture; do
             # The sparse index can lag behind a completed publish at some CDN
             # edges, so a miss here is retried before it is believed.
@@ -495,9 +629,10 @@ jobs:
           done
       - name: The installed binaries run and are the version we published
         shell: bash
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
-          VERSION="${{ needs.verify.outputs.version }}"
           # Closes the loop: resolving and building is not the same as shipping
           # a binary that starts and reports itself correctly.
           for binary in mcp-trace-validator mcp-trace-capture; do
@@ -514,8 +649,10 @@ jobs:
         # the Cargo.lock published inside the crate still resolves, so a future
         # `--locked` install (the reproducible one) is not already broken.
         shell: bash
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
           for crate in mcp-trace-validator mcp-trace-capture; do
-            cargo install "${crate}" --version "${{ needs.verify.outputs.version }}" --locked --force
+            cargo install "${crate}" --version "${VERSION}" --locked --force
           done
