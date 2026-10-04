@@ -208,21 +208,34 @@ fn negotiated_version<'a>(context: &TraceContext<'a>) -> Option<(u64, &'a str)> 
 ///
 /// Both clauses demand one of the same two content types for their success
 /// case (POST answering a request; GET opening a stream), so the check is
-/// sound without knowing the request method. Non-200 paths (202 accepted,
-/// error statuses, 405) carry no such obligation and are not examined.
+/// sound without telling those two apart. A `DELETE` is a different matter:
+/// the spec sets no body or content type for a successful session teardown,
+/// and the official TypeScript SDK answers it `200` with no body at all. A
+/// trace carries no request/response correlation for HTTP events, so a 200 is
+/// attributed to the nearest preceding client request; when that request is a
+/// `DELETE` the 200 is not examined. Concurrency can only make that attribution
+/// skip a 200 it should have judged, never convict one it should not.
+/// Non-200 paths (202 accepted, error statuses, 405) carry no such obligation
+/// and are not examined. The media type is compared exactly, parameters
+/// aside: `application/json-seq` is not `application/json`.
 pub(super) fn success_content_type(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    let mut answering_delete = false;
     for event in context.events() {
-        if event.direction != Direction::ServerToClient {
-            continue;
-        }
         let EventBody::Http {
-            status: Some(200),
+            method,
+            status,
             headers,
-            ..
         } = &event.body
         else {
             continue;
         };
+        if event.direction == Direction::ClientToServer {
+            answering_delete = method.as_deref() == Some("DELETE");
+            continue;
+        }
+        if *status != Some(200) || answering_delete {
+            continue;
+        }
         sink.examined();
         match headers.get("content-type") {
             None => sink.push(
@@ -232,8 +245,13 @@ pub(super) fn success_content_type(context: &TraceContext<'_>, sink: &mut Findin
                     .to_owned(),
             ),
             Some(content_type) => {
-                let lowered = content_type.to_ascii_lowercase();
-                if !lowered.contains("application/json") && !lowered.contains("text/event-stream") {
+                let media_type = content_type
+                    .split(';')
+                    .next()
+                    .unwrap_or_default()
+                    .trim()
+                    .to_ascii_lowercase();
+                if media_type != "application/json" && media_type != "text/event-stream" {
                     sink.push(
                         Some(event.seq),
                         format!(
@@ -423,5 +441,39 @@ mod tests {
         }
         let accepted = r#"{"seq":0,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":202}"#;
         assert!(findings_for("transport.success-content-type", accepted).is_empty());
+    }
+
+    #[test]
+    fn success_content_type_does_not_judge_a_session_teardown() {
+        // The official TypeScript SDK answers DELETE with `200` and no body or
+        // Content-Type; neither TRAN-029 (POST) nor TRAN-040 (GET) reaches it.
+        let teardown = [
+            http_session(r#"{"content-type":"application/json"}"#, "{}"),
+            r#"{"seq":6,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"DELETE","headers":{"mcp-session-id":"abc"}}"#.to_owned(),
+            r#"{"seq":7,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":200}"#.to_owned(),
+        ]
+        .join("\n");
+        assert!(findings_for("transport.success-content-type", &teardown).is_empty());
+
+        // The same bare 200 after a POST is still a violation.
+        let after_post = teardown.replace(r#""method":"DELETE""#, r#""method":"POST""#);
+        let findings = findings_for("transport.success-content-type", &after_post);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("seq") || findings[0].contains("no Content-Type"));
+    }
+
+    #[test]
+    fn success_content_type_compares_the_media_type_exactly() {
+        for bad in [
+            r#"{"content-type":"application/json-seq"}"#,
+            r#"{"content-type":"text/plain, application/json"}"#,
+        ] {
+            let findings = findings_for("transport.success-content-type", &http_session(bad, "{}"));
+            assert_eq!(findings.len(), 1, "{bad}: {findings:?}");
+        }
+        let upper = r#"{"content-type":"Application/JSON ; charset=UTF-8"}"#;
+        assert!(
+            findings_for("transport.success-content-type", &http_session(upper, "{}")).is_empty()
+        );
     }
 }

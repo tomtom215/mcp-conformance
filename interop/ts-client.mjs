@@ -41,4 +41,7 @@ if (caps.prompts) {
   if (simple) await client.getPrompt({ name: simple.name });
 }
 if (caps.logging) await client.setLoggingLevel("info");
+// Over HTTP, end the session explicitly: the DELETE teardown is part of what
+// the recording must judge correctly (the TS SDK answers it 200, no body).
+if (mode === "http") await transport.terminateSession();
 await client.close();
