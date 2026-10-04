@@ -302,6 +302,9 @@ pub(super) struct Mirror {
     pub value: String,
     /// Whether the Base64 sentinel may carry this header's value.
     pub encodable: bool,
+    /// Whether the body value is a JSON integer, which TRAN-101 asks servers to
+    /// compare numerically rather than as text.
+    pub integer: bool,
 }
 
 /// The mirrors `post` must satisfy, given the designations the trace declared.
@@ -323,6 +326,7 @@ pub(super) fn mirrors(
         source: "method".to_owned(),
         value: method.to_owned(),
         encodable: false,
+        integer: false,
     });
     let params = post.payload.get("params");
     if let Some((_, field)) = NAME_SOURCED.iter().find(|(name, _)| *name == method)
@@ -336,6 +340,7 @@ pub(super) fn mirrors(
             source: format!("params.{field}"),
             value: value.to_owned(),
             encodable: true,
+            integer: false,
         });
     }
     let tool = params
@@ -346,10 +351,11 @@ pub(super) fn mirrors(
         .flatten();
     let arguments = params.and_then(|params| params.get("arguments"));
     for designation in declared.into_iter().flatten() {
-        let Some(value) = arguments
-            .and_then(|arguments| value_at(arguments, &designation.path))
-            .and_then(header_text)
+        let Some(instance) = arguments.and_then(|arguments| value_at(arguments, &designation.path))
         else {
+            continue;
+        };
+        let Some(value) = header_text(instance) else {
             continue;
         };
         out.push(Mirror {
@@ -358,6 +364,7 @@ pub(super) fn mirrors(
             source: format!("params.arguments.{}", designation.path.join(".")),
             value,
             encodable: true,
+            integer: instance.is_i64() || instance.is_u64(),
         });
     }
     out

@@ -214,7 +214,8 @@ pub(in crate::checks) fn header_body_match_validated(
                 continue;
             };
             sink.examined();
-            if compare(sent, &mirror.value) == Match::Mismatch {
+            if compare(sent, &mirror.value) == Match::Mismatch && !numerically_equal(&mirror, sent)
+            {
                 sink.push(
                     Some(exchange.response.seq),
                     format!(
@@ -226,6 +227,42 @@ pub(in crate::checks) fn header_body_match_validated(
             }
         }
     }
+}
+
+/// Whether an integer-valued mirror's header names the same number as the body.
+///
+/// TRAN-101: "When validating integer parameter values, servers SHOULD compare
+/// the header value and the body value numerically rather than as strings (e.g.,
+/// `42.0` and `42` are considered equal)." A server that does so and serves
+/// `Mcp-Param-N: 42.0` against `n: 42` followed the specification's own advice,
+/// so the pair is not a mismatch it failed to reject.
+fn numerically_equal(mirror: &super::Mirror, sent: &str) -> bool {
+    mirror.integer && canonical_integer(sent).is_some_and(|sent| sent == mirror.value)
+}
+
+/// A decimal numeral naming an integer, in the body's canonical spelling
+/// (`42.0`, `+42` and `042` → `42`); `None` for anything else. Exact decimal
+/// text throughout: a float would round past 2^53, where TOOL-034 lives.
+fn canonical_integer(text: &str) -> Option<String> {
+    let text = text.trim();
+    let (negative, digits) = match text.as_bytes().first()? {
+        b'-' => (true, &text[1..]),
+        b'+' => (false, &text[1..]),
+        _ => (false, text),
+    };
+    let (whole, fraction) = digits.split_once('.').unwrap_or((digits, ""));
+    if whole.is_empty()
+        || !whole.bytes().all(|byte| byte.is_ascii_digit())
+        || !fraction.bytes().all(|byte| byte == b'0')
+    {
+        return None;
+    }
+    let whole = whole.trim_start_matches('0');
+    Some(match (whole.is_empty(), negative) {
+        (true, _) => "0".to_owned(),
+        (false, true) => format!("-{whole}"),
+        (false, false) => whole.to_owned(),
+    })
 }
 
 /// `TRAN-074`: an unsupported protocol version draws

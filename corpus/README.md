@@ -42,9 +42,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 57 | 93 |
+| Goldens | 57 | 94 |
 | Excluded rows the ledger holds | 87 | 148 |
-| Distinct not-observed sets across them | 29 | 78 |
+| Distinct not-observed sets across them | 29 | 79 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -527,6 +527,7 @@ falsifies exactly the requirement it is named for.
 | `tran-096-invalid-param-header-accepted.jsonl` | A recognized `Mcp-Param-Region` whose value has leading whitespace, answered with a result (TRAN-096). Also falsifies TRAN-077/086/087 — the unencodable value the server had to reject is itself the client's encoding fault. |
 | `tran-077-param-header-value-rejected.jsonl` | The same unencodable `Mcp-Param-Region`, rejected with `-32020` and HTTP 400 as the rule requires (TRAN-077, TRAN-086, TRAN-087 — the client's encoding fault, which is all that is left to fail). TRAN-096's *pass* path: the value a server must reject is itself a client fault, so the conforming half of that clause cannot live in `good/` and is carried here instead. |
 | `tran-097-header-body-mismatch-accepted.jsonl` | `Mcp-Param-Region: us-east1` against `arguments.region = "us-west1"`, answered with a result (TRAN-097, TRAN-100 — one rule stated in two sections) |
+| `tran-097-integer-header-different-number.jsonl` | `Mcp-Param-Limit: 41` against an integer `arguments.limit = 42`, served (TRAN-097, TRAN-100; TRAN-058 is not involved — the client's own mirroring defect has no separate clause here). Pins that the numeric comparison TRAN-101 recommends, which since 2026-10-04 lets `42.0` match `42`, still rejects a different number. |
 | `tran-097-mismatch-after-concurrent-posts.jsonl` | The same session as `good/http-concurrent-posts.jsonl`, except the final, serial POST carries `Mcp-Name: beta` against `params.name = "alpha"` and is served (TRAN-097, TRAN-100; TRAN-058 for the client's header — the antecedent of a failure to reject). Pins that the ambiguity rule withholds judgement only on the overlapping POSTs: once they drain, pairing — and conviction — resume. |
 | `tran-098-header-mismatch-without-400.jsonl` | `HeaderMismatch` returned with HTTP 500 rather than 400 (TRAN-098, TRAN-102 — one rule stated in two sections) |
 | `tran-074-unsupported-version-without-400.jsonl` | `-32022` returned with HTTP 200 rather than 400 (TRAN-074). The status half of that clause had no trace of its own until `transport.unsupported-version-status` was split out; it had been riding the kills of the sibling rules it was bundled with. |
