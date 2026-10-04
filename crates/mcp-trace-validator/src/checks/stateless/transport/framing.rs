@@ -35,8 +35,10 @@
 //!   streams is another request's.
 //!   A status no recorded exchange awaited — a hand-built or partial trace with
 //!   response framing only — frames the message immediately after it.
-//! - **Unreadable ids**: a response whose `id` is null rides a status only when
-//!   it is the first message after a status that is unambiguously its request's.
+//! - **Unreadable ids** ([`Framing::unidentified_answers`]): a response whose
+//!   `id` is null is tied to a request only when it is the first message after
+//!   a status that is unambiguously that request's — the one case where "the
+//!   ID could not be read" can be checked against the request the trace holds.
 
 use std::collections::BTreeMap;
 
@@ -70,6 +72,9 @@ pub(in crate::checks::stateless) struct Framing<'a> {
     posts: Vec<Post<'a>>,
     /// Response message `seq` → the status `(seq, code)` it rode.
     statuses: BTreeMap<u64, (u64, u16)>,
+    /// Null-`id` response message `seq` → the `seq` of the request message it
+    /// answers, where the framing says.
+    answers: BTreeMap<u64, u64>,
 }
 
 impl<'a> Framing<'a> {
@@ -93,6 +98,16 @@ impl<'a> Framing<'a> {
     pub(in crate::checks::stateless) fn status_for(&self, seq: u64) -> Option<(u64, u16)> {
         self.statuses.get(&seq).copied()
     }
+
+    /// The null-`id` responses the framing ties to a request, as
+    /// `(response seq, request message seq)`, in trace order.
+    pub(in crate::checks::stateless) fn unidentified_answers(
+        &self,
+    ) -> impl Iterator<Item = (u64, u64)> + '_ {
+        self.answers
+            .iter()
+            .map(|(response, request)| (*response, *request))
+    }
 }
 
 /// The one-pass state behind [`Framing::new`].
@@ -115,8 +130,8 @@ struct Builder<'a> {
 /// Whose response a status began.
 #[derive(Debug, Clone, Copy)]
 enum Owner {
-    /// The one request message awaiting a status.
-    Request,
+    /// The request message at this `seq`, unambiguously.
+    Request(u64),
     /// No recorded client exchange was awaiting one: a recording that carries
     /// response framing but not request framing. The message immediately after
     /// it is the body it framed — the only reading such a trace supports.
@@ -240,7 +255,7 @@ impl<'a> Builder<'a> {
             .flatten();
         let owner = attributed
             .as_ref()
-            .map_or(Owner::Unknown, |_| Owner::Request);
+            .map_or(Owner::Unknown, |(seq, _)| Owner::Request(*seq));
         self.fresh_status = Some((status, owner));
         if let Some((request_seq, Some(id))) = attributed
             && let Some(entry) = self.requests.get_mut(&id)
@@ -265,8 +280,9 @@ impl<'a> Builder<'a> {
                     self.framing.statuses.insert(seq, status);
                 }
             }
-            (None, Some((status, Owner::Request))) => {
+            (None, Some((status, Owner::Request(request_seq)))) => {
                 self.framing.statuses.insert(seq, status);
+                self.framing.answers.insert(seq, request_seq);
             }
             (None, _) => {}
         }

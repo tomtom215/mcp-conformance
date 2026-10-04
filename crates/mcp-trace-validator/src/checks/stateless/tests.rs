@@ -116,6 +116,7 @@ fn a_null_id_answer_is_tied_only_to_an_unambiguous_status() {
         answer(3, "null"),
     ];
     with_framing(&lines, |framing| {
+        assert_eq!(framing.unidentified_answers().collect::<Vec<_>>(), [(3, 1)]);
         assert_eq!(framing.status_for(3), Some((2, 400)));
     });
     // With two exchanges awaiting a status, the null-id answer is no one's.
@@ -128,6 +129,7 @@ fn a_null_id_answer_is_tied_only_to_an_unambiguous_status() {
         answer(5, "null"),
     ];
     with_framing(&overlapping, |framing| {
+        assert_eq!(framing.unidentified_answers().count(), 0);
         assert_eq!(framing.status_for(5), None);
     });
 }
