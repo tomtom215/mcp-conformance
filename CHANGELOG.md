@@ -205,7 +205,8 @@ Each is stated again in the entry that introduced it, with the reasoning.
   an elicitation in a mode the client did not declare (`elicitation: {}` is form
   only), a sampling request carrying `tools` without `sampling.tools`, and a
   task-augmented `tools/call` without the server's `tasks.requests.tools.call` —
-  each a MUST NOT on its own page.
+  each a MUST NOT on its own page — and a `tasks/list` or `tasks/cancel` sent to a
+  party that did not declare `tasks.list` or `tasks.cancel`.
 - **HTTP status and `Content-Type` are judged per exchange.** `TRAN-029`/`TRAN-063`
   and `TRAN-040` shared one check that accepted either media type on any `200`, so a
   GET answered with JSON passed, a request answered `202` was never examined, and a

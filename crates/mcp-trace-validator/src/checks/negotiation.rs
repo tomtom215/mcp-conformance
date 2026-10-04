@@ -152,6 +152,34 @@ const GATED_METHODS: &[(Direction, &str, CapabilityParty, &[&str])] = &[
         CapabilityParty::Client,
         &["roots"],
     ),
+    // `basic/utilities/tasks`: "`capabilities.tasks.list` controls if the
+    // `tasks/list` operation is supported by the party", and likewise `cancel`.
+    // Either party may receive them. `tasks/get` and `tasks/result` have no
+    // capability of their own.
+    (
+        Direction::ClientToServer,
+        "tasks/list",
+        CapabilityParty::Server,
+        &["tasks", "list"],
+    ),
+    (
+        Direction::ClientToServer,
+        "tasks/cancel",
+        CapabilityParty::Server,
+        &["tasks", "cancel"],
+    ),
+    (
+        Direction::ServerToClient,
+        "tasks/list",
+        CapabilityParty::Client,
+        &["tasks", "list"],
+    ),
+    (
+        Direction::ServerToClient,
+        "tasks/cancel",
+        CapabilityParty::Client,
+        &["tasks", "cancel"],
+    ),
 ];
 
 /// `LIFE-009`: every capability-gated message must ride on a declared capability.
@@ -411,6 +439,31 @@ mod tests {
             r#"{"tools":{},"tasks":{"requests":{"tools":{"call":{}}}}}"#,
         );
         assert!(findings_for(&format!("{declared}\n{call}")).is_empty());
+    }
+
+    #[test]
+    fn listing_or_cancelling_tasks_needs_the_receivers_capability() {
+        let list = r#"{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tasks/list"}}"#;
+        let cancel = r#"{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":"s1","method":"tasks/cancel","params":{"taskId":"t"}}}"#;
+        let undeclared = format!(
+            "{}\n{list}\n{cancel}",
+            handshake(r#"{"tasks":{}}"#, r#"{"tasks":{}}"#)
+        );
+        let findings = findings_for(&undeclared);
+        assert_eq!(findings.len(), 2, "{findings:?}");
+        assert!(
+            findings[0].contains("server capability tasks.list"),
+            "{findings:?}"
+        );
+        assert!(
+            findings[1].contains("client capability tasks.cancel"),
+            "{findings:?}"
+        );
+        let declared = format!(
+            "{}\n{list}\n{cancel}",
+            handshake(r#"{"tasks":{"cancel":{}}}"#, r#"{"tasks":{"list":{}}}"#)
+        );
+        assert!(findings_for(&declared).is_empty());
     }
 
     #[test]
