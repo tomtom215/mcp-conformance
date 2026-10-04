@@ -11,6 +11,7 @@
 #![cfg(feature = "cli")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use std::fmt::Write as _;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -845,16 +846,11 @@ fn a_trace_of_two_sessions_says_so() {
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
-    let twice: String = events
-        .iter()
-        .chain(&events)
-        .cloned()
-        .enumerate()
-        .map(|(seq, mut event)| {
-            event["seq"] = serde_json::json!(seq);
-            format!("{event}\n")
-        })
-        .collect();
+    let mut twice = String::new();
+    for (seq, mut event) in events.iter().chain(&events).cloned().enumerate() {
+        event["seq"] = serde_json::json!(seq);
+        writeln!(twice, "{event}").unwrap();
+    }
     let path = std::env::temp_dir().join(format!("two-sessions-{}.jsonl", std::process::id()));
     std::fs::write(&path, twice).unwrap();
     let output = run(&["validate", "--quiet", path.to_str().unwrap()]);
