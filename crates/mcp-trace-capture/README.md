@@ -144,6 +144,8 @@ event.
 - **One session per trace.** The validator judges a trace as one session. Record one
   client at a time, or run one proxy per client: concurrent clients through one proxy
   interleave, and request ids reused across them read as reuse within one session.
+  The capture warns at exit when its trace holds more than one session (more than one
+  client `initialize` request, or more than one `Mcp-Session-Id`).
 - **The SDK-independent path.** The wrapper and proxy link no MCP SDK; what is recorded
   is what crossed the wire.
 

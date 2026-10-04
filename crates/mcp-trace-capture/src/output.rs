@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use mcp_conformance_core::trace::{DEFAULT_MAX_LINE_BYTES, LINE_ENVELOPE_BYTES};
 use mcp_trace_capture::Recorder;
+use mcp_trace_capture::recorder::Sessions;
 
 /// The exit code for a session whose trace is incomplete, when it would otherwise
 /// be 0.
@@ -95,8 +96,10 @@ pub fn finish(recorder: &Recorder, path: &Path, code: u8) -> u8 {
             summary.recorded,
             summary.dropped
         );
+        warn_about_sessions(&summary.sessions);
         return if code == 0 { EXIT_INCOMPLETE } else { code };
     }
+    warn_about_sessions(&summary.sessions);
     eprintln!(
         "mcp-trace-capture: recorded {} event(s) to {}; validate with \
          `mcp-trace-validator validate {}`",
@@ -105,4 +108,19 @@ pub fn finish(recorder: &Recorder, path: &Path, code: u8) -> u8 {
         path.display()
     );
     code
+}
+
+/// Says so when the trace holds more than one session, which the validator would
+/// judge as one.
+fn warn_about_sessions(sessions: &Sessions) {
+    let count = sessions.count();
+    if count > 1 {
+        eprintln!(
+            "mcp-trace-capture: warning: this trace holds {count} sessions ({} initialize \
+             request(s), {} session ID(s)); mcp-trace-validator judges a trace as one \
+             session, so their ids and ordering mix — record one client per capture run",
+            sessions.initialize_requests,
+            sessions.session_ids.len()
+        );
+    }
 }

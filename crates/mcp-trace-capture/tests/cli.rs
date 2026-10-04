@@ -765,3 +765,43 @@ fn listening_beyond_loopback_is_warned_about() {
         "{before_listening:?}"
     );
 }
+
+/// The validator judges a trace as one session. A capture that saw several —
+/// two `initialize` requests here — says so at exit, rather than leaving the
+/// user to puzzle over "id reused" findings.
+#[cfg(unix)]
+#[test]
+fn a_trace_holding_several_sessions_is_warned_about() {
+    let trace = scratch("sessions");
+    let initialize = |id: u32| {
+        format!("{{\"jsonrpc\":\"2.0\",\"id\":{id},\"method\":\"initialize\",\"params\":{{}}}}\n")
+    };
+    let mut command = binary();
+    command.args(["-o", trace.to_str().unwrap(), "stdio", "--", "cat"]);
+    let output = run_with_stdin(command, initialize(1).as_bytes());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("this trace holds"),
+        "one session: {stderr}"
+    );
+
+    let mut command = binary();
+    command.args([
+        "--force",
+        "-o",
+        trace.to_str().unwrap(),
+        "stdio",
+        "--",
+        "cat",
+    ]);
+    let output = run_with_stdin(
+        command,
+        format!("{}{}", initialize(1), initialize(1)).as_bytes(),
+    );
+    std::fs::remove_file(&trace).ok();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("warning: this trace holds 2 sessions"),
+        "{stderr}"
+    );
+}
