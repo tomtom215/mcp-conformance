@@ -457,6 +457,11 @@
           "check": "caching.hints-on-cacheable-results",
           "seq": 1,
           "detail": "the `complete` result of `tools/list` carries no `ttlMs` caching hint"
+        },
+        {
+          "check": "caching.hints-on-cacheable-results",
+          "seq": 1,
+          "detail": "the `complete` result of `tools/list` carries no `cacheScope` caching hint"
         }
       ],
       "source": {

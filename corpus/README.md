@@ -42,7 +42,7 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 57 | 95 |
+| Goldens | 57 | 96 |
 | Excluded rows the ledger holds | 87 | 148 |
 | Distinct not-observed sets across them | 29 | 79 |
 
@@ -549,6 +549,7 @@ falsifies exactly the requirement it is named for.
 | `log-010-unrecognized-log-level-accepted.jsonl` | A request declaring log level `verbose`, served rather than rejected with `-32602` (LOG-010) |
 | `page-011-unissued-cursor-accepted.jsonl` | A `tools/list` presenting a cursor the session never issued, answered with a result (PAGE-011). Also falsifies PAGE-002 at its own revision's registry, and PAGE-010 here — the fabricated cursor is the client's defect and this clause's antecedent. |
 | `cach-001-cacheable-result-without-hints.jsonl` | A `complete` `tools/list` result with no `ttlMs` caching hint (CACH-001) |
+| `cach-001-ttl-without-cache-scope.jsonl` | A `complete` `tools/list` result carrying `ttlMs` but no `cacheScope` (CACH-001). The page defines "caching hints" as both fields ("Cacheable Results in MCP use two fields to provide caching hints"), and the schema's `CacheableResult` requires both; until 2026-10-04 the check accepted `ttlMs` alone. Three single-issue fixtures that had carried `ttlMs` without a scope (`res-012`, `tool-022`, `tool-034`) gained `"cacheScope":"public"` so they stay single-issue. |
 | `cach-008-negative-ttl.jsonl` | `ttlMs: -1`, which servers must never provide (CACH-008) |
 | `cach-015-page-scope-changes.jsonl` | A paginated `tools/list` whose second page switches from `private` to `public` (CACH-015, and CACH-016 — the same rule and its worked example) |
 | `subs-001-unrequested-notification-type.jsonl` | A `prompts/list_changed` on a subscription whose filter asked only for tools-list changes (SUBS-001) |
