@@ -35,6 +35,9 @@ const SUBSCRIPTION_ID: &str = "io.modelcontextprotocol/subscriptionId";
 /// The acknowledgment that must open every subscription.
 const ACKNOWLEDGED: &str = "notifications/subscriptions/acknowledged";
 
+/// The notification that ends a subscription on stdio.
+const CANCELLED: &str = "notifications/cancelled";
+
 /// Each notification type, and the filter field that requests it.
 const FILTERED: &[(&str, &str)] = &[
     ("notifications/tools/list_changed", "toolsListChanged"),
@@ -129,7 +132,7 @@ pub(in crate::checks) fn only_requested_notifications(
         let (Some(method), Some(subscription)) = (method, subscriptions.get(&id)) else {
             continue;
         };
-        if method == ACKNOWLEDGED {
+        if method == ACKNOWLEDGED || is_teardown(method, params, &id) {
             continue;
         }
         // The subject is a notification delivered on a subscription; the
@@ -142,6 +145,21 @@ pub(in crate::checks) fn only_requested_notifications(
             );
         }
     }
+}
+
+/// Whether a tagged message is the server ending subscription `id` on stdio.
+///
+/// basic/patterns/cancellation: "A server MUST send `notifications/cancelled`
+/// referencing a `subscriptions/listen` request ID when it tears down that
+/// subscription stream." That is the stream's own ending, like the
+/// acknowledgment is its opening — not a notification *type* the filter
+/// selects — so the filter cannot have failed to request it.
+fn is_teardown(method: &str, params: &Value, id: &str) -> bool {
+    method == CANCELLED
+        && params
+            .get("requestId")
+            // `id` is the subscription id's canonical JSON text.
+            .is_some_and(|request| serde_json::from_str::<Value>(id).ok().as_ref() == Some(request))
 }
 
 /// Why `method` was not requested by `filter`, or `None` when it was.

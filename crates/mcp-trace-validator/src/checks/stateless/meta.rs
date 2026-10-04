@@ -406,14 +406,13 @@ pub(in crate::checks) fn subscription_id_present(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let listening = context.messages().any(|(event, _, _)| {
-        event
-            .message_payload()
-            .and_then(|payload| payload.get("method"))
-            .and_then(Value::as_str)
-            == Some("subscriptions/listen")
-    });
-    if !listening {
+    let listens: std::collections::BTreeSet<String> = client_requests(context)
+        .filter(|(_, _, payload)| {
+            payload.get("method").and_then(Value::as_str) == Some("subscriptions/listen")
+        })
+        .filter_map(|(_, id, _)| id.map(ToString::to_string))
+        .collect();
+    if listens.is_empty() {
         return;
     }
     for (event, _, _) in context.messages() {
@@ -432,6 +431,19 @@ pub(in crate::checks) fn subscription_id_present(
         // are outside this clause.
         if method.starts_with("notifications/progress")
             || method.starts_with("notifications/message")
+        {
+            continue;
+        }
+        // The stdio teardown the cancellation page mandates — "A server MUST
+        // send `notifications/cancelled` referencing a `subscriptions/listen`
+        // request ID when it tears down that subscription stream" — names its
+        // subscription in `params.requestId`, the same value the tag would
+        // carry, and no clause asks it to repeat it in `_meta`.
+        if method == "notifications/cancelled"
+            && payload
+                .get("params")
+                .and_then(|params| params.get("requestId"))
+                .is_some_and(|id| listens.contains(&id.to_string()))
         {
             continue;
         }

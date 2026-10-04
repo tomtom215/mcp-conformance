@@ -242,3 +242,19 @@ fn a_stream_that_simply_stops_is_not_a_missing_response() {
     ]);
     assert!(findings_for(CLOSE_SHAPE, &session).is_empty());
 }
+
+#[test]
+fn the_server_teardown_is_not_an_unrequested_notification() {
+    // "A server MUST send `notifications/cancelled` referencing a
+    // `subscriptions/listen` request ID when it tears down that subscription
+    // stream": the stream's own ending, which no filter field selects.
+    let teardown = trace(&[
+        listen(0, 1, r#"{"toolsListChanged":true}"#),
+        ack(1, 1),
+        notify(2, 1, "notifications/cancelled", r#","requestId":1"#),
+    ]);
+    assert!(findings_for(ONLY_REQUESTED, &teardown).is_empty());
+    // Cancelling some *other* request on the stream is still unrequested.
+    let other = teardown.replace(r#""requestId":1"#, r#""requestId":2"#);
+    assert_eq!(findings_for(ONLY_REQUESTED, &other).len(), 1);
+}

@@ -377,3 +377,16 @@ fn the_status_clause_binds_only_the_malformed_envelope_that_drew_the_error() {
         "{malformed}"
     );
 }
+
+#[test]
+fn the_server_teardown_of_a_subscription_needs_no_tag() {
+    // The cancellation page mandates this exact message on stdio; it names the
+    // subscription in `requestId`, which is what the tag would have said.
+    let check = "meta.subscription-id-present";
+    let teardown = r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":1,"reason":"shutdown"}}"#;
+    assert!(findings_for(check, &listening(teardown)).is_empty());
+    // A cancellation naming anything but a listen request is still untagged
+    // traffic on a session with a listen stream.
+    let other = teardown.replace(r#""requestId":1"#, r#""requestId":7"#);
+    assert_eq!(findings_for(check, &listening(&other)).len(), 1);
+}
