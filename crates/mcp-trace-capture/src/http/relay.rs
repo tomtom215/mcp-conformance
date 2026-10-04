@@ -9,6 +9,7 @@ use std::sync::atomic::Ordering;
 
 use axum::body::{Body, Bytes};
 use axum::extract::{Request, State};
+use axum::http::uri::{Authority, Uri};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse as _, Response};
 use futures::{Stream, StreamExt as _, TryStreamExt as _};
@@ -39,9 +40,10 @@ pub(super) async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -
         ]
     };
     *upstream_request.headers_mut() = headers::forwardable(&parts.headers, dropped);
+    let uri = upstream_request.uri().clone();
     match proxy.client.request(upstream_request).await {
         Ok(upstream) => proxy.relay_response(upstream).await,
-        Err(error) => proxy.upstream_failed(&error),
+        Err(error) => proxy.upstream_failed(&uri, &error),
     }
 }
 
@@ -62,18 +64,18 @@ impl Proxy {
             },
         );
         let mut stream = body.into_data_stream();
-        let (prefix, complete) = read_prefix(&mut stream, self.options.max_message)
-            .await
-            .ok()?;
-        if complete {
-            self.record_body(Direction::ClientToServer, &prefix);
-            return Some(Body::from(prefix));
+        let prefix = read_prefix(&mut stream, self.options.max_message).await;
+        match prefix.end {
+            End::Complete => {
+                self.record_body(Direction::ClientToServer, &prefix.bytes);
+                Some(Body::from(prefix.bytes))
+            }
+            End::Over => {
+                self.counters.oversized.fetch_add(1, Ordering::Relaxed);
+                Some(then_rest(prefix.bytes, stream))
+            }
+            End::Failed(_) => None,
         }
-        self.counters.oversized.fetch_add(1, Ordering::Relaxed);
-        Some(Body::from_stream(
-            futures::stream::once(async move { Ok::<_, axum::Error>(Bytes::from(prefix)) })
-                .chain(stream),
-        ))
     }
 
     /// Records the upstream's response and relays it to the client.
@@ -95,19 +97,32 @@ impl Proxy {
         let body = if is_event_stream(&parts.headers) {
             Body::from_stream(Arc::clone(self).record_events(stream))
         } else {
-            let Ok((prefix, complete)) = read_prefix(&mut stream, self.options.max_message).await
-            else {
-                return self.upstream_failed(&"the response body was cut off");
-            };
-            if complete {
-                self.record_body(Direction::ServerToClient, &prefix);
-                Body::from(prefix)
-            } else {
-                self.counters.oversized.fetch_add(1, Ordering::Relaxed);
-                Body::from_stream(
-                    futures::stream::once(async move { Ok::<_, axum::Error>(Bytes::from(prefix)) })
-                        .chain(stream),
-                )
+            let prefix = read_prefix(&mut stream, self.options.max_message).await;
+            match prefix.end {
+                End::Complete => {
+                    self.record_body(Direction::ServerToClient, &prefix.bytes);
+                    Body::from(prefix.bytes)
+                }
+                End::Over => {
+                    self.counters.oversized.fetch_add(1, Ordering::Relaxed);
+                    then_rest(prefix.bytes, stream)
+                }
+                // The status and headers are the upstream's and are relayed as
+                // they came; the body ends where the upstream's did, with an
+                // error, so the client sees the same truncation it would have
+                // seen directly — not a 502 the proxy made up.
+                End::Failed(error) => {
+                    self.upstream_cut(&error);
+                    // Yield once first, so the head and the bytes before the cut
+                    // are flushed to the client before the error aborts it.
+                    then_rest(
+                        prefix.bytes,
+                        futures::stream::once(async move {
+                            tokio::task::yield_now().await;
+                            Err(error)
+                        }),
+                    )
+                }
             }
         };
         let mut response = Response::new(body);
@@ -157,7 +172,11 @@ impl Proxy {
         // At shutdown the stream ends between two chunks, so the client sees a
         // stream that closed rather than a proxy that will not stop.
         let stopping = super::stopped(self.stopping.clone());
+        // The upstream failing mid-stream reaches the client as the same
+        // truncation, and the trace as an aborted transport.
+        let on_error = Arc::clone(&self);
         stream
+            .inspect_err(move |error| on_error.upstream_cut(error))
             .inspect_ok(move |chunk| {
                 for data in parser.push(chunk) {
                     match parse_json(&data) {
@@ -183,11 +202,41 @@ impl Proxy {
             .take_until(stopping)
     }
 
-    /// The upstream could not be reached or failed mid-response. The 502 is the
-    /// proxy's, not the server's, so it is recorded as an aborted transport rather
-    /// than as a response.
-    fn upstream_failed(&self, error: &dyn std::fmt::Display) -> Response {
-        eprintln!("mcp-trace-capture: upstream request failed: {error}");
+    /// The upstream failed mid-response, after its status and headers were
+    /// relayed: the client sees the truncation; the trace records the transport as
+    /// aborted.
+    fn upstream_cut(&self, error: &dyn std::error::Error) {
+        eprintln!(
+            "mcp-trace-capture: the upstream's response was cut off ({}); the truncation \
+             is relayed to the client",
+            causes(error)
+        );
+        self.counters.upstream_cut.fetch_add(1, Ordering::Relaxed);
+        let _ = self.recorder.record(
+            Direction::ServerToClient,
+            TransportKind::StreamableHttp,
+            EventBody::Lifecycle {
+                event: LifecycleEvent::TransportAbort,
+            },
+        );
+    }
+
+    /// The upstream could not be reached, so there is no response to relay. The
+    /// 502 is the proxy's, not the server's, so it is recorded as an aborted
+    /// transport rather than as a response; its body names the upstream (without
+    /// the query, which can carry credentials) and the cause.
+    fn upstream_failed(&self, uri: &Uri, error: &dyn std::error::Error) -> Response {
+        let upstream = format!(
+            "{}://{}{}",
+            uri.scheme_str().unwrap_or("http"),
+            uri.authority().map_or("", Authority::as_str),
+            uri.path()
+        );
+        let message = format!(
+            "mcp-trace-capture: cannot reach the upstream {upstream}: {}",
+            causes(error)
+        );
+        eprintln!("{message}");
         self.counters
             .upstream_failures
             .fetch_add(1, Ordering::Relaxed);
@@ -198,25 +247,80 @@ impl Proxy {
                 event: LifecycleEvent::TransportAbort,
             },
         );
-        (
-            StatusCode::BAD_GATEWAY,
-            "mcp-trace-capture: upstream unreachable",
-        )
-            .into_response()
+        (StatusCode::BAD_GATEWAY, message).into_response()
     }
 }
 
-/// Reads up to `max` bytes; `true` when that was the whole body.
-pub(super) async fn read_prefix<S, E>(stream: &mut S, max: usize) -> Result<(Vec<u8>, bool), E>
+/// `error` and the errors behind it, each once: an HTTP client's own message
+/// ("client error (Connect)") says little without its sources.
+fn causes(error: &dyn std::error::Error) -> String {
+    let mut text = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        let cause_text = cause.to_string();
+        if !text.contains(&cause_text) {
+            text.push_str(": ");
+            text.push_str(&cause_text);
+        }
+        source = cause.source();
+    }
+    text
+}
+
+/// A body of `prefix` followed by whatever `rest` yields.
+fn then_rest<S>(prefix: Vec<u8>, rest: S) -> Body
+where
+    S: Stream<Item = Result<Bytes, axum::Error>> + Send + 'static,
+{
+    Body::from_stream(
+        futures::stream::once(async move { Ok::<_, axum::Error>(Bytes::from(prefix)) }).chain(rest),
+    )
+}
+
+/// How a body read by [`read_prefix`] stopped.
+#[derive(Debug)]
+pub(super) enum End<E> {
+    /// The body ended within the limit: the prefix is all of it.
+    Complete,
+    /// The body passed the limit; the rest is still in the stream.
+    Over,
+    /// The body failed before either.
+    Failed(E),
+}
+
+/// The start of a body, and how reading it stopped.
+#[derive(Debug)]
+pub(super) struct Prefix<E> {
+    pub(super) bytes: Vec<u8>,
+    pub(super) end: End<E>,
+}
+
+/// Reads until the body ends, fails, or passes `max` bytes — keeping what was
+/// read in every case.
+pub(super) async fn read_prefix<S, E>(stream: &mut S, max: usize) -> Prefix<E>
 where
     S: Stream<Item = Result<Bytes, E>> + Unpin,
 {
-    let mut prefix = Vec::new();
+    let mut bytes = Vec::new();
     while let Some(chunk) = stream.next().await {
-        prefix.extend_from_slice(&chunk?);
-        if prefix.len() > max {
-            return Ok((prefix, false));
+        match chunk {
+            Ok(chunk) => bytes.extend_from_slice(&chunk),
+            Err(error) => {
+                return Prefix {
+                    bytes,
+                    end: End::Failed(error),
+                };
+            }
+        }
+        if bytes.len() > max {
+            return Prefix {
+                bytes,
+                end: End::Over,
+            };
         }
     }
-    Ok((prefix, true))
+    Prefix {
+        bytes,
+        end: End::Complete,
+    }
 }

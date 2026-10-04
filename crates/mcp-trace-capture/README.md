@@ -101,6 +101,11 @@ certificates). SSE streams are relayed as they arrive, event by event.
   (removed, so the server answers uncompressed and the body can be recorded). The
   official conformance suite scores the same through the proxy as without it; this
   repository's CI checks that on every run.
+- **Upstream failures as they happened.** An upstream that fails mid-response reaches
+  the client as the same truncation — its status and headers, then a body cut off —
+  and the trace records `transport-abort`. Only an upstream that cannot be reached at
+  all gets the proxy's own `502`, whose body names the upstream (without its query)
+  and the cause.
 - **Causal order.** Each message is recorded before the bytes that complete it are
   forwarded, so a response is never recorded ahead of its request.
 - **Nothing altered to fit the trace.** A message larger than `--max-message-bytes`

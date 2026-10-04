@@ -104,6 +104,9 @@ pub struct Unrecorded {
     pub oversized: u64,
     /// Requests the upstream could not be reached for (answered 502 by the proxy).
     pub upstream_failures: u64,
+    /// Responses the upstream cut off after its status and headers (relayed to
+    /// the client as the same truncation; recorded as `transport-abort`).
+    pub upstream_cut: u64,
 }
 
 #[derive(Debug, Default)]
@@ -111,6 +114,7 @@ struct Counters {
     not_json: AtomicU64,
     oversized: AtomicU64,
     upstream_failures: AtomicU64,
+    upstream_cut: AtomicU64,
 }
 
 impl Counters {
@@ -119,6 +123,7 @@ impl Counters {
             not_json: self.not_json.load(Ordering::Relaxed),
             oversized: self.oversized.load(Ordering::Relaxed),
             upstream_failures: self.upstream_failures.load(Ordering::Relaxed),
+            upstream_cut: self.upstream_cut.load(Ordering::Relaxed),
         }
     }
 }

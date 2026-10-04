@@ -276,6 +276,13 @@ fn http_summary(served: std::io::Result<http::Unrecorded>) -> u8 {
                     unrecorded.upstream_failures
                 );
             }
+            if unrecorded.upstream_cut > 0 {
+                eprintln!(
+                    "mcp-trace-capture: {} response(s) were cut off by the upstream mid-body; \
+                     the truncation was relayed (recorded as transport-abort)",
+                    unrecorded.upstream_cut
+                );
+            }
             0
         }
         Err(error) => {

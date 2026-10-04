@@ -3,7 +3,7 @@
 
 #![allow(clippy::unwrap_used)]
 
-use super::relay::read_prefix;
+use super::relay::{End, read_prefix};
 use super::target::{is_event_stream, target};
 use super::*;
 use axum::body::Bytes;
@@ -17,8 +17,21 @@ fn prefix_of(chunks: &[usize]) -> (usize, bool) {
         .map(|&len| Ok(Bytes::from(vec![b'x'; len])))
         .collect();
     let mut stream = futures::stream::iter(chunks);
-    let (prefix, complete) = futures::executor::block_on(read_prefix(&mut stream, 1024)).unwrap();
-    (prefix.len(), complete)
+    let prefix = futures::executor::block_on(read_prefix(&mut stream, 1024));
+    (prefix.bytes.len(), matches!(prefix.end, End::Complete))
+}
+
+#[test]
+fn a_body_that_fails_keeps_what_was_read() {
+    let chunks: Vec<Result<Bytes, &str>> = vec![
+        Ok(Bytes::from_static(b"{\"a\":")),
+        Err("cut"),
+        Ok(Bytes::new()),
+    ];
+    let mut stream = futures::stream::iter(chunks);
+    let prefix = futures::executor::block_on(read_prefix(&mut stream, 1024));
+    assert_eq!(prefix.bytes, b"{\"a\":");
+    assert!(matches!(prefix.end, End::Failed("cut")));
 }
 
 #[test]
