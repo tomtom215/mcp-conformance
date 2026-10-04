@@ -15,9 +15,11 @@ members = [
 [workspace.package]
 edition = "2024"
 # MSRV policy (docs/plan/decisions/0008-msrv-1.88.md): 1.88 is the lowest bound
-# we verify in CI. It is forced by rmcp (undeclared upstream): rmcp's `macros`
-# feature pulls darling 0.23.0, which requires 1.88 (empirically re-verified
-# 2026-06-15, ADR-0008 §Correction). Our own code also uses let-chains (1.88).
+# we verify in CI. It is forced by rmcp: rmcp's `macros` feature pulls darling,
+# which requires 1.88 (measured on darling 0.23.0 on 2026-06-15, ADR-0008
+# §Correction). Both now declare it: rmcp 3.4.1 `rust-version = "1.88"`, and
+# darling 0.24.0 — the version Cargo.lock resolves today — `1.88.0` (sparse
+# index, 2026-10-04). Our own code also uses let-chains (1.88).
 # Bumps are minor releases with a changelog entry.
 rust-version = "1.88"
 version = "0.6.0"
