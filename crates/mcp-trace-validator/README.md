@@ -13,6 +13,7 @@ mcp-trace-validator validate session.jsonl                 # what needs attentio
 mcp-trace-validator validate --all session.jsonl           # every clause, with exclusion reasons
 mcp-trace-validator validate - --format json < session.jsonl
 mcp-trace-validator validate session.jsonl --format sarif > results.sarif
+mcp-trace-validator validate traces/*.jsonl --format junit > junit.xml   # one document for many traces
 mcp-trace-validator validate session.jsonl --revision 2025-11-25 --revision 2026-07-28
 mcp-trace-validator requirements --revision 2025-11-25
 ```

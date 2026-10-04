@@ -90,8 +90,41 @@ impl Options {
 /// presentation `options` choose.
 #[must_use]
 pub fn render_with(reports: &[Report], artifact: Artifact<'_>, options: &Options) -> String {
+    render_traces(&[(artifact, reports)], options)
+}
+
+/// Renders the reports of several traces as one SARIF 2.1.0 log: one run, its
+/// rules shared, each result located in the trace it came from — the shape code
+/// scanning takes in one upload.
+///
+/// ```
+/// use mcp_conformance_core::requirement::Registry;
+/// use mcp_trace_validator::{engine, reader, sarif};
+///
+/// let registry = Registry::builtin_2025_11_25()?;
+/// let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}"#;
+/// let events = reader::parse_trace(trace, &reader::Limits::default())?;
+/// let reports = [engine::validate(&registry, &events)];
+/// let artifact = |uri| sarif::Artifact { uri: Some(uri), events: &events };
+/// let log: serde_json::Value = serde_json::from_str(&sarif::render_traces(
+///     &[(artifact("a.jsonl"), &reports[..]), (artifact("b.jsonl"), &reports[..])],
+///     &sarif::Options::default(),
+/// ))?;
+/// assert_eq!(log["runs"].as_array().map(Vec::len), Some(1));
+/// let uris: Vec<_> = log["runs"][0]["results"]
+///     .as_array()
+///     .into_iter()
+///     .flatten()
+///     .map(|result| &result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"])
+///     .collect();
+/// assert!(uris.contains(&&serde_json::json!("a.jsonl")) && uris.contains(&&serde_json::json!("b.jsonl")));
+/// # Ok::<(), Box<dyn core::error::Error>>(())
+/// ```
+#[must_use]
+pub fn render_traces(traces: &[(Artifact<'_>, &[Report])], options: &Options) -> String {
+    let all_reports = || traces.iter().flat_map(|(_, reports)| reports.iter());
     let mut log = Log {
-        rule_ids: rule_ids(reports),
+        rule_ids: rule_ids(all_reports()),
         index_of: BTreeMap::new(),
         rules: Vec::new(),
         results: Vec::new(),
@@ -99,13 +132,23 @@ pub fn render_with(reports: &[Report], artifact: Artifact<'_>, options: &Options
         strict: options.strict,
         seen: BTreeMap::new(),
     };
-    for report in reports {
-        for row in &report.requirements {
-            match row.outcome {
-                Outcome::Fail | Outcome::Warn => log.findings(row, &report.revision, artifact),
-                Outcome::Unsupported => log.unsupported(row, &report.revision),
-                _ => {}
+    for (artifact, reports) in traces {
+        for report in *reports {
+            for row in &report.requirements {
+                match row.outcome {
+                    Outcome::Fail | Outcome::Warn => {
+                        log.findings(row, &report.revision, *artifact);
+                    }
+                    Outcome::Unsupported => log.unsupported(row, &report.revision),
+                    _ => {}
+                }
             }
+        }
+    }
+    let mut revisions: Vec<&str> = Vec::new();
+    for report in all_reports() {
+        if !revisions.contains(&report.revision.as_str()) {
+            revisions.push(&report.revision);
         }
     }
     let log = json!({
@@ -126,7 +169,7 @@ pub fn render_with(reports: &[Report], artifact: Artifact<'_>, options: &Options
             }],
             "results": log.results,
             "properties": {
-                "revisions": reports.iter().map(|report| &report.revision).collect::<Vec<_>>(),
+                "revisions": revisions,
             },
         }],
     });
@@ -145,8 +188,8 @@ struct Log<'r> {
     notifications: Vec<Value>,
     /// Warnings are reported at level `error`.
     strict: bool,
-    /// How many results so far share each fingerprint stem.
-    seen: BTreeMap<String, usize>,
+    /// How many results so far share each fingerprint stem, per trace.
+    seen: BTreeMap<(String, String), usize>,
 }
 
 impl Log<'_> {
@@ -164,12 +207,18 @@ impl Log<'_> {
             // close and reopen every alert on each run. The detail with its
             // numbers folded identifies the defect; the occurrence index keeps
             // repeated identical findings distinct.
+            // Counted per trace: code scanning already tells traces apart by
+            // their location, so the trace's path stays out of the fingerprint
+            // and a renamed trace keeps its alerts.
             let stem = format!(
                 "{rule_id}:{}:{}",
                 finding.check,
                 fold_numbers(&finding.detail)
             );
-            let occurrence = self.seen.entry(stem.clone()).or_insert(0);
+            let occurrence = self
+                .seen
+                .entry((artifact.uri.unwrap_or_default().to_owned(), stem.clone()))
+                .or_insert(0);
             *occurrence += 1;
             let level = if self.strict && row.outcome == Outcome::Warn {
                 "error"
@@ -212,15 +261,16 @@ impl Log<'_> {
 /// The SARIF rule ID of each `(requirement ID, revision)` with a finding: the
 /// requirement ID, suffixed with its revision only where the same ID has
 /// findings under more than one.
-fn rule_ids(reports: &[Report]) -> BTreeMap<(&str, &str), String> {
+fn rule_ids<'r>(reports: impl Iterator<Item = &'r Report>) -> BTreeMap<(&'r str, &'r str), String> {
     let mut revisions_of: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for report in reports {
         for row in &report.requirements {
             if matches!(row.outcome, Outcome::Fail | Outcome::Warn) {
-                revisions_of
-                    .entry(row.id.as_str())
-                    .or_default()
-                    .push(report.revision.as_str());
+                let revisions = revisions_of.entry(row.id.as_str()).or_default();
+                // Several traces judged at one revision are still one revision.
+                if !revisions.contains(&report.revision.as_str()) {
+                    revisions.push(report.revision.as_str());
+                }
             }
         }
     }

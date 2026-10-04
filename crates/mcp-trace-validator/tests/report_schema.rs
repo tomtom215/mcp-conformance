@@ -84,7 +84,17 @@ fn both_shapes_the_cli_prints_are_valid() {
     // Judged against a revision the trace does not declare: carries the mismatch.
     let mismatched = cli_json(trace, &["--revision", "2025-11-25"]);
     assert!(mismatched["revision_mismatch"].is_array(), "{mismatched}");
-    for report in [&single, &multi, &mismatched] {
+    // Several traces: the envelope holding each trace's report.
+    let other = corpus().join("good/stdio-minimal-init.jsonl");
+    let several = cli_json(trace, &[other.to_str().unwrap()]);
+    assert_eq!(
+        several["traces"].as_array().map(Vec::len),
+        Some(2),
+        "{several}"
+    );
+    assert_eq!(several["verdict"], "fail", "the worst of fail and pass");
+    assert_eq!(several["unjudged"], 0);
+    for report in [&single, &multi, &mismatched, &several] {
         let found = errors(&validator, report);
         assert!(found.is_empty(), "{found:#?}");
     }

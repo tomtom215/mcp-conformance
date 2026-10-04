@@ -19,16 +19,13 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand, ValueEnum};
 use mcp_conformance_core::requirement::{Registry, RegistrySet};
 use mcp_conformance_core::revision::ProtocolRevision;
-use mcp_trace_validator::declared::{self, RevisionSource};
-use mcp_trace_validator::report::{Report, Verdict};
-use mcp_trace_validator::{engine, junit, multi, reader, sarif};
+use mcp_trace_validator::reader;
 
 mod emit;
 mod input;
 mod judgeable;
 mod requirements;
-
-use emit::emit;
+mod validate;
 
 const EXIT_OK: u8 = 0;
 const EXIT_FINDINGS: u8 = 1;
@@ -56,8 +53,11 @@ enum Command {
         failed, 2 bad invocation or nothing judgeable or output not written, 3 malformed trace."
     )]
     Validate {
-        /// Path to the trace document, or `-` for stdin.
-        trace: String,
+        /// Paths to the trace documents (one or more), or `-` for stdin alone.
+        /// Several traces give one report per format: a section each in human
+        /// output, one `JUnit` document, one SARIF run.
+        #[arg(required = true, num_args = 1..)]
+        traces: Vec<String>,
         /// Output format.
         #[arg(long, value_enum, default_value_t = Format::Human)]
         format: Format,
@@ -125,7 +125,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let code = match cli.command {
         Command::Validate {
-            trace,
+            traces,
             format,
             strict,
             all,
@@ -135,17 +135,19 @@ fn main() -> ExitCode {
             registry_set,
             max_line_bytes,
             max_events,
-        } => run_validate_command(
-            &trace,
+        } => validate::run(
+            &traces,
             &reader::Limits::new(max_events, max_line_bytes),
-            Output {
+            validate::Output {
                 format,
                 strict,
                 all,
             },
-            registry.as_deref(),
-            registry_set.as_deref(),
-            &revisions,
+            &validate::Sources {
+                registry: registry.as_deref(),
+                registry_set: registry_set.as_deref(),
+                revisions: &revisions,
+            },
         ),
         Command::Requirements {
             format,
@@ -154,119 +156,6 @@ fn main() -> ExitCode {
         } => requirements::run(format, registry.as_deref(), revision.as_deref()),
     };
     ExitCode::from(code)
-}
-
-/// How `validate` presents its report.
-#[derive(Debug, Clone, Copy)]
-struct Output {
-    format: Format,
-    /// SHOULD-level findings fail the run.
-    strict: bool,
-    /// Human output lists every clause, not only those needing attention.
-    all: bool,
-}
-
-/// Runs `validate`: reads the trace, chooses the revisions to judge it against, and
-/// dispatches to single- or multi-revision judgment.
-fn run_validate_command(
-    trace: &str,
-    limits: &reader::Limits,
-    output: Output,
-    registry: Option<&std::path::Path>,
-    registry_set: Option<&std::path::Path>,
-    revisions: &[String],
-) -> u8 {
-    if registry.is_some() && (registry_set.is_some() || !revisions.is_empty()) {
-        eprintln!(
-            "error: --registry names one custom registry; it cannot be combined with \
-             --revision or --registry-set"
-        );
-        return EXIT_USAGE;
-    }
-    let events = match input::read_events(trace, limits) {
-        Ok(events) => events,
-        Err(code) => return code,
-    };
-    judgeable::note_sessions(mcp_trace_validator::sessions::recorded_sessions(&events));
-    if let Some(path) = registry {
-        return match load_registry(path) {
-            Ok(registry) => emit_single(
-                &engine::validate(&registry, &events),
-                &events,
-                trace,
-                output,
-            ),
-            Err(message) => {
-                eprintln!("error: {message}");
-                EXIT_USAGE
-            }
-        };
-    }
-    let set = match load_registry_set(registry_set) {
-        Ok(set) => set,
-        Err(message) => {
-            eprintln!("error: {message}");
-            return EXIT_USAGE;
-        }
-    };
-    let (chosen, source) = match choose_revisions(&set, revisions, &events) {
-        Ok(choice) => choice,
-        Err(message) => {
-            eprintln!("error: {message}");
-            return EXIT_USAGE;
-        }
-    };
-    if source == RevisionSource::Default {
-        eprintln!(
-            "note: the trace declares no protocol revision; judging it against {}, the \
-             newest supported (use --revision to choose)",
-            chosen[0]
-        );
-    }
-    if let [revision] = chosen.as_slice() {
-        let Some(registry) = set.registry(*revision) else {
-            eprintln!("error: registry set does not describe revision {revision}");
-            return EXIT_USAGE;
-        };
-        let mut report = engine::validate(&registry, &events);
-        report.revision_source = Some(source);
-        return emit_single(&report, &events, trace, output);
-    }
-    run_validate_multi(&events, trace, output, &set, &chosen, source)
-}
-
-/// The revisions to judge against: the `--revision` flags when given, otherwise the
-/// trace's own declaration ([`declared::select`]).
-fn choose_revisions(
-    set: &RegistrySet,
-    revisions: &[String],
-    events: &[mcp_conformance_core::trace::TraceEvent],
-) -> Result<(Vec<ProtocolRevision>, RevisionSource), String> {
-    if revisions.is_empty() {
-        return declared::select(set.revisions(), events)
-            .map(|selection| (selection.revisions, selection.source))
-            .map_err(|error| {
-                format!(
-                    "{error}\nhint: pass --revision YYYY-MM-DD to judge it against a \
-                     supported revision anyway"
-                )
-            });
-    }
-    let parsed = parse_revisions(revisions)?;
-    if let Some(unknown) = parsed
-        .iter()
-        .find(|revision| !set.revisions().contains(revision))
-    {
-        return Err(format!(
-            "registry set does not describe revision {unknown} (supported: {})",
-            set.revisions()
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
-    }
-    Ok((parsed, RevisionSource::Requested))
 }
 
 /// Loads a custom single-revision registry document.
@@ -297,147 +186,4 @@ fn parse_revisions(revisions: &[String]) -> Result<Vec<ProtocolRevision>, String
                 .map_err(|error| error.to_string())
         })
         .collect()
-}
-
-/// The exit code a verdict maps to, shared by single- and multi-revision runs so the
-/// 0/1/2 contract has one definition. `--strict` promotes warnings to findings.
-///
-/// When it does, it says so on stderr. The report's own `verdict:` line is a
-/// property of the trace and is deliberately not rewritten by an invocation
-/// flag — a golden report must not depend on how the CLI was called — which
-/// left a run ending `verdict: pass-with-warnings` and exiting 1, with nothing
-/// anywhere connecting the two. The note is the missing sentence, and stderr is
-/// where it belongs: stdout carries the report, including the JSON and `JUnit` a
-/// machine reads.
-fn verdict_to_code(verdict: Verdict, strict: bool) -> u8 {
-    if strict && verdict == Verdict::PassWithWarnings {
-        eprintln!(
-            "note: --strict — SHOULD-level findings are treated as failures, \
-             so this run exits {EXIT_FINDINGS} despite a verdict of {verdict}"
-        );
-    }
-    match verdict {
-        Verdict::Fail => EXIT_FINDINGS,
-        Verdict::PassWithWarnings if strict => EXIT_FINDINGS,
-        Verdict::PassWithWarnings | Verdict::Pass => EXIT_OK,
-        // Unsupported — and, since Verdict is #[non_exhaustive], any future verdict — is
-        // conservatively an invocation-level problem (registry/build mismatch).
-        _ => EXIT_USAGE,
-    }
-}
-
-/// Renders a single-revision report and maps its verdict to an exit code.
-fn emit_single(
-    report: &Report,
-    events: &[mcp_conformance_core::trace::TraceEvent],
-    trace_source: &str,
-    output: Output,
-) -> u8 {
-    if judgeable::reject(report.totals, trace_source) {
-        return EXIT_USAGE;
-    }
-    let written = match output.format {
-        Format::Human if output.all => emit(&report.render_human()),
-        Format::Human => emit(&report.render_findings()),
-        Format::Json => match serde_json::to_string_pretty(report) {
-            Ok(json) => emit(&format!("{json}\n")),
-            Err(error) => {
-                eprintln!("error: cannot serialize report: {error}");
-                return EXIT_USAGE;
-            }
-        },
-        Format::Junit => emit(&mcp_trace_validator::junit::render_with(
-            core::slice::from_ref(report),
-            &junit_options(trace_source, output.strict),
-        )),
-        Format::Sarif => emit(&mcp_trace_validator::sarif::render_with(
-            core::slice::from_ref(report),
-            artifact(trace_source, events),
-            &sarif::Options::default().strict(output.strict),
-        )),
-    };
-    if !written {
-        return EXIT_USAGE;
-    }
-    verdict_to_code(report.verdict(), output.strict)
-}
-
-/// What SARIF results point at: the trace as named, unless it was stdin.
-/// `JUnit` options naming the trace (not stdin, which has no name) and carrying
-/// `--strict`, so the report agrees with the exit status.
-fn junit_options(trace_source: &str, strict: bool) -> junit::Options {
-    let options = if trace_source == "-" {
-        junit::Options::default()
-    } else {
-        junit::Options::for_trace(trace_source)
-    };
-    options.strict(strict)
-}
-
-fn artifact<'a>(
-    trace_source: &'a str,
-    events: &'a [mcp_conformance_core::trace::TraceEvent],
-) -> mcp_trace_validator::sarif::Artifact<'a> {
-    mcp_trace_validator::sarif::Artifact {
-        uri: (trace_source != "-").then_some(trace_source),
-        events,
-    }
-}
-
-/// Multi-revision judgment: one trace against several revisions of a registry set, with
-/// per-clause applicability differences in the report. `JUnit` renders one suite per
-/// revision.
-fn run_validate_multi(
-    events: &[mcp_conformance_core::trace::TraceEvent],
-    trace_source: &str,
-    output: Output,
-    set: &RegistrySet,
-    revisions: &[ProtocolRevision],
-    source: RevisionSource,
-) -> u8 {
-    let mut report = match multi::validate_revisions(set, revisions, events) {
-        Ok(report) => report,
-        Err(error) => {
-            eprintln!("error: {error}");
-            return EXIT_USAGE;
-        }
-    };
-    report.revision_source = Some(source);
-    if judgeable::reject(judgeable::combined(&report), trace_source) {
-        return EXIT_USAGE;
-    }
-    let written = match output.format {
-        Format::Human if output.all => emit(&report.render_human()),
-        Format::Human => emit(&report.render_findings()),
-        Format::Json => match serde_json::to_string_pretty(&report) {
-            Ok(json) => emit(&format!("{json}\n")),
-            Err(error) => {
-                eprintln!("error: cannot serialize report: {error}");
-                return EXIT_USAGE;
-            }
-        },
-        Format::Junit | Format::Sarif => {
-            let reports: Vec<Report> = revisions
-                .iter()
-                .filter_map(|revision| set.registry(*revision))
-                .map(|registry| engine::validate(&registry, events))
-                .collect();
-            if matches!(output.format, Format::Junit) {
-                emit(&mcp_trace_validator::junit::render_with(
-                    &reports,
-                    &junit_options(trace_source, output.strict),
-                ))
-            } else {
-                emit(&mcp_trace_validator::sarif::render_with(
-                    &reports,
-                    artifact(trace_source, events),
-                    &sarif::Options::default().strict(output.strict),
-                ))
-            }
-        }
-    };
-    if !written {
-        return EXIT_USAGE;
-    }
-    verdict_to_code(report.verdict(), output.strict)
 }

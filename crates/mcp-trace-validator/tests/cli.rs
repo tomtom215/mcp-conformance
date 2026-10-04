@@ -968,3 +968,51 @@ fn a_trace_that_is_not_utf8_is_malformed_and_located() {
     assert_eq!(output.status.code(), Some(3), "{output:?}");
     assert!(stderr(&output).contains("the file is UTF-16"), "{output:?}");
 }
+
+/// Several traces in one run: one document per format, a section per trace in
+/// human output, and the worst trace's exit status — a trace that cannot be
+/// judged among good ones still fails the run.
+#[test]
+fn several_traces_are_judged_together_and_the_worst_decides() {
+    let good = corpus("good/stdio-minimal-init.jsonl");
+    let bad = corpus("violations/base-003-request-id-reuse.jsonl");
+    let (good, bad) = (good.to_str().unwrap(), bad.to_str().unwrap());
+
+    let human = run(&["validate", good, bad]);
+    assert_eq!(human.status.code(), Some(1), "{human:?}");
+    let text = stdout(&human);
+    assert!(text.contains(&format!("==> {good} <==")), "{text}");
+    assert!(text.contains(&format!("==> {bad} <==")), "{text}");
+    assert!(text.contains("FAIL  BASE-003"), "{text}");
+    assert!(
+        text.contains("2 traces: 1 pass, 0 pass-with-warnings, 1 fail"),
+        "{text}"
+    );
+    assert!(text.contains("overall verdict: fail"), "{text}");
+
+    // Two passing traces pass.
+    assert_eq!(run(&["validate", good, good]).status.code(), Some(0));
+
+    // A malformed trace among good ones: judged ones are reported, it is
+    // counted as not judged, and its exit status (3) is the run's.
+    let path = std::env::temp_dir().join(format!("broken-{}.jsonl", std::process::id()));
+    std::fs::write(&path, "not json\n").unwrap();
+    let mixed = run(&["validate", good, path.to_str().unwrap()]);
+    std::fs::remove_file(&path).ok();
+    assert_eq!(mixed.status.code(), Some(3), "{mixed:?}");
+    assert!(
+        stdout(&mixed).contains("2 traces: 1 pass, 0 pass-with-warnings, 0 fail, 1 not judged")
+    );
+
+    let junit = stdout(&run(&["validate", "--format", "junit", good, bad]));
+    assert_eq!(junit.matches("<?xml").count(), 1, "one document: {junit}");
+    assert_eq!(junit.matches("<testsuite ").count(), 2, "{junit}");
+
+    let sarif: serde_json::Value =
+        serde_json::from_str(&stdout(&run(&["validate", "--format", "sarif", good, bad]))).unwrap();
+    assert_eq!(sarif["runs"].as_array().map(Vec::len), Some(1), "one run");
+
+    // stdin cannot be mixed with files: it can only be read once.
+    let mixed_stdin = run(&["validate", good, "-"]);
+    assert_eq!(mixed_stdin.status.code(), Some(2), "{mixed_stdin:?}");
+}
