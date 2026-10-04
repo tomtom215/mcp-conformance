@@ -14,7 +14,7 @@
 
 use std::collections::BTreeSet;
 
-use mcp_conformance_core::trace::{Direction, EventBody, TraceEvent};
+use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TraceEvent};
 use serde_json::Value;
 
 /// The number of sessions `events` records.
@@ -26,6 +26,58 @@ use serde_json::Value;
 #[must_use]
 pub fn recorded_sessions(events: &[TraceEvent]) -> usize {
     handshakes(events).max(assigned_session_ids(events))
+}
+
+/// Why a recording shows a session that never started, when it does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct NeverAnswered {
+    /// Messages the client sent.
+    pub client_messages: usize,
+    /// `transport-abort` events: a recorder saying the server could not be
+    /// reached, or cut off mid-response.
+    pub aborts: usize,
+    /// Whether the client sent an `initialize` request.
+    pub initialize: bool,
+}
+
+/// `Some` when `events` record a session that never started.
+///
+/// That is: the client sent messages, the server sent none, and either the
+/// recorder logged that the server could not be reached (`transport-abort`) or
+/// the client's `initialize` went unanswered.
+///
+/// Such a recording still judges the client's side — and every judged clause
+/// passing makes a green verdict out of a capture that failed (an upstream that
+/// was down, a server that exited at once). The narrower conditions keep a
+/// recording of client messages alone, which is a legitimate way to judge a
+/// `2026-07-28` client's own clauses, out of it.
+#[must_use]
+pub fn never_answered(events: &[TraceEvent]) -> Option<NeverAnswered> {
+    let mut found = NeverAnswered {
+        client_messages: 0,
+        aborts: 0,
+        initialize: false,
+    };
+    for event in events {
+        match (&event.body, event.direction) {
+            (EventBody::Message { .. }, Direction::ServerToClient) => return None,
+            (EventBody::Message { payload }, Direction::ClientToServer) => {
+                found.client_messages += 1;
+                found.initialize |= payload.get("method").and_then(Value::as_str)
+                    == Some("initialize")
+                    && payload.get("id").is_some();
+            }
+            (
+                EventBody::Lifecycle {
+                    event: LifecycleEvent::TransportAbort,
+                },
+                _,
+            ) => found.aborts += 1,
+            _ => {}
+        }
+    }
+    (found.client_messages > 0 && (found.aborts > 0 || found.initialize)).then_some(found)
 }
 
 fn handshakes(events: &[TraceEvent]) -> usize {
@@ -111,5 +163,27 @@ mod tests {
             ),
             0
         );
+    }
+
+    #[test]
+    fn a_session_the_server_never_answered_is_recognised() {
+        use super::never_answered;
+        let events = |document: &str| parse_trace(document, &Limits::default()).unwrap();
+        let initialize = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":0,"method":"initialize","params":{}}}"#;
+        let ping = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"ping"}}"#;
+        let abort = r#"{"seq":1,"direction":"server-to-client","transport":"streamable-http","kind":"lifecycle","event":"transport-abort"}"#;
+        let answer = r#"{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":0,"error":{"code":-32602,"message":"no"}}}"#;
+
+        let unanswered = never_answered(&events(initialize)).unwrap();
+        assert!(unanswered.initialize);
+        assert_eq!((unanswered.client_messages, unanswered.aborts), (1, 0));
+        let unreachable = never_answered(&events(&format!("{ping}\n{abort}"))).unwrap();
+        assert_eq!((unreachable.aborts, unreachable.initialize), (1, false));
+        // Any message from the server, even a refusal, is a session that started.
+        assert!(never_answered(&events(&format!("{initialize}\n{answer}"))).is_none());
+        // Client messages alone, with neither sign, judge the client's clauses.
+        assert!(never_answered(&events(ping)).is_none());
+        // No client message: the empty-trace refusal's case, not this one.
+        assert!(never_answered(&events(abort)).is_none());
     }
 }

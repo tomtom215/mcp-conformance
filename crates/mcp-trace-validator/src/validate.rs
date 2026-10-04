@@ -175,6 +175,10 @@ fn judge(
         String::new()
     };
     let events = input::read_events(trace, limits)?;
+    if let Some(message) = judgeable::never_answered(&events, trace) {
+        eprintln!("{message}");
+        return Err(EXIT_USAGE);
+    }
     judgeable::note_sessions(&prefix, sessions::recorded_sessions(&events));
     let (reports, multi) = match registries {
         Registries::Custom(registry) => (vec![engine::validate(registry, &events)], None),

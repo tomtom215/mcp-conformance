@@ -265,6 +265,10 @@ Each is stated again in the entry that introduced it, with the reasoning.
     `TRAN-070` treated an upstream abort as cancelling every request; `TRAN-097`/`100`
     compared integers as text; `TRAN-124` ignored the cancellation race; `TOOL-034`
     applied to stdio; `BASE-031`/`032` ignored the order of a reused id;
+    a recording whose server never answered — the capture could not reach it, or
+    the client's `initialize` went unanswered — passed on the client's clauses
+    alone; it is now refused with exit 2 (`JudgeError::NeverAnswered` in the
+    library), as an empty recording is;
     `LIFE-001` blamed the client when a server wrote a non-JSON line (a log banner)
     to stdout before `initialize`;
     `PROM-020` warned when a server answered a `prompts/get` missing a required

@@ -41,6 +41,39 @@ fn stderr(output: &Output) -> String {
 }
 
 #[test]
+fn a_session_the_server_never_answered_is_refused() {
+    // The capture recorded the client's initialize and an upstream it could not
+    // reach. Every clause the client's side reaches passes, so without this
+    // refusal the run reads `verdict: pass`, exit 0, for a server that was down.
+    let contents = concat!(
+        r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"1"}}}}"#,
+        "\n",
+        r#"{"seq":1,"direction":"server-to-client","transport":"streamable-http","kind":"lifecycle","event":"transport-abort"}"#,
+        "\n"
+    );
+    let path = write_temp("never-answered", contents);
+    for args in [
+        vec!["validate"],
+        vec![
+            "validate",
+            "--revision",
+            "2025-11-25",
+            "--revision",
+            "2026-07-28",
+        ],
+    ] {
+        let mut args = args;
+        args.push(path.to_str().unwrap());
+        let output = run(&args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("none from the server"), "{stderr}");
+        assert!(stderr.contains("could not be reached"), "{stderr}");
+    }
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
 fn passing_trace_exits_zero_with_pass_verdict() {
     let output = run(&[
         "validate",

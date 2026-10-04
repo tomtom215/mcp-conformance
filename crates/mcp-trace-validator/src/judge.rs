@@ -7,7 +7,8 @@
 //! callers who need to vary a step. This module is for the common case — "is this
 //! recording conformant?" — and gives the same answer `mcp-trace-validator
 //! validate` does: the revision the trace declares (else the newest), and a
-//! refusal, not a vacuous pass, for a trace that judges nothing.
+//! refusal, not a vacuous pass, for a trace that judges nothing or records a
+//! session the server never answered.
 
 use core::fmt;
 
@@ -30,6 +31,10 @@ pub enum JudgeError {
     /// recording, which is a capture that failed rather than a session that
     /// conformed.
     NothingJudged,
+    /// The client spoke and the server never answered — see
+    /// [`sessions::never_answered`](crate::sessions::never_answered): a
+    /// capture that failed, not a session to judge.
+    NeverAnswered(crate::sessions::NeverAnswered),
     /// A built-in registry failed to load (a build defect).
     Registry(RegistryError),
 }
@@ -43,6 +48,10 @@ impl fmt::Display for JudgeError {
                 "the trace judged no requirement at all — an empty or contentless trace is a \
                  capture that failed, not a session that conformed",
             ),
+            Self::NeverAnswered(_) => f.write_str(
+                "the server sent no message: the session never started, so the trace is a \
+                 capture that failed, not a session that conformed",
+            ),
             Self::Registry(error) => write!(f, "built-in registry: {error}"),
         }
     }
@@ -54,7 +63,7 @@ impl std::error::Error for JudgeError {
             Self::Malformed(error) => Some(error),
             Self::UnsupportedRevision(error) => Some(error),
             Self::Registry(error) => Some(error),
-            Self::NothingJudged => None,
+            Self::NothingJudged | Self::NeverAnswered(_) => None,
         }
     }
 }
@@ -104,16 +113,23 @@ impl Judgment {
 ///
 /// // An empty recording is refused, not passed.
 /// assert!(matches!(judge(""), Err(JudgeError::NothingJudged)));
+///
+/// // So is an initialize nothing answered: the server never took part.
+/// let unanswered = trace.lines().next().unwrap_or_default();
+/// assert!(matches!(judge(unanswered), Err(JudgeError::NeverAnswered(_))));
 /// # Ok::<(), JudgeError>(())
 /// ```
 ///
 /// # Errors
 ///
-/// [`JudgeError`] when the document is malformed, declares only unsupported
-/// revisions, or judges nothing.
+/// [`JudgeError`] when the document is malformed, records a session the server
+/// never answered, declares only unsupported revisions, or judges nothing.
 pub fn judge(document: &str) -> Result<Judgment, JudgeError> {
     let events =
         reader::parse_trace(document, &Limits::default()).map_err(JudgeError::Malformed)?;
+    if let Some(never) = crate::sessions::never_answered(&events) {
+        return Err(JudgeError::NeverAnswered(never));
+    }
     let set = RegistrySet::builtin().map_err(JudgeError::Registry)?;
     let selection =
         declared::select(set.revisions(), &events).map_err(JudgeError::UnsupportedRevision)?;

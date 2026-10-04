@@ -13,6 +13,13 @@ client never connected, connected to the server directly instead of through the
 capture, or the capture was stopped before the session. Check the capture's exit
 summary, which counts what it recorded.
 
+**`error: … records 1 client message(s) and none from the server`** (exit 2). The
+client spoke and the server never answered: the capture recorded that it could not
+reach the server (`transport-abort`), or the client's `initialize` went unanswered.
+The client's side alone would pass, so the run is refused rather than reported
+green. Check that the server is running and reachable — for the HTTP proxy, that
+`--upstream` names it — and record again.
+
 **`error: the trace declares protocol revision(s) 2025-06-18, which no available
 registry describes`** (exit 2). The session ran an older revision than this build has
 requirements for (`2025-11-25` and `2026-07-28`). Judging it against either would

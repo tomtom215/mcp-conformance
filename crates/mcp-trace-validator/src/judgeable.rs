@@ -63,6 +63,35 @@ pub(crate) fn refusal(totals: Totals, trace_source: &str) -> Option<String> {
     ))
 }
 
+/// The diagnostic for a recording whose session never started — see
+/// [`never_answered`](mcp_trace_validator::sessions::never_answered) — or
+/// `None`.
+pub(crate) fn never_answered(
+    events: &[mcp_conformance_core::trace::TraceEvent],
+    trace_source: &str,
+) -> Option<String> {
+    let never = mcp_trace_validator::sessions::never_answered(events)?;
+    let source = if trace_source == "-" {
+        "the trace on stdin"
+    } else {
+        trace_source
+    };
+    let why = if never.aborts > 0 {
+        format!(
+            "the capture recorded {} transport-abort(s): the server could not be reached",
+            never.aborts
+        )
+    } else {
+        "its initialize request was never answered".to_owned()
+    };
+    Some(format!(
+        "error: {source} records {} client message(s) and none from the server — {why}. \
+         A session that never started is a capture that failed, not a session that \
+         conformed: check that the server is running and reachable, then record again",
+        never.client_messages
+    ))
+}
+
 pub(crate) fn reject(totals: Totals, trace_source: &str) -> bool {
     refusal(totals, trace_source).is_some_and(|message| {
         eprintln!("{message}");
