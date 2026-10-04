@@ -43,7 +43,7 @@ corpus's lines.
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
 | Goldens | 57 | 93 |
-| Excluded rows the ledger holds | 87 | 147 |
+| Excluded rows the ledger holds | 87 | 148 |
 | Distinct not-observed sets across them | 29 | 78 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
@@ -192,7 +192,7 @@ two reports is attributable to that one change.
 | Server | `mcp-everything-server` serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-04 | same run, second leg |
 | Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
-| Our verdict | 59 pass, **1 fail**, 0 warn, 65 not observed, 147 excluded | **60 pass, 0 fail, 0 warn**, 65 not observed, 147 excluded |
+| Our verdict | 59 pass, **1 fail**, 0 warn, 65 not observed, 148 excluded | **60 pass, 0 fail, 0 warn**, 65 not observed, 148 excluded |
 | The official runner's verdict | **38 passing / 4 failing** | **42 passing / 0 failing** |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
@@ -276,7 +276,7 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all four prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **81 pass, 0 fail, 0 warn**, 44 not observed, 147 excluded |
+| Our verdict | **81 pass, 0 fail, 0 warn**, 44 not observed, 148 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -328,7 +328,7 @@ probe, `MRTR-024`, `BASE-040`, `BASE-047`, and `VERS-004`.
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | 159 events — the stdio session's 85 messages plus 74 `http` events carrying status and headers |
-| Our verdict | **92 pass, 0 fail, 0 warn**, 33 not observed, 147 excluded |
+| Our verdict | **92 pass, 0 fail, 0 warn**, 33 not observed, 148 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -498,7 +498,7 @@ falsifies exactly the requirement it is named for.
 | `base-040-malformed-traceparent.jsonl` | `traceparent` that is not W3C Trace Context shaped (BASE-040) |
 | `base-045-request-id-reused-in-flight.jsonl` | Request id reused while the first is still outstanding (BASE-045) — legal at `2025-11-25` only after a response, and this trace reuses *before* one |
 | `base-048-result-without-result-type.jsonl` | Result omits the `resultType` SEP-2322 requires (BASE-048) |
-| `base-055-legacy-error-code.jsonl` | Error code `-32010` from the closed legacy sub-range (BASE-055) |
+| `base-083-legacy-error-code.jsonl` | Error code `-32010` from the legacy sub-range, which new implementations SHOULD NOT use (BASE-083, a warning). Named `base-055-…` until 2026-10-04, when BASE-055 carried this use at MUST NOT alongside the allocation rule it actually states. |
 | `base-057-undefined-reserved-error-code.jsonl` | Error code `-32055`: inside the MCP-reserved sub-range but undefined (BASE-057) |
 | `base-058-withdrawn-error-code.jsonl` | Error code `-32002`, withdrawn by this revision (BASE-058) |
 | `base-060-app-code-in-reserved-range.jsonl` | Application-defined `-32500` placed inside the JSON-RPC reserved range (BASE-060) |
