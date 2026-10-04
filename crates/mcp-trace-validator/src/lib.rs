@@ -21,6 +21,11 @@
 //!
 //! # Example
 //!
+//! The one call that answers "is this recording conformant?", by the rules the
+//! CLI applies (declared revision, a refusal for a contentless trace), is
+//! [`judge::judge`]. The steps it composes are below, for callers who need to
+//! vary one:
+//!
 //! ```
 //! use mcp_conformance_core::requirement::Registry;
 //! use mcp_trace_validator::{engine, reader};
@@ -40,6 +45,7 @@ pub mod checks;
 pub mod context;
 pub mod declared;
 pub mod engine;
+pub mod judge;
 pub mod junit;
 pub mod multi;
 pub mod reader;
