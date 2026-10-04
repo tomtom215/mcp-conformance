@@ -24,25 +24,24 @@
 //! **Limits.** A body or SSE event larger than the message limit is forwarded intact
 //! and counted, not recorded: the proxy never alters traffic to fit its trace.
 
-use std::future::Future;
+use std::future::{Future, IntoFuture as _};
 use std::io;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use axum::body::{Body, Bytes};
-use axum::extract::{Request, State};
-use axum::http::uri::{PathAndQuery, Uri};
-use axum::http::{HeaderMap, StatusCode, header};
-use axum::response::{IntoResponse as _, Response};
-use futures::{Stream, StreamExt as _, TryStreamExt as _};
+use axum::body::Body;
+use axum::http::uri::Uri;
 use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
-use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TransportKind};
 
-use crate::framing::{SseParser, parse_json};
-use crate::headers;
-use crate::recorder::{NotRecorded, Recorder};
+use mcp_conformance_core::trace::{Direction, LifecycleEvent, TransportKind};
+use tokio::sync::watch;
+
+use crate::recorder::Recorder;
+
+mod relay;
+mod target;
 
 #[cfg(feature = "tls")]
 type Connector = hyper_rustls::HttpsConnector<HttpConnector>;
@@ -54,7 +53,8 @@ type Connector = HttpConnector;
 #[non_exhaustive]
 pub struct Options {
     /// The server's base URL. Request paths are appended to its path, so
-    /// `http://localhost:3000` forwards `/mcp` to `http://localhost:3000/mcp`.
+    /// `http://localhost:3000` forwards `/mcp` to `http://localhost:3000/mcp`; its
+    /// query, if any, is kept, and the request's appended to it.
     pub upstream: Uri,
     /// The largest body or SSE event recorded; larger ones are forwarded unrecorded.
     pub max_message: usize,
@@ -63,6 +63,11 @@ pub struct Options {
     /// the proxy sent. Wrong for a virtually hosted remote server, which routes on
     /// `Host`.
     pub preserve_host: bool,
+    /// How long open connections get to finish once [`serve`]'s `shutdown`
+    /// resolves, before the proxy stops without them. Event streams do not wait
+    /// for it: they are ended at once (an MCP client holds a GET stream open for
+    /// its whole session, so waiting for one to finish would never stop).
+    pub grace: std::time::Duration,
 }
 
 impl Options {
@@ -71,8 +76,20 @@ impl Options {
     /// # Errors
     ///
     /// `upstream` is not an absolute `http` URL, or an `https` one in a build
-    /// without the `tls` feature.
+    /// without the `tls` feature, or it carries credentials (`user:password@`).
     pub fn new(upstream: Uri, max_message: usize) -> Result<Self, String> {
+        // Checked first, and the URL not repeated: the proxy would never send these
+        // credentials, and echoing them would put a password on the terminal.
+        if upstream
+            .authority()
+            .is_some_and(|authority| authority.as_str().contains('@'))
+        {
+            return Err(
+                "the URL carries credentials (user:password@), which the proxy would not \
+                 send; have the client send them instead, e.g. as an Authorization header"
+                    .to_owned(),
+            );
+        }
         match (upstream.scheme_str(), upstream.authority()) {
             (Some("http"), Some(_)) => {}
             (Some("https"), Some(_)) if cfg!(feature = "tls") => {}
@@ -85,6 +102,7 @@ impl Options {
             upstream,
             max_message,
             preserve_host: false,
+            grace: crate::STOP_GRACE,
         })
     }
 }
@@ -99,6 +117,9 @@ pub struct Unrecorded {
     pub oversized: u64,
     /// Requests the upstream could not be reached for (answered 502 by the proxy).
     pub upstream_failures: u64,
+    /// Responses the upstream cut off after its status and headers (relayed to
+    /// the client as the same truncation; recorded as `transport-abort`).
+    pub upstream_cut: u64,
 }
 
 #[derive(Debug, Default)]
@@ -106,6 +127,7 @@ struct Counters {
     not_json: AtomicU64,
     oversized: AtomicU64,
     upstream_failures: AtomicU64,
+    upstream_cut: AtomicU64,
 }
 
 impl Counters {
@@ -114,6 +136,7 @@ impl Counters {
             not_json: self.not_json.load(Ordering::Relaxed),
             oversized: self.oversized.load(Ordering::Relaxed),
             upstream_failures: self.upstream_failures.load(Ordering::Relaxed),
+            upstream_cut: self.upstream_cut.load(Ordering::Relaxed),
         }
     }
 }
@@ -124,9 +147,16 @@ struct Proxy {
     client: Client<Connector, Body>,
     options: Options,
     counters: Counters,
+    /// Becomes `true` when the proxy is shutting down.
+    stopping: watch::Receiver<bool>,
 }
 
-/// Serves the proxy on `listener` until `shutdown` resolves.
+/// Serves the proxy on `listener` until `shutdown` resolves, then stops.
+///
+/// Stopping ends every open event stream (cleanly, between two chunks the
+/// upstream sent), gives other connections [`Options::grace`] to finish, and
+/// closes the trace with a `transport-close` event — so a client holding a stream
+/// open cannot keep the proxy running.
 ///
 /// # Errors
 ///
@@ -138,19 +168,53 @@ pub async fn serve(
     options: Options,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> io::Result<Unrecorded> {
+    let (stop, stopping) = watch::channel(false);
+    let grace = options.grace;
     let proxy = Arc::new(Proxy {
         recorder,
         client: Client::builder(TokioExecutor::new()).build(connector()?),
         options,
         counters: Counters::default(),
+        stopping: stopping.clone(),
     });
     let app = axum::Router::new()
-        .fallback(forward)
+        .fallback(relay::forward)
         .with_state(Arc::clone(&proxy));
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown)
-        .await?;
+    let server = axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            shutdown.await;
+            let _ = stop.send(true);
+        })
+        .into_future();
+    tokio::pin!(server);
+    let waited_out = async {
+        stopped(stopping).await;
+        tokio::time::sleep(grace).await;
+    };
+    tokio::select! {
+        result = &mut server => result?,
+        () = waited_out => {
+            eprintln!(
+                "mcp-trace-capture: connections still open {}s after the stop request are \
+                 closed unfinished",
+                grace.as_secs_f32()
+            );
+        }
+    }
+    let _ = proxy.recorder.close(
+        Direction::ClientToServer,
+        TransportKind::StreamableHttp,
+        LifecycleEvent::TransportClose,
+    );
     Ok(proxy.counters.snapshot())
+}
+
+/// Resolves once `stopping` is `true`; never, if its sender went away without
+/// setting it.
+async fn stopped(mut stopping: watch::Receiver<bool>) {
+    if stopping.wait_for(|stopping| *stopping).await.is_err() {
+        std::future::pending::<()>().await;
+    }
 }
 
 /// The upstream connector: HTTPS and HTTP with the `tls` feature, HTTP without.
@@ -177,290 +241,5 @@ fn connector() -> io::Result<Connector> {
     Ok(connector)
 }
 
-async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -> Response {
-    let (parts, body) = request.into_parts();
-    let Some(upstream_body) = proxy.record_request(&parts, body).await else {
-        // The client went away mid-body; there is nothing left to answer.
-        return StatusCode::BAD_REQUEST.into_response();
-    };
-    let mut upstream_request = axum::http::Request::new(upstream_body);
-    *upstream_request.method_mut() = parts.method;
-    *upstream_request.uri_mut() = target(&proxy.options.upstream, parts.uri.path_and_query());
-    let dropped: &[header::HeaderName] = if proxy.options.preserve_host {
-        &[header::CONTENT_LENGTH, header::ACCEPT_ENCODING]
-    } else {
-        &[
-            header::HOST,
-            header::CONTENT_LENGTH,
-            header::ACCEPT_ENCODING,
-        ]
-    };
-    *upstream_request.headers_mut() = headers::forwardable(&parts.headers, dropped);
-    match proxy.client.request(upstream_request).await {
-        Ok(upstream) => proxy.relay_response(upstream).await,
-        Err(error) => proxy.upstream_failed(&error),
-    }
-}
-
-impl Proxy {
-    /// Records a request's `http` event and body, and returns the body to send
-    /// upstream — `None` when the client's body could not be read.
-    async fn record_request(&self, parts: &axum::http::request::Parts, body: Body) -> Option<Body> {
-        // Metadata events cannot be refused for length (the line limit is at least
-        // 1 MiB, and HTTP header blocks are bounded far below it), and a sink
-        // failure is reported once, by `Recorder::finish`.
-        let _ = self.recorder.record(
-            Direction::ClientToServer,
-            TransportKind::StreamableHttp,
-            EventBody::Http {
-                method: Some(parts.method.as_str().to_owned()),
-                status: None,
-                headers: headers::recorded(&parts.headers),
-            },
-        );
-        let mut stream = body.into_data_stream();
-        let (prefix, complete) = read_prefix(&mut stream, self.options.max_message)
-            .await
-            .ok()?;
-        if complete {
-            self.record_body(Direction::ClientToServer, &prefix);
-            return Some(Body::from(prefix));
-        }
-        self.counters.oversized.fetch_add(1, Ordering::Relaxed);
-        Some(Body::from_stream(
-            futures::stream::once(async move { Ok::<_, axum::Error>(Bytes::from(prefix)) })
-                .chain(stream),
-        ))
-    }
-
-    /// Records the upstream's response and relays it to the client.
-    async fn relay_response(
-        self: &Arc<Self>,
-        upstream: axum::http::Response<hyper::body::Incoming>,
-    ) -> Response {
-        let (parts, incoming) = upstream.into_parts();
-        let _ = self.recorder.record(
-            Direction::ServerToClient,
-            TransportKind::StreamableHttp,
-            EventBody::Http {
-                method: None,
-                status: Some(parts.status.as_u16()),
-                headers: headers::recorded(&parts.headers),
-            },
-        );
-        let mut stream = Body::new(incoming).into_data_stream();
-        let body = if is_event_stream(&parts.headers) {
-            Body::from_stream(Arc::clone(self).record_events(stream))
-        } else {
-            let Ok((prefix, complete)) = read_prefix(&mut stream, self.options.max_message).await
-            else {
-                return self.upstream_failed(&"the response body was cut off");
-            };
-            if complete {
-                self.record_body(Direction::ServerToClient, &prefix);
-                Body::from(prefix)
-            } else {
-                self.counters.oversized.fetch_add(1, Ordering::Relaxed);
-                Body::from_stream(
-                    futures::stream::once(async move { Ok::<_, axum::Error>(Bytes::from(prefix)) })
-                        .chain(stream),
-                )
-            }
-        };
-        let mut response = Response::new(body);
-        *response.status_mut() = parts.status;
-        *response.headers_mut() = headers::forwardable(&parts.headers, &[header::CONTENT_LENGTH]);
-        response
-    }
-
-    /// Counts a message the recorder refused for its length — one whose bytes fit
-    /// the message limit but whose line, as written, would not.
-    fn count_refused(&self, recorded: Result<u64, NotRecorded>) {
-        if recorded == Err(NotRecorded::TooLong) {
-            self.counters.oversized.fetch_add(1, Ordering::Relaxed);
-        }
-    }
-
-    /// Records a complete body: nothing for an empty one, a message for JSON.
-    fn record_body(&self, direction: Direction, body: &[u8]) {
-        if body.is_empty() {
-            return;
-        }
-        match parse_json(body) {
-            Some(payload) => {
-                self.count_refused(self.recorder.record(
-                    direction,
-                    TransportKind::StreamableHttp,
-                    EventBody::Message { payload },
-                ));
-            }
-            None => {
-                self.counters.not_json.fetch_add(1, Ordering::Relaxed);
-            }
-        }
-    }
-
-    /// Passes an SSE stream through, recording each event's JSON before the chunk
-    /// that completes it is yielded.
-    fn record_events<S>(
-        self: Arc<Self>,
-        stream: S,
-    ) -> impl Stream<Item = Result<Bytes, axum::Error>>
-    where
-        S: Stream<Item = Result<Bytes, axum::Error>>,
-    {
-        let mut parser = SseParser::new(self.options.max_message);
-        let mut oversized_seen = 0;
-        stream.inspect_ok(move |chunk| {
-            for data in parser.push(chunk) {
-                match parse_json(&data) {
-                    Some(payload) => {
-                        self.count_refused(self.recorder.record(
-                            Direction::ServerToClient,
-                            TransportKind::StreamableHttp,
-                            EventBody::Message { payload },
-                        ));
-                    }
-                    None => {
-                        self.counters.not_json.fetch_add(1, Ordering::Relaxed);
-                    }
-                }
-            }
-            // The parser's count only grows; add what this chunk contributed.
-            let oversized = parser.oversized();
-            self.counters
-                .oversized
-                .fetch_add(oversized - oversized_seen, Ordering::Relaxed);
-            oversized_seen = oversized;
-        })
-    }
-
-    /// The upstream could not be reached or failed mid-response. The 502 is the
-    /// proxy's, not the server's, so it is recorded as an aborted transport rather
-    /// than as a response.
-    fn upstream_failed(&self, error: &dyn std::fmt::Display) -> Response {
-        eprintln!("mcp-trace-capture: upstream request failed: {error}");
-        self.counters
-            .upstream_failures
-            .fetch_add(1, Ordering::Relaxed);
-        let _ = self.recorder.record(
-            Direction::ServerToClient,
-            TransportKind::StreamableHttp,
-            EventBody::Lifecycle {
-                event: LifecycleEvent::TransportAbort,
-            },
-        );
-        (
-            StatusCode::BAD_GATEWAY,
-            "mcp-trace-capture: upstream unreachable",
-        )
-            .into_response()
-    }
-}
-
-/// Reads up to `max` bytes; `true` when that was the whole body.
-async fn read_prefix<S, E>(stream: &mut S, max: usize) -> Result<(Vec<u8>, bool), E>
-where
-    S: Stream<Item = Result<Bytes, E>> + Unpin,
-{
-    let mut prefix = Vec::new();
-    while let Some(chunk) = stream.next().await {
-        prefix.extend_from_slice(&chunk?);
-        if prefix.len() > max {
-            return Ok((prefix, false));
-        }
-    }
-    Ok((prefix, true))
-}
-
-/// `upstream` with the request's path appended to its own, and the request's query.
-fn target(upstream: &Uri, path_and_query: Option<&PathAndQuery>) -> Uri {
-    let base = upstream.path().trim_end_matches('/');
-    let path = path_and_query.map_or("/", PathAndQuery::path);
-    let joined = path_and_query.and_then(PathAndQuery::query).map_or_else(
-        || format!("{base}{path}"),
-        |query| format!("{base}{path}?{query}"),
-    );
-    let mut parts = upstream.clone().into_parts();
-    // `joined` is a path the client sent plus a prefix `Uri` already accepted, so it
-    // is a valid path-and-query; fall back to the upstream's own if not.
-    parts.path_and_query = joined.parse().ok().or(parts.path_and_query);
-    Uri::from_parts(parts).unwrap_or_else(|_| upstream.clone())
-}
-
-fn is_event_stream(headers: &HeaderMap) -> bool {
-    headers
-        .get(header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.split(';').next())
-        .is_some_and(|media| media.trim().eq_ignore_ascii_case("text/event-stream"))
-}
-
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
-mod tests {
-    use super::*;
-
-    /// `read_prefix` over `chunks` with a limit of 1024.
-    fn prefix_of(chunks: &[usize]) -> (usize, bool) {
-        let chunks: Vec<Result<Bytes, ()>> = chunks
-            .iter()
-            .map(|&len| Ok(Bytes::from(vec![b'x'; len])))
-            .collect();
-        let mut stream = futures::stream::iter(chunks);
-        let (prefix, complete) =
-            futures::executor::block_on(read_prefix(&mut stream, 1024)).unwrap();
-        (prefix.len(), complete)
-    }
-
-    #[test]
-    fn a_body_is_whole_up_to_the_limit_and_cut_as_soon_as_it_passes() {
-        assert_eq!(prefix_of(&[1024]), (1024, true));
-        assert_eq!(prefix_of(&[512, 512]), (1024, true));
-        assert_eq!(prefix_of(&[1025]), (1025, false));
-        // A chunk that jumps past the limit stops the read there: the rest of the
-        // body is streamed on, not buffered.
-        assert_eq!(prefix_of(&[600, 600, 600]), (1200, false));
-    }
-
-    #[test]
-    fn target_appends_the_request_path_to_the_upstream_path() {
-        let pq = |text: &str| text.parse::<PathAndQuery>().unwrap();
-        let root: Uri = "http://localhost:3000".parse().unwrap();
-        assert_eq!(
-            target(&root, Some(&pq("/mcp?x=1"))).to_string(),
-            "http://localhost:3000/mcp?x=1"
-        );
-        let prefixed: Uri = "https://example.com/api/".parse().unwrap();
-        assert_eq!(
-            target(&prefixed, Some(&pq("/mcp"))).to_string(),
-            "https://example.com/api/mcp"
-        );
-        assert_eq!(target(&root, None).to_string(), "http://localhost:3000/");
-    }
-
-    #[test]
-    fn only_absolute_http_upstreams_are_accepted() {
-        let uri = |text: &str| text.parse::<Uri>().unwrap();
-        assert!(Options::new(uri("http://127.0.0.1:3000"), 1).is_ok());
-        assert_eq!(
-            Options::new(uri("https://example.com"), 1).is_ok(),
-            cfg!(feature = "tls")
-        );
-        assert!(Options::new(uri("/relative"), 1).is_err());
-        assert!(Options::new(uri("ftp://example.com"), 1).is_err());
-    }
-
-    #[test]
-    fn event_streams_are_recognised_with_parameters_and_any_case() {
-        let with = |value: &str| {
-            let mut headers = HeaderMap::new();
-            headers.insert(header::CONTENT_TYPE, value.parse().unwrap());
-            headers
-        };
-        assert!(is_event_stream(&with("text/event-stream")));
-        assert!(is_event_stream(&with("Text/Event-Stream; charset=utf-8")));
-        assert!(!is_event_stream(&with("application/json")));
-        assert!(!is_event_stream(&HeaderMap::new()));
-    }
-}
+mod tests;

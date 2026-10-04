@@ -1170,6 +1170,7 @@ dependencies = [
  "mcp-conformance-core",
  "mcp-everything-server",
  "mcp-trace-validator",
+ "nix",
  "reqwest",
  "rustls",
  "serde_json",
