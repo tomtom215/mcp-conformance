@@ -30,11 +30,26 @@ decide:
 | `reader::Limits::default()` | Lines up to 65 MiB (was 1 MiB), up to 1,000,000 events (was 100,000) | `Limits::new(100_000, 1024 * 1024)` for the old caps |
 | Registry data | 31 `source.section` anchors corrected to the ones the spec site publishes (e.g. `basic/index#meta` → `basic/index#_meta`) | Key on the requirement ID, which did not change |
 | `context::draft` | Deprecated alias of `context::stateless` | Use `context::stateless`; the alias goes in the next minor |
+| `validate` human output | Lists failing, warning and unsupported clauses only (the totals still count every clause) | `--all` lists every clause, as before |
+| `JUnit` report | Suites and test cases name the trace (suite name, `classname` prefix, `file`); under `--strict` warnings are `<failure>`s | Match suites by revision inside the name, or pass the trace on stdin for the old names |
+| SARIF | `partialFingerprints` key is `mcpConformanceFinding/v2`, free of `seq`; under `--strict` warnings are level `error` | Alerts keyed on the v1 fingerprint are reopened once |
+| `CACH-001` (2026-07-28) | Requires `cacheScope` as well as `ttlMs` on cacheable results | Send both hints, as the schema's `CacheableResult` requires |
+| `BASE-055` (2026-07-28) | Split: allocating a reserved code stays `BASE-055` (now excluded); using a legacy code is `BASE-083`, a SHOULD NOT that warns | Gate on `BASE-083` where `BASE-055` was |
+| `mcp-reference-host` | `cli` is a default feature, so `cargo install mcp-reference-host` installs the binary | Library users: `default-features = false` |
 
 Each is stated again in the entry that introduced it, with the reasoning.
 
 ### Changed — breaking
 
+- **The human report lists what needs attention.** It printed all ~270 clauses, so a
+  single failure scrolled away; it now prints failing, warning and unsupported clauses
+  with their findings, then the totals and the verdict. `--all` lists every clause.
+  `--quiet`, which selected this view in the 0.6.0 pre-release, is accepted and hidden.
+- **`CACH-001` requires both caching hints.** The page defines "caching hints" as
+  `ttlMs` and `cacheScope`, and the schema requires both; the check accepted `ttlMs`
+  alone.
+- **`BASE-055` is split** so that using a legacy error code is the SHOULD NOT the
+  spec makes it (`BASE-083`, a warning), while allocating one stays a MUST NOT.
 - **`validate` judges the revision the trace declares, and `2026-07-28` ships in
   every build.** Until now a default install judged every trace against `2025-11-25`,
   so a conforming `2026-07-28` session failed `LIFE-001` (and often `BASE-003`) with
@@ -64,6 +79,23 @@ Each is stated again in the entry that introduced it, with the reasoning.
 
 ### Added
 
+- **Several traces in one run.** `validate traces/*.jsonl` judges each, prints a
+  section per trace and a tally, writes one JUnit document and one SARIF run, and exits
+  with the worst trace's status; a trace that cannot be judged counts. The JSON form is
+  an envelope added to `report.schema.json`. Library: `junit::render_traces`,
+  `sarif::render_traces`.
+- **A GitHub Action** (`action.yml`): validates the traces it is given, writes SARIF
+  and JUnit, summarizes the findings, and fails the step on them; it builds the CLI
+  from its own ref or downloads a release's checksum-verified binaries.
+- **`judge::judge`**, the CLI's verdict in one library call, refusing a contentless
+  trace instead of passing it.
+- **A note when a trace records more than one session** (validator and capture): two
+  clients in one file draw findings that are artifacts of recording them together.
+- **The book has a user guide**: getting started, using it in CI, troubleshooting.
+- **An interop CI job**: the official TypeScript and Python SDKs talk to each other
+  through `mcp-trace-capture` over stdio and HTTP, and every session must judge clean
+  at the revision its SDK speaks.
+- `mcp-trace-capture` warns when `--listen` is not a loopback address.
 - **`mcp-trace-capture`, a new crate: record any MCP session as a trace.** Wrap a stdio
   server (`mcp-trace-capture -o t.jsonl stdio -- <server> [args…]`, launched by the
   client in the server's place) or proxy a streamable-HTTP one
@@ -134,6 +166,43 @@ Each is stated again in the entry that introduced it, with the reasoning.
 
 ### Fixed
 
+- **Wrong verdicts on conforming traffic**, each reproduced on real SDK recordings
+  or the spec's own examples:
+  - a session teardown `DELETE` answered `200` with no body (what the official
+    TypeScript SDK sends) failed `TRAN-029`/`TRAN-040`;
+  - `TOOL-011`/`TOOL-040` judged a multi-round-trip tool's `input_required` interim
+    result, and a task-augmented call's `CreateTaskResult`, as the tool's result, and
+    demanded an object `structuredContent` where `2026-07-28` allows any value;
+  - a dual-era client's `server/discover` probe, refused by a legacy server before it
+    falls back to `initialize`, failed `LIFE-001` and, over HTTP, made the trace be
+    judged under `2026-07-28` too;
+  - an error echoing a malformed request's readable id failed `BASE-009`;
+  - an `initialize` retried after an error was never recorded, so every
+    capability-gated clause afterwards went unjudged and `LIFE-005` warned falsely;
+  - at `2026-07-28`: parallel multi-round-trip retries paired with the wrong round;
+    concurrent HTTP requests paired with the wrong body; the stdio subscription
+    teardown failed `BASE-039`/`SUBS-001`; `RES-022` convicted any empty read;
+    `TRAN-070` treated an upstream abort as cancelling every request; `TRAN-097`/`100`
+    compared integers as text; `TRAN-124` ignored the cancellation race; `TOOL-034`
+    applied to stdio; `BASE-031`/`032` ignored the order of a reused id.
+- **Missed violations:** `application/json-seq` passed as `application/json`;
+  `TRAN-073`/`096` did not judge refusals carrying `id: null`; `LOG-008` missed a log
+  for a request that did not opt in.
+- `validate` exits `2` when the report cannot be written (it exited `0`, leaving CI to
+  upload a truncated file), and `3`, with the line, for a trace that is not UTF-8 (with
+  a hint for UTF-16).
+- **`mcp-trace-capture`:** non-JSON stdio lines are recorded (as string payloads) and
+  judged, instead of dropped; stop signals reach a wrapped server's whole process group,
+  so a launcher (`npx`, `uv run`) no longer strands it; the HTTP proxy stops promptly
+  with event streams open; an upstream response cut off mid-body reaches the client as
+  the same truncation instead of a proxy-made `502`; a request's headers and body are
+  recorded together under concurrency; a run that fails to start leaves no empty trace
+  behind; `--upstream`'s query string is kept and credentials in it are refused.
+- **Release:** `mcp-trace-capture` published third would have failed every time (it
+  dev-depends on a crate published after it); resuming a partly published tag failed
+  on the first crate; the publish job no longer compiles anything while it holds the
+  crates.io token; Windows binaries link the C runtime statically.
+- The weekly dependency-floor job resolves again (one `serde_json` floor, 1.0.143).
 - **A trace `mcp-trace-capture` records at its defaults is one the validator reads at
   its defaults.** The capture kept messages up to 64 MiB, the validator refused any
   line over 1 MiB, so one large tool result (a base64 image is enough) made the whole

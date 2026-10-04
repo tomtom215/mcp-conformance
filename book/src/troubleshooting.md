@@ -52,9 +52,11 @@ the usual choice in a client's configuration, which relaunches servers.
 checks the `Host` header, which the proxy rewrites to name the upstream. Add
 `--preserve-host`.
 
-**The capture's exit summary counts messages that were not JSON.** The server writes
-something other than protocol messages to stdout (log lines, a banner). That is itself
-a stdio transport violation; send logs to stderr.
+**`TRAN-004` (or `TRAN-117`) fails on a line like `"Server starting..."`.** The server
+writes something other than protocol messages to stdout — log lines, a banner. The
+capture records each such line as it was written, and the validator judges it: it is a
+stdio transport violation (the same line usually also fails `BASE-008`, and `LIFE-001`
+when it comes first). Send logs to stderr.
 
 **A client configuration cannot find `mcp-trace-capture`.** Desktop applications often
 start without your shell's `PATH`. Use the absolute path to the binary as the
