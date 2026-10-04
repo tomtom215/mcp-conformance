@@ -812,3 +812,26 @@ fn quiet_multi_revision_output_hides_rows_never_counts() {
         "--quiet hides rows, never counts"
     );
 }
+
+/// A report that could not be written is not a verdict a CI step can rely on:
+/// writing to a full device exits `2`, where it used to print an error and
+/// exit with the verdict's `0`, leaving CI to upload a truncated SARIF file.
+/// A reader closing the pipe early (`| head`) is still not an error.
+#[cfg(target_os = "linux")]
+#[test]
+fn a_report_that_cannot_be_written_is_a_failure_not_a_pass() {
+    let trace = corpus("good/stdio-minimal-init.jsonl");
+    for args in [
+        vec!["validate", "--format", "sarif", trace.to_str().unwrap()],
+        vec!["validate", trace.to_str().unwrap()],
+        vec!["requirements"],
+    ] {
+        let output = binary()
+            .args(&args)
+            .stdout(std::fs::File::create("/dev/full").unwrap())
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {output:?}");
+        assert!(stderr(&output).contains("cannot write output"), "{args:?}");
+    }
+}

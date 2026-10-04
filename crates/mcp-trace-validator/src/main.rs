@@ -24,8 +24,11 @@ use mcp_trace_validator::declared::{self, RevisionSource};
 use mcp_trace_validator::report::{Report, Verdict};
 use mcp_trace_validator::{engine, multi, reader};
 
+mod emit;
 mod input;
 mod judgeable;
+
+use emit::emit;
 
 const EXIT_OK: u8 = 0;
 const EXIT_FINDINGS: u8 = 1;
@@ -321,7 +324,7 @@ fn emit_single(
     if judgeable::reject(report.totals, trace_source) {
         return EXIT_USAGE;
     }
-    match output.format {
+    let written = match output.format {
         Format::Human if output.quiet => emit(&report.render_findings()),
         Format::Human => emit(&report.render_human()),
         Format::Json => match serde_json::to_string_pretty(report) {
@@ -336,6 +339,9 @@ fn emit_single(
             core::slice::from_ref(report),
             artifact(trace_source, events),
         )),
+    };
+    if !written {
+        return EXIT_USAGE;
     }
     verdict_to_code(report.verdict(), output.strict)
 }
@@ -373,7 +379,7 @@ fn run_validate_multi(
     if judgeable::reject(judgeable::combined(&report), trace_source) {
         return EXIT_USAGE;
     }
-    match output.format {
+    let written = match output.format {
         Format::Human if output.quiet => emit(&report.render_findings()),
         Format::Human => emit(&report.render_human()),
         Format::Json => match serde_json::to_string_pretty(&report) {
@@ -390,14 +396,17 @@ fn run_validate_multi(
                 .map(|registry| engine::validate(&registry, events))
                 .collect();
             if matches!(output.format, Format::Junit) {
-                emit(&mcp_trace_validator::junit::render_all(&reports));
+                emit(&mcp_trace_validator::junit::render_all(&reports))
             } else {
                 emit(&mcp_trace_validator::sarif::render(
                     &reports,
                     artifact(trace_source, events),
-                ));
+                ))
             }
         }
+    };
+    if !written {
+        return EXIT_USAGE;
     }
     verdict_to_code(report.verdict(), output.strict)
 }
@@ -414,7 +423,7 @@ fn run_requirements(
             return EXIT_USAGE;
         }
     };
-    match format {
+    let written = match format {
         Format::Junit | Format::Sarif => {
             eprintln!(
                 "error: --format junit and --format sarif apply to validate, not requirements"
@@ -446,10 +455,10 @@ fn run_requirements(
                     requirement.source.quote
                 );
             }
-            emit(&out);
+            emit(&out)
         }
-    }
-    EXIT_OK
+    };
+    if written { EXIT_OK } else { EXIT_USAGE }
 }
 
 /// The registry `requirements` prints: a custom file, or a built-in revision (the
@@ -480,18 +489,4 @@ fn requirements_registry(
                 .join(", ")
         )
     })
-}
-
-/// Writes `text` to stdout. A reader that closed the pipe early (`… | head`) has
-/// what it wanted; that ends the output, it is not an error — `print!` would panic.
-fn emit(text: &str) {
-    use std::io::Write as _;
-    let mut stdout = std::io::stdout().lock();
-    if let Err(error) = stdout
-        .write_all(text.as_bytes())
-        .and_then(|()| stdout.flush())
-        && error.kind() != std::io::ErrorKind::BrokenPipe
-    {
-        eprintln!("error: cannot write output: {error}");
-    }
 }
