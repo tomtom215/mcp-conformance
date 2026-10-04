@@ -87,15 +87,23 @@ pub(in crate::checks) fn required_request_fields(
     }
 }
 
-/// Client requests whose `_meta` is missing a required field, by id text.
+/// The answers to client requests whose `_meta` is missing a required field:
+/// response `seq` → the malformed request's `seq`.
 ///
 /// Shared by `BASE-031` (what such a request must draw) and `BASE-032` (what
 /// HTTP status that answer must ride), because both clauses are about the
 /// *same* request and neither binds a `-32602` raised for any other reason.
-fn malformed_requests(context: &TraceContext<'_>) -> BTreeMap<String, u64> {
-    client_requests(context)
-        .filter_map(|(seq, id, payload)| {
-            let id = id?;
+///
+/// Correlated through the context's exchange pairing — each response with the
+/// earliest unanswered request of its id — not by id alone. `2026-07-28`
+/// permits reusing an id once its response has arrived (BASE-045), and keyed by
+/// id text a well-formed request reusing a malformed one's id had its result
+/// held against the malformed request, in either order.
+fn malformed_answers(context: &TraceContext<'_>) -> BTreeMap<u64, u64> {
+    context
+        .exchanges()
+        .filter(|exchange| exchange.request.direction == Direction::ClientToServer)
+        .filter_map(|exchange| {
             // The one exchange the specification takes out of this rule: a legacy
             // `initialize` arriving at a modern server. `basic/versioning`'s
             // compatibility matrix states that there "the exact code is
@@ -105,14 +113,14 @@ fn malformed_requests(context: &TraceContext<'_>) -> BTreeMap<String, u64> {
             // `-32601` conforms. Without this, every cross-era capture would
             // carry a MUST failure the specification has explicitly waived. The
             // client's own defect is still reported, by BASE-030.
-            if payload.get("method").and_then(Value::as_str) == Some(LEGACY_HANDSHAKE) {
+            if exchange.method == LEGACY_HANDSHAKE {
                 return None;
             }
-            let meta = params_meta(payload);
+            let meta = exchange.request.message_payload().and_then(params_meta);
             let complete = REQUIRED_REQUEST_FIELDS
                 .iter()
                 .all(|field| meta.is_some_and(|meta| meta.contains_key(*field)));
-            (!complete).then(|| (id.to_string(), seq))
+            (!complete).then_some((exchange.response.seq, exchange.request.seq))
         })
         .collect()
 }
@@ -127,21 +135,12 @@ pub(in crate::checks) fn missing_required_field_rejected(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let malformed = malformed_requests(context);
-    if malformed.is_empty() {
-        return;
-    }
+    let malformed = malformed_answers(context);
     for (event, _, _) in context.messages() {
-        if !matches!(event.direction, Direction::ServerToClient) {
+        let Some(&request_seq) = malformed.get(&event.seq) else {
             continue;
-        }
+        };
         let Some(payload) = event.message_payload() else {
-            continue;
-        };
-        let Some(id) = payload.get("id") else {
-            continue;
-        };
-        let Some(&request_seq) = malformed.get(&id.to_string()) else {
             continue;
         };
         // The subject is an *answer* to a malformed request; one the recording
@@ -170,8 +169,8 @@ pub(in crate::checks) fn missing_required_field_rejected(
 /// Reports every server error carrying `code` whose HTTP response status is not
 /// `400` — the shared body of `BASE-032` and `BASE-036`.
 ///
-/// `answering` narrows which errors of that code the clause reaches, by the id
-/// of the request each answers. `BASE-036` passes `None`: `-32021` has exactly
+/// `answering` narrows which errors of that code the clause reaches, by the
+/// `seq` of the response (see [`malformed_answers`]). `BASE-036` passes `None`: `-32021` has exactly
 /// one cause, so every one of them is its subject. `BASE-032` passes the
 /// malformed-request set, because its `-32602` is not the only `-32602` a
 /// conforming server emits — this revision *replaced* `-32002` with it, so a
@@ -182,7 +181,7 @@ fn http_status_for_error(
     sink: &mut FindingSink,
     code: i64,
     clause: &str,
-    answering: Option<&BTreeMap<String, u64>>,
+    answering: Option<&BTreeMap<u64, u64>>,
 ) {
     let framing = Framing::new(context);
     for (event, _, _) in context.messages() {
@@ -200,13 +199,10 @@ fn http_status_for_error(
         if !matches_code {
             continue;
         }
-        if let Some(answering) = answering {
-            let answers_a_subject = payload
-                .get("id")
-                .is_some_and(|id| answering.contains_key(&id.to_string()));
-            if !answers_a_subject {
-                continue;
-            }
+        if let Some(answering) = answering
+            && !answering.contains_key(&event.seq)
+        {
+            continue;
         }
         // Only judged when the recording actually carries HTTP framing; on stdio
         // there is no status to check, and a trace without one evidences nothing.
@@ -233,7 +229,7 @@ pub(in crate::checks) fn missing_required_field_http_status(
     // envelope, so the difference could not show; a server answering a
     // resource-not-found `-32602` with anything but 400 would have been
     // reported for a clause that does not bind it.
-    let malformed = malformed_requests(context);
+    let malformed = malformed_answers(context);
     http_status_for_error(
         context,
         sink,

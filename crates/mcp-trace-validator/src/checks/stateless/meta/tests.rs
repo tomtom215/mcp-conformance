@@ -390,3 +390,33 @@ fn the_server_teardown_of_a_subscription_needs_no_tag() {
     let other = teardown.replace(r#""requestId":1"#, r#""requestId":7"#);
     assert_eq!(findings_for(check, &listening(&other)).len(), 1);
 }
+
+#[test]
+fn a_reused_id_is_judged_by_the_request_its_answer_pairs_with() {
+    // BASE-045 allows reusing an id once answered; keyed by id alone, a
+    // well-formed request's result was held against a malformed one sharing it.
+    const INCOMPLETE: &str = r#""_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}"#;
+    let check = "meta.missing-required-field-rejected";
+    let ask = |seq, meta: &str| {
+        client(
+            seq,
+            &format!(r#"{{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{{{meta}}}}}"#),
+        )
+    };
+    let ok = |seq| {
+        server(
+            seq,
+            r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","tools":[]}}"#,
+        )
+    };
+    let rejected = server(
+        1,
+        r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"x"}}"#,
+    );
+    let malformed_first = trace(&[ask(0, INCOMPLETE), rejected, ask(2, META), ok(3)]);
+    assert!(findings_for(check, &malformed_first).is_empty());
+    let malformed_second = trace(&[ask(0, META), ok(1), ask(2, INCOMPLETE), ok(3)]);
+    let findings = findings_for(check, &malformed_second);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].contains("seq 2"), "{findings:?}");
+}
