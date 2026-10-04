@@ -158,6 +158,14 @@ async fn run_stdio(
 ) -> u8 {
     match stdio::run(Arc::clone(recorder), program, args, max_message).await {
         Ok(outcome) => {
+            if let Some(stop) = outcome.stop {
+                eprintln!(
+                    "mcp-trace-capture: {} relayed to the server's process group; the \
+                     server exited with {}",
+                    stop.name(),
+                    outcome.status
+                );
+            }
             report_stdio("client", outcome.client);
             report_stdio("server", outcome.server);
             exit_code_of(outcome.status)

@@ -13,7 +13,7 @@
 //! response can never be recorded ahead of the request it answers — the `seq` order
 //! is causal by construction, not by the luck of task scheduling.
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::io;
 use std::process::ExitStatus;
 use std::sync::Arc;
@@ -21,10 +21,15 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TransportKind};
 use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
-use tokio::process::Command;
+use tokio::process::{ChildStdin, ChildStdout};
 
 use crate::framing::{Line, LineSplitter, parse_json};
 use crate::recorder::{NotRecorded, Recorder};
+use crate::signals::{Signals, Stop};
+use process::ServerProcess;
+
+mod ending;
+mod process;
 
 /// What one direction carried that was not a JSON message.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -138,25 +143,77 @@ fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Ta
     }
 }
 
+/// [`pump_counted`] as a task of its own.
+fn spawn_pump<R, W>(
+    recorder: &Arc<Recorder>,
+    direction: Direction,
+    from: R,
+    to: W,
+    max_message: usize,
+    tally: &Arc<Tally>,
+) -> tokio::task::JoinHandle<io::Result<()>>
+where
+    R: AsyncRead + Unpin + Send + 'static,
+    W: AsyncWrite + Unpin + Send + 'static,
+{
+    let (recorder, tally) = (Arc::clone(recorder), Arc::clone(tally));
+    tokio::spawn(
+        async move { pump_counted(&recorder, direction, from, to, max_message, &tally).await },
+    )
+}
+
 /// How a wrapped session ended.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct Outcome {
     /// The server's exit status.
     pub status: ExitStatus,
-    /// What the client sent that was not recorded.
+    /// What the client sent that was not a JSON message.
     pub client: Unrecorded,
-    /// What the server sent that was not recorded.
+    /// What the server sent that was not a JSON message.
     pub server: Unrecorded,
+    /// The request to stop that ended the session, if one did; it was relayed to
+    /// the server's process group.
+    pub stop: Option<Stop>,
+}
+
+/// A started server, not yet relayed to: [`spawn`] it before creating anything
+/// that depends on its having started (the trace file), then [`run_server`].
+#[derive(Debug)]
+pub struct Server {
+    process: ServerProcess,
+    stdin: ChildStdin,
+    stdout: ChildStdout,
+}
+
+impl Server {
+    /// Ends the server and every process in its group, without a session — for a
+    /// caller that cannot go on after starting it.
+    pub async fn kill(mut self) {
+        self.process.kill();
+        let _ = self.process.wait().await;
+    }
+}
+
+/// Starts `program` with `args` as the server: piped stdin and stdout, inherited
+/// stderr, and (on Unix) a process group of its own. Must be called within a
+/// Tokio runtime.
+///
+/// # Errors
+///
+/// The server could not be started.
+pub fn spawn(program: &OsStr, args: &[OsString]) -> io::Result<Server> {
+    let (process, stdin, stdout) = process::spawn(program, args)?;
+    Ok(Server {
+        process,
+        stdin,
+        stdout,
+    })
 }
 
 /// Runs `program` with `args` as the server, relaying this process's stdin and
-/// stdout to it and recording the session.
-///
-/// The session ends when the server exits. If the client closes its end first, the
-/// server's stdin is closed and the wrapper waits for the server to exit, as the
-/// stdio transport's shutdown sequence expects. `SIGINT`/`SIGTERM` (Ctrl-C on
-/// Windows) are relayed by terminating the server, so it is never orphaned.
+/// stdout to it and recording the session: [`Signals::install`], [`spawn`] and
+/// [`run_server`] in one call.
 ///
 /// # Errors
 ///
@@ -167,143 +224,93 @@ pub async fn run(
     args: Vec<OsString>,
     max_message: usize,
 ) -> io::Result<Outcome> {
-    // Registered before the server starts, so a signal that arrives at any point
-    // after this relays to it rather than killing this process outright.
-    let stop = crate::shutdown_signal()?;
-    let (mut child, child_stdin, child_stdout) = spawn_server(&program, &args)?;
-    lifecycle(
-        &recorder,
+    // Installed before the server starts, so a signal that arrives at any point
+    // after this is relayed rather than killing this process outright.
+    let signals = Signals::install()?;
+    let server = spawn(&program, &args)?;
+    run_server(recorder, server, signals, max_message).await
+}
+
+/// Relays this process's stdin and stdout to `server` and records the session.
+///
+/// The session ends when the server exits. If the client closes its end first, the
+/// server's stdin is closed and the wrapper waits for the server to exit, as the
+/// stdio transport's shutdown sequence expects. A request to stop (`signals`) is
+/// relayed to the server's whole process group; a server still running
+/// [`STOP_GRACE`](crate::STOP_GRACE) later, or at a second request, is killed. The
+/// trace's last event closes it either way.
+///
+/// # Errors
+///
+/// Waiting for the server failed.
+pub async fn run_server(
+    recorder: Arc<Recorder>,
+    server: Server,
+    mut signals: Signals,
+    max_message: usize,
+) -> io::Result<Outcome> {
+    let Server {
+        mut process,
+        stdin: child_stdin,
+        stdout: child_stdout,
+    } = server;
+    let _ = recorder.record(
         Direction::ClientToServer,
-        LifecycleEvent::TransportOpen,
+        TransportKind::Stdio,
+        EventBody::Lifecycle {
+            event: LifecycleEvent::TransportOpen,
+        },
     );
 
     let (client_tally, server_tally) = (Arc::new(Tally::default()), Arc::new(Tally::default()));
-    let mut client = tokio::spawn({
-        let (recorder, tally) = (Arc::clone(&recorder), Arc::clone(&client_tally));
-        async move {
-            pump_counted(
-                &recorder,
-                Direction::ClientToServer,
-                tokio::io::stdin(),
-                child_stdin,
-                max_message,
-                &tally,
-            )
-            .await
-        }
-    });
-    let server = tokio::spawn({
-        let (recorder, tally) = (Arc::clone(&recorder), Arc::clone(&server_tally));
-        async move {
-            pump_counted(
-                &recorder,
-                Direction::ServerToClient,
-                child_stdout,
-                tokio::io::stdout(),
-                max_message,
-                &tally,
-            )
-            .await
-        }
-    });
+    let mut client = spawn_pump(
+        &recorder,
+        Direction::ClientToServer,
+        tokio::io::stdin(),
+        child_stdin,
+        max_message,
+        &client_tally,
+    );
+    let mut server_pump = spawn_pump(
+        &recorder,
+        Direction::ServerToClient,
+        child_stdout,
+        tokio::io::stdout(),
+        max_message,
+        &server_tally,
+    );
 
-    let (status, closed_by_client) = wait_for_end(&mut child, &mut client, stop).await?;
-    if !closed_by_client {
+    let end = ending::wait_for_end(&mut process, &mut client, &mut signals).await?;
+    if !end.client_finished {
         // The client's pump is blocked on this process's stdin, which the client
         // may hold open forever. Stop it, and wait until it has stopped, so nothing
         // it reads after the server has gone is recorded behind the closing event
         // below — and a library caller is not left with a task reading its stdin.
-        // (When the client closed first, `wait_for_end` already joined it.)
         client.abort();
         let _ = client.await;
     }
-    // The server's stdout closes at exit, so this drains and returns. Its result,
-    // like the client's, is only the first I/O error; the counts are in the tallies.
-    let _ = server.await;
-    let closer = if closed_by_client {
+    // The server's stdout closes when the last process holding it exits; a
+    // request to stop bounds that wait.
+    let late_stop = ending::drain(&mut server_pump, &mut process, &mut signals, &end).await;
+    let stop = end.stop.or(late_stop);
+    let closer = if end.client_closed || stop.is_some() {
         Direction::ClientToServer
     } else {
         Direction::ServerToClient
     };
-    let ending = if status.success() {
+    let event = if end.status.success() {
         LifecycleEvent::TransportClose
     } else {
         LifecycleEvent::TransportAbort
     };
-    lifecycle(&recorder, closer, ending);
+    // The last word: nothing a straggling task records after this reaches the trace.
+    let _ = recorder.close(closer, TransportKind::Stdio, event);
     Ok(Outcome {
-        status,
+        status: end.status,
         client: client_tally.snapshot(),
         server: server_tally.snapshot(),
+        stop,
     })
-}
-
-fn lifecycle(recorder: &Recorder, direction: Direction, event: LifecycleEvent) {
-    // Too small to be refused for length; a sink failure is reported by `finish`.
-    let _ = recorder.record(
-        direction,
-        TransportKind::Stdio,
-        EventBody::Lifecycle { event },
-    );
-}
-
-/// Starts the server with piped stdin/stdout and inherited stderr.
-fn spawn_server(
-    program: &OsString,
-    args: &[OsString],
-) -> io::Result<(
-    tokio::process::Child,
-    tokio::process::ChildStdin,
-    tokio::process::ChildStdout,
-)> {
-    let mut child = Command::new(program)
-        .args(args)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::inherit())
-        .kill_on_drop(true)
-        .spawn()
-        .map_err(|error| {
-            io::Error::new(
-                error.kind(),
-                format!("cannot start {}: {error}", program.to_string_lossy()),
-            )
-        })?;
-    match (child.stdin.take(), child.stdout.take()) {
-        (Some(stdin), Some(stdout)) => Ok((child, stdin, stdout)),
-        _ => Err(io::Error::other(
-            "the server's stdio pipes were not created",
-        )),
-    }
-}
-
-/// Waits for the session to end: the server exits, the client closes its end (then
-/// the server is given until it exits), or this process is asked to stop (then the
-/// server is terminated). Returns the server's status and whether the client closed
-/// first.
-async fn wait_for_end(
-    child: &mut tokio::process::Child,
-    client: &mut tokio::task::JoinHandle<io::Result<()>>,
-    stop: impl std::future::Future<Output = ()>,
-) -> io::Result<(ExitStatus, bool)> {
-    tokio::pin!(stop);
-    tokio::select! {
-        status = child.wait() => Ok((status?, false)),
-        _ = client => {
-            let status = tokio::select! {
-                status = child.wait() => status?,
-                () = &mut stop => {
-                    child.start_kill().ok();
-                    child.wait().await?
-                }
-            };
-            Ok((status, true))
-        }
-        () = &mut stop => {
-            child.start_kill().ok();
-            Ok((child.wait().await?, false))
-        }
-    }
 }
 
 #[cfg(test)]

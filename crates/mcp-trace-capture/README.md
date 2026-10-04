@@ -28,6 +28,14 @@ wrapper's exit code. Then:
 mcp-trace-validator validate session.jsonl
 ```
 
+**Stopping.** The server runs in a process group of its own (on Unix), so a
+launcher in front of it — `npx`, `uv run`, `sh -c` — cannot strand the real server.
+`SIGINT`, `SIGTERM` and `SIGHUP` sent to the wrapper are relayed to that whole group;
+the server gets 3 seconds to exit on its own terms, then the group is killed
+(`SIGKILL`). A second signal skips the rest of the wait. Either way the trace is
+closed with a final lifecycle event before the wrapper exits with the server's
+status. (Elsewhere, Ctrl-C ends the server.)
+
 ### In a client's configuration
 
 Clients launch a stdio server from a command and its arguments; the wrapper goes in
@@ -113,8 +121,8 @@ certificates). SSE streams are relayed as they arrive, event by event.
   **Message content is recorded in full** — as parsed JSON, so whitespace, member
   order (written sorted) and number spelling (`1E2` as `100.0`) are not kept, but
   every value is: review a trace before sharing it.
-- **Crash-safe.** Every event is flushed as it is written; a killed capture keeps what
-  it recorded.
+- **Crash-safe.** Every event is flushed as it is written; a capture killed with
+  `SIGKILL` keeps what it recorded. Any other request to stop closes the trace first.
 
 ## Limits, stated plainly
 
@@ -128,7 +136,7 @@ certificates). SSE streams are relayed as they arrive, event by event.
 
 | Code | Meaning |
 |------|---------|
-| server's | `stdio`: the wrapped server's exit code (128 + signal if a signal ended it, on Unix) |
+| server's | `stdio`: the wrapped server's exit code (128 + signal if a signal ended it, on Unix — 137 for a server killed after the grace period) |
 | 0 | `http`: stopped cleanly with a complete trace |
 | 2 | Bad arguments, an existing output file (`--force` overwrites), a server that would not start, an address that would not bind |
 | 3 | The session ran but the trace is incomplete (a write failed), when the code would otherwise be 0 |

@@ -23,42 +23,28 @@ pub mod framing;
 pub mod headers;
 pub mod http;
 pub mod recorder;
+pub mod signals;
 pub mod stdio;
 
 pub use recorder::{NotRecorded, Recorder, Summary};
+pub use signals::{STOP_GRACE, Signals, Stop};
 
-/// A future that resolves when this process is asked to stop: SIGINT or SIGTERM on
-/// Unix, Ctrl-C elsewhere.
+/// A future that resolves at the first request to stop: SIGINT, SIGTERM or SIGHUP
+/// on Unix, Ctrl-C elsewhere.
 ///
-/// The Unix handlers are registered by this call, not when the future is first
-/// polled, so a signal arriving between the call and the first poll is not lost —
-/// the difference between a capture that finishes its trace and one the default
-/// handler kills mid-announcement.
+/// The handlers are registered by this call, not when the future is first polled,
+/// so a signal arriving between the call and the first poll is not lost. They stay
+/// registered after the future resolves, so later signals are caught rather than
+/// fatal; use [`Signals`] directly to see them.
 ///
 /// # Errors
 ///
 /// A signal handler could not be registered.
 pub fn shutdown_signal() -> std::io::Result<impl std::future::Future<Output = ()>> {
-    #[cfg(unix)]
-    {
-        use tokio::signal::unix::{SignalKind, signal};
-        let mut interrupt = signal(SignalKind::interrupt())?;
-        let mut terminate = signal(SignalKind::terminate())?;
-        Ok(async move {
-            tokio::select! {
-                _ = interrupt.recv() => {}
-                _ = terminate.recv() => {}
-            }
-        })
-    }
-    #[cfg(not(unix))]
-    {
-        Ok(async {
-            if tokio::signal::ctrl_c().await.is_err() {
-                std::future::pending::<()>().await;
-            }
-        })
-    }
+    let mut signals = Signals::install()?;
+    Ok(async move {
+        signals.recv().await;
+    })
 }
 
 /// The default largest message recorded, in bytes (64 MiB).

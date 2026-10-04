@@ -19,7 +19,7 @@ use std::io::{self, Write};
 use std::sync::{Mutex, PoisonError};
 
 use mcp_conformance_core::trace::{
-    DEFAULT_MAX_LINE_BYTES, Direction, EventBody, TraceEvent, TransportKind,
+    DEFAULT_MAX_LINE_BYTES, Direction, EventBody, LifecycleEvent, TraceEvent, TransportKind,
 };
 
 /// Appends trace events to a sink, one JSON object per line.
@@ -38,6 +38,8 @@ pub enum NotRecorded {
     TooLong,
     /// The sink has failed; nothing more is written.
     SinkFailed,
+    /// The trace has been closed ([`Recorder::close`]); its last event is written.
+    Closed,
 }
 
 struct Inner {
@@ -45,6 +47,7 @@ struct Inner {
     sink: Box<dyn Write + Send>,
     failed: Option<io::Error>,
     dropped: u64,
+    closed: bool,
 }
 
 impl std::fmt::Debug for Inner {
@@ -94,6 +97,7 @@ impl Recorder {
                 sink: Box::new(sink),
                 failed: None,
                 dropped: 0,
+                closed: false,
             }),
             max_line,
         }
@@ -104,16 +108,64 @@ impl Recorder {
     /// # Errors
     ///
     /// [`NotRecorded::TooLong`] when the event's line would exceed the line
-    /// limit, and [`NotRecorded::SinkFailed`] once a write has failed.
+    /// limit, [`NotRecorded::SinkFailed`] once a write has failed, and
+    /// [`NotRecorded::Closed`] after [`Recorder::close`].
     pub fn record(
         &self,
         direction: Direction,
         transport: TransportKind,
         body: EventBody,
     ) -> Result<u64, NotRecorded> {
+        let mut inner = self.lock();
+        self.write(&mut inner, direction, transport, body)
+    }
+
+    /// Records the trace's closing lifecycle event and seals it: every later
+    /// [`Recorder::record`] is refused with [`NotRecorded::Closed`], so the close
+    /// stays the last event even if a task still relaying records after it. A
+    /// second close is refused the same way, so the first one wins.
+    ///
+    /// # Errors
+    ///
+    /// As [`Recorder::record`].
+    pub fn close(
+        &self,
+        direction: Direction,
+        transport: TransportKind,
+        event: LifecycleEvent,
+    ) -> Result<u64, NotRecorded> {
+        let mut inner = self.lock();
+        let written = self.write(
+            &mut inner,
+            direction,
+            transport,
+            EventBody::Lifecycle { event },
+        );
+        inner.closed = true;
+        written
+    }
+
+    /// Whether [`Recorder::close`] has been called.
+    pub fn is_closed(&self) -> bool {
+        self.lock().closed
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
         // A panic while holding the lock can only come from the sink itself; the
         // counter and flag stay consistent either way, so the data is usable.
-        let mut inner = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
+        self.inner.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn write(
+        &self,
+        inner: &mut Inner,
+        direction: Direction,
+        transport: TransportKind,
+        body: EventBody,
+    ) -> Result<u64, NotRecorded> {
+        if inner.closed {
+            return Err(NotRecorded::Closed);
+        }
         if inner.failed.is_some() {
             inner.dropped += 1;
             return Err(NotRecorded::SinkFailed);
@@ -133,7 +185,6 @@ impl Recorder {
                 let message = error.to_string();
                 inner.failed = Some(error);
                 inner.dropped += 1;
-                drop(inner);
                 eprintln!(
                     "mcp-trace-capture: cannot write the trace ({message}); the session \
                      continues, but events from seq {seq} on are not recorded"
@@ -145,7 +196,7 @@ impl Recorder {
 
     /// Flushes the sink and reports whether the trace is complete.
     pub fn finish(&self) -> Summary {
-        let mut inner = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut inner = self.lock();
         if inner.failed.is_none()
             && let Err(error) = inner.sink.flush()
         {
@@ -169,7 +220,6 @@ fn write_line(sink: &mut Box<dyn Write + Send>, mut line: Vec<u8>) -> io::Result
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use mcp_conformance_core::trace::LifecycleEvent;
     use std::sync::Arc;
 
     /// A sink the test can read back after the recorder owns it.
@@ -336,5 +386,46 @@ mod tests {
         assert!(debug.contains("next_seq: 1"), "{debug}");
         assert!(debug.contains("dropped: 0"), "{debug}");
         assert!(debug.contains(".."), "the sink is elided: {debug}");
+    }
+
+    #[test]
+    fn a_closed_trace_keeps_its_close_as_the_last_event() {
+        let sink = Shared::default();
+        let recorder = Recorder::new(sink.clone());
+        assert_eq!(
+            recorder.record(Direction::ClientToServer, TransportKind::Stdio, open()),
+            Ok(0)
+        );
+        assert!(!recorder.is_closed());
+        assert_eq!(
+            recorder.close(
+                Direction::ServerToClient,
+                TransportKind::Stdio,
+                LifecycleEvent::TransportClose
+            ),
+            Ok(1)
+        );
+        assert!(recorder.is_closed());
+        assert_eq!(
+            recorder.record(Direction::ClientToServer, TransportKind::Stdio, open()),
+            Err(NotRecorded::Closed)
+        );
+        assert_eq!(
+            recorder.close(
+                Direction::ClientToServer,
+                TransportKind::Stdio,
+                LifecycleEvent::TransportAbort
+            ),
+            Err(NotRecorded::Closed),
+            "the first close wins"
+        );
+        let summary = recorder.finish();
+        assert!(
+            summary.is_complete(),
+            "a refusal after the close is not a loss"
+        );
+        assert_eq!((summary.recorded, summary.dropped), (2, 0));
+        let text = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+        assert!(text.lines().last().unwrap().contains("transport-close"));
     }
 }
