@@ -395,3 +395,51 @@ jobs:
             -r "$RUNNER_TEMP/zizmor-requirements.txt"
       - name: zizmor (workflows and dependabot.yml)
         run: '"$RUNNER_TEMP/zizmor/bin/zizmor" --offline --format=github .github/'
+
+  # The repository's own GitHub Action (action.yml), run as a user would run
+  # it: built from this checkout, over passing traces (exit 0, reports written)
+  # and over a violating one (exit 1, the step fails, the reports still written).
+  action:
+    name: GitHub Action (action.yml over the corpus)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Shared by both runs of the action, so the second build is incremental.
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # `./`, not the newer `$/` self-repository form zizmor suggests: the
+      # pinned actionlint (1.7.12) rejects `$/`, and this job's point is to run
+      # the action.yml of the commit under test, which `./` names exactly.
+      - name: Passing traces
+        id: pass
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          traces: corpus/good/*.jsonl corpus/draft/good/*.jsonl
+          sarif-file: pass.sarif
+          junit-file: pass.xml
+      - name: A violating trace
+        id: fail
+        continue-on-error: true
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          traces: corpus/violations/base-003-request-id-reuse.jsonl
+          sarif-file: fail.sarif
+          junit-file: fail.xml
+      - name: The action reported what each run decided
+        shell: bash
+        env:
+          PASS_CODE: ${{ steps.pass.outputs.exit-code }}
+          FAIL_CODE: ${{ steps.fail.outputs.exit-code }}
+          FAIL_OUTCOME: ${{ steps.fail.outcome }}
+        run: |
+          set -euo pipefail
+          [[ "$PASS_CODE" == 0 ]] || { echo "::error::passing traces exited ${PASS_CODE}"; exit 1; }
+          [[ "$FAIL_CODE" == 1 ]] || { echo "::error::violating trace exited ${FAIL_CODE}, expected 1"; exit 1; }
+          [[ "$FAIL_OUTCOME" == failure ]] || { echo "::error::the failing run's step did not fail"; exit 1; }
+          jq -e '.runs[0].results | length == 0' pass.sarif
+          jq -e '.runs[0].results[0].ruleId == "BASE-003"' fail.sarif
+          grep -q '<failure' fail.xml

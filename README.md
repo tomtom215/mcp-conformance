@@ -49,12 +49,29 @@ Then judge it:
 mcp-trace-validator validate session.jsonl
 ```
 
-In CI, the exit code is the verdict (`0` pass, `1` findings, `2` bad invocation, `3`
-malformed trace); `--format junit` produces a test report, and `--format sarif` puts
-each finding on the trace line it concerns in GitHub code scanning (or any SARIF
-viewer).
+In CI, the exit code is the verdict (`0` pass, `1` a clause failed — or warned, with
+`--strict` — `2` bad invocation, `3` malformed trace); `validate` takes any number of
+traces, `--format junit` produces a test report, and `--format sarif` puts each
+finding on the trace line it concerns in GitHub code scanning (or any SARIF viewer).
 [`mcp-trace-capture`'s README](crates/mcp-trace-capture/README.md) covers what the
 recorder guarantees and what it leaves out.
+
+On GitHub Actions, the repository is itself an action: record the traces in an earlier
+step, then
+
+```yaml
+- uses: tomtom215/mcp-conformance@<commit or tag>   # builds the CLI from that ref
+  with:
+    traces: traces/*.jsonl                           # writes mcp-conformance.sarif and a JUnit file
+- uses: github/codeql-action/upload-sarif@<sha>      # needs security-events: write
+  if: always()
+  with:
+    sarif_file: mcp-conformance.sarif
+```
+
+[`action.yml`](action.yml) lists the inputs (`revision`, `strict`, a released `version`
+to download instead of building) and outputs; the `action` job in
+[CI](.github/workflows/ci.yml) runs it on every push.
 
 ## See it work
 

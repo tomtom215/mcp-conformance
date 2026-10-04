@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+# Validate recorded MCP sessions in GitHub Actions. Record the traces in an
+# earlier step (mcp-trace-capture wrapping your server, or your own recorder),
+# then point this action at them. It writes a SARIF log and a JUnit report,
+# prints the findings to the job log and summary, and fails the step when a
+# clause fails (or warns, with `strict`).
+#
+#   - uses: tomtom215/mcp-conformance@<tag or commit>
+#     with:
+#       traces: traces/*.jsonl
+#
+# Upload the SARIF log to code scanning in a following step, with
+# `security-events: write` on the job:
+#
+#   - uses: github/codeql-action/upload-sarif@<sha>
+#     if: always()
+#     with:
+#       sarif_file: mcp-conformance.sarif
+#       category: mcp-conformance
+
+name: MCP trace conformance
+description: Judge recorded Model Context Protocol sessions clause by clause; SARIF and JUnit out
+author: Tom F.
+branding:
+  icon: check-circle
+  color: blue
+
+inputs:
+  traces:
+    description: >-
+      The traces to validate: paths or globs (`**` supported), separated by
+      spaces or newlines, relative to the workspace.
+    required: true
+  version:
+    description: >-
+      A release (e.g. `0.6.0`) whose prebuilt binaries to download, verified
+      against the release's SHA256SUMS-binaries. Empty (the default) builds the
+      CLI from this action's own source, which always matches the action ref.
+    required: false
+    default: ""
+  revision:
+    description: >-
+      Protocol revisions (YYYY-MM-DD, space-separated) to judge against instead
+      of the one each trace declares.
+    required: false
+    default: ""
+  strict:
+    description: Treat SHOULD-level findings (warnings) as failures.
+    required: false
+    default: "false"
+  sarif-file:
+    description: Where to write the SARIF 2.1.0 log (empty to skip).
+    required: false
+    default: mcp-conformance.sarif
+  junit-file:
+    description: Where to write the JUnit XML report (empty to skip).
+    required: false
+    default: mcp-conformance-junit.xml
+  fail-on-findings:
+    description: Fail the step when the run's exit status is not 0.
+    required: false
+    default: "true"
+
+outputs:
+  exit-code:
+    description: >-
+      The validator's exit status: 0 pass, 1 a clause failed (or warned, with
+      strict), 2 bad invocation or nothing judgeable, 3 a malformed trace.
+    value: ${{ steps.validate.outputs.exit-code }}
+  sarif-file:
+    description: The SARIF log written, if any.
+    value: ${{ inputs.sarif-file }}
+  junit-file:
+    description: The JUnit report written, if any.
+    value: ${{ inputs.junit-file }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install mcp-trace-validator
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        GH_TOKEN: ${{ github.token }}
+        REPOSITORY: tomtom215/mcp-conformance
+      run: '"$GITHUB_ACTION_PATH/action/install.sh"'
+    - name: Validate the traces
+      id: validate
+      shell: bash
+      env:
+        TRACES: ${{ inputs.traces }}
+        REVISIONS: ${{ inputs.revision }}
+        STRICT: ${{ inputs.strict }}
+        SARIF_FILE: ${{ inputs.sarif-file }}
+        JUNIT_FILE: ${{ inputs.junit-file }}
+      run: '"$GITHUB_ACTION_PATH/action/validate.sh"'
+    - name: Fail on findings
+      if: inputs.fail-on-findings == 'true' && steps.validate.outputs.exit-code != '0'
+      shell: bash
+      env:
+        CODE: ${{ steps.validate.outputs.exit-code }}
+      run: |
+        echo "::error::mcp-trace-validator exited ${CODE} (1: a clause failed; 2: bad invocation or nothing judgeable; 3: a malformed trace)"
+        exit 1
