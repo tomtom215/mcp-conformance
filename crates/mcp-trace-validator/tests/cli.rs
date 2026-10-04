@@ -940,3 +940,31 @@ fn sarif_fingerprints_survive_a_re_recording() {
     assert!(!before.is_empty());
     assert_eq!(before, after);
 }
+
+/// JSON Lines is UTF-8: other bytes are a malformed trace (exit 3) located by
+/// line, like every other malformation — not an unreadable file (exit 2).
+#[test]
+fn a_trace_that_is_not_utf8_is_malformed_and_located() {
+    let good = std::fs::read(corpus("good/stdio-minimal-init.jsonl")).unwrap();
+    let mut bytes = good.clone();
+    bytes.extend_from_slice(b"{\"seq\":99,\"x\":\"\xff\"}\n");
+    let path = std::env::temp_dir().join(format!("not-utf8-{}.jsonl", std::process::id()));
+    std::fs::write(&path, bytes).unwrap();
+    let output = run(&["validate", path.to_str().unwrap()]);
+    std::fs::remove_file(&path).ok();
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    let lines = good.split(|byte| *byte == b'\n').count();
+    assert!(
+        stderr(&output).contains(&format!("line {lines}: not valid UTF-8")),
+        "{output:?}"
+    );
+
+    // UTF-16 (a byte-order mark first) is named, with the usual cause.
+    let mut utf16 = vec![0xFF, 0xFE];
+    utf16.extend(good.iter().flat_map(|byte| [*byte, 0]));
+    std::fs::write(&path, utf16).unwrap();
+    let output = run(&["validate", path.to_str().unwrap()]);
+    std::fs::remove_file(&path).ok();
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    assert!(stderr(&output).contains("the file is UTF-16"), "{output:?}");
+}
