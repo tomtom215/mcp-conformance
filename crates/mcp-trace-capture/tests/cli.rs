@@ -429,7 +429,9 @@ fn http_mode_stops_cleanly_and_reports_unreachable_upstreams() {
         "{stderr:?}"
     );
     assert!(
-        !stderr.iter().any(|line| line.contains("cut off")),
+        !stderr
+            .iter()
+            .any(|line| line.contains("cut off") || line.contains("were not JSON")),
         "{stderr:?}"
     );
     assert!(
@@ -463,11 +465,11 @@ fn http_mode_stops_cleanly_and_reports_unreachable_upstreams() {
 }
 
 /// The proxy announces its upstream with the query masked (it can carry
-/// credentials), and says how many responses the upstream cut off mid-body —
-/// only when one was.
+/// credentials), and says how many responses the upstream cut off mid-body and
+/// how many bodies were not JSON — each only when there was one.
 #[cfg(unix)]
 #[test]
-fn http_mode_announces_its_upstream_and_reports_cut_responses() {
+fn http_mode_announces_its_upstream_and_reports_cut_and_non_json_bodies() {
     use std::io::{Read as _, Write as _};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
@@ -486,7 +488,7 @@ fn http_mode_announces_its_upstream_and_reports_cut_responses() {
     let (mut child, address, lines) = start_proxy(&trace, &upstream);
     let mut stream = std::net::TcpStream::connect(&address).unwrap();
     stream
-        .write_all(b"POST /mcp HTTP/1.1\r\nhost: localhost\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{}")
+        .write_all(b"POST /mcp HTTP/1.1\r\nhost: localhost\r\ncontent-length: 8\r\nconnection: close\r\n\r\nnot json")
         .unwrap();
     let mut response = Vec::new();
     let _ = stream.read_to_end(&mut response);
@@ -508,6 +510,12 @@ fn http_mode_announces_its_upstream_and_reports_cut_responses() {
         stderr
             .iter()
             .any(|line| line.contains("1 response(s) were cut off by the upstream mid-body")),
+        "{stderr:?}"
+    );
+    assert!(
+        stderr.iter().any(
+            |line| line.contains("1 session message(s) were not JSON and are not in the trace")
+        ),
         "{stderr:?}"
     );
     std::fs::remove_file(&trace).ok();
