@@ -52,7 +52,7 @@ clap = { workspace = true, optional = true }
 [dev-dependencies]
 # Checks the published trace-event JSON Schema against the reader
 # (tests/trace_schema.rs). No default features: no remote `$ref` resolution.
-jsonschema = { version = ">=0.57, <0.58", default-features = false }
+jsonschema = { version = ">=0.57, <0.59", default-features = false }
 proptest = { workspace = true }
 criterion = { workspace = true }
 
