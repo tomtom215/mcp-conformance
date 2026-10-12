@@ -413,7 +413,11 @@ mod tests {
     fn a_page_mdbook_already_marks_gets_no_second_robots_tag() {
         let marked = "<head><meta name=\"robots\" content=\"noindex\"></head>";
         let annotated = annotate(marked, Path::new("dev/print.html"), &["dev"]).unwrap();
-        assert_eq!(annotated.matches("name=\"robots\"").count(), 1, "{annotated}");
+        assert_eq!(
+            annotated.matches("name=\"robots\"").count(),
+            1,
+            "{annotated}"
+        );
     }
 
     #[test]

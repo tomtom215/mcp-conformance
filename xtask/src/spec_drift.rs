@@ -301,9 +301,25 @@ fn load_sources(revision: &str) -> Result<Sources, String> {
 
 /// Fetches one URL via curl — a checked tool dependency CI runners already
 /// carry; two network calls a week do not justify an HTTP client in xtask.
+///
+/// Retried, because a weekly gate that goes red on a dropped connection
+/// teaches its readers to ignore red: on 2026-10-12 three of four runs from
+/// one network failed on a timeout (curl 28) or a TLS reset (curl 35) while
+/// the same pages fetched fine by hand. `--retry-all-errors` retries an HTTP
+/// error too, so a page that is really gone still fails, a few seconds later.
 fn fetch(url: &str) -> Result<String, String> {
     let output = std::process::Command::new("curl")
-        .args(["-sSf", "--max-time", "30", url])
+        .args([
+            "-sSf",
+            "--max-time",
+            "30",
+            "--retry",
+            "3",
+            "--retry-all-errors",
+            "--retry-delay",
+            "5",
+            url,
+        ])
         .output()
         .map_err(|error| format!("cannot run curl: {error}"))?;
     if !output.status.success() {

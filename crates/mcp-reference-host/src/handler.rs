@@ -299,7 +299,10 @@ mod tests {
     #[test]
     fn the_handshake_names_the_revision_that_has_one() {
         let info = rmcp::ClientHandler::get_info(&HostHandler::new(InteractionScript::default()));
-        assert_eq!(info.protocol_version, rmcp::model::ProtocolVersion::V_2025_11_25);
+        assert_eq!(
+            info.protocol_version,
+            rmcp::model::ProtocolVersion::V_2025_11_25
+        );
     }
 
     #[test]
