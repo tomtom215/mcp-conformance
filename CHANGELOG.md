@@ -77,6 +77,36 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   case-insensitive (RFC 9110 §8.3.1), but only a lowercase `text/event-stream`
   was judged; a `Text/Event-Stream` response without `X-Accel-Buffering: no`
   now warns as the lowercase one does.
+- **`BASE-034`, `MRTR-012` and `MRTR-013` judged an `input_required` result
+  against the wrong request when an id was reused.** Capabilities were looked
+  up by id across the whole trace, so once a client reused an answered id —
+  which `2026-07-28` permits — a server's elicitation answering a request that
+  declared `elicitation` was failed because a *later* request with that id did
+  not. Each result is now judged against the request it answers.
+- **A null-id answer on Streamable HTTP now answers its request everywhere.**
+  When the status a `"id": null` error rides ties it to one POST, that request
+  is now closed for every check, not only for `TRAN-073`/`TRAN-096`. Before,
+  it stayed open, so a client retrying with the same id failed `BASE-045`, and
+  the retry's result was held against the first request: a server that had
+  rejected a malformed `_meta` with `-32602` failed `BASE-031`, and one that
+  had rejected a header mismatch failed `TRAN-097`/`TRAN-100`. The same link
+  means `BASE-052` (and `BASE-009` at `2025-11-25`, which shares its check)
+  now judges such an answer instead of reporting *not observed*: when the
+  request's id could be read, answering it with `null` fails, because the
+  clause excuses only "error cases where the ID could not be read". Two
+  `2026-07-28` corpus goldens record that new failure.
+- **`BASE-039` passed a `subscriptionId` naming no subscription.** Only the
+  tag's presence was checked; its value must be "the JSON-RPC ID of the
+  `subscriptions/listen` request". A tag matching no listen request in the
+  trace now fails, including `"1"` for a request whose id is `1`, because
+  JSON-RPC ids are compared as values, and `null`.
+- **`BASE-034`, `MRTR-012` and `MRTR-013` compared only top-level capability
+  names.** A URL-mode `elicitation/create` sent to a client declaring only
+  `elicitation.form`, or a `sampling/createMessage` with `tools` or
+  `toolChoice` sent to a client without `sampling.tools`, passed. Both now
+  fail. A request with no `mode` counts as form mode, and an empty
+  `elicitation: {}` counts as form-only declared, as `client/elicitation`
+  specifies.
 
 ## [0.6.0] - 2026-10-04
 

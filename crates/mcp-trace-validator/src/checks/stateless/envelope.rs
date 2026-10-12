@@ -104,11 +104,28 @@ pub(in crate::checks) fn request_id_unique_in_flight(
     // each have their own request 1 outstanding, exactly as JSON-RPC allows.
     let mut outstanding: std::collections::HashSet<(bool, String)> =
         std::collections::HashSet::new();
+    // Response seq → the id of the request the context pairs it with. Read in
+    // place of the response's own id so that a null-id answer the HTTP framing
+    // ties to its POST clears that request: the client did receive a response,
+    // and reusing the id afterwards is exactly what this revision permits.
+    let answered: std::collections::BTreeMap<u64, &Value> = context
+        .exchanges()
+        .filter_map(|exchange| {
+            Some((
+                exchange.response.seq,
+                exchange.request.message_payload()?.get("id")?,
+            ))
+        })
+        .collect();
     for (event, _, _) in context.messages() {
         let Some(payload) = event.message_payload() else {
             continue;
         };
-        let Some(id) = payload.get("id") else {
+        let Some(id) = answered
+            .get(&event.seq)
+            .copied()
+            .or_else(|| payload.get("id"))
+        else {
             continue;
         };
         if id.is_null() {

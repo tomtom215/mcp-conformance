@@ -11,6 +11,7 @@ use mcp_conformance_core::message::{MessageKind, classify};
 use mcp_conformance_core::trace::{Direction, TraceEvent};
 use serde_json::Value;
 
+pub(crate) mod framing;
 mod pairing;
 
 pub mod stateless;
@@ -103,7 +104,11 @@ impl<'a> TraceContext<'a> {
             }
         }
 
-        let pairs = pairing::pair_responses(events, &kinds);
+        let pairs = pairing::pair_responses(
+            events,
+            &kinds,
+            framing::Framing::of(events).unidentified_answers(),
+        );
 
         Self {
             events,

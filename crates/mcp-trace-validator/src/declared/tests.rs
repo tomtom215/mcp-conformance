@@ -256,7 +256,17 @@ fn a_dual_era_fallback_is_a_conforming_handshake_session() {
         crate::report::Outcome::Pass,
         "the probe is not a request in the window"
     );
-    assert_eq!(report.totals.fail, 0, "{report:#?}");
+    // The one failure is the legacy server's, not the fallback's: its HTTP 400
+    // answers the probe with `"id": null`, though the probe's id (1) could be
+    // read. The status ties that answer to the probe's POST, so BASE-009's
+    // "except in error cases where the ID could not be read" does not excuse it.
+    let failing: Vec<&str> = report
+        .requirements
+        .iter()
+        .filter(|row| row.outcome == crate::report::Outcome::Fail)
+        .map(|row| row.id.as_str())
+        .collect();
+    assert_eq!(failing, ["BASE-009"], "{report:#?}");
 }
 
 #[test]

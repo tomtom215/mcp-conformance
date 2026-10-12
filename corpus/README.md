@@ -42,9 +42,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 59 | 114 |
+| Goldens | 59 | 120 |
 | Excluded rows the ledger holds | 86 | 149 |
-| Distinct not-observed sets across them | 30 | 90 |
+| Distinct not-observed sets across them | 30 | 94 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -490,11 +490,14 @@ written to exercise one clause each, which is also what keeps a violation
 attributable to the check it kills.
 
 Where a trace falsifies more than one requirement, the row says so and why.
-There are only two reasons, and neither is sloppy authorship: several clauses
-state *one* rule across several sections and share a check by design, or one
+There are only three reasons, and none is sloppy authorship: several clauses
+state *one* rule across several sections and share a check by design, one
 clause's antecedent is itself a violation by the other party — a server can
-only fail to reject a bad header if the client sent one. Every other row
-falsifies exactly the requirement it is named for.
+only fail to reject a bad header if the client sent one — or the shape a trace
+exists to carry is a violation in its own right: an HTTP answer with
+`"id": null` that the framing ties to its request is BASE-052's whenever that
+request's id could be read. Every other row falsifies exactly the requirement
+it is named for.
 
 | Trace | Exercises |
 |-------|-----------|
@@ -509,17 +512,22 @@ falsifies exactly the requirement it is named for.
 | `base-030-request-meta-missing-required-field.jsonl` | Request `_meta` omits `io.modelcontextprotocol/clientCapabilities` (BASE-030) |
 | `base-030-malformed-request-id-reused-correctly.jsonl` | A `tools/list` whose `_meta` omits `clientCapabilities` is correctly rejected with `-32602`; the client then reuses id 1 — legal once answered (BASE-045) — for a well-formed `tools/list`, which is served (BASE-030 for the first request only). The golden pins BASE-031 *passing*: correlated by id text alone, the second request's result was held against the first, malformed one. |
 | `base-030-unsupported-version-refused-as-invalid-params.jsonl` | Over stdio, a `tools/list` whose `_meta` omits `clientCapabilities` *and* names `2099-01-01`, which the server's `server/discover` result omits; the server answers `-32602` (BASE-030, with MRTR-002, COMP-006, PAGE-006, TOOL-016, RES-011 and PROM-011 — the same envelope rule restated per feature, sharing its check). Both `-32602` and `-32022` are defined for this request and one answer carries one code, so the golden pins TRAN-074 and VERS-001 *passing*; until 2026-10-12 they failed it. |
+| `input-required-id-reused.jsonl` | A `tools/call` declaring `elicitation` draws an `input_required` asking for `elicitation/create`, is retried and served under id 2, and then id 1 — answered, so free again (BASE-045) — is reused for an unrelated call declaring no capabilities. Until 2026-10-12 capabilities were looked up by request id across the whole trace, so the `input_required` was held against the *last* request with id 1, and this conforming session failed BASE-034, MRTR-012 and MRTR-013. |
+| `base-030-malformed-request-refused-without-id.jsonl` | The same malformed `tools/list` over Streamable HTTP, rejected `400` with a `-32602` whose id is null, then retried well-formed under id 1 and served (BASE-030 for the client's envelope; BASE-052 for the null id, since the framing names a request whose id could be read). The golden pins BASE-031, BASE-032 and BASE-045 *passing*: until 2026-10-12 the null-id rejection answered nothing, the malformed request stayed open, and the retry's result was held against it. |
 | `base-031-malformed-meta-answered-with-result.jsonl` | Server answers a `_meta`-incomplete request with a result instead of `-32602` (BASE-031) |
 | `base-031-reused-id-malformed-answered.jsonl` | The reverse order: a well-formed `tools/list` id 1 is served, then a `_meta`-incomplete request reusing id 1 is *also* served (BASE-031; BASE-030 for the client's envelope). Exactly one BASE-031 finding, on the second answer — keyed by id alone, the first, legitimate answer was reported too, for a request sent after it. |
 | `base-032-invalid-params-not-http-400.jsonl` | `-32602` returned with HTTP 200 rather than 400 (BASE-032) |
 | `base-034-input-request-for-undeclared-capability.jsonl` | Server returns `input_required` asking for `elicitation/create` the request never declared (BASE-034) |
+| `base-034-input-request-for-undeclared-mode.jsonl` | The request declares `elicitation: {"form": {}}` and a plain `sampling: {}`; the server asks for a URL-mode `elicitation/create` and a `sampling/createMessage` carrying `tools` (BASE-034; MRTR-012 and MRTR-013 share the check). `client/elicitation`: "Servers MUST NOT send elicitation requests with modes that are not supported by the client"; `client/sampling`: "Servers MUST NOT send tool-enabled sampling requests to Clients that have not declared support for tool use via the `sampling.tools` capability." Only top-level capability names were compared until 2026-10-12, so this passed. |
 | `base-035-missing-capability-error-without-capabilities.jsonl` | `-32021` carries no `data.requiredCapabilities` (BASE-035) |
 | `base-036-missing-capability-not-http-400.jsonl` | `-32021` returned with HTTP 500 rather than 400 (BASE-036) |
 | `base-039-subscription-notification-untagged.jsonl` | Notification on a `subscriptions/listen` stream with no `io.modelcontextprotocol/subscriptionId` (BASE-039) |
+| `base-039-subscription-notification-mistagged.jsonl` | A `subscriptions/listen` with the numeric id `1`, acknowledged under tag `1`, then a change notification tagged with the *string* `"1"` (BASE-039). The schema: "The value is the JSON-RPC ID of the `subscriptions/listen` request that opened the stream" — and JSON-RPC ids are compared as values, so `"1"` names no subscription. Only the tag's presence was checked until 2026-10-12. |
 | `base-040-malformed-traceparent.jsonl` | `traceparent` that is not W3C Trace Context shaped (BASE-040) |
 | `base-040-traceparent-version-ff.jsonl` | `traceparent` with version `ff`, which W3C Trace Context forbids ("Version ff is forbidden"), and otherwise well formed (BASE-040). Passed until 2026-10-12, when the check accepted any two hex digits as the version. |
 | `base-045-request-id-reused-in-flight.jsonl` | Request id reused while the first is still outstanding (BASE-045) — legal at `2025-11-25` only after a response, and this trace reuses *before* one |
 | `base-048-result-without-result-type.jsonl` | Result omits the `resultType` SEP-2322 requires (BASE-048) |
+| `base-052-null-id-error-then-id-reused.jsonl` | A well-formed `tools/call` for an unknown tool answered with a `-32602` whose id is null, then id 1 reused for a call that is served (BASE-052). The status ties the error to its POST, whose request has the readable id `1`, so the escape hatch for an id that "could not be read" does not apply. The golden pins BASE-045 *passing*: until 2026-10-12 the null-id answer closed nothing, and the reuse was reported as in flight. |
 | `base-083-legacy-error-code.jsonl` | Error code `-32010` from the legacy sub-range, which new implementations SHOULD NOT use (BASE-083, a warning). Named `base-055-…` until 2026-10-04, when BASE-055 carried this use at MUST NOT alongside the allocation rule it actually states. |
 | `base-057-undefined-reserved-error-code.jsonl` | Error code `-32055`: inside the MCP-reserved sub-range but undefined (BASE-057) |
 | `base-058-withdrawn-error-code.jsonl` | Error code `-32002`, withdrawn by this revision (BASE-058) |
@@ -536,6 +544,7 @@ falsifies exactly the requirement it is named for.
 | `logging-per-request.jsonl` | Per-request logging done right: a declared `logging` capability, a `tools/call` carrying `io.modelcontextprotocol/logLevel` that receives a log while it is the only request in flight, then a second call that sets no level and receives none (LOG-007/008/009 pass paths). |
 | `stdio-x-mcp-header-large-integer.jsonl` | The `tool-034` session over **stdio**: an `x-mcp-header`-annotated integer argument of 2^53. Mirroring is a Streamable HTTP mechanism ("Clients using other transports (e.g., stdio) MAY ignore `x-mcp-header` annotations entirely"), so no value is put through a header and TOOL-034 does not bind; until 2026-10-04 it failed the MUST here. |
 | `tran-058-request-metadata-headers-missing.jsonl` | POST carries neither `Mcp-Method` nor `Mcp-Name` (TRAN-058) |
+| `tran-058-mcp-name-mismatch-refused-without-id.jsonl` | A POST whose `Mcp-Name` disagrees with `params.name` (TRAN-058), refused `400` with a null-id `-32020`; the client corrects the header and retries reusing id 1, which is served. Also falsifies BASE-052 — the null id answers a request whose id could be read. The golden pins BASE-045, TRAN-097 and TRAN-100 *passing*: until 2026-10-12 the refusal answered nothing, so the retry was an in-flight reuse and its result was held against the mismatched POST. |
 | `tran-060-client-posts-a-response.jsonl` | Client POSTs a JSON-RPC response (TRAN-060). Also falsifies BASE-046: at this revision a server cannot issue the request such a response would answer, so an unsolicited id is the only shape the violation can take. |
 | `tran-061-notification-answered-200.jsonl` | A `notifications/cancelled` POST answered `200` instead of `202 Accepted` (TRAN-061) |
 | `tran-066-independent-server-request.jsonl` | Server sends `elicitation/create` as its own request on the response stream instead of an MRTR input request (TRAN-066) |
@@ -544,11 +553,11 @@ falsifies exactly the requirement it is named for.
 | `tran-070-message-after-stream-close.jsonl` | Server answers a request whose response stream had already closed, which this revision treats as cancellation (TRAN-070) — the close is attributable because exactly one request is in flight when it is recorded |
 | `tran-071-protocol-version-header-missing.jsonl` | POST request without `MCP-Protocol-Version` (TRAN-071) |
 | `tran-072-protocol-version-header-mismatched.jsonl` | Header says `2025-11-25`, body `_meta` says `2026-07-28`; the server rejects it correctly, isolating the client's fault (TRAN-072) |
-| `tran-072-mismatch-rejected-without-id.jsonl` | The client's header/body version disagreement (TRAN-072), refused with `400` and `-32020` — but with `"id": null`. The golden pins TRAN-073 *passing*: the POST and its answer are the only exchange in flight, so the framing ties the null-id answer to the request, and the right code is the right code. |
+| `tran-072-mismatch-rejected-without-id.jsonl` | The client's header/body version disagreement (TRAN-072), refused with `400` and `-32020` — but with `"id": null`. The golden pins TRAN-073 *passing*: the POST and its answer are the only exchange in flight, so the framing ties the null-id answer to the request, and the right code is the right code. Since 2026-10-12 it also falsifies BASE-052, inseparably from the shape under test: the framing names the request, its id `1` could be read, and only an id that could not be read may be answered with null. |
 | `tran-072-unsupported-body-version-header-mismatch.jsonl` | Header `2026-07-28` against a body `_meta` naming `2099-01-01`, a version the server's `server/discover` result omits, refused `400` with `-32020` (TRAN-072, the client's fault). The request falls under both TRAN-073 (`HeaderMismatch`) and TRAN-074/VERS-001 (`UnsupportedProtocolVersionError`), which name no order, so the golden pins all three *passing*; until 2026-10-12 TRAN-074 and VERS-001 failed this answer. |
 | `tran-072-unsupported-body-version-refused-as-unsupported.jsonl` | The same request refused with `-32022` listing `2026-07-28` (TRAN-072). The other half of the pair: the golden pins TRAN-073 *passing*, which until 2026-10-12 failed this answer — so neither code could pass before. |
 | `tran-073-header-mismatch-not-rejected.jsonl` | The same disagreement, answered with a result (TRAN-073). Necessarily also falsifies TRAN-072 — the client fault *is* this clause's antecedent. |
-| `tran-073-mismatch-refused-without-id.jsonl` | The same disagreement refused with `400 {"id":null,"error":{"code":-32600,...}}` — what the official Python SDK's server returns, treating the `2025-11-25` header as a legacy request (TRAN-073; TRAN-072 for the client's header, the antecedent). Paired by id alone the answer belonged to no request and TRAN-073 reported *not observed*. |
+| `tran-073-mismatch-refused-without-id.jsonl` | The same disagreement refused with `400 {"id":null,"error":{"code":-32600,...}}` — what the official Python SDK's server returns, treating the `2025-11-25` header as a legacy request (TRAN-073; TRAN-072 for the client's header, the antecedent). Paired by id alone the answer belonged to no request and TRAN-073 reported *not observed*. Also falsifies BASE-052 since 2026-10-12, for the same null id: the request it answers had the readable id `1`. |
 | `tran-074-unsupported-version-without-supported-list.jsonl` | `-32022` without the `data.supported` list the clause requires (TRAN-074) |
 | `tran-074-unsupported-version-accepted.jsonl` | A request naming a version the server's own `server/discover` result omits, answered with a result (TRAN-074) |
 | `tran-075-method-not-found-not-404.jsonl` | `-32601` returned with HTTP 200 rather than 404 (TRAN-075) |

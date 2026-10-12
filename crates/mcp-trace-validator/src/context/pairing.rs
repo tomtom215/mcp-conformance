@@ -10,6 +10,8 @@
 //! earliest unanswered request, the only reading that lets later checks point at both
 //! events), and a response nobody asked for simply pairs with nothing.
 
+use std::collections::BTreeMap;
+
 use mcp_conformance_core::message::MessageKind;
 use mcp_conformance_core::trace::TraceEvent;
 use serde_json::Value;
@@ -34,27 +36,48 @@ pub struct Exchange<'a> {
 
 /// For each event, the index of the request it answers — `Some` only for result/error
 /// responses whose ID matches an earlier unanswered request from the opposite
-/// direction.
+/// direction, or whose null ID the HTTP framing ties to one.
+///
+/// `framed` is [`Framing::unidentified_answers`](super::framing::Framing::unidentified_answers):
+/// `(response seq, request seq)` for each null-`id` answer whose status was
+/// unambiguously one POST's. Without it such an answer paired with nothing, its
+/// request stayed open, and the next response reusing that id — legal at
+/// `2026-07-28` once the first was answered — was pinned on the wrong request.
+/// The framing already declines every pairing the order cannot settle, so this
+/// adds none the trace does not prove.
 pub(super) fn pair_responses(
     events: &[TraceEvent],
     kinds: &[Option<MessageKind<'_>>],
+    framed: impl Iterator<Item = (u64, u64)>,
 ) -> Vec<Option<usize>> {
+    let index_of = |seq: u64| events.binary_search_by_key(&seq, |event| event.seq).ok();
+    // Response index → the index of the request the framing ties it to.
+    let framed: BTreeMap<usize, usize> = framed
+        .filter_map(|(response, request)| Some((index_of(response)?, index_of(request)?)))
+        .collect();
     let mut open: Vec<usize> = Vec::new();
     let mut pairs = vec![None; events.len()];
     for (index, (event, kind)) in events.iter().zip(kinds).enumerate() {
         match kind {
             Some(MessageKind::Request { .. }) => open.push(index),
-            Some(
-                MessageKind::Result { id: Some(id) } | MessageKind::Error { id: Some(id), .. },
-            ) => {
-                let answered = open.iter().position(|&request_index| {
-                    let request = &events[request_index];
-                    request.direction != event.direction
-                        && matches!(
-                            &kinds[request_index],
-                            Some(MessageKind::Request { id: request_id, .. })
-                                if *request_id == *id
-                        )
+            Some(MessageKind::Result { id } | MessageKind::Error { id, .. }) => {
+                let by_id = id.and_then(|id| {
+                    open.iter().position(|&request_index| {
+                        let request = &events[request_index];
+                        request.direction != event.direction
+                            && matches!(
+                                &kinds[request_index],
+                                Some(MessageKind::Request { id: request_id, .. })
+                                    if *request_id == id
+                            )
+                    })
+                });
+                // A null id names no request; the framing may still say whose it
+                // is. Only a request still open can be answered, so one already
+                // answered by id is never answered twice.
+                let answered = by_id.or_else(|| {
+                    let request = framed.get(&index)?;
+                    open.iter().position(|open| open == request)
                 });
                 if let Some(position) = answered {
                     pairs[index] = Some(open.remove(position));
@@ -320,6 +343,77 @@ mod tests {
             0,
             "a response cannot pair with a request that appears after it"
         );
+    }
+
+    /// A Streamable HTTP record: `kind` and its `rest` of fields verbatim.
+    fn http(seq: u64, direction: &str, kind: &str, rest: &str) -> String {
+        format!(
+            r#"{{"seq":{seq},"direction":"{direction}","transport":"streamable-http","kind":"{kind}",{rest}}}"#
+        )
+    }
+
+    #[test]
+    fn a_null_id_answer_pairs_where_the_framing_ties_it_and_closes_its_request() {
+        let ask = |seq| {
+            http(
+                seq,
+                "client-to-server",
+                "message",
+                r#""payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#,
+            )
+        };
+        let post = |seq| http(seq, "client-to-server", "http", r#""method":"POST""#);
+        let status = |seq| http(seq, "server-to-client", "http", r#""status":400"#);
+        let refused = |seq| {
+            http(
+                seq,
+                "server-to-client",
+                "message",
+                r#""payload":{"jsonrpc":"2.0","id":null,"error":{"code":-32020,"message":"x"}}"#,
+            )
+        };
+        let answered = |seq| {
+            http(
+                seq,
+                "server-to-client",
+                "message",
+                r#""payload":{"jsonrpc":"2.0","id":1,"result":{}}"#,
+            )
+        };
+        // The refusal answers the first POST's request, so the retry reusing
+        // its id is the one the later result answers.
+        let events = events_of(&[
+            post(0),
+            ask(1),
+            status(2),
+            refused(3),
+            post(4),
+            ask(5),
+            status(6),
+            answered(7),
+        ]);
+        let context = TraceContext::new(&events);
+        let pairs: Vec<(u64, u64)> = context
+            .exchanges()
+            .map(|exchange| (exchange.request.seq, exchange.response.seq))
+            .collect();
+        assert_eq!(pairs, [(1, 3), (5, 7)]);
+
+        // A request already answered by id is not answered again by a null id
+        // that follows: the second answer pairs with nothing.
+        let events = events_of(&[post(0), ask(1), answered(2), status(3), refused(4)]);
+        let context = TraceContext::new(&events);
+        let pairs: Vec<(u64, u64)> = context
+            .exchanges()
+            .map(|exchange| (exchange.request.seq, exchange.response.seq))
+            .collect();
+        assert_eq!(pairs, [(1, 2)]);
+
+        // Two POSTs awaiting one status: the framing cannot say whose the
+        // refusal is, so it pairs with neither and both stay open.
+        let events = events_of(&[post(0), ask(1), post(2), ask(3), status(4), refused(5)]);
+        let context = TraceContext::new(&events);
+        assert_eq!(context.exchanges().count(), 0);
     }
 
     #[test]
