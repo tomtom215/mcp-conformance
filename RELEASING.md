@@ -323,6 +323,11 @@ the release PR, not in this file.
    `mcp-conformance-core`, so installing it from the registry is impossible
    until the sibling is published — the same circularity that makes
    `cargo package` rather than per-crate `--dry-run` the pre-publish check.
+6. **Documentation**: a successful Release run triggers `pages.yml`, which
+   rebuilds the versioned site from git (`cargo xtask book-site`): the new
+   release's book becomes the site's root and gains its own `/vX.Y.Z/` copy,
+   and `/dev/` keeps tracking `main`. Nothing is edited by hand. Check that
+   the site's version selector lists the new release as latest.
 
 ## When publishing fails mid-way
 
