@@ -164,6 +164,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **Release binaries embed their dependency list** (built with `cargo auditable`),
+  so `cargo audit bin` checks a downloaded `mcp-trace-validator` or
+  `mcp-trace-capture` against RustSec without its lockfile.
 - **Versioned documentation.** <https://mcp-conformance.com> now documents the
   newest release at its root, keeps every release's book at `/vX.Y.Z/` and
   `main`'s at `/dev/`, and offers a version selector; a page for anything but the

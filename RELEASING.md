@@ -288,12 +288,13 @@ the release PR, not in this file.
      install used while unpublished).
 2. **Merge** via PR (CI must be green; no exceptions for release PRs).
 3. **Tag**: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` on `main`; push the tag.
-4. **Automation** (`release.yml`): validates tag ↔ version ↔ changelog agreement,
+4. **Automation** (`release.yml`): validates tag ↔ version ↔ changelog agreement
+   (and that `[Unreleased]` is empty and the tag is on `main`),
    re-runs the full gate set (including MSRV clippy/tests and cross-OS tests), packages
    all publishable crates with verification builds (`cargo package --workspace --exclude xtask --locked` — the
    workspace-wide dry run; per-crate `--dry-run` cannot resolve unpublished sibling
    dependencies), attests SLSA build provenance over the `.crate` files, builds both
-   CLIs for five targets (Linux x86_64/aarch64 musl, macOS arm64/x86_64, Windows
+   CLIs with `cargo auditable` for five targets (Linux x86_64/aarch64 musl, macOS arm64/x86_64, Windows
    x86_64) and attests each archive, creates the GitHub Release with the changelog
    excerpt, the checksummed `.crate` files and the checksummed binary archives
    (`SHA256SUMS-binaries`), then — behind

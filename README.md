@@ -22,7 +22,8 @@ cargo install mcp-trace-capture mcp-trace-validator
 release attaches prebuilt archives for Linux (static, x86_64 and
 aarch64), macOS (arm64 and x86_64) and Windows (x86_64), with SLSA build-provenance
 attestations (`gh attestation verify <archive> --repo tomtom215/mcp-conformance`)
-and `SHA256SUMS-binaries` beside them.
+and `SHA256SUMS-binaries` beside them. The binaries embed their dependency list
+(`cargo auditable`), so `cargo audit bin` checks them against RustSec.
 
 Record a session. For a **stdio** server, configure your client to launch the
 capture wrapper instead of the server:
