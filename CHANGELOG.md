@@ -11,6 +11,18 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`SUBS-001`/`SUBS-002` told a reused subscription id from the subscription
+  that first carried it.** Both checks keyed subscriptions by id alone, so a
+  `subscriptions/listen` reusing the id of a closed subscription replaced it:
+  the new filter judged the old stream's notifications (a false `SUBS-001`
+  failure), and the old stream's notifications were never examined (a missed
+  `SUBS-002` acknowledgment). A subscription is now open from its request until
+  its response or a cancellation naming it, each opening owes its own
+  acknowledgment, and a tagged message is judged against the subscription open
+  when it was sent.
+
 ## [0.6.0] - 2026-10-04
 
 **This is a minor release with breaking behaviour changes and one Rust API

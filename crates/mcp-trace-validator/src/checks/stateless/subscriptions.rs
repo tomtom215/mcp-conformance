@@ -7,9 +7,10 @@
 //! Every message belonging to a subscription carries the `subscriptions/listen`
 //! request's own JSON-RPC id in `_meta.io.modelcontextprotocol/subscriptionId`,
 //! which is what makes these checks possible on stdio, where every subscription
-//! shares one channel. They correlate on that field and on nothing else — never
-//! on message order alone, because the specification explicitly permits other
-//! subscriptions' messages to interleave.
+//! shares one channel. They correlate on that field — never on message order
+//! alone, because the specification explicitly permits other subscriptions'
+//! messages to interleave. Order decides only *which* subscription an id names:
+//! the one opened by the latest request carrying it and not yet ended.
 //!
 //! Three of the page's seven clauses carry exclusions: two bind what the client
 //! does with what it received (compare the filter, demultiplex the stream), and
@@ -17,6 +18,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use mcp_conformance_core::message::MessageKind;
 use mcp_conformance_core::trace::{Direction, TraceEvent};
 use serde_json::{Map, Value};
 
@@ -54,55 +56,76 @@ const RESOURCE_SUBSCRIPTIONS: &str = "resourceSubscriptions";
 /// The notification type `RESOURCE_SUBSCRIPTIONS` governs.
 const RESOURCE_UPDATED: &str = "notifications/resources/updated";
 
-/// An open subscription: the id its messages are tagged with, and its filter.
+/// An open subscription: the request that opened it, and its filter.
 #[derive(Debug, Clone, Copy)]
 struct Subscription<'a> {
-    /// The `subscriptions/listen` request's id, in canonical text.
+    /// The `subscriptions/listen` request's `seq`, which tells one opening of
+    /// an id apart from a later request reusing it.
     seq: u64,
     /// The `notifications` filter, when the request carried one.
     filter: Option<&'a Map<String, Value>>,
 }
 
-/// Every `subscriptions/listen` request in the trace, keyed by its id text.
-fn subscriptions<'a>(context: &'a TraceContext<'_>) -> BTreeMap<String, Subscription<'a>> {
-    context
-        .messages()
-        .filter_map(|(event, _, _)| {
-            if event.direction != Direction::ClientToServer {
-                return None;
-            }
-            let payload = event.message_payload()?;
-            if payload.get("method")?.as_str()? != LISTEN {
-                return None;
-            }
-            let id = payload.get("id").filter(|id| !id.is_null())?;
-            Some((
-                id.to_string(),
-                Subscription {
-                    seq: event.seq,
-                    filter: payload
-                        .get("params")
-                        .and_then(|params| params.get("notifications"))
-                        .and_then(Value::as_object),
-                },
-            ))
-        })
-        .collect()
-}
-
-/// Server messages tagged with a subscription id, as `(seq, id text, method)`.
+/// A server message tagged with a subscription id, as `(seq, id text, method,
+/// params)`.
 ///
 /// Both notifications and the closing response are tagged, so the method is
 /// `None` for the response — which is exactly what distinguishes it.
-fn tagged<'a>(context: &'a TraceContext<'_>) -> Vec<(u64, String, Option<&'a str>, &'a Value)> {
-    context
-        .messages()
-        .filter_map(|(event, _, _)| tagged_message(event))
-        .collect()
+type Tagged<'a> = (u64, String, Option<&'a str>, &'a Value);
+
+/// Every tagged server message, with the subscription its tag named when it
+/// was sent.
+///
+/// A subscription is open from its `subscriptions/listen` request until the
+/// response to it or a `notifications/cancelled` naming it — the client's ends
+/// it on stdio, the server's tears it down. Once it has ended, a later request
+/// may carry the same id, so a tag resolves against the subscription open *at
+/// that point* in the trace, never against whichever request last carried the
+/// id. A tag naming no open subscription — one opened before the recording
+/// began, or already ended — resolves to nothing and is not judged.
+fn resolved<'a>(context: &'a TraceContext<'_>) -> Vec<(Subscription<'a>, Tagged<'a>)> {
+    let mut open: BTreeMap<String, Subscription<'a>> = BTreeMap::new();
+    let mut resolved = Vec::new();
+    for (event, kind, _) in context.messages() {
+        // Resolved before the message can close anything: the closing response
+        // and the server's teardown both belong to the subscription they end.
+        if let Some(tagged) = tagged_message(event)
+            && let Some(subscription) = open.get(&tagged.1)
+        {
+            resolved.push((*subscription, tagged));
+        }
+        let params = event
+            .message_payload()
+            .and_then(|payload| payload.get("params"));
+        match (event.direction, kind) {
+            (Direction::ClientToServer, MessageKind::Request { method: LISTEN, id })
+                if !id.is_null() =>
+            {
+                let filter = params
+                    .and_then(|params| params.get("notifications"))
+                    .and_then(Value::as_object);
+                let seq = event.seq;
+                open.insert(id.to_string(), Subscription { seq, filter });
+            }
+            (
+                Direction::ServerToClient,
+                MessageKind::Result { id: Some(id) } | MessageKind::Error { id: Some(id), .. },
+            ) => {
+                open.remove(&id.to_string());
+            }
+            (_, MessageKind::Notification { method: CANCELLED }) => {
+                if let Some(request) = params.and_then(|params| params.get("requestId")) {
+                    open.remove(&request.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+    resolved
 }
 
 /// The subscription tag one server message carries, if any.
-fn tagged_message(event: &TraceEvent) -> Option<(u64, String, Option<&str>, &Value)> {
+fn tagged_message(event: &TraceEvent) -> Option<Tagged<'_>> {
     if event.direction != Direction::ServerToClient {
         return None;
     }
@@ -127,9 +150,8 @@ pub(in crate::checks) fn only_requested_notifications(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let subscriptions = subscriptions(context);
-    for (seq, id, method, params) in tagged(context) {
-        let (Some(method), Some(subscription)) = (method, subscriptions.get(&id)) else {
+    for (subscription, (seq, id, method, params)) in resolved(context) {
+        let Some(method) = method else {
             continue;
         };
         if method == ACKNOWLEDGED || is_teardown(method, params, &id) {
@@ -198,27 +220,15 @@ fn unrequested(
 /// A subscription with no tagged message at all is not reported — a recording
 /// that ends before the acknowledgment arrives is not evidence that it never
 /// did. What is falsifiable is a *first* tagged message that is something else.
+///
+/// "First" is per opening, not per id: a client that reuses the id of a
+/// subscription that has ended opens a new one, which owes its own
+/// acknowledgment — so the decision is keyed by the `subscriptions/listen`
+/// request's `seq`.
 pub(in crate::checks) fn acknowledgment_first(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    let subscriptions = subscriptions(context);
-    // One ordered pass, deciding each subscription at its first tagged message.
-    // The alternative — filtering the tagged messages by `tag == id && seq >
-    // listen.seq` — carried two comparisons a trace can never exercise: a
-    // subscription's messages are server-sent and its `subscriptions/listen` is
-    // client-sent, so no two share a `seq`, making `>` and `>=` the same rule.
-    let mut open: BTreeMap<String, u64> = BTreeMap::new();
-    let mut decided: BTreeSet<String> = BTreeSet::new();
-    for (event, _, _) in context.messages() {
-        if let Some((id, subscription)) = subscriptions
-            .iter()
-            .find(|(_, subscription)| subscription.seq == event.seq)
-        {
-            open.insert(id.clone(), subscription.seq);
-            continue;
-        }
-        let Some((seq, id, method, _)) = tagged_message(event) else {
-            continue;
-        };
-        if !open.contains_key(&id) || !decided.insert(id.clone()) {
+    let mut decided: BTreeSet<u64> = BTreeSet::new();
+    for (subscription, (seq, id, method, _)) in resolved(context) {
+        if !decided.insert(subscription.seq) {
             continue;
         }
         // The subject is a subscription's *first* tagged message; a
