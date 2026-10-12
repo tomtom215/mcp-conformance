@@ -11,19 +11,34 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
-**`2026-07-28` verdicts change: the registry now judges clauses it did not
-carry before.** A clause with no registry row is never judged, so no trace could
-fail it; the rows below can. A session that passed under 0.6.0 can fail now with
-nothing in it changed, and every `2026-07-28` report carries 34 more rows:
+**This release changes verdicts and report formats, and removes one deprecated
+module**, as pre-1.0 SemVer permits in a minor release
+([STABILITY.md](STABILITY.md) says what counts as breaking). A session that
+passed under 0.6.0 can fail now with nothing in it changed: the registry carries
+34 more `2026-07-28` clauses (16 judged, 18 excluded with a reason), and several
+checks now catch what they missed. Other checks stop failing conforming sessions. Every change
+below is stated again in its entry, with the reasoning.
 
 | Surface | Change | Migration |
 |---------|--------|-----------|
-| `2026-07-28` verdict | A server `notifications/cancelled` naming anything but a `subscriptions/listen` request fails `CANC-003`/`CANC-011` | Servers end only subscriptions this way; cancel nothing else by notification |
-| `2026-07-28` verdict | A progress token that is not a string or integer (`PROG-001`), one shared by two unanswered requests (`PROG-002`), a `progress` value that does not increase (`PROG-003`), and — on stdio — progress after the request's answer (`PROG-005`/`PROG-008`) fail | Fix the sender; nothing to configure |
-| `2026-07-28` verdict | Over Streamable HTTP: an `Mcp-Param-*` header for a `null` or absent designated parameter (`TRAN-132`/`TRAN-134`), a `HeaderMismatch` answering a POST that omitted such a header correctly (`TRAN-133`/`TRAN-135`), and a result answering a POST missing the header its body requires (`TRAN-136`) fail | Clients omit the header when there is no value; servers reject a missing header and accept an omitted one |
-| `2026-07-28` verdict | Four rows restate rules already judged and share their checks, so an existing failure now also fails them: `TRAN-066`/`TRAN-120`/`MRTR-001` → `BASE-084`, `TRAN-123` → `CANC-005`, `TRAN-079` → `TRAN-130`, `TRAN-097` → `TRAN-131` | Gate on requirement IDs, not on how many rows fail |
-| Report totals | `2026-07-28` `excluded` grows by 18 and `not_observed`/`pass` move with the new judged rows | Re-baseline any comparison of totals across versions |
-| Registry data | `TOOL-033`, `TOOL-034`, `TRAN-080` and `TRAN-081` quotes rewritten in the documented flattened-list form (`; ` between items); the clauses did not change | Key on the requirement ID |
+| `validate`, several traces | When a trace cannot be judged, the overall verdict is `incomplete`: the JSON envelope's `verdict` gains that value (and is no longer `null` when nothing was judged) plus `unjudged_traces`; JUnit gains an `<error>` test case and an `errors` count; SARIF reports `executionSuccessful: false`. A run that judged every trace renders as before | Treat `incomplete` as not passing; the exit code (2 or 3) is unchanged |
+| `validate` flags | `--max-events 0` and `--max-line-bytes 0` exit `2` (bad invocation), not `3` | Pass a limit of at least 1 |
+| `validate` human output | At most 20 findings under a clause, then a count of the rest | `--all`, or a machine format, for every finding |
+| Rust API | `context::draft` removed (deprecated in 0.6.0) | `context::stateless` holds the same items |
+| `2026-07-28` verdict, new rows | `CANC-003`/`CANC-011`: a server `notifications/cancelled` naming anything but a `subscriptions/listen` request fails | Servers end only subscriptions this way |
+| `2026-07-28` verdict, new rows | `PROG-001`/`002`/`003`, and on stdio `PROG-005`/`008`: a progress token that is not a string or integer, one shared by two unanswered requests, a `progress` value that does not increase, progress after the answer | Fix the sender |
+| `2026-07-28` verdict, new rows | Over Streamable HTTP, `TRAN-132`–`TRAN-136`: an `Mcp-Param-*` header for a `null` or absent parameter, a `HeaderMismatch` for a POST that omitted one correctly, a result for a POST missing the header its body requires | Clients omit the header when there is no value; servers reject a missing header and accept an omitted one |
+| `2026-07-28` verdict, new rows | Rows restating rules already judged share their checks, so an existing failure also fails them: `TRAN-066`/`TRAN-120`/`MRTR-001` → `BASE-084`, `TRAN-123` → `CANC-005`, `TRAN-079` → `TRAN-130`, `TRAN-097` → `TRAN-131` | Gate on requirement IDs, not on how many rows fail |
+| Verdict, now failing | `BASE-052` (and `BASE-009` at `2025-11-25`): a `"id": null` error answering a request whose id could be read, on Streamable HTTP | Answer with the request's id |
+| Verdict, now failing | `BASE-039`: a `subscriptionId` naming no `subscriptions/listen` request (including `"1"` for id `1`) | Tag with the listen request's id, as sent |
+| Verdict, now failing | `BASE-034`, `MRTR-012`, `MRTR-013`: URL-mode elicitation to a client without `elicitation.url`; sampling with `tools`/`toolChoice` to one without `sampling.tools` | Check the sub-capability, not only the top-level one |
+| Verdict, now failing | `LOG-009`: an untagged log sent while no request but a `subscriptions/listen` is in flight; `SUBS-002`: a reopened subscription's missing acknowledgment | Send logs on a request's stream; acknowledge every opening |
+| Verdict, now failing or warning | `BASE-040`: `traceparent` version `ff`; `TRAN-068`: an SSE response whose media type is not lowercase, without `X-Accel-Buffering: no` | Fix the sender |
+| Verdict, no longer failing | `SUBS-001` (reused subscription ids), `MRTR-018` (a round before the recording), `TRAN-124` (a reused cancelled id), `CACH-008` (`ttlMs` written as `60000.0`), `BASE-040` (a higher `traceparent` version with extra fields), `TRAN-070` (a stream close after another response), `TRAN-073`/`TRAN-074`/`VERS-001`/`TRAN-096` (another defined rejection; a discover probe answered with its result), `BASE-031`/`BASE-045`/`TRAN-097`/`TRAN-100` (a retry after a null-id refusal), `BASE-034`/`MRTR-012`/`MRTR-013` (a reused request id) | None: these failed conforming sessions |
+| Verdict, now not observed | `TRAN-074` on stdio (an HTTP clause; `VERS-001` judges stdio); `DISC-002`/`TRAN-128` over Streamable HTTP (stdio rules) | None; `VERS-001` still judges the unsupported-version rule on stdio |
+| SARIF | Findings against `TRAN-074` name a new check, so their fingerprints change | An open alert for one closes and reopens once |
+| Report totals | `2026-07-28` reports carry 34 more rows; `excluded` grows by 18 | Re-baseline any comparison of totals across versions |
+| Registry data | `TOOL-033`, `TOOL-034`, `TRAN-080` and `TRAN-081` quotes rewritten in the flattened-list form (`; ` between items); the clauses did not change | Key on the requirement ID |
 
 ### Removed
 
