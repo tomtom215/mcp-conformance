@@ -19,7 +19,7 @@ reality, not borrowed from a generic library template.
 |-------|--------|----------|
 | Validator process | Malicious trace files (parser exploitation, resource exhaustion) | Traces are untrusted input. Hard caps on event count and line size (`--max-events`, `--max-line-bytes`) and on nesting depth (serde_json's 128-level recursion limit; a deeper line is a malformed trace, exit 3); typed errors, never panics; fuzzed weekly and on every PR. |
 | Host machine running the everything server | The server is intentionally permissive (it exercises *every* capability) — it must never be reachable from a hostile network | Loopback bind by default; `Host`/`Origin` validation on by default; disabling it requires the self-describing `--dangerously-allow-any-host` flag, **and a server started that way says so on stderr, after its readiness line** (2026-08-20). The flag's name was the whole control, and it lives in the operator's command line — a running process left no evidence the protection was off, so a log could not be audited for it. |
-| Reference host | Malicious or compromised SUT servers (hostile tool results, oversized streams, slow-loris SSE) | Response size and time budgets; bounded concurrency; cooperative cancellation; no shell interpretation of server-supplied strings. |
+| Reference host | Malicious or compromised SUT servers (hostile tool results, oversized streams, slow-loris SSE) | A run is bounded in time and effort: a hard deadline (`--deadline-secs`, default 25 s), a turn limit, an error budget, and cooperative cancellation. A stdio server's command is split and spawned without a shell, and nothing a server sends is executed. **The host sets no size limit of its own on a single response**; whatever bound rmcp's transports apply is the bound it has, and the deadline is what ends a server that streams without end. |
 | CI | Supply-chain attacks via actions or dependencies | Actions pinned by SHA; `cargo deny` + `cargo audit` gates; lockfiles; trusted publishing (no long-lived tokens to steal). |
 | CI's `GITHUB_TOKEN` | A job holding a write scope is a lever for anything that can influence what that job runs | Workflow default is `contents: read`; a write scope is granted per job, never per workflow, and carries an inline comment naming what it writes. |
 | Trace capture (`mcp-trace-capture`) | A recording proxy reachable from a hostile network would relay anything to the upstream | Listens on loopback by default (`--listen 127.0.0.1:8080`); binding elsewhere is an explicit choice. Forwards credentials (it must be transparent) but records only the header allowlist. The wrapped stdio server is never orphaned: termination signals are relayed. |
@@ -92,7 +92,7 @@ step's fetched text is republished into an issue; the run log carries it.
 
 ## Vulnerability handling (our own)
 
-Adopted from a2a-rust, effective at M0 when `SECURITY.md` lands:
+Adopted from a2a-rust, and stated for reporters in [`SECURITY.md`](../../SECURITY.md):
 
 - Private reporting via GitHub draft security advisories (no public issues for
   vulnerabilities); acknowledgment within 3 business days.
