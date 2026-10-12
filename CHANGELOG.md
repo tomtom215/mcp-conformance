@@ -22,6 +22,13 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   its response or a cancellation naming it, each opening owes its own
   acknowledgment, and a tagged message is judged against the subscription open
   when it was sent.
+- **`LOG-009` missed a log sent when no request was in flight.** A
+  `notifications/message` must travel on the response stream of the request
+  that set the log level, and once every request has been answered there is no
+  such stream left, but the check judged only logs tagged with a subscription
+  id. It now also fails an untagged log arriving while nothing but a
+  `subscriptions/listen` is in flight, unless a later response answers a
+  request sent before the recording began.
 
 ## [0.6.0] - 2026-10-04
 

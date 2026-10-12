@@ -42,9 +42,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 59 | 101 |
+| Goldens | 59 | 102 |
 | Excluded rows the ledger holds | 86 | 149 |
-| Distinct not-observed sets across them | 30 | 81 |
+| Distinct not-observed sets across them | 30 | 82 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -560,6 +560,7 @@ falsifies exactly the requirement it is named for.
 | `log-008-log-without-requested-level.jsonl` | A log notification in a session where no request set `io.modelcontextprotocol/logLevel` (LOG-008) |
 | `log-008-log-for-request-without-level.jsonl` | The same session, except the second call — no `logLevel`, and the only request in flight — receives a log (LOG-008). An earlier request *did* ask for logs, so the session-wide reading passed this until 2026-10-04; with one request in flight the notification can only be that request's. |
 | `log-009-log-on-subscription-stream.jsonl` | A log notification tagged with a subscription id, so travelling on a subscription's stream (LOG-009) |
+| `log-009-log-with-no-request-in-flight.jsonl` | A `tools/call` that asked for logs is answered; with only a `subscriptions/listen` open, the server then sends an untagged log (LOG-009). It travels on no request's response stream, since every request it could belong to has been answered. Passed until 2026-10-12: LOG-009 judged only the subscription tag, and LOG-008 only a log some unopted request could own. |
 | `log-010-unrecognized-log-level-accepted.jsonl` | A request declaring log level `verbose`, served rather than rejected with `-32602` (LOG-010) |
 | `cach-001-cacheable-result-without-hints.jsonl` | A `complete` `tools/list` result with no `ttlMs` caching hint (CACH-001) |
 | `cach-001-ttl-without-cache-scope.jsonl` | A `complete` `tools/list` result carrying `ttlMs` but no `cacheScope` (CACH-001). The page defines "caching hints" as both fields ("Cacheable Results in MCP use two fields to provide caching hints"), and the schema's `CacheableResult` requires both; until 2026-10-04 the check accepted `ttlMs` alone. Three single-issue fixtures that had carried `ttlMs` without a scope (`res-012`, `tool-022`, `tool-034`) gained `"cacheScope":"public"` so they stay single-issue. |
