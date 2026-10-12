@@ -145,3 +145,39 @@ fn a_report_that_breaks_the_schema_is_caught() {
         assert!(!validator.is_valid(&copy), "{what} was accepted");
     }
 }
+
+/// The multi-trace envelope ties its verdict and its list of unjudged traces to
+/// the count: a run that left a trace out cannot claim a pass, nor list traces
+/// it says it judged.
+#[test]
+fn an_envelope_that_hides_an_unjudged_trace_is_caught() {
+    let validator = validator();
+    let envelope = |verdict: &str, unjudged: u32, listed: bool| {
+        let mut document = json!({ "verdict": verdict, "traces": [], "unjudged": unjudged });
+        if listed {
+            document["unjudged_traces"] = json!([{ "trace": "b.jsonl", "error": "malformed" }]);
+        }
+        document
+    };
+    assert!(validator.is_valid(&envelope("incomplete", 1, true)));
+    assert!(validator.is_valid(&envelope("pass", 0, false)));
+    for (what, document) in [
+        ("a pass that left a trace out", envelope("pass", 1, true)),
+        (
+            "an unjudged count with no list",
+            envelope("incomplete", 1, false),
+        ),
+        ("a list with no unjudged count", envelope("pass", 0, true)),
+        (
+            "incomplete with nothing left out",
+            envelope("incomplete", 0, false),
+        ),
+        ("the old null verdict", {
+            let mut document = envelope("pass", 0, false);
+            document["verdict"] = Value::Null;
+            document
+        }),
+    ] {
+        assert!(!validator.is_valid(&document), "{what} was accepted");
+    }
+}

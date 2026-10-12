@@ -12,13 +12,14 @@
 //! | `fail` | `<failure>` per requirement, findings in the body |
 //! | `warn` | passing `<testcase>` with findings in `<system-out>` — SHOULD-level findings do not fail CI unless promoted by `--strict`, and that promotion is an exit-code concern, not a report concern |
 //! | `excluded` / `unsupported` / `not-applicable` | `<skipped>` with the reason as its message |
+//! | a trace that could not be judged ([`render_run`]) | a suite of one test case with an `<error>` giving the reason |
 //!
 //! The output is deterministic (registry order, no timestamps, no hostnames) for the
 //! same reason every other report format is: reports are artifacts.
 
 use core::fmt::Write as _;
 
-use crate::report::{Outcome, Report};
+use crate::report::{Outcome, Report, Unjudged};
 
 /// Renders the report as a single-suite `JUnit` XML document.
 ///
@@ -130,6 +131,27 @@ pub fn render_with(reports: &[Report], options: &Options) -> String {
 /// ```
 #[must_use]
 pub fn render_traces(traces: &[(Options, &[Report])]) -> String {
+    render_run(traces, &[])
+}
+
+/// Renders a run over several traces as one `JUnit` document, with a suite
+/// for each trace that could not be judged.
+///
+/// The judged traces render as [`render_traces`] renders them. Each unjudged
+/// one is a `<testsuite>` of one test case carrying the reason as an
+/// `<error>`, so a CI report shows the trace rather than silently leaving it
+/// out; the root gains an `errors` count when there is one.
+///
+/// ```
+/// use mcp_trace_validator::junit;
+/// use mcp_trace_validator::report::Unjudged;
+///
+/// let xml = junit::render_run(&[], &[Unjudged::new("bad.jsonl", "malformed trace: line 4")]);
+/// assert!(xml.contains(r#"<testsuites tests="1" failures="0" skipped="0" errors="1">"#));
+/// assert!(xml.contains(r#"<error message="malformed trace: line 4"/>"#));
+/// ```
+#[must_use]
+pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> String {
     let suites: Vec<(&Options, &Report, (u32, u32, u32))> = traces
         .iter()
         .flat_map(|(options, reports)| {
@@ -144,9 +166,17 @@ pub fn render_traces(traces: &[(Options, &[Report])]) -> String {
     let mut out = String::new();
     out.push_str(r#"<?xml version="1.0" encoding="UTF-8"?>"#);
     out.push('\n');
+    // `errors` only when there are some, so a run that judged every trace
+    // renders exactly as it did before the attribute existed.
+    let errors = if unjudged.is_empty() {
+        String::new()
+    } else {
+        format!(r#" errors="{}""#, unjudged.len())
+    };
     let _ = writeln!(
         out,
-        r#"<testsuites tests="{tests}" failures="{failures}" skipped="{skipped}">"#
+        r#"<testsuites tests="{}" failures="{failures}" skipped="{skipped}"{errors}>"#,
+        tests as usize + unjudged.len()
     );
     for (options, report, (tests, failures, skipped)) in suites {
         let suite = options.trace.as_deref().unwrap_or("mcp-trace-validator");
@@ -159,6 +189,19 @@ pub fn render_traces(traces: &[(Options, &[Report])]) -> String {
         for row in &report.requirements {
             render_row(&mut out, report, row, options);
         }
+        out.push_str("  </testsuite>\n");
+    }
+    for trace in unjudged {
+        let name = escape(&trace.trace);
+        let _ = writeln!(
+            out,
+            r#"  <testsuite name="{name}" tests="1" failures="0" errors="1" skipped="0">"#
+        );
+        let _ = writeln!(
+            out,
+            r#"    <testcase classname="{name}" file="{name}" name="trace could not be judged"><error message="{}"/></testcase>"#,
+            escape(&trace.error)
+        );
         out.push_str("  </testsuite>\n");
     }
     out.push_str("</testsuites>\n");

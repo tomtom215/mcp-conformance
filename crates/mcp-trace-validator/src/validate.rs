@@ -16,7 +16,6 @@
 // follows the rustc lint and quiets the clippy one, per its known-problems note.
 #![allow(clippy::redundant_pub_crate)]
 
-use std::fmt::Write as _;
 use std::path::Path;
 
 use mcp_conformance_core::requirement::{Registry, RegistrySet};
@@ -24,9 +23,8 @@ use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::declared::{self, RevisionSource};
 use mcp_trace_validator::multi::{self, MultiReport};
-use mcp_trace_validator::report::{Report, Verdict};
+use mcp_trace_validator::report::{Report, Unjudged, Verdict};
 use mcp_trace_validator::{engine, junit, reader, sarif, sessions};
-use serde_json::json;
 
 use crate::emit::emit;
 use crate::input::Refusal;
@@ -34,6 +32,8 @@ use crate::{
     EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, Format, input, judgeable, load_registry, load_registry_set,
     parse_revisions,
 };
+
+mod many;
 
 /// How `validate` presents its report.
 #[derive(Debug, Clone, Copy)]
@@ -79,8 +79,8 @@ impl Judged {
             .map_or_else(|| self.reports[0].verdict(), MultiReport::verdict)
     }
 
-    fn render_human(&self, all: bool) -> String {
-        match (&self.multi, all) {
+    fn render_human(&self, output: Output) -> String {
+        match (&self.multi, output.all) {
             (Some(multi), true) => multi.render_human(),
             (Some(multi), false) => multi.render_findings(),
             (None, true) => self.reports[0].render_human(),
@@ -117,17 +117,19 @@ pub(crate) fn run(
     let many = traces.len() > 1;
     let mut code = EXIT_OK;
     let mut judged = Vec::new();
+    let mut unjudged = Vec::new();
     for trace in traces {
         match judge(trace, limits, &registries, many) {
             Ok(one) => judged.push(one),
             Err(refusal) => {
                 refusal.print();
                 code = code.max(refusal.code);
+                unjudged.push(Unjudged::new(trace.as_str(), refusal.error));
             }
         }
     }
     let rendered = if many {
-        render_many(&judged, traces.len(), output)
+        many::render(&judged, &unjudged, output)
     } else if let [one] = judged.as_slice() {
         render_one(one, output)
     } else {
@@ -255,7 +257,7 @@ fn judge_in_set(
 /// when it could not be written.
 fn render_one(one: &Judged, output: Output) -> Option<u8> {
     let written = match output.format {
-        Format::Human => emit(&one.render_human(output.all)),
+        Format::Human => emit(&one.render_human(output)),
         Format::Json => match one
             .to_json()
             .and_then(|json| serde_json::to_string_pretty(&json))
@@ -277,112 +279,6 @@ fn render_one(one: &Judged, output: Output) -> Option<u8> {
         )),
     };
     written.then(|| verdict_to_code(one.verdict(), output.strict))
-}
-
-/// Several traces' reports as one document per format; `None` when it could
-/// not be written.
-fn render_many(judged: &[Judged], requested: usize, output: Output) -> Option<u8> {
-    let overall = worst(judged.iter().map(Judged::verdict));
-    let unjudged = requested - judged.len();
-    let written = match output.format {
-        Format::Human => emit(&human_many(judged, unjudged, overall, output.all)),
-        Format::Json => emit(&json_many(judged, unjudged, overall)?),
-        Format::Junit => {
-            let suites: Vec<(junit::Options, &[Report])> = judged
-                .iter()
-                .map(|one| {
-                    (
-                        junit_options(&one.trace, output.strict),
-                        one.reports.as_slice(),
-                    )
-                })
-                .collect();
-            emit(&junit::render_traces(&suites))
-        }
-        Format::Sarif => {
-            let traces: Vec<(sarif::Artifact<'_>, &[Report])> = judged
-                .iter()
-                .map(|one| (artifact(&one.trace, &one.events), one.reports.as_slice()))
-                .collect();
-            emit(&sarif::render_traces(
-                &traces,
-                &sarif::Options::default().strict(output.strict),
-            ))
-        }
-    };
-    written.then(|| {
-        judged
-            .iter()
-            .map(|one| verdict_to_code(one.verdict(), output.strict))
-            .max()
-            .unwrap_or(EXIT_OK)
-    })
-}
-
-/// Several traces' human reports, each under a `==> trace <==` header, then
-/// how many reached each verdict and the overall one.
-fn human_many(judged: &[Judged], unjudged: usize, overall: Option<Verdict>, all: bool) -> String {
-    let mut text = String::new();
-    for one in judged {
-        let _ = writeln!(text, "==> {} <==", one.trace);
-        text.push_str(&one.render_human(all));
-        text.push('\n');
-    }
-    text.push_str(&summary(judged, unjudged));
-    let _ = writeln!(
-        text,
-        "overall verdict: {}",
-        overall.map_or_else(|| "none".to_owned(), |verdict| verdict.to_string())
-    );
-    text
-}
-
-/// Several traces' JSON reports in one document: `{"verdict", "traces":
-/// [{"trace", "report"}], "unjudged"}` (`report.schema.json`'s third shape).
-/// `None` when a report could not be serialized.
-fn json_many(judged: &[Judged], unjudged: usize, overall: Option<Verdict>) -> Option<String> {
-    let mut traces = Vec::new();
-    for one in judged {
-        match one.to_json() {
-            Ok(report) => traces.push(json!({ "trace": one.trace, "report": report })),
-            Err(error) => {
-                eprintln!("error: cannot serialize report: {error}");
-                return None;
-            }
-        }
-    }
-    let document = json!({ "verdict": overall, "traces": traces, "unjudged": unjudged });
-    match serde_json::to_string_pretty(&document) {
-        Ok(json) => Some(format!("{json}\n")),
-        Err(error) => {
-            eprintln!("error: cannot serialize report: {error}");
-            None
-        }
-    }
-}
-
-/// The closing line of a multi-trace human report: how many traces reached
-/// each verdict, and how many could not be judged at all.
-fn summary(judged: &[Judged], unjudged: usize) -> String {
-    let count = |verdict: Verdict| judged.iter().filter(|one| one.verdict() == verdict).count();
-    let mut line = format!(
-        "{} traces: {} pass, {} pass-with-warnings, {} fail",
-        judged.len() + unjudged,
-        count(Verdict::Pass),
-        count(Verdict::PassWithWarnings),
-        count(Verdict::Fail),
-    );
-    if unjudged > 0 {
-        let _ = write!(line, ", {unjudged} not judged (see the errors above)");
-    }
-    line.push('\n');
-    line
-}
-
-/// The most severe verdict, in the order a report derives its own: unsupported
-/// over fail over warnings over pass.
-fn worst(verdicts: impl Iterator<Item = Verdict>) -> Option<Verdict> {
-    Verdict::most_severe(verdicts)
 }
 
 /// The exit code a verdict maps to, shared by every path so the 0/1/2 contract

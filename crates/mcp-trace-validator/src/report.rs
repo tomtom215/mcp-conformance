@@ -269,11 +269,21 @@ pub enum Verdict {
     Fail,
     /// The registry and this build disagree about available checks.
     Unsupported,
+    /// A run over several traces could not judge at least one of them — it was
+    /// unreadable, malformed, of an unsupported revision, or judged nothing —
+    /// so no verdict covers the whole run. Never the verdict of one report: a
+    /// trace that cannot be judged has no report.
+    ///
+    /// Ranked above every other verdict, as its exit status (`2` or `3`) ranks
+    /// above theirs: whatever the judged traces say, a run that left one out
+    /// must not read as passing.
+    Incomplete,
 }
 
 impl Verdict {
-    /// The most severe of `verdicts` — unsupported over fail over warnings over
-    /// pass, the order a report derives its own — or `None` when there are none.
+    /// The most severe of `verdicts` — incomplete over unsupported over fail
+    /// over warnings over pass, the order a report derives its own — or `None`
+    /// when there are none.
     pub fn most_severe(verdicts: impl IntoIterator<Item = Self>) -> Option<Self> {
         verdicts
             .into_iter()
@@ -286,6 +296,7 @@ impl Verdict {
             Self::PassWithWarnings => 1,
             Self::Fail => 2,
             Self::Unsupported => 3,
+            Self::Incomplete => 4,
         }
     }
 }
@@ -297,8 +308,35 @@ impl fmt::Display for Verdict {
             Self::PassWithWarnings => "pass-with-warnings",
             Self::Fail => "fail",
             Self::Unsupported => "unsupported",
+            Self::Incomplete => "incomplete",
         };
         f.write_str(text)
+    }
+}
+
+/// A trace a run was asked to judge and could not, and why: unreadable,
+/// malformed, of an unsupported revision, or judging nothing.
+///
+/// The multi-trace renderers ([`junit::render_run`](crate::junit::render_run),
+/// [`sarif::render_run`](crate::sarif::render_run)) list each one, so a report
+/// over several traces never reads as complete when one was left out.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct Unjudged {
+    /// The trace as the caller named it.
+    pub trace: String,
+    /// Why it could not be judged, as one line.
+    pub error: String,
+}
+
+impl Unjudged {
+    /// `trace`, which could not be judged because of `error`.
+    #[must_use]
+    pub fn new(trace: impl Into<String>, error: impl Into<String>) -> Self {
+        Self {
+            trace: trace.into(),
+            error: error.into(),
+        }
     }
 }
 

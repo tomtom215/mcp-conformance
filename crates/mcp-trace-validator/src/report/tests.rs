@@ -265,4 +265,15 @@ fn the_most_severe_verdict_ranks_unsupported_over_fail_over_warnings_over_pass()
         Verdict::most_severe([Fail, Unsupported, Pass]),
         Some(Unsupported)
     );
+    // A run that could not judge a trace reads as incomplete whatever the
+    // others say, as its exit status outranks theirs.
+    assert_eq!(
+        Verdict::most_severe([Unsupported, Verdict::Incomplete, Fail]),
+        Some(Verdict::Incomplete)
+    );
+    assert_eq!(Verdict::Incomplete.to_string(), "incomplete");
+    assert_eq!(
+        serde_json::to_value(Verdict::Incomplete).unwrap(),
+        "incomplete"
+    );
 }
