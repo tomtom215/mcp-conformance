@@ -29,6 +29,7 @@ use mcp_trace_validator::{engine, junit, reader, sarif, sessions};
 use serde_json::json;
 
 use crate::emit::emit;
+use crate::input::Refusal;
 use crate::{
     EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, Format, input, judgeable, load_registry, load_registry_set,
     parse_revisions,
@@ -119,7 +120,10 @@ pub(crate) fn run(
     for trace in traces {
         match judge(trace, limits, &registries, many) {
             Ok(one) => judged.push(one),
-            Err(failed) => code = code.max(failed),
+            Err(refusal) => {
+                refusal.print();
+                code = code.max(refusal.code);
+            }
         }
     }
     let rendered = if many {
@@ -161,23 +165,21 @@ fn resolve(sources: &Sources<'_>) -> Result<Registries, String> {
     Ok(Registries::Set { set, requested })
 }
 
-/// Reads and judges one trace. `Err` carries the exit status of a trace that
-/// could not be judged; its reason is already on stderr.
+/// Reads and judges one trace, or says why it could not be.
 fn judge(
     trace: &str,
     limits: &reader::Limits,
     registries: &Registries,
     many: bool,
-) -> Result<Judged, u8> {
+) -> Result<Judged, Refusal> {
     let prefix = if many {
         format!("{trace}: ")
     } else {
         String::new()
     };
-    let events = input::read_events(trace, limits)?;
+    let events = input::read_events(trace, limits, &prefix)?;
     if let Some(message) = judgeable::never_answered(&events, trace) {
-        eprintln!("{message}");
-        return Err(EXIT_USAGE);
+        return Err(Refusal::from_diagnostic(&message, EXIT_USAGE));
     }
     judgeable::note_sessions(&prefix, sessions::recorded_sessions(&events));
     let (reports, multi) = match registries {
@@ -187,8 +189,8 @@ fn judge(
     let totals = multi
         .as_ref()
         .map_or(reports[0].totals, judgeable::combined);
-    if judgeable::reject(totals, trace) {
-        return Err(EXIT_USAGE);
+    if let Some(message) = judgeable::refusal(totals, trace) {
+        return Err(Refusal::from_diagnostic(&message, EXIT_USAGE));
     }
     Ok(Judged {
         trace: trace.to_owned(),
@@ -206,16 +208,17 @@ fn judge_in_set(
     requested: &[ProtocolRevision],
     events: &[TraceEvent],
     prefix: &str,
-) -> Result<(Vec<Report>, Option<MultiReport>), u8> {
+) -> Result<(Vec<Report>, Option<MultiReport>), Refusal> {
     let (chosen, source) = if requested.is_empty() {
         declared::select(set.revisions(), events)
             .map(|selection| (selection.revisions, selection.source))
-            .map_err(|error| {
-                eprintln!(
-                    "error: {prefix}{error}\nhint: pass --revision YYYY-MM-DD to judge it \
-                     against a supported revision anyway"
-                );
-                EXIT_USAGE
+            .map_err(|error| Refusal {
+                error: format!("{prefix}{error}"),
+                hints: vec![
+                    "pass --revision YYYY-MM-DD to judge it against a supported revision anyway"
+                        .to_owned(),
+                ],
+                code: EXIT_USAGE,
             })?
     } else {
         (requested.to_vec(), RevisionSource::Requested)
@@ -239,9 +242,10 @@ fn judge_in_set(
         report.revision_source = Some(source);
         return Ok((reports, None));
     }
-    let mut multi = multi::validate_revisions(set, &chosen, events).map_err(|error| {
-        eprintln!("error: {prefix}{error}");
-        EXIT_USAGE
+    let mut multi = multi::validate_revisions(set, &chosen, events).map_err(|error| Refusal {
+        error: format!("{prefix}{error}"),
+        hints: Vec::new(),
+        code: EXIT_USAGE,
     })?;
     multi.revision_source = Some(source);
     Ok((reports, Some(multi)))
