@@ -53,7 +53,7 @@
       },
       "source": {
         "section": "basic/transports/streamable-http#schema-extension",
-        "quote": "MUST NOT be empty MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1) MUST NOT contain control characters, including carriage return (CR, `\\r`) or line feed (LF, `\\n`) MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema` MUST only be applied to parameters with primitive types (integer, string, boolean)."
+        "quote": "Constraints on `x-mcp-header` values: MUST NOT be empty; MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1); MUST NOT contain control characters, including carriage return (CR, `\\r`) or line feed (LF, `\\n`); MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema`; MUST only be applied to parameters with primitive types (integer, string, boolean)."
       },
       "checks": [
         "transport.x-mcp-header-name-valid"
@@ -68,7 +68,7 @@
       },
       "source": {
         "section": "basic/transports/streamable-http#schema-extension",
-        "quote": "Integer values MUST be within the safe range for JavaScript (−2<sup>53</sup>+1 to 2<sup>53</sup>−1) MUST only be applied to properties that are statically reachable from the schema root: reachable via a chain consisting solely of `properties` keys."
+        "quote": "Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for JavaScript (−2<sup>53</sup>+1 to 2<sup>53</sup>−1); MUST only be applied to properties that are statically reachable from the schema root: reachable via a chain consisting solely of `properties` keys."
       },
       "exclusion": "Reachability of a property from the schema root, and the safe-integer bound on its value, require walking the tool's JSON Schema — a JSON Schema engine `mcp-conformance-core` deliberately excludes (02-architecture.md), the same boundary BASE-073 draws."
     },

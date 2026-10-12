@@ -249,7 +249,7 @@
       },
       "source": {
         "section": "server/tools#x-mcp-header",
-        "quote": "MUST NOT be empty MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1) MUST NOT contain control characters, including carriage return (CR, `\\r`) or line feed (LF, `\\n`) MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema` MUST only be applied to parameters with primitive types (integer, string, boolean)."
+        "quote": "Constraints on `x-mcp-header` values: MUST NOT be empty; MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1); MUST NOT contain control characters, including carriage return (CR, `\\r`) or line feed (LF, `\\n`); MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema`; MUST only be applied to parameters with primitive types (integer, string, boolean)."
       },
       "checks": [
         "transport.x-mcp-header-name-valid"
@@ -264,7 +264,7 @@
       },
       "source": {
         "section": "server/tools#x-mcp-header",
-        "quote": "Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (\u22122<sup>53</sup>+1 to 2<sup>53</sup>\u22121) MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints."
+        "quote": "Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (\u22122<sup>53</sup>+1 to 2<sup>53</sup>\u22121); MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments; Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints."
       },
       "checks": [
         "tools.x-mcp-header-integer-range"
