@@ -122,7 +122,7 @@ fn a_never_answered_session_names_its_source_and_its_reason() {
         unanswered.contains("its initialize request was never answered"),
         "{unanswered}"
     );
-    assert!(!unanswered.contains("could not be reached"), "{unanswered}");
+    assert!(!unanswered.contains("transport-abort"), "{unanswered}");
 
     let unreachable =
         super::never_answered(&events(&format!("{initialize}\n{abort}")), "-").unwrap();
@@ -131,7 +131,8 @@ fn a_never_answered_session_names_its_source_and_its_reason() {
         "{unreachable}"
     );
     assert!(
-        unreachable.contains("1 transport-abort(s): the server could not be reached"),
+        unreachable
+            .contains("1 transport-abort(s): the connection to the server failed or was cut off"),
         "{unreachable}"
     );
 }

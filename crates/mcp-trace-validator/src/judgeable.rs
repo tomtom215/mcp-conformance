@@ -78,7 +78,8 @@ pub(crate) fn never_answered(
     };
     let why = if never.aborts > 0 {
         format!(
-            "the capture recorded {} transport-abort(s): the server could not be reached",
+            "the capture recorded {} transport-abort(s): the connection to the server \
+             failed or was cut off",
             never.aborts
         )
     } else {

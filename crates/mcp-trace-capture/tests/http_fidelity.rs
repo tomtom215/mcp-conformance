@@ -38,7 +38,8 @@ const STREAM: &str = "event: ping\ndata: {\"jsonrpc\":\"2.0\",\"method\":\"typed
                       event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n\n";
 const ALTERED_BODY: &str = r#"{"jsonrpc":"2.0","id":2,"id":3,"result":{}}"#;
 
-/// An upstream answering `POST /sse` with [`STREAM`] and `POST /json` with
+/// An upstream answering `POST /sse` with [`STREAM`], an event per chunk (so
+/// the counts must add up across chunks), and `POST /json` with
 /// [`ALTERED_BODY`].
 async fn upstream() -> std::net::SocketAddr {
     let answer = |content_type: &'static str, body: &'static str| {
@@ -47,11 +48,19 @@ async fn upstream() -> std::net::SocketAddr {
             .body(axum::body::Body::from(body))
             .unwrap()
     };
+    let events = || {
+        let chunks = STREAM.split_inclusive("\n\n").map(str::to_owned);
+        let stream = futures::StreamExt::then(futures::stream::iter(chunks), |chunk| async move {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            Ok::<_, std::convert::Infallible>(chunk)
+        });
+        Response::builder()
+            .header("content-type", "text/event-stream")
+            .body(axum::body::Body::from_stream(stream))
+            .unwrap()
+    };
     let app = axum::Router::new()
-        .route(
-            "/sse",
-            axum::routing::post(move || async move { answer("text/event-stream", STREAM) }),
-        )
+        .route("/sse", axum::routing::post(move || async move { events() }))
         .route(
             "/json",
             axum::routing::post(move || async move { answer("application/json", ALTERED_BODY) }),
