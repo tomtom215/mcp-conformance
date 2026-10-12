@@ -28,7 +28,7 @@ External anchors (context, not commitments): the `2026-07-28` spec release
 | M2.5 — `2026-07-28` migration readiness | **Complete** (shipped in 0.6.0) — every build judges `2026-07-28` ([ADR-0018](decisions/0018-judge-the-declared-revision.md)); its corpus pairs run in the golden suite on every `cargo test`, each with a provenance row the corpus invariant test requires |
 | M3 — Reference host | **Complete** (2026-06-13) — all four `2025-11-25` client scenarios pass at the pinned suite as a standing CI gate ([run #27449549660](https://github.com/tomtom215/mcp-conformance/actions/runs/27449549660)) |
 | M4 — Upstream engagement | **In progress** (gate, not phase) — the public design note is done; the two merged-outcome lines are open and owner/upstream-gated (below) |
-| M5 — Stewardship artifacts | **Complete** — [rmcp](../reports/rmcp-tier-gap-2025-11-25.md) and [pmcp](../reports/pmcp-tier-gap-2025-11-25.md) tier-gap reports published; the versioned book is live at <https://mcp-conformance.com>; the `draft-2026-07-28` feature gate is dropped |
+| M5 — Stewardship artifacts | **Complete** — [rmcp](../reports/rmcp-tier-gap-2025-11-25.md) and [pmcp](../reports/pmcp-tier-gap-2025-11-25.md) tier-gap reports published; the book is live at <https://mcp-conformance.com>, and `pages.yml` builds it as a versioned site, one book per release (`cargo xtask book-site`); the `draft-2026-07-28` feature gate is dropped |
 
 ## M0 — Foundation
 
