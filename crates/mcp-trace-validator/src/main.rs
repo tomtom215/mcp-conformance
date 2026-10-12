@@ -9,15 +9,15 @@
 //! |------|---------|
 //! | 0    | Validation ran; no MUST-level violations (warnings allowed unless `--strict`) |
 //! | 1    | MUST-level violations — or SHOULD-level ones under `--strict`, which says so on stderr |
-//! | 2    | Invocation, registry, or check-inventory problem (including `unsupported` outcomes) |
+//! | 2    | Invocation, registry, or check-inventory problem (including `unsupported` outcomes), a trace that judges nothing, or output not written |
 //! | 3    | The trace document itself was malformed |
 
 use std::fs;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::{Parser, Subcommand, ValueEnum};
-use mcp_conformance_core::requirement::{Registry, RegistrySet};
+use clap::{CommandFactory as _, FromArgMatches as _, Parser, Subcommand, ValueEnum};
+use mcp_conformance_core::requirement::{BUILTIN_REVISIONS, Registry, RegistrySet};
 use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_trace_validator::reader;
 
@@ -64,10 +64,11 @@ enum Command {
         /// Treat SHOULD-level findings (warnings) as failures.
         #[arg(long)]
         strict: bool,
-        /// Human output: list every clause with its outcome, and the reason for
-        /// each exclusion. By default only failing, warning and unsupported
-        /// clauses are listed (the totals always count every clause). JSON,
-        /// `JUnit` and SARIF always carry every clause.
+        /// Human output: list every clause with its outcome, every finding,
+        /// and the reason for each exclusion. By default only failing, warning
+        /// and unsupported clauses are listed, each with its first 20 findings
+        /// (the totals always count every clause). JSON, `JUnit` and SARIF
+        /// always carry every clause and finding.
         #[arg(short, long)]
         all: bool,
         /// Accepted for compatibility: the findings-only listing it selected is
@@ -88,41 +89,52 @@ enum Command {
         registry_set: Option<PathBuf>,
         /// The longest trace line accepted, in bytes. The default reads back
         /// anything `mcp-trace-capture` writes at its default message limit.
-        #[arg(long, value_name = "BYTES", default_value_t = reader::Limits::default().max_line_bytes)]
+        #[arg(
+            long,
+            value_name = "BYTES",
+            default_value_t = reader::Limits::default().max_line_bytes,
+            value_parser = at_least_one
+        )]
         max_line_bytes: usize,
         /// The most events accepted in one trace.
-        #[arg(long, value_name = "N", default_value_t = reader::Limits::default().max_events)]
+        #[arg(
+            long,
+            value_name = "N",
+            default_value_t = reader::Limits::default().max_events,
+            value_parser = at_least_one
+        )]
         max_events: usize,
     },
-    /// Print the requirement registry this build validates against.
-    Requirements {
-        /// Output format.
-        #[arg(long, value_enum, default_value_t = Format::Human)]
-        format: Format,
-        /// Path to a registry JSON document, used instead of the built-in one.
-        /// Mutually exclusive with `--revision`.
-        #[arg(long)]
-        registry: Option<PathBuf>,
-        /// Which built-in revision to print; defaults to the newest.
-        #[arg(long, value_name = "YYYY-MM-DD", conflicts_with = "registry")]
-        revision: Option<String>,
+    /// Print the requirement registry this build validates against, part of
+    /// it, or single requirements in full.
+    Requirements(requirements::Args),
+    /// Print a shell completion script.
+    ///
+    /// Bash: `mcp-trace-validator completions bash > ~/.local/share/bash-completion/completions/mcp-trace-validator`.
+    /// Zsh: write `_mcp-trace-validator` to a directory on `$fpath`. Fish:
+    /// `~/.config/fish/completions/mcp-trace-validator.fish`.
+    Completions {
+        /// The shell to complete for.
+        shell: clap_complete::Shell,
     },
 }
 
+/// `validate` output formats.
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Format {
     /// Terminal-oriented text.
     Human,
     /// Pretty-printed JSON.
     Json,
-    /// `JUnit` XML (validate only), for CI test-report ingestion.
+    /// `JUnit` XML, for CI test-report ingestion.
     Junit,
-    /// SARIF 2.1.0 (validate only), for code scanning: GitHub, GitLab, IDEs.
+    /// SARIF 2.1.0, for code scanning: GitHub, GitLab, IDEs.
     Sarif,
 }
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let matches = Cli::command().long_version(long_version()).get_matches();
+    let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|error| error.exit());
     let code = match cli.command {
         Command::Validate {
             traces,
@@ -149,13 +161,53 @@ fn main() -> ExitCode {
                 revisions: &revisions,
             },
         ),
-        Command::Requirements {
-            format,
-            registry,
-            revision,
-        } => requirements::run(format, registry.as_deref(), revision.as_deref()),
+        Command::Requirements(args) => requirements::run(&args),
+        Command::Completions { shell } => completions(shell),
     };
     ExitCode::from(code)
+}
+
+/// Writes `shell`'s completion script, generated from the same definition
+/// that parses the command line, so it cannot drift from the flags.
+fn completions(shell: clap_complete::Shell) -> u8 {
+    let mut script = Vec::new();
+    clap_complete::generate(
+        shell,
+        &mut Cli::command(),
+        "mcp-trace-validator",
+        &mut script,
+    );
+    if emit::emit(&String::from_utf8_lossy(&script)) {
+        EXIT_OK
+    } else {
+        EXIT_USAGE
+    }
+}
+
+/// `--version`'s text: `-V`'s line, unchanged for the scripts that read it,
+/// then the protocol revisions this build judges.
+///
+/// Built at run time from the registry set the build ships, so it cannot
+/// drift from it; clap takes a `'static` string, and this one is made once
+/// per process.
+fn long_version() -> &'static str {
+    let revisions: Vec<String> = BUILTIN_REVISIONS.iter().map(ToString::to_string).collect();
+    let text = format!(
+        "{}\njudges protocol revisions: {}",
+        env!("CARGO_PKG_VERSION"),
+        revisions.join(", ")
+    );
+    Box::leak(text.into_boxed_str())
+}
+
+/// A limit flag's value: a count of at least one. A limit of 0 accepts no
+/// trace at all, so every run would fail on the flag rather than the trace.
+fn at_least_one(text: &str) -> Result<usize, String> {
+    match text.parse::<usize>() {
+        Ok(0) => Err("must be at least 1: a limit of 0 accepts no trace at all".to_owned()),
+        Ok(value) => Ok(value),
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 /// Loads a custom single-revision registry document.

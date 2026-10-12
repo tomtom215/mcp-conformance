@@ -92,13 +92,6 @@ pub(crate) fn never_answered(
     ))
 }
 
-pub(crate) fn reject(totals: Totals, trace_source: &str) -> bool {
-    refusal(totals, trace_source).is_some_and(|message| {
-        eprintln!("{message}");
-        true
-    })
-}
-
 /// Every judged revision's totals summed.
 ///
 /// Only for the "judged nothing at all" question, where the sum is the right

@@ -10,14 +10,14 @@
   ],
   "$defs": {
     "traceReports": {
-      "description": "Several traces judged in one run (`validate` given more than one trace): each trace's report in the shape it would have alone, the most severe verdict across them, and how many named traces could not be judged at all (their reasons are on stderr, and they count toward the exit status).",
+      "description": "Several traces judged in one run (`validate` given more than one trace): each trace's report in the shape it would have alone, the most severe verdict across them, and the named traces that could not be judged at all, with why (also on stderr; they count toward the exit status).",
       "type": "object",
       "additionalProperties": false,
       "required": ["verdict", "traces", "unjudged"],
       "properties": {
         "verdict": {
-          "description": "The most severe of the traces' verdicts; null when no trace could be judged.",
-          "oneOf": [{ "$ref": "#/$defs/verdict" }, { "type": "null" }]
+          "description": "The most severe of the traces' verdicts, or `incomplete` when any named trace could not be judged — whatever the judged ones say, the run did not judge them all, and it exits 2 or 3.",
+          "oneOf": [{ "$ref": "#/$defs/verdict" }, { "const": "incomplete" }]
         },
         "traces": {
           "type": "array",
@@ -32,10 +32,33 @@
           }
         },
         "unjudged": {
-          "description": "Named traces that could not be judged: unreadable, malformed, of an unsupported revision, or judging nothing.",
+          "description": "How many named traces could not be judged: unreadable, malformed, of an unsupported revision, or judging nothing.",
           "type": "integer",
           "minimum": 0
+        },
+        "unjudged_traces": {
+          "description": "Each trace counted in `unjudged`, in the order named, with the error that kept it from being judged. Present exactly when `unjudged` is not 0.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["trace", "error"],
+            "properties": {
+              "trace": { "description": "The trace as it was named on the command line.", "type": "string" },
+              "error": { "description": "Why it could not be judged: the error line `validate` printed on stderr, without its `error: ` prefix.", "type": "string" }
+            }
+          }
         }
+      },
+      "if": { "properties": { "unjudged": { "const": 0 } } },
+      "then": {
+        "not": { "required": ["unjudged_traces"] },
+        "properties": { "verdict": { "not": { "const": "incomplete" } } }
+      },
+      "else": {
+        "required": ["unjudged_traces"],
+        "properties": { "verdict": { "const": "incomplete" } }
       }
     },
     "revision": {

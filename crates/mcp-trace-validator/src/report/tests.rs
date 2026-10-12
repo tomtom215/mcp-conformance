@@ -265,4 +265,91 @@ fn the_most_severe_verdict_ranks_unsupported_over_fail_over_warnings_over_pass()
         Verdict::most_severe([Fail, Unsupported, Pass]),
         Some(Unsupported)
     );
+    // A run that could not judge a trace reads as incomplete whatever the
+    // others say, as its exit status outranks theirs.
+    assert_eq!(
+        Verdict::most_severe([Unsupported, Verdict::Incomplete, Fail]),
+        Some(Verdict::Incomplete)
+    );
+    assert_eq!(Verdict::Incomplete.to_string(), "incomplete");
+    assert_eq!(
+        serde_json::to_value(Verdict::Incomplete).unwrap(),
+        "incomplete"
+    );
+}
+
+/// [`sample`] with `count` findings on its failing row, and one more that
+/// names no event.
+fn with_findings(count: u64) -> Report {
+    let mut report = sample();
+    let failed = &mut report.requirements[1];
+    failed.findings = (0..count)
+        .map(|seq| Finding {
+            check: "lifecycle.first-interaction-initialize".to_owned(),
+            seq: Some(seq),
+            detail: format!("defect {seq}"),
+        })
+        .collect();
+    failed.findings.push(Finding {
+        check: "lifecycle.first-interaction-initialize".to_owned(),
+        seq: None,
+        detail: "defect without a seq".to_owned(),
+    });
+    report
+}
+
+#[test]
+fn findings_beyond_the_limit_are_counted_rather_than_listed() {
+    let report = with_findings(24);
+    // Unlimited, as the library renders by default: every finding is listed.
+    assert_eq!(report.render_findings().matches("defect").count(), 25);
+    assert!(
+        report
+            .render_human()
+            .contains("        defect without a seq\n")
+    );
+
+    let limited = HumanOptions::default().all(false).max_findings(Some(20));
+    let text = report.render_with(&limited);
+    assert_eq!(text.matches("defect").count(), 20, "{text}");
+    assert!(
+        text.contains("        seq 19: defect 19\n        … and 5 more\n        spec: "),
+        "{text}"
+    );
+    // On the command line the line also says how to see them all.
+    let text = report.render_with(&limited.cli(true));
+    assert!(
+        text.contains(
+            "        … and 5 more (pass --all, or use --format json, for every finding)\n"
+        ),
+        "{text}"
+    );
+    // Exactly at the limit, nothing is left to count.
+    let text = with_findings(19).render_with(&limited);
+    assert_eq!(text.matches("defect").count(), 20, "{text}");
+    assert!(!text.contains("more"), "{text}");
+}
+
+#[test]
+fn the_revision_mismatch_note_names_a_flag_only_on_the_command_line() {
+    let mut report = sample();
+    report.revision_mismatch = Some(vec!["2026-07-28".to_owned()]);
+    let library = report.render_human();
+    assert!(
+        library.contains("        judge it against revision 2026-07-28 to hold it to its own.\n"),
+        "{library}"
+    );
+    assert!(!library.contains("--revision"), "{library}");
+    let cli = report.render_with(&HumanOptions::default().cli(true));
+    assert!(
+        cli.contains("        re-run with `--revision 2026-07-28` to judge it against its own.\n"),
+        "{cli}"
+    );
+    // The clause filter is the same either way: `all` lists the passing row.
+    assert!(cli.contains("BASE-001"), "{cli}");
+    assert!(
+        !report
+            .render_with(&HumanOptions::default().all(false).cli(true))
+            .contains("BASE-001")
+    );
 }

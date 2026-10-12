@@ -189,3 +189,44 @@ fn identical_findings_in_one_trace_get_distinct_fingerprints() {
     assert_eq!(fingerprints.len(), 2, "{log}");
     assert_ne!(fingerprints[0], fingerprints[1]);
 }
+
+#[test]
+fn an_unjudged_trace_is_a_failed_invocation_located_at_the_trace() {
+    let registry = Registry::builtin_2025_11_25().unwrap();
+    let events = parse_trace(WRONG_VERSION, &Limits::default()).unwrap();
+    let reports = [crate::engine::validate(&registry, &events)];
+    let artifact = Artifact {
+        uri: Some("a.jsonl"),
+        events: &events,
+    };
+    let judged: Value = serde_json::from_str(&render_traces(
+        &[(artifact, &reports[..])],
+        &Options::default(),
+    ))
+    .unwrap();
+    assert_eq!(
+        judged["runs"][0]["invocations"][0]["executionSuccessful"],
+        true
+    );
+
+    let log: Value = serde_json::from_str(&render_run(
+        &[(artifact, &reports[..])],
+        &[Unjudged::new("traces/b c.jsonl", "malformed trace: line 2")],
+        &Options::default(),
+    ))
+    .unwrap();
+    let invocation = &log["runs"][0]["invocations"][0];
+    assert_eq!(invocation["executionSuccessful"], false);
+    assert_eq!(
+        invocation["toolExecutionNotifications"],
+        json!([{
+            "level": "error",
+            "message": { "text": "malformed trace: line 2" },
+            "locations": [{
+                "physicalLocation": { "artifactLocation": { "uri": "traces/b%20c.jsonl" } }
+            }],
+        }])
+    );
+    // The judged trace's results are all still there.
+    assert_eq!(log["runs"][0]["results"], judged["runs"][0]["results"]);
+}

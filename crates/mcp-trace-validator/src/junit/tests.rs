@@ -216,3 +216,56 @@ fn test_cases_carry_the_trace_in_their_class_and_file() {
         "{named}"
     );
 }
+
+#[test]
+fn an_unjudged_trace_is_a_suite_with_an_error_and_counts_in_the_totals() {
+    let report = report_for(VIOLATION);
+    let judged = render_with(
+        core::slice::from_ref(&report),
+        &Options::for_trace("a.jsonl"),
+    );
+    // A run that judged every trace renders as it always has: no `errors`.
+    assert!(!judged.contains("errors="), "{judged}");
+    let attribute = |name: &str| {
+        judged
+            .split(&format!(r#"{name}=""#))
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .unwrap()
+            .parse::<usize>()
+            .unwrap()
+    };
+    let (tests, failures) = (attribute("tests"), attribute("failures"));
+
+    let reports = [report];
+    let xml = render_run(
+        &[(Options::for_trace("a.jsonl"), &reports[..])],
+        &[
+            Unjudged::new("b<1>.jsonl", "malformed \"trace\""),
+            Unjudged::new("c.jsonl", "judged nothing"),
+        ],
+    );
+    // The two unjudged traces are two more tests, and two errors.
+    assert!(
+        xml.contains(&format!(
+            r#"<testsuites tests="{}" failures="{failures}" skipped="#,
+            tests + 2
+        )),
+        "{xml}"
+    );
+    assert!(xml.contains(r#" errors="2">"#), "{xml}");
+    // Named and explained, escaped like everything else from a trace.
+    assert!(
+        xml.contains(
+            r#"<testsuite name="b&lt;1&gt;.jsonl" tests="1" failures="0" errors="1" skipped="0">"#
+        ),
+        "{xml}"
+    );
+    assert!(
+        xml.contains(
+            r#"<testcase classname="b&lt;1&gt;.jsonl" file="b&lt;1&gt;.jsonl" name="trace could not be judged"><error message="malformed &quot;trace&quot;"/></testcase>"#
+        ),
+        "{xml}"
+    );
+    assert_eq!(xml.matches("</testsuite>").count(), 3, "{xml}");
+}

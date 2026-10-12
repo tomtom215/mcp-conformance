@@ -11,6 +11,7 @@
 //! | a `fail` / `warn` row | a *rule* (`ruleId` = the requirement ID; the clause verbatim, its level, and its published link) |
 //! | each finding on that row | a *result* at level `error` (MUST) or `warning` (SHOULD), located at the trace line holding the event it names |
 //! | an `unsupported` row | an invocation notification, and `executionSuccessful: false` |
+//! | a trace that could not be judged ([`render_run`]) | an invocation notification located at the trace, and `executionSuccessful: false` |
 //! | pass / excluded / not-applicable / not-observed | nothing — SARIF records problems, not coverage |
 //!
 //! Every judged revision's findings are results of one run: code scanning
@@ -29,7 +30,7 @@ use std::collections::BTreeMap;
 use mcp_conformance_core::trace::TraceEvent;
 use serde_json::{Value, json};
 
-use crate::report::{Outcome, Report, RequirementReport};
+use crate::report::{Outcome, Report, RequirementReport, Unjudged};
 
 /// Where the findings point.
 ///
@@ -122,6 +123,38 @@ pub fn render_with(reports: &[Report], artifact: Artifact<'_>, options: &Options
 /// ```
 #[must_use]
 pub fn render_traces(traces: &[(Artifact<'_>, &[Report])], options: &Options) -> String {
+    render_run(traces, &[], options)
+}
+
+/// Renders a run over several traces as one SARIF 2.1.0 log, with a
+/// notification for each trace that could not be judged.
+///
+/// The judged traces render as [`render_traces`] renders them. Each unjudged
+/// one is an error-level tool execution notification, located at the trace
+/// with the reason as its message, and the invocation reports
+/// `executionSuccessful: false`.
+///
+/// ```
+/// use mcp_trace_validator::report::Unjudged;
+/// use mcp_trace_validator::sarif;
+///
+/// let unjudged = [Unjudged::new("bad.jsonl", "malformed trace: line 4")];
+/// let log: serde_json::Value =
+///     serde_json::from_str(&sarif::render_run(&[], &unjudged, &sarif::Options::default()))?;
+/// let invocation = &log["runs"][0]["invocations"][0];
+/// assert_eq!(invocation["executionSuccessful"], false);
+/// assert_eq!(
+///     invocation["toolExecutionNotifications"][0]["message"]["text"],
+///     "malformed trace: line 4"
+/// );
+/// # Ok::<(), serde_json::Error>(())
+/// ```
+#[must_use]
+pub fn render_run(
+    traces: &[(Artifact<'_>, &[Report])],
+    unjudged: &[Unjudged],
+    options: &Options,
+) -> String {
     let all_reports = || traces.iter().flat_map(|(_, reports)| reports.iter());
     let mut log = Log {
         rule_ids: rule_ids(all_reports()),
@@ -144,6 +177,9 @@ pub fn render_traces(traces: &[(Artifact<'_>, &[Report])], options: &Options) ->
                 }
             }
         }
+    }
+    for trace in unjudged {
+        log.unjudged(trace);
     }
     let mut revisions: Vec<&str> = Vec::new();
     for report in all_reports() {
@@ -241,6 +277,19 @@ impl Log<'_> {
                 },
             }));
         }
+    }
+
+    /// A trace the run could not judge at all, located at the trace.
+    fn unjudged(&mut self, trace: &Unjudged) {
+        let at = Artifact {
+            uri: Some(&trace.trace),
+            events: &[],
+        };
+        self.notifications.push(json!({
+            "level": "error",
+            "message": { "text": trace.error },
+            "locations": location(at, None),
+        }));
     }
 
     /// An `unsupported` row: the run could not judge this clause.

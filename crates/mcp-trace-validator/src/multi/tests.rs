@@ -328,3 +328,30 @@ fn a_run_that_judged_none_of_the_sessions_revisions_says_so() {
     assert!(report.revision_mismatch.is_none());
     assert!(!report.render_human().contains("NOTE"));
 }
+
+#[test]
+fn each_revisions_findings_are_limited_on_their_own() {
+    let trace: Vec<String> = (0..3)
+        .map(|seq| WRONG_VERSION.replace(r#""seq":0"#, &format!(r#""seq":{seq}"#)))
+        .collect();
+    let events = parse_trace(&trace.join("\n"), &Limits::default()).unwrap();
+    let report = validate_revisions(&set(), &revs(), &events).unwrap();
+    // BASE-001 under both revisions, and the clause each has alone.
+    assert_eq!(report.render_human().matches(" seq 2: ").count(), 4);
+
+    let limited = HumanOptions::default().all(false).max_findings(Some(2));
+    let text = report.render_with(&limited);
+    assert!(!text.contains(" seq 2: "), "{text}");
+    for revision in ["2025-11-25", "2026-07-28"] {
+        assert!(
+            text.contains(&format!(
+                "        {revision} seq 1: {}\n        {revision}: … and 1 more\n",
+                report.requirements[0].findings[0][1].detail
+            )),
+            "{text}"
+        );
+    }
+    assert!(report.render_with(&limited.cli(true)).contains(
+        "2025-11-25: … and 1 more (pass --all, or use --format json, for every finding)\n"
+    ));
+}

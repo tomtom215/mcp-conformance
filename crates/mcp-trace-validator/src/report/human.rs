@@ -9,13 +9,79 @@
 
 use core::fmt::Write as _;
 
-use super::{Outcome, Report};
+use super::{Finding, Outcome, Report};
+
+/// How the human renderers lay a report out: [`Report::render_with`] and
+/// [`MultiReport::render_with`](crate::multi::MultiReport::render_with).
+///
+/// The default is the whole report — every clause, every finding — worded for
+/// a library caller; [`Report::render_human`] and [`Report::render_findings`]
+/// are its two common settings.
+///
+/// ```
+/// use mcp_trace_validator::report::HumanOptions;
+///
+/// // What `mcp-trace-validator validate` prints without `--all`.
+/// let options = HumanOptions::default().all(false).max_findings(Some(20)).cli(true);
+/// assert_eq!(options.max_findings, Some(20));
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct HumanOptions {
+    /// List every clause; otherwise only the failing, warning and unsupported
+    /// ones. The totals count every clause either way.
+    pub all: bool,
+    /// The most findings listed under one clause (per revision), the rest
+    /// counted on one line; `None` lists every one. A trace repeating one
+    /// defect a quarter of a million times otherwise renders a quarter of a
+    /// million lines that say the same thing.
+    pub max_findings: Option<usize>,
+    /// Word advice as `mcp-trace-validator` command-line flags (`--revision`,
+    /// `--all`), for a report the CLI prints; otherwise it names no flag a
+    /// library caller does not have.
+    pub cli: bool,
+}
+
+impl Default for HumanOptions {
+    /// Every clause and every finding, in library wording.
+    fn default() -> Self {
+        Self {
+            all: true,
+            max_findings: None,
+            cli: false,
+        }
+    }
+}
+
+impl HumanOptions {
+    /// These options, listing every clause (`true`) or only those needing
+    /// attention (`false`).
+    #[must_use]
+    pub const fn all(mut self, all: bool) -> Self {
+        self.all = all;
+        self
+    }
+
+    /// These options, listing at most `max` findings under each clause.
+    #[must_use]
+    pub const fn max_findings(mut self, max: Option<usize>) -> Self {
+        self.max_findings = max;
+        self
+    }
+
+    /// These options, worded for the command line (`true`) or not.
+    #[must_use]
+    pub const fn cli(mut self, cli: bool) -> Self {
+        self.cli = cli;
+        self
+    }
+}
 
 impl Report {
     /// Renders the human-readable form: every requirement's row.
     #[must_use]
     pub fn render_human(&self) -> String {
-        self.render(false)
+        self.render_with(&HumanOptions::default())
     }
 
     /// Renders only what needs attention — failing, warning and unsupported rows —
@@ -23,10 +89,12 @@ impl Report {
     /// clause, so nothing is hidden from the arithmetic.
     #[must_use]
     pub fn render_findings(&self) -> String {
-        self.render(true)
+        self.render_with(&HumanOptions::default().all(false))
     }
 
-    fn render(&self, findings_only: bool) -> String {
+    /// Renders the human-readable form as `options` lay it out.
+    #[must_use]
+    pub fn render_with(&self, options: &HumanOptions) -> String {
         let mut out = String::new();
         match self.revision_source {
             Some(source) => {
@@ -40,19 +108,19 @@ impl Report {
                 let _ = writeln!(out, "MCP trace validation — revision {}", self.revision);
             }
         }
-        self.write_revision_mismatch(&mut out);
+        self.write_revision_mismatch(&mut out, options);
         for row in &self.requirements {
-            if findings_only && !row.outcome.needs_attention() {
+            if !options.all && !row.outcome.needs_attention() {
                 continue;
             }
-            write_row(&mut out, row);
+            write_row(&mut out, row, options);
         }
         // Every outcome is named, so the counts sum to the registry's size — a
         // reader can check the arithmetic, and `Totals`' own exhaustive
         // destructuring is what keeps that true as outcomes are added.
         let _ = writeln!(out, "totals: {}", self.totals);
         let _ = writeln!(out, "verdict: {}", self.verdict());
-        self.write_revision_mismatch(&mut out);
+        self.write_revision_mismatch(&mut out, options);
         out
     }
 
@@ -62,7 +130,7 @@ impl Report {
     /// are where a reader looks, and a note that scrolls past a hundred rows of
     /// findings is a note nobody reads. It is short enough that repeating it
     /// costs less than missing it.
-    fn write_revision_mismatch(&self, out: &mut String) {
+    fn write_revision_mismatch(&self, out: &mut String, options: &HumanOptions) {
         let Some(declared) = &self.revision_mismatch else {
             return;
         };
@@ -82,15 +150,22 @@ impl Report {
             out,
             "        Every outcome here judges it against rules it was not playing by;"
         );
-        let _ = writeln!(
-            out,
-            "        re-run with `--revision {suggestion}` to judge it against its own."
-        );
+        if options.cli {
+            let _ = writeln!(
+                out,
+                "        re-run with `--revision {suggestion}` to judge it against its own."
+            );
+        } else {
+            let _ = writeln!(
+                out,
+                "        judge it against revision {suggestion} to hold it to its own."
+            );
+        }
     }
 }
 
 /// One requirement's row and its detail lines.
-fn write_row(out: &mut String, row: &super::RequirementReport) {
+fn write_row(out: &mut String, row: &super::RequirementReport, options: &HumanOptions) {
     let marker = match row.outcome {
         Outcome::Pass => "PASS",
         Outcome::Fail => "FAIL",
@@ -101,16 +176,7 @@ fn write_row(out: &mut String, row: &super::RequirementReport) {
         Outcome::NotObserved => "NOBS",
     };
     let _ = writeln!(out, "  {marker:<5} {} ({})", row.id, row.level);
-    for finding in &row.findings {
-        match finding.seq {
-            Some(seq) => {
-                let _ = writeln!(out, "        seq {seq}: {}", finding.detail);
-            }
-            None => {
-                let _ = writeln!(out, "        {}", finding.detail);
-            }
-        }
-    }
+    options.write_findings(out, &row.findings, None);
     if let Some(source) = &row.source {
         source.write_human(out);
     }
@@ -131,6 +197,40 @@ fn write_row(out: &mut String, row: &super::RequirementReport) {
             out,
             "        not observed: the session carried none of the traffic this clause binds to"
         );
+    }
+}
+
+impl HumanOptions {
+    /// A row's findings, one line each — `seq 3: …`, or `2025-11-25 seq 3: …`
+    /// under a `revision` — up to [`Self::max_findings`], then one line
+    /// counting the rest. Shared with the multi-revision report.
+    pub(crate) fn write_findings(
+        &self,
+        out: &mut String,
+        findings: &[Finding],
+        revision: Option<&str>,
+    ) {
+        let shown = self.max_findings.unwrap_or(usize::MAX);
+        for finding in findings.iter().take(shown) {
+            let _ = match (revision, finding.seq) {
+                (Some(revision), Some(seq)) => {
+                    writeln!(out, "        {revision} seq {seq}: {}", finding.detail)
+                }
+                (Some(revision), None) => writeln!(out, "        {revision}: {}", finding.detail),
+                (None, Some(seq)) => writeln!(out, "        seq {seq}: {}", finding.detail),
+                (None, None) => writeln!(out, "        {}", finding.detail),
+            };
+        }
+        let rest = findings.len().saturating_sub(shown);
+        if rest > 0 {
+            let label = revision.map_or_else(String::new, |revision| format!("{revision}: "));
+            let how = if self.cli {
+                " (pass --all, or use --format json, for every finding)"
+            } else {
+                ""
+            };
+            let _ = writeln!(out, "        {label}… and {rest} more{how}");
+        }
     }
 }
 

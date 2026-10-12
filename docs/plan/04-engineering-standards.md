@@ -130,6 +130,7 @@ dependencies are justified where they are declared):
 |------------|--------|----------------------|
 | `serde`, `serde_json` | all | The protocol is JSON; `float_roundtrip` is correctness (canonical fixpoint) |
 | `clap` | binaries, behind `cli` features | [ADR-0005](decisions/0005-cli-argument-parsing.md): library consumers never pay for it |
+| `clap_complete` | trace-validator, behind `cli` | Shell completions generated from the one clap definition, so they cannot drift from the flags; the clap project's own crate, released in lockstep with clap. Library consumers never pay for it (ADR-0005) |
 | `rmcp` | everything-server, reference-host | The point of M2: parity proven *on the official SDK*, not beside it. Feature-minimal (`server`, `macros`, `transport-io`, `transport-streamable-http-server`); MSRV consequence in [ADR-0008](decisions/0008-msrv-1.88.md) |
 | `tokio` | everything-server (`cli`), reference-host (M3) | rmcp's runtime, not re-litigated; no default features, per-crate feature grants |
 | `schemars` | everything-server | Tool/prompt parameter schemas for rmcp's `#[tool]`; already in rmcp's `server` feature tree |
