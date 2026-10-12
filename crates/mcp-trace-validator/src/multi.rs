@@ -26,7 +26,9 @@ use mcp_conformance_core::trace::TraceEvent;
 use serde::{Deserialize, Serialize};
 
 use crate::engine;
-use crate::report::{ClauseSource, Finding, Outcome, RequirementReport, Totals, Verdict};
+use crate::report::{
+    ClauseSource, Finding, HumanOptions, Outcome, RequirementReport, Totals, Verdict,
+};
 
 /// Error produced by a multi-revision run.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -169,17 +171,19 @@ impl MultiReport {
     /// Renders the human-readable form: every clause's row.
     #[must_use]
     pub fn render_human(&self) -> String {
-        self.render(false)
+        self.render_with(&HumanOptions::default())
     }
 
     /// Renders only the clauses that need attention under some revision, with the
     /// per-revision totals and the verdict.
     #[must_use]
     pub fn render_findings(&self) -> String {
-        self.render(true)
+        self.render_with(&HumanOptions::default().all(false))
     }
 
-    fn render(&self, findings_only: bool) -> String {
+    /// Renders the human-readable form as `options` lay it out.
+    #[must_use]
+    pub fn render_with(&self, options: &HumanOptions) -> String {
         let mut out = String::new();
         let _ = write!(
             out,
@@ -196,7 +200,7 @@ impl MultiReport {
         }
         self.write_revision_mismatch(&mut out);
         for row in &self.requirements {
-            if findings_only
+            if !options.all
                 && !row
                     .outcomes
                     .iter()
@@ -205,7 +209,7 @@ impl MultiReport {
             {
                 continue;
             }
-            self.write_row(&mut out, row);
+            self.write_row(&mut out, row, options);
         }
         let _ = writeln!(out, "per revision:");
         for summary in &self.summaries {
@@ -225,7 +229,7 @@ impl MultiReport {
 
     /// One clause's row: its cell per revision, then each revision's findings and
     /// the clause they break.
-    fn write_row(&self, out: &mut String, row: &MultiRow) {
+    fn write_row(&self, out: &mut String, row: &MultiRow, options: &HumanOptions) {
         let _ = write!(out, "  {:<10} ({})", row.id, row.level);
         for (revision, outcome) in self.revisions.iter().zip(&row.outcomes) {
             let _ = write!(out, "  {revision}={}", cell_token(*outcome));
@@ -235,16 +239,7 @@ impl MultiReport {
         }
         let _ = writeln!(out);
         for (index, (revision, findings)) in self.revisions.iter().zip(&row.findings).enumerate() {
-            for finding in findings {
-                match finding.seq {
-                    Some(seq) => {
-                        let _ = writeln!(out, "        {revision} seq {seq}: {}", finding.detail);
-                    }
-                    None => {
-                        let _ = writeln!(out, "        {revision}: {}", finding.detail);
-                    }
-                }
-            }
+            options.write_findings(out, findings, Some(revision));
             if let Some(Some(source)) = row.sources.get(index) {
                 source.write_human(out);
             }

@@ -25,6 +25,7 @@ mod serialize;
 pub const JSON_SCHEMA: &str = include_str!("../schema/report.schema.json");
 
 pub use clause::ClauseSource;
+pub use human::HumanOptions;
 
 /// One concrete violation, addressed to a requirement and (where possible) an event.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

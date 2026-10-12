@@ -64,10 +64,11 @@ enum Command {
         /// Treat SHOULD-level findings (warnings) as failures.
         #[arg(long)]
         strict: bool,
-        /// Human output: list every clause with its outcome, and the reason for
-        /// each exclusion. By default only failing, warning and unsupported
-        /// clauses are listed (the totals always count every clause). JSON,
-        /// `JUnit` and SARIF always carry every clause.
+        /// Human output: list every clause with its outcome, every finding,
+        /// and the reason for each exclusion. By default only failing, warning
+        /// and unsupported clauses are listed, each with its first 20 findings
+        /// (the totals always count every clause). JSON, `JUnit` and SARIF
+        /// always carry every clause and finding.
         #[arg(short, long)]
         all: bool,
         /// Accepted for compatibility: the findings-only listing it selected is

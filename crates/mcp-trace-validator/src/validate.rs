@@ -23,7 +23,7 @@ use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::declared::{self, RevisionSource};
 use mcp_trace_validator::multi::{self, MultiReport};
-use mcp_trace_validator::report::{Report, Unjudged, Verdict};
+use mcp_trace_validator::report::{HumanOptions, Report, Unjudged, Verdict};
 use mcp_trace_validator::{engine, junit, reader, sarif, sessions};
 
 use crate::emit::emit;
@@ -34,6 +34,12 @@ use crate::{
 };
 
 mod many;
+
+/// The most findings the default human report lists under one clause. A
+/// recording that repeats one defect throughout is otherwise hundreds of
+/// megabytes of the same line; the rest are counted, and `--all` or
+/// `--format json` lists every one.
+const MAX_FINDINGS: usize = 20;
 
 /// How `validate` presents its report.
 #[derive(Debug, Clone, Copy)]
@@ -79,13 +85,18 @@ impl Judged {
             .map_or_else(|| self.reports[0].verdict(), MultiReport::verdict)
     }
 
+    /// The human report: with `--all`, every clause and every finding;
+    /// otherwise the clauses needing attention, each with its first
+    /// [`MAX_FINDINGS`] findings.
     fn render_human(&self, output: Output) -> String {
-        match (&self.multi, output.all) {
-            (Some(multi), true) => multi.render_human(),
-            (Some(multi), false) => multi.render_findings(),
-            (None, true) => self.reports[0].render_human(),
-            (None, false) => self.reports[0].render_findings(),
-        }
+        let options = HumanOptions::default()
+            .all(output.all)
+            .max_findings((!output.all).then_some(MAX_FINDINGS))
+            .cli(true);
+        self.multi.as_ref().map_or_else(
+            || self.reports[0].render_with(&options),
+            |multi| multi.render_with(&options),
+        )
     }
 
     fn to_json(&self) -> serde_json::Result<serde_json::Value> {

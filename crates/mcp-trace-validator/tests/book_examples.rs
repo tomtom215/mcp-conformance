@@ -107,7 +107,9 @@ fn the_chapters_revision_mismatch_note_is_what_the_validator_prints() {
 
     let registry = mcp_conformance_core::requirement::Registry::builtin_2025_11_25().unwrap();
     let events = parse_trace(&trace, &Limits::default()).expect("the chapter's trace parses");
-    let rendered = mcp_trace_validator::engine::validate(&registry, &events).render_human();
+    // The chapter quotes the CLI, which words the note as a flag to pass.
+    let cli = mcp_trace_validator::report::HumanOptions::default().cli(true);
+    let rendered = mcp_trace_validator::engine::validate(&registry, &events).render_with(&cli);
 
     for line in quoted.lines().filter(|line| !line.trim().is_empty()) {
         assert!(
