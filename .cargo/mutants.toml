@@ -53,9 +53,10 @@ exclude_re = [
     "replace < with <= in retries_with_rounds",
     # Equivalent mutants: `events[index + 1..]` becoming `events[index * 1..]`
     # only adds the event at `index` itself to the scan, and the next filter
-    # drops it — failed_discover_probes keeps only the opposite direction to
-    # the probe, handshakes only server-to-client events after a client
-    # initialize. No trace can separate them.
-    "replace \\+ with \\* in failed_discover_probes",
+    # drops it — answered_by_result (which failed probes and failed modern
+    # attempts share) keeps only the opposite direction to the request,
+    # handshakes only server-to-client events after a client initialize. No
+    # trace can separate them.
+    "replace \\+ with \\* in answered_by_result",
     "replace \\+ with \\* in handshakes",
 ]
