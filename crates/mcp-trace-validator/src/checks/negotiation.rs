@@ -345,7 +345,7 @@ mod tests {
             handshake("{}", "{}"),
             r#"{"seq":3,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":9,"method":"tools/list"}}"#,
         );
-        assert!(findings_for(&trace).is_empty());
+        assert_eq!(findings_for(&trace), Vec::<String>::new());
     }
 
     #[test]
@@ -356,7 +356,7 @@ mod tests {
         let outcome = checks::find("lifecycle.negotiated-capabilities-only")
             .unwrap()
             .run(&context);
-        assert!(outcome.findings.is_empty());
+        assert_eq!(outcome.findings, Vec::<crate::report::Finding>::new());
         // The half this test used to omit, and the reason it passed for as long
         // as the check reported *pass* here: an abstention and a pass both have
         // no findings, and only the subject count separates them.
@@ -381,13 +381,19 @@ mod tests {
         let findings = elicit(r#"{"elicitation":{}}"#, url);
         assert_eq!(findings.len(), 1, "{findings:?}");
         assert!(findings[0].contains("elicitation.url"), "{findings:?}");
-        assert!(elicit(r#"{"elicitation":{}}"#, form).is_empty());
+        assert_eq!(elicit(r#"{"elicitation":{}}"#, form), Vec::<String>::new());
         // A URL-only client was not offered form mode, the default.
         let findings = elicit(r#"{"elicitation":{"url":{}}}"#, form);
         assert_eq!(findings.len(), 1, "{findings:?}");
         assert!(findings[0].contains("elicitation.form"), "{findings:?}");
-        assert!(elicit(r#"{"elicitation":{"url":{}}}"#, url).is_empty());
-        assert!(elicit(r#"{"elicitation":{"form":{},"url":{}}}"#, form).is_empty());
+        assert_eq!(
+            elicit(r#"{"elicitation":{"url":{}}}"#, url),
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            elicit(r#"{"elicitation":{"form":{},"url":{}}}"#, form),
+            Vec::<String>::new()
+        );
         // No elicitation at all is still reported once, against the parent.
         let findings = elicit("{}", url);
         assert_eq!(findings.len(), 1, "{findings:?}");
@@ -411,17 +417,17 @@ mod tests {
             "{}\n{request}",
             handshake(r#"{"sampling":{"tools":{}}}"#, "{}")
         );
-        assert!(findings_for(&declared).is_empty());
+        assert_eq!(findings_for(&declared), Vec::<String>::new());
         let plain = request.replace(
             r#","tools":[{"name":"t","inputSchema":{"type":"object"}}]"#,
             "",
         );
-        assert!(
+        assert_eq!(
             findings_for(&format!(
                 "{}\n{plain}",
                 handshake(r#"{"sampling":{}}"#, "{}")
-            ))
-            .is_empty()
+            )),
+            Vec::<String>::new()
         );
     }
 
@@ -438,7 +444,10 @@ mod tests {
             "{}",
             r#"{"tools":{},"tasks":{"requests":{"tools":{"call":{}}}}}"#,
         );
-        assert!(findings_for(&format!("{declared}\n{call}")).is_empty());
+        assert_eq!(
+            findings_for(&format!("{declared}\n{call}")),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
@@ -463,7 +472,7 @@ mod tests {
             "{}\n{list}\n{cancel}",
             handshake(r#"{"tasks":{"cancel":{}}}"#, r#"{"tasks":{"list":{}}}"#)
         );
-        assert!(findings_for(&declared).is_empty());
+        assert_eq!(findings_for(&declared), Vec::<String>::new());
     }
 
     #[test]
@@ -474,6 +483,6 @@ mod tests {
             r#"{"seq":3,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"x"}}}"#,
             r#"{"seq":4,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/roots/list_changed"}}"#,
         );
-        assert!(findings_for(&trace).is_empty());
+        assert_eq!(findings_for(&trace), Vec::<String>::new());
     }
 }

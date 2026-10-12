@@ -264,7 +264,11 @@ mod tests {
             assert!(body["method"].is_string(), "{}", probe.clauses);
             let id = body["id"].as_u64().expect("every probe is a request");
             assert!(ids.insert(id), "{}: id {id} is reused", probe.clauses);
-            assert!(!probe.fault.is_empty());
+            assert!(
+                !probe.fault.is_empty(),
+                "{}: the probe names no fault",
+                probe.clauses
+            );
         }
     }
 

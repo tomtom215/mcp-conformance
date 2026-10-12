@@ -78,20 +78,20 @@ fn only_the_clients_cancellations_are_judged() {
     // The clause binds the client. A server-sent notification of the same name
     // is not the client cancelling anything.
     let from_server = server(0, r#"{"jsonrpc":"2.0","method":"notifications/cancelled"}"#);
-    assert!(findings_for(REFERENCES, &from_server).is_empty());
+    assert_eq!(findings_for(REFERENCES, &from_server), Vec::<String>::new());
 
     // Nor is a message with an id, which is a request rather than a notification.
     let as_request = client(
         0,
         r#"{"jsonrpc":"2.0","id":1,"method":"notifications/cancelled"}"#,
     );
-    assert!(findings_for(REFERENCES, &as_request).is_empty());
+    assert_eq!(findings_for(REFERENCES, &as_request), Vec::<String>::new());
 }
 
 #[test]
 fn other_notifications_are_not_this_clauses_business() {
     let unrelated = client(0, r#"{"jsonrpc":"2.0","method":"notifications/progress"}"#);
-    assert!(findings_for(REFERENCES, &unrelated).is_empty());
+    assert_eq!(findings_for(REFERENCES, &unrelated), Vec::<String>::new());
 }
 
 /// A later client request (`id` 5) and its answer: proof the server has read
@@ -147,7 +147,7 @@ fn an_answer_racing_the_cancellation_is_not_convicted() {
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
         ),
     ]);
-    assert!(findings_for(AFTER, &session).is_empty());
+    assert_eq!(findings_for(AFTER, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -161,7 +161,7 @@ fn answering_before_the_cancellation_conforms() {
         ),
         cancel(2, r#","params":{"requestId":1}"#),
     ]);
-    assert!(findings_for(AFTER, &session).is_empty());
+    assert_eq!(findings_for(AFTER, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -175,7 +175,7 @@ fn a_different_request_may_still_be_answered() {
             r#"{"jsonrpc":"2.0","id":2,"result":{"resultType":"complete"}}"#,
         ),
     ]);
-    assert!(findings_for(AFTER, &session).is_empty());
+    assert_eq!(findings_for(AFTER, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -201,7 +201,7 @@ fn progress_for_a_cancelled_request_is_a_further_message() {
         cancel(2, r#","params":{"requestId":1}"#),
         progress(3, "tok-2"),
     ]);
-    assert!(findings_for(AFTER, &other).is_empty());
+    assert_eq!(findings_for(AFTER, &other), Vec::<String>::new());
 
     // And progress that arrived before the cancellation is not "further".
     let early = trace(&[
@@ -209,7 +209,7 @@ fn progress_for_a_cancelled_request_is_a_further_message() {
         progress(1, "tok-1"),
         cancel(2, r#","params":{"requestId":1}"#),
     ]);
-    assert!(findings_for(AFTER, &early).is_empty());
+    assert_eq!(findings_for(AFTER, &early), Vec::<String>::new());
 }
 
 #[test]
@@ -240,8 +240,8 @@ fn a_session_without_cancellation_is_not_judged() {
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
         ),
     ]);
-    assert!(findings_for(AFTER, &session).is_empty());
-    assert!(findings_for(REFERENCES, &session).is_empty());
+    assert_eq!(findings_for(AFTER, &session), Vec::<String>::new());
+    assert_eq!(findings_for(REFERENCES, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -256,5 +256,5 @@ fn a_cancellation_naming_no_request_cancels_nothing_here() {
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
         ),
     ]);
-    assert!(findings_for(AFTER, &session).is_empty());
+    assert_eq!(findings_for(AFTER, &session), Vec::<String>::new());
 }

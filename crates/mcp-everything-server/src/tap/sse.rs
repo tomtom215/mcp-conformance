@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn splitter_yields_each_completed_frame_and_carries_partials() {
         let mut splitter = SseSplitter::default();
-        assert!(splitter.push(b"data: {\"a\":").is_empty());
+        assert_eq!(splitter.push(b"data: {\"a\":"), Vec::<String>::new());
         let got = splitter.push(b"1}\n\ndata: {\"b\":2}\n\ndata: {\"c\"");
         assert_eq!(got, vec![json!({"a": 1}), json!({"b": 2})]);
         assert_eq!(splitter.push(b":3}\n\n"), vec![json!({"c": 3})]);
@@ -132,8 +132,8 @@ mod tests {
     #[test]
     fn splitter_ignores_non_json_and_empty_frames() {
         let mut splitter = SseSplitter::default();
-        assert!(splitter.push(b": keep-alive\n\n").is_empty());
-        assert!(splitter.push(b"data: not json\n\n").is_empty());
+        assert_eq!(splitter.push(b": keep-alive\n\n"), Vec::<String>::new());
+        assert_eq!(splitter.push(b"data: not json\n\n"), Vec::<String>::new());
         assert_eq!(splitter.push(b"data: 7\n\n"), vec![json!(7)]);
     }
 
@@ -186,7 +186,7 @@ mod tests {
         let frame = "data: {\"text\":\"é日本\"}\n\n".as_bytes();
         let cut = frame.iter().position(|&byte| byte == 0xC3).unwrap() + 1;
         let mut splitter = SseSplitter::default();
-        assert!(splitter.push(&frame[..cut]).is_empty());
+        assert_eq!(splitter.push(&frame[..cut]), Vec::<String>::new());
         assert_eq!(splitter.push(&frame[cut..]), vec![json!({"text": "é日本"})]);
         // Every split point, not just that one.
         for cut in 1..frame.len() {
@@ -214,14 +214,14 @@ mod tests {
         let mut splitter = SseSplitter::default();
         // One giant chunk with no frame boundary anywhere.
         let oversized = "data: ".to_owned() + &"x".repeat(super::super::MAX_RECORDED_BODY + 1);
-        assert!(splitter.push(oversized.as_bytes()).is_empty());
+        assert_eq!(splitter.push(oversized.as_bytes()), Vec::<String>::new());
         // The buffer is freed, not merely cleared-but-capacity-retained.
         assert_eq!(splitter.buffer.capacity(), 0);
         assert!(splitter.stopped);
         // The stream is poisoned for recording: even well-formed frames that
         // follow are not parsed (the client still received every byte).
         let frame = b"data: {\"jsonrpc\":\"2.0\",\"method\":\"x\"}\n\n";
-        assert!(splitter.push(frame).is_empty());
+        assert_eq!(splitter.push(frame), Vec::<String>::new());
     }
 
     #[test]
@@ -232,7 +232,7 @@ mod tests {
         let body = "x".repeat(super::super::MAX_RECORDED_BODY - 8);
         let at_budget = format!("data: \"{body}\"");
         assert_eq!(at_budget.len(), super::super::MAX_RECORDED_BODY);
-        assert!(splitter.push(at_budget.as_bytes()).is_empty());
+        assert_eq!(splitter.push(at_budget.as_bytes()), Vec::<String>::new());
         assert!(!splitter.stopped, "exactly-at-budget must not overflow");
         assert_eq!(splitter.push(b"\n\n"), vec![json!(body)]);
     }

@@ -83,8 +83,11 @@ fn an_ordinary_result_is_not_a_round() {
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
         ),
     ]);
-    assert!(findings_for(SUPPORTED_METHODS, &session).is_empty());
-    assert!(findings_for(HAS_CONTENT, &session).is_empty());
+    assert_eq!(
+        findings_for(SUPPORTED_METHODS, &session),
+        Vec::<String>::new()
+    );
+    assert_eq!(findings_for(HAS_CONTENT, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -118,7 +121,10 @@ fn input_requests_may_only_ask_for_the_three_request_objects() {
         request(0, 1, "tools/call", ""),
         input_required(1, 1, r#","requestState":"s""#),
     ]);
-    assert!(findings_for(REQUEST_METHODS, &stateful).is_empty());
+    assert_eq!(
+        findings_for(REQUEST_METHODS, &stateful),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -142,7 +148,10 @@ fn an_input_required_must_carry_requests_or_state() {
 #[test]
 fn a_retry_must_answer_everything_the_round_asked_for() {
     let complete = round_then("", r#","inputResponses":{"login":{"action":"accept"}}"#);
-    assert!(findings_for(CARRIES_RESPONSES, &complete).is_empty());
+    assert_eq!(
+        findings_for(CARRIES_RESPONSES, &complete),
+        Vec::<String>::new()
+    );
 
     let two_asked = trace(&[
         request(0, 1, "tools/call", ""),
@@ -184,7 +193,7 @@ fn a_retry_echoes_the_exact_state_it_was_given() {
         r#","requestState":"opaque-blob""#,
         r#","inputResponses":{"login":{}},"requestState":"opaque-blob""#,
     );
-    assert!(findings_for(ECHOED, &exact).is_empty());
+    assert_eq!(findings_for(ECHOED, &exact), Vec::<String>::new());
 
     let altered = round_then(
         r#","requestState":"opaque-blob""#,
@@ -206,14 +215,14 @@ fn a_retry_echoes_the_exact_state_it_was_given() {
 #[test]
 fn a_round_without_state_asks_for_none_back() {
     let no_state = round_then("", r#","inputResponses":{"login":{}}"#);
-    assert!(findings_for(ECHOED, &no_state).is_empty());
+    assert_eq!(findings_for(ECHOED, &no_state), Vec::<String>::new());
 
     // …and a retry that invents one is reported by the sibling clause.
     let invented = round_then(
         "",
         r#","inputResponses":{"login":{}},"requestState":"mine""#,
     );
-    assert!(findings_for(ECHOED, &invented).is_empty());
+    assert_eq!(findings_for(ECHOED, &invented), Vec::<String>::new());
     let findings = findings_for(UNSOLICITED, &invented);
     assert_eq!(findings.len(), 1, "{findings:?}");
 }
@@ -238,7 +247,7 @@ fn the_retry_is_a_new_request_with_a_new_id() {
     assert_eq!(findings.len(), 1, "{findings:?}");
 
     let fresh = round_then("", r#","inputResponses":{"login":{}}"#);
-    assert!(findings_for(ID_DIFFERS, &fresh).is_empty());
+    assert_eq!(findings_for(ID_DIFFERS, &fresh), Vec::<String>::new());
 }
 
 #[test]
@@ -257,7 +266,7 @@ fn a_state_is_scoped_to_the_request_that_drew_it() {
         input_required(1, 1, r#","requestState":"blob""#),
         request(2, 2, "tools/call", r#","requestState":"blob""#),
     ]);
-    assert!(findings_for(SCOPED, &same).is_empty());
+    assert_eq!(findings_for(SCOPED, &same), Vec::<String>::new());
 }
 
 #[test]
@@ -280,7 +289,7 @@ fn a_shortfall_should_draw_another_round_not_an_error() {
     let reasked = short(
         r#"{"jsonrpc":"2.0","id":2,"result":{"resultType":"input_required","requestState":"blob2"}}"#,
     );
-    assert!(findings_for(REASKED, &reasked).is_empty());
+    assert_eq!(findings_for(REASKED, &reasked), Vec::<String>::new());
 
     // A complete retry that still drew an error is some other problem, and this
     // clause must not claim it.
@@ -298,7 +307,7 @@ fn a_shortfall_should_draw_another_round_not_an_error() {
             r#"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"x"}}"#,
         ),
     ]);
-    assert!(findings_for(REASKED, &complete).is_empty());
+    assert_eq!(findings_for(REASKED, &complete), Vec::<String>::new());
 
     // An unanswered retry is not evidence either way.
     let unanswered = trace(&[
@@ -306,7 +315,7 @@ fn a_shortfall_should_draw_another_round_not_an_error() {
         input_required(1, 1, &format!(",{ELICIT}")),
         request(2, 2, "tools/call", r#","requestState":"blob""#),
     ]);
-    assert!(findings_for(REASKED, &unanswered).is_empty());
+    assert_eq!(findings_for(REASKED, &unanswered), Vec::<String>::new());
 }
 
 /// A request `id` for `tools/call` of tool `name`, whose `params` also carry `extra`.

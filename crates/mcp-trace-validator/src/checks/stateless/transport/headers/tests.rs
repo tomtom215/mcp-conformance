@@ -43,7 +43,7 @@ fn the_encoding_rules_reach_mcp_name_and_mcp_param_only() {
         r#"{"mcp-method":"resources/read","mcp-name":"a","x-vendor":"café","accept":" padded"}"#,
         r#""a""#,
     );
-    assert!(findings_for(check, &document).is_empty());
+    assert_eq!(findings_for(check, &document), Vec::<String>::new());
 }
 
 #[test]
@@ -58,8 +58,8 @@ fn each_encoding_defect_is_claimed_by_exactly_one_check() {
         r#""café""#,
     );
     assert_eq!(findings_for(encoding, &document).len(), 1);
-    assert!(findings_for(case, &document).is_empty());
-    assert!(findings_for(pattern, &document).is_empty());
+    assert_eq!(findings_for(case, &document), Vec::<String>::new());
+    assert_eq!(findings_for(pattern, &document), Vec::<String>::new());
 
     // Miscased markers: the case check's. The encoding check must skip it
     // rather than double-report a value it can see is meant to be encoded.
@@ -67,9 +67,9 @@ fn each_encoding_defect_is_claimed_by_exactly_one_check() {
         r#"{"mcp-method":"resources/read","mcp-name":"=?BASE64?Y2Fmw6k=?="}"#,
         r#""café""#,
     );
-    assert!(findings_for(encoding, &document).is_empty());
+    assert_eq!(findings_for(encoding, &document), Vec::<String>::new());
     assert_eq!(findings_for(case, &document).len(), 1);
-    assert!(findings_for(pattern, &document).is_empty());
+    assert_eq!(findings_for(pattern, &document), Vec::<String>::new());
 
     // A plain value shaped like the sentinel, repeated verbatim: the pattern
     // check's. It is header-safe, so the encoding check has nothing to say.
@@ -77,8 +77,8 @@ fn each_encoding_defect_is_claimed_by_exactly_one_check() {
         r#"{"mcp-method":"resources/read","mcp-name":"=?base64?literal?="}"#,
         r#""=?base64?literal?=""#,
     );
-    assert!(findings_for(encoding, &document).is_empty());
-    assert!(findings_for(case, &document).is_empty());
+    assert_eq!(findings_for(encoding, &document), Vec::<String>::new());
+    assert_eq!(findings_for(case, &document), Vec::<String>::new());
     assert_eq!(findings_for(pattern, &document).len(), 1);
 
     // A sentinel whose payload is not itself safely representable is not an

@@ -79,7 +79,7 @@ fn trace_context_is_read_from_both_envelopes_and_only_when_present() {
 
     // A valid one, and an envelope carrying none at all, are both silent.
     let valid = request_side.replace("nope", VALID);
-    assert!(findings_for(check, &valid).is_empty());
+    assert_eq!(findings_for(check, &valid), Vec::<String>::new());
     let absent = trace(&[
         post(0, r#"{"mcp-method":"ping"}"#),
         client(
@@ -87,12 +87,12 @@ fn trace_context_is_read_from_both_envelopes_and_only_when_present() {
             &format!(r#"{{"jsonrpc":"2.0","id":1,"method":"ping","params":{{{META}}}}}"#),
         ),
     ]);
-    assert!(findings_for(check, &absent).is_empty());
+    assert_eq!(findings_for(check, &absent), Vec::<String>::new());
 
     // `tracestate` and `baggage` are vendor-defined lists: only their gross
     // shape is judged, so a string passes and a non-string does not.
     let bad_state = request_side.replace(r#""traceparent":"nope""#, r#""tracestate":42"#);
     assert_eq!(findings_for(check, &bad_state).len(), 1);
     let good_state = request_side.replace(r#""traceparent":"nope""#, r#""baggage":"k=v""#);
-    assert!(findings_for(check, &good_state).is_empty());
+    assert_eq!(findings_for(check, &good_state), Vec::<String>::new());
 }

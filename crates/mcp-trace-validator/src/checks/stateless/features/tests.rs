@@ -51,16 +51,19 @@ fn a_changed_set_may_be_ordered_freshly() {
     // The clause qualifies itself: it binds only while the set is unchanged.
     let mut lines = listed(0, 1, &["alpha", "beta"]);
     lines.extend(listed(2, 2, &["beta", "gamma"]));
-    assert!(findings_for(ORDER, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(ORDER, &trace(&lines)), Vec::<String>::new());
 
     let mut same = listed(0, 1, &["alpha", "beta"]);
     same.extend(listed(2, 2, &["alpha", "beta"]));
-    assert!(findings_for(ORDER, &trace(&same)).is_empty());
+    assert_eq!(findings_for(ORDER, &trace(&same)), Vec::<String>::new());
 }
 
 #[test]
 fn one_listing_alone_cannot_be_inconsistent() {
-    assert!(findings_for(ORDER, &trace(&listed(0, 1, &["alpha"]))).is_empty());
+    assert_eq!(
+        findings_for(ORDER, &trace(&listed(0, 1, &["alpha"]))),
+        Vec::<String>::new()
+    );
 }
 
 /// A `tools/list` annotating `region` with `x-mcp-header`, then a call with `value`.
@@ -159,14 +162,17 @@ fn an_empty_contents_array_for_a_missing_resource_is_reported() {
         assert!(findings[0].contains("not found"), "{findings:?}");
     }
     // Some other error says nothing about existence.
-    assert!(findings_for(CONTENTS, &read_after_error(-32603, "[]")).is_empty());
+    assert_eq!(
+        findings_for(CONTENTS, &read_after_error(-32603, "[]")),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
 fn an_empty_contents_array_alone_is_not_evidence_of_a_missing_resource() {
     // "It could mean the resource exists but has no content": the clause binds
     // only a non-existent resource, and nothing here says this one is.
-    assert!(findings_for(CONTENTS, &read("[]")).is_empty());
+    assert_eq!(findings_for(CONTENTS, &read("[]")), Vec::<String>::new());
 }
 
 #[test]
@@ -174,7 +180,7 @@ fn an_empty_resource_still_carries_one_entry() {
     // The conforming shape for a resource with no bytes: one entry whose text is
     // empty, not an absent entry.
     let session = read(r#"[{"uri":"file:///a","mimeType":"text/plain","text":""}]"#);
-    assert!(findings_for(CONTENTS, &session).is_empty());
+    assert_eq!(findings_for(CONTENTS, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -189,5 +195,5 @@ fn a_read_that_errored_has_no_contents_to_judge() {
             r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"no such resource"}}"#,
         ),
     ]);
-    assert!(findings_for(CONTENTS, &session).is_empty());
+    assert_eq!(findings_for(CONTENTS, &session), Vec::<String>::new());
 }

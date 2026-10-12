@@ -50,7 +50,7 @@ fn only_a_client_sent_response_is_reported_on_any_binding() {
         2,
         r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
     ));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 
     // A client message carrying a result but *no* id is not a response this
     // clause can name — there is nothing for it to answer, so BASE-004 owns it.
@@ -58,7 +58,7 @@ fn only_a_client_sent_response_is_reported_on_any_binding() {
     // alternatives rather than as one shape.
     let mut lines = call(0);
     lines.push(client(2, r#"{"jsonrpc":"2.0","result":{}}"#));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 
     // Nor is a message that carries a result alongside a method.
     let mut lines = call(0);
@@ -66,7 +66,7 @@ fn only_a_client_sent_response_is_reported_on_any_binding() {
         2,
         r#"{"jsonrpc":"2.0","id":9,"method":"ping","result":{}}"#,
     ));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 
     // The same client response over stdio is reported too. Both binding pages
     // state the rule — TRAN-060 for POSTs, TRAN-119 for stdio writes — and it is
@@ -103,7 +103,7 @@ fn cancellation_binds_messages_strictly_after_the_close() {
         r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
     ));
     lines.push(close(3));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 
     // A *client* message after the close is not the server sending anything.
     let mut lines = call(0);
@@ -122,12 +122,12 @@ fn cancellation_binds_messages_strictly_after_the_close() {
         3,
         r#"{"jsonrpc":"2.0","id":77,"result":{"resultType":"complete"}}"#,
     ));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 
     // With no close recorded there is no cancellation to judge against.
     let mut lines = call(0);
     lines.push(answer);
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn a_close_with_several_requests_in_flight_cancels_none_of_them() {
         r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
     ));
     // Which of the two streams closed is unknown; neither answer is convicted.
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 }
 
 #[test]
@@ -162,5 +162,5 @@ fn a_transport_abort_is_not_a_cancellation() {
         3,
         r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
     ));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 }

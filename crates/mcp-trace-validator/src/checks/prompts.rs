@@ -312,14 +312,20 @@ mod tests {
     #[test]
     fn supplying_the_required_argument_is_clean() {
         let trace = listed_then_called(r#"{"diff":"--- a\n+++ b"}"#, RESULT);
-        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+        assert_eq!(
+            findings_for("prompts.arguments-validated", &trace),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
     fn an_omitted_optional_argument_is_not_a_finding() {
         // `tone` is declared `required: false`; only `diff` may be demanded.
         let trace = listed_then_called(r#"{"diff":"d"}"#, RESULT);
-        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+        assert_eq!(
+            findings_for("prompts.arguments-validated", &trace),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
@@ -327,7 +333,10 @@ mod tests {
         // The server *did* validate — an error response is the compliant answer,
         // so the check must stay silent even though the argument was missing.
         let trace = listed_then_called(r#"{"tone":"terse"}"#, ERROR);
-        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+        assert_eq!(
+            findings_for("prompts.arguments-validated", &trace),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
@@ -337,7 +346,10 @@ mod tests {
         let get = r#"{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"prompts/get","params":{"name":"unlisted"}}}"#;
         let result = r#"{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"messages":[]}}}"#;
         let trace = format!("{HANDSHAKE}\n{get}\n{result}");
-        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+        assert_eq!(
+            findings_for("prompts.arguments-validated", &trace),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
@@ -357,7 +369,10 @@ mod tests {
         // until the client supplies input, so it is not a served prompt.
         let asked = r#"{"seq":6,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"result":{"resultType":"input_required","inputRequests":{"diff":{"method":"elicitation/create","params":{"mode":"form","message":"Which diff?","requestedSchema":{"type":"object","properties":{"diff":{"type":"string"}}}}}}}}}"#;
         let trace = listed_then_called(r#"{"tone":"terse"}"#, asked);
-        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+        assert_eq!(
+            findings_for("prompts.arguments-validated", &trace),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
@@ -371,7 +386,10 @@ mod tests {
             "{}\n{retry}",
             listed_then_called(r#"{"tone":"terse"}"#, asked)
         );
-        assert!(findings_for("prompts.arguments-validated", &trace).is_empty());
+        assert_eq!(
+            findings_for("prompts.arguments-validated", &trace),
+            Vec::<String>::new()
+        );
         // Without the input responses the same retry is judged as before.
         let unanswered = trace.replace(
             r#","inputResponses":{"diff":{"action":"accept","content":{"diff":"d"}}}"#,
@@ -389,7 +407,10 @@ mod tests {
         let trace = get_prompt_with_content(
             r#"{"type":"audio","data":"not base64!","mimeType":"audio/wav"}"#,
         );
-        assert!(findings_for("prompts.image-content-encoding", &trace).is_empty());
+        assert_eq!(
+            findings_for("prompts.image-content-encoding", &trace),
+            Vec::<String>::new()
+        );
         let findings = findings_for("prompts.audio-content-encoding", &trace);
         assert_eq!(findings.len(), 1, "{findings:?}");
         assert!(findings[0].contains("audio content data"), "{findings:?}");
@@ -426,7 +447,10 @@ mod tests {
         let trace = get_prompt_with_content(
             r#"{"type":"resource","resource":{"uri":"file:///a.txt","mimeType":"text/plain","text":"hello"}}"#,
         );
-        assert!(findings_for("prompts.embedded-resource-shape", &trace).is_empty());
+        assert_eq!(
+            findings_for("prompts.embedded-resource-shape", &trace),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
@@ -435,7 +459,10 @@ mod tests {
         let valid = get_prompt_with_content(
             r#"{"type":"resource","resource":{"uri":"file:///a.png","mimeType":"image/png","blob":"QUJDRA=="}}"#,
         );
-        assert!(findings_for("prompts.embedded-resource-shape", &valid).is_empty());
+        assert_eq!(
+            findings_for("prompts.embedded-resource-shape", &valid),
+            Vec::<String>::new()
+        );
 
         // Invalid blob, no text: exactly the base64 finding.
         let invalid = get_prompt_with_content(

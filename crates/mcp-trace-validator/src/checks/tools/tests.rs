@@ -82,7 +82,10 @@ fn capability_check_abstains_without_an_initialize_result() {
     // declaration surface is missing, so the check must abstain, not flag.
     let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/list"}}
 {"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}}"#;
-    assert!(findings_for("tools.capability-declared", trace).is_empty());
+    assert_eq!(
+        findings_for("tools.capability-declared", trace),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -112,7 +115,10 @@ fn capability_check_ignores_error_answers() {
             r#"{"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"Method not found"}}"#,
         ],
     );
-    assert!(findings_for("tools.capability-declared", &trace).is_empty());
+    assert_eq!(
+        findings_for("tools.capability-declared", &trace),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -152,8 +158,14 @@ fn interim_and_task_creation_results_are_not_the_tools_result() {
             r#"{"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"{}"}],"structuredContent":{}}}"#,
         ],
     );
-    assert!(findings_for("tools.output-schema-structured-result", &trace).is_empty());
-    assert!(findings_for("tools.structured-content-text", &trace).is_empty());
+    assert_eq!(
+        findings_for("tools.output-schema-structured-result", &trace),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        findings_for("tools.structured-content-text", &trace),
+        Vec::<String>::new()
+    );
 
     // The tasks/result answer is judged as the tool's result: without
     // structuredContent it is a finding, at the tasks/result response.
@@ -181,15 +193,18 @@ fn structured_content_shape_follows_the_schema_root_type() {
     };
     let check = "tools.output-schema-structured-result";
     // 2026-07-28 admits any JSON value; an array schema with an array result passes.
-    assert!(
+    assert_eq!(
         findings_for(
             check,
             &call(r#"{"type":"array","items":{"type":"string"}}"#, r#"["a"]"#)
-        )
-        .is_empty()
+        ),
+        Vec::<String>::new()
     );
     // An object schema with an object result passes; with an array it does not.
-    assert!(findings_for(check, &call(r#"{"type":"object"}"#, r#"{"n":1}"#)).is_empty());
+    assert_eq!(
+        findings_for(check, &call(r#"{"type":"object"}"#, r#"{"n":1}"#)),
+        Vec::<String>::new()
+    );
     let findings = findings_for(check, &call(r#"{"type":"object"}"#, r#"["a"]"#));
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert!(findings[0].contains("not an object"), "{findings:?}");

@@ -311,8 +311,11 @@ mod tests {
             vec!["1.98.0".to_owned()]
         );
         // A user-facing matrix naming `stable` names no version to check.
-        assert!(matrix_versions(r#"toolchain: [stable, "1.88"]"#).is_empty());
-        assert!(matrix_versions("os: [ubuntu-latest]").is_empty());
+        assert_eq!(
+            matrix_versions(r#"toolchain: [stable, "1.88"]"#),
+            Vec::<String>::new()
+        );
+        assert_eq!(matrix_versions("os: [ubuntu-latest]"), Vec::<String>::new());
     }
 
     #[test]

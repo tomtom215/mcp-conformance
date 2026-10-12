@@ -977,7 +977,10 @@ fn sarif_fingerprints_survive_a_re_recording() {
     );
     let after = fingerprints(path.to_str().unwrap());
     std::fs::remove_file(&path).ok();
-    assert!(!before.is_empty());
+    assert!(
+        !before.is_empty(),
+        "the violation trace yields no SARIF fingerprints to compare"
+    );
     assert_eq!(before, after);
 }
 

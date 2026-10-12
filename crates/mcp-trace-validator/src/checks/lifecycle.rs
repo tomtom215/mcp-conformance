@@ -439,9 +439,11 @@ mod tests {
         };
 
         // Complete shape: no findings.
-        assert!(
-            run(r#"{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}"#)
-                .is_empty()
+        assert_eq!(
+            run(
+                r#"{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}"#
+            ),
+            Vec::<crate::report::Finding>::new()
         );
         // Missing capabilities only.
         let missing_caps =
@@ -458,12 +460,12 @@ mod tests {
         // No initialize result at all: the handshake checks own that case.
         let events = crate::reader::parse_trace("", &crate::reader::Limits::default()).unwrap();
         let context = TraceContext::new(&events);
-        assert!(
+        assert_eq!(
             crate::checks::find("lifecycle.initialize-result-shape")
                 .unwrap()
                 .run(&context)
-                .findings
-                .is_empty()
+                .findings,
+            Vec::<crate::report::Finding>::new()
         );
     }
 }

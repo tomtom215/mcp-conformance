@@ -56,7 +56,7 @@ fn an_oversized_line_is_reported_once_and_does_not_poison_the_next() {
     );
     // And at end of stream.
     let mut splitter = LineSplitter::new(4);
-    assert!(splitter.push(b"too long").is_empty());
+    assert_eq!(splitter.push(b"too long"), Vec::<Line>::new());
     assert_eq!(splitter.finish(), Some(Line::Oversized));
 }
 
@@ -99,7 +99,10 @@ fn a_crlf_split_across_chunks_is_one_line_ending() {
 #[test]
 fn events_without_data_and_empty_data_are_not_dispatched() {
     let mut parser = SseParser::new(1024);
-    assert!(parser.push(b"event: ping\n\nid: 3\n\ndata:\n\n").is_empty());
+    assert_eq!(
+        parser.push(b"event: ping\n\nid: 3\n\ndata:\n\n"),
+        Vec::<Vec<u8>>::new()
+    );
 }
 
 #[test]
@@ -111,12 +114,12 @@ fn an_oversized_event_is_dropped_and_counted_without_affecting_the_next() {
     assert_eq!(out, [b"ok".to_vec()]);
     assert_eq!(parser.oversized(), 1);
     // The count accumulates across events and chunks.
-    assert!(parser.push(b"data: 0123456789\n\n").is_empty());
+    assert_eq!(parser.push(b"data: 0123456789\n\n"), Vec::<Vec<u8>>::new());
     assert_eq!(parser.oversized(), 2);
     // A line with no terminator stops growing the buffer at the bound, and the
     // event it belongs to is counted as oversized — not truncated and parsed.
     let mut parser = SseParser::new(8);
-    assert!(parser.push(&[b'x'; 10_000]).is_empty());
+    assert_eq!(parser.push(&[b'x'; 10_000]), Vec::<Vec<u8>>::new());
     assert!(parser.pending.len() <= 8 + super::LINE_OVERHEAD);
     assert_eq!(parser.push(b"\n\ndata: ok\n\n"), [b"ok".to_vec()]);
     assert_eq!(parser.oversized(), 1);
@@ -129,11 +132,11 @@ fn a_line_of_exactly_the_limit_is_kept() {
     assert_eq!(splitter.push(b"abcd\n"), [Line::Complete(b"abcd".to_vec())]);
     // …split across chunks…
     let mut splitter = LineSplitter::new(4);
-    assert!(splitter.push(b"ab").is_empty());
+    assert_eq!(splitter.push(b"ab"), Vec::<Line>::new());
     assert_eq!(splitter.push(b"cd\n"), [Line::Complete(b"abcd".to_vec())]);
     // …and unterminated at end of stream.
     let mut splitter = LineSplitter::new(4);
-    assert!(splitter.push(b"abcd").is_empty());
+    assert_eq!(splitter.push(b"abcd"), Vec::<Line>::new());
     assert_eq!(splitter.finish(), Some(Line::Complete(b"abcd".to_vec())));
     // One byte more is oversized in each case.
     let mut splitter = LineSplitter::new(4);
@@ -148,7 +151,10 @@ fn an_sse_event_of_exactly_the_limit_is_kept() {
     let mut parser = SseParser::new(4);
     assert_eq!(parser.push(b"data: a\ndata: bc\n\n"), [b"a\nbc".to_vec()]);
     let mut parser = SseParser::new(4);
-    assert!(parser.push(b"data: ab\ndata: cd\n\n").is_empty());
+    assert_eq!(
+        parser.push(b"data: ab\ndata: cd\n\n"),
+        Vec::<Vec<u8>>::new()
+    );
     assert_eq!(parser.oversized(), 1);
 }
 
@@ -190,9 +196,9 @@ fn a_crlf_line_of_exactly_the_limit_is_kept() {
     }
     // Unterminated at end of stream, with and without a stray `\r`.
     let mut splitter = LineSplitter::new(4);
-    assert!(splitter.push(b"abcd\r").is_empty());
+    assert_eq!(splitter.push(b"abcd\r"), Vec::<Line>::new());
     assert_eq!(splitter.finish(), Some(Line::Complete(b"abcd".to_vec())));
     let mut splitter = LineSplitter::new(4);
-    assert!(splitter.push(b"abcde").is_empty());
+    assert_eq!(splitter.push(b"abcde"), Vec::<Line>::new());
     assert_eq!(splitter.finish(), Some(Line::Oversized));
 }

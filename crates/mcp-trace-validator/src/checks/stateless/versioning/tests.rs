@@ -119,7 +119,7 @@ fn retrying_inside_the_offered_list_conforms() {
         unsupported(1, 1, r#","data":{"supported":["2026-07-28"]}"#),
         request_at(2, 2, "2026-07-28"),
     ]);
-    assert!(findings_for(RETRY, &session).is_empty());
+    assert_eq!(findings_for(RETRY, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -130,7 +130,7 @@ fn the_request_that_drew_the_error_is_not_itself_a_violation() {
         request_at(0, 1, "1900-01-01"),
         unsupported(1, 1, r#","data":{"supported":["2026-07-28"]}"#),
     ]);
-    assert!(findings_for(RETRY, &session).is_empty());
+    assert_eq!(findings_for(RETRY, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -155,7 +155,7 @@ fn a_request_declaring_no_version_is_not_judged_here() {
         unsupported(1, 1, r#","data":{"supported":["2026-07-28"]}"#),
         client(2, r#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#),
     ]);
-    assert!(findings_for(RETRY, &session).is_empty());
+    assert_eq!(findings_for(RETRY, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -168,7 +168,7 @@ fn a_notification_is_not_a_retry() {
             r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"1899-01-01"}}}"#,
         ),
     ]);
-    assert!(findings_for(RETRY, &session).is_empty());
+    assert_eq!(findings_for(RETRY, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn a_prefixed_extension_identifier_conforms() {
         0,
         r#"{"io.modelcontextprotocol/ui":{"mimeTypes":["text/html"]}}"#,
     );
-    assert!(findings_for(EXTENSIONS, &session).is_empty());
+    assert_eq!(findings_for(EXTENSIONS, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -205,7 +205,7 @@ fn the_servers_own_extensions_are_judged_too() {
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert!(findings[0].contains("server capabilities"), "{findings:?}");
     let clean = server_extensions(r#"{"io.modelcontextprotocol/tasks":{}}"#);
-    assert!(findings_for(EXTENSIONS, &clean).is_empty());
+    assert_eq!(findings_for(EXTENSIONS, &clean), Vec::<String>::new());
 }
 
 #[test]
@@ -233,7 +233,7 @@ fn a_handshake_answered_with_a_result_is_a_dual_era_server() {
             r#"{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}"#,
         ),
     ]);
-    assert!(findings_for(INIT_ERROR, &session).is_empty());
+    assert_eq!(findings_for(INIT_ERROR, &session), Vec::<String>::new());
 }
 
 #[test]

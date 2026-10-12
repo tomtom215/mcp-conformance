@@ -135,7 +135,10 @@ async fn unknown_tool_is_a_protocol_error_not_a_crash() {
         .list_tools(None)
         .await
         .expect("tools/list after error");
-    assert!(!tools.tools.is_empty());
+    assert!(
+        !tools.tools.is_empty(),
+        "tools/list lists no tools after the error"
+    );
     client.cancel().await.expect("clean shutdown");
 }
 
@@ -180,7 +183,8 @@ async fn tool_call_with_missing_required_argument_is_a_tool_execution_error() {
             .await
             .expect("list after error")
             .tools
-            .is_empty()
+            .is_empty(),
+        "tools/list lists no tools after the error"
     );
     client.cancel().await.expect("clean shutdown");
 }
@@ -437,7 +441,10 @@ async fn content_tools_return_their_scenario_shapes() {
         .expect("image");
     let image_content = image.content[0].as_image().expect("image content");
     assert_eq!(image_content.mime_type, "image/png");
-    assert!(!image_content.data.is_empty());
+    assert!(
+        !image_content.data.is_empty(),
+        "the image content carries no data"
+    );
 
     let audio = client
         .call_tool(CallToolRequestParams::new("test_audio_content"))
@@ -489,7 +496,10 @@ async fn error_tool_reports_in_band_failure_without_breaking_the_session() {
         Some("This tool intentionally returns an error for testing")
     );
     let again = client.list_tools(None).await.expect("session survives");
-    assert!(!again.tools.is_empty());
+    assert!(
+        !again.tools.is_empty(),
+        "tools/list lists no tools after the error"
+    );
     client.cancel().await.expect("clean shutdown");
 }
 
@@ -842,7 +852,7 @@ async fn completion_filters_the_documented_candidates_by_prefix() {
         ))
         .await
         .expect("unrelated completion");
-    assert!(unrelated.completion.values.is_empty());
+    assert_eq!(unrelated.completion.values, Vec::<String>::new());
 
     // Right prompt, wrong argument: the guard requires BOTH name matches —
     // arg2 completes to nothing even with a matching prefix value.
@@ -853,7 +863,7 @@ async fn completion_filters_the_documented_candidates_by_prefix() {
         ))
         .await
         .expect("wrong-argument completion");
-    assert!(wrong_argument.completion.values.is_empty());
+    assert_eq!(wrong_argument.completion.values, Vec::<String>::new());
 
     client.cancel().await.expect("clean shutdown");
 }

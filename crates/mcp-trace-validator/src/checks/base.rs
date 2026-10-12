@@ -318,11 +318,11 @@ mod tests {
         // Both: ambiguous, and BASE-006's business rather than this clause's —
         // whatever else is wrong with it, a `result` member is present.
         let both = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{},"error":{"code":-1,"message":"x"}}}"#;
-        assert!(run_check("base.result-field", both).is_empty());
+        assert_eq!(run_check("base.result-field", both), Vec::<Finding>::new());
 
         // A well-formed result classifies as `Result` and never reaches here.
         let clean = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{}}}"#;
-        assert!(run_check("base.result-field", clean).is_empty());
+        assert_eq!(run_check("base.result-field", clean), Vec::<Finding>::new());
     }
 
     #[test]
@@ -367,7 +367,10 @@ mod tests {
             "{INIT}\n{}",
             r#"{"seq":1,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":18446744073709551615,"method":"tools/list"}}"#
         );
-        assert!(run_check("base.request-id-type", &trace).is_empty());
+        assert_eq!(
+            run_check("base.request-id-type", &trace),
+            Vec::<Finding>::new()
+        );
     }
 
     /// A request id=2 answered by both an error and a result. The SECOND answer
@@ -421,8 +424,14 @@ mod tests {
             "{INIT}\n{REQUEST}\n{}",
             RESULT_2.replace("\"seq\":3", "\"seq\":2")
         );
-        assert!(run_check("base.result-id-matches", &trace).is_empty());
-        assert!(run_check("base.error-id-matches", &trace).is_empty());
+        assert_eq!(
+            run_check("base.result-id-matches", &trace),
+            Vec::<Finding>::new()
+        );
+        assert_eq!(
+            run_check("base.error-id-matches", &trace),
+            Vec::<Finding>::new()
+        );
     }
 
     #[test]
@@ -437,7 +446,10 @@ mod tests {
             r#"{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":"x","params":{}}}"#,
             r#"{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":"x","error":{"code":-32600,"message":"Invalid Request"}}}"#,
         );
-        assert!(run_check("base.error-id-matches", &trace).is_empty());
+        assert_eq!(
+            run_check("base.error-id-matches", &trace),
+            Vec::<Finding>::new()
+        );
 
         // An error answering an id nobody sent is still a finding.
         let unsolicited = trace.replace(r#""id":"x","error""#, r#""id":"y","error""#);

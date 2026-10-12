@@ -56,8 +56,8 @@ fn a_requested_notification_type_is_delivered_without_complaint() {
         ack(1, 1),
         notify(2, 1, "notifications/tools/list_changed", ""),
     ]);
-    assert!(findings_for(ONLY_REQUESTED, &session).is_empty());
-    assert!(findings_for(ACK_FIRST, &session).is_empty());
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn resource_updates_are_matched_by_uri() {
             r#","uri":"file:///a.json""#,
         ),
     ]);
-    assert!(findings_for(ONLY_REQUESTED, &wanted).is_empty());
+    assert_eq!(findings_for(ONLY_REQUESTED, &wanted), Vec::<String>::new());
 
     let unwanted = trace(&[
         listen(0, 1, subscribed),
@@ -143,7 +143,7 @@ fn an_untagged_notification_belongs_to_no_subscription() {
             r#"{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"x"}}"#,
         ),
     ]);
-    assert!(findings_for(ONLY_REQUESTED, &session).is_empty());
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -170,8 +170,8 @@ fn another_subscriptions_traffic_may_interleave_ahead_of_the_acknowledgment() {
         ack(4, 2),
         notify(5, 2, "notifications/prompts/list_changed", ""),
     ]);
-    assert!(findings_for(ACK_FIRST, &session).is_empty());
-    assert!(findings_for(ONLY_REQUESTED, &session).is_empty());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -188,8 +188,8 @@ fn a_second_subscriptions_notification_does_not_open_this_one() {
         ack(4, 2),
         notify(5, 2, "notifications/prompts/list_changed", ""),
     ]);
-    assert!(findings_for(ACK_FIRST, &session).is_empty());
-    assert!(findings_for(ONLY_REQUESTED, &session).is_empty());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -197,7 +197,7 @@ fn a_subscription_with_nothing_on_it_yet_is_not_reported() {
     // A recording that ends before the acknowledgment arrives is not evidence
     // that it never did.
     let session = trace(&[listen(0, 1, r#"{"toolsListChanged":true}"#)]);
-    assert!(findings_for(ACK_FIRST, &session).is_empty());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -218,7 +218,7 @@ fn a_graceful_closure_carries_an_empty_result() {
         ack(1, 1),
         close(2, 1, ""),
     ]);
-    assert!(findings_for(CLOSE_SHAPE, &empty).is_empty());
+    assert_eq!(findings_for(CLOSE_SHAPE, &empty), Vec::<String>::new());
 
     let stuffed = trace(&[
         listen(0, 1, r#"{"toolsListChanged":true}"#),
@@ -240,7 +240,7 @@ fn a_stream_that_simply_stops_is_not_a_missing_response() {
         ack(1, 1),
         notify(2, 1, "notifications/tools/list_changed", ""),
     ]);
-    assert!(findings_for(CLOSE_SHAPE, &session).is_empty());
+    assert_eq!(findings_for(CLOSE_SHAPE, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -253,7 +253,10 @@ fn the_server_teardown_is_not_an_unrequested_notification() {
         ack(1, 1),
         notify(2, 1, "notifications/cancelled", r#","requestId":1"#),
     ]);
-    assert!(findings_for(ONLY_REQUESTED, &teardown).is_empty());
+    assert_eq!(
+        findings_for(ONLY_REQUESTED, &teardown),
+        Vec::<String>::new()
+    );
     // Cancelling some *other* request on the stream is still unrequested.
     let other = teardown.replace(r#""requestId":1"#, r#""requestId":2"#);
     assert_eq!(findings_for(ONLY_REQUESTED, &other).len(), 1);

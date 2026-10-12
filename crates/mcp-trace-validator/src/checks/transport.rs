@@ -248,8 +248,14 @@ mod tests {
             r#"{"mcp-session-id":"abc123"}"#,
             r#"{"mcp-session-id":"abc123","mcp-protocol-version":"2025-11-25"}"#,
         );
-        assert!(findings_for("transport.session-id-visible-ascii", &good).is_empty());
-        assert!(findings_for("transport.session-id-echoed", &good).is_empty());
+        assert_eq!(
+            findings_for("transport.session-id-visible-ascii", &good),
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            findings_for("transport.session-id-echoed", &good),
+            Vec::<String>::new()
+        );
 
         // Wrong echo value.
         let wrong = http_session(
@@ -262,7 +268,10 @@ mod tests {
 
         // No session assigned: the echo check abstains entirely.
         let none = http_session("{}", "{}");
-        assert!(findings_for("transport.session-id-echoed", &none).is_empty());
+        assert_eq!(
+            findings_for("transport.session-id-echoed", &none),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
@@ -296,7 +305,10 @@ mod tests {
             1
         );
         let edges = http_session(r#"{"mcp-session-id":"!~"}"#, r#"{"mcp-session-id":"!~"}"#);
-        assert!(findings_for("transport.session-id-visible-ascii", &edges).is_empty());
+        assert_eq!(
+            findings_for("transport.session-id-visible-ascii", &edges),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
@@ -312,7 +324,10 @@ mod tests {
         assert_eq!(findings.len(), 1, "{findings:?}");
         assert!(findings[0].contains("2024-11-05"), "{findings:?}");
         // The mismatched header satisfies presence.
-        assert!(findings_for("transport.protocol-version-header", &mismatched).is_empty());
+        assert_eq!(
+            findings_for("transport.protocol-version-header", &mismatched),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
@@ -341,7 +356,10 @@ mod tests {
 
         // Well-formed single messages produce no findings.
         let clean = http_session("{}", "{}");
-        assert!(findings_for("transport.http-post-single-message", &clean).is_empty());
+        assert_eq!(
+            findings_for("transport.http-post-single-message", &clean),
+            Vec::<String>::new()
+        );
     }
 
     #[test]

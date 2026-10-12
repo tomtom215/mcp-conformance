@@ -56,7 +56,7 @@ fn a_session_that_touched_the_registrys_revision_draws_no_note() {
 #[test]
 fn a_session_that_declares_nothing_draws_no_note() {
     let document = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}"#;
-    assert!(declared_revisions(&events(document)).is_empty());
+    assert_eq!(declared_revisions(&events(document)), Vec::<String>::new());
     assert!(mismatch(rev("2025-11-25"), &events(document)).is_none());
 }
 
@@ -65,7 +65,7 @@ fn a_malformed_version_is_not_evidence_of_a_revision() {
     // LIFE-006's subject, not this module's: a value that is not a dated
     // revision says nothing about which revision the session belongs to.
     let document = r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"draft","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}"#;
-    assert!(declared_revisions(&events(document)).is_empty());
+    assert_eq!(declared_revisions(&events(document)), Vec::<String>::new());
     assert!(mismatch(rev("2025-11-25"), &events(document)).is_none());
 }
 
@@ -75,7 +75,7 @@ fn a_version_this_build_cannot_judge_is_not_a_declaration() {
     // would be advice with nothing behind it.
     let document = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"mcp-protocol-version":"1900-01-01"}}
 {"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"1900-01-01"}}}}"#;
-    assert!(declared_revisions(&events(document)).is_empty());
+    assert_eq!(declared_revisions(&events(document)), Vec::<String>::new());
     assert!(mismatch(rev("2025-11-25"), &events(document)).is_none());
 }
 
@@ -87,7 +87,7 @@ fn a_refused_request_states_no_revision() {
     // it — this module must not add "you used the wrong registry" on top.
     let document = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}
 {"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"Method not found"}}}"#;
-    assert!(declared_revisions(&events(document)).is_empty());
+    assert_eq!(declared_revisions(&events(document)), Vec::<String>::new());
     assert!(mismatch(rev("2026-07-28"), &events(document)).is_none());
 }
 
@@ -106,13 +106,13 @@ fn a_refused_request_takes_its_own_header_down_with_it() {
     let document = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"mcp-protocol-version":"2025-11-25"}}
 {"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":9,"method":"tools/list"}}
 {"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":9,"error":{"code":-32022,"message":"Unsupported protocol version"}}}"#;
-    assert!(declared_revisions(&events(document)).is_empty());
+    assert_eq!(declared_revisions(&events(document)), Vec::<String>::new());
 }
 
 #[test]
 fn a_non_string_version_is_ignored_rather_than_stringified() {
     let document = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":20251125}}}"#;
-    assert!(declared_revisions(&events(document)).is_empty());
+    assert_eq!(declared_revisions(&events(document)), Vec::<String>::new());
 }
 
 #[test]

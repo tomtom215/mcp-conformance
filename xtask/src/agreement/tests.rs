@@ -53,7 +53,7 @@ fn reconcile_partitions_and_finds_no_stale_when_baseline_is_live() {
     assert_eq!(result.explained.len(), 1);
     assert_eq!(result.unexplained.len(), 1);
     assert_eq!(result.unexplained[0].requirement, "TOOL-001");
-    assert!(result.stale.is_empty());
+    assert_eq!(result.stale, Vec::<String>::new());
     // Unexplained failures gate; the message carries the triage path.
     let message = gate_error(&result, "test-baseline.json").unwrap();
     assert!(message.contains("unexplained"), "{message}");
@@ -99,7 +99,7 @@ fn unfiltered_entries_match_any_trace_and_stay_live_across_sessions() {
     let failures = [failure("anything.jsonl", "LIFE-003")];
     let result = reconcile(&baseline, &failures);
     assert_eq!(result.explained.len(), 1);
-    assert!(result.stale.is_empty());
+    assert_eq!(result.stale, Vec::<String>::new());
     assert!(gate_error(&result, "test-baseline.json").is_none());
 }
 

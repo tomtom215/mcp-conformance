@@ -368,7 +368,10 @@ mod tests {
 
     #[test]
     fn parses_valid_lines_and_empty_documents() {
-        assert!(parse_trace("", &Limits::default()).unwrap().is_empty());
+        assert_eq!(
+            parse_trace("", &Limits::default()).unwrap(),
+            Vec::<TraceEvent>::new()
+        );
         let one = parse_trace(VALID_EVENT, &Limits::default()).unwrap();
         assert_eq!(one.len(), 1);
         // Trailing newline is fine.
