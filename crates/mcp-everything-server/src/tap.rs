@@ -21,8 +21,10 @@
 //!   does reach it is recorded whether or not it names a session: `2026-07-28`
 //!   removes sessions outright, and an exchange with no `Mcp-Session-Id` goes
 //!   to the run's `stateless` trace file rather than being dropped.
-//! - **Write-behind, in order.** Events flow over a bounded channel to one
-//!   writer task that appends each line and flushes before taking the next.
+//! - **Write-behind, in order.** Records flow over a bounded channel to one
+//!   writer task that appends each record's events as adjacent lines and
+//!   flushes before taking the next; a request and its message are one record
+//!   (see `Record`).
 //!   Durability is per *written* record: everything the writer has flushed
 //!   survives a kill; records still queued die with the process, and a kill
 //!   mid-append can leave one torn final line (consumers treat an
