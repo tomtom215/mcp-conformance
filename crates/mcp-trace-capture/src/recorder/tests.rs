@@ -209,6 +209,10 @@ fn a_closed_trace_keeps_its_close_as_the_last_event() {
         "a refusal after the close is not a loss"
     );
     assert_eq!((summary.recorded, summary.dropped), (2, 0));
+    assert_eq!(
+        summary.after_close, 1,
+        "the event refused after the close is counted; the second close is not"
+    );
     let text = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
     assert!(text.lines().last().unwrap().contains("transport-close"));
 }

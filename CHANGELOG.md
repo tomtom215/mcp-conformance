@@ -11,6 +11,21 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`mcp-trace-capture stdio` no longer strands a server when an official SDK stops
+  it, and its trace is always closed.** The Python and TypeScript stdio clients close
+  stdin, wait 2 seconds, send `SIGTERM`, wait 2 more, then `SIGKILL` — the wrapper
+  alone (TypeScript) or its process group (Python), never the server's. The wrapper
+  relayed `SIGTERM` and waited 3 seconds, so it was killed mid-wait: a server ignoring
+  `SIGTERM` kept running, and the trace never got its closing event. A stop now writes
+  the closing `transport-close` before anything else, and the server's processes get
+  1 second (was 3) from the signal, one deadline for the server and anything still
+  holding its stdout, before the group is killed. What the server sends after the
+  close is relayed and counted in the summary (`N event(s) came after the trace was
+  closed`), not recorded; a stop that ends in a kill now ends the trace with that
+  `transport-close` rather than `transport-abort`.
+
 ## [0.6.0] - 2026-10-04
 
 **This is a minor release with breaking behaviour changes and one Rust API

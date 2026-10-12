@@ -29,12 +29,23 @@ mcp-trace-validator validate session.jsonl
 ```
 
 **Stopping.** The server runs in a process group of its own (on Unix), so a
-launcher in front of it — `npx`, `uv run`, `sh -c` — cannot strand the real server.
-`SIGINT`, `SIGTERM` and `SIGHUP` sent to the wrapper are relayed to that whole group;
-the server gets 3 seconds to exit on its own terms, then the group is killed
-(`SIGKILL`). A second signal skips the rest of the wait. Either way the trace is
-closed with a final lifecycle event before the wrapper exits with the server's
-status. (Elsewhere, Ctrl-C ends the server.)
+launcher in front of it — `npx`, `uv run`, `sh -c` — cannot strand the real server,
+and a terminal's Ctrl-C reaches the server once, through the wrapper, not twice.
+`SIGINT`, `SIGTERM` and `SIGHUP` sent to the wrapper first close the trace with a
+`transport-close` event, then are relayed to that whole group; the server's processes
+get 1 second from the signal to exit on their own terms, then the group is killed
+(`SIGKILL`). A second signal skips the rest of the wait. What the server writes after
+the close is still relayed to the client, and counted in the exit summary instead of
+recorded. The wrapper then exits with the server's status.
+
+The second is deliberately shorter than the 2 seconds the official SDKs' stdio
+clients wait between `SIGTERM` and `SIGKILL`. They send both to the wrapper alone
+(TypeScript) or to the wrapper's process group (Python) — never to the server's — so
+the wrapper must have killed the server before their `SIGKILL` arrives; the server has
+already had the 2 seconds they wait after closing its stdin. A `SIGKILL` that reaches
+the wrapper sooner, from anything else, leaves a server that ignores `SIGTERM`
+running: no process can act on its own `SIGKILL`. The trace is closed either way,
+since the close comes first.
 
 ### In a client's configuration
 

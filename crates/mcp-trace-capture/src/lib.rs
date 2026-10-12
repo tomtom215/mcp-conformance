@@ -29,7 +29,7 @@ pub mod stdio;
 pub mod traces;
 
 pub use recorder::{NotRecorded, Recorder, Summary};
-pub use signals::{STOP_GRACE, Signals, Stop};
+pub use signals::{SERVER_STOP_GRACE, STOP_GRACE, Signals, Stop};
 
 /// A future that resolves at the first request to stop: SIGINT, SIGTERM or SIGHUP
 /// on Unix, Ctrl-C elsewhere.

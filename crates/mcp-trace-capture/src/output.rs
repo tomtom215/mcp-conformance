@@ -213,6 +213,13 @@ fn report(summary: &Summary, path: Option<&Path>, code: u8, hint: Hint) -> u8 {
         return if code == 0 { EXIT_INCOMPLETE } else { code };
     }
     warn_about_sessions(&summary.sessions, hint);
+    if summary.after_close > 0 {
+        eprintln!(
+            "mcp-trace-capture: {} event(s) came after the trace was closed at the request \
+             to stop, and are not in it",
+            summary.after_close
+        );
+    }
     eprintln!(
         "mcp-trace-capture: recorded {} event(s) to {shown}; validate with \
          `mcp-trace-validator validate {shown}`",

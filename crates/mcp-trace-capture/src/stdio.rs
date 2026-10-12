@@ -131,10 +131,17 @@ fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Ta
                 TransportKind::Stdio,
                 EventBody::Message { payload },
             );
-            if outcome == Err(NotRecorded::TooLong) {
-                tally.oversized.fetch_add(1, Ordering::Relaxed);
-            } else if !is_json {
-                tally.not_json.fetch_add(1, Ordering::Relaxed);
+            match outcome {
+                Err(NotRecorded::TooLong) => {
+                    tally.oversized.fetch_add(1, Ordering::Relaxed);
+                }
+                // Not in the trace, so not a finding in it: the recorder counts
+                // what arrived after the close.
+                Err(NotRecorded::Closed) => {}
+                _ if !is_json => {
+                    tally.not_json.fetch_add(1, Ordering::Relaxed);
+                }
+                _ => {}
             }
         }
         Line::Oversized => {
@@ -235,10 +242,13 @@ pub async fn run(
 ///
 /// The session ends when the server exits. If the client closes its end first, the
 /// server's stdin is closed and the wrapper waits for the server to exit, as the
-/// stdio transport's shutdown sequence expects. A request to stop (`signals`) is
-/// relayed to the server's whole process group; a server still running
-/// [`STOP_GRACE`](crate::STOP_GRACE) later, or at a second request, is killed. The
-/// trace's last event closes it either way.
+/// stdio transport's shutdown sequence expects. A request to stop (`signals`)
+/// closes the trace at once, with a client-to-server `transport-close`, and is
+/// relayed to the server's whole process group; a group still running
+/// [`SERVER_STOP_GRACE`](crate::SERVER_STOP_GRACE) after the request, or at a
+/// second request, is killed. What crosses the wire after the close is relayed and
+/// counted ([`Summary::after_close`](crate::Summary::after_close)), not recorded.
+/// Otherwise the trace's last event closes it when the session ends.
 ///
 /// # Errors
 ///
@@ -280,7 +290,7 @@ pub async fn run_server(
         &server_tally,
     );
 
-    let end = ending::wait_for_end(&mut process, &mut client, &mut signals).await?;
+    let end = ending::wait_for_end(&mut process, &mut client, &mut signals, &recorder).await?;
     if !end.client_finished {
         // The client's pump is blocked on this process's stdin, which the client
         // may hold open forever. Stop it, and wait until it has stopped, so nothing
@@ -291,9 +301,31 @@ pub async fn run_server(
     }
     // The server's stdout closes when the last process holding it exits; a
     // request to stop bounds that wait.
-    let late_stop = ending::drain(&mut server_pump, &mut process, &mut signals, &end).await;
-    let stop = end.stop.or(late_stop);
-    let closer = if end.client_closed || stop.is_some() {
+    let late_stop = ending::drain(
+        &mut server_pump,
+        &mut process,
+        &mut signals,
+        &end,
+        &recorder,
+    )
+    .await;
+    let stop = end.stop.map(|(stop, _)| stop).or(late_stop);
+    // The last word: nothing a straggling task records after this reaches the
+    // trace. After a request to stop the trace is already closed (`ending`), and
+    // this is refused.
+    close(&recorder, &end);
+    Ok(Outcome {
+        status: end.status,
+        client: client_tally.snapshot(),
+        server: server_tally.snapshot(),
+        stop,
+    })
+}
+
+/// Closes the trace for a session that ended without a request to stop: from
+/// the side that ended it, orderly if the server exited cleanly.
+fn close(recorder: &Recorder, end: &ending::End) {
+    let closer = if end.client_closed {
         Direction::ClientToServer
     } else {
         Direction::ServerToClient
@@ -303,14 +335,7 @@ pub async fn run_server(
     } else {
         LifecycleEvent::TransportAbort
     };
-    // The last word: nothing a straggling task records after this reaches the trace.
     let _ = recorder.close(closer, TransportKind::Stdio, event);
-    Ok(Outcome {
-        status: end.status,
-        client: client_tally.snapshot(),
-        server: server_tally.snapshot(),
-        stop,
-    })
 }
 
 #[cfg(test)]
