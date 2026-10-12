@@ -182,7 +182,18 @@ jobs:
           workspaces: fuzz
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
-      # Five minutes per target weekly; committed seed corpora keep coverage warm.
+      # The corpus last week's run grew, so coverage accumulates across weeks
+      # instead of restarting from the committed seeds. Each run saves under
+      # its own key and restores the newest by prefix (cache entries are
+      # immutable). Only scheduled and dispatched runs on the default branch
+      # write these entries, and no pull-request run can read or write them.
+      - name: Restore the grown corpora
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: fuzz/corpus/
+          key: fuzz-corpus-${{ github.run_id }}
+          restore-keys: fuzz-corpus-
+      # Five minutes per target weekly.
       # The canonical_json target asserts parse(canonical(v)) == v, not mere survival,
       # and trace_parse runs every parseable input through the full validation engine.
       #
@@ -205,16 +216,21 @@ jobs:
           for target in $targets; do
             cargo +nightly fuzz run "$target" -- -max_total_time=300
           done
-      # The corpus libFuzzer grew this run, uploaded so coverage accumulates
-      # across weeks instead of restarting from the committed seeds (the
-      # round-two deferral "corpora seed-only", liquidated). Promoting an
-      # interesting artifact into the committed seeds stays a deliberate PR.
-      - name: Upload grown corpora
+      - name: Save the grown corpora
         if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: fuzz/corpus/
+          key: fuzz-corpus-${{ github.run_id }}
+      # A crash is only actionable with the input that caused it: libFuzzer
+      # writes it under fuzz/artifacts/, which the runner discards. Promoting
+      # it to a committed regression seed stays a deliberate PR.
+      - name: Upload crash inputs
+        if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: fuzz-corpora-${{ github.run_id }}
-          path: fuzz/corpus/
+          name: fuzz-artifacts-${{ github.run_id }}
+          path: fuzz/artifacts/
           if-no-files-found: warn
           retention-days: 90
 

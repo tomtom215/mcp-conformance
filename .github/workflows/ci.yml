@@ -190,6 +190,46 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # Every fuzz target built and run for a minute from its committed seeds, on
+  # every push and PR. The weekly job fuzzes for five minutes per target with
+  # an accumulated corpus; this one catches the crash a change introduces in
+  # the PR that introduces it, and is the gate that every target still builds
+  # (`cargo xtask fuzz-targets` checks only that each is declared).
+  fuzz-smoke:
+    name: Fuzz smoke (every target, 60 s)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        run: rustup toolchain install nightly --profile minimal --no-self-update
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: fuzz
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Fuzz every declared target for 60 seconds
+        run: |
+          set -euo pipefail
+          targets=$(cargo +nightly fuzz list)
+          if [ -z "$targets" ]; then
+            echo "::error::cargo fuzz list named no targets; nothing would be fuzzed"
+            exit 1
+          fi
+          for target in $targets; do
+            cargo +nightly fuzz run "$target" -- -max_total_time=60
+          done
+      - name: Upload crash inputs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-smoke-artifacts
+          path: fuzz/artifacts/
+          if-no-files-found: warn
+          retention-days: 30
+
   deny:
     name: cargo-deny
     runs-on: ubuntu-latest
