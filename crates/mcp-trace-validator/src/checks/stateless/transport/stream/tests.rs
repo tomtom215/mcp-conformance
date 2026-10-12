@@ -166,6 +166,29 @@ fn a_transport_abort_is_not_a_cancellation() {
 }
 
 #[test]
+fn an_event_stream_is_recognized_in_any_case() {
+    // RFC 9110 §8.3.1: "The type and subtype tokens are case-insensitive."
+    let check = "transport.accel-buffering-header";
+    let response = |headers: &str| {
+        let mut lines = call(0);
+        lines.push(format!(
+            r#"{{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":200,"headers":{headers}}}"#
+        ));
+        trace(&lines)
+    };
+    for media_type in ["text/event-stream", "Text/Event-Stream; charset=utf-8"] {
+        let bare = response(&format!(r#"{{"content-type":"{media_type}"}}"#));
+        assert_eq!(findings_for(check, &bare).len(), 1, "{media_type}");
+        let marked = response(&format!(
+            r#"{{"content-type":"{media_type}","x-accel-buffering":"no"}}"#
+        ));
+        assert!(findings_for(check, &marked).is_empty(), "{media_type}");
+    }
+    // A JSON response is no stream for a proxy to buffer.
+    assert!(findings_for(check, &response(r#"{"content-type":"application/json"}"#)).is_empty());
+}
+
+#[test]
 fn a_close_straight_after_a_response_is_that_responses_stream_ending() {
     // "The final JSON-RPC response SHOULD terminate the stream": a close
     // recorded next is the answered request's, even with one other request —

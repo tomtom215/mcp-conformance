@@ -86,6 +86,11 @@ pub(in crate::checks) fn no_independent_server_requests(
 }
 
 /// `TRAN-068`: an SSE response carries `X-Accel-Buffering: no`.
+///
+/// An SSE response is one whose media type is `text/event-stream` in any case:
+/// "The type and subtype tokens are case-insensitive" (RFC 9110 §8.3.1). The
+/// header's value is held to the quote's `no` as written; the clause names that
+/// value and says nothing of its case.
 pub(in crate::checks) fn accel_buffering_header(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
@@ -97,9 +102,14 @@ pub(in crate::checks) fn accel_buffering_header(
         let EventBody::Http { headers, .. } = &event.body else {
             continue;
         };
-        let is_sse = headers
-            .get("content-type")
-            .is_some_and(|value| value.starts_with("text/event-stream"));
+        let is_sse = headers.get("content-type").is_some_and(|value| {
+            value
+                .split(';')
+                .next()
+                .unwrap_or_default()
+                .trim()
+                .eq_ignore_ascii_case("text/event-stream")
+        });
         if !is_sse {
             continue; // Only an event stream can be buffered by a proxy.
         }

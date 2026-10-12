@@ -36,6 +36,10 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   stream ending ("The final JSON-RPC response SHOULD terminate the stream"),
   not a cancellation of the one other request still open — which failed a
   subscription answered after a `tools/call` beside it completed.
+- **`TRAN-068` recognizes an SSE response in any case.** Media types are
+  case-insensitive (RFC 9110 §8.3.1), but only a lowercase `text/event-stream`
+  was judged; a `Text/Event-Stream` response without `X-Accel-Buffering: no`
+  now warns as the lowercase one does.
 
 ## [0.6.0] - 2026-10-04
 

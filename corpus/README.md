@@ -42,7 +42,7 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 59 | 105 |
+| Goldens | 59 | 106 |
 | Excluded rows the ledger holds | 86 | 149 |
 | Distinct not-observed sets across them | 30 | 86 |
 
@@ -527,6 +527,7 @@ falsifies exactly the requirement it is named for.
 | `tran-061-notification-answered-200.jsonl` | A `notifications/cancelled` POST answered `200` instead of `202 Accepted` (TRAN-061) |
 | `tran-066-independent-server-request.jsonl` | Server sends `elicitation/create` as its own request on the response stream instead of an MRTR input request (TRAN-066) |
 | `tran-068-sse-without-accel-buffering.jsonl` | SSE response omits `X-Accel-Buffering: no` (TRAN-068, SHOULD → warn) |
+| `tran-068-sse-media-type-mixed-case.jsonl` | The same omission on a response typed `Text/Event-Stream; charset=utf-8` (TRAN-068). Media types are case-insensitive (RFC 9110 §8.3.1); until 2026-10-12 only the lowercase spelling was recognized as SSE, and this response was not judged. |
 | `tran-070-message-after-stream-close.jsonl` | Server answers a request whose response stream had already closed, which this revision treats as cancellation (TRAN-070) — the close is attributable because exactly one request is in flight when it is recorded |
 | `tran-071-protocol-version-header-missing.jsonl` | POST request without `MCP-Protocol-Version` (TRAN-071) |
 | `tran-072-protocol-version-header-mismatched.jsonl` | Header says `2025-11-25`, body `_meta` says `2026-07-28`; the server rejects it correctly, isolating the client's fault (TRAN-072) |
