@@ -82,6 +82,15 @@ nothing in it changed, and every `2026-07-28` report carries 34 more rows:
   `TRAN-074`/`VERS-001`.** A probe naming a version the server does not
   implement may be answered with the `DiscoverResult` listing the ones it does —
   the outcome `basic/versioning`'s compatibility matrix names.
+- **`TRAN-074` is judged on Streamable HTTP only.** It is the transport page's
+  statement of the unsupported-version rule, under `#protocol-version-header`,
+  but it shared `VERS-001`'s check, so a stdio session answering `-32022`
+  correctly reported a `TRAN-074` *pass*. It now has its own check,
+  `transport.unsupported-version-error-http`; on stdio it reports *not
+  observed*, and `VERS-001` judges the rule there as before. Three stdio goldens
+  record the change. Findings against `TRAN-074` name the new check, so their
+  SARIF fingerprints change and an open code-scanning alert for one closes and
+  reopens once.
 - **`DISC-002`/`TRAN-128` are judged on stdio only.** Both state the stdio
   probe rule; over Streamable HTTP a dual-era client "MAY detect which era the
   server implements by attempting a modern request first", and doing so drew a

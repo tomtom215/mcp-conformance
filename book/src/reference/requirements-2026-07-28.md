@@ -848,7 +848,7 @@ Judged by `transport.version-mismatch-rejected`.
 
 [`basic/transports/streamable-http#protocol-version-header`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#protocol-version-header)
 
-Judged by `transport.unsupported-version-error`, `transport.unsupported-version-status`.
+Judged by `transport.unsupported-version-error-http`, `transport.unsupported-version-status`.
 
 ### TRAN-075
 

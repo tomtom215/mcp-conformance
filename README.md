@@ -187,7 +187,7 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | PROM | 11 | 7 | 4 | 0 |
 | **Total** | **307** | **140** | **167** | **0** |
 
-307 requirements: 140 judged by 109 distinct trace checks, 167 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+307 requirements: 140 judged by 110 distinct trace checks, 167 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 **`2025-11-25`**
 

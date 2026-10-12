@@ -11,6 +11,7 @@
 
 use std::collections::BTreeSet;
 
+use mcp_conformance_core::trace::TransportKind;
 use serde_json::Value;
 
 use super::super::super::FindingSink;
@@ -262,20 +263,43 @@ fn canonical_integer(text: &str) -> Option<String> {
     })
 }
 
-/// `TRAN-074`: an unsupported protocol version draws
-/// `UnsupportedProtocolVersionError`, listing the versions the server supports.
+/// `VERS-001`: an unsupported protocol version draws
+/// `UnsupportedProtocolVersionError`, listing the versions the server supports,
+/// on every transport.
 pub(in crate::checks) fn unsupported_version_error(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    unsupported_version_shape(context, sink);
-    unsupported_version_answer(context, sink);
+    unsupported_version_shape(context, sink, None);
+    unsupported_version_answer(context, sink, None);
+}
+
+/// `TRAN-074`: the same rule judged on Streamable HTTP only.
+///
+/// TRAN-074 is the transport page's statement of it, under
+/// `#protocol-version-header`: a stdio session carries no such header and is no
+/// evidence either way, so judging one there reported a pass for an HTTP
+/// clause. `basic/versioning` (VERS-001) states the rule for every transport.
+pub(in crate::checks) fn unsupported_version_error_http(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    let http = Some(TransportKind::StreamableHttp);
+    unsupported_version_shape(context, sink, http);
+    unsupported_version_answer(context, sink, http);
 }
 
 /// The shape side: `-32022` lists the versions the server does implement.
-fn unsupported_version_shape(context: &TraceContext<'_>, sink: &mut FindingSink) {
+/// With `only`, answers on other transports are not judged.
+fn unsupported_version_shape(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+    only: Option<TransportKind>,
+) {
     for (event, _, _) in context.messages() {
-        if answer_code(event) != Some(UNSUPPORTED_VERSION) {
+        if answer_code(event) != Some(UNSUPPORTED_VERSION)
+            || only.is_some_and(|transport| event.transport != transport)
+        {
             continue;
         }
         sink.examined();
@@ -371,13 +395,22 @@ pub(in crate::checks) fn unsupported_version_status(
 /// answer to a probe naming one it does not as "a `DiscoverResult` (or
 /// `UnsupportedProtocolVersionError`)" — `supportedVersions` *is* the list the
 /// error would carry. Nothing makes that transport-specific.
-fn unsupported_version_answer(context: &TraceContext<'_>, sink: &mut FindingSink) {
+///
+/// With `only`, requests on other transports are not judged.
+fn unsupported_version_answer(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+    only: Option<TransportKind>,
+) {
     let Some(supported) = declared_versions(context) else {
         return;
     };
     let by_message = posts_by_message(context);
     let recognized = recognized_param_headers(context);
     for exchange in context.exchanges() {
+        if only.is_some_and(|transport| exchange.request.transport != transport) {
+            continue;
+        }
         let Some(requested) = exchange
             .params
             .and_then(|params| params.get("_meta")?.get(META_PROTOCOL_VERSION)?.as_str())

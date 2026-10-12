@@ -217,7 +217,7 @@
       "outcome": "fail",
       "findings": [
         {
-          "check": "transport.unsupported-version-error",
+          "check": "transport.unsupported-version-error-http",
           "seq": 7,
           "detail": "the request at seq 5 declared protocol version \"2025-11-25\", which the server's own `supportedVersions` omits; it answered with a result instead of -32022"
         }

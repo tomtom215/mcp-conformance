@@ -123,6 +123,10 @@ pub(super) const ROWS: &[Check] = &[
         stateless::transport::unsupported_version_error
     ),
     check!(
+        "transport.unsupported-version-error-http",
+        stateless::transport::unsupported_version_error_http
+    ),
+    check!(
         "transport.unsupported-version-status",
         stateless::transport::unsupported_version_status
     ),
