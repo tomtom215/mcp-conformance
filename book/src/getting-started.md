@@ -61,20 +61,13 @@ there.
 mcp-trace-validator validate session.jsonl
 ```
 
-For a session that reuses a request id, the report reads:
+Here is a short session that reuses a request id — its fourth line sends `tools/list`
+with the id the `initialize` already used:
 
-```text
-MCP trace validation — revision 2025-11-25 (declared by the trace)
-  FAIL  BASE-003 (MUST NOT)
-        seq 5: request "ping" reuses id 2, already used by the same party at seq 3
-        spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
-        see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
-totals: 16 pass, 1 fail, 0 warn, 86 excluded, 0 unsupported, 14 not applicable, 25 not observed
-verdict: fail
-```
+{{#include ../../README.md:trace-example}}
 
 Each finding names the clause (`BASE-003`) and its strength (`MUST NOT`), the event in
-the trace (`seq 5` — every event carries a `seq`, its position in the recording), what
+the trace (`seq 3` — every event carries a `seq`, its position in the recording), what
 was wrong, the sentence of the specification it breaks, and a link to it. The exit
 status is the verdict: `0` pass, `1` a clause failed, `2` the run could not judge (a
 bad invocation, or a trace with nothing in it), `3` the trace is malformed.

@@ -38,3 +38,23 @@ normative-clause violation** — one sits just below the spec's RFC 2119 floor
 serialization bug already filed upstream. That is the kind of distinction a
 requirement-level tool exists to draw; see the report for the current count and
 the close-the-gap steps.
+
+## pmcp tier-gap report
+
+The same method applied to a community SDK, to show it generalizes beyond the
+official one:
+
+> 📄 **[pmcp tier-gap report — `2025-11-25`](https://github.com/tomtom215/mcp-conformance/blob/main/docs/reports/pmcp-tier-gap-2025-11-25.md)**
+
+`pmcp` ships no server wired to the suite, so the report builds a small one from
+the SDK's public API (its harness is committed beside the report) and states that
+caveat plainly. Each failing scenario is traced to a specific limitation of the
+SDK's Streamable HTTP surface, both on the wire and in the SDK's source.
+
+## The `2026-07-28` surface
+
+The official suite has no stable release for `2026-07-28` yet, so this project
+measures its reference server against the suite's pinned pre-release every week
+and records the score in a committed baseline;
+[Two revisions at once](revisions.md#what-is-measured-at-2026-07-28-today) has the
+current figures and what they have already shown.

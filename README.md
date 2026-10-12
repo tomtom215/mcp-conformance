@@ -101,7 +101,7 @@ verdict: fail
   clause.
 - **Not observed is not a pass.** A clause the session never came near is reported
   *not observed*; one gated on a capability nobody negotiated is *not applicable*;
-  one no trace can judge is *excluded*, with the reason. The 86 above are clauses
+  one no trace can judge is *excluded*, with the reason. The not-observed rows above are clauses
   this short session never exercised — reporting them as passes would be a score, not
   a verdict.
 - **An empty recording is a bad invocation**, not a pass: the shape a broken capture
@@ -240,7 +240,7 @@ verdict: fail
 <!-- ANCHOR_END: trace-example -->
 
 The six not-applicable rows are the capability-gated requirements this session
-never negotiated (the resources and prompts clauses), and the thirty-one
+never negotiated (the resources and prompts clauses), and the
 not-observed rows are the clauses whose subject matter never appeared —
 nothing was paginated, no binary content was sent, no error was returned.
 Neither is reported as a pass. [`corpus/`](corpus) holds complete annotated

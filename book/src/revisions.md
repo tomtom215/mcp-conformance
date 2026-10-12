@@ -51,9 +51,10 @@ server answers, the client confirms:
 Judged against both revisions at once:
 
 ```text
-$ mcp-trace-validator validate --revision 2025-11-25 --revision 2026-07-28 handshake.jsonl
+$ mcp-trace-validator validate --revision 2025-11-25 --revision 2026-07-28 --all handshake.jsonl
 ```
 
+(`--all` lists every clause; without it the report lists only the failing ones.)
 Four rows out of the report say the whole thing:
 
 ```text
@@ -158,23 +159,21 @@ usually are.
   session of deliberately malformed requests, and the official runner's two —
   evidence **112 of the 124 judgeable clauses** between them. What no capture
   reaches is named, one clause at a time, in [the corpus chapter](corpus.md).
-- `cargo xtask draft-readiness` re-runs that measurement and **ratchets** it
-  against a committed baseline: any change in either direction fails the build,
-  so progress toward the next revision is recorded in the commit that earned it
-  rather than estimated.
+- The project's CI re-runs that measurement weekly and **ratchets** it against a
+  committed baseline: any change in either direction fails the build, so a
+  change in the score is recorded in the commit that caused it rather than
+  estimated.
 
 That ratchet has already paid for itself in the direction nobody plans for.
-Through suite `0.2.0-alpha.9` the runner scored the `2025-11-25` server and the
-`2026-07-28` server identically — its scenarios exercise features, not
-revisions, so it could not tell them apart. This project's registry could, and
-flagged the `2025-11-25` server for returning cacheable results without the
-`ttlMs` hint the new revision requires (CACH-001). Six weeks later `alpha.11`
-added a schema check and found the same clause, independently, from the other
-side. The registry's finding is recorded as **superseded rather than deleted**,
-because the supersession is itself the result: a negative finding about an
-instrument expires when the instrument improves.
+Through suite `0.2.0-alpha.9` the runner scored the reference server identically
+whichever revision it served — its scenarios exercise features, not revisions,
+so it could not tell the two apart. This project's registry could, and flagged
+the `2025-11-25` server for returning cacheable results without the cache hints
+`2026-07-28` requires (CACH-001). Six weeks later `alpha.11` added a schema check
+and found the same clause, independently, from the other side. The server's SDK
+then fixed it: since rmcp 3.5.1 both legs score 42 passing / 0 failing.
 
-Full detail is in the
+Full detail is in [the corpus chapter](corpus.md), the
 [ecosystem register](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/01-ecosystem-context.md)
-(row 1.5i) and the
+and the
 [conformance strategy](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/03-conformance-strategy.md).
