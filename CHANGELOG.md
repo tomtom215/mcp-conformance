@@ -143,8 +143,33 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   callers to "re-run with `--revision …`"; it now words the advice without a flag,
   and the CLI asks for its own wording (`HumanOptions::cli`).
 
+- **`mcp-reference-host` named `2026-07-28` in its `initialize` request.**
+  rmcp 3.5.0 made `ProtocolVersion::LATEST` `2026-07-28` — a revision with no
+  `initialize` — and the host took its handshake version from that default, so
+  the official suite's client `initialize` scenario failed. The host now names
+  `2025-11-25`.
+- **`mcp-reference-host --sweep` used capabilities the server never declared.**
+  It sent `completion/complete`, `resources/*` and `prompts/*` whatever the
+  server advertised, so a recording of a server without completions failed
+  `LIFE-009` against the host. Each group is now driven only when declared, and
+  a skipped one is reported as skipped.
+- **`requirements` with an ID of the other revision says which revision has
+  it** (`requirements BASE-003` at the default `2026-07-28`: "it is a 2025-11-25
+  requirement: pass --revision 2025-11-25").
+
 ### Added
 
+- **Versioned documentation.** <https://mcp-conformance.com> now documents the
+  newest release at its root, keeps every release's book at `/vX.Y.Z/` and
+  `main`'s at `/dev/`, and offers a version selector; a page for anything but the
+  newest release says so. Built by `cargo xtask book-site`.
+- **A requirement reference in the book**: every clause of each revision under
+  its ID, with its level, the party it binds, the verbatim quote, a link to the
+  published text, and the checks that judge it or the reason none can.
+- **`--revision` on `mcp-everything-server` and `mcp-reference-host`** (an alias
+  of `--protocol-version`, the validator's spelling), and **`--listen`** on the
+  server (an alias of `--bind`, the capture proxy's). The HTTP server prints its
+  endpoint URL after its readiness line.
 - **`requirements LIFE-001 …`** prints a requirement in full — level, the party it
   binds, the clause verbatim with its link, its capability gate, and its checks or
   the reason it is excluded — and `--area`, `--level`, `--checked` and `--excluded`
@@ -164,6 +189,14 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `report::HumanOptions` with `Report::render_with` and `MultiReport::render_with`
   choose the clause filter, the finding limit and the wording. `Verdict` gains
   `Incomplete`. All additions; every enum and struct touched is `#[non_exhaustive]`.
+
+### Dependencies
+
+- **rmcp 3.5.1** (from 3.4.1) for `mcp-everything-server` and
+  `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official
+  suite's `2026-07-28` scenarios now pass 42 of 42 against the server serving
+  `2025-11-25` too: rmcp 3.5.1 adds the cache hints `2026-07-28` peers need.
+  The development toolchain pin is Rust 1.99.0; the MSRV stays 1.88.
 
 ## [0.6.0] - 2026-10-04
 
