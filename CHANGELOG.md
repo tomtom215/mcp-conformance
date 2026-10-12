@@ -29,6 +29,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   id. It now also fails an untagged log arriving while nothing but a
   `subscriptions/listen` is in flight, unless a later response answers a
   request sent before the recording began.
+- **`MRTR-018` failed a retry whose round predates the recording.** A retry
+  carrying `requestState` with no `input_required` before it in the trace was
+  reported as inventing one, but `requestState` is designed to reach a server
+  instance that never saw the round, and a capture can start mid-flow. Like
+  `MRTR-015`/`MRTR-016`, the check now judges only retries of a recorded round.
 
 ## [0.6.0] - 2026-10-04
 
