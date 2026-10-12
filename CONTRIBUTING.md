@@ -18,8 +18,10 @@ open an issue describing your approach before writing a large PR.
 
 ## Setup
 
-Stable Rust via [rustup](https://rustup.rs). The workspace pins MSRV 1.88; CI tests
-both stable and MSRV, so code must satisfy both.
+Rust via [rustup](https://rustup.rs). `rust-toolchain.toml` pins the exact stable
+toolchain the gates run on, and rustup installs it on the first `cargo` command in
+the checkout, so your lints are CI's lints. The crates' MSRV is 1.88; CI also runs
+clippy on it, so code must compile on both.
 
 ```bash
 git clone https://github.com/tomtom215/mcp-conformance
@@ -91,13 +93,14 @@ The validator's credibility rests on two invariants — both enforced by tests:
 1. **Registry ↔ inventory coverage**: every check the registry references exists, and
    every implemented check is referenced.
 2. **Falsifiability**: every check is killed by at least one trace in
-   `corpus/violations/`. A new check ships with a passing trace, a violating trace,
+   `corpus/violations/` (`2025-11-25`) or `corpus/draft/violations/` (`2026-07-28`). A new check ships with a passing trace, a violating trace,
    and their golden reports.
 
 Workflow: add the requirement to its area file under
-`crates/mcp-conformance-core/registry/2025-11-25/` (verbatim spec quote — the tests
+`crates/mcp-conformance-core/registry/<revision>/` (verbatim spec quote — the tests
 check the RFC 2119 keyword is present; gate it with a `capability` path when the
-clause binds only after negotiation), implement the check, add corpus traces, then
+clause binds only after negotiation), implement the check, add corpus traces (`corpus/{good,violations}/` for
+`2025-11-25`, `corpus/draft/{good,violations}/` for `2026-07-28`), then
 `cargo xtask bless` and **review the golden diff like code**. A golden holds only
 what its trace decided; the clauses the registry declines to judge live once per
 revision in `corpus/golden/exclusions/`
