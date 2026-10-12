@@ -68,3 +68,34 @@ fn json_the_trace_cannot_hold_is_reported_per_side() {
     assert!(!stderr.contains("cannot hold"), "{stderr}");
     std::fs::remove_file(&trace).ok();
 }
+
+/// A client that goes away is said once: the wrapper's write to it fails, and
+/// the server's output is neither relayed nor recorded from then on. Writing to
+/// a server that has exited — a client's normal race with it — is not.
+#[test]
+fn a_client_that_went_away_is_reported_once() {
+    let trace = scratch("gone.jsonl");
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mcp-trace-capture"))
+        .args(["-o", trace.to_str().unwrap(), "stdio", "--", "sh", "-c"])
+        .arg("sleep 0.3; echo '{}'; sleep 0.3; echo '{}'")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    // The client's read end is gone before the server writes.
+    drop(child.stdout.take());
+    let output = child.wait_with_output().unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(
+        stderr.matches("cannot write to the client").count(),
+        1,
+        "{stderr}"
+    );
+    std::fs::remove_file(&trace).ok();
+
+    let output = wrap(&trace, &["true"], &b"{}\n".repeat(20_000));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stderr.contains("cannot write"), "{stderr}");
+    std::fs::remove_file(&trace).ok();
+}

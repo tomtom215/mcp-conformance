@@ -80,6 +80,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 - **`mcp-trace-capture`: `{session}` numbers continue after the highest one present.**
   The lowest free number was taken, so after an earlier trace was deleted the next
   session filled its gap and the files no longer sorted in session order.
+- **`mcp-trace-capture stdio` says when the client has gone away.** A failed write to
+  the client (a closed pipe) ended the relay of the server's output without a word;
+  it is now reported once on stderr.
 
 ## [0.6.0] - 2026-10-04
 

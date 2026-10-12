@@ -71,6 +71,11 @@ impl Tally {
 /// Copies `from` to `to` until end of stream, recording each complete line as a
 /// message event before forwarding the bytes that complete it.
 ///
+/// A write to the client (`to` of a [`Direction::ServerToClient`] pump) that
+/// fails is said on stderr: the client went away, and nothing after it is
+/// relayed or recorded. A failed write to the server is not — it is how a
+/// server that exited first looks from here.
+///
 /// # Errors
 ///
 /// A read or write error on either side; everything recorded up to it stays recorded.
@@ -118,9 +123,21 @@ where
         for line in splitter.push(chunk) {
             record_line(recorder, direction, line, tally);
         }
-        to.write_all(chunk).await?;
-        to.flush().await?;
+        if let Err(error) = write(&mut to, chunk).await {
+            if direction == Direction::ServerToClient {
+                eprintln!(
+                    "mcp-trace-capture: cannot write to the client ({error}); the server's \
+                     output is no longer relayed or recorded"
+                );
+            }
+            return Err(error);
+        }
     }
+}
+
+async fn write<W: AsyncWrite + Unpin>(to: &mut W, chunk: &[u8]) -> io::Result<()> {
+    to.write_all(chunk).await?;
+    to.flush().await
 }
 
 fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Tally) {
