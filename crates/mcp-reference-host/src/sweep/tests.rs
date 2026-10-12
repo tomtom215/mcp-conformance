@@ -107,3 +107,32 @@ fn the_report_counts_only_the_steps_that_drew_errors() {
     assert_eq!(report.steps.len(), 3);
     assert_eq!(report.steps[1].what, "resources/read test://gone");
 }
+
+#[test]
+fn only_declared_capabilities_are_swept() {
+    let mut capabilities = ServerCapabilities::default();
+    assert_eq!(
+        Declared::of(Some(&capabilities)),
+        Declared {
+            resources: false,
+            prompts: false,
+            completions: false
+        }
+    );
+    capabilities.prompts = Some(rmcp::model::PromptsCapability::default());
+    capabilities.completions = Some(serde_json::Map::new());
+    assert_eq!(
+        Declared::of(Some(&capabilities)),
+        Declared {
+            resources: false,
+            prompts: true,
+            completions: true
+        }
+    );
+    capabilities.resources = Some(rmcp::model::ResourcesCapability::default());
+    assert!(Declared::of(Some(&capabilities)).resources);
+    assert_eq!(
+        Declared::of(None),
+        Declared::of(Some(&ServerCapabilities::default()))
+    );
+}

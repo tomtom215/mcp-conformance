@@ -22,7 +22,13 @@ use mcp_everything_server::EverythingServer;
 use mcp_reference_host::handler::HostHandler;
 use mcp_reference_host::script::InteractionScript;
 use mcp_reference_host::sweep::{self, SweepReport};
-use rmcp::ServiceExt as _;
+use rmcp::model::{
+    GetPromptRequestParams, GetPromptResponse, GetPromptResult, ListPromptsResult,
+    PaginatedRequestParams, Prompt, PromptArgument, PromptMessage, Role, ServerCapabilities,
+    ServerConfig,
+};
+use rmcp::service::{RequestContext, RoleServer};
+use rmcp::{ErrorData, ServerHandler, ServiceExt as _};
 
 /// A connected host, with the everything server on the other end of a duplex.
 async fn swept() -> SweepReport {
@@ -141,4 +147,70 @@ async fn resources_are_swept_before_prompts_need_them() {
         index("prompts/list") < index("completion/complete"),
         "completion addresses a prompt the listing named"
     );
+}
+
+/// A server declaring prompts — one with an argument, which the completion
+/// step would address — and neither resources nor completions.
+#[derive(Debug, Clone)]
+struct PromptsOnly;
+
+impl ServerHandler for PromptsOnly {
+    fn get_info(&self) -> ServerConfig {
+        let mut capabilities = ServerCapabilities::default();
+        capabilities.prompts = Some(rmcp::model::PromptsCapability::default());
+        let mut info = ServerConfig::default();
+        info.capabilities = capabilities;
+        info
+    }
+
+    async fn list_prompts(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListPromptsResult, ErrorData> {
+        let mut prompt = Prompt::new("greet", Some("a prompt with an argument"), None);
+        prompt.arguments = Some(vec![PromptArgument::new("name")]);
+        Ok(ListPromptsResult::with_all_items(vec![prompt]))
+    }
+
+    async fn get_prompt(
+        &self,
+        _request: GetPromptRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<GetPromptResponse, ErrorData> {
+        Ok(GetPromptResult::new(vec![PromptMessage::new_text(Role::User, "hello")]).into())
+    }
+}
+
+#[tokio::test]
+async fn the_sweep_uses_only_what_the_server_declared() {
+    // Found by validating a sweep of a Python SDK server that declares no
+    // completions: the host sent `completion/complete` anyway, and the
+    // recording failed LIFE-009 — against the host, correctly.
+    let (server_io, client_io) = tokio::io::duplex(4096);
+    tokio::spawn(async move {
+        if let Ok(server) = PromptsOnly.serve(server_io).await {
+            let _ = server.waiting().await;
+        }
+    });
+    let client = HostHandler::new(InteractionScript::default())
+        .serve(client_io)
+        .await
+        .expect("host initializes");
+    let report = sweep::run(client.peer()).await;
+    let _ = client.cancel().await;
+
+    assert_eq!(report.errors(), 0, "{:?}", report.steps);
+    for (prefix, capability) in [
+        ("resources/*", "resources"),
+        ("completion/complete", "completions"),
+    ] {
+        assert_eq!(
+            step(&report, prefix).outcome,
+            Ok(format!(
+                "skipped: the server declared no `{capability}` capability"
+            )),
+        );
+    }
+    assert!(step(&report, "prompts/list").outcome.is_ok());
 }
