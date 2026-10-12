@@ -42,9 +42,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 59 | 104 |
+| Goldens | 59 | 105 |
 | Excluded rows the ledger holds | 86 | 149 |
-| Distinct not-observed sets across them | 30 | 83 |
+| Distinct not-observed sets across them | 30 | 84 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -510,6 +510,7 @@ it is named for.
 | `base-035-missing-capability-error-without-capabilities.jsonl` | `-32021` carries no `data.requiredCapabilities` (BASE-035) |
 | `base-036-missing-capability-not-http-400.jsonl` | `-32021` returned with HTTP 500 rather than 400 (BASE-036) |
 | `base-039-subscription-notification-untagged.jsonl` | Notification on a `subscriptions/listen` stream with no `io.modelcontextprotocol/subscriptionId` (BASE-039) |
+| `base-039-subscription-notification-mistagged.jsonl` | A `subscriptions/listen` with the numeric id `1`, acknowledged under tag `1`, then a change notification tagged with the *string* `"1"` (BASE-039). The schema: "The value is the JSON-RPC ID of the `subscriptions/listen` request that opened the stream" — and JSON-RPC ids are compared as values, so `"1"` names no subscription. Only the tag's presence was checked until 2026-10-12. |
 | `base-040-malformed-traceparent.jsonl` | `traceparent` that is not W3C Trace Context shaped (BASE-040) |
 | `base-045-request-id-reused-in-flight.jsonl` | Request id reused while the first is still outstanding (BASE-045) — legal at `2025-11-25` only after a response, and this trace reuses *before* one |
 | `base-048-result-without-result-type.jsonl` | Result omits the `resultType` SEP-2322 requires (BASE-048) |

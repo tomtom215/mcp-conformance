@@ -324,11 +324,14 @@ pub(in crate::checks) fn missing_capability_error(
 }
 
 /// `BASE-039`: notifications on a `subscriptions/listen` stream carry
-/// `io.modelcontextprotocol/subscriptionId`.
+/// `io.modelcontextprotocol/subscriptionId`, naming that subscription.
 ///
 /// Scoped to traces that actually opened such a stream: without one, a
 /// notification is request-scoped (progress, logging) and the clause does not
-/// bind it.
+/// bind it. A tag is held against the ids of every `subscriptions/listen`
+/// request the trace carries, not the stream it rode: the trace does not say
+/// which stream a notification was framed on, so a tag naming another of the
+/// client's subscriptions is not reported.
 pub(in crate::checks) fn subscription_id_present(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
@@ -375,14 +378,32 @@ pub(in crate::checks) fn subscription_id_present(
             continue;
         }
         sink.examined();
-        let tagged = params_meta(payload)
-            .is_some_and(|meta| meta.contains_key("io.modelcontextprotocol/subscriptionId"));
-        if !tagged {
+        let Some(tag) = params_meta(payload)
+            .and_then(|meta| meta.get("io.modelcontextprotocol/subscriptionId"))
+        else {
             sink.push(
                 Some(event.seq),
                 format!(
                     "notification `{method}` on a subscriptions/listen stream has no \
                      `io.modelcontextprotocol/subscriptionId` in `_meta`"
+                ),
+            );
+            continue;
+        };
+        // A tag that names no subscription correlates nothing, which is what
+        // the clause requires it for. The schema fixes its value: "The value is
+        // the JSON-RPC ID of the `subscriptions/listen` request that opened the
+        // stream", typed `RequestId` (`string | number`). Compared as JSON
+        // values, as every id in this crate is: JSON-RPC 2.0 has the response
+        // carry "the same value" as the request id, and `"1"` is not the same
+        // value as `1` — a client correlating by id cannot match one to the
+        // other, and `null` is not a `RequestId` at all.
+        if !listens.contains(&tag.to_string()) {
+            sink.push(
+                Some(event.seq),
+                format!(
+                    "notification `{method}` is tagged `io.modelcontextprotocol/subscriptionId` \
+                     {tag}, which is not the id of any `subscriptions/listen` request in the trace"
                 ),
             );
         }

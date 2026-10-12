@@ -31,6 +31,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   request's id could be read, answering it with `null` fails, because the
   clause excuses only "error cases where the ID could not be read". Two
   `2026-07-28` corpus goldens record that new failure.
+- **`BASE-039` passed a `subscriptionId` naming no subscription.** Only the
+  tag's presence was checked; its value must be "the JSON-RPC ID of the
+  `subscriptions/listen` request". A tag matching no listen request in the
+  trace now fails, including `"1"` for a request whose id is `1`, because
+  JSON-RPC ids are compared as values, and `null`.
 - **`BASE-034`, `MRTR-012` and `MRTR-013` compared only top-level capability
   names.** A URL-mode `elicitation/create` sent to a client declaring only
   `elicitation.form`, or a `sampling/createMessage` with `tools` or

@@ -193,16 +193,22 @@ fn subscription_tagging_binds_only_listen_streams_and_only_untagged_notification
         1
     );
 
-    // Tagged: silent.
-    assert!(
-        findings_for(
-            check,
-            &listening(
-                r#"{"jsonrpc":"2.0","method":"notifications/tools/list_changed","params":{"_meta":{"io.modelcontextprotocol/subscriptionId":"s1"}}}"#
-            )
-        )
-        .is_empty()
-    );
+    // Tagged with the listen request's id: silent.
+    let tagged = |tag: &str| {
+        listening(&format!(
+            r#"{{"jsonrpc":"2.0","method":"notifications/tools/list_changed","params":{{"_meta":{{"io.modelcontextprotocol/subscriptionId":{tag}}}}}}}"#
+        ))
+    };
+    assert!(findings_for(check, &tagged("1")).is_empty());
+
+    // Tagged with anything else: the tag correlates the notification with no
+    // subscription. `"1"` is not the id `1` — JSON-RPC ids are compared as
+    // values — and `null` is not an id at all.
+    for tag in [r#""s1""#, r#""1""#, "2", "null"] {
+        let findings = findings_for(check, &tagged(tag));
+        assert_eq!(findings.len(), 1, "{tag}: {findings:?}");
+        assert!(findings[0].contains("not the id of any"), "{findings:?}");
+    }
 
     // Request-scoped notifications ride their request's stream, not the listen
     // stream, so neither of these is tagged and neither is a finding.
