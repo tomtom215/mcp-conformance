@@ -1,0 +1,20 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "BASE-084",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/index",
+        "quote": "Servers MUST NOT initiate JSON-RPC requests, and clients do not send JSON-RPC responses."
+      },
+      "checks": [
+        "transport.no-independent-server-requests"
+      ]
+    }
+  ]
+}

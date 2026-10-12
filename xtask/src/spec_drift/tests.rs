@@ -102,6 +102,30 @@ fn intro_colon_quotes_verify_parent_and_selected_item() {
 }
 
 #[test]
+fn table_row_quotes_verify_as_the_row_reads() {
+    // The `SourceRef::quote` form for a clause that only reads as one with its
+    // row: first cell through the clause's cell, joined with ` | `. Column
+    // padding collapses like any other whitespace.
+    let page = "| Scenario | Client Behavior | Server Behavior |\n\
+                | --- | --- | --- |\n\
+                | Parameter value is `null`   | Client MUST omit the header    | Server MUST NOT expect the header |\n";
+    let normalized = normalize(page);
+    assert!(quote_present(
+        &normalized,
+        "Parameter value is `null` | Client MUST omit the header"
+    ));
+    assert!(quote_present(
+        &normalized,
+        "Parameter value is `null` | Client MUST omit the header | Server MUST NOT expect the header"
+    ));
+    // A cell moved to another row does not verify.
+    assert!(!quote_present(
+        &normalized,
+        "Parameter value is `null` | Server MUST NOT expect the header"
+    ));
+}
+
+#[test]
 fn the_committed_sources_file_parses_and_matches_the_registry() {
     // The offline halves of the gate, pinned in `cargo test`: the file
     // parses strictly and the two page sets agree. The network half

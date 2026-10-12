@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "pass",
   "totals": {
-    "pass": 92,
+    "pass": 97,
     "fail": 0,
     "warn": 0,
-    "excluded": 149,
+    "excluded": 167,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 32
+    "not_observed": 43
   },
   "requirements": [
     {
@@ -142,6 +142,11 @@
       "outcome": "pass"
     },
     {
+      "id": "BASE-084",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
       "id": "TRAN-056",
       "level": "MUST",
       "outcome": "pass"
@@ -263,6 +268,41 @@
     },
     {
       "id": "TRAN-098",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-130",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-131",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-132",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-133",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-134",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-135",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-136",
       "level": "MUST",
       "outcome": "not-observed"
     },
@@ -440,6 +480,46 @@
       "id": "SUBS-006",
       "level": "SHOULD",
       "outcome": "pass"
+    },
+    {
+      "id": "CANC-003",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-005",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-011",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-001",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROG-002",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROG-003",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "PROG-005",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-008",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "CACH-001",
