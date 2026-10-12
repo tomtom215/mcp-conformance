@@ -31,6 +31,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   server implements by attempting a modern request first", and doing so drew a
   warning. The committed HTTP probe capture loses its two warnings, and both
   clauses join the list no capture reaches.
+- **`TRAN-070` no longer pins a stream close on an unrelated request.** A
+  `transport-close` recorded straight after a response is that response's
+  stream ending ("The final JSON-RPC response SHOULD terminate the stream"),
+  not a cancellation of the one other request still open — which failed a
+  subscription answered after a `tools/call` beside it completed.
 
 ## [0.6.0] - 2026-10-04
 

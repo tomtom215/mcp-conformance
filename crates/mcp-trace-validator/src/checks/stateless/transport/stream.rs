@@ -131,6 +131,12 @@ pub(in crate::checks) fn accel_buffering_header(
 ///   not be reached or broke mid-response, and answers the client 502 itself.
 ///   That is not the client closing its stream, and the server is not told of
 ///   any cancellation by it.
+/// - **A close straight after a response is that response's.** "The final
+///   JSON-RPC response SHOULD terminate the stream" (`#receiving-messages`), so a
+///   close recorded next is, as far as the trace can tell, the answered
+///   request's stream ending as it should. One request still open does not make
+///   the close its own; pinned on it, a subscription stream was failed for
+///   answering after a `tools/call` beside it completed.
 ///
 /// One pass over the events, cancelling at the close rather than comparing
 /// sequence numbers against it: the close is a lifecycle event, so no message
@@ -142,15 +148,19 @@ pub(in crate::checks) fn no_messages_after_cancellation(
     let mut outstanding: BTreeSet<String> = BTreeSet::new();
     // Cancelled request id → the seq of the close that cancelled it.
     let mut cancelled: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
+    // Whether the last event other than a close was a response.
+    let mut after_response = false;
     for event in context.events() {
         if is_cancellation(event) {
-            if outstanding.len() == 1
+            if !after_response
+                && outstanding.len() == 1
                 && let Some(id) = outstanding.pop_first()
             {
                 cancelled.insert(id, event.seq);
             }
             continue;
         }
+        after_response = is_response(event);
         if !cancelled.is_empty() {
             report_after_close(event, &cancelled, sink);
         }
@@ -167,6 +177,13 @@ fn is_cancellation(event: &mcp_conformance_core::trace::TraceEvent) -> bool {
         }
     );
     closed && event.transport == TransportKind::StreamableHttp
+}
+
+/// Whether `event` is a JSON-RPC response — the message that ends its stream.
+fn is_response(event: &mcp_conformance_core::trace::TraceEvent) -> bool {
+    event
+        .message_payload()
+        .is_some_and(|payload| payload.get("result").is_some() || payload.get("error").is_some())
 }
 
 /// Opens an id on a request and closes it on the answer, so `outstanding` holds

@@ -42,9 +42,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 59 | 104 |
+| Goldens | 59 | 105 |
 | Excluded rows the ledger holds | 86 | 149 |
-| Distinct not-observed sets across them | 30 | 85 |
+| Distinct not-observed sets across them | 30 | 86 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -516,6 +516,7 @@ falsifies exactly the requirement it is named for.
 | `http-concurrent-posts.jsonl` | Two `tools/call` POSTs in flight at once, recorded the way the capture proxy interleaves them — both requests' `http` events, then both bodies, then both statuses and both answers — followed by one serial call. Every header matches its own body. Paired by "the next client message", the second POST's headers landed on the first body and a conforming exchange failed TRAN-058/TRAN-097/TRAN-100; overlapping POSTs are now left unpaired, and the serial call after them pairs and is judged as before. |
 | `http-upstream-abort.jsonl` | Two requests in flight; the capture proxy records a `transport-abort` — what it writes when the upstream server fails and it answers the client 502 itself — and the server then answers the other request normally. An abort is a failed transport, not a client closing its stream, and a lifecycle event names no request; until 2026-10-04 TRAN-070 read any close or abort as cancelling every request in flight and failed the server for the second answer. |
 | `http-stream-closed-by-client.jsonl` | A `tools/call` whose SSE response stream closes while it is the only request in flight — the cancellation signal at this revision — after which the server sends nothing more for it, and a later `tools/list` is answered normally (TRAN-070's pass path, now that a close is attributed only when exactly one request is in flight). |
+| `http-close-after-another-response.jsonl` | A `subscriptions/listen` stream left open while a `tools/call` beside it is answered; a `transport-close` is recorded straight after that answer, and the subscription is later closed gracefully. The final response "SHOULD terminate the stream", so the close is the call's stream ending, not the subscription being cancelled. Until 2026-10-12 TRAN-070 pinned the close on the one request still open and failed the graceful closure. |
 | `stdio-discover-preferred-version-unsupported.jsonl` | A stdio `server/discover` probe naming `2027-03-01`, answered with a `DiscoverResult` listing only `2026-07-28`, then a `tools/list` at that version. `basic/versioning`'s compatibility matrix names the outcome: "The stdio probe returns a `DiscoverResult` (or `UnsupportedProtocolVersionError`)". Until 2026-10-12 TRAN-074 and VERS-001 failed the result for not being `-32022`. |
 | `http-dual-era-modern-request-first.jsonl` | A dual-era client over Streamable HTTP opening with a modern `tools/list`, refused `400` with `-32600`, then falling back to `initialize` (carrying a full `_meta` envelope and left unanswered, as in `disc-002-…`, so nothing else fires). HTTP's own rule lets it "detect which era the server implements by attempting a modern request first"; the probe-first clause is stdio's. Until 2026-10-12 DISC-002 and TRAN-128 warned here. |
 | `stdio-cancellation-race.jsonl` | A `tools/call` cancelled by notification whose progress and result were already on their way: both land after the cancellation in the recording, then a later `tools/list` is answered. basic/patterns/cancellation names this race ("this notification MAY arrive after the request has already finished"; "Both parties MUST handle these race conditions gracefully"), and nothing shows the server had read the cancellation when it wrote them. Until 2026-10-04 TRAN-124 convicted every message recorded after a cancellation. |
