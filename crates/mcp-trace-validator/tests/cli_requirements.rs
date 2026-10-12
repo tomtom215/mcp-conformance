@@ -198,6 +198,26 @@ fn an_id_shows_one_requirement_in_full() {
 }
 
 #[test]
+fn each_party_a_requirement_binds_is_named() {
+    let all = requirements(&[]);
+    for (actor, phrase) in [
+        ("server", "binding the server"),
+        ("client", "binding the client"),
+        ("both", "binding client and server"),
+    ] {
+        let one = all
+            .iter()
+            .find(|requirement| requirement["actor"] == actor)
+            .unwrap();
+        let text = stdout(&run(&["requirements", "--revision", "2025-11-25", id(one)]));
+        assert!(
+            text.starts_with(&format!("{} — ", id(one))) && text.contains(phrase),
+            "{actor}: {text}"
+        );
+    }
+}
+
+#[test]
 fn an_id_as_json_is_the_registry_shape_and_an_unknown_one_is_an_error() {
     let first = requirements(&[])
         .into_iter()
