@@ -16,7 +16,7 @@ use mcp_trace_validator::report::{Report, Unjudged, Verdict};
 use mcp_trace_validator::{junit, sarif};
 use serde_json::json;
 
-use super::{Judged, Output, artifact, junit_options, verdict_to_code};
+use super::{Judged, Output, artifact, junit_options, note_strict, promoted, verdict_to_code};
 use crate::emit::emit;
 use crate::{EXIT_OK, Format};
 
@@ -51,6 +51,14 @@ pub(super) fn render(judged: &[Judged], unjudged: &[Unjudged], output: Output) -
         }
     };
     written.then(|| {
+        let promoted: Vec<&str> = judged
+            .iter()
+            .filter(|one| promoted(one.verdict(), output.strict))
+            .map(|one| one.trace.as_str())
+            .collect();
+        if !promoted.is_empty() {
+            note_strict(&format!(" for {}", promoted.join(", ")));
+        }
         judged
             .iter()
             .map(|one| verdict_to_code(one.verdict(), output.strict))

@@ -16,8 +16,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::{Parser, Subcommand, ValueEnum};
-use mcp_conformance_core::requirement::{Registry, RegistrySet};
+use clap::{CommandFactory as _, FromArgMatches as _, Parser, Subcommand, ValueEnum};
+use mcp_conformance_core::requirement::{BUILTIN_REVISIONS, Registry, RegistrySet};
 use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_trace_validator::reader;
 
@@ -89,10 +89,20 @@ enum Command {
         registry_set: Option<PathBuf>,
         /// The longest trace line accepted, in bytes. The default reads back
         /// anything `mcp-trace-capture` writes at its default message limit.
-        #[arg(long, value_name = "BYTES", default_value_t = reader::Limits::default().max_line_bytes)]
+        #[arg(
+            long,
+            value_name = "BYTES",
+            default_value_t = reader::Limits::default().max_line_bytes,
+            value_parser = at_least_one
+        )]
         max_line_bytes: usize,
         /// The most events accepted in one trace.
-        #[arg(long, value_name = "N", default_value_t = reader::Limits::default().max_events)]
+        #[arg(
+            long,
+            value_name = "N",
+            default_value_t = reader::Limits::default().max_events,
+            value_parser = at_least_one
+        )]
         max_events: usize,
     },
     /// Print the requirement registry this build validates against, part of
@@ -114,7 +124,8 @@ enum Format {
 }
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let matches = Cli::command().long_version(long_version()).get_matches();
+    let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|error| error.exit());
     let code = match cli.command {
         Command::Validate {
             traces,
@@ -144,6 +155,32 @@ fn main() -> ExitCode {
         Command::Requirements(args) => requirements::run(&args),
     };
     ExitCode::from(code)
+}
+
+/// `--version`'s text: `-V`'s line, unchanged for the scripts that read it,
+/// then the protocol revisions this build judges.
+///
+/// Built at run time from the registry set the build ships, so it cannot
+/// drift from it; clap takes a `'static` string, and this one is made once
+/// per process.
+fn long_version() -> &'static str {
+    let revisions: Vec<String> = BUILTIN_REVISIONS.iter().map(ToString::to_string).collect();
+    let text = format!(
+        "{}\njudges protocol revisions: {}",
+        env!("CARGO_PKG_VERSION"),
+        revisions.join(", ")
+    );
+    Box::leak(text.into_boxed_str())
+}
+
+/// A limit flag's value: a count of at least one. A limit of 0 accepts no
+/// trace at all, so every run would fail on the flag rather than the trace.
+fn at_least_one(text: &str) -> Result<usize, String> {
+    match text.parse::<usize>() {
+        Ok(0) => Err("must be at least 1: a limit of 0 accepts no trace at all".to_owned()),
+        Ok(value) => Ok(value),
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 /// Loads a custom single-revision registry document.

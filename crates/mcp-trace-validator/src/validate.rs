@@ -161,7 +161,14 @@ fn resolve(sources: &Sources<'_>) -> Result<Registries, String> {
         return load_registry(path).map(Registries::Custom);
     }
     let set = load_registry_set(sources.registry_set)?;
-    let requested = parse_revisions(sources.revisions)?;
+    // Each revision once: naming one twice is not asking for two columns of
+    // the same judgment.
+    let mut requested: Vec<ProtocolRevision> = Vec::new();
+    for revision in parse_revisions(sources.revisions)? {
+        if !requested.contains(&revision) {
+            requested.push(revision);
+        }
+    }
     if let Some(unknown) = requested
         .iter()
         .find(|revision| !set.revisions().contains(revision))
@@ -289,26 +296,40 @@ fn render_one(one: &Judged, output: Output) -> Option<u8> {
             &sarif::Options::default().strict(output.strict),
         )),
     };
-    written.then(|| verdict_to_code(one.verdict(), output.strict))
+    written.then(|| {
+        if promoted(one.verdict(), output.strict) {
+            note_strict("");
+        }
+        verdict_to_code(one.verdict(), output.strict)
+    })
+}
+
+/// Whether `--strict` is what fails a trace of this verdict.
+fn promoted(verdict: Verdict, strict: bool) -> bool {
+    strict && verdict == Verdict::PassWithWarnings
+}
+
+/// Says that `--strict` failed a run its report calls passing; `whose` names
+/// the traces when there are several (` for a.jsonl, b.jsonl`), so a batch
+/// gets one note rather than one per trace with nothing to tell them apart.
+///
+/// The report's own `verdict:` line is a property of the trace and is
+/// deliberately not rewritten by an invocation flag — a golden report must not
+/// depend on how the CLI was called — which left a run ending `verdict:
+/// pass-with-warnings` and exiting 1, with nothing anywhere connecting the
+/// two. The note is the missing sentence, and stderr is where it belongs:
+/// stdout carries the report, including the JSON and `JUnit` a machine reads.
+fn note_strict(whose: &str) {
+    eprintln!(
+        "note: --strict — SHOULD-level findings are treated as failures, so this run \
+         exits {EXIT_FINDINGS} despite a verdict of {}{whose}",
+        Verdict::PassWithWarnings
+    );
 }
 
 /// The exit code a verdict maps to, shared by every path so the 0/1/2 contract
 /// has one definition. `--strict` promotes warnings to findings.
-///
-/// When it does, it says so on stderr. The report's own `verdict:` line is a
-/// property of the trace and is deliberately not rewritten by an invocation
-/// flag — a golden report must not depend on how the CLI was called — which
-/// left a run ending `verdict: pass-with-warnings` and exiting 1, with nothing
-/// anywhere connecting the two. The note is the missing sentence, and stderr is
-/// where it belongs: stdout carries the report, including the JSON and `JUnit` a
-/// machine reads.
-fn verdict_to_code(verdict: Verdict, strict: bool) -> u8 {
-    if strict && verdict == Verdict::PassWithWarnings {
-        eprintln!(
-            "note: --strict — SHOULD-level findings are treated as failures, \
-             so this run exits {EXIT_FINDINGS} despite a verdict of {verdict}"
-        );
-    }
+const fn verdict_to_code(verdict: Verdict, strict: bool) -> u8 {
     match verdict {
         Verdict::Fail => EXIT_FINDINGS,
         Verdict::PassWithWarnings if strict => EXIT_FINDINGS,
