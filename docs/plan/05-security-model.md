@@ -17,13 +17,13 @@ reality, not borrowed from a generic library template.
 
 | Asset | Threat | Boundary |
 |-------|--------|----------|
-| Validator process | Malicious trace files (parser exploitation, resource exhaustion) | Traces are untrusted input. Hard caps on event count, payload size, and nesting depth; typed errors, never panics; fuzzed continuously. |
+| Validator process | Malicious trace files (parser exploitation, resource exhaustion) | Traces are untrusted input. Hard caps on event count and line size (`--max-events`, `--max-line-bytes`) and on nesting depth (serde_json's 128-level recursion limit; a deeper line is a malformed trace, exit 3); typed errors, never panics; fuzzed weekly and on every PR. |
 | Host machine running the everything server | The server is intentionally permissive (it exercises *every* capability) — it must never be reachable from a hostile network | Loopback bind by default; `Host`/`Origin` validation on by default; disabling it requires the self-describing `--dangerously-allow-any-host` flag, **and a server started that way says so on stderr, after its readiness line** (2026-08-20). The flag's name was the whole control, and it lives in the operator's command line — a running process left no evidence the protection was off, so a log could not be audited for it. |
 | Reference host | Malicious or compromised SUT servers (hostile tool results, oversized streams, slow-loris SSE) | Response size and time budgets; bounded concurrency; cooperative cancellation; no shell interpretation of server-supplied strings. |
 | CI | Supply-chain attacks via actions or dependencies | Actions pinned by SHA; `cargo deny` + `cargo audit` gates; lockfiles; trusted publishing (no long-lived tokens to steal). |
 | CI's `GITHUB_TOKEN` | A job holding a write scope is a lever for anything that can influence what that job runs | Workflow default is `contents: read`; a write scope is granted per job, never per workflow, and carries an inline comment naming what it writes. |
 | Trace capture (`mcp-trace-capture`) | A recording proxy reachable from a hostile network would relay anything to the upstream | Listens on loopback by default (`--listen 127.0.0.1:8080`); binding elsewhere is an explicit choice. Forwards credentials (it must be transparent) but records only the header allowlist. The wrapped stdio server is never orphaned: termination signals are relayed. |
-| Trace corpora | Secrets accidentally recorded into fixtures | Capture records headers by allowlist, so `Authorization`, cookies and other credentials are never written; the reference host captures at the message seam, where headers are unobservable. **Message bodies are recorded verbatim** — a secret inside a JSON-RPC payload is recorded like any other value — so corpus review is part of PR review. |
+| Trace corpora | Secrets accidentally recorded into fixtures | Capture records headers by allowlist, so `Authorization`, cookies and other credentials are never written; the reference host captures at the message seam, where headers are unobservable. **Message bodies are recorded in full** (as parsed JSON) — a secret inside a JSON-RPC payload is recorded like any other value — so corpus review is part of PR review. |
 
 ## Designing out the CVE-2026-42559 class
 
@@ -84,9 +84,10 @@ step's fetched text is republished into an issue; the run log carries it.
 
 - No secrets in the repository, fixtures, or benchmarks — enforced by review plus secret
   scanning.
-- The reference host treats auth material as opaque and never logs it; trace capture redacts
-  by default (opt-out only for synthetic-credential test environments, and the opt-out names
-  itself accordingly).
+- The reference host treats auth material as opaque and never logs it. Trace capture keeps
+  credentials out of a trace by recording headers from an allowlist, not by redaction:
+  message bodies are recorded in full, with no opt-out because there is nothing to opt out
+  of, and the user-facing docs say to read a trace before sharing it.
 - Fuzz and property tests never use real-looking credentials as seeds.
 
 ## Vulnerability handling (our own)
