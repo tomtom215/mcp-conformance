@@ -4,7 +4,7 @@
 # Ecosystem Engagement
 
 **Status:** Active
-**Last reviewed:** 2026-08-24
+**Last reviewed:** 2026-10-12
 
 ---
 
@@ -28,7 +28,7 @@ Every item is anchored to a register row, so the backlog dies gracefully if a fa
 
 | # | Contribution | Anchor | Shape |
 |---|--------------|--------|-------|
-| 1 | ~~Everything server into rust-sdk~~ — **withdrawal decided 2026-09-24, pending the owner's post.** rust-sdk runs its own conformance server at 100% on both dated suites ([3.10](01-ecosystem-context.md)); [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) had no maintainer engagement in 105 days. Comment drafted in [rust-sdk-902-withdrawal-draft.md](../reports/rust-sdk-902-withdrawal-draft.md); ledger row `rust-sdk-902-offer-clock` | [3.10](01-ecosystem-context.md) | Post the withdrawal; our server stays as the validator's calibration subject |
+| 1 | ~~Everything server into rust-sdk~~ — **closed 2026-10-12, not adopted.** A rust-sdk maintainer replied on 2026-07-28: rust-sdk already has a conformance server passing the full suite at both revisions, and asked whether we have appetite to keep maintaining an rmcp everything server. The reply went unanswered (this page recorded it only as an unread comment count); the issue was then marked stale and closed as not planned by automation on 2026-10-12. The drafted withdrawal ([rust-sdk-902-withdrawal-draft.md](../reports/rust-sdk-902-withdrawal-draft.md)) was never posted and is moot | [3.10](01-ecosystem-context.md) | None upstream; our server stays as the validator's calibration subject |
 | 2 | ~~`rmcp`-keyed RustSec advisory for CVE-2026-42559~~ — **CLOSED 2026-08-24, resolved upstream independently.** [`RUSTSEC-2026-0189`](https://rustsec.org/advisories/RUSTSEC-2026-0189.html) is keyed `package = "rmcp"` with `patched = [">= 1.4.0"]`, so a direct `rmcp < 1.4.0` dependent **does** now get a `cargo audit` warning, and `rustsec.org/packages/rmcp.html` returns 200 where it used to 404. The alias collision this row called blocking was resolved the way the row said it would have to be — by reconciliation, not a drop-in PR: the new advisory aliases the CVE and the two GHSAs and puts `RUSTSEC-2026-0140` in `related` instead. The [draft advisory](../reports/rmcp-cve-2026-42559-rustsec-advisory-draft.md) is obsolete — **do not file**. | [4.3](01-ecosystem-context.md) | No action. Kept as a row for the same reason item 3 is: it is the **third** backlog item resolved upstream before we filed, and the register's own 2026-07-26 re-check had missed it — evidence about our verification method, not only about the ecosystem |
 | 3 | ~~MSRV policy for rust-sdk~~ — **CLOSED 2026-07-23, resolved upstream independently.** [rust-sdk#1034](https://github.com/modelcontextprotocol/rust-sdk/pull/1034) (author jamadeo) declares `rust-version` **and** adds an MSRV CI job; the declared value **1.88** matches the floor ADR-0008 measured empirically, and `rmcp 3.0.0-beta.2` is the first published version carrying it. The [draft issue](../reports/rust-sdk-msrv-policy-issue-draft.md) is obsolete — **do not file** | [3.5](01-ecosystem-context.md) | No action. Kept as a row (not deleted) because it is the second backlog item to be resolved upstream before we filed — evidence for how the M4 DoD should be read, not a gap |
 | 4 | Conformance scenarios/fixtures where Rust runs expose suite gaps | [2.3, 3.6](01-ecosystem-context.md) | Small PRs to the conformance repo, SEP-tagged where applicable. **Anchor re-examined 2026-08-24:** row 3.6's open-issue half is refuted — rust-sdk#684 "Conformance Testing" is closed, so the rust-sdk-side conformance push this item expected to shadow is finished and 3.6 no longer supplies it a live gap. The 2.3 half stands on its own: suite gaps that Rust runs expose are still real and still land in the conformance repo, where both of item 8's issues remain open. That leaves this item and item 8 pointed at the same repo for the same reason, with item 8 carrying the specific issues; whether they merge is a maintainer call, not one the refutation forces |
@@ -72,25 +72,11 @@ backlog has now been overtaken upstream more often than it has been filed agains
 
 Row 3.7 changes who this page is addressed to: the two people it named as the most active maintainers are not the ones merging and reviewing current work, per the commit log. Engagement goes through the rust-sdk team and the maintainers active on each relevant issue — the ones who reviewed and merged backlog items 3 and 9.
 The evidence for the current maintainer picture was already on this page, in two items, and was
-never carried back to the row that claimed otherwise. **And [rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) — item 1's
-offer, the only entry still anchored to a gap the ecosystem publishes — appears to have been
-answered.** It is still open at 74 days, confirmed two-sided. But GitHub's search index now
-reports **exactly one comment** on it, where the `rust-sdk-902-offer-clock` ledger row recorded
-zero replies on 2026-08-18. The count is solid: `comments:0`, `comments:2` and `comments:5` all
-return nothing for this author while `comments:1` and `comments:>0` both return #902, so the
-qualifier is filtering rather than being ignored. What could **not** be established from here is
-the comment itself — neither its author nor a word of its text. The issue page's rendered
-comment section does not survive the fetch that reads it (the same lossiness that drops state
-badges), and the API is refused. So this row records a *count*, not a reply, and it is the one
-finding on this page that needs a human with a browser rather than another verification pass.
-
-That matters more than its size. The deferral governing this offer frames its next re-decision
-as "re-ping, or record the offer as lapsed" — and if someone has replied, neither is the right
-move, so the ledger row is pulled forward to 2026-09-07 rather than left at October on a premise
-that no longer holds. It also revises the reading above: a silence that looked like a signal
-about the offer may simply not be a silence. The active reviewers merged two community
-contributions promptly in this same window, which was always the harder fact to square with 74
-days of nothing.
+never carried back to the row that claimed otherwise. Item 1 repeats the lesson: the reply on
+[rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902) existed from
+2026-07-28, this page recorded only a comment count it could not read, and nobody opened the issue
+in a browser until after automation had closed it. An engagement record that cannot read the
+conversation it tracks should say "unread — needs a person" and get one, not a re-dated deferral.
 
 
 ## Conduct and process norms

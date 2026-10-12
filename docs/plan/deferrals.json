@@ -9,18 +9,11 @@
       "review_by": "2026-12-31"
     },
     {
-      "id": "rust-sdk-902-offer-clock",
-      "what": "Re-decided 2026-09-24: WITHDRAW the everything-server adoption offer (rust-sdk#902). The drafted withdrawal comment is docs/reports/rust-sdk-902-withdrawal-draft.md; posting it is the owner's action. Once posted: delete this row, close issue #9 with the outcome, and mark backlog item 1 closed.",
-      "why": "The premise is gone. rust-sdk runs its own in-repo conformance server against the official suite on every push for both 2025-11-25 and 2026-07-28 and reports 100% (30/30) on both (register 3.10, verified 2026-09-24 at rust-sdk 6677eee). #902 has had no maintainer engagement in 105 days: the rendered issue page on 2026-09-24 shows it open, labelled P2/enhancement, no assignee, no linked PR and no visible comment. The 2026-08-24 search-index signal of one comment was not reproduced by the page; a hidden or deleted comment would explain both readings. Our server stays as this project's calibration subject and fixture generator, which needs no upstream adoption.",
-      "meanwhile": "Risk R9 and issue #9 carry the state; nothing is posted upstream without the owner",
-      "review_by": "2026-10-08"
-    },
-    {
       "id": "suite-0-2-0-stable-pin-bump",
-      "what": "Re-decided 2026-08-18, the review-by having passed on 2026-08-15. HALF OF THIS ROW IS NOW BUILT: the draft ratchet DRAFT_SUITE_VERSION moved 0.2.0-alpha.9 → 0.2.0-alpha.11 with a BLESS=1 re-measurement and a scenario diff review in the same commit. What remains deferred is the STABLE pin only — xtask's SUITE_VERSION (0.1.16, the 2025-11-25 gate) — which bumps when a stable 0.2.0 exists, refreshing both expected-failures baselines and the agreement divergence ledger in the same change. The two pins are no longer coupled: 03-conformance-strategy now states their separate triggers, because holding a pre-release ratchet back does not keep its measurement stable, it makes it describe an older question",
-      "why": "There is still nothing stable to bump SUITE_VERSION to: npm `latest` is 0.1.16, published 2026-03-30 and unchanged for four and a half months (re-fetched 2026-08-18). Pin bumps are deliberate PRs with a scenario diff review (03-conformance-strategy §Official-suite version policy). The previous revision of this row claimed the alpha dist-tag had been 'quiet since 2026-07-01'; that was false by the next day — alpha.10 published 2026-07-27 and alpha.11 on 2026-08-07 — which is why this row no longer predicts upstream quiet and states only what was observed",
-      "meanwhile": "As of 2026-08-18 the watch is a gate, not a date: `cargo xtask suite-currency` (weekly, in `claims-expire`) fails the moment npm's `latest` stops being 0.1.16, and a red weekly run now files a tracking issue — so the stable release that triggers this row announces itself rather than waiting to be noticed. The weekly suite-alpha job still runs the alpha dist-tag non-blocking at the registry's revision; the draft ratchet pins alpha.11 and gates every check's status; conformance#338's fix arrives with the stable bump and its agreement-divergence entry will go stale loudly",
-      "review_by": "2026-10-15"
+      "what": "The STABLE suite pin only — xtask's SUITE_VERSION (0.1.16, the 2025-11-25 gate) — bumps when a stable 0.2.0 exists, refreshing both expected-failures baselines and the agreement divergence ledger in the same change. The draft ratchet DRAFT_SUITE_VERSION is not deferred: it tracks the alpha dist-tag (0.2.0-alpha.12 since 2026-10-01). 03-conformance-strategy states the two pins' separate triggers",
+      "why": "Re-decided 2026-10-12, the review-by (2026-10-15) being due: there is still nothing stable to bump to. npm `latest` is 0.1.16, published 2026-03-30 and unchanged for six and a half months; `alpha` is 0.2.0-alpha.12 (2026-10-01). Re-fetched 2026-10-12 (register 2.4). Pin bumps are deliberate PRs with a scenario diff review (03-conformance-strategy §Official-suite version policy)",
+      "meanwhile": "The watch is a gate, not a date: `cargo xtask suite-currency` (weekly, in `claims-expire`) fails the moment npm's `latest` stops being 0.1.16, and a red weekly run files a tracking issue. The weekly suite-alpha job runs the alpha dist-tag non-blocking; the draft ratchet pins alpha.12 and gates every check's status; conformance#338's fix arrives with the stable bump and its agreement-divergence entry will go stale loudly",
+      "review_by": "2026-12-15"
     }
   ]
 }
