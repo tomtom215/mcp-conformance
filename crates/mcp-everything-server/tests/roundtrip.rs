@@ -922,8 +922,8 @@ struct InteractiveClient {
 }
 
 impl rmcp::ClientHandler for InteractiveClient {
-    fn get_info(&self) -> rmcp::model::ClientInfo {
-        let mut info = rmcp::model::ClientInfo::default();
+    fn get_info(&self) -> rmcp::model::ClientConfig {
+        let mut info = rmcp::model::ClientConfig::default();
         info.capabilities = rmcp::model::ClientCapabilities::builder()
             .enable_sampling()
             .enable_elicitation()
@@ -1240,8 +1240,8 @@ impl UrlModeClient {
 }
 
 impl rmcp::ClientHandler for UrlModeClient {
-    fn get_info(&self) -> rmcp::model::ClientInfo {
-        let mut info = rmcp::model::ClientInfo::default();
+    fn get_info(&self) -> rmcp::model::ClientConfig {
+        let mut info = rmcp::model::ClientConfig::default();
         // URL mode must be declared: a bare `elicitation: {}` is form mode
         // only, and the server must not send this client a URL elicitation.
         info.capabilities = rmcp::model::ClientCapabilities::builder().build();

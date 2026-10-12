@@ -209,8 +209,8 @@ impl rmcp::Service<RoleServer> for Recorder {
         Ok(())
     }
 
-    fn get_info(&self) -> rmcp::model::ServerInfo {
-        rmcp::model::ServerInfo::new(rmcp::model::ServerCapabilities::default())
+    fn get_info(&self) -> rmcp::model::ServerConfig {
+        rmcp::model::ServerConfig::new(rmcp::model::ServerCapabilities::default())
             .with_server_info(Implementation::new("recorder", "9.9.9"))
     }
 

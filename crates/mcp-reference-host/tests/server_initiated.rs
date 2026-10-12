@@ -19,7 +19,9 @@ use std::time::Duration;
 
 use mcp_reference_host::handler::{HostEvent, HostHandler};
 use mcp_reference_host::script::InteractionScript;
-use rmcp::model::{CustomNotification, ElicitRequestParams, Root, ServerInfo, ServerNotification};
+use rmcp::model::{
+    CustomNotification, ElicitRequestParams, Root, ServerConfig, ServerNotification,
+};
 use rmcp::service::{NotificationContext, RoleServer};
 use rmcp::{ServerHandler, ServiceExt as _};
 
@@ -39,8 +41,8 @@ struct ProbeServer {
 }
 
 impl ServerHandler for ProbeServer {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::default()
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::default()
     }
 
     async fn on_initialized(&self, context: NotificationContext<RoleServer>) {
