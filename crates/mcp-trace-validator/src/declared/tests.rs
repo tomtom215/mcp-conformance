@@ -284,3 +284,71 @@ fn a_probe_is_answered_only_by_a_response_carrying_its_own_id() {
         [1]
     );
 }
+
+/// A dual-era client over Streamable HTTP trying a modern `tools/list` first,
+/// refused `400` by a legacy server, then completing the handshake.
+const MODERN_FIRST_FALLBACK: &str = r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"accept":"application/json, text/event-stream","content-type":"application/json","mcp-protocol-version":"2026-07-28"}}
+{"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}}
+{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":400,"headers":{"content-type":"application/json"}}
+{"seq":3,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32600,"message":"Bad Request: No valid session ID provided"}}}
+{"seq":4,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"accept":"application/json, text/event-stream","content-type":"application/json"}}
+{"seq":5,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"0"}}}}
+{"seq":6,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":200,"headers":{"content-type":"application/json","mcp-session-id":"s1"}}
+{"seq":7,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}
+{"seq":8,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"accept":"application/json, text/event-stream","content-type":"application/json","mcp-session-id":"s1","mcp-protocol-version":"2025-11-25"}}
+{"seq":9,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}
+{"seq":10,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":202}"#;
+
+/// LIFE-001 and LIFE-004 for `document`, judged at `2025-11-25`.
+fn lifecycle_outcomes(document: &str) -> (crate::report::Outcome, crate::report::Outcome) {
+    let registry = mcp_conformance_core::requirement::Registry::builtin_2025_11_25().unwrap();
+    let report = crate::engine::validate(&registry, &events(document));
+    let outcome = |id: &str| {
+        report
+            .requirements
+            .iter()
+            .find(|row| row.id == id)
+            .map(|row| row.outcome)
+            .unwrap()
+    };
+    (outcome("LIFE-001"), outcome("LIFE-004"))
+}
+
+#[test]
+fn a_refused_modern_attempt_over_http_precedes_the_handshake_by_design() {
+    use crate::report::Outcome::{Fail, Pass, Warn};
+    let trace = events(MODERN_FIRST_FALLBACK);
+    assert_eq!(
+        failed_modern_attempts(&trace)
+            .into_iter()
+            .collect::<Vec<_>>(),
+        [1]
+    );
+    assert_eq!(declared_revisions(&trace), ["2025-11-25"]);
+    assert_eq!(lifecycle_outcomes(MODERN_FIRST_FALLBACK), (Pass, Pass));
+
+    // Without the modern `_meta` it is a legacy client skipping the handshake.
+    let legacy = MODERN_FIRST_FALLBACK.replace(
+        r#""params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}"#,
+        r#""params":{}"#,
+    );
+    assert!(failed_modern_attempts(&events(&legacy)).is_empty());
+    assert_eq!(lifecycle_outcomes(&legacy), (Fail, Warn));
+
+    // On stdio the dual-era procedure is the `server/discover` probe instead.
+    let stdio = MODERN_FIRST_FALLBACK
+        .lines()
+        .filter(|line| !line.contains(r#""kind":"http""#))
+        .map(|line| line.replace("streamable-http", "stdio"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(failed_modern_attempts(&events(&stdio)).is_empty());
+    assert_eq!(lifecycle_outcomes(&stdio).0, Fail);
+
+    // Answered with a result, the attempt succeeded: no era detection failed.
+    let answered = MODERN_FIRST_FALLBACK.replace(
+        r#""error":{"code":-32600,"message":"Bad Request: No valid session ID provided"}"#,
+        r#""result":{"resultType":"complete","tools":[]}"#,
+    );
+    assert!(failed_modern_attempts(&events(&answered)).is_empty());
+}

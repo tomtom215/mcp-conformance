@@ -35,7 +35,7 @@ below is stated again in its entry, with the reasoning.
 | Verdict, now failing | `BASE-034`, `MRTR-012`, `MRTR-013`: URL-mode elicitation to a client without `elicitation.url`; sampling with `tools`/`toolChoice` to one without `sampling.tools` | Check the sub-capability, not only the top-level one |
 | Verdict, now failing | `LOG-009`: an untagged log sent while no request but a `subscriptions/listen` is in flight; `SUBS-002`: a reopened subscription's missing acknowledgment | Send logs on a request's stream; acknowledge every opening |
 | Verdict, now failing or warning | `TOOL-034`: a header-mirrored integer of 2^63 or more, or written as a float (`9007199254740992.0`); `BASE-040`: `traceparent` version `ff`; `TRAN-068`: an SSE response whose media type is not lowercase, without `X-Accel-Buffering: no` | Fix the sender |
-| Verdict, no longer failing | `SUBS-001` (reused subscription ids), `MRTR-018` (a round before the recording), `TRAN-124` (a reused cancelled id), `CACH-008` (`ttlMs` written as `60000.0`), `BASE-040` (a higher `traceparent` version with extra fields), `TRAN-070` (a stream close after another response), `TRAN-073`/`TRAN-074`/`VERS-001`/`TRAN-096` (another defined rejection; a discover probe answered with its result), `BASE-031`/`BASE-045`/`TRAN-097`/`TRAN-100` (a retry after a null-id refusal), `BASE-034`/`MRTR-012`/`MRTR-013` (a reused request id) | None: these failed conforming sessions |
+| Verdict, no longer failing | `LIFE-001`/`LIFE-004` at `2025-11-25` (a dual-era client's refused modern attempt over Streamable HTTP before `initialize`), `SUBS-001` (reused subscription ids), `MRTR-018` (a round before the recording), `TRAN-124` (a reused cancelled id), `CACH-008` (`ttlMs` written as `60000.0`), `BASE-040` (a higher `traceparent` version with extra fields), `TRAN-070` (a stream close after another response), `TRAN-073`/`TRAN-074`/`VERS-001`/`TRAN-096` (another defined rejection; a discover probe answered with its result), `BASE-031`/`BASE-045`/`TRAN-097`/`TRAN-100` (a retry after a null-id refusal), `BASE-034`/`MRTR-012`/`MRTR-013` (a reused request id) | None: these failed conforming sessions |
 | Verdict, now not observed | `TRAN-074` on stdio (an HTTP clause; `VERS-001` judges stdio); `DISC-002`/`TRAN-128` over Streamable HTTP (stdio rules) | None; `VERS-001` still judges the unsupported-version rule on stdio |
 | SARIF | Findings against `TRAN-074` name a new check, so their fingerprints change | An open alert for one closes and reopens once |
 | Report totals | `2026-07-28` reports carry 37 more rows; `excluded` grows by 20 | Re-baseline any comparison of totals across versions |
@@ -115,6 +115,14 @@ below is stated again in its entry, with the reasoning.
   2^63 and up, so the largest out-of-range values went unjudged. It now reads
   any number with no fractional part as an integer (as `CACH-008` does), so
   `9223372036854775808` and `9007199254740992.0` fail and `1.0` passes.
+- **`LIFE-001` and `LIFE-004` failed a dual-era client's modern first attempt
+  over Streamable HTTP.** `2026-07-28` lets such a client "detect which era the
+  server implements by attempting a modern request first" and fall back to
+  `initialize` when refused, but at `2025-11-25` the refused attempt was judged
+  as the session's first interaction. It is now set aside, as a failed stdio
+  `server/discover` probe already was: a request carrying the per-request
+  `_meta` revision, sent before the first `initialize`, that no result
+  answered. A legacy request with no `_meta` before `initialize` still fails.
 - **`TRAN-074` is judged on Streamable HTTP only.** It is the transport page's
   statement of the unsupported-version rule, under `#protocol-version-header`,
   but it shared `VERS-001`'s check, so a stdio session answering `-32022`

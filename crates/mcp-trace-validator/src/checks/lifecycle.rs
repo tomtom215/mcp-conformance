@@ -25,9 +25,11 @@ use crate::context::{Phase, TraceContext};
 /// server's error reply to it, are not the interaction this clause orders: the
 /// `2026-07-28` backward-compatibility procedure has the client probe first and
 /// fall back to `initialize` against a legacy server, which is what such a
-/// trace records. The first message after them is the one judged.
+/// trace records. So is a modern request a dual-era client tried first over
+/// Streamable HTTP and was refused ([`crate::declared::era_detection`]). The
+/// first message after them is the one judged.
 pub(super) fn first_interaction_initialize(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    let probes = crate::declared::failed_discover_probes(context.events());
+    let probes = crate::declared::era_detection(context.events());
     let part_of_a_probe = |event: &TraceEvent, kind: &MessageKind<'_>| {
         let reply = event.direction == Direction::ServerToClient
             && matches!(kind, MessageKind::Error { .. });
@@ -143,9 +145,9 @@ pub(super) fn client_requests_before_init_response(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    // A dual-era client's failed discovery probe precedes `initialize` by
-    // design (see `first_interaction_initialize`).
-    let probes = crate::declared::failed_discover_probes(context.events());
+    // A dual-era client's failed probe or modern attempt precedes
+    // `initialize` by design (see `first_interaction_initialize`).
+    let probes = crate::declared::era_detection(context.events());
     for (event, kind, phase) in context.messages() {
         if event.direction != Direction::ClientToServer || probes.contains(&event.seq) {
             continue;
