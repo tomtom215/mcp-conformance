@@ -277,8 +277,8 @@ fn a_reused_id_opens_a_new_subscription_with_its_own_filter() {
         ack(5, 1),
         notify(6, 1, "notifications/prompts/list_changed", ""),
     ]);
-    assert!(findings_for(ONLY_REQUESTED, &session).is_empty());
-    assert!(findings_for(ACK_FIRST, &session).is_empty());
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -341,8 +341,8 @@ fn a_tag_naming_no_open_subscription_is_not_judged() {
         listen(1, 1, r#"{"toolsListChanged":true}"#),
         ack(2, 1),
     ]);
-    assert!(findings_for(ONLY_REQUESTED, &before).is_empty());
-    assert!(findings_for(ACK_FIRST, &before).is_empty());
+    assert_eq!(findings_for(ONLY_REQUESTED, &before), Vec::<String>::new());
+    assert_eq!(findings_for(ACK_FIRST, &before), Vec::<String>::new());
 }
 
 #[test]
@@ -381,6 +381,6 @@ fn a_listen_with_a_null_id_opens_nothing_to_judge() {
             r#"{"jsonrpc":"2.0","method":"notifications/tools/list_changed","params":{"_meta":{"io.modelcontextprotocol/subscriptionId":null}}}"#,
         ),
     ]);
-    assert!(findings_for(ONLY_REQUESTED, &session).is_empty());
-    assert!(findings_for(ACK_FIRST, &session).is_empty());
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
 }

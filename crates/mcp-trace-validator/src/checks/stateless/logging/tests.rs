@@ -185,7 +185,7 @@ fn a_log_with_no_request_in_flight_is_on_no_response_stream() {
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert!(findings[0].contains("no request"), "{findings:?}");
     // LOG-008 has nothing to say: no request it could be for lacks the level.
-    assert!(findings_for(REQUESTED, &session).is_empty());
+    assert_eq!(findings_for(REQUESTED, &session), Vec::<String>::new());
 
     // A later request, answered in turn, does not reach back to it.
     let later = trace(&[
@@ -216,5 +216,5 @@ fn a_log_before_an_answer_to_an_unrecorded_request_is_not_judged() {
         log(2, None),
         answer(3, 9),
     ]);
-    assert!(findings_for(NOT_ON_SUB, &session).is_empty());
+    assert_eq!(findings_for(NOT_ON_SUB, &session), Vec::<String>::new());
 }

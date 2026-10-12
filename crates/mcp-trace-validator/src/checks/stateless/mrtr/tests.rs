@@ -243,7 +243,7 @@ fn state_presented_with_no_round_in_the_recording_is_not_judged() {
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","content":[]}}"#,
         ),
     ]);
-    assert!(findings_for(UNSOLICITED, &alone).is_empty());
+    assert_eq!(findings_for(UNSOLICITED, &alone), Vec::<String>::new());
 
     // A round for some other tool is no round of this retry's either.
     let elsewhere = trace(&[
@@ -254,7 +254,7 @@ fn state_presented_with_no_round_in_the_recording_is_not_judged() {
             r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"other","inputResponses":{"login":{}},"requestState":"mine"}}"#,
         ),
     ]);
-    assert!(findings_for(UNSOLICITED, &elsewhere).is_empty());
+    assert_eq!(findings_for(UNSOLICITED, &elsewhere), Vec::<String>::new());
 }
 
 #[test]

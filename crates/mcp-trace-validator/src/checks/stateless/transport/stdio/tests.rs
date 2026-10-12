@@ -260,7 +260,7 @@ fn a_request_reusing_a_cancelled_id_is_a_new_request() {
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
         ),
     ]);
-    assert!(findings_for(AFTER, &session).is_empty());
+    assert_eq!(findings_for(AFTER, &session), Vec::<String>::new());
 
     // A client *response* carrying the id opens no request and clears nothing.
     let responded = session.replace(
@@ -288,7 +288,7 @@ fn a_reused_id_does_not_inherit_the_earlier_requests_token() {
         answered,
         progress(6, "tok-1"),
     ]);
-    assert!(findings_for(AFTER, &session).is_empty());
+    assert_eq!(findings_for(AFTER, &session), Vec::<String>::new());
 }
 
 #[test]
