@@ -81,7 +81,10 @@ Package registries are reachable only at dependency-install time, under lockfile
    or record what the new lints say — and holding the pin is a legitimate outcome.
 1. `cargo fmt --all -- --check`
 2. `cargo clippy --workspace --all-targets -- -D warnings` — repeated per feature
-   combination: default, `--no-default-features`, and `--all-features`
+   combination: default, `--no-default-features`, and `--all-features`; and
+   `cargo hack check --each-feature --no-dev-deps` builds every crate with each
+   feature on its own, where workspace feature unification cannot hide a
+   missing gate
 3. `cargo test` matrix: {stable, MSRV} × {Linux, macOS, Windows} × feature combinations
 4. `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` — twice: default
    features and `--all-features` (feature-gated modules carry rustdoc the default

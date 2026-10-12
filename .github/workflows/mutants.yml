@@ -45,7 +45,7 @@ jobs:
       # Compiled from source with --locked for reproducibility; the rust-cache step
       # caches the installed binary between runs.
       - name: Install cargo-mutants
-        run: cargo install cargo-mutants --locked
+        run: cargo install cargo-mutants --version 27.1.0 --locked
       - name: Compute PR diff
         # Through the environment, not interpolated into the script: the
         # trigger's branch filter limits base_ref to `main` today, but a value

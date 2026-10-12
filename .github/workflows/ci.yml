@@ -84,6 +84,26 @@ jobs:
       - name: Clippy (all features)
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
+  # The clippy legs build each crate with no, default and all features. A
+  # feature on its own (the host's `http` without `proc`, the capture tool's
+  # `cli` without `tls`) is built nowhere else, and inside the workspace a
+  # sibling's features unify into it and hide a missing gate. `--no-dev-deps`
+  # keeps dev-dependencies from unifying features back in.
+  features:
+    name: Each feature alone
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-hack
+        run: cargo install cargo-hack --version 0.6.45 --locked
+      - name: Check every crate with each feature on its own
+        run: cargo hack check --workspace --exclude xtask --each-feature --no-dev-deps
+
   test:
     name: Test (${{ matrix.rust }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -209,7 +229,7 @@ jobs:
         with:
           workspaces: fuzz
       - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz --locked
+        run: cargo install cargo-fuzz --version 0.13.2 --locked
       - name: Fuzz every declared target for 60 seconds
         run: |
           set -euo pipefail

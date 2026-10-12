@@ -66,7 +66,7 @@ jobs:
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        run: cargo install cargo-audit --version 0.22.2 --locked
       - name: Audit dependencies
         run: cargo audit
 
@@ -96,7 +96,7 @@ jobs:
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-mutants
-        run: cargo install cargo-mutants --locked
+        run: cargo install cargo-mutants --version 27.1.0 --locked
       # The standard (docs/plan/04-engineering-standards.md): zero surviving mutants
       # in every shipped crate (xtask is excluded via .cargo/mutants.toml, which
       # every shard reads, as do `mutants.yml` and `cargo xtask mutants`).
@@ -181,7 +181,7 @@ jobs:
         with:
           workspaces: fuzz
       - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz --locked
+        run: cargo install cargo-fuzz --version 0.13.2 --locked
       # The corpus last week's run grew, so coverage accumulates across weeks
       # instead of restarting from the committed seeds. Each run saves under
       # its own key and restores the newest by prefix (cache entries are
@@ -254,7 +254,7 @@ jobs:
         run: rustup toolchain install nightly --profile minimal --component rust-src --no-self-update
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-careful
-        run: cargo install cargo-careful --locked
+        run: cargo install cargo-careful --version 0.4.10 --locked
       # These two crates have no behavior-affecting feature split — core has no
       # features, and the validator's only feature (`cli`) is its default — so
       # `--all-features` is the whole surface and one careful build covers it.
