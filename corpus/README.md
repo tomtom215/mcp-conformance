@@ -191,11 +191,11 @@ two reports is attributable to that one change.
 | Field | `official-suite-2026-07-28-scenarios.jsonl` | `official-suite-2026-07-28-stateless.jsonl` |
 |---|---|---|
 | Client | The **official MCP conformance suite**, `0.2.0-alpha.12`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` holds) | The same client, the same scenarios, the same run |
-| Server | `mcp-everything-server` serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode |
+| Server | `mcp-everything-server` on rmcp 3.4.1, serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode, same build |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-04 | same run, second leg |
 | Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
 | Our verdict | 59 pass, **1 fail**, 0 warn, 64 not observed, 149 excluded | **60 pass, 0 fail, 0 warn**, 64 not observed, 149 excluded |
-| The official runner's verdict | **38 passing / 4 failing** | **42 passing / 0 failing** |
+| The official runner's verdict, that run | `38 passing / 4 failing` | `42 passing / 0 failing` |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
 `resources/{list,read}`, `prompts/{list,get}` and progress notifications; every
@@ -236,10 +236,10 @@ violation `TRAN-025` names — was reported `pass`, because the one shared rule
 could only demand what both clauses had in common. `EventBody::Http` now carries
 the method, each clause is judged against the requests it binds, and an exchange
 whose method the capture did not record is judged by neither. These two captures
-were re-recorded so the method is present; that is why their `Recorded by` row
-reads 2026-08-20.
+were re-recorded on 2026-08-20 so the method is present, and again on 2026-10-04
+when the draft ratchet moved to `alpha.12`.
 
-**Why the runner's 23/23 and our 60-vs-61 were both right — and how the runner
+**Why the runner's 23/23 and our 59-vs-60 were both right — and how the runner
 caught up.** The suite's `2026-07-28` scenarios exercise features — list a
 thing, call a thing, read a thing — and a `2025-11-25` server answers all of
 them, because rmcp serves a per-request-versioned POST whichever revision the
@@ -252,12 +252,19 @@ differ: CACH-001, no `ttlMs` on cacheable results.
 `wire-schema-valid` check validates every message against the negotiated
 revision's JSON schema, and it fails the `2025-11-25` leg's four resource
 scenarios for `must have required property 'cacheScope'` / `'ttlMs'` — that
-clause, independently. Re-measured, the legacy leg scores 37 passing / 4
-failing and the stateless leg 41 / 0, so the runner now separates the two
+clause, independently. Measured at `alpha.11`, the legacy leg scored `37 passing / 4
+failing` and the stateless leg `41 / 0`, so the runner separated the two
 servers it could not tell apart before. Neither instrument was wrong; they were
 measuring different things, and one of them saw this first. The pair is still
 the evidence for taking both readings — now with a worked example of the
 prose-level reading arriving earlier than the schema-level one.
+
+**And then the implementation closed the gap.** rmcp 3.5.1 fills in missing
+cache hints for any peer speaking `2026-07-28` (rust-sdk #1308), so since the
+workspace moved to it (2026-10-12) the legacy server's results carry `ttlMs` and
+`cacheScope` too, and `cargo xtask draft-readiness` scores both legs 42 passing /
+0 failing. The pair above stays as recorded: it is the evidence for what the
+registry caught and when, not a measurement of today's server.
 
 The 64 not-observed rows are the honest denominator: of the 124 clauses this
 revision's registry can judge, these sessions carried subject matter for 60.

@@ -173,6 +173,12 @@ fn note_completion(pending: &mut BTreeSet<String>, elicitation_id: &str) -> Host
 impl rmcp::ClientHandler for HostHandler {
     fn get_info(&self) -> ClientInfo {
         let mut info = ClientInfo::default();
+        // Named, not defaulted: since rmcp 3.5.0 the default is
+        // `ProtocolVersion::LATEST`, which is `2026-07-28` — a revision with no
+        // `initialize` at all — so an `initialize` sent with the default asks
+        // for a handshake the version it names does not have. `initialize` is
+        // only sent in the `2025-11-25` lifecycle; the stateless one discovers.
+        info.protocol_version = rmcp::model::ProtocolVersion::V_2025_11_25;
         // Capability honesty: declared because each is answered above —
         // sampling and elicitation by the script, roots by the script's list.
         info.capabilities = ClientCapabilities::builder()
@@ -288,6 +294,12 @@ mod tests {
             "elicitationId": id,
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn the_handshake_names_the_revision_that_has_one() {
+        let info = rmcp::ClientHandler::get_info(&HostHandler::new(InteractionScript::default()));
+        assert_eq!(info.protocol_version, rmcp::model::ProtocolVersion::V_2025_11_25);
     }
 
     #[test]
