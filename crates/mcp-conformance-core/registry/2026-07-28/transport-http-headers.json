@@ -62,15 +62,17 @@
     {
       "id": "TRAN-081",
       "level": "MUST",
-      "actor": "server",
+      "actor": "client",
       "applies": {
         "introduced": "2026-07-28"
       },
       "source": {
         "section": "basic/transports/streamable-http#schema-extension",
-        "quote": "Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for JavaScript (−2<sup>53</sup>+1 to 2<sup>53</sup>−1); MUST only be applied to properties that are statically reachable from the schema root: reachable via a chain consisting solely of `properties` keys."
+        "quote": "Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for JavaScript (−2<sup>53</sup>+1 to 2<sup>53</sup>−1)"
       },
-      "exclusion": "Reachability of a property from the schema root, and the safe-integer bound on its value, require walking the tool's JSON Schema — a JSON Schema engine `mcp-conformance-core` deliberately excludes (02-architecture.md), the same boundary BASE-073 draws."
+      "checks": [
+        "tools.x-mcp-header-integer-range"
+      ]
     },
     {
       "id": "TRAN-082",
@@ -83,7 +85,7 @@
         "section": "basic/transports/streamable-http#schema-extension",
         "quote": "The chain MUST NOT pass through `items` (or any other array keyword), composition keywords (`oneOf`, `anyOf`, `allOf`, `not`), conditional keywords (`if`/`then`/`else`), or `$ref`."
       },
-      "exclusion": "The forbidden keyword chain is a JSON Schema traversal, which core has no engine to perform; see the sibling clause above."
+      "exclusion": "The forbidden keyword chain is judged where the annotation sits, which needs the JSON Schema vocabulary TRAN-137 explains core leaves out."
     },
     {
       "id": "TRAN-083",
@@ -248,6 +250,19 @@
         "quote": "If the server rejects a request with a `HeaderMismatch` error because required `Mcp-Param-*` headers are missing or do not match the body, the client SHOULD call `tools/list` to check for changes to the tool's `inputSchema`, then retry the original request with the appropriate headers."
       },
       "exclusion": "Whether a client re-fetched `tools/list` after a `HeaderMismatch` is recovery conduct; a later `tools/list` in the same recording is equally consistent with any other reason for calling it."
+    },
+    {
+      "id": "TRAN-137",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#schema-extension",
+        "quote": "Constraints on `x-mcp-header` values: MUST only be applied to properties that are statically reachable from the schema root: reachable via a chain consisting solely of `properties` keys."
+      },
+      "exclusion": "Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws."
     }
   ]
 }

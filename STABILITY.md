@@ -32,7 +32,7 @@ of these is a breaking change:
 |---------|--------|----------|
 | Rust API | Every public item of the five crates; `cargo-semver-checks` runs against the crates.io baseline before each release | Removing or changing an item; adding a variant or field to a type that is not `#[non_exhaustive]` (protocol-facing types are) |
 | Verdicts | The outcome of every requirement for a given trace | A trace that passed now failing, or the reverse — a new check, a check fixed, a clause moving between checked and excluded |
-| Requirement IDs | `BASE-003` names one clause, forever; an ID is never reused | Never done: a withdrawn or split clause gets a new ID |
+| Requirement IDs | `BASE-003` names one clause, forever; an ID is never reused for another | Never done. A row found to bundle several clauses is split: its ID stays with one of them, the others get new IDs, and the changelog names each (`BASE-055`/`BASE-083` in 0.6.0) |
 | Exit codes | `mcp-trace-validator`: `0` pass, `1` a clause failed (or warned, under `--strict`), `2` a bad invocation, nothing judgeable or output not written, `3` a malformed trace. `mcp-trace-capture`: its README's table | Any code changing meaning |
 | CLI | Subcommands, flags and their defaults; the first line of `--version` | Removing or renaming a flag, or changing a default. A retired flag is first kept, accepted and hidden (as `--quiet` has been since 0.6.0) |
 | JSON report | The shape [`report.schema.json`](crates/mcp-trace-validator/schema/report.schema.json) describes | Removing or retyping a member, or a new value of an enumerated member (as `incomplete` joined `verdict`). **Adding a member is not breaking: accept members you do not know** |

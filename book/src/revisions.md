@@ -19,9 +19,9 @@ changelog and becomes a measurement.
 
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Registry entries | 142 | 307 |
-| Judged by a named check | 56 | 140 |
-| Carrying a documented exclusion | 86 | 167 |
+| Registry entries | 142 | 310 |
+| Judged by a named check | 56 | 141 |
+| Carrying a documented exclusion | 86 | 169 |
 | Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -81,13 +81,13 @@ And the verdict splits:
 ```text
 per revision:
   2025-11-25: 17 pass, 0 fail, 0 warn, 86 excluded, 0 unsupported, 14 not applicable, 25 not observed — verdict pass
-  2026-07-28: 15 pass, 8 fail, 0 warn, 167 excluded, 0 unsupported, 0 not applicable, 117 not observed — verdict fail
+  2026-07-28: 15 pass, 8 fail, 0 warn, 169 excluded, 0 unsupported, 0 not applicable, 118 not observed — verdict fail
 overall verdict: fail
 ```
 
 A conforming session today, and eight concrete failures tomorrow. Both summary
 lines account for **every** clause in their revision — the counts add up to 142
-and 307 — because a line that quietly omits an outcome is a line that overstates
+and 310 — because a line that quietly omits an outcome is a line that overstates
 what was measured.
 
 > The example above is executed by a test (`book_examples.rs`) against the real
@@ -157,7 +157,7 @@ usually are.
   scenarios score **42 passing / 0 failing** against it.
 - Five committed captures — a conforming session over each transport, a *probe*
   session of deliberately malformed requests, and the official runner's two —
-  evidence **118 of the 140 judgeable clauses** between them. What no capture
+  evidence **118 of the 141 judgeable clauses** between them. What no capture
   reaches is named, one clause at a time, in [the corpus chapter](corpus.md).
 - The project's CI re-runs that measurement weekly and **ratchets** it against a
   committed baseline: any change in either direction fails the build, so a

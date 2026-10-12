@@ -72,7 +72,8 @@ pub(in crate::checks) fn deterministic_order(context: &TraceContext<'_>, sink: &
     }
 }
 
-/// `TOOL-034`: a header-mirrored integer stays inside the IEEE 754 safe range.
+/// `TOOL-034` and `TRAN-081`: a header-mirrored integer stays inside the IEEE
+/// 754 safe range (the tools page and the transport page state the same bound).
 ///
 /// Scoped to arguments at an `x-mcp-header`-annotated path, because that is what
 /// the clause is about: the value has to survive a round trip through a header

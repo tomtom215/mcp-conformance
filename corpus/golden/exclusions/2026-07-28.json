@@ -227,14 +227,9 @@
       "exclusion": "Client support for `x-mcp-header` is internal capability. Its observable consequence — mirroring designated values into headers — is the next clause and is checked there."
     },
     {
-      "id": "TRAN-081",
-      "level": "MUST",
-      "exclusion": "Reachability of a property from the schema root, and the safe-integer bound on its value, require walking the tool's JSON Schema — a JSON Schema engine `mcp-conformance-core` deliberately excludes (02-architecture.md), the same boundary BASE-073 draws."
-    },
-    {
       "id": "TRAN-082",
       "level": "MUST NOT",
-      "exclusion": "The forbidden keyword chain is a JSON Schema traversal, which core has no engine to perform; see the sibling clause above."
+      "exclusion": "The forbidden keyword chain is judged where the annotation sits, which needs the JSON Schema vocabulary TRAN-137 explains core leaves out."
     },
     {
       "id": "TRAN-083",
@@ -275,6 +270,11 @@
       "id": "TRAN-094",
       "level": "SHOULD",
       "exclusion": "Whether a client re-fetched `tools/list` after a `HeaderMismatch` is recovery conduct; a later `tools/list` in the same recording is equally consistent with any other reason for calling it."
+    },
+    {
+      "id": "TRAN-137",
+      "level": "MUST",
+      "exclusion": "Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws."
     },
     {
       "id": "TRAN-095",
@@ -780,6 +780,16 @@
       "id": "TOOL-044",
       "level": "SHOULD",
       "exclusion": "Six client-side practices — confirmation prompts, showing inputs, validating results, `$ref` resolution, timeouts, audit logs. Each happens inside the client or in its UI; none is a message."
+    },
+    {
+      "id": "TOOL-045",
+      "level": "MUST",
+      "exclusion": "Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws."
+    },
+    {
+      "id": "TOOL-046",
+      "level": "MUST",
+      "exclusion": "Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it. The same clause on the transport page is TRAN-083."
     },
     {
       "id": "RES-014",

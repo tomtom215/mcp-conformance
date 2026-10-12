@@ -3,9 +3,9 @@
   "verdict": "fail",
   "totals": {
     "pass": 33,
-    "fail": 1,
+    "fail": 2,
     "warn": 0,
-    "excluded": 167,
+    "excluded": 169,
     "unsupported": 0,
     "not_applicable": 0,
     "not_observed": 106
@@ -235,6 +235,23 @@
       "id": "TRAN-080",
       "level": "MUST NOT",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-081",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "tools.x-mcp-header-integer-range",
+          "seq": 2,
+          "detail": "the argument mirrored into `Mcp-Param-Region` is 9007199254740992, outside the IEEE 754 safe integer range"
+        }
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#schema-extension",
+        "quote": "Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for JavaScript (−2<sup>53</sup>+1 to 2<sup>53</sup>−1)",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension"
+      }
     },
     {
       "id": "TRAN-086",
@@ -639,7 +656,7 @@
       ],
       "source": {
         "section": "server/tools#x-mcp-header",
-        "quote": "Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (−2<sup>53</sup>+1 to 2<sup>53</sup>−1); MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments; Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints.",
+        "quote": "Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (−2<sup>53</sup>+1 to 2<sup>53</sup>−1)",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header"
       }
     },

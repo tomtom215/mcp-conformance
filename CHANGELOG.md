@@ -15,8 +15,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 module**, as pre-1.0 SemVer permits in a minor release
 ([STABILITY.md](STABILITY.md) says what counts as breaking). A session that
 passed under 0.6.0 can fail now with nothing in it changed: the registry carries
-34 more `2026-07-28` clauses (16 judged, 18 excluded with a reason), and several
-checks now catch what they missed. Other checks stop failing conforming sessions. Every change
+37 more `2026-07-28` clauses (16 judged, 21 excluded with a reason), judges one it
+used to exclude, and several checks now catch what they missed. Other checks stop failing conforming sessions. Every change
 below is stated again in its entry, with the reasoning.
 
 | Surface | Change | Migration |
@@ -29,6 +29,7 @@ below is stated again in its entry, with the reasoning.
 | `2026-07-28` verdict, new rows | `PROG-001`/`002`/`003`, and on stdio `PROG-005`/`008`: a progress token that is not a string or integer, one shared by two unanswered requests, a `progress` value that does not increase, progress after the answer | Fix the sender |
 | `2026-07-28` verdict, new rows | Over Streamable HTTP, `TRAN-132`–`TRAN-136`: an `Mcp-Param-*` header for a `null` or absent parameter, a `HeaderMismatch` for a POST that omitted one correctly, a result for a POST missing the header its body requires | Clients omit the header when there is no value; servers reject a missing header and accept an omitted one |
 | `2026-07-28` verdict, new rows | Rows restating rules already judged share their checks, so an existing failure also fails them: `TRAN-066`/`TRAN-120`/`MRTR-001` → `BASE-084`, `TRAN-123` → `CANC-005`, `TRAN-079` → `TRAN-130`, `TRAN-097` → `TRAN-131` | Gate on requirement IDs, not on how many rows fail |
+| `2026-07-28` verdict | `TRAN-081`, which was excluded, is judged by `TOOL-034`'s check: over Streamable HTTP, a header-mirrored integer outside ±(2^53−1) fails both | Keep mirrored integers in the safe range |
 | Verdict, now failing | `BASE-052` (and `BASE-009` at `2025-11-25`): a `"id": null` error answering a request whose id could be read, on Streamable HTTP | Answer with the request's id |
 | Verdict, now failing | `BASE-039`: a `subscriptionId` naming no `subscriptions/listen` request (including `"1"` for id `1`) | Tag with the listen request's id, as sent |
 | Verdict, now failing | `BASE-034`, `MRTR-012`, `MRTR-013`: URL-mode elicitation to a client without `elicitation.url`; sampling with `tools`/`toolChoice` to one without `sampling.tools` | Check the sub-capability, not only the top-level one |
@@ -37,8 +38,8 @@ below is stated again in its entry, with the reasoning.
 | Verdict, no longer failing | `SUBS-001` (reused subscription ids), `MRTR-018` (a round before the recording), `TRAN-124` (a reused cancelled id), `CACH-008` (`ttlMs` written as `60000.0`), `BASE-040` (a higher `traceparent` version with extra fields), `TRAN-070` (a stream close after another response), `TRAN-073`/`TRAN-074`/`VERS-001`/`TRAN-096` (another defined rejection; a discover probe answered with its result), `BASE-031`/`BASE-045`/`TRAN-097`/`TRAN-100` (a retry after a null-id refusal), `BASE-034`/`MRTR-012`/`MRTR-013` (a reused request id) | None: these failed conforming sessions |
 | Verdict, now not observed | `TRAN-074` on stdio (an HTTP clause; `VERS-001` judges stdio); `DISC-002`/`TRAN-128` over Streamable HTTP (stdio rules) | None; `VERS-001` still judges the unsupported-version rule on stdio |
 | SARIF | Findings against `TRAN-074` name a new check, so their fingerprints change | An open alert for one closes and reopens once |
-| Report totals | `2026-07-28` reports carry 34 more rows; `excluded` grows by 18 | Re-baseline any comparison of totals across versions |
-| Registry data | `TOOL-033`, `TOOL-034`, `TRAN-080` and `TRAN-081` quotes rewritten in the flattened-list form (`; ` between items); the clauses did not change | Key on the requirement ID |
+| Report totals | `2026-07-28` reports carry 37 more rows; `excluded` grows by 20 | Re-baseline any comparison of totals across versions |
+| Registry data | `TOOL-033` and `TRAN-080` quotes rewritten in the flattened-list form (`; ` between items), the clauses unchanged. `TOOL-034` and `TRAN-081` each bundled clauses binding different parties: both now name only the safe-integer bound (binding the client), and the reachability and client-rejection clauses are `TOOL-045`, `TOOL-046` and `TRAN-137` | Key on the requirement ID; gate on the new IDs for the clauses that moved |
 
 ### Removed
 
@@ -97,6 +98,18 @@ below is stated again in its entry, with the reasoning.
   `TRAN-074`/`VERS-001`.** A probe naming a version the server does not
   implement may be answered with the `DiscoverResult` listing the ones it does —
   the outcome `basic/versioning`'s compatibility matrix names.
+- **`TOOL-034` and `TRAN-081` name one clause each.** Each row's quote ran
+  several list items together, and they bound different parties: the
+  safe-integer bound on a mirrored value (the client's, judged by
+  `tools.x-mcp-header-integer-range`), static reachability (the server's schema)
+  and, in `TOOL-034`, the client's duty to reject an invalid definition. The two
+  rows disagreed about who the same integer sentence binds, and `TRAN-081` was
+  excluded because "the safe-integer bound … require[s] walking the tool's JSON
+  Schema" while `TOOL-034` judged that bound with a check. Both now quote only
+  the bound, bind the client and share the check; reachability is `TOOL-045`
+  and `TRAN-137`, the rejection duty `TOOL-046` (excluded, like its transport
+  twin `TRAN-083`), and the reasons for excluding reachability and `TRAN-082`
+  now say what is actually missing: telling subschemas from instance data.
 - **`TOOL-034` missed mirrored integers of 2^63 and beyond.** The check read
   each argument as a 64-bit signed integer, which serde_json cannot hold for
   2^63 and up, so the largest out-of-range values went unjudged. It now reads

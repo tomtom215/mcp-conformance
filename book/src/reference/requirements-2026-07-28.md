@@ -4,7 +4,7 @@
 
 # Requirements — `2026-07-28`
 
-Every normative clause of the `2026-07-28` specification that the validator's registry carries — 307 in all, 140 judged from a recorded trace and 167 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
+Every normative clause of the `2026-07-28` specification that the validator's registry carries — 310 in all, 141 judged from a recorded trace and 169 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -912,13 +912,13 @@ Judged by `transport.x-mcp-header-name-valid`.
 
 ### TRAN-081
 
-**MUST** · binds the server
+**MUST** · binds the client
 
-> Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for JavaScript (−2<sup>53</sup>+1 to 2<sup>53</sup>−1); MUST only be applied to properties that are statically reachable from the schema root: reachable via a chain consisting solely of `properties` keys.
+> Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for JavaScript (−2<sup>53</sup>+1 to 2<sup>53</sup>−1)
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
-**Excluded.** Reachability of a property from the schema root, and the safe-integer bound on its value, require walking the tool's JSON Schema — a JSON Schema engine `mcp-conformance-core` deliberately excludes (02-architecture.md), the same boundary BASE-073 draws.
+Judged by `tools.x-mcp-header-integer-range`.
 
 ### TRAN-082
 
@@ -928,7 +928,7 @@ Judged by `transport.x-mcp-header-name-valid`.
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
-**Excluded.** The forbidden keyword chain is a JSON Schema traversal, which core has no engine to perform; see the sibling clause above.
+**Excluded.** The forbidden keyword chain is judged where the annotation sits, which needs the JSON Schema vocabulary TRAN-137 explains core leaves out.
 
 ### TRAN-083
 
@@ -1049,6 +1049,16 @@ Judged by `transport.sentinel-pattern-encoded`.
 [`basic/transports/streamable-http#client-behavior`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#client-behavior)
 
 **Excluded.** Whether a client re-fetched `tools/list` after a `HeaderMismatch` is recovery conduct; a later `tools/list` in the same recording is equally consistent with any other reason for calling it.
+
+### TRAN-137
+
+**MUST** · binds the server
+
+> Constraints on `x-mcp-header` values: MUST only be applied to properties that are statically reachable from the schema root: reachable via a chain consisting solely of `properties` keys.
+
+[`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
+
+**Excluded.** Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws.
 
 ### TRAN-095
 
@@ -2758,7 +2768,7 @@ Judged by `transport.x-mcp-header-name-valid`.
 
 **MUST** · binds the client
 
-> Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (−2<sup>53</sup>+1 to 2<sup>53</sup>−1); MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments; Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints.
+> Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (−2<sup>53</sup>+1 to 2<sup>53</sup>−1)
 
 [`server/tools#x-mcp-header`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header)
 
@@ -2863,6 +2873,26 @@ Judged by `tools.output-schema-structured-result`.
 [`server/tools#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#security-considerations)
 
 **Excluded.** Six client-side practices — confirmation prompts, showing inputs, validating results, `$ref` resolution, timeouts, audit logs. Each happens inside the client or in its UI; none is a message.
+
+### TOOL-045
+
+**MUST** · binds the server
+
+> Constraints on `x-mcp-header` values: MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments
+
+[`server/tools#x-mcp-header`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header)
+
+**Excluded.** Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws.
+
+### TOOL-046
+
+**MUST** · binds the client
+
+> Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints.
+
+[`server/tools#x-mcp-header`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header)
+
+**Excluded.** Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it. The same clause on the transport page is TRAN-083.
 
 ## RES
 
