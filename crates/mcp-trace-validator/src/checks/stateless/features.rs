@@ -22,7 +22,7 @@ use crate::context::TraceContext;
 mod tests;
 
 /// The largest integer IEEE 754 double-precision represents exactly.
-const SAFE_INTEGER: i64 = 9_007_199_254_740_991;
+const SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
 
 /// `TOOL-022`: `tools/list` returns tools in a deterministic order.
 ///
@@ -72,7 +72,8 @@ pub(in crate::checks) fn deterministic_order(context: &TraceContext<'_>, sink: &
     }
 }
 
-/// `TOOL-034`: a header-mirrored integer stays inside the IEEE 754 safe range.
+/// `TOOL-034` and `TRAN-081`: a header-mirrored integer stays inside the IEEE
+/// 754 safe range (the tools page and the transport page state the same bound).
 ///
 /// Scoped to arguments at an `x-mcp-header`-annotated path, because that is what
 /// the clause is about: the value has to survive a round trip through a header
@@ -115,15 +116,24 @@ pub(in crate::checks) fn x_mcp_header_integer_range(
             for segment in &designation.path {
                 value = value.and_then(|current| current.get(segment));
             }
-            let Some(integer) = value.and_then(Value::as_i64) else {
+            // An integer is any number with no fractional part, as JSON Schema
+            // reads `integer` (and CACH-008 reads `ttlMs`): serde_json holds one
+            // beyond `i64` as `u64` or `f64`, so reading only `i64` let 2^63 and
+            // up through unjudged. The comparison is exact in `f64`: every
+            // integer up to 2^53 is representable, and a larger one never
+            // rounds below it.
+            let Some(raw) = value else {
+                continue;
+            };
+            let Some(number) = raw.as_f64().filter(|number| number.fract() == 0.0) else {
                 continue;
             };
             sink.examined();
-            if !(-SAFE_INTEGER..=SAFE_INTEGER).contains(&integer) {
+            if number.abs() > SAFE_INTEGER {
                 sink.push(
                     Some(event.seq),
                     format!(
-                        "the argument mirrored into `{}` is {integer}, outside the \
+                        "the argument mirrored into `{}` is {raw}, outside the \
                          IEEE 754 safe integer range",
                         designation.name
                     ),

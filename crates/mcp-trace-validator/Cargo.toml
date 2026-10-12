@@ -16,11 +16,12 @@ repository.workspace = true
 homepage.workspace = true
 
 [features]
-# The library engine has no CLI dependencies; the binary needs clap. Library
-# consumers can use `default-features = false` to drop it
+# The library engine has no CLI dependencies; the binary needs clap (and
+# clap_complete, for `completions`). Library consumers can use
+# `default-features = false` to drop them
 # (docs/plan/decisions/0005-cli-argument-parsing.md).
 default = ["cli"]
-cli = ["dep:clap"]
+cli = ["dep:clap", "dep:clap_complete"]
 
 # Deprecated no-op, kept so manifests that enabled it keep building. Until 0.6.0
 # it gated the `2026-07-28` registry and checks; every build now ships them.
@@ -48,11 +49,12 @@ mcp-conformance-core = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 clap = { workspace = true, optional = true }
+clap_complete = { workspace = true, optional = true }
 
 [dev-dependencies]
 # Checks the published trace-event JSON Schema against the reader
 # (tests/trace_schema.rs). No default features: no remote `$ref` resolution.
-jsonschema = { version = ">=0.57, <0.58", default-features = false }
+jsonschema = { version = ">=0.57, <0.59", default-features = false }
 proptest = { workspace = true }
 criterion = { workspace = true }
 

@@ -304,7 +304,7 @@ mod tests {
     #[test]
     fn empty_trace_is_active_with_no_discovery() {
         let lifecycle = DraftLifecycle::new(&[]);
-        assert!(lifecycle.phases().is_empty());
+        assert_eq!(lifecycle.phases(), Vec::<DraftPhase>::new());
         assert_eq!(lifecycle.final_phase(), DraftPhase::Active);
         assert!(lifecycle.discover().request.is_none());
         assert_eq!(lifecycle.server_capabilities(), None);

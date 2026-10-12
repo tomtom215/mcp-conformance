@@ -48,7 +48,7 @@ use rmcp::model::{
     Implementation, InitializeRequestParams, InitializeResult, ListResourceTemplatesResult,
     ListResourcesResult, LoggingLevel, PaginatedRequestParams, ProtocolVersion,
     ReadResourceRequestParams, ReadResourceResponse, Reference, ResourceUpdatedNotificationParam,
-    ServerCapabilities, ServerInfo, SetLevelRequestParams, SubscribeRequestParams,
+    ServerCapabilities, ServerConfig, SetLevelRequestParams, SubscribeRequestParams,
     UnsubscribeRequestParams,
 };
 use rmcp::service::RequestContext;
@@ -200,10 +200,10 @@ impl Default for EverythingServer {
 #[tool_handler(router = self.tool_router)]
 #[prompt_handler(router = self.prompt_router)]
 impl ServerHandler for EverythingServer {
-    fn get_info(&self) -> ServerInfo {
+    fn get_info(&self) -> ServerConfig {
         // Not `Implementation::from_build_env()`: that helper expands
         // `env!(..)` inside rmcp and therefore always says "rmcp 1.x".
-        ServerInfo::new(
+        ServerConfig::new(
             ServerCapabilities::builder()
                 .enable_tools()
                 .enable_tool_list_changed()

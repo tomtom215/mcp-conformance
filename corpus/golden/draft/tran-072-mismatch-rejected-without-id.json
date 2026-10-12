@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 34,
-    "fail": 1,
+    "pass": 35,
+    "fail": 2,
     "warn": 0,
-    "excluded": 149,
+    "excluded": 169,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 89
+    "not_observed": 104
   },
   "requirements": [
     {
@@ -49,7 +49,19 @@
     {
       "id": "BASE-052",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "base.error-id-matches",
+          "seq": 3,
+          "detail": "error response carries a null id, but the request it answers (seq 1) has the readable id 1; only an id that could not be read may be answered with null"
+        }
+      ],
+      "source": {
+        "section": "basic/index#error-responses",
+        "quote": "Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#error-responses"
+      }
     },
     {
       "id": "BASE-053",
@@ -140,6 +152,11 @@
       "id": "BASE-040",
       "level": "MUST",
       "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-084",
+      "level": "MUST NOT",
+      "outcome": "pass"
     },
     {
       "id": "TRAN-056",
@@ -244,6 +261,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-081",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-086",
       "level": "MUST",
       "outcome": "not-observed"
@@ -277,6 +299,41 @@
       "id": "TRAN-098",
       "level": "MUST",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-130",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-131",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-132",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-133",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-134",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-135",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-136",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-100",
@@ -451,6 +508,46 @@
     {
       "id": "SUBS-006",
       "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-003",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-005",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-011",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-002",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-003",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-005",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-008",
+      "level": "MUST",
       "outcome": "not-observed"
     },
     {

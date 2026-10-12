@@ -78,7 +78,8 @@ pub(crate) fn never_answered(
     };
     let why = if never.aborts > 0 {
         format!(
-            "the capture recorded {} transport-abort(s): the server could not be reached",
+            "the capture recorded {} transport-abort(s): the connection to the server \
+             failed or was cut off",
             never.aborts
         )
     } else {
@@ -90,13 +91,6 @@ pub(crate) fn never_answered(
          conformed: check that the server is running and reachable, then record again",
         never.client_messages
     ))
-}
-
-pub(crate) fn reject(totals: Totals, trace_source: &str) -> bool {
-    refusal(totals, trace_source).is_some_and(|message| {
-        eprintln!("{message}");
-        true
-    })
 }
 
 /// Every judged revision's totals summed.

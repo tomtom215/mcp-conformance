@@ -57,7 +57,7 @@ use std::str::FromStr as _;
 
 use mcp_conformance_core::requirement::BUILTIN_REVISIONS;
 use mcp_conformance_core::revision::ProtocolRevision;
-use mcp_conformance_core::trace::{EventBody, TraceEvent};
+use mcp_conformance_core::trace::{Direction, EventBody, TraceEvent, TransportKind};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -168,20 +168,80 @@ pub(crate) fn failed_discover_probes(events: &[TraceEvent]) -> BTreeSet<u64> {
         if payload.get("method").and_then(Value::as_str) != Some("server/discover") {
             continue;
         }
-        let Some(id) = payload.get("id") else {
-            continue;
-        };
-        let answered = events[index + 1..]
-            .iter()
-            .filter(|later| later.direction != event.direction)
-            .filter_map(TraceEvent::message_payload)
-            .find(|later| later.get("method").is_none() && later.get("id") == Some(id))
-            .is_some_and(|response| response.get("result").is_some());
-        if !answered {
+        if !answered_by_result(events, index) {
             failed.insert(event.seq);
         }
     }
     failed
+}
+
+/// The `seq` of every modern request a dual-era client sent over Streamable
+/// HTTP before falling back to `initialize`.
+///
+/// Such a client "MAY detect which era the server implements by attempting a
+/// modern request first" and, refused, "fall back to `initialize` and continue
+/// with the legacy version" (`2026-07-28` Streamable HTTP §Backward
+/// Compatibility). An attempt is a request carrying the per-request `_meta`
+/// revision, sent before the client's first `initialize`, that no result
+/// answered. Whether the refusal was the `400` that procedure names, and
+/// whether falling back was right, are that revision's rules to judge; what
+/// this set records is that the request belongs to the modern era, not to the
+/// handshake session that follows it.
+pub(crate) fn failed_modern_attempts(events: &[TraceEvent]) -> BTreeSet<u64> {
+    let mut failed = BTreeSet::new();
+    for (index, event) in events.iter().enumerate() {
+        if event.direction != Direction::ClientToServer
+            || event.transport != TransportKind::StreamableHttp
+        {
+            continue;
+        }
+        let Some(payload) = event.message_payload() else {
+            continue;
+        };
+        let Some(method) = payload.get("method").and_then(Value::as_str) else {
+            continue;
+        };
+        if method == "initialize" {
+            break;
+        }
+        let modern = payload
+            .get("params")
+            .and_then(|params| params.get("_meta"))
+            .and_then(|meta| meta.get(META_PROTOCOL_VERSION))
+            .is_some();
+        if modern && payload.get("id").is_some() && !answered_by_result(events, index) {
+            failed.insert(event.seq);
+        }
+    }
+    failed
+}
+
+/// The requests a dual-era client sent to learn the server's era before
+/// falling back to the handshake: failed stdio-style probes and failed modern
+/// attempts over Streamable HTTP. They precede `initialize` by design.
+pub(crate) fn era_detection(events: &[TraceEvent]) -> BTreeSet<u64> {
+    let mut detection = failed_discover_probes(events);
+    detection.extend(failed_modern_attempts(events));
+    detection
+}
+
+/// Whether the request at `index` was answered by a *result* carrying its id,
+/// found scanning forward from it, so a later request reusing the id cannot
+/// vouch for it.
+fn answered_by_result(events: &[TraceEvent], index: usize) -> bool {
+    let request = &events[index];
+    let Some(id) = request
+        .message_payload()
+        .and_then(|payload| payload.get("id"))
+    else {
+        return false;
+    };
+    events[index + 1..]
+        .iter()
+        .filter(|later| later.direction != request.direction)
+        .filter_map(TraceEvent::message_payload)
+        .find(|later| later.get("method").is_none() && later.get("id") == Some(id))
+        .is_some_and(|response| response.get("result").is_some())
 }
 
 /// Whether this message is a request whose id was answered with an error.

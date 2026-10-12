@@ -44,7 +44,7 @@ pub struct NeverAnswered {
 /// `Some` when `events` record a session that never started.
 ///
 /// That is: the client sent messages, the server sent none, and either the
-/// recorder logged that the server could not be reached (`transport-abort`) or
+/// recorder logged a connection that failed or was cut off (`transport-abort`) or
 /// the client's `initialize` went unanswered.
 ///
 /// Such a recording still judges the client's side — and every judged clause

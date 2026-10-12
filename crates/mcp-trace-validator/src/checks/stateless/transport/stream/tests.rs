@@ -50,7 +50,7 @@ fn only_a_client_sent_response_is_reported_on_any_binding() {
         2,
         r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
     ));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 
     // A client message carrying a result but *no* id is not a response this
     // clause can name — there is nothing for it to answer, so BASE-004 owns it.
@@ -58,7 +58,7 @@ fn only_a_client_sent_response_is_reported_on_any_binding() {
     // alternatives rather than as one shape.
     let mut lines = call(0);
     lines.push(client(2, r#"{"jsonrpc":"2.0","result":{}}"#));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 
     // Nor is a message that carries a result alongside a method.
     let mut lines = call(0);
@@ -66,7 +66,7 @@ fn only_a_client_sent_response_is_reported_on_any_binding() {
         2,
         r#"{"jsonrpc":"2.0","id":9,"method":"ping","result":{}}"#,
     ));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 
     // The same client response over stdio is reported too. Both binding pages
     // state the rule — TRAN-060 for POSTs, TRAN-119 for stdio writes — and it is
@@ -103,7 +103,7 @@ fn cancellation_binds_messages_strictly_after_the_close() {
         r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
     ));
     lines.push(close(3));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 
     // A *client* message after the close is not the server sending anything.
     let mut lines = call(0);
@@ -122,12 +122,12 @@ fn cancellation_binds_messages_strictly_after_the_close() {
         3,
         r#"{"jsonrpc":"2.0","id":77,"result":{"resultType":"complete"}}"#,
     ));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 
     // With no close recorded there is no cancellation to judge against.
     let mut lines = call(0);
     lines.push(answer);
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn a_close_with_several_requests_in_flight_cancels_none_of_them() {
         r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
     ));
     // Which of the two streams closed is unknown; neither answer is convicted.
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 }
 
 #[test]
@@ -162,5 +162,75 @@ fn a_transport_abort_is_not_a_cancellation() {
         3,
         r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
     ));
-    assert!(findings_for(check, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
+}
+
+#[test]
+fn an_event_stream_is_recognized_in_any_case() {
+    // RFC 9110 §8.3.1: "The type and subtype tokens are case-insensitive."
+    let check = "transport.accel-buffering-header";
+    let response = |headers: &str| {
+        let mut lines = call(0);
+        lines.push(format!(
+            r#"{{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":200,"headers":{headers}}}"#
+        ));
+        trace(&lines)
+    };
+    for media_type in ["text/event-stream", "Text/Event-Stream; charset=utf-8"] {
+        let bare = response(&format!(r#"{{"content-type":"{media_type}"}}"#));
+        assert_eq!(findings_for(check, &bare).len(), 1, "{media_type}");
+        let marked = response(&format!(
+            r#"{{"content-type":"{media_type}","x-accel-buffering":"no"}}"#
+        ));
+        assert!(findings_for(check, &marked).is_empty(), "{media_type}");
+    }
+    // A JSON response is no stream for a proxy to buffer.
+    assert_eq!(
+        findings_for(check, &response(r#"{"content-type":"application/json"}"#)),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn a_close_straight_after_a_response_is_that_responses_stream_ending() {
+    // "The final JSON-RPC response SHOULD terminate the stream": a close
+    // recorded next is the answered request's, even with one other request —
+    // here a long-lived subscription — still open beside it.
+    let check = "transport.no-messages-after-cancellation";
+    let listen = client(
+        0,
+        &format!(
+            r#"{{"jsonrpc":"2.0","id":7,"method":"subscriptions/listen","params":{{{META}}}}}"#
+        ),
+    );
+    let later = server(
+        6,
+        r#"{"jsonrpc":"2.0","id":7,"result":{"resultType":"complete"}}"#,
+    );
+    for answer in [
+        r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
+        r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32603,"message":"x"}}"#,
+    ] {
+        let mut lines = vec![listen.clone()];
+        lines.extend(call(1));
+        lines.push(server(3, answer));
+        lines.push(close(4));
+        lines.push(later.clone());
+        let findings = findings_for(check, &trace(&lines));
+        assert!(findings.is_empty(), "{answer}: {findings:?}");
+
+        // With anything recorded between the response and the close, the close
+        // is no longer the response's, and the one request open owns it again.
+        let mut lines = vec![listen.clone()];
+        lines.extend(call(1));
+        lines.push(server(3, answer));
+        lines.push(server(
+            4,
+            r#"{"jsonrpc":"2.0","method":"notifications/subscriptions/acknowledged"}"#,
+        ));
+        lines.push(close(5));
+        lines.push(later.clone());
+        let findings = findings_for(check, &trace(&lines));
+        assert_eq!(findings.len(), 1, "{answer}: {findings:?}");
+    }
 }

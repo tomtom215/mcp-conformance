@@ -3,12 +3,15 @@
 
 # Releasing
 
-> **Status:** v0.6.0 (dated 2026-10-04) is released by tagging the commit that
-> carries this line, per §Publishing v0.6.0; the release before it is v0.5.1
-> (2026-08-29). Every release since v0.2.0
-> has published through OIDC trusted publishing only; the bootstrap token that
-> published v0.1.0 is revoked (ADR-0007 §Correction). The dated pre-flight records
-> below are history, kept for their method.
+> **Status:** the latest release is v0.6.0 (tag at `9b6ef0f`; on crates.io
+> 2026-10-06). Changes since accumulate under `[Unreleased]` in `CHANGELOG.md`.
+> Every crate version since v0.2.0 has published through OIDC trusted publishing
+> except one: `mcp-trace-capture` 0.6.0, the crate's first version, published by
+> the owner's one-time bootstrap token (crates.io records
+> `published_by: tomtom215` and no trusted-publishing data for it; the other
+> four 0.6.0 crates record release run 37361476270). The token that published
+> v0.1.0 is revoked (ADR-0007 §Correction). The dated records below are history,
+> kept for their method.
 
 ## Principles
 
@@ -18,12 +21,14 @@
 - [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html). Pre-1.0, minor releases may
   break APIs; the changelog says so explicitly when they do.
 - **Trusted publishing (OIDC)** to crates.io — no long-lived registry tokens exist
-  anywhere in this project's configuration. The one scoped exception is spent:
-  crates.io cannot configure trusted publishing for a never-published crate
-  ([register 2.14](docs/plan/01-ecosystem-context.md)), so the **v0.1.0 bootstrap**
-  used a crate-scoped, short-expiry token in the `release` environment — deleted and
-  revoked immediately after (procedure record below; decision in
-  [ADR-0007](docs/plan/decisions/0007-release-pipeline-and-trusted-publishing.md)).
+  anywhere in this project's configuration. crates.io cannot configure trusted
+  publishing for a never-published crate
+  ([register 2.14](docs/plan/01-ecosystem-context.md)), so a crate's first version
+  needs one crate-scoped, short-expiry token publish by the owner, revoked
+  immediately after. That has happened twice: the **v0.1.0 bootstrap** (procedure
+  record below; decision in
+  [ADR-0007](docs/plan/decisions/0007-release-pipeline-and-trusted-publishing.md))
+  and `mcp-trace-capture` **0.6.0** (§The v0.6.0 bootstrap of `mcp-trace-capture`).
 
 ## Publish order
 
@@ -56,12 +61,20 @@ at once.
 **A new crate needs a one-time bootstrap.** crates.io cannot configure trusted
 publishing for a crate that has never been published
 ([register 2.14](docs/plan/01-ecosystem-context.md)), so the first release that
-includes a new crate needs one token publish by the owner — the procedure for
-`mcp-trace-capture` is the next section.
+includes a new crate needs one token publish by the owner — the next section is
+the procedure, as used for `mcp-trace-capture`.
 
-## Publishing v0.6.0 (first release of `mcp-trace-capture`)
+## The v0.6.0 bootstrap of `mcp-trace-capture` (history, and the procedure for a new crate)
 
-What is verified, as of 2026-10-04: no `v0.6.0` tag exists and crates.io has
+**Outcome:** done. `mcp-trace-capture` 0.6.0 is on crates.io (2026-10-06,
+published by the owner's token); the other four crates published through
+trusted publishing in the tag's Release run. Whether step 5 — configuring
+trusted publishing for the crate and revoking the token — was completed is
+visible only in the owner's crates.io settings; the next release's `publish`
+job is the mechanical check (it fails at once for a crate with no trusted
+publisher). The record below is as written before the release.
+
+What was verified, as of 2026-10-04: no `v0.6.0` tag existed and crates.io had
 no `mcp-trace-capture`. The 2026-09-25 `workflow_dispatch` run (36129306642)
 published nothing *by design* — `github-release`, `publish` and
 `verify-install` run only when the ref is a tag, and nothing in the workflow
@@ -104,7 +117,7 @@ tags.
 
 ## v0.3.0 pre-flight (third audit, 2026-06-13)
 
-The next release is **0.3.0** — the version-class call and its two breaking
+At the time, the next release was **0.3.0** — the version-class call and its two breaking
 changes are stated at the top of `CHANGELOG.md` `[Unreleased]`. Checklist
 legs pre-run on the audited tree (commit `669c5b4`):
 
@@ -275,12 +288,13 @@ the release PR, not in this file.
      install used while unpublished).
 2. **Merge** via PR (CI must be green; no exceptions for release PRs).
 3. **Tag**: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` on `main`; push the tag.
-4. **Automation** (`release.yml`): validates tag ↔ version ↔ changelog agreement,
+4. **Automation** (`release.yml`): validates tag ↔ version ↔ changelog agreement
+   (and that `[Unreleased]` is empty and the tag is on `main`),
    re-runs the full gate set (including MSRV clippy/tests and cross-OS tests), packages
    all publishable crates with verification builds (`cargo package --workspace --exclude xtask --locked` — the
    workspace-wide dry run; per-crate `--dry-run` cannot resolve unpublished sibling
    dependencies), attests SLSA build provenance over the `.crate` files, builds both
-   CLIs for five targets (Linux x86_64/aarch64 musl, macOS arm64/x86_64, Windows
+   CLIs with `cargo auditable` for five targets (Linux x86_64/aarch64 musl, macOS arm64/x86_64, Windows
    x86_64) and attests each archive, creates the GitHub Release with the changelog
    excerpt, the checksummed `.crate` files and the checksummed binary archives
    (`SHA256SUMS-binaries`), then — behind
@@ -310,6 +324,11 @@ the release PR, not in this file.
    `mcp-conformance-core`, so installing it from the registry is impossible
    until the sibling is published — the same circularity that makes
    `cargo package` rather than per-crate `--dry-run` the pre-publish check.
+6. **Documentation**: a successful Release run triggers `pages.yml`, which
+   rebuilds the versioned site from git (`cargo xtask book-site`): the new
+   release's book becomes the site's root and gains its own `/vX.Y.Z/` copy,
+   and `/dev/` keeps tracking `main`. Nothing is edited by hand. Check that
+   the site's version selector lists the new release as latest.
 
 ## When publishing fails mid-way
 

@@ -51,16 +51,19 @@ fn a_changed_set_may_be_ordered_freshly() {
     // The clause qualifies itself: it binds only while the set is unchanged.
     let mut lines = listed(0, 1, &["alpha", "beta"]);
     lines.extend(listed(2, 2, &["beta", "gamma"]));
-    assert!(findings_for(ORDER, &trace(&lines)).is_empty());
+    assert_eq!(findings_for(ORDER, &trace(&lines)), Vec::<String>::new());
 
     let mut same = listed(0, 1, &["alpha", "beta"]);
     same.extend(listed(2, 2, &["alpha", "beta"]));
-    assert!(findings_for(ORDER, &trace(&same)).is_empty());
+    assert_eq!(findings_for(ORDER, &trace(&same)), Vec::<String>::new());
 }
 
 #[test]
 fn one_listing_alone_cannot_be_inconsistent() {
-    assert!(findings_for(ORDER, &trace(&listed(0, 1, &["alpha"]))).is_empty());
+    assert_eq!(
+        findings_for(ORDER, &trace(&listed(0, 1, &["alpha"]))),
+        Vec::<String>::new()
+    );
 }
 
 /// A `tools/list` annotating `region` with `x-mcp-header`, then a call with `value`.
@@ -85,7 +88,16 @@ fn annotated_call(value: &str) -> String {
 
 #[test]
 fn a_mirrored_integer_beyond_the_safe_range_is_reported() {
-    for value in ["9007199254740992", "-9007199254740992"] {
+    // Beyond `i64` serde_json holds the number as `u64`, then `f64`; an
+    // integral float is an integer to JSON Schema all the same.
+    for value in [
+        "9007199254740992",
+        "-9007199254740992",
+        "9223372036854775808",
+        "18446744073709551616",
+        "-1e300",
+        "9007199254740992.0",
+    ] {
         let findings = findings_for(RANGE, &annotated_call(value));
         assert_eq!(findings.len(), 1, "value {value}: {findings:?}");
         assert!(findings[0].contains("Mcp-Param-Region"), "{findings:?}");
@@ -94,7 +106,7 @@ fn a_mirrored_integer_beyond_the_safe_range_is_reported() {
 
 #[test]
 fn the_boundary_values_are_inside_the_range() {
-    for value in ["9007199254740991", "-9007199254740991", "0"] {
+    for value in ["9007199254740991", "-9007199254740991", "0", "1.0"] {
         assert!(
             findings_for(RANGE, &annotated_call(value)).is_empty(),
             "value {value}"
@@ -159,14 +171,17 @@ fn an_empty_contents_array_for_a_missing_resource_is_reported() {
         assert!(findings[0].contains("not found"), "{findings:?}");
     }
     // Some other error says nothing about existence.
-    assert!(findings_for(CONTENTS, &read_after_error(-32603, "[]")).is_empty());
+    assert_eq!(
+        findings_for(CONTENTS, &read_after_error(-32603, "[]")),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
 fn an_empty_contents_array_alone_is_not_evidence_of_a_missing_resource() {
     // "It could mean the resource exists but has no content": the clause binds
     // only a non-existent resource, and nothing here says this one is.
-    assert!(findings_for(CONTENTS, &read("[]")).is_empty());
+    assert_eq!(findings_for(CONTENTS, &read("[]")), Vec::<String>::new());
 }
 
 #[test]
@@ -174,7 +189,7 @@ fn an_empty_resource_still_carries_one_entry() {
     // The conforming shape for a resource with no bytes: one entry whose text is
     // empty, not an absent entry.
     let session = read(r#"[{"uri":"file:///a","mimeType":"text/plain","text":""}]"#);
-    assert!(findings_for(CONTENTS, &session).is_empty());
+    assert_eq!(findings_for(CONTENTS, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -189,5 +204,5 @@ fn a_read_that_errored_has_no_contents_to_judge() {
             r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"no such resource"}}"#,
         ),
     ]);
-    assert!(findings_for(CONTENTS, &session).is_empty());
+    assert_eq!(findings_for(CONTENTS, &session), Vec::<String>::new());
 }

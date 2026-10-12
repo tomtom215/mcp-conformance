@@ -249,7 +249,7 @@
       },
       "source": {
         "section": "server/tools#x-mcp-header",
-        "quote": "MUST NOT be empty MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1) MUST NOT contain control characters, including carriage return (CR, `\\r`) or line feed (LF, `\\n`) MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema` MUST only be applied to parameters with primitive types (integer, string, boolean)."
+        "quote": "Constraints on `x-mcp-header` values: MUST NOT be empty; MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1); MUST NOT contain control characters, including carriage return (CR, `\\r`) or line feed (LF, `\\n`); MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema`; MUST only be applied to parameters with primitive types (integer, string, boolean)."
       },
       "checks": [
         "transport.x-mcp-header-name-valid"
@@ -264,7 +264,7 @@
       },
       "source": {
         "section": "server/tools#x-mcp-header",
-        "quote": "Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (\u22122<sup>53</sup>+1 to 2<sup>53</sup>\u22121) MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints."
+        "quote": "Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (\u22122<sup>53</sup>+1 to 2<sup>53</sup>\u22121)"
       },
       "checks": [
         "tools.x-mcp-header-integer-range"
@@ -405,6 +405,32 @@
         "quote": "Clients SHOULD: Prompt for user confirmation on sensitive operations; Show tool inputs to the user before calling the server, to avoid malicious or accidental data exfiltration; Validate tool results before passing to LLM; Follow the `$ref` resolution requirements when validating tool inputs and outputs against `inputSchema` and `outputSchema`; Implement timeouts for tool calls; Log tool usage for audit purposes"
       },
       "exclusion": "Six client-side practices \u2014 confirmation prompts, showing inputs, validating results, `$ref` resolution, timeouts, audit logs. Each happens inside the client or in its UI; none is a message."
+    },
+    {
+      "id": "TOOL-045",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#x-mcp-header",
+        "quote": "Constraints on `x-mcp-header` values: MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments"
+      },
+      "exclusion": "Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws."
+    },
+    {
+      "id": "TOOL-046",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/tools#x-mcp-header",
+        "quote": "Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints."
+      },
+      "exclusion": "Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it. The same clause on the transport page is TRAN-083."
     }
   ]
 }

@@ -68,7 +68,7 @@ fn a_session_the_server_never_answered_is_refused() {
         assert_eq!(output.status.code(), Some(2), "{args:?}: {output:?}");
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(stderr.contains("none from the server"), "{stderr}");
-        assert!(stderr.contains("could not be reached"), "{stderr}");
+        assert!(stderr.contains("failed or was cut off"), "{stderr}");
     }
     std::fs::remove_file(&path).ok();
 }
@@ -977,7 +977,10 @@ fn sarif_fingerprints_survive_a_re_recording() {
     );
     let after = fingerprints(path.to_str().unwrap());
     std::fs::remove_file(&path).ok();
-    assert!(!before.is_empty());
+    assert!(
+        !before.is_empty(),
+        "the violation trace yields no SARIF fingerprints to compare"
+    );
     assert_eq!(before, after);
 }
 

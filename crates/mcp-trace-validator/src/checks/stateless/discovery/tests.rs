@@ -36,6 +36,11 @@ fn request(seq: u64, id: u64, method: &str, modern: bool) -> String {
     )
 }
 
+/// `lines` as a stdio trace: the transport DISC-002 and TRAN-128 bind.
+fn on_stdio(lines: &[String]) -> String {
+    trace(lines).replace(r#""transport":"streamable-http""#, r#""transport":"stdio""#)
+}
+
 #[test]
 fn a_session_that_never_probes_is_not_judged() {
     // The clause binds the answer to a probe; with no probe there is no evidence
@@ -48,7 +53,7 @@ fn a_session_that_never_probes_is_not_judged() {
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
         ),
     ]);
-    assert!(findings_for(IMPLEMENTED, &no_probe).is_empty());
+    assert_eq!(findings_for(IMPLEMENTED, &no_probe), Vec::<String>::new());
 }
 
 #[test]
@@ -68,7 +73,7 @@ fn an_answered_probe_conforms() {
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","supportedVersions":["2026-07-28"],"capabilities":{}}}"#,
         ),
     ]);
-    assert!(findings_for(IMPLEMENTED, &answered).is_empty());
+    assert_eq!(findings_for(IMPLEMENTED, &answered), Vec::<String>::new());
 }
 
 #[test]
@@ -92,7 +97,7 @@ fn the_error_must_answer_the_probe_by_id() {
         request(1, 7, "tools/call", true),
         error(2, "7", -32601),
     ]);
-    assert!(findings_for(IMPLEMENTED, &unrelated).is_empty());
+    assert_eq!(findings_for(IMPLEMENTED, &unrelated), Vec::<String>::new());
 }
 
 #[test]
@@ -106,7 +111,10 @@ fn only_a_server_sent_error_answers_a_probe() {
             r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"x"}}"#,
         ),
     ]);
-    assert!(findings_for(IMPLEMENTED, &client_error).is_empty());
+    assert_eq!(
+        findings_for(IMPLEMENTED, &client_error),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -118,7 +126,10 @@ fn only_a_client_sent_request_counts_as_a_probe() {
         server(0, r#"{"jsonrpc":"2.0","id":1,"method":"server/discover"}"#),
         error(1, "1", -32601),
     ]);
-    assert!(findings_for(IMPLEMENTED, &server_side).is_empty());
+    assert_eq!(
+        findings_for(IMPLEMENTED, &server_side),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -126,14 +137,14 @@ fn a_modern_only_client_is_not_asked_to_probe() {
     // No `initialize` anywhere: the antecedent ("supports both … eras") is not
     // met, and the clause does not bind. Probing is RECOMMENDED for these
     // clients, not SHOULD — a different sentence, on a different page.
-    let modern = trace(&[
+    let modern = on_stdio(&[
         request(0, 1, "tools/list", true),
         server(
             1,
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
         ),
     ]);
-    assert!(findings_for(PROBE_FIRST, &modern).is_empty());
+    assert_eq!(findings_for(PROBE_FIRST, &modern), Vec::<String>::new());
 }
 
 #[test]
@@ -141,17 +152,17 @@ fn a_legacy_only_client_is_not_reported() {
     // `initialize` with no modern `_meta` anywhere is a legacy client, whose
     // session is simply not this clause's subject. Reporting it would make every
     // legacy capture read as a client defect.
-    let legacy = trace(&[
+    let legacy = on_stdio(&[
         request(0, 1, "initialize", false),
         server(1, r#"{"jsonrpc":"2.0","id":1,"result":{}}"#),
         request(2, 2, "tools/list", false),
     ]);
-    assert!(findings_for(PROBE_FIRST, &legacy).is_empty());
+    assert_eq!(findings_for(PROBE_FIRST, &legacy), Vec::<String>::new());
 }
 
 #[test]
 fn a_dual_era_client_that_skips_the_probe_is_reported_at_its_first_request() {
-    let skipped = trace(&[
+    let skipped = on_stdio(&[
         request(0, 1, "tools/call", true),
         error(1, "1", -32600),
         request(2, 2, "initialize", false),
@@ -162,33 +173,46 @@ fn a_dual_era_client_that_skips_the_probe_is_reported_at_its_first_request() {
 }
 
 #[test]
+fn a_dual_era_client_on_http_may_open_with_a_modern_request() {
+    // Streamable HTTP's own fallback: a dual-era client "MAY detect which era
+    // the server implements by attempting a modern request first". The probe
+    // rule is stdio's, so the same session over HTTP is not its subject.
+    let attempted = trace(&[
+        request(0, 1, "tools/call", true),
+        error(1, "1", -32600),
+        request(2, 2, "initialize", false),
+    ]);
+    assert_eq!(findings_for(PROBE_FIRST, &attempted), Vec::<String>::new());
+}
+
+#[test]
 fn a_dual_era_client_that_probes_first_conforms() {
-    let probed = trace(&[
+    let probed = on_stdio(&[
         probe(0),
         error(1, "1", -32601),
         request(2, 2, "initialize", false),
         server(3, r#"{"jsonrpc":"2.0","id":2,"result":{}}"#),
     ]);
-    assert!(findings_for(PROBE_FIRST, &probed).is_empty());
+    assert_eq!(findings_for(PROBE_FIRST, &probed), Vec::<String>::new());
 }
 
 #[test]
 fn the_probe_may_follow_notifications_because_only_requests_count() {
     // "before sending any other request" — a notification is not a request, so
     // one ahead of the probe does not move "first".
-    let notified = trace(&[
+    let notified = on_stdio(&[
         client(0, r#"{"jsonrpc":"2.0","method":"notifications/cancelled"}"#),
         probe(1),
         error(2, "1", -32601),
         request(3, 2, "initialize", false),
     ]);
-    assert!(findings_for(PROBE_FIRST, &notified).is_empty());
+    assert_eq!(findings_for(PROBE_FIRST, &notified), Vec::<String>::new());
 }
 
 #[test]
 fn initialize_first_with_a_later_modern_request_is_reported() {
     // The fallback done backwards: handshake first, modern retry after.
-    let backwards = trace(&[
+    let backwards = on_stdio(&[
         request(0, 1, "initialize", false),
         server(
             1,
@@ -207,6 +231,6 @@ fn a_session_with_no_client_requests_is_not_judged() {
         0,
         r#"{"jsonrpc":"2.0","method":"notifications/message"}"#,
     )]);
-    assert!(findings_for(PROBE_FIRST, &quiet).is_empty());
-    assert!(findings_for(IMPLEMENTED, &quiet).is_empty());
+    assert_eq!(findings_for(PROBE_FIRST, &quiet), Vec::<String>::new());
+    assert_eq!(findings_for(IMPLEMENTED, &quiet), Vec::<String>::new());
 }

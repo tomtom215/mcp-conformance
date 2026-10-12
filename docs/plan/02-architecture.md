@@ -4,7 +4,7 @@
 # Architecture
 
 **Status:** Active
-**Last reviewed:** 2026-06-11
+**Last reviewed:** 2026-10-12
 
 ---
 
@@ -19,12 +19,16 @@ mcp-conformance/
 │   ├── mcp-everything-server/  # reference server exercising every capability (on rmcp)
 │   ├── mcp-reference-host/     # reference host / agent loop (on rmcp)
 │   └── mcp-trace-capture/      # stdio wrapper + HTTP reverse proxy that record traces (no SDK)
-├── xtask/                      # cargo xtask: orchestration of official-suite runs (publish = false)
+├── xtask/                      # cargo xtask: gates, official-suite runs, generators (publish = false)
 ├── conformance/                # committed suite baselines: expected-failures,
-│                               #   agreement divergences, coverage manifest
+│                               #   agreement divergences, coverage manifest, readiness ratchet
 ├── corpus/                     # recorded trace corpora + golden reports (test fixtures, not a crate)
 ├── fuzz/                       # cargo-fuzz targets
-└── docs/                       # this plan, ADRs, later an mdBook
+├── interop/                    # pinned third-party SDK clients and servers for cross-SDK sessions
+├── action/, action.yml         # the repository as a GitHub Action (validate recorded traces)
+├── book/                       # the mdBook site; `cargo xtask book-site` builds every version
+├── tools/                      # registry extraction scripts
+└── docs/                       # this plan, ADRs, dated reports, the design note
 ```
 
 Naming was decided against verified crates.io availability in
@@ -38,8 +42,8 @@ Naming was decided against verified crates.io availability in
 |-------|---------------|----------------------|-----|
 | `mcp-conformance-core` | `serde`, `serde_json` (+ `schemars` if schemas are emitted) | rmcp, tokio, any transport or HTTP crate | None. Pure data + pure functions. |
 | `mcp-trace-validator` | `mcp-conformance-core` | rmcp | File/stdin reading in the CLI layer only; the engine is `&[TraceEvent] -> Report`, no I/O. |
-| `mcp-everything-server` | rmcp, tokio, `mcp-conformance-core` (for self-description) | `mcp-trace-validator` | stdio + streamable HTTP server. |
-| `mcp-reference-host` | rmcp, tokio | `mcp-trace-validator` | stdio + streamable HTTP client. |
+| `mcp-everything-server` | rmcp, tokio, `mcp-conformance-core` (for self-description) | `mcp-trace-validator` (except as a dev-dependency, for its own tap tests) | stdio + streamable HTTP server. |
+| `mcp-reference-host` | rmcp, tokio, reqwest | `mcp-trace-validator` (except as a dev-dependency) | stdio + streamable HTTP client. |
 | `mcp-trace-capture` | `mcp-conformance-core`, tokio, axum, hyper, `hyper-rustls` | rmcp, `mcp-trace-validator` (except as a dev-dependency), reqwest's TLS features | Child process stdio; an HTTP listener and upstream client. |
 | `xtask` | anything (dev-only, unpublished) | — | Spawns SUTs and the official runner. |
 
@@ -62,8 +66,7 @@ Requirement {
     level:       Must | MustNot | Should | ShouldNot | May
     actor:       Server | Client | Both
     source:      { revision, section anchor, verbatim quote }
-    applies:     revision range (introduced .. removed)   // survives the 2026-07-28 rework;
-                 // deferred until a second revision lands (ADR-0006) — one-revision data has nothing to range over
+    applies:     revision range (introduced .. removed)   // half-open; absent = every revision (ADR-0006)
     capability:  optional capability key gating the requirement
     checks:      [check ids]  |  exclusion: documented reason
 }
@@ -160,17 +163,20 @@ evaluates every active requirement. Design commitments:
    may be 1 ULP off its own output — caught by the canonical fixpoint property tests).
    Map iteration order never leaks; no clocks, no randomness in the engine.
 2. **Explicit state machines.** `2025-11-25`: `Connecting → Initializing → Initialized →
-   Ready → Closing` with error edges. The `2026-07-28` rework removes the handshake states —
-   modeled as a second state-machine variant behind a feature gate (below), not as a fork.
+   Ready → Closing` with error edges. `2026-07-28` removes the handshake — modeled as a
+   second state-machine variant (`context::stateless`), not as a fork, and built into every
+   binary ([ADR-0018](decisions/0018-judge-the-declared-revision.md)).
 3. **Requirement-addressed findings.** Every finding carries a requirement ID, the
    offending event `seq`, and the expected-vs-actual detail; the registry maps the ID
    back to its verbatim spec quote (`requirements` subcommand). A report a maintainer
    cannot act on is noise.
 4. **Reports as artifacts.** Output formats: human (terminal), JSON (machine, with a
-   published JSON Schema), JUnit XML (CI), SARIF 2.1.0 (code scanning). Exit codes: `0` pass, `1` findings, `2` invalid invocation, `3` malformed trace —
-   the a2a-rust TCK convention, extended.
-5. **No network.** The validator never dials anything. Capturing traces is the job of the
-   host, the server's tap, or any external proxy; validating them is the validator's.
+   published JSON Schema), JUnit XML (CI), SARIF 2.1.0 (code scanning). Exit codes: `0` pass, `1` a clause failed (or warned, under
+   `--strict`), `2` a bad invocation, nothing judgeable, or output not written, `3` a malformed
+   trace — the a2a-rust TCK convention, extended.
+5. **No network.** The validator never dials anything. Capturing traces is the job of
+   `mcp-trace-capture` (or the reference server's tap and the reference host, for their own
+   sessions); validating them is the validator's.
 
 ## `mcp-everything-server` — the Rust reference server
 
@@ -184,16 +190,19 @@ completions, and pagination — over stdio and streamable HTTP.
 
 Design commitments:
 
-- **Tier-1 bar:** 100% pass on the official suite's server scenarios for the current
-  revision, enforced in CI ([06-roadmap.md](06-roadmap.md) M2).
+- **Tier-1 bar:** 100% pass on the official suite's server scenarios, enforced in CI at the
+  suite's stable release (`2025-11-25`) and measured weekly against its `2026-07-28`
+  pre-release ([06-roadmap.md](06-roadmap.md) M2).
 - **Secure by default:** streamable HTTP binds loopback, `Host`/`Origin` validation on, with
   explicit opt-outs — see [05-security-model.md](05-security-model.md).
 - **Self-describing:** the server can emit its own capability-coverage manifest (from
   `mcp-conformance-core` types) so the gap between "what it claims" and "what the suite
   exercised" is itself machine-checkable.
-- **Upstream-shaped:** structured so the server (or its scenario fixtures) can be offered to
-  `modelcontextprotocol/rust-sdk` with minimal rework — rmcp idioms, no exotic dependencies,
-  Apache-2.0-compatible licensing posture ([ADR-0003](decisions/0003-crate-naming.md)).
+- **Upstream-shaped:** rmcp idioms, no exotic dependencies, Apache-2.0-compatible licensing
+  posture ([ADR-0003](decisions/0003-crate-naming.md)), so its fixtures stay reusable upstream.
+  The offer to adopt the server itself (rust-sdk#902) closed unadopted on 2026-10-12, rust-sdk
+  having built its own conformance server; this one is the validator's calibration subject
+  ([07-ecosystem-engagement.md](07-ecosystem-engagement.md), item 1).
 
 ## `mcp-reference-host` — the client side of the proof
 
@@ -247,7 +256,7 @@ calibrated against the authority rather than asking anyone to trust it.
 
 | Problem | Position |
 |---------|----------|
-| Stateless rework lands differently than the RC | Feature gate + `applies` ranges localize the blast radius to registry data and one state-machine variant. Re-scoped at the roadmap's RC-reconciliation gate, not discovered in a rewrite. |
+| The next revision reworks the lifecycle again | `applies` ranges plus one state-machine variant per lifecycle localize the blast radius to registry data — as they did for `2026-07-28`, which shipped without a rewrite. |
 | Trace capture fidelity (interleaving, partial writes, SSE framing) | Capture at message boundaries with transport events recorded by the component that owns the socket; `seq` assigned at capture, never inferred later. |
 | Verdict divergence from the official suite | The agreement check makes divergence a CI failure with a triage path, not a slow credibility leak. |
 | Concurrent tool calls and cancellation in the host | Cooperative cancellation tokens; bounded in-flight set; every stop condition enumerated and tested — no "the loop usually terminates". |

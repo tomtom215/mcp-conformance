@@ -51,7 +51,7 @@ fn categories_names_each_subscribed_resource() {
 
 #[test]
 fn an_empty_filter_names_nothing() {
-    assert!(categories(&SubscriptionFilter::new()).is_empty());
+    assert_eq!(categories(&SubscriptionFilter::new()), Vec::<String>::new());
 }
 
 #[test]

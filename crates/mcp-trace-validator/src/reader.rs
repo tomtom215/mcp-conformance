@@ -132,7 +132,17 @@ impl fmt::Display for TraceParseError {
                 )
             }
             Self::Malformed { line, source } => {
-                write!(f, "line {line}: not a valid trace event: {source}")
+                // serde parsed this one record on its own, so the position it
+                // appends always reads `line 1`, contradicting the line named
+                // first. Its column is the part worth keeping.
+                let text = source.to_string();
+                let position = format!(" at line {} column {}", source.line(), source.column());
+                let message = text.strip_suffix(&position).unwrap_or(&text);
+                write!(
+                    f,
+                    "line {line}: not a valid trace event: {message} at column {}",
+                    source.column()
+                )
             }
             Self::ByteOrderMark => write!(
                 f,
@@ -368,7 +378,10 @@ mod tests {
 
     #[test]
     fn parses_valid_lines_and_empty_documents() {
-        assert!(parse_trace("", &Limits::default()).unwrap().is_empty());
+        assert_eq!(
+            parse_trace("", &Limits::default()).unwrap(),
+            Vec::<TraceEvent>::new()
+        );
         let one = parse_trace(VALID_EVENT, &Limits::default()).unwrap();
         assert_eq!(one.len(), 1);
         // Trailing newline is fine.
@@ -443,6 +456,15 @@ mod tests {
         let doc = format!("{VALID_EVENT}\nnot json");
         let error = parse_trace(&doc, &Limits::default()).unwrap_err();
         assert!(error.to_string().starts_with("line 2:"), "{error}");
+        // The document's line, and the column within it — not serde's own
+        // `line 1`, which counts within the one record it was handed.
+        let truncated = format!("{VALID_EVENT}\n{{\"seq\":1,");
+        assert_eq!(
+            parse_trace(&truncated, &Limits::default())
+                .unwrap_err()
+                .to_string(),
+            "line 2: not a valid trace event: EOF while parsing a value at column 9"
+        );
     }
 
     #[test]

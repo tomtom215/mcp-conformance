@@ -3,13 +3,38 @@
 
 # mcp-everything-server
 
-A Rust MCP server exercising every protocol capability — the reference artifact
-SEP-1730's appendix asks each SDK to carry — built on
-[rmcp](https://crates.io/crates/rmcp) (the official Rust SDK). Milestone M2 is
-complete: **40/40 checks** on the official conformance suite's `2025-11-25`
-server scenarios (pinned suite 0.1.16, enforced in CI via
-`cargo xtask conformance`), and the server is offered upstream as
-[rust-sdk#902](https://github.com/modelcontextprotocol/rust-sdk/issues/902).
+A Rust MCP server, built on [rmcp](https://crates.io/crates/rmcp) (the official
+Rust SDK), that exercises the protocol's capabilities at both `2025-11-25` and
+`2026-07-28`. The [mcp-conformance](https://github.com/tomtom215/mcp-conformance)
+project uses it to calibrate its validator: on every change CI runs the official
+conformance suite against it — **40/40 checks** on the `2025-11-25` server
+scenarios at the pinned suite 0.1.16 — and compares the suite's verdicts with the
+validator's. It is also a known-good peer for testing an MCP **client**.
+
+## Quick start
+
+```text
+cargo install mcp-everything-server
+mcp-everything-server                                  # stdio, 2025-11-25
+mcp-everything-server --transport http                 # prints its endpoint URL
+mcp-everything-server --transport http --revision 2026-07-28
+```
+
+**Testing a client.** Serve over HTTP, put
+[`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) in front, point
+your client at the proxy, then judge the recording:
+
+```text
+mcp-everything-server --transport http --listen 127.0.0.1:3000
+mcp-trace-capture -o client.jsonl http --upstream http://127.0.0.1:3000
+# client URL: http://127.0.0.1:8080/mcp   (Ctrl-C the proxy when done)
+mcp-trace-validator validate client.jsonl
+```
+
+The report judges both parties; with this server on the other end, a finding
+is almost certainly the client's.
+
+## What it contains
 
 - `policy` — the default-secure HTTP transport policy (loopback-only
   `Host`/`Origin` allowlisting, fail-closed parsing; duplicate `Host` or
@@ -41,10 +66,9 @@ server scenarios (pinned suite 0.1.16, enforced in CI via
   caching hints on cacheable results. An `initialize` sent to it is refused
   with `-32022` naming the versions it does speak, rather than negotiated into
   a handshake that leads nowhere. The suite's `2026-07-28` scenarios pass
-  **42/42** against this mode at the pinned `0.2.0-alpha.12` (23/23 at the
-  earlier `alpha.9` pin, before its `wire-schema-valid` check existed), and the
+  **42/42** against this mode at the pinned `0.2.0-alpha.12`, and the
   repository's own requirement registry
-  evidences **112 of the 124 judgeable clauses** across five committed captures
+  evidences **118 of the 141 judgeable clauses** across five committed captures
   of it over both transports, with 0 fail on the conforming ones and everything
   the sessions never touched reported *not observed* rather than counted as a
   pass. Server-to-client requests go by SEP-2322's MRTR pattern at this
@@ -54,9 +78,9 @@ server scenarios (pinned suite 0.1.16, enforced in CI via
   it: log notifications ride only requests whose `_meta` asked for them.
   `test_url_elicitation` is not listed at all, its feature having been removed.
 - A binary serving both transports: `mcp-everything-server --transport stdio`
-  or `--transport http` (`--bind` for the address; policy overrides via
-  `--allowed-host` / `--dangerously-allow-any-host`; `--protocol-version` for
-  the revision).
+  or `--transport http` (`--listen`/`--bind` for the address; policy overrides
+  via `--allowed-host` / `--dangerously-allow-any-host`;
+  `--revision`/`--protocol-version` for the revision).
 - A session trace tap (feature `tap`, `--tap-dir`): records each admitted HTTP
   exchange as a validator-ready JSON Lines trace, session or not. Only the
   headers in the public `RECORDED_HEADERS` allowlist (and the

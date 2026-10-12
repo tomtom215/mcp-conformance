@@ -11,6 +11,394 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+**This release changes verdicts, report formats and what the capture tool
+records, and removes one deprecated module**, as pre-1.0 SemVer permits in a minor release
+([STABILITY.md](STABILITY.md) says what counts as breaking). A session that
+passed under 0.6.0 can fail now with nothing in it changed: the registry carries
+37 more `2026-07-28` clauses (16 judged, 21 excluded with a reason), judges one it
+used to exclude, and several checks now catch what they missed. Other checks stop failing conforming sessions. Every change
+below is stated again in its entry, with the reasoning.
+
+| Surface | Change | Migration |
+|---------|--------|-----------|
+| `validate`, several traces | When a trace cannot be judged, the overall verdict is `incomplete`: the JSON envelope's `verdict` gains that value (and is no longer `null` when nothing was judged) plus `unjudged_traces`; JUnit gains an `<error>` test case and an `errors` count; SARIF reports `executionSuccessful: false`. A run that judged every trace renders as before | Treat `incomplete` as not passing; the exit code (2 or 3) is unchanged |
+| `validate` flags | `--max-events 0` and `--max-line-bytes 0` exit `2` (bad invocation), not `3` | Pass a limit of at least 1 |
+| `validate` human output | At most 20 findings under a clause, then a count of the rest | `--all`, or a machine format, for every finding |
+| Rust API | `context::draft` removed (deprecated in 0.6.0) | `context::stateless` holds the same items |
+| `2026-07-28` verdict, new rows | `CANC-003`/`CANC-011`: a server `notifications/cancelled` naming anything but a `subscriptions/listen` request fails | Servers end only subscriptions this way |
+| `2026-07-28` verdict, new rows | `PROG-001`/`002`/`003`, and on stdio `PROG-005`/`008`: a progress token that is not a string or integer, one shared by two unanswered requests, a `progress` value that does not increase, progress after the answer | Fix the sender |
+| `2026-07-28` verdict, new rows | Over Streamable HTTP, `TRAN-132`–`TRAN-136`: an `Mcp-Param-*` header for a `null` or absent parameter, a `HeaderMismatch` for a POST that omitted one correctly, a result for a POST missing the header its body requires | Clients omit the header when there is no value; servers reject a missing header and accept an omitted one |
+| `2026-07-28` verdict, new rows | Rows restating rules already judged share their checks, so an existing failure also fails them: `TRAN-066`/`TRAN-120`/`MRTR-001` → `BASE-084`, `TRAN-123` → `CANC-005`, `TRAN-079` → `TRAN-130`, `TRAN-097` → `TRAN-131` | Gate on requirement IDs, not on how many rows fail |
+| `2026-07-28` verdict | `TRAN-081`, which was excluded, is judged by `TOOL-034`'s check: over Streamable HTTP, a header-mirrored integer outside ±(2^53−1) fails both | Keep mirrored integers in the safe range |
+| Verdict, now failing | `BASE-052` (and `BASE-009` at `2025-11-25`): a `"id": null` error answering a request whose id could be read, on Streamable HTTP | Answer with the request's id |
+| Verdict, now failing | `BASE-039`: a `subscriptionId` naming no `subscriptions/listen` request (including `"1"` for id `1`) | Tag with the listen request's id, as sent |
+| Verdict, now failing | `BASE-034`, `MRTR-012`, `MRTR-013`: URL-mode elicitation to a client without `elicitation.url`; sampling with `tools`/`toolChoice` to one without `sampling.tools` | Check the sub-capability, not only the top-level one |
+| Verdict, now failing | `LOG-009`: an untagged log sent while no request but a `subscriptions/listen` is in flight; `SUBS-002`: a reopened subscription's missing acknowledgment | Send logs on a request's stream; acknowledge every opening |
+| Verdict, now failing or warning | `TOOL-034`: a header-mirrored integer of 2^63 or more, or written as a float (`9007199254740992.0`); `BASE-040`: `traceparent` version `ff`; `TRAN-068`: an SSE response whose media type is not lowercase, without `X-Accel-Buffering: no` | Fix the sender |
+| Verdict, no longer failing | `LIFE-001`/`LIFE-004` at `2025-11-25` (a dual-era client's refused modern attempt over Streamable HTTP before `initialize`), `SUBS-001` (reused subscription ids), `MRTR-018` (a round before the recording), `TRAN-124` (a reused cancelled id), `CACH-008` (`ttlMs` written as `60000.0`), `BASE-040` (a higher `traceparent` version with extra fields), `TRAN-070` (a stream close after another response), `TRAN-073`/`TRAN-074`/`VERS-001`/`TRAN-096` (another defined rejection; a discover probe answered with its result), `BASE-031`/`BASE-045`/`TRAN-097`/`TRAN-100` (a retry after a null-id refusal), `BASE-034`/`MRTR-012`/`MRTR-013` (a reused request id) | None: these failed conforming sessions |
+| Verdict, now not observed | `TRAN-074` on stdio (an HTTP clause; `VERS-001` judges stdio); `DISC-002`/`TRAN-128` over Streamable HTTP (stdio rules) | None; `VERS-001` still judges the unsupported-version rule on stdio |
+| SARIF | Findings against `TRAN-074` name a new check, so their fingerprints change | An open alert for one closes and reopens once |
+| `mcp-trace-capture` traces | A message whose parsed value would differ from its text (an integer past 64 bits, a repeated member name) is recorded as its raw line over stdio and left out over HTTP; SSE events whose type is not `message` are not recorded; a forced HTTP stop ends the trace with `transport-abort` | None for a conforming peer; the summary counts what was left out |
+| `mcp-trace-capture stdio` | A stop gives the server 1 s (was 3 s) before its process group is killed, inside the official SDKs' 2 s; on Windows the exit code is the server's whole code, not its low eight bits | A server needing longer to shut down should finish on stdin closing |
+| Report totals | `2026-07-28` reports carry 37 more rows; `excluded` grows by 20 | Re-baseline any comparison of totals across versions |
+| Registry data | `TOOL-033` and `TRAN-080` quotes rewritten in the flattened-list form (`; ` between items), the clauses unchanged. `TOOL-034` and `TRAN-081` each bundled clauses binding different parties: both now name only the safe-integer bound (binding the client), and the reachability and client-rejection clauses are `TOOL-045`, `TOOL-046` and `TRAN-137` | Key on the requirement ID; gate on the new IDs for the clauses that moved |
+
+### Removed
+
+- **`context::draft`**, deprecated in 0.6.0 as promised there: use
+  `context::stateless`, which holds the same items.
+
+### Fixed
+
+- **`SUBS-001`/`SUBS-002` told a reused subscription id from the subscription
+  that first carried it.** Both checks keyed subscriptions by id alone, so a
+  `subscriptions/listen` reusing the id of a closed subscription replaced it:
+  the new filter judged the old stream's notifications (a false `SUBS-001`
+  failure), and the old stream's notifications were never examined (a missed
+  `SUBS-002` acknowledgment). A subscription is now open from its request until
+  its response or a cancellation naming it, each opening owes its own
+  acknowledgment, and a tagged message is judged against the subscription open
+  when it was sent.
+- **`LOG-009` missed a log sent when no request was in flight.** A
+  `notifications/message` must travel on the response stream of the request
+  that set the log level, and once every request has been answered there is no
+  such stream left, but the check judged only logs tagged with a subscription
+  id. It now also fails an untagged log arriving while nothing but a
+  `subscriptions/listen` is in flight, unless a later response answers a
+  request sent before the recording began.
+- **`MRTR-018` failed a retry whose round predates the recording.** A retry
+  carrying `requestState` with no `input_required` before it in the trace was
+  reported as inventing one, but `requestState` is designed to reach a server
+  instance that never saw the round, and a capture can start mid-flow. Like
+  `MRTR-015`/`MRTR-016`, the check now judges only retries of a recorded round.
+- **`TRAN-124` on stdio failed the answer to a request reusing a cancelled
+  id.** Once a client cancelled a request by notification, any later response
+  with that id was reported, including the answer to a new request the client
+  sent with the same id after the first was answered. A new request now clears
+  the cancellation, progress token and send time recorded under its id, as the
+  Streamable HTTP check (`TRAN-070`) already did.
+- **`CACH-008` rejected `ttlMs` written as a float.** The schema types `ttlMs`
+  as JSON Schema `integer`, which admits any number with a zero fractional
+  part, but the check accepted only values that parse as a 64-bit signed
+  integer, so `"ttlMs": 60000.0` failed. It now accepts any non-negative
+  number with no fractional part, and still fails a negative or fractional one.
+- **`BASE-040` read every `traceparent` as version `00`.** It failed a higher
+  version carrying fields after the flags, which W3C Trace Context allows
+  (future versions are "additive"), and passed version `ff`, which it forbids.
+  Version `00` is still exactly four fields; a higher version is judged on the
+  four it shares with `00`; `ff` now fails.
+- **A request that earns more than one rejection may draw any of them.** A
+  POST whose `MCP-Protocol-Version` header disagrees with a body `_meta` naming
+  a version the server does not implement can be refused with `-32020`
+  (`HeaderMismatch`) or `-32022` (`UnsupportedProtocolVersionError`): the
+  specification defines both and orders neither, yet `TRAN-073` failed the
+  first answer and `TRAN-074`/`VERS-001` the second. The same held between
+  `-32022` and the `-32602` a request missing a required `_meta` field draws.
+  `TRAN-073`, `TRAN-074`, `VERS-001` and `TRAN-096` now accept the code of any
+  rejection the request also earned; a result, or any other code, still fails.
+- **A `server/discover` probe answered with its result no longer fails
+  `TRAN-074`/`VERS-001`.** A probe naming a version the server does not
+  implement may be answered with the `DiscoverResult` listing the ones it does —
+  the outcome `basic/versioning`'s compatibility matrix names.
+- **`TOOL-034` and `TRAN-081` name one clause each.** Each row's quote ran
+  several list items together, and they bound different parties: the
+  safe-integer bound on a mirrored value (the client's, judged by
+  `tools.x-mcp-header-integer-range`), static reachability (the server's schema)
+  and, in `TOOL-034`, the client's duty to reject an invalid definition. The two
+  rows disagreed about who the same integer sentence binds, and `TRAN-081` was
+  excluded because "the safe-integer bound … require[s] walking the tool's JSON
+  Schema" while `TOOL-034` judged that bound with a check. Both now quote only
+  the bound, bind the client and share the check; reachability is `TOOL-045`
+  and `TRAN-137`, the rejection duty `TOOL-046` (excluded, like its transport
+  twin `TRAN-083`), and the reasons for excluding reachability and `TRAN-082`
+  now say what is actually missing: telling subschemas from instance data.
+- **`TOOL-034` missed mirrored integers of 2^63 and beyond.** The check read
+  each argument as a 64-bit signed integer, which serde_json cannot hold for
+  2^63 and up, so the largest out-of-range values went unjudged. It now reads
+  any number with no fractional part as an integer (as `CACH-008` does), so
+  `9223372036854775808` and `9007199254740992.0` fail and `1.0` passes.
+- **`LIFE-001` and `LIFE-004` failed a dual-era client's modern first attempt
+  over Streamable HTTP.** `2026-07-28` lets such a client "detect which era the
+  server implements by attempting a modern request first" and fall back to
+  `initialize` when refused, but at `2025-11-25` the refused attempt was judged
+  as the session's first interaction. It is now set aside, as a failed stdio
+  `server/discover` probe already was: a request carrying the per-request
+  `_meta` revision, sent before the first `initialize`, that no result
+  answered. A legacy request with no `_meta` before `initialize` still fails.
+- **`TRAN-074` is judged on Streamable HTTP only.** It is the transport page's
+  statement of the unsupported-version rule, under `#protocol-version-header`,
+  but it shared `VERS-001`'s check, so a stdio session answering `-32022`
+  correctly reported a `TRAN-074` *pass*. It now has its own check,
+  `transport.unsupported-version-error-http`; on stdio it reports *not
+  observed*, and `VERS-001` judges the rule there as before. Three stdio goldens
+  record the change. Findings against `TRAN-074` name the new check, so their
+  SARIF fingerprints change and an open code-scanning alert for one closes and
+  reopens once.
+- **`DISC-002`/`TRAN-128` are judged on stdio only.** Both state the stdio
+  probe rule; over Streamable HTTP a dual-era client "MAY detect which era the
+  server implements by attempting a modern request first", and doing so drew a
+  warning. The committed HTTP probe capture loses its two warnings, and both
+  clauses join the list no capture reaches.
+- **`TRAN-070` no longer pins a stream close on an unrelated request.** A
+  `transport-close` recorded straight after a response is that response's
+  stream ending ("The final JSON-RPC response SHOULD terminate the stream"),
+  not a cancellation of the one other request still open — which failed a
+  subscription answered after a `tools/call` beside it completed.
+- **`TRAN-068` recognizes an SSE response in any case.** Media types are
+  case-insensitive (RFC 9110 §8.3.1), but only a lowercase `text/event-stream`
+  was judged; a `Text/Event-Stream` response without `X-Accel-Buffering: no`
+  now warns as the lowercase one does.
+- **`BASE-034`, `MRTR-012` and `MRTR-013` judged an `input_required` result
+  against the wrong request when an id was reused.** Capabilities were looked
+  up by id across the whole trace, so once a client reused an answered id —
+  which `2026-07-28` permits — a server's elicitation answering a request that
+  declared `elicitation` was failed because a *later* request with that id did
+  not. Each result is now judged against the request it answers.
+- **A null-id answer on Streamable HTTP now answers its request everywhere.**
+  When the status a `"id": null` error rides ties it to one POST, that request
+  is now closed for every check, not only for `TRAN-073`/`TRAN-096`. Before,
+  it stayed open, so a client retrying with the same id failed `BASE-045`, and
+  the retry's result was held against the first request: a server that had
+  rejected a malformed `_meta` with `-32602` failed `BASE-031`, and one that
+  had rejected a header mismatch failed `TRAN-097`/`TRAN-100`. The same link
+  means `BASE-052` (and `BASE-009` at `2025-11-25`, which shares its check)
+  now judges such an answer instead of reporting *not observed*: when the
+  request's id could be read, answering it with `null` fails, because the
+  clause excuses only "error cases where the ID could not be read". Two
+  `2026-07-28` corpus goldens record that new failure.
+- **`BASE-039` passed a `subscriptionId` naming no subscription.** Only the
+  tag's presence was checked; its value must be "the JSON-RPC ID of the
+  `subscriptions/listen` request". A tag matching no listen request in the
+  trace now fails, including `"1"` for a request whose id is `1`, because
+  JSON-RPC ids are compared as values, and `null`.
+- **`BASE-034`, `MRTR-012` and `MRTR-013` compared only top-level capability
+  names.** A URL-mode `elicitation/create` sent to a client declaring only
+  `elicitation.form`, or a `sampling/createMessage` with `tools` or
+  `toolChoice` sent to a client without `sampling.tools`, passed. Both now
+  fail. A request with no `mode` counts as form mode, and an empty
+  `elicitation: {}` counts as form-only declared, as `client/elicitation`
+  specifies.
+- **A multi-trace `validate` run no longer reads as passing when it could not judge
+  a trace.** With a malformed trace among good ones the run exited 3, but the report
+  ended `overall verdict: pass`, the JSON said `"verdict": "pass"`, the JUnit document
+  had no suite for the trace and the SARIF log said `executionSuccessful: true`. The
+  overall verdict is now `incomplete` whenever a trace could not be judged, and every
+  format names each such trace with its error: a `not judged:` section in human
+  output, `unjudged_traces` in JSON, a suite with an `<error>` test case in JUnit
+  (and an `errors` count on `<testsuites>`), and an error notification located at the
+  trace in SARIF, with `executionSuccessful: false`. **This can break a consumer:**
+  the JSON envelope's `verdict` gains the value `incomplete` (and is no longer `null`
+  when no trace was judged), JUnit gains `<error>` elements and an `errors`
+  attribute, and SARIF reports a failed invocation for such a run. A run that judged
+  every trace renders byte-for-byte as before; `report.schema.json` documents the new
+  members.
+- **Errors about a trace's content name the trace** when several are judged
+  (`error: traces/b.jsonl: malformed trace: line 4: …`); a single trace reads as
+  before. Hints now cover a glob the shell passed through unmatched, a directory, a
+  trailing blank line at the end of the file, and a bare JSON-RPC message with no
+  event around it. A record's parse error no longer repeats serde's `line 1`, which
+  contradicted the line it named; the column stays.
+- **The human report lists at most 20 findings under a clause** and counts the
+  rest, with how to see them: a trace repeating one defect 250,000 times printed four
+  million lines. `--all` now lists every clause *and* every finding; JSON, JUnit and
+  SARIF carry every finding as before, and a report with 20 or fewer findings under
+  each clause is unchanged.
+- **`--strict` over several traces notes once**, naming the traces it failed,
+  instead of once per trace with nothing to tell them apart.
+- **A repeated `--revision` is judged once**, not as two identical columns.
+- **`--max-events 0` and `--max-line-bytes 0` are refused** as bad flags (exit 2)
+  rather than failing every trace as malformed.
+- **`requirements --help` offers only `human` and `json`**: it listed `junit` and
+  `sarif`, then rejected them.
+- **Library text no longer names CLI flags.** `Report::render_human` told library
+  callers to "re-run with `--revision …`"; it now words the advice without a flag,
+  and the CLI asks for its own wording (`HumanOptions::cli`).
+
+- **`mcp-everything-server`'s tap could record a POST's message after a
+  concurrent GET's request.** The request event and its message were queued
+  to the writer separately, so another exchange's event could land between
+  them, and the validator, which pairs a message with the HTTP request just
+  before it, read the message as riding the GET (`TRAN-049`): an
+  official-suite session failed the agreement check this way in CI. A
+  request's event and its message, a JSON response's status and body, and a
+  teardown's status and close are now written as adjacent lines.
+- **`mcp-reference-host` named `2026-07-28` in its `initialize` request.**
+  rmcp 3.5.0 made `ProtocolVersion::LATEST` `2026-07-28` — a revision with no
+  `initialize` — and the host took its handshake version from that default, so
+  the official suite's client `initialize` scenario failed. The host now names
+  `2025-11-25`.
+- **`mcp-reference-host --sweep` used capabilities the server never declared.**
+  It sent `completion/complete`, `resources/*` and `prompts/*` whatever the
+  server advertised, so a recording of a server without completions failed
+  `LIFE-009` against the host. Each group is now driven only when declared, and
+  a skipped one is reported as skipped.
+- **`requirements` with an ID of the other revision says which revision has
+  it** (`requirements BASE-003` at the default `2026-07-28`: "it is a 2025-11-25
+  requirement: pass --revision 2025-11-25").
+- **`mcp-trace-capture stdio` no longer strands a server when an official SDK stops
+  it, and its trace is always closed.** The Python and TypeScript stdio clients close
+  stdin, wait 2 seconds, send `SIGTERM`, wait 2 more, then `SIGKILL` — the wrapper
+  alone (TypeScript) or its process group (Python), never the server's. The wrapper
+  relayed `SIGTERM` and waited 3 seconds, so it was killed mid-wait: a server ignoring
+  `SIGTERM` kept running, and the trace never got its closing event. A stop now writes
+  the closing `transport-close` before anything else, and the server's processes get
+  1 second (was 3) from the signal, one deadline for the server and anything still
+  holding its stdout, before the group is killed. What the server sends after the
+  close is relayed and counted in the summary (`N event(s) came after the trace was
+  closed`), not recorded; a stop that ends in a kill now ends the trace with that
+  `transport-close` rather than `transport-abort`.
+- **`mcp-trace-capture http` works with a plain `http://` upstream where the platform
+  has no root certificates** (a minimal container): it loaded them for every upstream
+  and failed. They are now loaded only for an `https://` upstream, and before the
+  trace file is created — the failure came after the file and the "listening on"
+  line, leaving an empty trace that made the next run refuse to start without
+  `--force`.
+- **`mcp-trace-capture http`: the proxy's root path is the `--upstream` URL itself.**
+  A request for `/` was forwarded with `/` appended — `--upstream http://h/mcp` made
+  it `/mcp/`, which servers answer with a redirect — so no client URL reached exactly
+  `/mcp`. Other paths are still appended (`/x` reaches `/mcp/x`). A redirect whose
+  `Location` points into the upstream is now pointed back at the proxy, so the client
+  does not leave the recording.
+- **`mcp-trace-capture http`: stopping cuts only standalone event streams.** Every
+  event stream was ended at once, with a clean end of body — including SSE responses
+  to POSTs, whose response then never arrived. Only the GET stream a client holds for
+  its session is cut now, and it is aborted rather than ended, so the client can tell
+  it from a stream the server finished; a POST's SSE response gets the same 3 seconds
+  as any other request in flight.
+- **`mcp-trace-capture` no longer records a value the message did not carry.** An
+  integer past 64 bits (an id of `12345678901234567890123`) was recorded as the
+  nearest double, which the validator then convicted as a non-integer id
+  (`BASE-043`), and of a member name repeated in one object only the last value was
+  kept. The validator reads payloads as parsed JSON too, so no recorded payload could
+  be faithful; such a message is now treated as the transport treats non-JSON —
+  recorded as the line over stdio, left out over HTTP — and counted in the summary.
+  A spelling (`1E2` for `100`) is not a change of value and is recorded as before.
+- **`mcp-trace-capture http` records only SSE events of type `message`.** An event
+  with another `event:` type was recorded as a message, though MCP clients — both
+  official SDKs' — ignore it. It is forwarded, left out, and counted.
+- **`mcp-trace-capture http` never repeats an `--upstream` it refuses.** A value
+  that would not parse (`http://user:pa ss@host/`, `?key=SEC RET`) was echoed whole
+  in the argument error, credentials and all, and an upstream that was not
+  `http`/`https` was echoed by the proxy's own check. Errors now say what is wrong
+  without the value.
+- **`mcp-trace-capture http` with `{session}`: a request naming a stale or unknown
+  `Mcp-Session-Id` no longer takes over the current session.** It began a new trace
+  and made it the one every later request without an id went to, even when the
+  server answered it 404. It still gets a trace of its own, but becomes current only
+  once the server answers it with a 2xx.
+- **`mcp-trace-capture`: `{session}` numbers continue after the highest one present.**
+  The lowest free number was taken, so after an earlier trace was deleted the next
+  session filled its gap and the files no longer sorted in session order.
+- **`mcp-trace-capture stdio` says when the client has gone away.** A failed write to
+  the client (a closed pipe) ended the relay of the server's output without a word;
+  it is now reported once on stderr.
+- **`mcp-trace-capture http`: a forced stop ends the trace with `transport-abort`.** A
+  second signal cuts off the requests still in flight, but the trace recorded an
+  orderly `transport-close`. Events refused because the trace was already closed are
+  now counted in the summary, over HTTP and stdio alike.
+- **`mcp-trace-capture` no longer offers a trace with no exchange in it for
+  validation.** A server that exited before any message (`stdio -- true`,
+  `sh -c 'exit 7'`) got "recorded 2 event(s) … validate with …", and the validator
+  then refused the trace. The summary now says the server exited, with its status,
+  before any message was exchanged. The suggested `mcp-trace-validator validate`
+  command quotes a path with spaces or shell metacharacters.
+- **`mcp-trace-capture stdio` on Windows passes the server's whole exit code.** It
+  kept the low eight bits, as a Unix wait status does, so a server exiting 256 made
+  the wrapper exit 0. Unix behaviour is unchanged.
+- **`mcp-trace-capture`'s README states what it did not.** How the default `Host`
+  rewrite defeats a server's DNS-rebinding check and when `--preserve-host` keeps it
+  effective; what works on Windows and what does not (no signals or process groups:
+  Ctrl-C only, no grace period, a launcher's children are not ended); that a non-SSE
+  response is held until complete; that every `2026-07-28` session through one proxy
+  lands in one trace; and the exit codes it left out (`stdio` 1 when waiting for the
+  server fails, `http` 2 when serving fails).
+
+### Added
+
+- **`mcp-trace-capture http` names the client URL when it starts, and the statuses
+  when it stops**: how many responses were not 2xx, and, for 404s, whether the
+  endpoint path is right — with the upstream path ending in `/mcp`, a client also
+  asking for `/mcp` reaches `/mcp/mcp` and was answered 404 without a word.
+- **`mcp-trace-capture` explains near-miss arguments, and `--help` lists the exit
+  codes.** `--upstream localhost:3999` suggests `http://localhost:3999`; `--listen
+  18081` and `--listen localhost:18081` show the `IP:PORT` form that works (they said
+  only "invalid socket address syntax"); a `{…}` in `-o`'s file name that is not
+  `{session}` (`{sesion}`) is warned about instead of silently naming one literal
+  file.
+- **`2026-07-28` registry rows for three pages that were in neither page list:**
+  `basic/patterns/cancellation` (`CANC-001`–`CANC-017`), `basic/patterns/progress`
+  (`PROG-001`–`PROG-008`) and `basic/patterns/index` (`BASE-084`, "Servers MUST NOT
+  initiate JSON-RPC requests"). Every MUST, SHOULD and their negations on those pages
+  is entered, with a check or a documented exclusion.
+- **Rows for the `x-mcp-header` behaviour table** on `basic/transports/streamable-http`
+  (`TRAN-130`–`TRAN-136`), and for the caching page's "Caches MUST NOT be shared
+  across authorization contexts" (`CACH-019`, excluded: a cache hit sends nothing).
+- **Ten checks** behind those rows: `cancellation.server-cancels-only-subscriptions`;
+  `progress.token-type`, `progress.token-unique-in-flight`, `progress.value-increases`
+  and `progress.no-progress-after-completion`; and
+  `transport.x-mcp-header-{null,absent}-omitted`,
+  `transport.{null,absent}-param-header-not-expected` and
+  `transport.missing-param-header-rejected`. Each has unit tests and a passing and a
+  violating trace in `corpus/draft/`.
+- **The spec page set is a gate.** `cargo xtask spec-drift` now reads the site's
+  navigation and fails when a published page is in neither `in_scope` nor
+  `out_of_scope` of its revision's `sources.json`, or a listed page is not published;
+  `cargo xtask gates` (new task `page-set`) checks offline that no page is in both
+  lists, every exclusion has a reason, and every in-scope page names its source file
+  and has a census entry.
+- **[STABILITY.md](STABILITY.md)**: what each release keeps stable (the Rust API,
+  verdicts, requirement IDs, exit codes, CLI flags, the JSON, JUnit and SARIF
+  reports, the trace format, the MSRV, Cargo features), what counts as breaking
+  each, and how a breaking change is made.
+- **Release binaries embed their dependency list** (built with `cargo auditable`),
+  so `cargo audit bin` checks a downloaded `mcp-trace-validator` or
+  `mcp-trace-capture` against RustSec without its lockfile.
+- **Versioned documentation.** <https://mcp-conformance.com> now documents the
+  newest release at its root, keeps every release's book at `/vX.Y.Z/` and
+  `main`'s at `/dev/`, and offers a version selector; a page for anything but the
+  newest release says so, and a release's links into the repository open that
+  release's files, not `main`'s. Built by `cargo xtask book-site`.
+- **A requirement reference in the book**: every clause of each revision under
+  its ID, with its level, the party it binds, the verbatim quote, a link to the
+  published text, and the checks that judge it or the reason none can.
+- **`--revision` on `mcp-everything-server` and `mcp-reference-host`** (an alias
+  of `--protocol-version`, the validator's spelling), and **`--listen`** on the
+  server (an alias of `--bind`, the capture proxy's). The HTTP server prints its
+  endpoint URL after its readiness line.
+- **`requirements LIFE-001 …`** prints a requirement in full — level, the party it
+  binds, the clause verbatim with its link, its capability gate, and its checks or
+  the reason it is excluded — and `--area`, `--level`, `--checked` and `--excluded`
+  filter the listing, in human or JSON form.
+- **`mcp-trace-validator completions <shell>`** prints a bash, zsh, fish,
+  PowerShell or elvish completion script, generated from the command-line
+  definition itself (new optional dependency `clap_complete`, under `cli`).
+- **`--version` names the protocol revisions the build judges** on a second line;
+  the first line, and `-V`, are unchanged.
+- **`judge::judge_with(document, &Options)`** judges a document by the CLI's rules
+  under caller-chosen reader limits and revisions; `Judgment` gains the parsed
+  `events` a `sarif::Artifact` needs, and `JudgeError` gains `UnknownRevision`. The
+  crate-level example uses it, so copying it no longer judges a `2026-07-28`
+  recording by `2025-11-25` rules.
+- **Library rendering of multi-trace runs and human reports:** `report::Unjudged`,
+  `junit::render_run` and `sarif::render_run` take the traces a run could not judge;
+  `report::HumanOptions` with `Report::render_with` and `MultiReport::render_with`
+  choose the clause filter, the finding limit and the wording. `Verdict` gains
+  `Incomplete`. All additions; every enum and struct touched is `#[non_exhaustive]`.
+
+### Changed
+
+- **Table-row quotes have a documented form.** `SourceRef::quote` now states how a
+  clause that only reads as one with its table row is quoted: the row from its first
+  cell to the clause's cell, cells joined with ` | `.
+
+### Dependencies
+
+- **rmcp 3.5.1** (from 3.4.1) for `mcp-everything-server` and
+  `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official
+  suite's `2026-07-28` scenarios now pass 42 of 42 against the server serving
+  `2025-11-25` too: rmcp 3.5.1 adds the cache hints `2026-07-28` peers need.
+  The development toolchain pin is Rust 1.99.0; the MSRV stays 1.88.
+
 ## [0.6.0] - 2026-10-04
 
 **This is a minor release with breaking behaviour changes and one Rust API

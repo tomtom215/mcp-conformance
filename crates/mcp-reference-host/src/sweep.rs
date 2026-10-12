@@ -24,7 +24,7 @@
 //! records whatever the server under test publishes, which is what makes the
 //! sweep worth pointing at an implementation that is not ours.
 
-use rmcp::model::{GetPromptRequestParams, Prompt, ReadResourceRequestParams};
+use rmcp::model::{GetPromptRequestParams, Prompt, ReadResourceRequestParams, ServerCapabilities};
 use rmcp::service::{Peer, RoleClient};
 use serde_json::{Map, Value};
 
@@ -68,6 +68,15 @@ impl SweepReport {
             .count()
     }
 
+    fn skip(&mut self, what: &str, capability: &str) {
+        self.record(
+            what,
+            Ok(format!(
+                "skipped: the server declared no `{capability}` capability"
+            )),
+        );
+    }
+
     fn record(&mut self, what: impl Into<String>, outcome: Result<String, String>) {
         self.steps.push(SweepStep {
             what: what.into(),
@@ -88,12 +97,59 @@ impl SweepReport {
 /// content it embeds is a URI nobody published — which the trace would then
 /// report as the *server's* malformed resource rather than the client's
 /// invented argument.
+///
+/// Only what the server declared is driven: using a capability the session
+/// did not negotiate is the client's own violation (`LIFE-009` at
+/// `2025-11-25`), and a sweep that recorded one would report the host for
+/// conduct the host chose. Each undeclared group is recorded as skipped.
 pub async fn run(peer: &Peer<RoleClient>) -> SweepReport {
     let mut report = SweepReport::default();
-    let resource = sweep_resources(peer, &mut report).await;
-    let prompts = sweep_prompts(peer, resource.as_deref(), &mut report).await;
-    sweep_completion(peer, prompts.as_slice(), &mut report).await;
+    let info = peer.peer_info();
+    let declared = Declared::of(info.as_deref().map(|info| &info.capabilities));
+    let resource = if declared.resources {
+        sweep_resources(peer, &mut report).await
+    } else {
+        report.skip("resources/*", "resources");
+        None
+    };
+    let prompts = if declared.prompts {
+        sweep_prompts(peer, resource.as_deref(), &mut report).await
+    } else {
+        report.skip("prompts/*", "prompts");
+        Vec::new()
+    };
+    if declared.completions {
+        sweep_completion(peer, prompts.as_slice(), &mut report).await;
+    } else {
+        report.skip("completion/complete", "completions");
+    }
     report
+}
+
+/// The parts of the server's surface the sweep drives, as the server declared
+/// them. No recorded server information declares nothing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Declared {
+    resources: bool,
+    prompts: bool,
+    completions: bool,
+}
+
+impl Declared {
+    fn of(capabilities: Option<&ServerCapabilities>) -> Self {
+        capabilities.map_or(
+            Self {
+                resources: false,
+                prompts: false,
+                completions: false,
+            },
+            |capabilities| Self {
+                resources: capabilities.resources.is_some(),
+                prompts: capabilities.prompts.is_some(),
+                completions: capabilities.completions.is_some(),
+            },
+        )
+    }
 }
 
 /// `resources/list`, `resources/templates/list`, a read of everything named —

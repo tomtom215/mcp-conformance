@@ -22,7 +22,8 @@ cargo install mcp-trace-capture mcp-trace-validator
 release attaches prebuilt archives for Linux (static, x86_64 and
 aarch64), macOS (arm64 and x86_64) and Windows (x86_64), with SLSA build-provenance
 attestations (`gh attestation verify <archive> --repo tomtom215/mcp-conformance`)
-and `SHA256SUMS-binaries` beside them.
+and `SHA256SUMS-binaries` beside them. The binaries embed their dependency list
+(`cargo auditable`), so `cargo audit bin` checks them against RustSec.
 
 Record a session. For a **stdio** server, configure your client to launch the
 capture wrapper instead of the server:
@@ -46,9 +47,11 @@ mcp-trace-validator validate session.jsonl
 ```
 
 In CI, the exit code is the verdict (`0` pass, `1` a clause failed — or warned, with
-`--strict` — `2` bad invocation, `3` malformed trace); `validate` takes any number of
-traces, `--format junit` produces a test report, and `--format sarif` puts each
-finding on the trace line it concerns in GitHub code scanning (or any SARIF viewer).
+`--strict` — `2` bad invocation or nothing judgeable or output not written, `3`
+malformed trace); `validate` takes any number of traces, and a trace it cannot judge
+is listed in every format's report, whose verdict then reads `incomplete`.
+`--format junit` produces a test report, and `--format sarif` puts each finding on
+the trace line it concerns in GitHub code scanning (or any SARIF viewer).
 [`mcp-trace-capture`'s README](crates/mcp-trace-capture/README.md) covers what the
 recorder guarantees and what it leaves out.
 
@@ -85,7 +88,7 @@ MCP trace validation — revision 2026-07-28 (declared by the trace)
         seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
         spec: "Note that the JSON-RPC `id` MUST be different between the initial request and the retry."
         see:  https://modelcontextprotocol.io/specification/2026-07-28/server/tools#input-required-tool-results
-totals: 37 pass, 2 fail, 0 warn, 149 excluded, 0 unsupported, 0 not applicable, 85 not observed
+totals: 38 pass, 2 fail, 0 warn, 169 excluded, 0 unsupported, 0 not applicable, 101 not observed
 verdict: fail
 ```
 
@@ -101,14 +104,15 @@ verdict: fail
   clause.
 - **Not observed is not a pass.** A clause the session never came near is reported
   *not observed*; one gated on a capability nobody negotiated is *not applicable*;
-  one no trace can judge is *excluded*, with the reason. The 86 above are clauses
+  one no trace can judge is *excluded*, with the reason. The not-observed rows above are clauses
   this short session never exercised — reporting them as passes would be a score, not
   a verdict.
 - **An empty recording is a bad invocation**, not a pass: the shape a broken capture
   step produces should fail the build.
 
-The report lists what needs attention; `--all` lists every clause with its outcome
-and, for exclusions, the reason. `--format json` gives the whole report as data.
+The report lists what needs attention, with the first 20 findings under each
+clause; `--all` lists every clause with its outcome, every finding and, for
+exclusions, the reason. `--format json` gives the whole report as data.
 
 ## How this relates to other tools
 
@@ -144,10 +148,10 @@ audience in [docs/design/trace-validation.md](docs/design/trace-validation.md).
 
 | Crate | What it gives you |
 |-------|-------------------|
-| [`mcp-trace-capture`](crates/mcp-trace-capture) | **The recorder.** A stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write a validator-ready trace, recording each message before the bytes that complete it are forwarded. CI runs reference-host sessions through it at both revisions and requires them to judge clean, and runs the official suite through the proxy. New; ships with the next release. |
-| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Findings with the clause ID and the offending event `seq`, as human text (full or `--quiet`), JSON (with a published JSON Schema), JUnit, or SARIF, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
+| [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) | **The recorder.** A stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write a validator-ready trace, recording each message before the bytes that complete it are forwarded. CI runs reference-host sessions through it at both revisions and requires them to judge clean, and runs the official suite through the proxy. |
+| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Findings with the clause ID and the offending event `seq`, as human text (what needs attention, or `--all`), JSON (with a published JSON Schema), JUnit, or SARIF, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The spec as data.** Requirement registries for `2025-11-25` and `2026-07-28` whose every entry carries a verbatim spec quote, an RFC 2119 level, an optional capability gate, and either a mechanical check or a documented exclusion (the SEP-2484 traceability shape); a weekly job re-verifies every quote against the published text. Plus the JSON Lines trace schema and RFC 8785 canonical JSON. Serde only. |
-| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk). It passes the pinned official suite's `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy. `--protocol-version 2026-07-28` serves the stateless revision; the suite's pre-release `2026-07-28` scenarios score **42 passing / 0 failing** against it, and five committed captures evidence **112 of the 124 judgeable clauses** between them. Its tap records each suite session for the calibration check. |
+| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk). It passes the pinned official suite's `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy. `--protocol-version 2026-07-28` serves the stateless revision; the suite's pre-release `2026-07-28` scenarios score **42 passing / 0 failing** against it, and five committed captures evidence **118 of the 141 judgeable clauses** between them. Its tap records each suite session for the calibration check. |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference client.** Passes all four of the official suite's `2025-11-25` client scenarios at the pinned version; bounded tool-use loops over stdio and streamable HTTP, scriptable sampling / elicitation / roots with no model-provider network use. |
 
 **Calibration.** On every CI run the official suite (pinned `0.1.16`, `2025-11-25`)
@@ -166,22 +170,24 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 
 | Area | Requirements | Checked | Excluded | Capability-gated |
 |------|-------------:|--------:|---------:|-----------------:|
-| BASE | 58 | 26 | 32 | 0 |
-| TRAN | 80 | 34 | 46 | 0 |
+| BASE | 59 | 27 | 32 | 0 |
+| TRAN | 88 | 42 | 46 | 0 |
 | DISC | 4 | 2 | 2 | 0 |
 | VERS | 8 | 5 | 3 | 0 |
 | MRTR | 25 | 15 | 10 | 0 |
 | SUBS | 7 | 4 | 3 | 0 |
-| CACH | 18 | 4 | 14 | 0 |
+| CANC | 17 | 3 | 14 | 0 |
+| PROG | 8 | 5 | 3 | 0 |
+| CACH | 19 | 4 | 15 | 0 |
 | COMP | 6 | 2 | 4 | 0 |
 | PAGE | 6 | 1 | 5 | 0 |
 | LOG | 8 | 4 | 4 | 0 |
-| TOOL | 29 | 14 | 15 | 0 |
+| TOOL | 31 | 14 | 17 | 0 |
 | RES | 13 | 6 | 7 | 0 |
 | PROM | 11 | 7 | 4 | 0 |
-| **Total** | **273** | **124** | **149** | **0** |
+| **Total** | **310** | **141** | **169** | **0** |
 
-273 requirements: 124 judged by 99 distinct trace checks, 149 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+310 requirements: 141 judged by 110 distinct trace checks, 169 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 **`2025-11-25`**
 
@@ -240,7 +246,7 @@ verdict: fail
 <!-- ANCHOR_END: trace-example -->
 
 The six not-applicable rows are the capability-gated requirements this session
-never negotiated (the resources and prompts clauses), and the thirty-one
+never negotiated (the resources and prompts clauses), and the
 not-observed rows are the clauses whose subject matter never appeared —
 nothing was paginated, no binary content was sent, no error was returned.
 Neither is reported as a pass. [`corpus/`](corpus) holds complete annotated
@@ -252,6 +258,8 @@ sessions for every area.
   two revisions, the corpus, and conformance results ([`book/`](book), built on every
   push).
 - **API docs** for every crate on [docs.rs](https://docs.rs/mcp-trace-validator).
+- **[STABILITY.md](STABILITY.md)** — what each release keeps stable: verdicts,
+  requirement IDs, exit codes, report and trace formats, the MSRV.
 - **The plan** — charter, ecosystem register, architecture, conformance strategy,
   engineering standards, security model, roadmap, and decision records — in
   [`docs/plan/`](docs/plan/README.md). The ecosystem register dates every external
@@ -264,8 +272,8 @@ sessions for every area.
 Held by CI on every push: clippy pedantic + nursery at `-D warnings` on the pinned
 stable toolchain and on the MSRV (1.88) across Linux, macOS and Windows; property,
 golden-corpus and falsifiability tests; diff-scoped mutation testing with zero
-surviving mutants required in shipped crates; `cargo deny`; and a gate that every
-fuzz target builds. Weekly: fuzzing, byte-identical reports on big-endian and 32-bit
+surviving mutants required in shipped crates; `cargo deny`; and a 60-second run of
+every fuzz target. Weekly: longer fuzzing, byte-identical reports on big-endian and 32-bit
 targets, a build at the oldest dependency versions the manifests claim, quote drift
 against the published spec, and the expiry of every dated claim.
 

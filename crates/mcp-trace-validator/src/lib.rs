@@ -22,24 +22,37 @@
 //! # Example
 //!
 //! The one call that answers "is this recording conformant?", by the rules the
-//! CLI applies (declared revision, a refusal for a contentless trace), is
-//! [`judge::judge`]. The steps it composes are below, for callers who need to
-//! vary one:
+//! CLI applies — the revision the trace declares, a refusal for a contentless
+//! trace — is [`judge::judge_with`] ([`judge::judge`] with the default
+//! options). It reads any revision this build ships, so the same code judges a
+//! `2025-11-25` session and a `2026-07-28` one by their own rules:
 //!
 //! ```
-//! use mcp_conformance_core::requirement::Registry;
-//! use mcp_trace_validator::{engine, reader};
+//! use mcp_trace_validator::judge::{self, Options};
+//! use mcp_trace_validator::report::Verdict;
+//! use mcp_trace_validator::sarif;
 //!
 //! let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"x","version":"0"}}}}
 //! {"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"y","version":"0"}}}}
 //! {"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}
 //! "#;
 //!
-//! let registry = Registry::builtin_2025_11_25().expect("embedded registry is valid");
-//! let events = reader::parse_trace(trace, &reader::Limits::default()).expect("valid trace");
-//! let report = engine::validate(&registry, &events);
-//! assert!(!report.has_errors(), "{report:#?}");
+//! let judgment = judge::judge_with(trace, &Options::default())?;
+//! assert_eq!(judgment.reports[0].revision, "2025-11-25"); // as the trace declares
+//! assert_eq!(judgment.verdict(), Verdict::Pass, "{:#?}", judgment.reports);
+//!
+//! // Everything a report format needs is in the judgment.
+//! let artifact = sarif::Artifact { uri: Some("session.jsonl"), events: &judgment.events };
+//! let log = sarif::render(&judgment.reports, artifact);
+//! assert!(log.contains(r#""version": "2.1.0""#));
+//! # Ok::<(), judge::JudgeError>(())
 //! ```
+//!
+//! The steps it composes stay public for callers who need to vary one:
+//! [`reader::parse_trace`], [`declared::select`] (which revision the trace
+//! declares), and [`engine::validate`], which judges against whatever registry
+//! it is handed — so a hand-picked registry judges a trace of another revision
+//! by the wrong rules.
 
 pub mod checks;
 pub mod context;

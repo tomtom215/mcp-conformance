@@ -181,7 +181,10 @@ mod tests {
     #[test]
     fn a_post_must_offer_both_media_types() {
         let full = [request(0, "POST", BOTH)];
-        assert!(run("transport.client-post-accept-header", &full).is_empty());
+        assert_eq!(
+            run("transport.client-post-accept-header", &full),
+            Vec::<String>::new()
+        );
 
         // The half the old single check could not see: `text/event-stream`
         // alone satisfied it, though TRAN-025 names both.
@@ -204,7 +207,10 @@ mod tests {
     #[test]
     fn a_get_must_offer_the_event_stream_only() {
         let stream_only = [request(0, "GET", r#"{"accept":"text/event-stream"}"#)];
-        assert!(run("transport.client-get-accept-header", &stream_only).is_empty());
+        assert_eq!(
+            run("transport.client-get-accept-header", &stream_only),
+            Vec::<String>::new()
+        );
 
         let json_only = [request(0, "GET", r#"{"accept":"application/json"}"#)];
         let findings = run("transport.client-get-accept-header", &json_only);
@@ -236,8 +242,14 @@ mod tests {
 
         // A DELETE with no Accept header at all is equally conforming.
         let bare = [request(0, "DELETE", r#"{"mcp-session-id":"abc123"}"#)];
-        assert!(run("transport.client-post-accept-header", &bare).is_empty());
-        assert!(run("transport.client-get-accept-header", &bare).is_empty());
+        assert_eq!(
+            run("transport.client-post-accept-header", &bare),
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            run("transport.client-get-accept-header", &bare),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
@@ -271,6 +283,9 @@ mod tests {
             "POST",
             r#"{"accept":"TEXT/EVENT-STREAM;q=0.9, Application/JSON;q=1.0"}"#,
         )];
-        assert!(run("transport.client-post-accept-header", &fussy).is_empty());
+        assert_eq!(
+            run("transport.client-post-accept-header", &fussy),
+            Vec::<String>::new()
+        );
     }
 }

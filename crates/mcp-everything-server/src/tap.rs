@@ -21,8 +21,10 @@
 //!   does reach it is recorded whether or not it names a session: `2026-07-28`
 //!   removes sessions outright, and an exchange with no `Mcp-Session-Id` goes
 //!   to the run's `stateless` trace file rather than being dropped.
-//! - **Write-behind, in order.** Events flow over a bounded channel to one
-//!   writer task that appends each line and flushes before taking the next.
+//! - **Write-behind, in order.** Records flow over a bounded channel to one
+//!   writer task that appends each record's events as adjacent lines and
+//!   flushes before taking the next; a request and its message are one record
+//!   (see `Record`).
 //!   Durability is per *written* record: everything the writer has flushed
 //!   survives a kill; records still queued die with the process, and a kill
 //!   mid-append can leave one torn final line (consumers treat an
@@ -116,14 +118,21 @@ const MAX_RECORDED_BODY: usize = 4 * 1024 * 1024;
 /// trace with holes is worse than a slightly slower proxied response.
 const CHANNEL_CAPACITY: usize = 1024;
 
-/// One recordable moment, routed to the writer task (which sequences it).
+/// Events routed to the writer task together: it sequences them and writes
+/// them as adjacent lines, so nothing another exchange records can land
+/// between them.
+///
+/// Adjacency is how the validator pairs a message with the HTTP event it rode:
+/// a POST's message is read as the one after its request event, a JSON body as
+/// the one after its status. Recorded with one send each, a concurrent GET's
+/// request event could land between a POST and its message, and the message
+/// was then judged to have ridden the GET (`TRAN-049`), as an official-suite
+/// session in CI showed on 2026-10-12.
 struct Record {
     /// Tap-assigned session file key.
     file: Arc<SessionFile>,
-    /// Which party emitted the event.
-    direction: Direction,
-    /// The event body.
-    body: EventBody,
+    /// Each event and the party that emitted it, in order.
+    events: Vec<(Direction, EventBody)>,
 }
 
 /// Identity of one session's trace file.
@@ -195,17 +204,15 @@ impl Tap {
     /// On channel pressure this awaits (the exchange slows; the trace stays
     /// whole).
     async fn record(&self, session_id: &str, direction: Direction, body: EventBody) {
+        self.record_together(session_id, vec![(direction, body)])
+            .await;
+    }
+
+    /// Enqueues `events` for `session_id` as one unit, written as adjacent
+    /// lines in order (see [`Record`]).
+    async fn record_together(&self, session_id: &str, events: Vec<(Direction, EventBody)>) {
         let file = self.session(session_id);
-        if self
-            .sender
-            .send(Record {
-                file,
-                direction,
-                body,
-            })
-            .await
-            .is_err()
-        {
+        if self.sender.send(Record { file, events }).await.is_err() {
             eprintln!("mcp-everything-server: tap writer gone; event dropped");
         }
     }
@@ -268,8 +275,7 @@ pub async fn tap_layer(
         );
     }
 
-    tap.record(
-        &session_id,
+    let mut request_events = vec![(
         Direction::ClientToServer,
         EventBody::Http {
             // Which request form this was. Streamable HTTP binds different
@@ -281,16 +287,11 @@ pub async fn tap_layer(
             status: None,
             headers: request_headers,
         },
-    )
-    .await;
+    )];
     if let Some(payload) = request_payload {
-        tap.record(
-            &session_id,
-            Direction::ClientToServer,
-            EventBody::Message { payload },
-        )
-        .await;
+        request_events.push((Direction::ClientToServer, EventBody::Message { payload }));
     }
+    tap.record_together(&session_id, request_events).await;
 
     record_response(&tap, &session_id, method, response).await
 }
@@ -306,8 +307,7 @@ async fn record_response(
 ) -> Response {
     let status = response.status();
     let content_type = header_value(response.headers(), "content-type");
-    tap.record(
-        session_id,
+    let status_event = (
         Direction::ServerToClient,
         EventBody::Http {
             // A response is not a request: the method belongs to the client
@@ -317,19 +317,18 @@ async fn record_response(
             status: Some(status.as_u16()),
             headers: recorded_headers(response.headers()),
         },
-    )
-    .await;
+    );
 
     // Session teardown is a transport-close moment.
     if method == Method::DELETE && status.is_success() {
-        tap.record(
-            session_id,
+        let close = (
             Direction::ServerToClient,
             EventBody::Lifecycle {
                 event: LifecycleEvent::TransportClose,
             },
-        )
-        .await;
+        );
+        tap.record_together(session_id, vec![status_event, close])
+            .await;
         return response;
     }
 
@@ -337,14 +336,18 @@ async fn record_response(
         .as_deref()
         .is_some_and(|v| v.starts_with("text/event-stream"))
     {
+        // A stream's frames arrive after its status by nature; each frame is
+        // a message of its own, written as it flows.
+        tap.record_together(session_id, vec![status_event]).await;
         return record_sse(tap, session_id, response);
     }
     if content_type
         .as_deref()
         .is_some_and(|v| v.starts_with("application/json"))
     {
-        return record_json(tap, session_id, response).await;
+        return record_json(tap, session_id, status_event, response).await;
     }
+    tap.record_together(session_id, vec![status_event]).await;
     response
 }
 
@@ -376,22 +379,26 @@ fn record_sse(tap: &Arc<Tap>, session_id: &str, response: Response) -> Response 
     Response::from_parts(parts, Body::from_stream(stream))
 }
 
-/// Buffers, records, and re-bodies a JSON response.
-async fn record_json(tap: &Arc<Tap>, session_id: &str, response: Response) -> Response {
+/// Buffers, records, and re-bodies a JSON response, writing its status event
+/// and its message as adjacent lines.
+async fn record_json(
+    tap: &Arc<Tap>,
+    session_id: &str,
+    status_event: (Direction, EventBody),
+    response: Response,
+) -> Response {
     let (parts, body) = response.into_parts();
     match buffer(body).await {
         Buffered::Whole(bytes) => {
+            let mut events = vec![status_event];
             if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-                tap.record(
-                    session_id,
-                    Direction::ServerToClient,
-                    EventBody::Message { payload },
-                )
-                .await;
+                events.push((Direction::ServerToClient, EventBody::Message { payload }));
             }
+            tap.record_together(session_id, events).await;
             Response::from_parts(parts, Body::from(bytes))
         }
         Buffered::Passed(body) => {
+            tap.record_together(session_id, vec![status_event]).await;
             eprintln!(
                 "mcp-everything-server: tap passed an oversized response body through unrecorded"
             );

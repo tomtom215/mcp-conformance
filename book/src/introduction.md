@@ -10,10 +10,17 @@ revision — the one the recorded session declares, `2026-07-28` or `2025-11-25`
 or both at once in a single pass — and, just as importantly, it is built so that an
 ecosystem with its own authoritative test suite has reason to trust the verdict.
 
-> **Status: pre-release.** The crates are published on crates.io at `0.x`;
-> the public API and the verdicts it produces may still change between minor
-> releases, and the changelog says so explicitly when they do. This book tracks
-> `main`.
+> **Status: `0.x` on crates.io.** Before 1.0 the public API and the verdicts
+> may change between minor releases; the
+> [changelog](https://github.com/tomtom215/mcp-conformance/blob/main/CHANGELOG.md)
+> says so explicitly when they do;
+> [STABILITY.md](https://github.com/tomtom215/mcp-conformance/blob/main/STABILITY.md)
+> lists what each release keeps stable.
+>
+> **Versions of this book.** The site's root documents the newest release. Each
+> release's own book stays at `/vX.Y.Z/`, and the unreleased `main` branch is at
+> `/dev/`. The selector in the menu bar switches between them; a page that
+> documents anything but the newest release says so at the top.
 
 ## The one idea
 
@@ -39,7 +46,7 @@ every commit is calibrated, not merely asserted to be correct.
 | Crate | What it is |
 |-------|------------|
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | The spec as data: the requirement registry, the trace schema, and RFC 8785 canonical JSON. Serde-only; no protocol SDK. |
-| `mcp-trace-capture` | The recorder: a stdio wrapper and HTTP reverse proxy that write a validator-ready trace of any MCP session, linking no SDK. Ships with the next release. |
+| [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) | The recorder: a stdio wrapper and HTTP reverse proxy that write a validator-ready trace of any MCP session, linking no SDK. |
 | [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | The deterministic judgment engine and its CLI (human / JSON / JUnit / SARIF reports, documented exit codes). |
 | [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | A reference server on the official `rmcp` SDK that passes the suite's server scenarios, with a session tap that records traces for the agreement check. |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | A reference host (client) that passes the suite's client scenarios and captures host-side traces. |
@@ -51,6 +58,15 @@ Each chapter is a curated entry point. The
 — charter, ecosystem register, architecture, conformance strategy, engineering
 standards, security model, roadmap, and decision records — remain the single
 source of truth, and every chapter links to the authoritative document behind it.
+
+To use the tools:
+
+- **[Getting started](getting-started.md)** — install, record a session, judge it,
+  and read the report.
+- **[Using it in CI](ci.md)** — exit codes, JUnit and SARIF, and the GitHub Action.
+- **[Troubleshooting](troubleshooting.md)** — what the common failures mean.
+
+How it works:
 
 - **[Architecture](architecture.md)** — why judge traces instead of live
   sessions, and the design trade-offs that follow.

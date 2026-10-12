@@ -11,7 +11,8 @@ dependency rules live in [`02-architecture.md`](../plan/02-architecture.md); thi
 note is the *why*, stated as decisions and their costs.
 
 The toolkit judges Model Context Protocol implementations for conformance to a
-specific spec revision (`2025-11-25` today). The central design question is not
+specific spec revision — `2026-07-28` and `2025-11-25` today, the one a session
+declares, or both at once. The central design question is not
 "what does the protocol require" — the official spec answers that — but **how do
 you produce a conformance verdict that an ecosystem with its own authoritative
 test suite has reason to trust.** Every decision below is in service of that.
@@ -19,12 +20,14 @@ test suite has reason to trust.** Every decision below is in service of that.
 ## 1. Judge recorded traces, not live sessions
 
 The validator's input is a *trace*: an ordered, serialized record of a protocol
-interaction (JSON Lines; schema in [`02-architecture.md`](../plan/02-architecture.md)
-and a worked example in the [README](../../README.md)). Its engine is a pure
+interaction (JSON Lines, published as a JSON Schema,
+[`trace-event.schema.json`](../../crates/mcp-conformance-core/schema/trace-event.schema.json),
+with a worked example in the [README](../../README.md)). Its engine is a pure
 function — `&[TraceEvent] -> Report` — with no network, no clock, no randomness,
-and no I/O of its own. Capturing the trace is somebody else's job (the
-everything-server's session tap, the reference host's capture wrapper, or any
-external proxy); judging it is the validator's only job.
+and no I/O of its own. Capturing the trace is somebody else's job — the
+project's own recorder, `mcp-trace-capture` (a stdio wrapper and an HTTP reverse
+proxy that forward bytes unchanged), or any recorder that writes the published
+schema; judging it is the validator's only job.
 
 This split is the foundational decision, and it has a clear cost: **trace
 capture fidelity becomes the hard problem.** Interleaving, partial writes, and
@@ -202,8 +205,7 @@ repositories; this toolkit exists for what does not fit there — an independent
 trace-based judgment layer and the reference implementations that prove it. The
 registry's SEP-2484-shaped storage, the everything-server's suite parity, and
 the agreement check are all designed to be *offered* upstream rather than to
-compete: the everything-server has been offered to `rust-sdk`, suite
-discrepancies found by the agreement check are filed against the conformance
-repo, and the registry format is the one the SEP process already uses. If a
+compete: suite discrepancies found by the agreement check are filed against
+the conformance repo, and the registry format is the one the SEP process already uses. If a
 piece belongs upstream, the aim is to move it there with this note as the
 rationale a reviewer can read first.

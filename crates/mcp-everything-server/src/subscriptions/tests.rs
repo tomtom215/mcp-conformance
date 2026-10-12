@@ -126,7 +126,7 @@ fn an_empty_filter_announces_nothing() {
     // everything" default, which is the exact shape SUBS-001 forbids.
     let accepted =
         accepted(ServedRevision::V2026_07_28, &SubscriptionFilter::new()).expect("implemented");
-    assert!(methods(&accepted).is_empty());
+    assert_eq!(methods(&accepted), Vec::<String>::new());
 }
 
 #[test]

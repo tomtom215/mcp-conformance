@@ -4,7 +4,7 @@
 # Security Model
 
 **Status:** Active
-**Last reviewed:** 2026-06-09
+**Last reviewed:** 2026-10-12
 
 ---
 
@@ -17,13 +17,13 @@ reality, not borrowed from a generic library template.
 
 | Asset | Threat | Boundary |
 |-------|--------|----------|
-| Validator process | Malicious trace files (parser exploitation, resource exhaustion) | Traces are untrusted input. Hard caps on event count, payload size, and nesting depth; typed errors, never panics; fuzzed continuously. |
+| Validator process | Malicious trace files (parser exploitation, resource exhaustion) | Traces are untrusted input. Hard caps on event count and line size (`--max-events`, `--max-line-bytes`) and on nesting depth (serde_json's 128-level recursion limit; a deeper line is a malformed trace, exit 3); typed errors, never panics; fuzzed weekly and on every PR. |
 | Host machine running the everything server | The server is intentionally permissive (it exercises *every* capability) — it must never be reachable from a hostile network | Loopback bind by default; `Host`/`Origin` validation on by default; disabling it requires the self-describing `--dangerously-allow-any-host` flag, **and a server started that way says so on stderr, after its readiness line** (2026-08-20). The flag's name was the whole control, and it lives in the operator's command line — a running process left no evidence the protection was off, so a log could not be audited for it. |
-| Reference host | Malicious or compromised SUT servers (hostile tool results, oversized streams, slow-loris SSE) | Response size and time budgets; bounded concurrency; cooperative cancellation; no shell interpretation of server-supplied strings. |
+| Reference host | Malicious or compromised SUT servers (hostile tool results, oversized streams, slow-loris SSE) | A run is bounded in time and effort: a hard deadline (`--deadline-secs`, default 25 s), a turn limit, an error budget, and cooperative cancellation. A stdio server's command is split and spawned without a shell, and nothing a server sends is executed. **The host sets no size limit of its own on a single response**; whatever bound rmcp's transports apply is the bound it has, and the deadline is what ends a server that streams without end. |
 | CI | Supply-chain attacks via actions or dependencies | Actions pinned by SHA; `cargo deny` + `cargo audit` gates; lockfiles; trusted publishing (no long-lived tokens to steal). |
 | CI's `GITHUB_TOKEN` | A job holding a write scope is a lever for anything that can influence what that job runs | Workflow default is `contents: read`; a write scope is granted per job, never per workflow, and carries an inline comment naming what it writes. |
-| Trace capture (`mcp-trace-capture`) | A recording proxy reachable from a hostile network would relay anything to the upstream | Listens on loopback by default (`--listen 127.0.0.1:8080`); binding elsewhere is an explicit choice. Forwards credentials (it must be transparent) but records only the header allowlist. The wrapped stdio server is never orphaned: termination signals are relayed. |
-| Trace corpora | Secrets accidentally recorded into fixtures | Capture records headers by allowlist, so `Authorization`, cookies and other credentials are never written; the reference host captures at the message seam, where headers are unobservable. **Message bodies are recorded verbatim** — a secret inside a JSON-RPC payload is recorded like any other value — so corpus review is part of PR review. |
+| Trace capture (`mcp-trace-capture`) | A recording proxy reachable from a hostile network would relay anything to the upstream | Listens on loopback by default (`--listen 127.0.0.1:8080`); binding elsewhere is an explicit choice. Forwards credentials (it must be transparent) but records only the header allowlist. Termination signals sent to the stdio wrapper are relayed to the server's process group, which is killed 1 s later if still running — inside the 2 s the official SDKs' stdio clients allow between `SIGTERM` and `SIGKILL`, so their shutdown never orphans the server; only a `SIGKILL` reaching the wrapper itself sooner can. **The proxy defeats a server's `Host`-based DNS-rebinding check by default**: it sends the upstream's own name in `Host`, as a reverse proxy must for a virtually hosted server, so that check passes for every request it forwards, including one a web page has a browser send to the proxy's loopback address under a rebound name. The proxy checks no `Host` itself; `Origin` is forwarded unchanged; `--preserve-host` passes the client's `Host` through, and CI runs the official suite that way so its `dns-rebinding-protection` scenario judges the server's own check. On Windows, which has no process groups, a launcher's children (`npx` → `node`) can outlive the session ([the capture README](../../crates/mcp-trace-capture/README.md#windows)). |
+| Trace corpora | Secrets accidentally recorded into fixtures | Capture records headers by allowlist, so `Authorization`, cookies and other credentials are never written; the reference host captures at the message seam, where headers are unobservable. **Message bodies are recorded in full** (as parsed JSON) — a secret inside a JSON-RPC payload is recorded like any other value — so corpus review is part of PR review. A message parsing would change (an integer past 64 bits, a repeated member name) is recorded as its raw line over stdio and left out over HTTP, and counted either way. |
 
 ## Designing out the CVE-2026-42559 class
 
@@ -63,7 +63,7 @@ workflows, each scope with an inline comment in the YAML naming what it writes.
 | `release.yml` | `binaries` | `id-token`, `attestations` | Sigstore OIDC + build-provenance attestation of each prebuilt archive |
 | `release.yml` | `github-release` | `contents` | create the release, upload `.crate` + `SHA256SUMS`, the binary archives + `SHA256SUMS-binaries` |
 | `release.yml` | `publish` | `id-token` | crates.io Trusted Publishing (no long-lived token exists to steal) |
-| `pages.yml` (`push` to the default branch, `workflow_dispatch`) | `deploy` | `pages`, `id-token` | deploy the book |
+| `pages.yml` (`push` to the default branch, a completed `Release` run via `workflow_run`, `workflow_dispatch`) | `deploy` | `pages`, `id-token` | deploy the versioned book, built by the unprivileged `build` job; `deploy` checks out and compiles nothing |
 | `scheduled.yml` (`schedule`, `workflow_dispatch`) | `claims-expire` | `issues` | open, comment on, and close the tracking issue a red claims-expiry run files ([ADR-0010 §Amendment](decisions/0010-deferral-ledger-and-scheduled-reverification.md)) |
 
 `ci.yml` and `mutants.yml` — the only two workflows that run on
@@ -84,14 +84,15 @@ step's fetched text is republished into an issue; the run log carries it.
 
 - No secrets in the repository, fixtures, or benchmarks — enforced by review plus secret
   scanning.
-- The reference host treats auth material as opaque and never logs it; trace capture redacts
-  by default (opt-out only for synthetic-credential test environments, and the opt-out names
-  itself accordingly).
+- The reference host treats auth material as opaque and never logs it. Trace capture keeps
+  credentials out of a trace by recording headers from an allowlist, not by redaction:
+  message bodies are recorded in full, with no opt-out because there is nothing to opt out
+  of, and the user-facing docs say to read a trace before sharing it.
 - Fuzz and property tests never use real-looking credentials as seeds.
 
 ## Vulnerability handling (our own)
 
-Adopted from a2a-rust, effective at M0 when `SECURITY.md` lands:
+Adopted from a2a-rust, and stated for reporters in [`SECURITY.md`](../../SECURITY.md):
 
 - Private reporting via GitHub draft security advisories (no public issues for
   vulnerabilities); acknowledgment within 3 business days.

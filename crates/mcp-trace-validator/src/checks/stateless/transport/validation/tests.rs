@@ -54,8 +54,14 @@ fn a_version_mismatch_must_draw_header_mismatch() {
     assert!(findings[0].contains("error -32602"), "{findings:?}");
 
     // Rejected correctly, and the agreeing case: silence in both.
-    assert!(findings_for(check, &exchange("2025-11-25", "2026-07-28", 400, MISMATCH)).is_empty());
-    assert!(findings_for(check, &exchange("2026-07-28", "2026-07-28", 200, RESULT)).is_empty());
+    assert_eq!(
+        findings_for(check, &exchange("2025-11-25", "2026-07-28", 400, MISMATCH)),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        findings_for(check, &exchange("2026-07-28", "2026-07-28", 200, RESULT)),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -68,10 +74,13 @@ fn header_mismatch_must_ride_a_400() {
     assert!(findings[0].contains("HTTP 500"), "{findings:?}");
 
     // 400 is the required pairing.
-    assert!(findings_for(check, &exchange("2026-07-28", "2026-07-28", 400, MISMATCH)).is_empty());
+    assert_eq!(
+        findings_for(check, &exchange("2026-07-28", "2026-07-28", 400, MISMATCH)),
+        Vec::<String>::new()
+    );
 
     // Any other error code is some other clause's business.
-    assert!(
+    assert_eq!(
         findings_for(
             check,
             &exchange(
@@ -80,8 +89,8 @@ fn header_mismatch_must_ride_a_400() {
                 500,
                 r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"x"}}"#
             )
-        )
-        .is_empty()
+        ),
+        Vec::<String>::new()
     );
 }
 
@@ -134,20 +143,80 @@ fn an_unsupported_version_is_judged_against_what_the_server_declared() {
     assert_eq!(findings.len(), 1, "{findings:?}");
 
     // Inside the declared set: nothing to report.
-    assert!(
+    assert_eq!(
         findings_for(
             check,
             &after_discovery(r#"["2026-07-28","2025-11-25"]"#, "2025-11-25", result)
-        )
-        .is_empty()
+        ),
+        Vec::<String>::new()
     );
 
     // Declared as an empty list: the server said nothing usable, so the check
     // abstains rather than treating every version as unsupported.
-    assert!(findings_for(check, &after_discovery("[]", "2025-11-25", result)).is_empty());
+    assert_eq!(
+        findings_for(check, &after_discovery("[]", "2025-11-25", result)),
+        Vec::<String>::new()
+    );
 
     // With no discovery at all there is no list to judge against.
-    assert!(findings_for(check, &exchange("2026-07-28", "2026-07-28", 200, RESULT)).is_empty());
+    assert_eq!(
+        findings_for(check, &exchange("2026-07-28", "2026-07-28", 200, RESULT)),
+        Vec::<String>::new()
+    );
+
+    // The error itself is the answer the clause asks for.
+    let refused = r#"{"jsonrpc":"2.0","id":2,"error":{"code":-32022,"message":"x","data":{"supported":["2026-07-28"]}}}"#;
+    assert_eq!(
+        findings_for(
+            check,
+            &after_discovery(r#"["2026-07-28"]"#, "2025-11-25", refused)
+        ),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn a_discovery_probe_may_answer_an_unsupported_version_with_its_result() {
+    // `basic/versioning`: "The stdio probe returns a `DiscoverResult` (or
+    // `UnsupportedProtocolVersionError`)". The probe names the client's
+    // preferred version, and the result's `supportedVersions` is the answer.
+    let check = "transport.unsupported-version-error";
+    let line = |seq: u64, direction: &str, payload: &str| {
+        format!(
+            r#"{{"seq":{seq},"direction":"{direction}","transport":"stdio","kind":"message","payload":{payload}}}"#
+        )
+    };
+    let probe = |answer: &str| {
+        [
+            line(
+                0,
+                "client-to-server",
+                r#"{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2027-03-01","io.modelcontextprotocol/clientCapabilities":{}}}}"#,
+            ),
+            line(1, "server-to-client", answer),
+        ]
+        .join("\n")
+    };
+    let result = r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","supportedVersions":["2026-07-28"],"capabilities":{}}}"#;
+    assert_eq!(findings_for(check, &probe(result)), Vec::<String>::new());
+
+    // Any other answer is still held to the rule: the exemption is the result.
+    let wrong_error = trace(&[
+        probe(result),
+        line(
+            2,
+            "client-to-server",
+            r#"{"jsonrpc":"2.0","id":2,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2027-03-01","io.modelcontextprotocol/clientCapabilities":{}}}}"#,
+        ),
+        line(
+            3,
+            "server-to-client",
+            r#"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"x"}}"#,
+        ),
+    ]);
+    let findings = findings_for(check, &wrong_error);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].contains("error -32603"), "{findings:?}");
 }
 
 #[test]
@@ -186,7 +255,7 @@ fn the_unsupported_version_error_must_list_the_versions() {
             r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32022,"message":"x","data":{"supported":["2026-07-28"],"requested":"1900-01-01"}}}"#,
         ),
     ]);
-    assert!(findings_for(check, &complete).is_empty());
+    assert_eq!(findings_for(check, &complete), Vec::<String>::new());
 
     // An empty list is not a list of supported versions.
     let empty = complete.replace(r#"["2026-07-28"]"#, "[]");
@@ -224,11 +293,11 @@ fn the_unsupported_version_error_must_carry_a_400() {
     let findings = findings_for(check, &answered(200));
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert!(findings[0].contains("HTTP 200"), "{findings:?}");
-    assert!(findings_for(check, &answered(400)).is_empty());
+    assert_eq!(findings_for(check, &answered(400)), Vec::<String>::new());
 
     // A different error code is not this clause's business.
     let other_code = answered(200).replace("-32022", "-32602");
-    assert!(findings_for(check, &other_code).is_empty());
+    assert_eq!(findings_for(check, &other_code), Vec::<String>::new());
 
     // stdio carries no status, so there is nothing to judge — not a violation.
     let no_http = trace(&[
@@ -241,7 +310,7 @@ fn the_unsupported_version_error_must_carry_a_400() {
             r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32022,"message":"x","data":{"supported":["2026-07-28"]}}}"#,
         ),
     ]);
-    assert!(findings_for(check, &no_http).is_empty());
+    assert_eq!(findings_for(check, &no_http), Vec::<String>::new());
 }
 
 #[test]
@@ -260,7 +329,10 @@ fn method_not_found_must_ride_a_404() {
         error(3, "1", -32601),
     ]);
     assert_eq!(findings_for(check, &not_found).len(), 1);
-    assert!(findings_for(check, &not_found.replace("200", "404")).is_empty());
+    assert_eq!(
+        findings_for(check, &not_found.replace("200", "404")),
+        Vec::<String>::new()
+    );
 
     // On stdio there is no status and no POST, so the clause does not bind.
     let stdio = [
@@ -268,7 +340,7 @@ fn method_not_found_must_ride_a_404() {
         r#"{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"x"}}}"#,
     ]
     .join("\n");
-    assert!(findings_for(check, &stdio).is_empty());
+    assert_eq!(findings_for(check, &stdio), Vec::<String>::new());
 }
 
 #[test]
@@ -346,7 +418,10 @@ fn integer_values_are_compared_as_numbers() {
     // numerically rather than as strings (e.g., `42.0` and `42` are considered
     // equal)". A server that does is not failing to reject a mismatch.
     let check = "transport.header-body-match-validated";
-    assert!(findings_for(check, &integer_call("42.0")).is_empty());
+    assert_eq!(
+        findings_for(check, &integer_call("42.0")),
+        Vec::<String>::new()
+    );
     assert_eq!(findings_for(check, &integer_call("41")).len(), 1);
     // A string-typed value keeps the textual comparison.
     let text = integer_call("42.0").replace(r#""n":42"#, r#""n":"42""#);
@@ -385,3 +460,6 @@ fn canonical_integer_spells_integers_as_the_body_does_and_refuses_the_rest() {
         assert_eq!(canonical_integer(text).as_deref(), expected, "{text:?}");
     }
 }
+
+mod null_id;
+mod transports;

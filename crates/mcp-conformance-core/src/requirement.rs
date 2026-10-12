@@ -169,11 +169,16 @@ pub struct SourceRef {
     /// `basic/lifecycle#initialization`.
     pub section: String,
     /// The normative sentence, verbatim from the published (rendered)
-    /// specification text, with one declared exception: clauses whose
+    /// specification text, with two declared exceptions. Clauses whose
     /// normative content is a bullet or numbered list are flattened onto one
     /// line, list items joined with `; ` after the introducing `:` — every
-    /// fragment between those separators remains verbatim. Inline code spans
-    /// keep their backticks.
+    /// fragment between those separators remains verbatim. Clauses stated in a
+    /// table cell that only reads as a clause with its row — a scenario
+    /// matrix such as `Parameter value is null | Client MUST omit the header`
+    /// — quote the row from its first cell through the cell stating the
+    /// clause, cells joined with ` | ` as the table writes them and the outer
+    /// pipes dropped; a cell that is a whole sentence on its own is quoted as
+    /// that sentence. Inline code spans keep their backticks.
     pub quote: String,
 }
 

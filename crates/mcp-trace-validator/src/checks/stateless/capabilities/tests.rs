@@ -92,5 +92,8 @@ fn logging_is_judged_by_the_notification_it_emits() {
 
     let mut declared = discovered(r#"{"logging":{}}"#);
     declared.push(logged(2));
-    assert!(findings_for(LOGGING, &trace(&declared)).is_empty());
+    assert_eq!(
+        findings_for(LOGGING, &trace(&declared)),
+        Vec::<String>::new()
+    );
 }

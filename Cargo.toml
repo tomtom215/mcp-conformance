@@ -43,6 +43,9 @@ serde_json = { version = ">=1.0.143, <2", features = ["float_roundtrip"] }
 # CLI parsing — binaries only, behind each crate's `cli` feature
 # (docs/plan/decisions/0005-cli-argument-parsing.md).
 clap = { version = ">=4.5, <5", features = ["derive"] }
+# Shell completion scripts generated from the same clap definition; the clap
+# project's own crate, released in lockstep with it.
+clap_complete = { version = ">=4.5, <5" }
 
 # M2 server stack (per-dependency justification: the table in
 # docs/plan/04-engineering-standards.md §Dependency policy).
@@ -51,7 +54,7 @@ clap = { version = ">=4.5, <5", features = ["derive"] }
 # ADR-0008 raised the workspace MSRV to its measured 1.88 floor. Features are
 # the minimum for "every capability over stdio and streamable HTTP": no
 # client, no auth, no reqwest, no child-process transport.
-rmcp = { version = ">=3.4.1, <4", default-features = false, features = [
+rmcp = { version = ">=3.5.1, <4", default-features = false, features = [
     "server",
     "macros",
     "transport-io",
@@ -97,7 +100,7 @@ tokio-util = { version = ">=0.7.9, <0.8", default-features = false }
 # dependency. Already in the tree via rmcp's
 # `transport-streamable-http-client-reqwest` feature at the same version;
 # default-features off (no TLS backend: conformance traffic is loopback).
-# Floor mirrors rmcp 1.7.0's own `reqwest = "0.13.2"` requirement.
+# Floor mirrors rmcp's own `reqwest = "^0.13.2"` requirement (still so at 3.5.1).
 reqwest = { version = ">=0.13.2, <0.14", default-features = false }
 
 [workspace.lints.rust]

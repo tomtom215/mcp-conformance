@@ -8,7 +8,7 @@
 //! subscription's traffic ahead of this one's acknowledgment must not be read as
 //! one. A check that compared raw event order would pass every test but that one.
 
-use crate::checks::stateless::testkit::{client, findings_for, server, trace};
+use crate::checks::stateless::testkit::{client, error, findings_for, server, trace};
 
 const ONLY_REQUESTED: &str = "subscriptions.only-requested-notifications";
 const ACK_FIRST: &str = "subscriptions.acknowledgment-first";
@@ -56,8 +56,8 @@ fn a_requested_notification_type_is_delivered_without_complaint() {
         ack(1, 1),
         notify(2, 1, "notifications/tools/list_changed", ""),
     ]);
-    assert!(findings_for(ONLY_REQUESTED, &session).is_empty());
-    assert!(findings_for(ACK_FIRST, &session).is_empty());
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn resource_updates_are_matched_by_uri() {
             r#","uri":"file:///a.json""#,
         ),
     ]);
-    assert!(findings_for(ONLY_REQUESTED, &wanted).is_empty());
+    assert_eq!(findings_for(ONLY_REQUESTED, &wanted), Vec::<String>::new());
 
     let unwanted = trace(&[
         listen(0, 1, subscribed),
@@ -143,7 +143,7 @@ fn an_untagged_notification_belongs_to_no_subscription() {
             r#"{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"x"}}"#,
         ),
     ]);
-    assert!(findings_for(ONLY_REQUESTED, &session).is_empty());
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -170,8 +170,8 @@ fn another_subscriptions_traffic_may_interleave_ahead_of_the_acknowledgment() {
         ack(4, 2),
         notify(5, 2, "notifications/prompts/list_changed", ""),
     ]);
-    assert!(findings_for(ACK_FIRST, &session).is_empty());
-    assert!(findings_for(ONLY_REQUESTED, &session).is_empty());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -188,8 +188,8 @@ fn a_second_subscriptions_notification_does_not_open_this_one() {
         ack(4, 2),
         notify(5, 2, "notifications/prompts/list_changed", ""),
     ]);
-    assert!(findings_for(ACK_FIRST, &session).is_empty());
-    assert!(findings_for(ONLY_REQUESTED, &session).is_empty());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -197,7 +197,7 @@ fn a_subscription_with_nothing_on_it_yet_is_not_reported() {
     // A recording that ends before the acknowledgment arrives is not evidence
     // that it never did.
     let session = trace(&[listen(0, 1, r#"{"toolsListChanged":true}"#)]);
-    assert!(findings_for(ACK_FIRST, &session).is_empty());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -218,7 +218,7 @@ fn a_graceful_closure_carries_an_empty_result() {
         ack(1, 1),
         close(2, 1, ""),
     ]);
-    assert!(findings_for(CLOSE_SHAPE, &empty).is_empty());
+    assert_eq!(findings_for(CLOSE_SHAPE, &empty), Vec::<String>::new());
 
     let stuffed = trace(&[
         listen(0, 1, r#"{"toolsListChanged":true}"#),
@@ -240,7 +240,7 @@ fn a_stream_that_simply_stops_is_not_a_missing_response() {
         ack(1, 1),
         notify(2, 1, "notifications/tools/list_changed", ""),
     ]);
-    assert!(findings_for(CLOSE_SHAPE, &session).is_empty());
+    assert_eq!(findings_for(CLOSE_SHAPE, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -253,8 +253,134 @@ fn the_server_teardown_is_not_an_unrequested_notification() {
         ack(1, 1),
         notify(2, 1, "notifications/cancelled", r#","requestId":1"#),
     ]);
-    assert!(findings_for(ONLY_REQUESTED, &teardown).is_empty());
+    assert_eq!(
+        findings_for(ONLY_REQUESTED, &teardown),
+        Vec::<String>::new()
+    );
     // Cancelling some *other* request on the stream is still unrequested.
     let other = teardown.replace(r#""requestId":1"#, r#""requestId":2"#);
     assert_eq!(findings_for(ONLY_REQUESTED, &other).len(), 1);
+}
+
+#[test]
+fn a_reused_id_opens_a_new_subscription_with_its_own_filter() {
+    // Once subscription 1 has closed, its id is free for another
+    // `subscriptions/listen`. The second filter judges only the second stream's
+    // notifications, and the second stream owes — and here sends — its own
+    // acknowledgment.
+    let session = trace(&[
+        listen(0, 1, r#"{"toolsListChanged":true}"#),
+        ack(1, 1),
+        notify(2, 1, "notifications/tools/list_changed", ""),
+        close(3, 1, ""),
+        listen(4, 1, r#"{"promptsListChanged":true}"#),
+        ack(5, 1),
+        notify(6, 1, "notifications/prompts/list_changed", ""),
+    ]);
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
+}
+
+#[test]
+fn a_missed_acknowledgment_is_not_forgiven_by_a_later_reuse_of_the_id() {
+    // The first opening jumped its acknowledgment; the second, reusing the id,
+    // did not. Each opening is decided on its own first message.
+    let session = trace(&[
+        listen(0, 1, r#"{"toolsListChanged":true}"#),
+        notify(1, 1, "notifications/tools/list_changed", ""),
+        ack(2, 1),
+        close(3, 1, ""),
+        listen(4, 1, r#"{"toolsListChanged":true}"#),
+        ack(5, 1),
+    ]);
+    let findings = findings_for(ACK_FIRST, &session);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].contains("list_changed"), "{findings:?}");
+
+    // And the reverse: the second opening jumping its acknowledgment is its
+    // own failure, though the first opening's was in order.
+    let reopened = trace(&[
+        listen(0, 1, r#"{"toolsListChanged":true}"#),
+        ack(1, 1),
+        close(2, 1, ""),
+        listen(3, 1, r#"{"toolsListChanged":true}"#),
+        notify(4, 1, "notifications/tools/list_changed", ""),
+    ]);
+    assert_eq!(findings_for(ACK_FIRST, &reopened).len(), 1);
+}
+
+#[test]
+fn a_tag_naming_no_open_subscription_is_not_judged() {
+    // The response, an error response, or a cancellation naming the request
+    // ends the subscription; a message tagged with its id afterwards — or before
+    // any request opened it — belongs to no subscription this trace can see.
+    let stray = notify(3, 1, "notifications/prompts/list_changed", "");
+    let endings = [
+        close(2, 1, ""),
+        error(2, "1", -32603),
+        client(
+            2,
+            r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":1}}"#,
+        ),
+    ];
+    for ending in endings {
+        let session = trace(&[
+            listen(0, 1, r#"{"toolsListChanged":true}"#),
+            ack(1, 1),
+            ending.clone(),
+            stray.clone(),
+        ]);
+        assert!(
+            findings_for(ONLY_REQUESTED, &session).is_empty(),
+            "{ending}"
+        );
+    }
+
+    let before = trace(&[
+        notify(0, 1, "notifications/prompts/list_changed", ""),
+        listen(1, 1, r#"{"toolsListChanged":true}"#),
+        ack(2, 1),
+    ]);
+    assert_eq!(findings_for(ONLY_REQUESTED, &before), Vec::<String>::new());
+    assert_eq!(findings_for(ACK_FIRST, &before), Vec::<String>::new());
+}
+
+#[test]
+fn only_an_ending_that_names_the_subscription_ends_it() {
+    // Cancelling another request, or answering one, leaves subscription 1 open,
+    // so its later notifications are still held to its filter.
+    let endings = [
+        client(
+            2,
+            r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":2}}"#,
+        ),
+        error(2, "2", -32603),
+    ];
+    for ending in endings {
+        let session = trace(&[
+            listen(0, 1, r#"{"toolsListChanged":true}"#),
+            ack(1, 1),
+            ending.clone(),
+            notify(3, 1, "notifications/prompts/list_changed", ""),
+        ]);
+        assert_eq!(findings_for(ONLY_REQUESTED, &session).len(), 1, "{ending}");
+    }
+}
+
+#[test]
+fn a_listen_with_a_null_id_opens_nothing_to_judge() {
+    // A null id is BASE-002's to report; it names no subscription a tag could
+    // refer to.
+    let session = trace(&[
+        client(
+            0,
+            r#"{"jsonrpc":"2.0","id":null,"method":"subscriptions/listen","params":{"notifications":{}}}"#,
+        ),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","method":"notifications/tools/list_changed","params":{"_meta":{"io.modelcontextprotocol/subscriptionId":null}}}"#,
+        ),
+    ]);
+    assert_eq!(findings_for(ONLY_REQUESTED, &session), Vec::<String>::new());
+    assert_eq!(findings_for(ACK_FIRST, &session), Vec::<String>::new());
 }

@@ -11,6 +11,7 @@
 
 use std::collections::BTreeSet;
 
+use mcp_conformance_core::trace::TransportKind;
 use serde_json::Value;
 
 use super::super::super::FindingSink;
@@ -20,6 +21,9 @@ use super::{
     posts_by_message, sentinel_payload,
 };
 use crate::context::TraceContext;
+use competing::{Faults, declared_versions, listed_versions};
+
+mod competing;
 
 #[cfg(test)]
 mod tests;
@@ -30,6 +34,10 @@ const HEADER_MISMATCH: i64 = -32020;
 const UNSUPPORTED_VERSION: i64 = -32022;
 /// JSON-RPC `Method not found`.
 const METHOD_NOT_FOUND: i64 = -32601;
+/// JSON-RPC `Invalid params`, which a malformed `_meta` envelope draws.
+const INVALID_PARAMS: i64 = -32602;
+/// The probe a client sends to learn which versions a server implements.
+const DISCOVER: &str = "server/discover";
 
 /// The JSON-RPC error code an exchange's answer carried, if it was an error.
 fn answer_code(response: &mcp_conformance_core::trace::TraceEvent) -> Option<i64> {
@@ -50,7 +58,7 @@ pub(in crate::checks) fn version_mismatch_rejected(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    rejected_for(context, sink, version_mismatch_fault);
+    rejected_for(context, sink, |post, _| version_mismatch_fault(post));
 }
 
 /// `TRAN-096`: a recognized `Mcp-Param-*` carrying invalid characters is rejected.
@@ -58,8 +66,7 @@ pub(in crate::checks) fn invalid_param_header_rejected(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let recognized = recognized_param_headers(context);
-    rejected_for(context, sink, |post| invalid_param_fault(post, &recognized));
+    rejected_for(context, sink, invalid_param_fault);
 }
 
 /// `TRAN-098`/`TRAN-102`: whatever draws `HeaderMismatch` draws HTTP `400`.
@@ -93,58 +100,49 @@ pub(in crate::checks) fn header_mismatch_status(
     }
 }
 
-/// Every answered request as `(request message seq, response event)`: the
-/// exchanges the ids pair, plus the null-`id` answers the HTTP framing ties to
-/// their POST.
-///
-/// The second half exists for a refusal that drops the id. Recorded off the
-/// official Python SDK's server: a POST whose `MCP-Protocol-Version` disagreed
-/// with its body drew `400 {"id":null,"error":{"code":-32600,...}}`. Paired by
-/// id, that answer belonged to no request, and TRAN-073 reported *not observed*
-/// for a POST the server had in fact answered with the wrong code.
-fn answered<'t>(
-    context: &TraceContext<'t>,
-    framing: &Framing<'_>,
-) -> Vec<(u64, &'t mcp_conformance_core::trace::TraceEvent)> {
-    let mut out: Vec<_> = context
-        .exchanges()
-        .map(|exchange| (exchange.request.seq, exchange.response))
-        .collect();
-    let events = context.events();
-    for (response, request) in framing.unidentified_answers() {
-        if let Some(event) = events.iter().find(|event| event.seq == response) {
-            out.push((request, event));
-        }
-    }
-    out.sort_by_key(|(_, response)| response.seq);
-    out
-}
-
 /// Reports every exchange whose POST carried `fault` yet drew something other
-/// than a `HeaderMismatch` rejection — the shared body of TRAN-073 and TRAN-096.
+/// than a `HeaderMismatch` rejection — the shared body of TRAN-073 and TRAN-096
+/// — or another rejection the same request earned ([`competing`]).
+///
+/// The versions such a request is held against are the server's
+/// `server/discover` list or, with none in the trace, the one its own `-32022`
+/// answer gave: either way, what the server said about itself.
+///
+/// Walks the context's exchanges, which include the null-`id` answers the HTTP
+/// framing ties to their POST. That half matters for a refusal that drops the
+/// id. Recorded off the official Python SDK's server: a POST whose
+/// `MCP-Protocol-Version` disagreed with its body drew
+/// `400 {"id":null,"error":{"code":-32600,...}}`. Paired by id alone, that
+/// answer belonged to no request, and TRAN-073 reported *not observed* for a
+/// POST the server had in fact answered with the wrong code.
 fn rejected_for(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
-    fault: impl Fn(&Post<'_>) -> Option<String>,
+    fault: impl Fn(&Post<'_>, &BTreeSet<String>) -> Option<String>,
 ) {
-    let framing = Framing::new(context);
-    let by_message: std::collections::BTreeMap<u64, Post<'_>> = framing
-        .posts()
-        .iter()
-        .map(|post| (post.message_seq, *post))
-        .collect();
-    for (request_seq, response) in answered(context, &framing) {
+    let recognized = recognized_param_headers(context);
+    let declared = declared_versions(context);
+    let by_message = posts_by_message(context);
+    for exchange in context.exchanges() {
+        let (request_seq, response) = (exchange.request.seq, exchange.response);
         let Some(post) = by_message.get(&request_seq) else {
             continue;
         };
-        let Some(reason) = fault(post) else {
+        let Some(reason) = fault(post, &recognized) else {
             continue;
         };
         // The subject is a POST that actually carried the fault; a session whose
         // POSTs were all well-formed never puts the rejection rule to the test.
         sink.examined();
         let code = answer_code(response);
-        if code != Some(HEADER_MISMATCH) {
+        let supported = declared.clone().or_else(|| listed_versions(response));
+        let faults = Faults::of(
+            post.payload.get("params"),
+            Some(post),
+            supported.as_ref(),
+            &recognized,
+        );
+        if !faults.admit(code) {
             sink.push(
                 Some(response.seq),
                 format!(
@@ -265,20 +263,43 @@ fn canonical_integer(text: &str) -> Option<String> {
     })
 }
 
-/// `TRAN-074`: an unsupported protocol version draws
-/// `UnsupportedProtocolVersionError`, listing the versions the server supports.
+/// `VERS-001`: an unsupported protocol version draws
+/// `UnsupportedProtocolVersionError`, listing the versions the server supports,
+/// on every transport.
 pub(in crate::checks) fn unsupported_version_error(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    unsupported_version_shape(context, sink);
-    unsupported_version_answer(context, sink);
+    unsupported_version_shape(context, sink, None);
+    unsupported_version_answer(context, sink, None);
+}
+
+/// `TRAN-074`: the same rule judged on Streamable HTTP only.
+///
+/// TRAN-074 is the transport page's statement of it, under
+/// `#protocol-version-header`: a stdio session carries no such header and is no
+/// evidence either way, so judging one there reported a pass for an HTTP
+/// clause. `basic/versioning` (VERS-001) states the rule for every transport.
+pub(in crate::checks) fn unsupported_version_error_http(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    let http = Some(TransportKind::StreamableHttp);
+    unsupported_version_shape(context, sink, http);
+    unsupported_version_answer(context, sink, http);
 }
 
 /// The shape side: `-32022` lists the versions the server does implement.
-fn unsupported_version_shape(context: &TraceContext<'_>, sink: &mut FindingSink) {
+/// With `only`, answers on other transports are not judged.
+fn unsupported_version_shape(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+    only: Option<TransportKind>,
+) {
     for (event, _, _) in context.messages() {
-        if answer_code(event) != Some(UNSUPPORTED_VERSION) {
+        if answer_code(event) != Some(UNSUPPORTED_VERSION)
+            || only.is_some_and(|transport| event.transport != transport)
+        {
             continue;
         }
         sink.examined();
@@ -366,11 +387,30 @@ pub(in crate::checks) fn unsupported_version_status(
 /// reads that same field — but going through the POST made the obligation
 /// invisible on stdio, where there is no POST and the clause still binds:
 /// `basic/versioning` states it for every transport.
-fn unsupported_version_answer(context: &TraceContext<'_>, sink: &mut FindingSink) {
+///
+/// Two other answers are conforming. A request that also earned another defined
+/// rejection may draw that one instead ([`competing`]). And `server/discover`
+/// may answer with its result: the method exists to learn which versions a
+/// server implements, and `basic/versioning`'s compatibility matrix gives the
+/// answer to a probe naming one it does not as "a `DiscoverResult` (or
+/// `UnsupportedProtocolVersionError`)" — `supportedVersions` *is* the list the
+/// error would carry. Nothing makes that transport-specific.
+///
+/// With `only`, requests on other transports are not judged.
+fn unsupported_version_answer(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+    only: Option<TransportKind>,
+) {
     let Some(supported) = declared_versions(context) else {
         return;
     };
+    let by_message = posts_by_message(context);
+    let recognized = recognized_param_headers(context);
     for exchange in context.exchanges() {
+        if only.is_some_and(|transport| exchange.request.transport != transport) {
+            continue;
+        }
         let Some(requested) = exchange
             .params
             .and_then(|params| params.get("_meta")?.get(META_PROTOCOL_VERSION)?.as_str())
@@ -383,8 +423,17 @@ fn unsupported_version_answer(context: &TraceContext<'_>, sink: &mut FindingSink
         // The subject is a request naming a version the server's own list omits;
         // a session that only ever asked for supported ones is untested here.
         sink.examined();
+        if exchange.method == DISCOVER && exchange.result.is_some() {
+            continue;
+        }
         let code = answer_code(exchange.response);
-        if code != Some(UNSUPPORTED_VERSION) {
+        let faults = Faults::of(
+            exchange.params,
+            by_message.get(&exchange.request.seq),
+            Some(&supported),
+            &recognized,
+        );
+        if !faults.admit(code) {
             sink.push(
                 Some(exchange.response.seq),
                 format!(
@@ -411,22 +460,6 @@ fn legacy_handshake_ids(context: &TraceContext<'_>) -> BTreeSet<String> {
             Some(payload.get("id")?.to_string())
         })
         .collect()
-}
-
-/// The protocol versions a `server/discover` result in the trace declared.
-fn declared_versions(context: &TraceContext<'_>) -> Option<BTreeSet<String>> {
-    context
-        .exchanges_for("server/discover")
-        .find_map(|exchange| {
-            let versions: BTreeSet<String> = exchange
-                .result?
-                .get("supportedVersions")?
-                .as_array()?
-                .iter()
-                .filter_map(|version| version.as_str().map(str::to_owned))
-                .collect();
-            (!versions.is_empty()).then_some(versions)
-        })
 }
 
 /// `TRAN-075`: an unimplemented method draws `404 Not Found` with `-32601`.

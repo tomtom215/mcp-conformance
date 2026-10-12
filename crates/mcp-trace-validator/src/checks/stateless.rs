@@ -10,6 +10,7 @@
 //! them out keeps the `2025-11-25` modules reviewable in isolation.
 
 pub(super) mod caching;
+pub(super) mod cancellation;
 pub(super) mod capabilities;
 pub(super) mod discovery;
 pub(super) mod envelope;
@@ -17,6 +18,7 @@ pub(super) mod features;
 pub(super) mod logging;
 pub(super) mod meta;
 pub(super) mod mrtr;
+pub(super) mod progress;
 pub(super) mod subscriptions;
 pub(super) mod transport;
 pub(super) mod versioning;

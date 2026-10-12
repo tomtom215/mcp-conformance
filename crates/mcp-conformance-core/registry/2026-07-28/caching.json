@@ -149,6 +149,19 @@
       "exclusion": "Both the antecedent (this client is polling) and the obligation (its intervals are jittered and backed off) are properties of a request *schedule*, measurable only in elapsed time \u2014 which checks may not consult (LIFE-015) \u2014 and only across a run far longer than one recorded session."
     },
     {
+      "id": "CACH-019",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "server/utilities/caching#cache-scope-field",
+        "quote": "Caches MUST NOT be shared across authorization contexts (e.g. a different access token requires a different cache)."
+      },
+      "exclusion": "A cache, and which authorization context may read from it, live inside the client or an intermediary: a hit serves a stored result without sending anything, so a cache shared across contexts produces no message. Nor does a trace carry the authorization context to compare: `mcp-trace-capture` records an allowlist of headers that never includes credentials, so no access token reaches the recording. Same boundary as CACH-002 (what a client may serve from its cache)."
+    },
+    {
       "id": "CACH-012",
       "level": "SHOULD",
       "actor": "client",

@@ -18,3 +18,9 @@
 - [Two revisions at once](revisions.md)
 - [The trace corpus](corpus.md)
 - [Conformance results](conformance-results.md)
+
+# Reference
+
+- [Requirements — `2026-07-28`](reference/requirements-2026-07-28.md)
+- [Requirements — `2025-11-25`](reference/requirements-2025-11-25.md)
+- [Glossary](glossary.md)

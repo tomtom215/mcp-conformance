@@ -11,19 +11,10 @@ use mcp_conformance_core::message::{MessageKind, classify};
 use mcp_conformance_core::trace::{Direction, TraceEvent};
 use serde_json::Value;
 
+pub(crate) mod framing;
 mod pairing;
 
 pub mod stateless;
-
-/// The `2026-07-28` lifecycle machine under its pre-0.6.0 name.
-///
-/// Renamed [`stateless`] when the revision it models stopped being a draft. Kept
-/// for one minor release, as `docs/plan/04-engineering-standards.md` requires of
-/// a deprecation; the items are the same ones.
-#[deprecated(since = "0.6.0", note = "renamed `context::stateless`")]
-pub mod draft {
-    pub use super::stateless::*;
-}
 
 pub use pairing::Exchange;
 
@@ -103,7 +94,11 @@ impl<'a> TraceContext<'a> {
             }
         }
 
-        let pairs = pairing::pair_responses(events, &kinds);
+        let pairs = pairing::pair_responses(
+            events,
+            &kinds,
+            framing::Framing::of(events).unidentified_answers(),
+        );
 
         Self {
             events,

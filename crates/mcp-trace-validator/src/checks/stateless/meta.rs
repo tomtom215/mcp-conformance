@@ -19,11 +19,13 @@ use super::transport::framing::Framing;
 use crate::context::TraceContext;
 use mcp_conformance_core::trace::Direction;
 
+mod reliance;
 mod trace_context;
 
 #[cfg(test)]
 mod tests;
 
+pub(in crate::checks) use reliance::no_undeclared_capability_reliance;
 pub(in crate::checks) use trace_context::trace_context_format;
 
 /// Fields `2026-07-28` requires in every client request's `_meta`.
@@ -321,83 +323,15 @@ pub(in crate::checks) fn missing_capability_error(
     }
 }
 
-/// `BASE-034`: a server must not rely on capabilities the client did not declare.
-///
-/// Reliance is internal, so this reports its one wire-visible form: the server
-/// asking the client for input (`resultType: "input_required"`, SEP-2322) of a
-/// kind the request's own `clientCapabilities` never advertised.
-pub(in crate::checks) fn no_undeclared_capability_reliance(
-    context: &TraceContext<'_>,
-    sink: &mut FindingSink,
-) {
-    // Capabilities declared per request id, from the request's own `_meta` —
-    // there is no session-wide declaration to fall back on at this revision.
-    let mut declared: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for (_, id, payload) in client_requests(context) {
-        let Some(id) = id else { continue };
-        let names = params_meta(payload)
-            .and_then(|meta| meta.get("io.modelcontextprotocol/clientCapabilities"))
-            .and_then(Value::as_object)
-            .map(|caps| caps.keys().cloned().collect())
-            .unwrap_or_default();
-        declared.insert(id.to_string(), names);
-    }
-    for (event, _, _) in context.messages() {
-        if !matches!(event.direction, Direction::ServerToClient) {
-            continue;
-        }
-        let Some(payload) = event.message_payload() else {
-            continue;
-        };
-        let Some(result) = payload.get("result") else {
-            continue;
-        };
-        if result.get("resultType").and_then(Value::as_str) != Some("input_required") {
-            continue;
-        }
-        let Some(id) = payload.get("id") else {
-            continue;
-        };
-        let Some(declared) = declared.get(&id.to_string()) else {
-            continue;
-        };
-        let requests = result
-            .get("inputRequests")
-            .and_then(Value::as_object)
-            .map(|map| map.values().collect::<Vec<_>>())
-            .unwrap_or_default();
-        for request in requests {
-            let Some(method) = request.get("method").and_then(Value::as_str) else {
-                continue;
-            };
-            let needed = match method {
-                "elicitation/create" => "elicitation",
-                "sampling/createMessage" => "sampling",
-                "roots/list" => "roots",
-                _ => continue,
-            };
-            // The subject is an input request of a kind a capability governs;
-            // the revision's other input kinds need none.
-            sink.examined();
-            if !declared.iter().any(|name| name == needed) {
-                sink.push(
-                    Some(event.seq),
-                    format!(
-                        "server asked for `{method}`, which needs the `{needed}` capability, \
-                         but the request's `clientCapabilities` did not declare it"
-                    ),
-                );
-            }
-        }
-    }
-}
-
 /// `BASE-039`: notifications on a `subscriptions/listen` stream carry
-/// `io.modelcontextprotocol/subscriptionId`.
+/// `io.modelcontextprotocol/subscriptionId`, naming that subscription.
 ///
 /// Scoped to traces that actually opened such a stream: without one, a
 /// notification is request-scoped (progress, logging) and the clause does not
-/// bind it.
+/// bind it. A tag is held against the ids of every `subscriptions/listen`
+/// request the trace carries, not the stream it rode: the trace does not say
+/// which stream a notification was framed on, so a tag naming another of the
+/// client's subscriptions is not reported.
 pub(in crate::checks) fn subscription_id_present(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
@@ -444,14 +378,32 @@ pub(in crate::checks) fn subscription_id_present(
             continue;
         }
         sink.examined();
-        let tagged = params_meta(payload)
-            .is_some_and(|meta| meta.contains_key("io.modelcontextprotocol/subscriptionId"));
-        if !tagged {
+        let Some(tag) = params_meta(payload)
+            .and_then(|meta| meta.get("io.modelcontextprotocol/subscriptionId"))
+        else {
             sink.push(
                 Some(event.seq),
                 format!(
                     "notification `{method}` on a subscriptions/listen stream has no \
                      `io.modelcontextprotocol/subscriptionId` in `_meta`"
+                ),
+            );
+            continue;
+        };
+        // A tag that names no subscription correlates nothing, which is what
+        // the clause requires it for. The schema fixes its value: "The value is
+        // the JSON-RPC ID of the `subscriptions/listen` request that opened the
+        // stream", typed `RequestId` (`string | number`). Compared as JSON
+        // values, as every id in this crate is: JSON-RPC 2.0 has the response
+        // carry "the same value" as the request id, and `"1"` is not the same
+        // value as `1` — a client correlating by id cannot match one to the
+        // other, and `null` is not a `RequestId` at all.
+        if !listens.contains(&tag.to_string()) {
+            sink.push(
+                Some(event.seq),
+                format!(
+                    "notification `{method}` is tagged `io.modelcontextprotocol/subscriptionId` \
+                     {tag}, which is not the id of any `subscriptions/listen` request in the trace"
                 ),
             );
         }

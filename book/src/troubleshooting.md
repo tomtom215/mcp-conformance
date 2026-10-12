@@ -38,14 +38,17 @@ The recording holds no `initialize`, no `_meta` protocol version and no
 `--revision` to say which rules apply.
 
 **`error: malformed trace: …`** (exit 3). The file is not a trace as written by a
-recorder:
+recorder. Given several traces, the error starts with the trace's name
+(`error: traces/b.jsonl: malformed trace: …`), the report lists it as not judged,
+and the overall verdict reads `incomplete`:
 
 | The error says | Cause and fix |
 |----------------|---------------|
 | `the document begins with a UTF-8 byte-order mark` | An editor or Windows tool added a BOM. Strip the first three bytes. |
 | `the file is UTF-16` (a hint after `not valid UTF-8`) | Windows PowerShell's `>` writes UTF-16. Re-encode: `Get-Content in.jsonl \| Set-Content -Encoding utf8 out.jsonl`. |
 | `the document is a single JSON value, not JSON Lines` | A pretty-printed file or a JSON array. The message names the `jq` command that converts it. |
-| `blank line` | JSON Lines has no blank records; remove the empty line. |
+| `blank line` | JSON Lines has no blank records; remove the empty line. A hint says when it is a trailing blank line at the end of the file — one final newline is fine, an empty line after it is not. |
+| ``missing field `seq` `` (a hint: `this is a bare JSON-RPC message`) | The file holds JSON-RPC messages, not trace events: a trace wraps each message in an event with `seq`, `direction`, `transport` and `kind`. Record the session with `mcp-trace-capture`. |
 | `record is N bytes, exceeding the …-byte limit` | A message larger than the default limit. Re-run with the `--max-line-bytes` value the hint gives. |
 | `seq N is not greater than the previous event's seq` | Two recordings concatenated, or a hand-edited file. Each trace's `seq` must increase. |
 
@@ -63,8 +66,8 @@ checks the `Host` header, which the proxy rewrites to name the upstream. Add
 **`TRAN-004` (or `TRAN-117`) fails on a line like `"Server starting..."`.** The server
 writes something other than protocol messages to stdout — log lines, a banner. The
 capture records each such line as it was written, and the validator judges it: it is a
-stdio transport violation, and the same line fails `BASE-008` (every message follows
-JSON-RPC). Send logs to stderr.
+stdio transport violation, and the same line fails `BASE-008` at `2025-11-25`
+(`BASE-042` at `2026-07-28`): every message must be JSON-RPC. Send logs to stderr.
 
 **A client configuration cannot find `mcp-trace-capture`.** Desktop applications often
 start without your shell's `PATH`. Use the absolute path to the binary as the

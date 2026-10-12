@@ -3,7 +3,9 @@
 
 # Draft: withdrawing the everything-server offer (rust-sdk#902)
 
-**Status:** drafted 2026-09-24, **not posted** — posting is the maintainer's action.
+**Status:** drafted 2026-09-24, **never posted, and now moot**: upstream automation closed rust-sdk#902
+as stale (not planned) on 2026-10-12. A maintainer had replied on 2026-07-28 — a reply this draft's
+reasoning did not know about (see `docs/plan/07-ecosystem-engagement.md`, item 1).
 **Target:** <https://github.com/modelcontextprotocol/rust-sdk/issues/902>
 
 ## Why withdraw

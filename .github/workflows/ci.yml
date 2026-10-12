@@ -61,7 +61,7 @@ jobs:
         # the MSRV (ADR-0008). `cargo xtask toolchain-pin` fails when the two
         # files disagree — the `matrix` context cannot read `env`, so the version
         # is written out here and checked rather than interpolated.
-        rust: ["1.98.1", "1.88"]
+        rust: ["1.99.0", "1.88"]
         os: [ubuntu-latest, macos-latest, windows-latest]
     # A directory override outranks `rustup default`, so naming the toolchain in
     # the environment is the only way a leg can override rust-toolchain.toml.
@@ -84,6 +84,26 @@ jobs:
       - name: Clippy (all features)
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
+  # The clippy legs build each crate with no, default and all features. A
+  # feature on its own (the host's `http` without `proc`, the capture tool's
+  # `cli` without `tls`) is built nowhere else, and inside the workspace a
+  # sibling's features unify into it and hide a missing gate. `--no-dev-deps`
+  # keeps dev-dependencies from unifying features back in.
+  features:
+    name: Each feature alone
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-hack
+        run: cargo install cargo-hack --version 0.6.45 --locked
+      - name: Check every crate with each feature on its own
+        run: cargo hack check --workspace --exclude xtask --each-feature --no-dev-deps
+
   test:
     name: Test (${{ matrix.rust }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -91,7 +111,7 @@ jobs:
       fail-fast: false
       matrix:
         # Same pair as the clippy matrix, and gated the same way.
-        rust: ["1.98.1", "1.88"]
+        rust: ["1.99.0", "1.88"]
         os: [ubuntu-latest, macos-latest, windows-latest]
     env:
       RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
@@ -165,6 +185,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The versioned site rebuilds every release tag's book.
+          fetch-depth: 0
+          fetch-tags: true
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -173,17 +196,58 @@ jobs:
         # action: one fewer supply-chain dependency, the same discipline as the
         # plain-rustup toolchain installs. rust-cache restores the prior build.
         run: cargo install mdbook --locked --version 0.5.3
-      - name: Build the book (a missing include file or anchor fails here)
-        run: mdbook build book
-      - name: Upload the rendered book
-        # The deployable artifact. "Live" GitHub Pages deployment is a separate,
-        # owner-gated step (repository Pages settings); this job proves the book
-        # builds on every push and publishes the bytes a deploy would serve.
+      - name: Build the versioned site (a missing include file or anchor fails here)
+        # The same command pages.yml deploys from: main's book plus every
+        # release's, so a change that breaks an older book's build, the
+        # switcher, or the root copy fails here rather than at deploy.
+        run: cargo xtask book-site --out site
+      - name: Upload the rendered site
+        # The bytes a deploy would serve; pages.yml builds them again on main.
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: book
-          path: book/book
+          path: site
           if-no-files-found: error
+          retention-days: 30
+
+  # Every fuzz target built and run for a minute from its committed seeds, on
+  # every push and PR. The weekly job fuzzes for five minutes per target with
+  # an accumulated corpus; this one catches the crash a change introduces in
+  # the PR that introduces it, and is the gate that every target still builds
+  # (`cargo xtask fuzz-targets` checks only that each is declared).
+  fuzz-smoke:
+    name: Fuzz smoke (every target, 60 s)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        run: rustup toolchain install nightly --profile minimal --no-self-update
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: fuzz
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - name: Fuzz every declared target for 60 seconds
+        run: |
+          set -euo pipefail
+          targets=$(cargo +nightly fuzz list)
+          if [ -z "$targets" ]; then
+            echo "::error::cargo fuzz list named no targets; nothing would be fuzzed"
+            exit 1
+          fi
+          for target in $targets; do
+            cargo +nightly fuzz run "$target" -- -max_total_time=60
+          done
+      - name: Upload crash inputs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-smoke-artifacts
+          path: fuzz/artifacts/
+          if-no-files-found: warn
           retention-days: 30
 
   deny:

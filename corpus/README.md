@@ -42,9 +42,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 59 | 99 |
-| Excluded rows the ledger holds | 86 | 149 |
-| Distinct not-observed sets across them | 30 | 80 |
+| Goldens | 59 | 133 |
+| Excluded rows the ledger holds | 86 | 169 |
+| Distinct not-observed sets across them | 30 | 106 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -191,11 +191,11 @@ two reports is attributable to that one change.
 | Field | `official-suite-2026-07-28-scenarios.jsonl` | `official-suite-2026-07-28-stateless.jsonl` |
 |---|---|---|
 | Client | The **official MCP conformance suite**, `0.2.0-alpha.12`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` holds) | The same client, the same scenarios, the same run |
-| Server | `mcp-everything-server` serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode |
+| Server | `mcp-everything-server` on rmcp 3.4.1, serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode, same build |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-04 | same run, second leg |
 | Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
-| Our verdict | 59 pass, **1 fail**, 0 warn, 64 not observed, 149 excluded | **60 pass, 0 fail, 0 warn**, 64 not observed, 149 excluded |
-| The official runner's verdict | **38 passing / 4 failing** | **42 passing / 0 failing** |
+| Our verdict | 64 pass, **1 fail**, 0 warn, 76 not observed, 169 excluded | **65 pass, 0 fail, 0 warn**, 76 not observed, 169 excluded |
+| The official runner's verdict, that run | `38 passing / 4 failing` | `42 passing / 0 failing` |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
 `resources/{list,read}`, `prompts/{list,get}` and progress notifications; every
@@ -236,10 +236,10 @@ violation `TRAN-025` names — was reported `pass`, because the one shared rule
 could only demand what both clauses had in common. `EventBody::Http` now carries
 the method, each clause is judged against the requests it binds, and an exchange
 whose method the capture did not record is judged by neither. These two captures
-were re-recorded so the method is present; that is why their `Recorded by` row
-reads 2026-08-20.
+were re-recorded on 2026-08-20 so the method is present, and again on 2026-10-04
+when the draft ratchet moved to `alpha.12`.
 
-**Why the runner's 23/23 and our 60-vs-61 were both right — and how the runner
+**Why the runner's 23/23 and our 59-vs-60 were both right — and how the runner
 caught up.** The suite's `2026-07-28` scenarios exercise features — list a
 thing, call a thing, read a thing — and a `2025-11-25` server answers all of
 them, because rmcp serves a per-request-versioned POST whichever revision the
@@ -252,12 +252,19 @@ differ: CACH-001, no `ttlMs` on cacheable results.
 `wire-schema-valid` check validates every message against the negotiated
 revision's JSON schema, and it fails the `2025-11-25` leg's four resource
 scenarios for `must have required property 'cacheScope'` / `'ttlMs'` — that
-clause, independently. Re-measured, the legacy leg scores 37 passing / 4
-failing and the stateless leg 41 / 0, so the runner now separates the two
+clause, independently. Measured at `alpha.11`, the legacy leg scored `37 passing / 4
+failing` and the stateless leg `41 / 0`, so the runner separated the two
 servers it could not tell apart before. Neither instrument was wrong; they were
 measuring different things, and one of them saw this first. The pair is still
 the evidence for taking both readings — now with a worked example of the
 prose-level reading arriving earlier than the schema-level one.
+
+**And then the implementation closed the gap.** rmcp 3.5.1 fills in missing
+cache hints for any peer speaking `2026-07-28` (rust-sdk #1308), so since the
+workspace moved to it (2026-10-12) the legacy server's results carry `ttlMs` and
+`cacheScope` too, and `cargo xtask draft-readiness` scores both legs 42 passing /
+0 failing. The pair above stays as recorded: it is the evidence for what the
+registry caught and when, not a measurement of today's server.
 
 The 64 not-observed rows are the honest denominator: of the 124 clauses this
 revision's registry can judge, these sessions carried subject matter for 60.
@@ -278,7 +285,7 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all four prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **81 pass, 0 fail, 0 warn**, 43 not observed, 149 excluded |
+| Our verdict | **88 pass, 0 fail, 0 warn**, 53 not observed, 169 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -329,7 +336,7 @@ captures). The remaining four are reachable and not yet driven:
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | 159 events — the stdio session's 85 messages plus 74 `http` events carrying status and headers |
-| Our verdict | **92 pass, 0 fail, 0 warn**, 32 not observed, 149 excluded |
+| Our verdict | **97 pass, 0 fail, 0 warn**, 44 not observed, 169 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -342,7 +349,7 @@ in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 92 of the 124 judgeable clauses it is the best-covered capture here. Its 32
+At 97 of the 141 judgeable clauses it is the best-covered capture here. Its 44
 not-observed rows include the server-rejection rules a conforming client never
 triggers, the pagination and `x-mcp-header` clauses this server's surface does
 not reach, and `TOOL-022` (rmcp's client caches `tools/list` under the
@@ -432,16 +439,16 @@ read as a specimen instead.
 <!-- draft-coverage:begin (generated by `cargo xtask draft-coverage`; do not edit by hand) -->
 | Capture | Judged | pass | fail | warn | Not observed |
 |---------|-------:|-----:|-----:|-----:|-------------:|
-| `official-suite-2026-07-28-scenarios` | 60 | 59 | 1 | 0 | 64 |
-| `official-suite-2026-07-28-stateless` | 60 | 60 | 0 | 0 | 64 |
-| `probe-2026-07-28-http` | 66 | 55 | 9 | 2 | 58 |
-| `reference-host-2026-07-28-http` | 92 | 92 | 0 | 0 | 32 |
-| `reference-host-2026-07-28-stdio` | 81 | 81 | 0 | 0 | 43 |
-| **Union** | **112** | | | | **12** |
+| `official-suite-2026-07-28-scenarios` | 65 | 64 | 1 | 0 | 76 |
+| `official-suite-2026-07-28-stateless` | 65 | 65 | 0 | 0 | 76 |
+| `probe-2026-07-28-http` | 66 | 57 | 9 | 0 | 75 |
+| `reference-host-2026-07-28-http` | 97 | 97 | 0 | 0 | 44 |
+| `reference-host-2026-07-28-stdio` | 88 | 88 | 0 | 0 | 53 |
+| **Union** | **118** | | | | **23** |
 
-Across all 5 captures, **112 of the 124 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 5 captures, **118 of the 141 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
-The 12 clauses no capture reaches: `CACH-015`, `CACH-016`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TRAN-061`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-096`, `VERS-004`.
+The 23 clauses no capture reaches: `CACH-015`, `CACH-016`, `CANC-003`, `CANC-011`, `DISC-002`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TRAN-061`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-081`, `TRAN-096`, `TRAN-128`, `TRAN-130`, `TRAN-132`, `TRAN-133`, `TRAN-134`, `TRAN-135`, `TRAN-136`, `VERS-004`.
 <!-- draft-coverage:end -->
 
 The probe session closed the largest group — the rejection rules — and the
@@ -483,30 +490,44 @@ written to exercise one clause each, which is also what keeps a violation
 attributable to the check it kills.
 
 Where a trace falsifies more than one requirement, the row says so and why.
-There are only two reasons, and neither is sloppy authorship: several clauses
-state *one* rule across several sections and share a check by design, or one
+There are only three reasons, and none is sloppy authorship: several clauses
+state *one* rule across several sections and share a check by design, one
 clause's antecedent is itself a violation by the other party — a server can
-only fail to reject a bad header if the client sent one. Every other row
-falsifies exactly the requirement it is named for.
+only fail to reject a bad header if the client sent one — or the shape a trace
+exists to carry is a violation in its own right: an HTTP answer with
+`"id": null` that the framing ties to its request is BASE-052's whenever that
+request's id could be read. Every other row falsifies exactly the requirement
+it is named for.
 
 | Trace | Exercises |
 |-------|-----------|
 | `stateless-session.jsonl` | Conformant `2026-07-28` stateless session over **stdio**: every request carries its own `_meta` envelope (protocolVersion + clientCapabilities), every result carries `resultType`, request ids are reused only after their response. It closes with two calls in flight, a `notifications/cancelled` for one of them, and the server answering only the other — TRAN-124's pass path, which a recording can only carry by showing a *permitted* message where the forbidden one would be. It also carries a complete conforming MRTR round — `input_required` with an `elicitation/create` request and a `requestState`, then a retry under a new id echoing the state and supplying `inputResponses` — so the MRTR checks pass on real content. The Streamable HTTP clauses report *not observed* here: there is no HTTP framing for them to read, which is why `streamable-http-session.jsonl` exists. |
 | `mrtr-parallel-rounds.jsonl` | Two `tools/call` rounds in flight at once — the shape the official Python SDK produces for concurrent calls: both requests, both `input_required` results, then the retries in the *opposite* order, each echoing its own `requestState` and answering its own `inputRequests`. Until retries were paired by the state they echo, the second retry was judged against the most recent round — the other call's — and this conforming exchange failed MRTR-003/015/016/017. |
+| `mrtr-retry-round-before-recording.jsonl` | A fresh stdio process receives a `tools/call` retry carrying `inputResponses` and a `requestState` minted by an earlier server process, and completes it; the `input_required` round predates the recording. `requestState` exists so a retry can reach an instance that never saw the round, so MRTR-015/016/018 have no round to judge it against. Until 2026-10-12 MRTR-018 read the missing round as one that issued no state and failed it. |
 | `subscription-server-teardown.jsonl` | A stdio subscription the *server* ends: acknowledgment, one requested change notification, then `notifications/cancelled` with `requestId` naming the `subscriptions/listen` request — the teardown basic/patterns/cancellation makes mandatory ("A server MUST send `notifications/cancelled` referencing a `subscriptions/listen` request ID when it tears down that subscription stream"). It carries no `subscriptionId` tag, since `requestId` already names the subscription; until 2026-10-04 BASE-039 failed it for the missing tag, and SUBS-001 failed the tagged form as an unrequested notification type, so the mandated message could not pass either way. |
+| `subscription-id-reused-after-close.jsonl` | A stdio subscription closed by its graceful-closure response, then a second `subscriptions/listen` reusing id 1 with a different filter (`promptsListChanged` only): each opening acknowledged first, each notification one its own filter requested (SUBS-001/002 pass paths). Until 2026-10-12 both checks keyed subscriptions by id alone, so the second filter judged the first stream's `tools/list_changed` and SUBS-001 failed. |
+| `caching-ttl-written-as-float.jsonl` | A `tools/list` result carrying `"ttlMs": 60000.0`. The schema types `ttlMs` as JSON Schema `integer`, which admits any number with a zero fractional part, so this is 60000 milliseconds (CACH-001/008 pass paths) — the spelling a serializer that holds every JSON number as a double may produce. Until 2026-10-12 CACH-008 accepted only values that parsed as `i64` and failed it. |
+| `traceparent-higher-version.jsonl` | A request `traceparent` of version `01` with a fifth field after the flags, answered with a result whose `traceparent` is downgraded to `00` — the first mutation W3C Trace Context §3.4 allows. §3.2.4 assumes future versions "will be additive" and has a parser check only that the flags are followed by "the end of the string or a dash", so the extra field is valid (BASE-040's pass path). Until 2026-10-12 the check demanded exactly four fields at every version and failed it. |
 | `resource-read-existing-empty.jsonl` | A listed resource (`file:///project/empty.log`) read back with an empty `contents` array. RES-022 forbids that shape only "for a non-existent resource", and the page concedes the other reading — "it could mean the resource exists but has no content" — so with nothing in the session saying this resource is missing, nothing is reported. Until 2026-10-04 the shape alone failed the MUST. |
 | `base-030-request-meta-missing-required-field.jsonl` | Request `_meta` omits `io.modelcontextprotocol/clientCapabilities` (BASE-030) |
 | `base-030-malformed-request-id-reused-correctly.jsonl` | A `tools/list` whose `_meta` omits `clientCapabilities` is correctly rejected with `-32602`; the client then reuses id 1 — legal once answered (BASE-045) — for a well-formed `tools/list`, which is served (BASE-030 for the first request only). The golden pins BASE-031 *passing*: correlated by id text alone, the second request's result was held against the first, malformed one. |
+| `base-030-unsupported-version-refused-as-invalid-params.jsonl` | Over stdio, a `tools/list` whose `_meta` omits `clientCapabilities` *and* names `2099-01-01`, which the server's `server/discover` result omits; the server answers `-32602` (BASE-030, with MRTR-002, COMP-006, PAGE-006, TOOL-016, RES-011 and PROM-011 — the same envelope rule restated per feature, sharing its check). Both `-32602` and `-32022` are defined for this request and one answer carries one code, so the golden pins VERS-001 *passing*; until 2026-10-12 it and TRAN-074 failed it. TRAN-074, the Streamable HTTP statement of the rule, is *not observed* on this stdio trace. |
+| `input-required-id-reused.jsonl` | A `tools/call` declaring `elicitation` draws an `input_required` asking for `elicitation/create`, is retried and served under id 2, and then id 1 — answered, so free again (BASE-045) — is reused for an unrelated call declaring no capabilities. Until 2026-10-12 capabilities were looked up by request id across the whole trace, so the `input_required` was held against the *last* request with id 1, and this conforming session failed BASE-034, MRTR-012 and MRTR-013. |
+| `base-030-malformed-request-refused-without-id.jsonl` | The same malformed `tools/list` over Streamable HTTP, rejected `400` with a `-32602` whose id is null, then retried well-formed under id 1 and served (BASE-030 for the client's envelope; BASE-052 for the null id, since the framing names a request whose id could be read). The golden pins BASE-031, BASE-032 and BASE-045 *passing*: until 2026-10-12 the null-id rejection answered nothing, the malformed request stayed open, and the retry's result was held against it. |
 | `base-031-malformed-meta-answered-with-result.jsonl` | Server answers a `_meta`-incomplete request with a result instead of `-32602` (BASE-031) |
 | `base-031-reused-id-malformed-answered.jsonl` | The reverse order: a well-formed `tools/list` id 1 is served, then a `_meta`-incomplete request reusing id 1 is *also* served (BASE-031; BASE-030 for the client's envelope). Exactly one BASE-031 finding, on the second answer — keyed by id alone, the first, legitimate answer was reported too, for a request sent after it. |
 | `base-032-invalid-params-not-http-400.jsonl` | `-32602` returned with HTTP 200 rather than 400 (BASE-032) |
 | `base-034-input-request-for-undeclared-capability.jsonl` | Server returns `input_required` asking for `elicitation/create` the request never declared (BASE-034) |
+| `base-034-input-request-for-undeclared-mode.jsonl` | The request declares `elicitation: {"form": {}}` and a plain `sampling: {}`; the server asks for a URL-mode `elicitation/create` and a `sampling/createMessage` carrying `tools` (BASE-034; MRTR-012 and MRTR-013 share the check). `client/elicitation`: "Servers MUST NOT send elicitation requests with modes that are not supported by the client"; `client/sampling`: "Servers MUST NOT send tool-enabled sampling requests to Clients that have not declared support for tool use via the `sampling.tools` capability." Only top-level capability names were compared until 2026-10-12, so this passed. |
 | `base-035-missing-capability-error-without-capabilities.jsonl` | `-32021` carries no `data.requiredCapabilities` (BASE-035) |
 | `base-036-missing-capability-not-http-400.jsonl` | `-32021` returned with HTTP 500 rather than 400 (BASE-036) |
 | `base-039-subscription-notification-untagged.jsonl` | Notification on a `subscriptions/listen` stream with no `io.modelcontextprotocol/subscriptionId` (BASE-039) |
+| `base-039-subscription-notification-mistagged.jsonl` | A `subscriptions/listen` with the numeric id `1`, acknowledged under tag `1`, then a change notification tagged with the *string* `"1"` (BASE-039). The schema: "The value is the JSON-RPC ID of the `subscriptions/listen` request that opened the stream" — and JSON-RPC ids are compared as values, so `"1"` names no subscription. Only the tag's presence was checked until 2026-10-12. |
 | `base-040-malformed-traceparent.jsonl` | `traceparent` that is not W3C Trace Context shaped (BASE-040) |
+| `base-040-traceparent-version-ff.jsonl` | `traceparent` with version `ff`, which W3C Trace Context forbids ("Version ff is forbidden"), and otherwise well formed (BASE-040). Passed until 2026-10-12, when the check accepted any two hex digits as the version. |
 | `base-045-request-id-reused-in-flight.jsonl` | Request id reused while the first is still outstanding (BASE-045) — legal at `2025-11-25` only after a response, and this trace reuses *before* one |
 | `base-048-result-without-result-type.jsonl` | Result omits the `resultType` SEP-2322 requires (BASE-048) |
+| `base-052-null-id-error-then-id-reused.jsonl` | A well-formed `tools/call` for an unknown tool answered with a `-32602` whose id is null, then id 1 reused for a call that is served (BASE-052). The status ties the error to its POST, whose request has the readable id `1`, so the escape hatch for an id that "could not be read" does not apply. The golden pins BASE-045 *passing*: until 2026-10-12 the null-id answer closed nothing, and the reuse was reported as in flight. |
 | `base-083-legacy-error-code.jsonl` | Error code `-32010` from the legacy sub-range, which new implementations SHOULD NOT use (BASE-083, a warning). Named `base-055-…` until 2026-10-04, when BASE-055 carried this use at MUST NOT alongside the allocation rule it actually states. |
 | `base-057-undefined-reserved-error-code.jsonl` | Error code `-32055`: inside the MCP-reserved sub-range but undefined (BASE-057) |
 | `base-058-withdrawn-error-code.jsonl` | Error code `-32002`, withdrawn by this revision (BASE-058) |
@@ -515,25 +536,35 @@ falsifies exactly the requirement it is named for.
 | `http-concurrent-posts.jsonl` | Two `tools/call` POSTs in flight at once, recorded the way the capture proxy interleaves them — both requests' `http` events, then both bodies, then both statuses and both answers — followed by one serial call. Every header matches its own body. Paired by "the next client message", the second POST's headers landed on the first body and a conforming exchange failed TRAN-058/TRAN-097/TRAN-100; overlapping POSTs are now left unpaired, and the serial call after them pairs and is judged as before. |
 | `http-upstream-abort.jsonl` | Two requests in flight; the capture proxy records a `transport-abort` — what it writes when the upstream server fails and it answers the client 502 itself — and the server then answers the other request normally. An abort is a failed transport, not a client closing its stream, and a lifecycle event names no request; until 2026-10-04 TRAN-070 read any close or abort as cancelling every request in flight and failed the server for the second answer. |
 | `http-stream-closed-by-client.jsonl` | A `tools/call` whose SSE response stream closes while it is the only request in flight — the cancellation signal at this revision — after which the server sends nothing more for it, and a later `tools/list` is answered normally (TRAN-070's pass path, now that a close is attributed only when exactly one request is in flight). |
+| `http-close-after-another-response.jsonl` | A `subscriptions/listen` stream left open while a `tools/call` beside it is answered; a `transport-close` is recorded straight after that answer, and the subscription is later closed gracefully. The final response "SHOULD terminate the stream", so the close is the call's stream ending, not the subscription being cancelled. Until 2026-10-12 TRAN-070 pinned the close on the one request still open and failed the graceful closure. |
+| `stdio-discover-preferred-version-unsupported.jsonl` | A stdio `server/discover` probe naming `2027-03-01`, answered with a `DiscoverResult` listing only `2026-07-28`, then a `tools/list` at that version. `basic/versioning`'s compatibility matrix names the outcome: "The stdio probe returns a `DiscoverResult` (or `UnsupportedProtocolVersionError`)". Until 2026-10-12 TRAN-074 and VERS-001 failed the result for not being `-32022`; VERS-001 now passes it, and TRAN-074, an HTTP clause, is *not observed* on stdio. |
+| `http-dual-era-modern-request-first.jsonl` | A dual-era client over Streamable HTTP opening with a modern `tools/list`, refused `400` with `-32600`, then falling back to `initialize` (carrying a full `_meta` envelope and left unanswered, as in `disc-002-…`, so nothing else fires). HTTP's own rule lets it "detect which era the server implements by attempting a modern request first"; the probe-first clause is stdio's. Until 2026-10-12 DISC-002 and TRAN-128 warned here. |
 | `stdio-cancellation-race.jsonl` | A `tools/call` cancelled by notification whose progress and result were already on their way: both land after the cancellation in the recording, then a later `tools/list` is answered. basic/patterns/cancellation names this race ("this notification MAY arrive after the request has already finished"; "Both parties MUST handle these race conditions gracefully"), and nothing shows the server had read the cancellation when it wrote them. Until 2026-10-04 TRAN-124 convicted every message recorded after a cancellation. |
+| `stdio-cancelled-id-reused.jsonl` | A `tools/call` id 5 cancelled by notification and answered in the race the cancellation page names; a later `tools/call` id 6 shows the server has read the cancellation; the client then reuses id 5 — legal once answered (BASE-045) — for a new call, which is answered (TRAN-124's pass path). Until 2026-10-12 the stdio check never cleared a cancellation when its id was reused, as the HTTP twin does, and failed the answer to the new request. |
+| `stdio-progress.jsonl` | Progress done right over **stdio**: rising values (`0.25`, `0.5`, `1`) for one token, ending before the result; the token reused by a later request once the first was answered, its sequence starting again below where the last one ended; and an integer token running concurrently with it. The pass path of PROG-001/002/003/005/008. |
 | `logging-per-request.jsonl` | Per-request logging done right: a declared `logging` capability, a `tools/call` carrying `io.modelcontextprotocol/logLevel` that receives a log while it is the only request in flight, then a second call that sets no level and receives none (LOG-007/008/009 pass paths). |
 | `stdio-x-mcp-header-large-integer.jsonl` | The `tool-034` session over **stdio**: an `x-mcp-header`-annotated integer argument of 2^53. Mirroring is a Streamable HTTP mechanism ("Clients using other transports (e.g., stdio) MAY ignore `x-mcp-header` annotations entirely"), so no value is put through a header and TOOL-034 does not bind; until 2026-10-04 it failed the MUST here. |
+| `http-x-mcp-header-omitted.jsonl` | The `x-mcp-header` behaviour table's conforming rows over Streamable HTTP: a designated `region` passed as `null` and left out of the arguments, each POSTed without `Mcp-Param-Region` and served, then passed a value and mirrored. The pass path of TRAN-130 through TRAN-135. |
 | `tran-058-request-metadata-headers-missing.jsonl` | POST carries neither `Mcp-Method` nor `Mcp-Name` (TRAN-058) |
+| `tran-058-mcp-name-mismatch-refused-without-id.jsonl` | A POST whose `Mcp-Name` disagrees with `params.name` (TRAN-058), refused `400` with a null-id `-32020`; the client corrects the header and retries reusing id 1, which is served. Also falsifies BASE-052 — the null id answers a request whose id could be read. The golden pins BASE-045, TRAN-097 and TRAN-100 *passing*: until 2026-10-12 the refusal answered nothing, so the retry was an in-flight reuse and its result was held against the mismatched POST. |
 | `tran-060-client-posts-a-response.jsonl` | Client POSTs a JSON-RPC response (TRAN-060). Also falsifies BASE-046: at this revision a server cannot issue the request such a response would answer, so an unsolicited id is the only shape the violation can take. |
 | `tran-061-notification-answered-200.jsonl` | A `notifications/cancelled` POST answered `200` instead of `202 Accepted` (TRAN-061) |
-| `tran-066-independent-server-request.jsonl` | Server sends `elicitation/create` as its own request on the response stream instead of an MRTR input request (TRAN-066) |
+| `tran-066-independent-server-request.jsonl` | Server sends `elicitation/create` as its own request on the response stream instead of an MRTR input request (TRAN-066; BASE-084, basic/patterns' "Servers MUST NOT initiate JSON-RPC requests", is the same rule stated for every transport and shares the check) |
 | `tran-068-sse-without-accel-buffering.jsonl` | SSE response omits `X-Accel-Buffering: no` (TRAN-068, SHOULD → warn) |
+| `tran-068-sse-media-type-mixed-case.jsonl` | The same omission on a response typed `Text/Event-Stream; charset=utf-8` (TRAN-068). Media types are case-insensitive (RFC 9110 §8.3.1); until 2026-10-12 only the lowercase spelling was recognized as SSE, and this response was not judged. |
 | `tran-070-message-after-stream-close.jsonl` | Server answers a request whose response stream had already closed, which this revision treats as cancellation (TRAN-070) — the close is attributable because exactly one request is in flight when it is recorded |
 | `tran-071-protocol-version-header-missing.jsonl` | POST request without `MCP-Protocol-Version` (TRAN-071) |
 | `tran-072-protocol-version-header-mismatched.jsonl` | Header says `2025-11-25`, body `_meta` says `2026-07-28`; the server rejects it correctly, isolating the client's fault (TRAN-072) |
-| `tran-072-mismatch-rejected-without-id.jsonl` | The client's header/body version disagreement (TRAN-072), refused with `400` and `-32020` — but with `"id": null`. The golden pins TRAN-073 *passing*: the POST and its answer are the only exchange in flight, so the framing ties the null-id answer to the request, and the right code is the right code. |
+| `tran-072-mismatch-rejected-without-id.jsonl` | The client's header/body version disagreement (TRAN-072), refused with `400` and `-32020` — but with `"id": null`. The golden pins TRAN-073 *passing*: the POST and its answer are the only exchange in flight, so the framing ties the null-id answer to the request, and the right code is the right code. Since 2026-10-12 it also falsifies BASE-052, inseparably from the shape under test: the framing names the request, its id `1` could be read, and only an id that could not be read may be answered with null. |
+| `tran-072-unsupported-body-version-header-mismatch.jsonl` | Header `2026-07-28` against a body `_meta` naming `2099-01-01`, a version the server's `server/discover` result omits, refused `400` with `-32020` (TRAN-072, the client's fault). The request falls under both TRAN-073 (`HeaderMismatch`) and TRAN-074/VERS-001 (`UnsupportedProtocolVersionError`), which name no order, so the golden pins all three *passing*; until 2026-10-12 TRAN-074 and VERS-001 failed this answer. |
+| `tran-072-unsupported-body-version-refused-as-unsupported.jsonl` | The same request refused with `-32022` listing `2026-07-28` (TRAN-072). The other half of the pair: the golden pins TRAN-073 *passing*, which until 2026-10-12 failed this answer — so neither code could pass before. |
 | `tran-073-header-mismatch-not-rejected.jsonl` | The same disagreement, answered with a result (TRAN-073). Necessarily also falsifies TRAN-072 — the client fault *is* this clause's antecedent. |
-| `tran-073-mismatch-refused-without-id.jsonl` | The same disagreement refused with `400 {"id":null,"error":{"code":-32600,...}}` — what the official Python SDK's server returns, treating the `2025-11-25` header as a legacy request (TRAN-073; TRAN-072 for the client's header, the antecedent). Paired by id alone the answer belonged to no request and TRAN-073 reported *not observed*. |
+| `tran-073-mismatch-refused-without-id.jsonl` | The same disagreement refused with `400 {"id":null,"error":{"code":-32600,...}}` — what the official Python SDK's server returns, treating the `2025-11-25` header as a legacy request (TRAN-073; TRAN-072 for the client's header, the antecedent). Paired by id alone the answer belonged to no request and TRAN-073 reported *not observed*. Also falsifies BASE-052 since 2026-10-12, for the same null id: the request it answers had the readable id `1`. |
 | `tran-074-unsupported-version-without-supported-list.jsonl` | `-32022` without the `data.supported` list the clause requires (TRAN-074) |
 | `tran-074-unsupported-version-accepted.jsonl` | A request naming a version the server's own `server/discover` result omits, answered with a result (TRAN-074) |
 | `tran-075-method-not-found-not-404.jsonl` | `-32601` returned with HTTP 200 rather than 404 (TRAN-075) |
 | `tran-077-mcp-name-unencoded.jsonl` | Non-ASCII `Mcp-Name` carried unencoded (TRAN-077, TRAN-086, TRAN-087 — one rule stated in three sections, one shared `transport.header-value-encoding` check) |
-| `tran-079-x-mcp-header-not-mirrored.jsonl` | `tools/call` supplies a designated argument without its `Mcp-Param-*` header (TRAN-079) |
+| `tran-079-x-mcp-header-not-mirrored.jsonl` | `tools/call` supplies a designated argument without its `Mcp-Param-*` header (TRAN-079; TRAN-130, the behaviour table's "Client MUST include the header", shares the check) — and the server serves it, which since 2026-10-12 also fails TRAN-136 ("Server MUST reject the request"): the client's omission is that clause's antecedent |
 | `tran-080-x-mcp-header-name-invalid.jsonl` | One `inputSchema` with three annotation faults: a non-token name, a case-insensitive duplicate, and an annotation on a `number` property (TRAN-080) |
 | `tran-089-sentinel-markers-miscased.jsonl` | `=?BASE64?…?=` — the sentinel markers must be exactly lowercase (TRAN-089). The server rejects it correctly, so nothing else fires. |
 | `tran-092-sentinel-pattern-unencoded.jsonl` | A plain value that matches the sentinel pattern, carried verbatim rather than encoded (TRAN-092) |
@@ -543,6 +574,12 @@ falsifies exactly the requirement it is named for.
 | `tran-097-integer-header-different-number.jsonl` | `Mcp-Param-Limit: 41` against an integer `arguments.limit = 42`, served (TRAN-097, TRAN-100; TRAN-058 is not involved — the client's own mirroring defect has no separate clause here). Pins that the numeric comparison TRAN-101 recommends, which since 2026-10-04 lets `42.0` match `42`, still rejects a different number. |
 | `tran-097-mismatch-after-concurrent-posts.jsonl` | The same session as `good/http-concurrent-posts.jsonl`, except the final, serial POST carries `Mcp-Name: beta` against `params.name = "alpha"` and is served (TRAN-097, TRAN-100; TRAN-058 for the client's header — the antecedent of a failure to reject). Pins that the ambiguity rule withholds judgement only on the overlapping POSTs: once they drain, pairing — and conviction — resume. |
 | `tran-098-header-mismatch-without-400.jsonl` | `HeaderMismatch` returned with HTTP 500 rather than 400 (TRAN-098, TRAN-102 — one rule stated in two sections) |
+| `tran-132-null-parameter-header-sent.jsonl` | A designated `region` passed as `null` (the schema allows it) yet mirrored as `Mcp-Param-Region: null`, which the behaviour table's `null` row forbids ("Client MUST omit the header", TRAN-132). The server serves it, which is not a fault: with no value in the body there is nothing for the header to mismatch. |
+| `tran-133-omitted-null-header-rejected.jsonl` | The conforming form of the same call — `region: null`, no `Mcp-Param-Region` — refused with `400` and `-32020`, every other header matching its body: the server expected a header the table says it must not (TRAN-133). |
+| `tran-134-absent-parameter-header-sent.jsonl` | The table's other valueless row: `region` left out of the arguments, yet `Mcp-Param-Region: us-west1` sent — a header for a value the body does not carry (TRAN-134). |
+| `tran-135-omitted-absent-header-rejected.jsonl` | `region` left out of the arguments and its header correctly omitted, refused with `400` and `-32020` (TRAN-135). The `null` row and this one are judged by separate checks, so neither finding is reported against the other's scenario. |
+| `tran-136-missing-param-header-accepted.jsonl` | A designated `region: "us-west1"` sent without `Mcp-Param-Region` and served with a result instead of rejected (TRAN-136; TRAN-079 and TRAN-130 for the client's omission, the antecedent). The shape of the session that showed the gap on 2026-10-12: `header_body_match_validated` compares only headers that are present, so a missing one was judged by nothing on the server's side. |
+| `tran-079-missing-param-header-rejected.jsonl` | The same omission refused with `400` and `-32020` (TRAN-079 and TRAN-130 for the client). The golden pins TRAN-136 *passing* — its pass path can only exist beside a client fault, the way `tran-072-mismatch-rejected-without-id.jsonl` carries TRAN-073's. |
 | `tran-074-unsupported-version-without-400.jsonl` | `-32022` returned with HTTP 200 rather than 400 (TRAN-074). The status half of that clause had no trace of its own until `transport.unsupported-version-status` was split out; it had been riding the kills of the sibling rules it was bundled with. |
 | `tool-019-tools-undeclared.jsonl` | `tools/call` answered though discovery declared no `tools` capability (TOOL-019) |
 | `tool-020-declared-tools-list-unimplemented.jsonl` | `tools` declared, but `tools/list` refused with `-32601` (TOOL-020) |
@@ -559,14 +596,16 @@ falsifies exactly the requirement it is named for.
 | `log-008-log-without-requested-level.jsonl` | A log notification in a session where no request set `io.modelcontextprotocol/logLevel` (LOG-008) |
 | `log-008-log-for-request-without-level.jsonl` | The same session, except the second call — no `logLevel`, and the only request in flight — receives a log (LOG-008). An earlier request *did* ask for logs, so the session-wide reading passed this until 2026-10-04; with one request in flight the notification can only be that request's. |
 | `log-009-log-on-subscription-stream.jsonl` | A log notification tagged with a subscription id, so travelling on a subscription's stream (LOG-009) |
+| `log-009-log-with-no-request-in-flight.jsonl` | A `tools/call` that asked for logs is answered; with only a `subscriptions/listen` open, the server then sends an untagged log (LOG-009). It travels on no request's response stream, since every request it could belong to has been answered. Passed until 2026-10-12: LOG-009 judged only the subscription tag, and LOG-008 only a log some unopted request could own. |
 | `log-010-unrecognized-log-level-accepted.jsonl` | A request declaring log level `verbose`, served rather than rejected with `-32602` (LOG-010) |
 | `cach-001-cacheable-result-without-hints.jsonl` | A `complete` `tools/list` result with no `ttlMs` caching hint (CACH-001) |
 | `cach-001-ttl-without-cache-scope.jsonl` | A `complete` `tools/list` result carrying `ttlMs` but no `cacheScope` (CACH-001). The page defines "caching hints" as both fields ("Cacheable Results in MCP use two fields to provide caching hints"), and the schema's `CacheableResult` requires both; until 2026-10-04 the check accepted `ttlMs` alone. Three single-issue fixtures that had carried `ttlMs` without a scope (`res-012`, `tool-022`, `tool-034`) gained `"cacheScope":"public"` so they stay single-issue. |
 | `cach-008-negative-ttl.jsonl` | `ttlMs: -1`, which servers must never provide (CACH-008) |
 | `cach-015-page-scope-changes.jsonl` | A paginated `tools/list` whose second page switches from `private` to `public` (CACH-015, and CACH-016 — the same rule and its worked example) |
 | `subs-001-unrequested-notification-type.jsonl` | A `prompts/list_changed` on a subscription whose filter asked only for tools-list changes (SUBS-001) |
-| `subs-001-cancelled-for-another-request.jsonl` | A `notifications/cancelled` delivered on a subscription stream (tagged with its id) but cancelling an ordinary `tools/call`, not the subscription — not the teardown the cancellation page permits, so still an unrequested notification on the stream (SUBS-001). Pins that the teardown exemption reads `requestId`, not merely the method. |
+| `subs-001-cancelled-for-another-request.jsonl` | A `notifications/cancelled` delivered on a subscription stream (tagged with its id) but cancelling an ordinary `tools/call`, not the subscription — not the teardown the cancellation page permits, so still an unrequested notification on the stream (SUBS-001). Pins that the teardown exemption reads `requestId`, not merely the method. Since 2026-10-12 the same message also fails CANC-003/CANC-011: a server may cancel only a `subscriptions/listen` request, and this one cancels a call. |
 | `subs-002-notification-before-acknowledgment.jsonl` | A notification ahead of `notifications/subscriptions/acknowledged` on the same subscription id (SUBS-002) |
+| `subs-002-reused-id-first-opening-unacknowledged.jsonl` | Subscription 1's first opening sends `tools/list_changed` ahead of its acknowledgment and is closed; a second `subscriptions/listen` reusing id 1 is acknowledged correctly (SUBS-002, on the first opening). Passed until 2026-10-12, when the second request replaced the first in an id-keyed map and the first opening's messages were never examined. |
 | `subs-006-graceful-close-result-not-empty.jsonl` | A graceful-closure response carrying `delivered` alongside `resultType` (SUBS-006, and SUBS-005 — one rule stated in the cancellation list and again under Graceful Closure) |
 | `mrtr-004-input-required-on-unsupported-method.jsonl` | `input_required` answering a `resources/list`, which is not one of the three requests that may draw one (MRTR-004) |
 | `mrtr-006-input-request-unknown-method.jsonl` | `inputRequests` asking for `tools/list`, which is not an ElicitRequest, CreateMessageRequest or ListRootsRequest (MRTR-006) |
@@ -578,8 +617,13 @@ falsifies exactly the requirement it is named for.
 | `mrtr-019-retry-reuses-id.jsonl` | Retry reuses the original request's JSON-RPC id (MRTR-019) — legal under BASE-045, since the first was already answered, and forbidden here |
 | `mrtr-020-request-state-on-another-method.jsonl` | A `prompts/get` carrying the `requestState` a `tools/call` round issued (MRTR-020) |
 | `mrtr-024-shortfall-answered-with-error.jsonl` | Retry omits requested input and the server answers `-32602` rather than asking again (MRTR-024). Necessarily also falsifies MRTR-015 — the client's shortfall is this clause's antecedent. |
-| `tran-123-cancellation-without-request-id.jsonl` | `notifications/cancelled` carrying only a reason, naming no request to cancel (TRAN-123) |
+| `tran-123-cancellation-without-request-id.jsonl` | `notifications/cancelled` carrying only a reason, naming no request to cancel (TRAN-123; CANC-005 is the cancellation page's statement of the same stdio rule and shares the check) |
 | `tran-124-message-after-cancel-notification.jsonl` | Server answers a request the client cancelled by notification (TRAN-124) — *after* answering a `tools/list` the client sent later than the cancellation, which on stdio's ordered stream proves the server had read it. stdio's cancellation signal is the notification, not a stream close, so `transport.no-messages-after-cancellation` — which anchors on a `transport-close` — cannot see this and would have passed it vacuously. Rewritten 2026-10-04: the original answered immediately after the cancellation, the race the cancellation page says implementations must tolerate (see `good/stdio-cancellation-race.jsonl`). |
+| `canc-003-server-cancels-tool-call.jsonl` | A stdio server sends `notifications/cancelled` for the client's `tools/call` ("server busy"). At this revision a server cancels nothing but a `subscriptions/listen` request (CANC-003, and CANC-011 — the Behavior Requirements restatement — sharing the check). The pass path is `good/subscription-server-teardown.jsonl`. |
+| `prog-001-progress-token-not-integer.jsonl` | A request opting into progress with `progressToken: 1.5`, a number but not an integer (PROG-001). |
+| `prog-002-progress-token-reused-in-flight.jsonl` | Two `tools/call` requests in flight at once under the same progress token, so a notification could not say which it reports on (PROG-002). Reuse after an answer is legal, and `good/stdio-progress.jsonl` does it. |
+| `prog-003-progress-value-decreases.jsonl` | Progress `50` then `10` for one token (PROG-003). |
+| `prog-008-progress-after-completion.jsonl` | A progress notification for a stdio request after its result (PROG-008, and PROG-005 — the token no longer names an active request — sharing the check). |
 | `disc-001-server-discover-method-not-found.jsonl` | `server/discover` answered with `-32601`, which this revision makes mandatory (DISC-001, and VERS-003 — the same rule stated under versioning). The client then falls back to `initialize`, carrying a full `_meta` envelope so the trace isolates the fallback: a dual-era client that probed *first* is DISC-002/TRAN-128's pass path, and it can only be witnessed against a server that refused the probe |
 | `disc-002-dual-era-client-skips-probe.jsonl` | A client that speaks both eras — a modern `_meta` request, then an `initialize` fallback — whose first request is `tools/list` rather than the `server/discover` probe (DISC-002). The `initialize` carries a full `_meta` envelope so the trace isolates the missing probe rather than also failing BASE-030, and the handshake is left unanswered so no legacy-shaped result has to be judged for `resultType`. |
 | `vers-002-retry-with-unsupported-version.jsonl` | After a `-32022` offering `2026-07-28`, the client retries with `1899-01-01` — a version the list it was just handed does not contain (VERS-002) |

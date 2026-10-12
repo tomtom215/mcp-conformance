@@ -387,15 +387,13 @@ jobs:
 
     #[test]
     fn read_scopes_and_the_empty_form_grant_nothing() {
-        assert!(
-            scopes_in("x.yml", "permissions: {}\njobs:\n  a:\n    runs-on: x\n")
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            scopes_in("x.yml", "permissions: {}\njobs:\n  a:\n    runs-on: x\n").unwrap(),
+            Vec::<Scope>::new()
         );
-        assert!(
-            scopes_in("x.yml", "permissions:\n  contents: read\n")
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            scopes_in("x.yml", "permissions:\n  contents: read\n").unwrap(),
+            Vec::<Scope>::new()
         );
         assert_eq!(write_permission("contents: read"), None);
         assert_eq!(

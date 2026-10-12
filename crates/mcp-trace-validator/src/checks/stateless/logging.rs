@@ -13,8 +13,10 @@
 //! [`super::capabilities`], because all five state one rule per feature page and
 //! all five need this revision's declaration surface.
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use mcp_conformance_core::message::MessageKind;
-use mcp_conformance_core::trace::Direction;
+use mcp_conformance_core::trace::{Direction, TraceEvent};
 use serde_json::Value;
 
 use super::super::FindingSink;
@@ -30,7 +32,7 @@ const LOG_LEVEL: &str = "io.modelcontextprotocol/logLevel";
 const MESSAGE: &str = "notifications/message";
 
 /// Whether `event` is a server `notifications/message`.
-fn is_log(event: &mcp_conformance_core::trace::TraceEvent, kind: &MessageKind<'_>) -> bool {
+fn is_log(event: &TraceEvent, kind: &MessageKind<'_>) -> bool {
     event.direction == Direction::ServerToClient
         && matches!(kind, MessageKind::Notification { method } if *method == MESSAGE)
 }
@@ -55,29 +57,10 @@ pub(in crate::checks) fn level_requested(context: &TraceContext<'_>, sink: &mut 
         event.direction == Direction::ClientToServer
             && event.message_payload().is_some_and(requests_logs)
     });
-    // Client requests in flight: id text → (seq, whether it set a level).
-    let mut in_flight: std::collections::BTreeMap<String, (u64, bool)> =
-        std::collections::BTreeMap::new();
-    for (event, kind, _) in context.messages() {
-        let Some(payload) = event.message_payload() else {
-            continue;
-        };
-        if event.direction == Direction::ClientToServer {
-            if let MessageKind::Request { method, id } = kind
-                && *method != "subscriptions/listen"
-            {
-                in_flight.insert(id.to_string(), (event.seq, requests_logs(payload)));
-            }
-            continue;
-        }
-        if let MessageKind::Result { id: Some(id) } | MessageKind::Error { id: Some(id), .. } = kind
-        {
-            in_flight.remove(&id.to_string());
-            continue;
-        }
-        if !is_log(event, kind) {
-            continue;
-        }
+    for Log {
+        event, in_flight, ..
+    } in logs(context)
+    {
         // The subject is an emitted log notification: a session in which the
         // server never logged puts nothing to this test, whether or not a
         // request asked for logs.
@@ -112,22 +95,80 @@ fn requests_logs(payload: &Value) -> bool {
         .is_some()
 }
 
-/// `LOG-009`: log notifications stay off a `subscriptions/listen` stream.
-///
-/// A `notifications/message` tagged with `io.modelcontextprotocol/subscriptionId`
-/// is by definition travelling on a subscription's stream, which this clause
-/// forbids: logging is request-scoped, and the subscription stream carries the
-/// response to a different request entirely.
-pub(in crate::checks) fn not_on_subscription(context: &TraceContext<'_>, sink: &mut FindingSink) {
+/// A server log notification, and what the client had in flight when it arrived.
+struct Log<'a> {
+    /// The `notifications/message` event.
+    event: &'a TraceEvent,
+    /// Client requests in flight, `subscriptions/listen` aside: id text →
+    /// (seq, whether it set a level).
+    in_flight: BTreeMap<String, (u64, bool)>,
+    /// Whether a later response answers a request the recording does not
+    /// carry — one sent before the recording began, which may have been in
+    /// flight here unseen.
+    unrecorded_request_answered: bool,
+}
+
+/// Every server log notification in the trace, in order.
+fn logs<'a>(context: &'a TraceContext<'_>) -> Vec<Log<'a>> {
+    let mut logs: Vec<Log<'a>> = Vec::new();
+    let mut in_flight: BTreeMap<String, (u64, bool)> = BTreeMap::new();
+    // Every id a recorded client request carried, answered or not.
+    let mut recorded: BTreeSet<String> = BTreeSet::new();
     for (event, kind, _) in context.messages() {
-        if event.direction != Direction::ServerToClient {
+        let Some(payload) = event.message_payload() else {
+            continue;
+        };
+        if event.direction == Direction::ClientToServer {
+            if let MessageKind::Request { method, id } = kind {
+                recorded.insert(id.to_string());
+                if *method != "subscriptions/listen" {
+                    in_flight.insert(id.to_string(), (event.seq, requests_logs(payload)));
+                }
+            }
             continue;
         }
-        if !is_log(event, kind) {
+        if let MessageKind::Result { id: Some(id) } | MessageKind::Error { id: Some(id), .. } = kind
+        {
+            in_flight.remove(&id.to_string());
+            if !recorded.contains(&id.to_string()) {
+                for log in &mut logs {
+                    log.unrecorded_request_answered = true;
+                }
+            }
             continue;
         }
+        if is_log(event, kind) {
+            logs.push(Log {
+                event,
+                in_flight: in_flight.clone(),
+                unrecorded_request_answered: false,
+            });
+        }
+    }
+    logs
+}
+
+/// `LOG-009`: log notifications stay on the response stream of the request
+/// that set the level.
+///
+/// Two deliveries are attributable from a trace, and both are judged:
+///
+/// - A `notifications/message` tagged with `io.modelcontextprotocol/subscriptionId`
+///   is by definition travelling on a subscription's stream, which the clause
+///   names: the subscription stream carries the response to a different request
+///   entirely.
+/// - A `notifications/message` that arrives while no request is in flight
+///   (`subscriptions/listen` aside, which the first case covers) is on no
+///   request's response stream at all — every request it could belong to has
+///   already been answered — so it is on "any stream other than the one
+///   carrying the response to the request that set the log level". A response
+///   later in the trace to a request the recording never carried withdraws the
+///   judgment: that request was in flight, unseen, and the log may be its.
+pub(in crate::checks) fn not_on_subscription(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    for log in logs(context) {
         sink.examined();
-        let tagged = event
+        let tagged = log
+            .event
             .message_payload()
             .and_then(|payload| payload.get("params"))
             .and_then(|params| params.get("_meta"))
@@ -135,9 +176,16 @@ pub(in crate::checks) fn not_on_subscription(context: &TraceContext<'_>, sink: &
             .is_some_and(|id| !id.is_null());
         if tagged {
             sink.push(
-                Some(event.seq),
+                Some(log.event.seq),
                 "`notifications/message` carries a subscription id, so it is travelling on a \
                  `subscriptions/listen` stream; logging is request-scoped"
+                    .to_owned(),
+            );
+        } else if log.in_flight.is_empty() && !log.unrecorded_request_answered {
+            sink.push(
+                Some(log.event.seq),
+                "`notifications/message` arrived with no request but a `subscriptions/listen` \
+                 in flight, so it is on no request's response stream; logging is request-scoped"
                     .to_owned(),
             );
         }

@@ -48,7 +48,7 @@ use std::borrow::Cow;
 
 use rmcp::model::{
     ClientNotification, ClientRequest, ErrorData as McpError, ProtocolVersion, RequestMetaObject,
-    ServerInfo, ServerResult,
+    ServerConfig, ServerResult,
 };
 use rmcp::service::{NotificationContext, RequestContext};
 use rmcp::{RoleServer, Service};
@@ -153,7 +153,7 @@ impl<S: Service<RoleServer>> Service<RoleServer> for StatelessEnvelope<S> {
         self.inner.handle_notification(notification, context).await
     }
 
-    fn get_info(&self) -> ServerInfo {
+    fn get_info(&self) -> ServerConfig {
         self.inner.get_info()
     }
 

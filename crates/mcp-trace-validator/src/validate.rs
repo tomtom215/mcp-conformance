@@ -16,7 +16,6 @@
 // follows the rustc lint and quiets the clippy one, per its known-problems note.
 #![allow(clippy::redundant_pub_crate)]
 
-use std::fmt::Write as _;
 use std::path::Path;
 
 use mcp_conformance_core::requirement::{Registry, RegistrySet};
@@ -24,15 +23,23 @@ use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::declared::{self, RevisionSource};
 use mcp_trace_validator::multi::{self, MultiReport};
-use mcp_trace_validator::report::{Report, Verdict};
+use mcp_trace_validator::report::{HumanOptions, Report, Unjudged, Verdict};
 use mcp_trace_validator::{engine, junit, reader, sarif, sessions};
-use serde_json::json;
 
 use crate::emit::emit;
+use crate::input::Refusal;
 use crate::{
     EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, Format, input, judgeable, load_registry, load_registry_set,
     parse_revisions,
 };
+
+mod many;
+
+/// The most findings the default human report lists under one clause. A
+/// recording that repeats one defect throughout is otherwise hundreds of
+/// megabytes of the same line; the rest are counted, and `--all` or
+/// `--format json` lists every one.
+const MAX_FINDINGS: usize = 20;
 
 /// How `validate` presents its report.
 #[derive(Debug, Clone, Copy)]
@@ -78,13 +85,18 @@ impl Judged {
             .map_or_else(|| self.reports[0].verdict(), MultiReport::verdict)
     }
 
-    fn render_human(&self, all: bool) -> String {
-        match (&self.multi, all) {
-            (Some(multi), true) => multi.render_human(),
-            (Some(multi), false) => multi.render_findings(),
-            (None, true) => self.reports[0].render_human(),
-            (None, false) => self.reports[0].render_findings(),
-        }
+    /// The human report: with `--all`, every clause and every finding;
+    /// otherwise the clauses needing attention, each with its first
+    /// [`MAX_FINDINGS`] findings.
+    fn render_human(&self, output: Output) -> String {
+        let options = HumanOptions::default()
+            .all(output.all)
+            .max_findings((!output.all).then_some(MAX_FINDINGS))
+            .cli(true);
+        self.multi.as_ref().map_or_else(
+            || self.reports[0].render_with(&options),
+            |multi| multi.render_with(&options),
+        )
     }
 
     fn to_json(&self) -> serde_json::Result<serde_json::Value> {
@@ -116,14 +128,19 @@ pub(crate) fn run(
     let many = traces.len() > 1;
     let mut code = EXIT_OK;
     let mut judged = Vec::new();
+    let mut unjudged = Vec::new();
     for trace in traces {
         match judge(trace, limits, &registries, many) {
             Ok(one) => judged.push(one),
-            Err(failed) => code = code.max(failed),
+            Err(refusal) => {
+                refusal.print();
+                code = code.max(refusal.code);
+                unjudged.push(Unjudged::new(trace.as_str(), refusal.error));
+            }
         }
     }
     let rendered = if many {
-        render_many(&judged, traces.len(), output)
+        many::render(&judged, &unjudged, output)
     } else if let [one] = judged.as_slice() {
         render_one(one, output)
     } else {
@@ -144,7 +161,14 @@ fn resolve(sources: &Sources<'_>) -> Result<Registries, String> {
         return load_registry(path).map(Registries::Custom);
     }
     let set = load_registry_set(sources.registry_set)?;
-    let requested = parse_revisions(sources.revisions)?;
+    // Each revision once: naming one twice is not asking for two columns of
+    // the same judgment.
+    let mut requested: Vec<ProtocolRevision> = Vec::new();
+    for revision in parse_revisions(sources.revisions)? {
+        if !requested.contains(&revision) {
+            requested.push(revision);
+        }
+    }
     if let Some(unknown) = requested
         .iter()
         .find(|revision| !set.revisions().contains(revision))
@@ -161,23 +185,21 @@ fn resolve(sources: &Sources<'_>) -> Result<Registries, String> {
     Ok(Registries::Set { set, requested })
 }
 
-/// Reads and judges one trace. `Err` carries the exit status of a trace that
-/// could not be judged; its reason is already on stderr.
+/// Reads and judges one trace, or says why it could not be.
 fn judge(
     trace: &str,
     limits: &reader::Limits,
     registries: &Registries,
     many: bool,
-) -> Result<Judged, u8> {
+) -> Result<Judged, Refusal> {
     let prefix = if many {
         format!("{trace}: ")
     } else {
         String::new()
     };
-    let events = input::read_events(trace, limits)?;
+    let events = input::read_events(trace, limits, &prefix)?;
     if let Some(message) = judgeable::never_answered(&events, trace) {
-        eprintln!("{message}");
-        return Err(EXIT_USAGE);
+        return Err(Refusal::from_diagnostic(&message, EXIT_USAGE));
     }
     judgeable::note_sessions(&prefix, sessions::recorded_sessions(&events));
     let (reports, multi) = match registries {
@@ -187,8 +209,8 @@ fn judge(
     let totals = multi
         .as_ref()
         .map_or(reports[0].totals, judgeable::combined);
-    if judgeable::reject(totals, trace) {
-        return Err(EXIT_USAGE);
+    if let Some(message) = judgeable::refusal(totals, trace) {
+        return Err(Refusal::from_diagnostic(&message, EXIT_USAGE));
     }
     Ok(Judged {
         trace: trace.to_owned(),
@@ -206,16 +228,17 @@ fn judge_in_set(
     requested: &[ProtocolRevision],
     events: &[TraceEvent],
     prefix: &str,
-) -> Result<(Vec<Report>, Option<MultiReport>), u8> {
+) -> Result<(Vec<Report>, Option<MultiReport>), Refusal> {
     let (chosen, source) = if requested.is_empty() {
         declared::select(set.revisions(), events)
             .map(|selection| (selection.revisions, selection.source))
-            .map_err(|error| {
-                eprintln!(
-                    "error: {prefix}{error}\nhint: pass --revision YYYY-MM-DD to judge it \
-                     against a supported revision anyway"
-                );
-                EXIT_USAGE
+            .map_err(|error| Refusal {
+                error: format!("{prefix}{error}"),
+                hints: vec![
+                    "pass --revision YYYY-MM-DD to judge it against a supported revision anyway"
+                        .to_owned(),
+                ],
+                code: EXIT_USAGE,
             })?
     } else {
         (requested.to_vec(), RevisionSource::Requested)
@@ -239,9 +262,10 @@ fn judge_in_set(
         report.revision_source = Some(source);
         return Ok((reports, None));
     }
-    let mut multi = multi::validate_revisions(set, &chosen, events).map_err(|error| {
-        eprintln!("error: {prefix}{error}");
-        EXIT_USAGE
+    let mut multi = multi::validate_revisions(set, &chosen, events).map_err(|error| Refusal {
+        error: format!("{prefix}{error}"),
+        hints: Vec::new(),
+        code: EXIT_USAGE,
     })?;
     multi.revision_source = Some(source);
     Ok((reports, Some(multi)))
@@ -251,7 +275,7 @@ fn judge_in_set(
 /// when it could not be written.
 fn render_one(one: &Judged, output: Output) -> Option<u8> {
     let written = match output.format {
-        Format::Human => emit(&one.render_human(output.all)),
+        Format::Human => emit(&one.render_human(output)),
         Format::Json => match one
             .to_json()
             .and_then(|json| serde_json::to_string_pretty(&json))
@@ -272,132 +296,40 @@ fn render_one(one: &Judged, output: Output) -> Option<u8> {
             &sarif::Options::default().strict(output.strict),
         )),
     };
-    written.then(|| verdict_to_code(one.verdict(), output.strict))
-}
-
-/// Several traces' reports as one document per format; `None` when it could
-/// not be written.
-fn render_many(judged: &[Judged], requested: usize, output: Output) -> Option<u8> {
-    let overall = worst(judged.iter().map(Judged::verdict));
-    let unjudged = requested - judged.len();
-    let written = match output.format {
-        Format::Human => emit(&human_many(judged, unjudged, overall, output.all)),
-        Format::Json => emit(&json_many(judged, unjudged, overall)?),
-        Format::Junit => {
-            let suites: Vec<(junit::Options, &[Report])> = judged
-                .iter()
-                .map(|one| {
-                    (
-                        junit_options(&one.trace, output.strict),
-                        one.reports.as_slice(),
-                    )
-                })
-                .collect();
-            emit(&junit::render_traces(&suites))
-        }
-        Format::Sarif => {
-            let traces: Vec<(sarif::Artifact<'_>, &[Report])> = judged
-                .iter()
-                .map(|one| (artifact(&one.trace, &one.events), one.reports.as_slice()))
-                .collect();
-            emit(&sarif::render_traces(
-                &traces,
-                &sarif::Options::default().strict(output.strict),
-            ))
-        }
-    };
     written.then(|| {
-        judged
-            .iter()
-            .map(|one| verdict_to_code(one.verdict(), output.strict))
-            .max()
-            .unwrap_or(EXIT_OK)
+        if promoted(one.verdict(), output.strict) {
+            note_strict("");
+        }
+        verdict_to_code(one.verdict(), output.strict)
     })
 }
 
-/// Several traces' human reports, each under a `==> trace <==` header, then
-/// how many reached each verdict and the overall one.
-fn human_many(judged: &[Judged], unjudged: usize, overall: Option<Verdict>, all: bool) -> String {
-    let mut text = String::new();
-    for one in judged {
-        let _ = writeln!(text, "==> {} <==", one.trace);
-        text.push_str(&one.render_human(all));
-        text.push('\n');
-    }
-    text.push_str(&summary(judged, unjudged));
-    let _ = writeln!(
-        text,
-        "overall verdict: {}",
-        overall.map_or_else(|| "none".to_owned(), |verdict| verdict.to_string())
+/// Whether `--strict` is what fails a trace of this verdict.
+fn promoted(verdict: Verdict, strict: bool) -> bool {
+    strict && verdict == Verdict::PassWithWarnings
+}
+
+/// Says that `--strict` failed a run its report calls passing; `whose` names
+/// the traces when there are several (` for a.jsonl, b.jsonl`), so a batch
+/// gets one note rather than one per trace with nothing to tell them apart.
+///
+/// The report's own `verdict:` line is a property of the trace and is
+/// deliberately not rewritten by an invocation flag — a golden report must not
+/// depend on how the CLI was called — which left a run ending `verdict:
+/// pass-with-warnings` and exiting 1, with nothing anywhere connecting the
+/// two. The note is the missing sentence, and stderr is where it belongs:
+/// stdout carries the report, including the JSON and `JUnit` a machine reads.
+fn note_strict(whose: &str) {
+    eprintln!(
+        "note: --strict — SHOULD-level findings are treated as failures, so this run \
+         exits {EXIT_FINDINGS} despite a verdict of {}{whose}",
+        Verdict::PassWithWarnings
     );
-    text
-}
-
-/// Several traces' JSON reports in one document: `{"verdict", "traces":
-/// [{"trace", "report"}], "unjudged"}` (`report.schema.json`'s third shape).
-/// `None` when a report could not be serialized.
-fn json_many(judged: &[Judged], unjudged: usize, overall: Option<Verdict>) -> Option<String> {
-    let mut traces = Vec::new();
-    for one in judged {
-        match one.to_json() {
-            Ok(report) => traces.push(json!({ "trace": one.trace, "report": report })),
-            Err(error) => {
-                eprintln!("error: cannot serialize report: {error}");
-                return None;
-            }
-        }
-    }
-    let document = json!({ "verdict": overall, "traces": traces, "unjudged": unjudged });
-    match serde_json::to_string_pretty(&document) {
-        Ok(json) => Some(format!("{json}\n")),
-        Err(error) => {
-            eprintln!("error: cannot serialize report: {error}");
-            None
-        }
-    }
-}
-
-/// The closing line of a multi-trace human report: how many traces reached
-/// each verdict, and how many could not be judged at all.
-fn summary(judged: &[Judged], unjudged: usize) -> String {
-    let count = |verdict: Verdict| judged.iter().filter(|one| one.verdict() == verdict).count();
-    let mut line = format!(
-        "{} traces: {} pass, {} pass-with-warnings, {} fail",
-        judged.len() + unjudged,
-        count(Verdict::Pass),
-        count(Verdict::PassWithWarnings),
-        count(Verdict::Fail),
-    );
-    if unjudged > 0 {
-        let _ = write!(line, ", {unjudged} not judged (see the errors above)");
-    }
-    line.push('\n');
-    line
-}
-
-/// The most severe verdict, in the order a report derives its own: unsupported
-/// over fail over warnings over pass.
-fn worst(verdicts: impl Iterator<Item = Verdict>) -> Option<Verdict> {
-    Verdict::most_severe(verdicts)
 }
 
 /// The exit code a verdict maps to, shared by every path so the 0/1/2 contract
 /// has one definition. `--strict` promotes warnings to findings.
-///
-/// When it does, it says so on stderr. The report's own `verdict:` line is a
-/// property of the trace and is deliberately not rewritten by an invocation
-/// flag — a golden report must not depend on how the CLI was called — which
-/// left a run ending `verdict: pass-with-warnings` and exiting 1, with nothing
-/// anywhere connecting the two. The note is the missing sentence, and stderr is
-/// where it belongs: stdout carries the report, including the JSON and `JUnit` a
-/// machine reads.
-fn verdict_to_code(verdict: Verdict, strict: bool) -> u8 {
-    if strict && verdict == Verdict::PassWithWarnings {
-        eprintln!(
-            "note: --strict — SHOULD-level findings are treated as failures, \
-             so this run exits {EXIT_FINDINGS} despite a verdict of {verdict}"
-        );
-    }
+const fn verdict_to_code(verdict: Verdict, strict: bool) -> u8 {
     match verdict {
         Verdict::Fail => EXIT_FINDINGS,
         Verdict::PassWithWarnings if strict => EXIT_FINDINGS,

@@ -26,14 +26,14 @@ use mcp_trace_capture::{Recorder, Summary};
 
 /// The exit code for a session whose trace is incomplete, when it would otherwise
 /// be 0.
-const EXIT_INCOMPLETE: u8 = 3;
+const EXIT_INCOMPLETE: i32 = 3;
 
 /// Where traces go: the one file `-o` names, or a numbered file per session.
 #[derive(Debug)]
 pub enum Target {
     /// One file, written as named.
     File(PathBuf),
-    /// `{session}` in the file name: the next free number per session.
+    /// `{session}` in the file name: the next number per session.
     Numbered(Numbered),
 }
 
@@ -65,10 +65,26 @@ pub fn check(path: &Path, force: bool) -> Result<Target, String> {
         }
         return Ok(Target::Numbered(numbered));
     }
+    if let Some(warning) = stray_braces(path) {
+        eprintln!("mcp-trace-capture: warning: {warning}");
+    }
     if !force && path.symlink_metadata().is_ok() {
         return Err(exists(path));
     }
     Ok(Target::File(path.to_path_buf()))
+}
+
+/// A warning for a file name with a `{…}` in it that is not [`PLACEHOLDER`] —
+/// `{sesion}`, say — which would otherwise be written as a literal name.
+fn stray_braces(path: &Path) -> Option<String> {
+    let name = path.file_name()?.to_str()?;
+    let open = name.find('{')?;
+    name[open..].contains('}').then(|| {
+        format!(
+            "{name} has a {{…}} that is not {PLACEHOLDER}, so it is the file's literal name; \
+             {PLACEHOLDER} numbers a trace per session"
+        )
+    })
 }
 
 fn exists(path: &Path) -> String {
@@ -124,8 +140,8 @@ pub fn traces(
         }
         Target::Numbered(numbered) => {
             eprintln!(
-                "mcp-trace-capture: recording a trace per session, numbered from the first \
-                 free name like {}",
+                "mcp-trace-capture: recording a trace per session, numbered after any already \
+                 there, like {}",
                 numbered.path(1).display()
             );
             Ok((
@@ -167,14 +183,20 @@ fn max_line(max_message: usize) -> usize {
 }
 
 /// Flushes a stdio session's trace, reports it, and returns the exit code: `code`,
-/// or [`EXIT_INCOMPLETE`] in place of a 0 when a write failed.
-pub fn finish(recorder: &Recorder, path: &Path, code: u8) -> u8 {
-    report(&recorder.finish(), Some(path), code, Hint::None)
+/// or [`EXIT_INCOMPLETE`] in place of a 0 when a write failed. `ended` is how
+/// the server exited, when that is known.
+pub fn finish(
+    recorder: &Recorder,
+    path: &Path,
+    code: i32,
+    ended: Option<std::process::ExitStatus>,
+) -> i32 {
+    report(&recorder.finish(), Some(path), code, Hint::None, ended)
 }
 
 /// Flushes every trace the proxy wrote and reports each; the exit code is
 /// [`EXIT_INCOMPLETE`] in place of a 0 when any is incomplete.
-pub fn finish_traces(traces: &Traces, path: Option<&Path>, code: u8) -> u8 {
+pub fn finish_traces(traces: &Traces, path: Option<&Path>, code: i32) -> i32 {
     let finished = traces.finish();
     if traces.is_per_session() && finished.is_empty() {
         eprintln!("mcp-trace-capture: no session began; no trace was written");
@@ -186,7 +208,13 @@ pub fn finish_traces(traces: &Traces, path: Option<&Path>, code: u8) -> u8 {
         Hint::Placeholder
     };
     finished.iter().fold(code, |code, trace| {
-        report(&trace.summary, trace.path.as_deref().or(path), code, hint)
+        report(
+            &trace.summary,
+            trace.path.as_deref().or(path),
+            code,
+            hint,
+            None,
+        )
     })
 }
 
@@ -198,7 +226,13 @@ enum Hint {
     Placeholder,
 }
 
-fn report(summary: &Summary, path: Option<&Path>, code: u8, hint: Hint) -> u8 {
+fn report(
+    summary: &Summary,
+    path: Option<&Path>,
+    code: i32,
+    hint: Hint,
+    ended: Option<std::process::ExitStatus>,
+) -> i32 {
     let shown = path.map_or_else(
         || "a session's trace, whose file could not be created,".to_owned(),
         |path| path.display().to_string(),
@@ -213,12 +247,48 @@ fn report(summary: &Summary, path: Option<&Path>, code: u8, hint: Hint) -> u8 {
         return if code == 0 { EXIT_INCOMPLETE } else { code };
     }
     warn_about_sessions(&summary.sessions, hint);
+    if summary.after_close > 0 {
+        eprintln!(
+            "mcp-trace-capture: {} event(s) came after the trace was closed at the request \
+             to stop, and are not in it",
+            summary.after_close
+        );
+    }
+    if summary.messages == 0 {
+        // A trace of transport events alone is a session that never happened;
+        // the validator would refuse it as judging nothing.
+        let what = ended.map_or_else(
+            || "no message was exchanged".to_owned(),
+            |status| format!("the server exited ({status}) before any message was exchanged"),
+        );
+        eprintln!(
+            "mcp-trace-capture: {what}; the trace at {shown} holds {} transport event(s) \
+             and nothing to validate",
+            summary.recorded
+        );
+        return code;
+    }
+    let word = path.map_or_else(
+        || "<trace>".to_owned(),
+        |path| shell_quoted(&path.display().to_string()),
+    );
     eprintln!(
         "mcp-trace-capture: recorded {} event(s) to {shown}; validate with \
-         `mcp-trace-validator validate {shown}`",
+         `mcp-trace-validator validate {word}`",
         summary.recorded
     );
     code
+}
+
+/// `text` as one word for a POSIX shell: as it is when every character is
+/// safe unquoted, else in single quotes (a quote inside written `'\''`).
+fn shell_quoted(text: &str) -> String {
+    let safe = |c: char| c.is_ascii_alphanumeric() || "_./,:@%+=-".contains(c);
+    if !text.is_empty() && text.chars().all(safe) {
+        text.to_owned()
+    } else {
+        format!("'{}'", text.replace('\'', r"'\''"))
+    }
 }
 
 /// Says so when a trace holds more than one session, which the validator would
@@ -247,6 +317,33 @@ fn warn_about_sessions(sessions: &Sessions, hint: Hint) {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_suggested_path_is_one_shell_word() {
+        assert_eq!(shell_quoted("traces/s-001.jsonl"), "traces/s-001.jsonl");
+        assert_eq!(shell_quoted("C:/x_y,z@1%+=.jsonl"), "C:/x_y,z@1%+=.jsonl");
+        assert_eq!(
+            shell_quoted("dir with space/t.jsonl"),
+            "'dir with space/t.jsonl'"
+        );
+        assert_eq!(shell_quoted("it's;$x"), r"'it'\''s;$x'");
+        assert_eq!(shell_quoted("a*b"), "'a*b'");
+        assert_eq!(shell_quoted(""), "''");
+    }
+
+    #[test]
+    fn a_misspelt_placeholder_is_warned_about() {
+        let warning = stray_braces(Path::new("t/{sesion}.jsonl")).unwrap();
+        assert!(warning.starts_with("{sesion}.jsonl has a {…} that is not {session}"));
+        assert_eq!(stray_braces(Path::new("t/{x.jsonl")), None);
+        assert_eq!(stray_braces(Path::new("t/x}{.jsonl")), None);
+        assert_eq!(
+            stray_braces(Path::new("{x}/t.jsonl")),
+            None,
+            "only the file name"
+        );
+        assert_eq!(stray_braces(Path::new("t.jsonl")), None);
+    }
 
     #[test]
     fn an_existing_file_is_refused_for_what_it_is_and_others_say_why() {

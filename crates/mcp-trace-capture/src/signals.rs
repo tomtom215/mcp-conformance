@@ -15,10 +15,22 @@
 use std::io;
 use std::time::Duration;
 
-/// How long a server (stdio) or the open connections (HTTP) get to finish after
-/// a request to stop, before the capture ends them. A second request ends the
-/// wait at once.
+/// How long the HTTP proxy's open connections get to finish after a request to
+/// stop, before the capture ends them. A second request ends the wait at once.
 pub const STOP_GRACE: Duration = Duration::from_secs(3);
+
+/// How long a stdio server's processes get to exit after a request to stop,
+/// before the wrapper kills their process group. A second request ends the wait
+/// at once.
+///
+/// Shorter than the 2 seconds the official SDKs' stdio clients (Python and
+/// TypeScript) allow between `SIGTERM` and `SIGKILL`, so the wrapper has killed
+/// the server and exited before that `SIGKILL` arrives. It reaches only the
+/// wrapper (its pid, or its process group), never the server's own group: a
+/// wrapper killed while still waiting would leave behind a server that ignores
+/// `SIGTERM`. The server has already had the 2 seconds those clients wait after
+/// closing its stdin.
+pub const SERVER_STOP_GRACE: Duration = Duration::from_secs(1);
 
 /// A request to stop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

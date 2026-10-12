@@ -5,9 +5,10 @@
 //!
 //! The trace-context keys have their own module and their own tests; what is
 //! here is the protocol's own `_meta` fields — the required envelope, what a
-//! missing one must draw, and the HTTP status that answer rides.
+//! missing one must draw, and the HTTP status that answer rides. Capability
+//! reliance has its own module too.
 
-use crate::checks::stateless::testkit::{META, client, findings_for, server, status, trace};
+use crate::checks::stateless::testkit::{META, client, findings_for, post, server, status, trace};
 
 /// A request whose `_meta` omits `clientCapabilities`, answered by `answer`.
 fn incomplete_envelope(answer: &str) -> String {
@@ -30,25 +31,6 @@ fn capability_error(data: &str) -> String {
         server(
             1,
             &format!(r#"{{"jsonrpc":"2.0","id":1,"error":{{"code":-32021,"message":"x"{data}}}}}"#),
-        ),
-    ])
-}
-
-/// A `tools/call` declaring `capabilities`, answered by an `input_required`
-/// result asking for `method`.
-fn asks_for(capabilities: &str, method: &str) -> String {
-    trace(&[
-        client(
-            0,
-            &format!(
-                r#"{{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{{"name":"t","_meta":{{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{capabilities}}}}}}}"#
-            ),
-        ),
-        server(
-            1,
-            &format!(
-                r#"{{"jsonrpc":"2.0","id":1,"result":{{"resultType":"input_required","inputRequests":{{"a":{{"method":"{method}"}}}}}}}}"#
-            ),
         ),
     ])
 }
@@ -87,14 +69,14 @@ fn a_malformed_envelope_must_draw_invalid_params() {
     assert!(findings[0].contains("-32603"), "{findings:?}");
 
     // `-32602` is the required answer.
-    assert!(
+    assert_eq!(
         findings_for(
             check,
             &incomplete_envelope(
                 r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"x"}}"#
             )
-        )
-        .is_empty()
+        ),
+        Vec::<String>::new()
     );
 
     // A complete envelope answered with a result is the normal case.
@@ -108,7 +90,7 @@ fn a_malformed_envelope_must_draw_invalid_params() {
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
         ),
     ]);
-    assert!(findings_for(check, &complete).is_empty());
+    assert_eq!(findings_for(check, &complete), Vec::<String>::new());
 }
 
 #[test]
@@ -130,7 +112,7 @@ fn a_legacy_initialize_is_outside_the_rejection_rule() {
             r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"x"}}"#,
         ),
     ]);
-    assert!(findings_for(check, &handshake).is_empty());
+    assert_eq!(findings_for(check, &handshake), Vec::<String>::new());
 
     // The exemption is by method, not a blanket amnesty: any other method with
     // the same defect is still reported.
@@ -184,50 +166,17 @@ fn the_missing_capability_error_must_name_what_was_missing() {
 
     // The shape the schema defines, and the shape rmcp's
     // `ErrorData::missing_required_client_capability` produces.
-    assert!(
+    assert_eq!(
         findings_for(
             check,
             &capability_error(r#","data":{"requiredCapabilities":{"elicitation":{}}}"#)
-        )
-        .is_empty()
+        ),
+        Vec::<String>::new()
     );
 
     // Any other error code is outside this clause.
     let other = capability_error("").replace("-32021", "-32602");
-    assert!(findings_for(check, &other).is_empty());
-}
-
-#[test]
-fn an_input_request_is_matched_to_the_capability_it_needs() {
-    let check = "meta.no-undeclared-capability-reliance";
-
-    // Each of the three methods maps to its own capability name; asking for one
-    // the request never declared is the violation.
-    for (method, capability) in [
-        ("elicitation/create", "elicitation"),
-        ("sampling/createMessage", "sampling"),
-        ("roots/list", "roots"),
-    ] {
-        assert_eq!(
-            findings_for(check, &asks_for("{}", method)).len(),
-            1,
-            "{method} needs {capability}"
-        );
-        let declared = format!(r#"{{"{capability}":{{}}}}"#);
-        assert!(
-            findings_for(check, &asks_for(&declared, method)).is_empty(),
-            "{method} is fine once {capability} is declared"
-        );
-        // Declaring a *different* capability does not cover it.
-        assert_eq!(
-            findings_for(check, &asks_for(r#"{"logging":{}}"#, method)).len(),
-            1,
-            "{method} is not covered by an unrelated capability"
-        );
-    }
-
-    // A method outside the map needs no capability and is not reported.
-    assert!(findings_for(check, &asks_for("{}", "tools/list")).is_empty());
+    assert_eq!(findings_for(check, &other), Vec::<String>::new());
 }
 
 #[test]
@@ -244,16 +193,22 @@ fn subscription_tagging_binds_only_listen_streams_and_only_untagged_notification
         1
     );
 
-    // Tagged: silent.
-    assert!(
-        findings_for(
-            check,
-            &listening(
-                r#"{"jsonrpc":"2.0","method":"notifications/tools/list_changed","params":{"_meta":{"io.modelcontextprotocol/subscriptionId":"s1"}}}"#
-            )
-        )
-        .is_empty()
-    );
+    // Tagged with the listen request's id: silent.
+    let tagged = |tag: &str| {
+        listening(&format!(
+            r#"{{"jsonrpc":"2.0","method":"notifications/tools/list_changed","params":{{"_meta":{{"io.modelcontextprotocol/subscriptionId":{tag}}}}}}}"#
+        ))
+    };
+    assert_eq!(findings_for(check, &tagged("1")), Vec::<String>::new());
+
+    // Tagged with anything else: the tag correlates the notification with no
+    // subscription. `"1"` is not the id `1` — JSON-RPC ids are compared as
+    // values — and `null` is not an id at all.
+    for tag in [r#""s1""#, r#""1""#, "2", "null"] {
+        let findings = findings_for(check, &tagged(tag));
+        assert_eq!(findings.len(), 1, "{tag}: {findings:?}");
+        assert!(findings[0].contains("not the id of any"), "{findings:?}");
+    }
 
     // Request-scoped notifications ride their request's stream, not the listen
     // stream, so neither of these is tagged and neither is a finding.
@@ -270,24 +225,27 @@ fn subscription_tagging_binds_only_listen_streams_and_only_untagged_notification
 
     // A server *request* on the stream carries both an id and a method; it is
     // TRAN-066's defect, not an untagged notification.
-    assert!(
+    assert_eq!(
         findings_for(
             check,
             &listening(r#"{"jsonrpc":"2.0","id":7,"method":"elicitation/create","params":{}}"#)
-        )
-        .is_empty()
+        ),
+        Vec::<String>::new()
     );
 
     // A message with neither an id nor a method is malformed, and BASE-047's.
-    assert!(findings_for(check, &listening(r#"{"jsonrpc":"2.0"}"#)).is_empty());
+    assert_eq!(
+        findings_for(check, &listening(r#"{"jsonrpc":"2.0"}"#)),
+        Vec::<String>::new()
+    );
 
     // A response is not a notification.
-    assert!(
+    assert_eq!(
         findings_for(
             check,
             &listening(r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#)
-        )
-        .is_empty()
+        ),
+        Vec::<String>::new()
     );
 
     // Without a listen stream in the trace the clause does not bind at all.
@@ -301,7 +259,7 @@ fn subscription_tagging_binds_only_listen_streams_and_only_untagged_notification
             r#"{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}"#,
         ),
     ]);
-    assert!(findings_for(check, &unsubscribed).is_empty());
+    assert_eq!(findings_for(check, &unsubscribed), Vec::<String>::new());
 }
 
 #[test]
@@ -384,7 +342,10 @@ fn the_server_teardown_of_a_subscription_needs_no_tag() {
     // subscription in `requestId`, which is what the tag would have said.
     let check = "meta.subscription-id-present";
     let teardown = r#"{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":1,"reason":"shutdown"}}"#;
-    assert!(findings_for(check, &listening(teardown)).is_empty());
+    assert_eq!(
+        findings_for(check, &listening(teardown)),
+        Vec::<String>::new()
+    );
     // A cancellation naming anything but a listen request is still untagged
     // traffic on a session with a listen stream.
     let other = teardown.replace(r#""requestId":1"#, r#""requestId":7"#);
@@ -414,9 +375,51 @@ fn a_reused_id_is_judged_by_the_request_its_answer_pairs_with() {
         r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"x"}}"#,
     );
     let malformed_first = trace(&[ask(0, INCOMPLETE), rejected, ask(2, META), ok(3)]);
-    assert!(findings_for(check, &malformed_first).is_empty());
+    assert_eq!(findings_for(check, &malformed_first), Vec::<String>::new());
     let malformed_second = trace(&[ask(0, META), ok(1), ask(2, INCOMPLETE), ok(3)]);
     let findings = findings_for(check, &malformed_second);
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert!(findings[0].contains("seq 2"), "{findings:?}");
+}
+
+#[test]
+fn a_null_id_rejection_the_framing_ties_answers_the_malformed_request() {
+    // On HTTP the status ties a null-id `-32602` to its POST. Paired by id
+    // alone it answered nothing, the malformed request stayed open, and the
+    // well-formed retry reusing its id had its result held against it.
+    const INCOMPLETE: &str = r#""_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}"#;
+    let ask = |seq, meta: &str| {
+        client(
+            seq,
+            &format!(r#"{{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{{{meta}}}}}"#),
+        )
+    };
+    let session = |rejection_status| {
+        trace(&[
+            post(0, "{}"),
+            ask(1, INCOMPLETE),
+            status(2, rejection_status),
+            server(
+                3,
+                r#"{"jsonrpc":"2.0","id":null,"error":{"code":-32602,"message":"x"}}"#,
+            ),
+            post(4, "{}"),
+            ask(5, META),
+            status(6, 200),
+            server(
+                7,
+                r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","tools":[]}}"#,
+            ),
+        ])
+    };
+    for check in [
+        "meta.missing-required-field-rejected",
+        "meta.missing-required-field-http-status",
+    ] {
+        let findings = findings_for(check, &session(400));
+        assert!(findings.is_empty(), "{check}: {findings:?}");
+    }
+    // The null-id answer is the one BASE-032 judges, so its status counts.
+    let findings = findings_for("meta.missing-required-field-http-status", &session(500));
+    assert_eq!(findings.len(), 1, "{findings:?}");
 }

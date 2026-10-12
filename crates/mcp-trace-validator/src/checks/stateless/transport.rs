@@ -12,8 +12,9 @@
 //! Split by subject. This file holds what the area shares: the POST pairing,
 //! header safety, and the *mirror* vocabulary that names each body value a POST
 //! must carry in a header. [`headers`] holds the request-header clauses the
-//! client owns, [`stream`] the response-stream clauses, and [`validation`] the
-//! rejection clauses the server owns.
+//! client owns, [`stream`] the response-stream clauses, [`validation`] the
+//! rejection clauses the server owns, and [`omission`] the `x-mcp-header`
+//! behaviour table's rows about headers left out, both parties' halves.
 
 use std::collections::BTreeMap;
 
@@ -22,11 +23,14 @@ use serde_json::Value;
 use super::super::support::decode_base64;
 use crate::context::TraceContext;
 
-pub(in crate::checks) mod framing;
 mod headers;
+mod omission;
 mod stdio;
 mod stream;
 mod validation;
+
+pub(in crate::checks) use crate::context::framing;
+pub(super) use framing::Post;
 
 #[cfg(test)]
 mod tests;
@@ -35,6 +39,10 @@ pub(in crate::checks) use headers::{
     header_value_encoding, protocol_version_header_matches_body, protocol_version_header_present,
     request_metadata_headers, sentinel_marker_case, sentinel_pattern_encoded,
     x_mcp_header_mirrored, x_mcp_header_name_valid,
+};
+pub(in crate::checks) use omission::{
+    absent_param_header_not_expected, missing_param_header_rejected,
+    null_param_header_not_expected, x_mcp_header_absent_omitted, x_mcp_header_null_omitted,
 };
 pub(in crate::checks) use stdio::{
     cancel_notification_references_request, no_messages_after_cancel_notification,
@@ -45,8 +53,8 @@ pub(in crate::checks) use stream::{
 };
 pub(in crate::checks) use validation::{
     header_body_match_validated, header_mismatch_status, invalid_param_header_rejected,
-    unknown_method_404, unsupported_version_error, unsupported_version_status,
-    version_mismatch_rejected,
+    unknown_method_404, unsupported_version_error, unsupported_version_error_http,
+    unsupported_version_status, version_mismatch_rejected,
 };
 
 /// `Mcp-Name`'s source field, by method — the Standard Request Headers table.
@@ -63,20 +71,6 @@ pub(super) const META_PROTOCOL_VERSION: &str = "io.modelcontextprotocol/protocol
 const SENTINEL_OPEN: &str = "=?base64?";
 /// The sentinel's closing marker.
 const SENTINEL_CLOSE: &str = "?=";
-
-/// A client POST: the HTTP headers it carried, and the message they framed.
-#[derive(Debug, Clone, Copy)]
-pub(super) struct Post<'a> {
-    /// The `seq` of the HTTP event carrying the headers.
-    pub seq: u64,
-    /// The `seq` of the message event the POST framed.
-    pub message_seq: u64,
-    /// The POST's headers. The trace reader lowercases the keys, so lookups
-    /// here are by lowercase name and on-the-wire casing cannot hide anything.
-    pub headers: &'a BTreeMap<String, String>,
-    /// The JSON-RPC message the POST carried.
-    pub payload: &'a Value,
-}
 
 impl Post<'_> {
     /// The message's `method`, when it has one.
@@ -267,7 +261,7 @@ pub(in crate::checks::stateless) fn designations_by_tool(
 }
 
 /// The instance value at a designation's exact property path, when present.
-fn value_at<'a>(root: &'a Value, path: &[String]) -> Option<&'a Value> {
+pub(super) fn value_at<'a>(root: &'a Value, path: &[String]) -> Option<&'a Value> {
     let mut cursor = root;
     for step in path {
         cursor = cursor.get(step)?;

@@ -73,7 +73,7 @@ fn a_ttl_without_a_scope_is_half_the_hints() {
 #[test]
 fn operations_outside_the_cacheable_six_need_no_hint() {
     let session = trace(&[request(0, 1, "tools/call", ""), complete(1, 1, "")]);
-    assert!(findings_for(HINTS, &session).is_empty());
+    assert_eq!(findings_for(HINTS, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn an_interim_result_carries_no_hints_and_is_not_reported() {
             r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"input_required","requestState":"s"}}"#,
         ),
     ]);
-    assert!(findings_for(HINTS, &session).is_empty());
+    assert_eq!(findings_for(HINTS, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -106,7 +106,10 @@ fn a_negative_or_non_numeric_ttl_is_reported() {
     for (ttl, needle) in [
         ("-1", "-1"),
         ("-3600000", "-3600000"),
+        ("-1.0", ">= 0"),
         (r#""600""#, "not an integer"),
+        ("1.5", "not an integer"),
+        ("-0.5", "not an integer"),
     ] {
         let session = trace(&[
             request(0, 1, "tools/list", ""),
@@ -120,7 +123,20 @@ fn a_negative_or_non_numeric_ttl_is_reported() {
 
 #[test]
 fn zero_and_positive_ttls_conform() {
-    for ttl in ["0", "1", "3600000"] {
+    // JSON Schema's `integer` is any number with a zero fractional part, so the
+    // float spellings and a value beyond `i64` conform as well; negative zero
+    // is zero.
+    for ttl in [
+        "0",
+        "1",
+        "3600000",
+        "60000.0",
+        "6e4",
+        "0.0",
+        "-0.0",
+        "18446744073709551615",
+        "1e30",
+    ] {
         let session = trace(&[
             request(0, 1, "tools/list", ""),
             complete(1, 1, &format!(r#","ttlMs":{ttl}"#)),
@@ -147,7 +163,10 @@ fn a_paginated_list_keeps_one_scope_across_its_pages() {
             ),
         ])
     };
-    assert!(findings_for(SCOPE, &paged(r#""private""#)).is_empty());
+    assert_eq!(
+        findings_for(SCOPE, &paged(r#""private""#)),
+        Vec::<String>::new()
+    );
 
     let switched = findings_for(SCOPE, &paged(r#""public""#));
     assert_eq!(switched.len(), 1, "{switched:?}");
@@ -177,7 +196,7 @@ fn two_independent_list_calls_may_differ() {
         request(2, 2, "tools/list", ""),
         complete(3, 2, r#","ttlMs":1000,"cacheScope":"public""#),
     ]);
-    assert!(findings_for(SCOPE, &session).is_empty());
+    assert_eq!(findings_for(SCOPE, &session), Vec::<String>::new());
 }
 
 #[test]
@@ -192,5 +211,5 @@ fn a_cursor_from_another_method_does_not_join_the_chain() {
         request(2, 2, "prompts/list", r#","cursor":"page2""#),
         complete(3, 2, r#","ttlMs":1000,"cacheScope":"public""#),
     ]);
-    assert!(findings_for(SCOPE, &session).is_empty());
+    assert_eq!(findings_for(SCOPE, &session), Vec::<String>::new());
 }

@@ -139,7 +139,7 @@ fn a_trace_read_from_stdin_has_results_without_locations() {
     ))
     .unwrap();
     let results = log["runs"][0]["results"].as_array().unwrap();
-    assert!(!results.is_empty());
+    assert!(!results.is_empty(), "the SARIF run carries no results");
     assert!(
         results
             .iter()

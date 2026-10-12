@@ -15,7 +15,7 @@ use std::collections::HashMap;
 
 use mcp_conformance_core::canonical::to_canonical_string;
 use mcp_conformance_core::message::MessageKind;
-use mcp_conformance_core::trace::Direction;
+use mcp_conformance_core::trace::{Direction, TraceEvent};
 use serde_json::Value;
 
 use super::super::FindingSink;
@@ -39,7 +39,13 @@ fn responses_match_requests(
 ) {
     // Outstanding request ids per requesting party, canonical id -> request seq.
     let mut outstanding: HashMap<(Direction, String), u64> = HashMap::new();
+    let framed = framed_answers(context);
     for (event, kind, _) in context.messages() {
+        // A null-id answer the HTTP framing ties to its request still answers
+        // it: that request is no longer outstanding, whichever pass this is.
+        if let Some(request) = framed.get(&event.seq) {
+            release(request, &mut outstanding);
+        }
         match kind {
             MessageKind::Request { id, .. } => {
                 if !id.is_null() {
@@ -87,7 +93,10 @@ fn responses_match_requests(
             MessageKind::Error { id, .. } => {
                 // The null/absent-id condition is the spec's escape hatch ("except in
                 // error cases where the ID could not be read due a malformed request"),
-                // so a null/absent error id is neither flagged nor consumes anything.
+                // so a null/absent error id is not flagged on its own — the trace
+                // usually cannot say which request it answered. When the framing
+                // can, the request it answered is in hand, and so is whether its id
+                // could be read.
                 if want_results {
                     consume_outstanding(event.direction, *id, &mut outstanding);
                 } else if id.is_some_and(|id| !id.is_null()) {
@@ -100,10 +109,71 @@ fn responses_match_requests(
                         sink,
                         "error",
                     );
+                } else if let Some(request) = framed.get(&event.seq) {
+                    check_unread_id(event.seq, request, sink);
                 }
             }
             _ => {}
         }
+    }
+}
+
+/// Judges a null-id error the framing ties to `request`: excused only when the
+/// request's own id could not be read.
+fn check_unread_id(seq: u64, request: &TraceEvent, sink: &mut FindingSink) {
+    sink.examined();
+    if let Some(readable) = readable_id(request) {
+        sink.push(
+            Some(seq),
+            format!(
+                "error response carries a null id, but the request it answers (seq {}) has \
+                 the readable id {readable}; only an id that could not be read may be \
+                 answered with null",
+                request.seq
+            ),
+        );
+    }
+}
+
+/// The null- or absent-`id` responses the context pairs with a request: response
+/// `seq` → that request. Pairing by id never matches such a response to a
+/// well-formed request, so these are the answers the HTTP framing ties to their
+/// POST ([`Framing::unidentified_answers`]).
+///
+/// [`Framing::unidentified_answers`]: crate::context::framing::Framing::unidentified_answers
+fn framed_answers<'a>(context: &TraceContext<'a>) -> HashMap<u64, &'a TraceEvent> {
+    context
+        .exchanges()
+        .filter(|exchange| {
+            exchange
+                .response
+                .message_payload()
+                .and_then(|payload| payload.get("id"))
+                .is_none_or(Value::is_null)
+        })
+        .map(|exchange| (exchange.response.seq, exchange.request))
+        .collect()
+}
+
+/// The request's id, when it is one that could be read: a string or a number,
+/// the only forms an id takes.
+fn readable_id(request: &TraceEvent) -> Option<String> {
+    request
+        .message_payload()
+        .and_then(|payload| payload.get("id"))
+        .filter(|id| id.is_string() || id.is_number())
+        .map(to_canonical_string)
+}
+
+/// Removes `request` from `outstanding` — only that request, not a later one
+/// that reused its id.
+fn release(request: &TraceEvent, outstanding: &mut HashMap<(Direction, String), u64>) {
+    let Some(id) = readable_id(request) else {
+        return;
+    };
+    let key = (request.direction, id);
+    if outstanding.get(&key) == Some(&request.seq) {
+        outstanding.remove(&key);
     }
 }
 

@@ -290,7 +290,7 @@ mod tests {
             list(3, 2, "tools/list", Some("made-up")),
             error(4, 2, -32602),
         ]);
-        assert!(findings_for(INVALID_CURSOR, &trace).is_empty());
+        assert_eq!(findings_for(INVALID_CURSOR, &trace), Vec::<String>::new());
     }
 
     #[test]
@@ -312,7 +312,7 @@ mod tests {
             list(5, 3, "tools/list", Some("page2")),
             page(6, 3, None),
         ]);
-        assert!(findings_for(INVALID_CURSOR, &trace).is_empty());
+        assert_eq!(findings_for(INVALID_CURSOR, &trace), Vec::<String>::new());
     }
 
     #[test]
@@ -340,7 +340,7 @@ mod tests {
     #[test]
     fn a_list_request_with_no_cursor_is_not_judged() {
         let trace = session(&[list(3, 2, "tools/list", None), page(4, 2, None)]);
-        assert!(findings_for(INVALID_CURSOR, &trace).is_empty());
+        assert_eq!(findings_for(INVALID_CURSOR, &trace), Vec::<String>::new());
     }
 
     #[test]
@@ -352,7 +352,10 @@ mod tests {
             r#"{"seq":5,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"method":"tools/list","params":{"cursor":"abc"}}}"#,
             r#"{"seq":6,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"result":{"tools":[]}}}"#,
         );
-        assert!(findings_for("pagination.cursor-opacity", &trace).is_empty());
+        assert_eq!(
+            findings_for("pagination.cursor-opacity", &trace),
+            Vec::<String>::new()
+        );
     }
 
     #[test]

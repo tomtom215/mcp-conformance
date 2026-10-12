@@ -10,6 +10,8 @@
 
 use serde_json::Value;
 
+mod faithful;
+
 /// Splits a byte stream into newline-terminated lines.
 ///
 /// The stdio transport delimits messages with `\n`; a trailing `\r` is tolerated and
@@ -109,14 +111,44 @@ pub fn parse_json(bytes: &[u8]) -> Option<Value> {
     serde_json::from_slice(bytes).ok()
 }
 
+/// What a message's bytes are, for recording.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Parsed {
+    /// JSON whose parsed value is exactly what the bytes say.
+    Json(Value),
+    /// JSON the trace cannot hold as sent: a number a double cannot represent
+    /// exactly (an integer past 64 bits, say), or a member name repeated in an
+    /// object. The validator reads a trace's payloads as parsed JSON too, so no
+    /// recorded value could say what was sent; it is recorded as a transport's
+    /// non-JSON is.
+    Altered,
+    /// Not JSON, including a blank line.
+    NotJson,
+}
+
+/// Parses a message for recording: [`parse_json`], then whether the value it
+/// gives is faithful to the bytes.
+#[must_use]
+pub fn parse_message(bytes: &[u8]) -> Parsed {
+    match parse_json(bytes) {
+        Some(value) if faithful::is_faithful(bytes) => Parsed::Json(value),
+        Some(_) => Parsed::Altered,
+        None => Parsed::NotJson,
+    }
+}
+
 /// An incremental Server-Sent Events parser (WHATWG HTML §9.2.6).
 ///
 /// Lines end at CRLF, LF, or a lone CR; `data` fields accumulate joined by `\n`; a
 /// blank line dispatches; `:` lines are comments; a leading BOM is skipped. Only
 /// `data` is kept — the trace records the JSON-RPC messages a stream carries, not its
-/// event ids or retry hints. An event whose data, or any one of its lines, exceeds
-/// `max_event` bytes is dropped and counted ([`SseParser::oversized`]) rather than
-/// buffered without bound.
+/// event ids or retry hints — and only from events of type `message` (no `event`
+/// field, or `event: message`): MCP clients, the official SDKs' among them, act on
+/// no other, so an event of another type is dropped and counted
+/// ([`SseParser::other_types`]). An event whose data, or any one of its lines,
+/// exceeds `max_event` bytes is dropped and counted ([`SseParser::oversized`])
+/// rather than buffered without bound.
 #[derive(Debug)]
 pub struct SseParser {
     pending: Vec<u8>,
@@ -125,6 +157,9 @@ pub struct SseParser {
     skip_lf: bool,
     max_event: usize,
     oversized: u64,
+    /// The event being assembled has an `event` type other than `message`.
+    other_type: bool,
+    other_types: u64,
 }
 
 /// Room a line needs beyond its data: the field name and `": "` of the longest
@@ -154,6 +189,8 @@ impl SseParser {
             skip_lf: false,
             max_event,
             oversized: 0,
+            other_type: false,
+            other_types: 0,
         }
     }
 
@@ -187,6 +224,12 @@ impl SseParser {
         self.oversized
     }
 
+    /// Events dropped for a type other than `message`.
+    #[must_use]
+    pub const fn other_types(&self) -> u64 {
+        self.other_types
+    }
+
     fn end_line(&mut self, events: &mut Vec<Vec<u8>>) {
         let mut line = std::mem::take(&mut self.pending);
         if !std::mem::replace(&mut self.started, true) && line.starts_with(&[0xEF, 0xBB, 0xBF]) {
@@ -206,6 +249,11 @@ impl SseParser {
                 (&line[..colon], value.strip_prefix(b" ").unwrap_or(value))
             },
         );
+        if field == b"event" {
+            // An empty type is the default, `message`.
+            self.other_type = !value.is_empty() && value != b"message";
+            return;
+        }
         if field != b"data" {
             return;
         }
@@ -222,8 +270,10 @@ impl SseParser {
     }
 
     fn dispatch(&mut self, events: &mut Vec<Vec<u8>>) {
+        let other_type = std::mem::take(&mut self.other_type);
         match std::mem::replace(&mut self.event, EventData::Empty) {
             EventData::Oversized => self.oversized += 1,
+            EventData::Data(data) if !data.is_empty() && other_type => self.other_types += 1,
             EventData::Data(data) if !data.is_empty() => events.push(data),
             EventData::Data(_) | EventData::Empty => {}
         }

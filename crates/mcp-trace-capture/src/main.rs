@@ -7,78 +7,29 @@
 //!
 //! | Code | Meaning |
 //! |------|---------|
-//! | server's | `stdio`: the wrapped server's own exit code, passed through (128 + signal when it was killed by one, on Unix) |
-//! | 0    | `http`: stopped cleanly with a complete trace |
+//! | server's | `stdio`: the wrapped server's own exit code, passed through (128 + signal when it was killed by one, on Unix; the whole code on Windows) |
+//! | 1    | `stdio`: waiting for the server failed |
+//! | 0    | `http`: stopped with a complete trace |
 //! | 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests |
-//! | 2    | Invocation problem: bad arguments, an existing output file, a misplaced `{session}` or a missing directory for it, a server that would not start, an address that would not bind (no trace file is created) |
+//! | 2    | Invocation problem: bad arguments, an existing output file, a misplaced `{session}` or a missing directory for it, a server that would not start, an address that would not bind (no trace file is created); also `http` serving failed after it started |
 //! | 3    | The session ran but a trace is incomplete (a write failed); only when the exit code would otherwise be 0 |
 
 use std::ffi::OsString;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use clap::{Parser, Subcommand};
+use args::{Cli, Mode};
+use clap::Parser as _;
 use mcp_conformance_core::trace::LifecycleEvent;
 use mcp_trace_capture::traces::Traces;
-use mcp_trace_capture::{DEFAULT_MAX_MESSAGE, Signals, http, stdio};
+use mcp_trace_capture::{Signals, http, stdio};
 
+pub mod args;
 pub mod output;
 
-const EXIT_USAGE: u8 = 2;
-
-/// Record a Model Context Protocol session as a trace for `mcp-trace-validator`.
-#[derive(Debug, Parser)]
-#[command(name = "mcp-trace-capture", version, about, long_about = None)]
-struct Cli {
-    /// Where to write the trace (JSON Lines); `{session}` in the file name numbers a
-    /// trace per session.
-    ///
-    /// With `{session}` in the file name, each session gets its own numbered file
-    /// (`traces/{session}.jsonl` writes `traces/001.jsonl`, `002`, …), and no
-    /// existing file is ever overwritten.
-    #[arg(
-        short,
-        long,
-        value_name = "PATH",
-        default_value = "mcp-trace.jsonl",
-        global = true
-    )]
-    output: PathBuf,
-    /// Overwrite the output file if it exists (not needed with `{session}`).
-    #[arg(long, global = true)]
-    force: bool,
-    /// The largest message recorded, in bytes; larger ones are forwarded unrecorded.
-    #[arg(long, value_name = "BYTES", default_value_t = DEFAULT_MAX_MESSAGE, global = true)]
-    max_message_bytes: usize,
-    #[command(subcommand)]
-    mode: Mode,
-}
-
-#[derive(Debug, Subcommand)]
-enum Mode {
-    /// Wrap a stdio server: configure your client to launch
-    /// `mcp-trace-capture stdio -- <server> [args…]` instead of the server.
-    Stdio {
-        /// The server command and its arguments.
-        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
-        command: Vec<OsString>,
-    },
-    /// Proxy a streamable-HTTP server: point your client at the listen address.
-    Http {
-        /// The server's base URL; request paths are appended to its path.
-        #[arg(long, value_name = "URL")]
-        upstream: axum::http::Uri,
-        /// Where the proxy listens.
-        #[arg(long, value_name = "ADDR", default_value = "127.0.0.1:8080")]
-        listen: SocketAddr,
-        /// Forward the client's `Host` header unchanged instead of naming the
-        /// upstream, so the server's own `Host` validation sees the client's.
-        #[arg(long)]
-        preserve_host: bool,
-    },
-}
+const EXIT_USAGE: i32 = 2;
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
@@ -86,7 +37,7 @@ fn main() -> ExitCode {
         Ok(target) => target,
         Err(message) => {
             eprintln!("mcp-trace-capture: {message}");
-            return ExitCode::from(EXIT_USAGE);
+            return exit(EXIT_USAGE);
         }
     };
     let runtime = match tokio::runtime::Builder::new_multi_thread()
@@ -96,7 +47,7 @@ fn main() -> ExitCode {
         Ok(runtime) => runtime,
         Err(error) => {
             eprintln!("mcp-trace-capture: cannot start the async runtime: {error}");
-            return ExitCode::from(EXIT_USAGE);
+            return exit(EXIT_USAGE);
         }
     };
     let code = match &cli.mode {
@@ -109,11 +60,26 @@ fn main() -> ExitCode {
     };
     // A client blocked on this process's stdin would otherwise hold the runtime open.
     runtime.shutdown_background();
-    ExitCode::from(code)
+    exit(code)
+}
+
+/// Ends the process with `code`. Windows keeps a process's whole exit code,
+/// which `ExitCode` (a `u8`) cannot carry, so one that does not fit is passed
+/// with `std::process::exit`; everywhere else every code here fits.
+fn exit(code: i32) -> ExitCode {
+    if whole_exit(code, cfg!(windows)) {
+        std::process::exit(code);
+    }
+    ExitCode::from(u8::try_from(code).unwrap_or(1))
+}
+
+/// Whether `code` must be passed whole, past `ExitCode`.
+const fn whole_exit(code: i32, windows: bool) -> bool {
+    windows && (code < 0 || code > 255)
 }
 
 /// Starts the server, then creates the trace, then relays the session.
-async fn run_stdio(cli: &Cli, target: &output::Target, command: &[OsString]) -> u8 {
+async fn run_stdio(cli: &Cli, target: &output::Target, command: &[OsString]) -> i32 {
     let Some((program, args)) = command.split_first() else {
         return EXIT_USAGE; // clap requires the command
     };
@@ -134,7 +100,7 @@ async fn run_stdio(cli: &Cli, target: &output::Target, command: &[OsString]) -> 
             return EXIT_USAGE;
         }
     };
-    let code = match stdio::run_server(
+    let (code, ended) = match stdio::run_server(
         Arc::clone(&recorder),
         server,
         signals,
@@ -153,25 +119,27 @@ async fn run_stdio(cli: &Cli, target: &output::Target, command: &[OsString]) -> 
             }
             report_stdio("client", outcome.client);
             report_stdio("server", outcome.server);
-            exit_code_of(outcome.status)
+            (exit_code_of(outcome.status), Some(outcome.status))
         }
         Err(error) => {
             eprintln!("mcp-trace-capture: {error}");
-            1
+            (1, None)
         }
     };
-    output::finish(&recorder, &path, code)
+    output::finish(&recorder, &path, code, ended)
 }
 
 /// Checks the upstream and binds, then creates the trace, then serves.
 async fn run_http(
     cli: &Cli,
     target: &output::Target,
-    upstream: &axum::http::Uri,
+    upstream: &str,
     listen: SocketAddr,
     preserve_host: bool,
-) -> u8 {
-    let options = match http::Options::new(upstream.clone(), cli.max_message_bytes) {
+) -> i32 {
+    let checked = args::upstream(upstream)
+        .and_then(|upstream| http::Options::new(upstream, cli.max_message_bytes));
+    let options = match checked {
         Ok(mut options) => {
             options.preserve_host = preserve_host;
             options
@@ -189,6 +157,7 @@ async fn run_http(
         }
     };
     let bound = listener.local_addr().unwrap_or(listen);
+    let upstream = &options.upstream.clone();
     // Installed before the address is announced: a client (or a test) may signal
     // the moment it reads that line.
     let signals = match Signals::install() {
@@ -216,7 +185,9 @@ async fn run_http(
         "mcp-trace-capture: listening on http://{bound}, forwarding to {} (Ctrl-C to stop)",
         shown(upstream)
     );
-    let code = serve_until_stopped(listener, &traces, options, signals).await;
+    eprintln!("mcp-trace-capture: {}", client_url(bound, upstream));
+    let served = serve_until_stopped(listener, &traces, options, signals).await;
+    let code = served.map_or_else(|code| code, |served| http_summary(served, bound, upstream));
     output::finish_traces(&traces, path.as_deref().map(Path::new), code)
 }
 
@@ -235,53 +206,89 @@ fn shown(upstream: &axum::http::Uri) -> String {
     format!("{scheme}://{authority}{path}{query}")
 }
 
+/// Where to point the client: the proxy's root is the upstream URL itself.
+fn client_url(bound: SocketAddr, upstream: &axum::http::Uri) -> String {
+    if upstream.path() == "/" {
+        format!(
+            "client URL: http://{bound}/ plus the server's endpoint path, e.g. \
+             http://{bound}/mcp (each request's path is appended to the upstream's)"
+        )
+    } else {
+        format!(
+            "client URL: http://{bound}/ (it reaches {}; http://{bound}/<path> reaches \
+             <upstream>/<path>)",
+            shown(upstream)
+        )
+    }
+}
+
 /// Serves until a request to stop, then lets the proxy stop within its grace
-/// period — or at once on a second request.
+/// period — or at once on a second request, whose exit code is the `Err`.
 async fn serve_until_stopped(
     listener: tokio::net::TcpListener,
     traces: &Arc<Traces>,
     options: http::Options,
     mut signals: Signals,
-) -> u8 {
+) -> Result<std::io::Result<http::Unrecorded>, i32> {
     let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
     let serving = http::serve_traces(listener, Arc::clone(traces), options, async {
         let _ = stopped.await;
     });
     tokio::pin!(serving);
     let first = tokio::select! {
-        served = &mut serving => return http_summary(served),
+        served = &mut serving => return Ok(served),
         first = signals.recv() => first,
     };
     eprintln!(
-        "mcp-trace-capture: {}: stopping; open event streams are ended, other requests get \
-         {}s (signal again to stop now)",
+        "mcp-trace-capture: {}: stopping; standalone event streams (GET) are cut, other \
+         requests get {}s (signal again to stop now)",
         first.name(),
         mcp_trace_capture::STOP_GRACE.as_secs()
     );
     let _ = stop.send(());
     tokio::select! {
-        served = &mut serving => http_summary(served),
+        served = &mut serving => Ok(served),
         again = signals.recv() => {
-            traces.close_all(LifecycleEvent::TransportClose);
+            // Requests still in flight are cut off: the transport did not close in
+            // an orderly way.
+            traces.close_all(LifecycleEvent::TransportAbort);
             eprintln!(
                 "mcp-trace-capture: {} again: stopped without waiting for open requests",
                 again.name()
             );
-            exit_code_of_stop(again)
+            Err(exit_code_of_stop(again))
         }
     }
 }
 
 /// The exit code for a capture a second signal stopped: as a shell reports a
 /// process that signal ended.
-fn exit_code_of_stop(stop: mcp_trace_capture::Stop) -> u8 {
-    u8::try_from(128 + stop.number()).unwrap_or(1)
+const fn exit_code_of_stop(stop: mcp_trace_capture::Stop) -> i32 {
+    128 + stop.number()
 }
 
-fn http_summary(served: std::io::Result<http::Unrecorded>) -> u8 {
+fn http_summary(
+    served: std::io::Result<http::Unrecorded>,
+    bound: SocketAddr,
+    upstream: &axum::http::Uri,
+) -> i32 {
     match served {
         Ok(unrecorded) => {
             report_unrecorded("session", unrecorded.not_json, unrecorded.oversized);
+            if unrecorded.altered > 0 {
+                eprintln!(
+                    "mcp-trace-capture: {} session message(s) were JSON the trace cannot hold \
+                     as sent ({ALTERED}) and are not in the trace (forwarded unchanged)",
+                    unrecorded.altered
+                );
+            }
+            if unrecorded.other_events > 0 {
+                eprintln!(
+                    "mcp-trace-capture: {} SSE event(s) had a type other than `message`, which \
+                     MCP clients ignore, and are not in the trace (forwarded unchanged)",
+                    unrecorded.other_events
+                );
+            }
             if unrecorded.upstream_failures > 0 {
                 eprintln!(
                     "mcp-trace-capture: {} request(s) could not reach the upstream and were \
@@ -296,12 +303,34 @@ fn http_summary(served: std::io::Result<http::Unrecorded>) -> u8 {
                     unrecorded.upstream_cut
                 );
             }
+            report_statuses(unrecorded, bound, upstream);
             0
         }
         Err(error) => {
             eprintln!("mcp-trace-capture: {error}");
             EXIT_USAGE
         }
+    }
+}
+
+/// Says how many responses were not 2xx, and asks about the path when the
+/// server answered 404: a client pointed at the wrong path gets 404s, recorded
+/// faithfully and otherwise unremarked.
+fn report_statuses(unrecorded: http::Unrecorded, bound: SocketAddr, upstream: &axum::http::Uri) {
+    if unrecorded.not_2xx > 0 {
+        eprintln!(
+            "mcp-trace-capture: {} response(s) had a status outside 2xx (recorded as sent)",
+            unrecorded.not_2xx
+        );
+    }
+    if unrecorded.not_found > 0 {
+        eprintln!(
+            "mcp-trace-capture: the server answered 404 to {} request(s) — is the endpoint \
+             path right? The proxy maps http://{bound}/ to {} and http://{bound}/<path> to \
+             <upstream>/<path>",
+            unrecorded.not_found,
+            shown(upstream)
+        );
     }
 }
 
@@ -315,8 +344,20 @@ fn report_stdio(side: &str, unrecorded: stdio::Unrecorded) {
             unrecorded.not_json
         );
     }
+    if unrecorded.altered > 0 {
+        eprintln!(
+            "mcp-trace-capture: {} {side} line(s) were JSON the trace cannot hold as sent \
+             ({ALTERED}); each is recorded as a string payload, which the validator reports as \
+             not a valid MCP message",
+            unrecorded.altered
+        );
+    }
     report_unrecorded(side, 0, unrecorded.oversized);
 }
+
+/// Why a JSON message cannot be recorded as parsed JSON.
+const ALTERED: &str = "a number a double cannot hold exactly, such as an integer past 64 bits, or a repeated \
+     member name";
 
 fn report_unrecorded(side: &str, not_json: u64, oversized: u64) {
     if not_json > 0 {
@@ -334,16 +375,42 @@ fn report_unrecorded(side: &str, not_json: u64, oversized: u64) {
 }
 
 /// The wrapped server's exit code, as a shell would report it.
-fn exit_code_of(status: std::process::ExitStatus) -> u8 {
+fn exit_code_of(status: std::process::ExitStatus) -> i32 {
     if let Some(code) = status.code() {
-        return u8::try_from(code & 0xFF).unwrap_or(1);
+        return passed_through(code, cfg!(windows));
     }
     #[cfg(unix)]
     {
         use std::os::unix::process::ExitStatusExt as _;
         if let Some(signal) = status.signal() {
-            return u8::try_from(128 + (signal & 0x7F)).unwrap_or(1);
+            return 128 + (signal & 0x7F);
         }
     }
     1
+}
+
+/// A server's exit code as this process passes it on: whole where the platform
+/// keeps a whole code (Windows: `exit(256)` is 256, which the low eight bits
+/// would make a success), else the eight bits a Unix wait status holds.
+const fn passed_through(code: i32, whole: bool) -> i32 {
+    if whole { code } else { code & 0xFF }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_exit_code_is_passed_whole_where_the_platform_keeps_it_whole() {
+        assert_eq!(passed_through(7, false), 7);
+        assert_eq!(passed_through(256, false), 0);
+        assert_eq!(passed_through(256, true), 256);
+        assert_eq!(passed_through(-1_073_741_819, true), -1_073_741_819);
+        assert!(whole_exit(256, true));
+        assert!(whole_exit(-1, true));
+        assert!(!whole_exit(255, true));
+        assert!(!whole_exit(0, true));
+        assert!(!whole_exit(256, false));
+        assert!(!whole_exit(-1, false));
+    }
 }

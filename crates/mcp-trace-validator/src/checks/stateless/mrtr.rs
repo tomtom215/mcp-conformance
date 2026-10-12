@@ -36,7 +36,7 @@ mod pairing;
 #[cfg(test)]
 mod tests;
 
-use pairing::{Pairing, Retry, Round, retries, retries_with_rounds, rounds};
+use pairing::{Retry, Round, retries, retries_with_rounds, rounds};
 
 /// The client requests that may draw an `InputRequiredResult` (#supported-requests).
 const SUPPORTED: &[&str] = &["prompts/get", "resources/read", "tools/call"];
@@ -194,6 +194,13 @@ pub(in crate::checks) fn request_state_echoed(context: &TraceContext<'_>, sink: 
 }
 
 /// `MRTR-018`: no `requestState` in a retry the server did not give one for.
+///
+/// Judged only against a round the recording carries. A retry presenting state
+/// with no round before it is not evidence of invention: `requestState` exists
+/// so that a retry can reach a server instance that never saw the round
+/// ("without requiring a shared storage layer across server instances"), and a
+/// capture can begin between a round and its retry. The clause is falsified by
+/// a retry of a recorded round that issued no state.
 pub(in crate::checks) fn no_unsolicited_request_state(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
@@ -202,14 +209,13 @@ pub(in crate::checks) fn no_unsolicited_request_state(
         if retry.state.is_none() {
             continue;
         }
-        let issued = match pairing {
-            Pairing::Round(round) => round.state,
-            Pairing::Unseen => None,
-            // Rounds that would answer differently: no verdict on a guess.
-            Pairing::Ambiguous => continue,
+        // An unseen round, or rounds that would answer differently: no verdict
+        // on a guess.
+        let Some(round) = pairing.round() else {
+            continue;
         };
         sink.examined();
-        if issued.is_none() {
+        if round.state.is_none() {
             sink.push(
                 Some(retry.seq),
                 "the request carries a `requestState` that no `input_required` before it \

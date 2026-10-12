@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 55,
+    "pass": 57,
     "fail": 9,
-    "warn": 2,
-    "excluded": 149,
+    "warn": 0,
+    "excluded": 169,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 58
+    "not_observed": 75
   },
   "requirements": [
     {
@@ -164,6 +164,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "BASE-084",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
       "id": "TRAN-056",
       "level": "MUST",
       "outcome": "pass"
@@ -278,6 +283,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-081",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-086",
       "level": "MUST",
       "outcome": "pass"
@@ -313,6 +323,41 @@
       "outcome": "pass"
     },
     {
+      "id": "TRAN-130",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-131",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-132",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-133",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-134",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-135",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-136",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-100",
       "level": "MUST",
       "outcome": "pass"
@@ -330,19 +375,7 @@
     {
       "id": "DISC-002",
       "level": "SHOULD",
-      "outcome": "warn",
-      "findings": [
-        {
-          "check": "discover.dual-era-probe-first",
-          "seq": 1,
-          "detail": "the client's first request is `ping`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first"
-        }
-      ],
-      "source": {
-        "section": "server/discover#when-to-call",
-        "quote": "A client that supports both modern (per-request `meta`) and legacy (`initialize` handshake) servers SHOULD send `server/discover` first; see stdio: Backward Compatibility for the fallback rules.",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/discover#when-to-call"
-      }
+      "outcome": "not-observed"
     },
     {
       "id": "VERS-001",
@@ -402,19 +435,7 @@
     {
       "id": "TRAN-128",
       "level": "SHOULD",
-      "outcome": "warn",
-      "findings": [
-        {
-          "check": "discover.dual-era-probe-first",
-          "seq": 1,
-          "detail": "the client's first request is `ping`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first"
-        }
-      ],
-      "source": {
-        "section": "basic/transports/stdio#backward-compatibility",
-        "quote": "A client that supports both modern (per-request-metadata) MCP versions and a legacy version that requires an `initialize` handshake SHOULD probe with [`server/discover`][server-discover] before sending any other request, setting its preferred modern version in `meta`.",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility"
-      }
+      "outcome": "not-observed"
     },
     {
       "id": "MRTR-001",
@@ -531,6 +552,46 @@
     {
       "id": "SUBS-006",
       "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-003",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-005",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-011",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-002",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-003",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-005",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-008",
+      "level": "MUST",
       "outcome": "not-observed"
     },
     {
