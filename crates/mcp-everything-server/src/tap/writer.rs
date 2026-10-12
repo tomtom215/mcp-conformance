@@ -13,10 +13,10 @@ use tokio::io::AsyncWriteExt as _;
 
 use super::Record;
 
-/// The writer task: sequences each record per file (the schema's
-/// strictly-increasing rule holds by construction), appends it as one JSON
-/// line, and flushes before accepting the next — everything enqueued before
-/// a kill is durable.
+/// The writer task: sequences each record's events per file (the schema's
+/// strictly-increasing rule holds by construction), appends them as adjacent
+/// JSON lines in one write, and flushes before accepting the next record —
+/// everything enqueued before a kill is durable.
 ///
 /// Each record opens its file for append and closes it again, so a long-lived
 /// server holds no descriptor per session it has ever seen; only each file's
@@ -26,18 +26,24 @@ pub(super) async fn write_loop(mut receiver: tokio::sync::mpsc::Receiver<Record>
     let mut next_seq: HashMap<PathBuf, u64> = HashMap::new();
     while let Some(record) = receiver.recv().await {
         let path = &record.file.path;
-        let seq = next_seq.get(path).copied().unwrap_or(0);
-        let event = TraceEvent::new(
-            seq,
-            record.direction,
-            TransportKind::StreamableHttp,
-            record.body,
-        );
-        let Ok(mut line) = serde_json::to_vec(&event) else {
-            eprintln!("mcp-everything-server: tap event unserializable; skipped");
+        let first = next_seq.get(path).copied().unwrap_or(0);
+        // The record's events become adjacent lines, written in one append.
+        let mut lines = Vec::new();
+        let mut seq = first;
+        for (direction, body) in record.events {
+            let event = TraceEvent::new(seq, direction, TransportKind::StreamableHttp, body);
+            let Ok(line) = serde_json::to_vec(&event) else {
+                eprintln!("mcp-everything-server: tap event unserializable; skipped");
+                continue;
+            };
+            lines.extend_from_slice(&line);
+            lines.push(b'\n');
+            seq += 1;
+        }
+        if seq == first {
             continue;
-        };
-        line.push(b'\n');
+        }
+        let line = lines;
         let write = async {
             let mut file = tokio::fs::OpenOptions::new()
                 .create(true)
@@ -51,7 +57,7 @@ pub(super) async fn write_loop(mut receiver: tokio::sync::mpsc::Receiver<Record>
             // The seq is spent only once its line is written, so a failed
             // write leaves no gap for the next record to straddle.
             Ok(()) => {
-                next_seq.insert(path.clone(), seq + 1);
+                next_seq.insert(path.clone(), seq);
             }
             Err(error) => eprintln!(
                 "mcp-everything-server: tap write to {} failed: {error}",

@@ -214,6 +214,14 @@ below is stated again in its entry, with the reasoning.
   callers to "re-run with `--revision …`"; it now words the advice without a flag,
   and the CLI asks for its own wording (`HumanOptions::cli`).
 
+- **`mcp-everything-server`'s tap could record a POST's message after a
+  concurrent GET's request.** The request event and its message were queued
+  to the writer separately, so another exchange's event could land between
+  them, and the validator, which pairs a message with the HTTP request just
+  before it, read the message as riding the GET (`TRAN-049`): an
+  official-suite session failed the agreement check this way in CI. A
+  request's event and its message, a JSON response's status and body, and a
+  teardown's status and close are now written as adjacent lines.
 - **`mcp-reference-host` named `2026-07-28` in its `initialize` request.**
   rmcp 3.5.0 made `ProtocolVersion::LATEST` `2026-07-28` — a revision with no
   `initialize` — and the host took its handshake version from that default, so
