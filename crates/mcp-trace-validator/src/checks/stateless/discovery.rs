@@ -15,7 +15,7 @@
 use std::collections::BTreeMap;
 
 use mcp_conformance_core::message::MessageKind;
-use mcp_conformance_core::trace::Direction;
+use mcp_conformance_core::trace::{Direction, TransportKind};
 
 use super::super::FindingSink;
 use crate::context::TraceContext;
@@ -108,12 +108,19 @@ pub(in crate::checks) fn implemented(context: &TraceContext<'_>, sink: &mut Find
 /// client's first *request*. Notifications do not count, matching
 /// `basic/transports/stdio#backward-compatibility`, which puts the probe
 /// "before sending any other request".
+///
+/// Judged on stdio only. Both statements of the rule are stdio's: TRAN-128 sits
+/// on the stdio page, and DISC-002 under the discover page's "stdio
+/// backward-compatibility probe" ("On stdio, there is no per-request HTTP status
+/// code to drive fallback"). Streamable HTTP has its own detection, under which
+/// such a client "MAY detect which era the server implements by attempting a
+/// modern request first" — so on HTTP a modern opener is the permitted path.
 pub(in crate::checks) fn dual_era_probe_first(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let mut first: Option<(u64, &str)> = None;
     let mut legacy = false;
     let mut modern = false;
     for (event, kind, _) in context.messages() {
-        if event.direction != Direction::ClientToServer {
+        if event.direction != Direction::ClientToServer || event.transport != TransportKind::Stdio {
             continue;
         }
         let MessageKind::Request { method, .. } = kind else {

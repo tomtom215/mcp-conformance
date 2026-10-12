@@ -164,3 +164,73 @@ fn a_transport_abort_is_not_a_cancellation() {
     ));
     assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 }
+
+#[test]
+fn an_event_stream_is_recognized_in_any_case() {
+    // RFC 9110 §8.3.1: "The type and subtype tokens are case-insensitive."
+    let check = "transport.accel-buffering-header";
+    let response = |headers: &str| {
+        let mut lines = call(0);
+        lines.push(format!(
+            r#"{{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":200,"headers":{headers}}}"#
+        ));
+        trace(&lines)
+    };
+    for media_type in ["text/event-stream", "Text/Event-Stream; charset=utf-8"] {
+        let bare = response(&format!(r#"{{"content-type":"{media_type}"}}"#));
+        assert_eq!(findings_for(check, &bare).len(), 1, "{media_type}");
+        let marked = response(&format!(
+            r#"{{"content-type":"{media_type}","x-accel-buffering":"no"}}"#
+        ));
+        assert!(findings_for(check, &marked).is_empty(), "{media_type}");
+    }
+    // A JSON response is no stream for a proxy to buffer.
+    assert_eq!(
+        findings_for(check, &response(r#"{"content-type":"application/json"}"#)),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn a_close_straight_after_a_response_is_that_responses_stream_ending() {
+    // "The final JSON-RPC response SHOULD terminate the stream": a close
+    // recorded next is the answered request's, even with one other request —
+    // here a long-lived subscription — still open beside it.
+    let check = "transport.no-messages-after-cancellation";
+    let listen = client(
+        0,
+        &format!(
+            r#"{{"jsonrpc":"2.0","id":7,"method":"subscriptions/listen","params":{{{META}}}}}"#
+        ),
+    );
+    let later = server(
+        6,
+        r#"{"jsonrpc":"2.0","id":7,"result":{"resultType":"complete"}}"#,
+    );
+    for answer in [
+        r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
+        r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32603,"message":"x"}}"#,
+    ] {
+        let mut lines = vec![listen.clone()];
+        lines.extend(call(1));
+        lines.push(server(3, answer));
+        lines.push(close(4));
+        lines.push(later.clone());
+        let findings = findings_for(check, &trace(&lines));
+        assert!(findings.is_empty(), "{answer}: {findings:?}");
+
+        // With anything recorded between the response and the close, the close
+        // is no longer the response's, and the one request open owns it again.
+        let mut lines = vec![listen.clone()];
+        lines.extend(call(1));
+        lines.push(server(3, answer));
+        lines.push(server(
+            4,
+            r#"{"jsonrpc":"2.0","method":"notifications/subscriptions/acknowledged"}"#,
+        ));
+        lines.push(close(5));
+        lines.push(later.clone());
+        let findings = findings_for(check, &trace(&lines));
+        assert_eq!(findings.len(), 1, "{answer}: {findings:?}");
+    }
+}

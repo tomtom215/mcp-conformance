@@ -50,6 +50,33 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   (future versions are "additive"), and passed version `ff`, which it forbids.
   Version `00` is still exactly four fields; a higher version is judged on the
   four it shares with `00`; `ff` now fails.
+- **A request that earns more than one rejection may draw any of them.** A
+  POST whose `MCP-Protocol-Version` header disagrees with a body `_meta` naming
+  a version the server does not implement can be refused with `-32020`
+  (`HeaderMismatch`) or `-32022` (`UnsupportedProtocolVersionError`): the
+  specification defines both and orders neither, yet `TRAN-073` failed the
+  first answer and `TRAN-074`/`VERS-001` the second. The same held between
+  `-32022` and the `-32602` a request missing a required `_meta` field draws.
+  `TRAN-073`, `TRAN-074`, `VERS-001` and `TRAN-096` now accept the code of any
+  rejection the request also earned; a result, or any other code, still fails.
+- **A `server/discover` probe answered with its result no longer fails
+  `TRAN-074`/`VERS-001`.** A probe naming a version the server does not
+  implement may be answered with the `DiscoverResult` listing the ones it does —
+  the outcome `basic/versioning`'s compatibility matrix names.
+- **`DISC-002`/`TRAN-128` are judged on stdio only.** Both state the stdio
+  probe rule; over Streamable HTTP a dual-era client "MAY detect which era the
+  server implements by attempting a modern request first", and doing so drew a
+  warning. The committed HTTP probe capture loses its two warnings, and both
+  clauses join the list no capture reaches.
+- **`TRAN-070` no longer pins a stream close on an unrelated request.** A
+  `transport-close` recorded straight after a response is that response's
+  stream ending ("The final JSON-RPC response SHOULD terminate the stream"),
+  not a cancellation of the one other request still open — which failed a
+  subscription answered after a `tools/call` beside it completed.
+- **`TRAN-068` recognizes an SSE response in any case.** Media types are
+  case-insensitive (RFC 9110 §8.3.1), but only a lowercase `text/event-stream`
+  was judged; a `Text/Event-Stream` response without `X-Accel-Buffering: no`
+  now warns as the lowercase one does.
 
 ## [0.6.0] - 2026-10-04
 

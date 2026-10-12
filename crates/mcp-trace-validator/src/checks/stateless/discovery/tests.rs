@@ -36,6 +36,11 @@ fn request(seq: u64, id: u64, method: &str, modern: bool) -> String {
     )
 }
 
+/// `lines` as a stdio trace: the transport DISC-002 and TRAN-128 bind.
+fn on_stdio(lines: &[String]) -> String {
+    trace(lines).replace(r#""transport":"streamable-http""#, r#""transport":"stdio""#)
+}
+
 #[test]
 fn a_session_that_never_probes_is_not_judged() {
     // The clause binds the answer to a probe; with no probe there is no evidence
@@ -132,7 +137,7 @@ fn a_modern_only_client_is_not_asked_to_probe() {
     // No `initialize` anywhere: the antecedent ("supports both … eras") is not
     // met, and the clause does not bind. Probing is RECOMMENDED for these
     // clients, not SHOULD — a different sentence, on a different page.
-    let modern = trace(&[
+    let modern = on_stdio(&[
         request(0, 1, "tools/list", true),
         server(
             1,
@@ -147,7 +152,7 @@ fn a_legacy_only_client_is_not_reported() {
     // `initialize` with no modern `_meta` anywhere is a legacy client, whose
     // session is simply not this clause's subject. Reporting it would make every
     // legacy capture read as a client defect.
-    let legacy = trace(&[
+    let legacy = on_stdio(&[
         request(0, 1, "initialize", false),
         server(1, r#"{"jsonrpc":"2.0","id":1,"result":{}}"#),
         request(2, 2, "tools/list", false),
@@ -157,7 +162,7 @@ fn a_legacy_only_client_is_not_reported() {
 
 #[test]
 fn a_dual_era_client_that_skips_the_probe_is_reported_at_its_first_request() {
-    let skipped = trace(&[
+    let skipped = on_stdio(&[
         request(0, 1, "tools/call", true),
         error(1, "1", -32600),
         request(2, 2, "initialize", false),
@@ -168,8 +173,21 @@ fn a_dual_era_client_that_skips_the_probe_is_reported_at_its_first_request() {
 }
 
 #[test]
+fn a_dual_era_client_on_http_may_open_with_a_modern_request() {
+    // Streamable HTTP's own fallback: a dual-era client "MAY detect which era
+    // the server implements by attempting a modern request first". The probe
+    // rule is stdio's, so the same session over HTTP is not its subject.
+    let attempted = trace(&[
+        request(0, 1, "tools/call", true),
+        error(1, "1", -32600),
+        request(2, 2, "initialize", false),
+    ]);
+    assert_eq!(findings_for(PROBE_FIRST, &attempted), Vec::<String>::new());
+}
+
+#[test]
 fn a_dual_era_client_that_probes_first_conforms() {
-    let probed = trace(&[
+    let probed = on_stdio(&[
         probe(0),
         error(1, "1", -32601),
         request(2, 2, "initialize", false),
@@ -182,7 +200,7 @@ fn a_dual_era_client_that_probes_first_conforms() {
 fn the_probe_may_follow_notifications_because_only_requests_count() {
     // "before sending any other request" — a notification is not a request, so
     // one ahead of the probe does not move "first".
-    let notified = trace(&[
+    let notified = on_stdio(&[
         client(0, r#"{"jsonrpc":"2.0","method":"notifications/cancelled"}"#),
         probe(1),
         error(2, "1", -32601),
@@ -194,7 +212,7 @@ fn the_probe_may_follow_notifications_because_only_requests_count() {
 #[test]
 fn initialize_first_with_a_later_modern_request_is_reported() {
     // The fallback done backwards: handshake first, modern retry after.
-    let backwards = trace(&[
+    let backwards = on_stdio(&[
         request(0, 1, "initialize", false),
         server(
             1,

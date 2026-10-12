@@ -157,7 +157,7 @@ usually are.
   scenarios score **42 passing / 0 failing** against it.
 - Five committed captures — a conforming session over each transport, a *probe*
   session of deliberately malformed requests, and the official runner's two —
-  evidence **112 of the 124 judgeable clauses** between them. What no capture
+  evidence **110 of the 124 judgeable clauses** between them. What no capture
   reaches is named, one clause at a time, in [the corpus chapter](corpus.md).
 - The project's CI re-runs that measurement weekly and **ratchets** it against a
   committed baseline: any change in either direction fails the build, so a
