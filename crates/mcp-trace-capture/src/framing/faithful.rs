@@ -24,34 +24,35 @@ pub(super) fn is_faithful(bytes: &[u8]) -> bool {
     // `None` for an array.
     let mut open: Vec<Option<HashSet<String>>> = Vec::new();
     let mut expect_name = false;
-    let mut at = 0;
-    while let Some(&byte) = bytes.get(at) {
+    // Where the token being skipped (a string or a number) ends. One walk over
+    // the bytes, no index arithmetic of its own: nothing here can loop forever.
+    let mut resume = 0;
+    for (at, &byte) in bytes.iter().enumerate() {
+        if at < resume {
+            continue;
+        }
         match byte {
             b'"' => {
-                let end = string_end(bytes, at);
+                resume = string_end(bytes, at);
                 if expect_name && let Some(Some(names)) = open.last_mut() {
-                    let Ok(name) = serde_json::from_slice::<String>(&bytes[at..end]) else {
+                    let Ok(name) = serde_json::from_slice::<String>(&bytes[at..resume]) else {
                         return false;
                     };
                     if !names.insert(name) {
                         return false;
                     }
                 }
-                at = end;
-                continue;
             }
             b'-' | b'0'..=b'9' => {
-                let end = bytes[at..]
+                resume = bytes[at..]
                     .iter()
                     .position(|byte| {
                         !matches!(byte, b'0'..=b'9' | b'-' | b'+' | b'.' | b'e' | b'E')
                     })
                     .map_or(bytes.len(), |length| at + length);
-                if !number_is_exact(&bytes[at..end]) {
+                if !number_is_exact(&bytes[at..resume]) {
                     return false;
                 }
-                at = end;
-                continue;
             }
             b'{' => {
                 open.push(Some(HashSet::new()));
@@ -65,19 +66,20 @@ pub(super) fn is_faithful(bytes: &[u8]) -> bool {
             b':' => expect_name = false,
             _ => {}
         }
-        at += 1;
     }
     true
 }
 
-/// The index just past the string whose opening quote is at `start`.
+/// The index just past the string whose opening quote is at `start` (the end
+/// of `bytes` if it has no closing quote).
 fn string_end(bytes: &[u8], start: usize) -> usize {
-    let mut at = start + 1;
-    while let Some(&byte) = bytes.get(at) {
+    let mut escaped = false;
+    for (offset, &byte) in bytes[start + 1..].iter().enumerate() {
         match byte {
-            b'\\' => at += 2,
-            b'"' => return at + 1,
-            _ => at += 1,
+            _ if escaped => escaped = false,
+            b'\\' => escaped = true,
+            b'"' => return start + offset + 2,
+            _ => {}
         }
     }
     bytes.len()
@@ -136,6 +138,7 @@ mod tests {
             r#"{"max":18446744073709551615,"min":-9223372036854775808}"#,
             r#"[1,[2,{"a":{"a":1}}],{"a":2},"\"a\""]"#,
             r#"{"a":"1e999 is text, so is {\"a\":1,\"a\":2}","b":{"a":1},"c":[{"a":1},{"a":1}]}"#,
+            r#"{"a":"a","b":["b"],"c":{"c":"c"},"d":1,"e":"d"}"#,
             "0.30000000000000004",
             r#""\\""#,
         ] {
@@ -178,5 +181,11 @@ mod tests {
     fn an_unterminated_string_ends_the_scan() {
         assert_eq!(string_end(b"\"ab\\\"c", 0), 6);
         assert_eq!(string_end(b"\"ab\"c", 0), 4);
+        assert_eq!(
+            string_end(b"x\"\\\\\"y", 1),
+            5,
+            "an escaped backslash escapes nothing more"
+        );
+        assert_eq!(string_end(b"\"\"", 0), 2);
     }
 }

@@ -66,6 +66,10 @@ fn json_the_trace_cannot_hold_is_reported_per_side() {
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!stderr.contains("cannot hold"), "{stderr}");
+    assert!(
+        !stderr.contains("came after the trace was closed"),
+        "nothing came after the close: {stderr}"
+    );
     std::fs::remove_file(&trace).ok();
 }
 
