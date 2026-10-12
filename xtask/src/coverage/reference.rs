@@ -128,15 +128,14 @@ mod tests {
     #[test]
     fn there_is_one_page_per_builtin_revision_newest_first() {
         let pages = render_all(&builtin()).unwrap_or_default();
-        let paths: Vec<String> = pages
-            .iter()
-            .map(|(path, _)| path.display().to_string())
-            .collect();
+        let paths: Vec<&PathBuf> = pages.iter().map(|(path, _)| path).collect();
+        // Compared as paths, not as display strings: Windows separates with `\`.
+        let reference = PathBuf::from("reference");
         assert_eq!(
             paths,
             [
-                "reference/requirements-2026-07-28.md",
-                "reference/requirements-2025-11-25.md"
+                &reference.join("requirements-2026-07-28.md"),
+                &reference.join("requirements-2025-11-25.md")
             ]
         );
     }
