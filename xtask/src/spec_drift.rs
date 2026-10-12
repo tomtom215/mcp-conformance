@@ -32,6 +32,12 @@
 //! A third check reads the page as the site publishes it: every `source.section`
 //! anchor must be a heading id there, because reports link failing clauses to it
 //! ([`anchors`]).
+//!
+//! The census can only count the pages it is told about. A fourth check reads
+//! the site's navigation and holds `sources.json` to it: every page a revision
+//! publishes is in exactly one of `in_scope` / `out_of_scope`, and every
+//! exclusion carries its reason ([`pages`]) — so a page can no longer sit in
+//! neither list, where nothing above would ever read it.
 
 // `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
 // opposite demands about items in a binary crate's private modules; this follows
@@ -46,6 +52,7 @@ use serde::Deserialize;
 
 mod anchors;
 mod census;
+pub(crate) mod pages;
 
 /// The revisions this gate verifies, each against its own published pages.
 ///
@@ -85,7 +92,6 @@ struct Sources {
     /// spec-repo file it is published from.
     in_scope: BTreeMap<String, String>,
     /// Pages of the revision deliberately out of scope, with reasons.
-    #[allow(dead_code)]
     out_of_scope: BTreeMap<String, String>,
     /// Why the census exists and how to re-decide it, beside the data.
     #[serde(rename = "_must_census_policy")]
@@ -107,9 +113,13 @@ pub(crate) fn run() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    let Ok(navigation) = pages::navigation() else {
+        return ExitCode::FAILURE;
+    };
     let mut drifted = 0u32;
     let mut checked = 0u32;
     let mut broken = 0u32;
+    let mut unlisted = 0u32;
     let mut verified: Vec<&str> = Vec::new();
     let mut skipped: Vec<&str> = Vec::new();
     for revision in REVISIONS {
@@ -124,17 +134,18 @@ pub(crate) fn run() -> ExitCode {
             continue;
         };
         verified.push(revision);
-        match verify_revision(revision, &registry) {
+        match verify_revision(revision, &registry, &navigation) {
             Ok(count) => {
                 checked += count.quotes;
                 drifted += count.drifted;
                 broken += count.broken_anchors;
+                unlisted += count.unlisted_pages;
             }
             Err(()) => return ExitCode::FAILURE,
         }
     }
 
-    if !explain_failures(drifted, broken) {
+    if !explain_failures(drifted, broken, unlisted) {
         return ExitCode::FAILURE;
     }
     // The count is of revisions *verified*, not of revisions looped over. It
@@ -160,7 +171,7 @@ pub(crate) fn run() -> ExitCode {
 }
 
 /// Says what to do about each kind of failure found; `true` when there were none.
-fn explain_failures(drifted: u32, broken: u32) -> bool {
+fn explain_failures(drifted: u32, broken: u32, unlisted: u32) -> bool {
     if drifted > 0 {
         eprintln!(
             "xtask: spec-drift — {drifted} quote(s) drifted from the published text. \
@@ -175,7 +186,14 @@ fn explain_failures(drifted: u32, broken: u32) -> bool {
              (the nearest `####` or shallower heading: deeper ones get no anchor)."
         );
     }
-    drifted == 0 && broken == 0
+    if unlisted > 0 {
+        eprintln!(
+            "xtask: spec-drift — {unlisted} page-set problem(s) in sources.json. Every page \
+             the revision publishes belongs in exactly one of `in_scope` (with its source \
+             file, its entries and its census) or `out_of_scope` (with the reason)."
+        );
+    }
+    drifted == 0 && broken == 0 && unlisted == 0
 }
 
 /// What one revision's verification found.
@@ -186,6 +204,8 @@ struct Counts {
     drifted: u32,
     /// Requirements whose section anchor the published page does not offer.
     broken_anchors: u32,
+    /// Ways `sources.json` disagrees with the pages the revision publishes.
+    unlisted_pages: u32,
 }
 
 /// Verifies one revision's quotes against its own published pages, and each
@@ -194,10 +214,13 @@ struct Counts {
 /// Returns the [`Counts`], or `Err(())` when the revision could not be verified at
 /// all — an unreadable sources file, a page/registry disagreement, or a failed
 /// fetch. An unverified page is not a verified page.
-fn verify_revision(revision: &str, registry: &Registry) -> Result<Counts, ()> {
+fn verify_revision(revision: &str, registry: &Registry, navigation: &str) -> Result<Counts, ()> {
     let sources = load_sources(revision).map_err(|message| {
         eprintln!("xtask: spec-drift — {revision}: {message}");
     })?;
+    // First, because everything after it reads only the pages `in_scope` names:
+    // a page in neither list would otherwise pass every check this gate runs.
+    let unlisted_pages = pages::report(revision, &sources, navigation);
     let by_page = requirements_by_page(registry);
     if !sets_agree(&sources, &by_page) {
         return Err(());
@@ -253,6 +276,7 @@ fn verify_revision(revision: &str, registry: &Registry) -> Result<Counts, ()> {
         quotes: checked,
         drifted,
         broken_anchors: broken,
+        unlisted_pages,
     })
 }
 
