@@ -95,30 +95,21 @@ enum Command {
         #[arg(long, value_name = "N", default_value_t = reader::Limits::default().max_events)]
         max_events: usize,
     },
-    /// Print the requirement registry this build validates against.
-    Requirements {
-        /// Output format.
-        #[arg(long, value_enum, default_value_t = Format::Human)]
-        format: Format,
-        /// Path to a registry JSON document, used instead of the built-in one.
-        /// Mutually exclusive with `--revision`.
-        #[arg(long)]
-        registry: Option<PathBuf>,
-        /// Which built-in revision to print; defaults to the newest.
-        #[arg(long, value_name = "YYYY-MM-DD", conflicts_with = "registry")]
-        revision: Option<String>,
-    },
+    /// Print the requirement registry this build validates against, part of
+    /// it, or single requirements in full.
+    Requirements(requirements::Args),
 }
 
+/// `validate` output formats.
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Format {
     /// Terminal-oriented text.
     Human,
     /// Pretty-printed JSON.
     Json,
-    /// `JUnit` XML (validate only), for CI test-report ingestion.
+    /// `JUnit` XML, for CI test-report ingestion.
     Junit,
-    /// SARIF 2.1.0 (validate only), for code scanning: GitHub, GitLab, IDEs.
+    /// SARIF 2.1.0, for code scanning: GitHub, GitLab, IDEs.
     Sarif,
 }
 
@@ -150,11 +141,7 @@ fn main() -> ExitCode {
                 revisions: &revisions,
             },
         ),
-        Command::Requirements {
-            format,
-            registry,
-            revision,
-        } => requirements::run(format, registry.as_deref(), revision.as_deref()),
+        Command::Requirements(args) => requirements::run(&args),
     };
     ExitCode::from(code)
 }
