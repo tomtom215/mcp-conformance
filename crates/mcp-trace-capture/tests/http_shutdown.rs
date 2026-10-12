@@ -181,8 +181,13 @@ fn ctrl_c_stops_the_proxy_promptly_with_an_event_stream_open() {
     let _ = stream.read_to_end(&mut rest);
     std::thread::sleep(Duration::from_millis(100));
     let stderr: Vec<String> = lines.try_iter().collect();
+    // The stream carried comments only, so the summary says no message was
+    // exchanged rather than offering the trace for validation.
     assert!(
-        stderr.iter().any(|line| line.contains("recorded")),
+        stderr.iter().any(
+            |line| line.contains("no message was exchanged; the trace at")
+                && line.contains("transport event(s)")
+        ),
         "the summary is written: {stderr:?}"
     );
     let text = std::fs::read_to_string(&trace).unwrap();
@@ -242,10 +247,11 @@ fn a_response_that_never_completes_does_not_hold_the_proxy_open() {
         started.elapsed()
     );
     assert_eq!(status.code(), Some(128 + 15), "{status:?}");
+    // The forced stop cut a request off: the trace says the transport was torn
+    // down, not closed in an orderly way.
     let text = std::fs::read_to_string(&trace).unwrap();
-    assert!(
-        text.lines().last().unwrap().contains("transport-close"),
-        "{text}"
-    );
+    let last: serde_json::Value = serde_json::from_str(text.lines().last().unwrap()).unwrap();
+    assert_eq!(last["event"], "transport-abort", "{text}");
+    assert_eq!(last["direction"], "client-to-server", "{text}");
     std::fs::remove_file(&trace).ok();
 }

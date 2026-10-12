@@ -23,7 +23,7 @@ use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, Transpor
 use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 use tokio::process::{ChildStdin, ChildStdout};
 
-use crate::framing::{Line, LineSplitter, parse_json};
+use crate::framing::{Line, LineSplitter, Parsed, parse_message};
 use crate::recorder::{NotRecorded, Recorder};
 use crate::signals::{Signals, Stop};
 use process::ServerProcess;
@@ -42,6 +42,11 @@ pub struct Unrecorded {
     pub not_json: u64,
     /// Lines longer than the message limit, forwarded but not recorded.
     pub oversized: u64,
+    /// JSON lines the trace cannot hold as sent — a number a double cannot
+    /// represent exactly, or a repeated member name ([`Parsed::Altered`]).
+    /// Each is recorded as non-JSON lines are, as a string payload: the parsed
+    /// value would say something the line did not.
+    pub altered: u64,
 }
 
 /// A pump's running [`Unrecorded`] counts, readable while it runs — so what it left
@@ -50,6 +55,7 @@ pub struct Unrecorded {
 struct Tally {
     not_json: AtomicU64,
     oversized: AtomicU64,
+    altered: AtomicU64,
 }
 
 impl Tally {
@@ -57,12 +63,18 @@ impl Tally {
         Unrecorded {
             not_json: self.not_json.load(Ordering::Relaxed),
             oversized: self.oversized.load(Ordering::Relaxed),
+            altered: self.altered.load(Ordering::Relaxed),
         }
     }
 }
 
 /// Copies `from` to `to` until end of stream, recording each complete line as a
 /// message event before forwarding the bytes that complete it.
+///
+/// A write to the client (`to` of a [`Direction::ServerToClient`] pump) that
+/// fails is said on stderr: the client went away, and nothing after it is
+/// relayed or recorded. A failed write to the server is not — it is how a
+/// server that exited first looks from here.
 ///
 /// # Errors
 ///
@@ -111,30 +123,57 @@ where
         for line in splitter.push(chunk) {
             record_line(recorder, direction, line, tally);
         }
-        to.write_all(chunk).await?;
-        to.flush().await?;
+        if let Err(error) = write(&mut to, chunk).await {
+            if direction == Direction::ServerToClient {
+                eprintln!(
+                    "mcp-trace-capture: cannot write to the client ({error}); the server's \
+                     output is no longer relayed or recorded"
+                );
+            }
+            return Err(error);
+        }
     }
+}
+
+async fn write<W: AsyncWrite + Unpin>(to: &mut W, chunk: &[u8]) -> io::Result<()> {
+    to.write_all(chunk).await?;
+    to.flush().await
 }
 
 fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Tally) {
     match line {
         Line::Complete(bytes) => {
-            let parsed = parse_json(&bytes);
-            let is_json = parsed.is_some();
-            // A line that is not JSON is still what crossed the wire: record it as a
-            // string (lossy UTF-8) so the validator can judge it.
-            let payload = parsed.unwrap_or_else(|| {
-                serde_json::Value::String(String::from_utf8_lossy(&bytes).into_owned())
-            });
+            // A line that is not JSON, or JSON whose parsed value would not say
+            // what it said, is still what crossed the wire: record it as a string
+            // (lossy UTF-8) so the validator can judge it.
+            let (payload, tally_of) = match parse_message(&bytes) {
+                Parsed::Json(value) => (value, None),
+                parsed => (
+                    serde_json::Value::String(String::from_utf8_lossy(&bytes).into_owned()),
+                    Some(if parsed == Parsed::Altered {
+                        &tally.altered
+                    } else {
+                        &tally.not_json
+                    }),
+                ),
+            };
             let outcome = recorder.record(
                 direction,
                 TransportKind::Stdio,
                 EventBody::Message { payload },
             );
-            if outcome == Err(NotRecorded::TooLong) {
-                tally.oversized.fetch_add(1, Ordering::Relaxed);
-            } else if !is_json {
-                tally.not_json.fetch_add(1, Ordering::Relaxed);
+            match outcome {
+                Err(NotRecorded::TooLong) => {
+                    tally.oversized.fetch_add(1, Ordering::Relaxed);
+                }
+                // Not in the trace, so not a finding in it: the recorder counts
+                // what arrived after the close.
+                Err(NotRecorded::Closed) => {}
+                _ => {
+                    if let Some(count) = tally_of {
+                        count.fetch_add(1, Ordering::Relaxed);
+                    }
+                }
             }
         }
         Line::Oversized => {
@@ -235,10 +274,13 @@ pub async fn run(
 ///
 /// The session ends when the server exits. If the client closes its end first, the
 /// server's stdin is closed and the wrapper waits for the server to exit, as the
-/// stdio transport's shutdown sequence expects. A request to stop (`signals`) is
-/// relayed to the server's whole process group; a server still running
-/// [`STOP_GRACE`](crate::STOP_GRACE) later, or at a second request, is killed. The
-/// trace's last event closes it either way.
+/// stdio transport's shutdown sequence expects. A request to stop (`signals`)
+/// closes the trace at once, with a client-to-server `transport-close`, and is
+/// relayed to the server's whole process group; a group still running
+/// [`SERVER_STOP_GRACE`](crate::SERVER_STOP_GRACE) after the request, or at a
+/// second request, is killed. What crosses the wire after the close is relayed and
+/// counted ([`Summary::after_close`](crate::Summary::after_close)), not recorded.
+/// Otherwise the trace's last event closes it when the session ends.
 ///
 /// # Errors
 ///
@@ -280,7 +322,7 @@ pub async fn run_server(
         &server_tally,
     );
 
-    let end = ending::wait_for_end(&mut process, &mut client, &mut signals).await?;
+    let end = ending::wait_for_end(&mut process, &mut client, &mut signals, &recorder).await?;
     if !end.client_finished {
         // The client's pump is blocked on this process's stdin, which the client
         // may hold open forever. Stop it, and wait until it has stopped, so nothing
@@ -291,9 +333,31 @@ pub async fn run_server(
     }
     // The server's stdout closes when the last process holding it exits; a
     // request to stop bounds that wait.
-    let late_stop = ending::drain(&mut server_pump, &mut process, &mut signals, &end).await;
-    let stop = end.stop.or(late_stop);
-    let closer = if end.client_closed || stop.is_some() {
+    let late_stop = ending::drain(
+        &mut server_pump,
+        &mut process,
+        &mut signals,
+        &end,
+        &recorder,
+    )
+    .await;
+    let stop = end.stop.map(|(stop, _)| stop).or(late_stop);
+    // The last word: nothing a straggling task records after this reaches the
+    // trace. After a request to stop the trace is already closed (`ending`), and
+    // this is refused.
+    close(&recorder, &end);
+    Ok(Outcome {
+        status: end.status,
+        client: client_tally.snapshot(),
+        server: server_tally.snapshot(),
+        stop,
+    })
+}
+
+/// Closes the trace for a session that ended without a request to stop: from
+/// the side that ended it, orderly if the server exited cleanly.
+fn close(recorder: &Recorder, end: &ending::End) {
+    let closer = if end.client_closed {
         Direction::ClientToServer
     } else {
         Direction::ServerToClient
@@ -303,14 +367,7 @@ pub async fn run_server(
     } else {
         LifecycleEvent::TransportAbort
     };
-    // The last word: nothing a straggling task records after this reaches the trace.
     let _ = recorder.close(closer, TransportKind::Stdio, event);
-    Ok(Outcome {
-        status: end.status,
-        client: client_tally.snapshot(),
-        server: server_tally.snapshot(),
-        stop,
-    })
 }
 
 #[cfg(test)]

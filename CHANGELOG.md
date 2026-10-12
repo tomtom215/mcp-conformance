@@ -11,8 +11,8 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
-**This release changes verdicts and report formats, and removes one deprecated
-module**, as pre-1.0 SemVer permits in a minor release
+**This release changes verdicts, report formats and what the capture tool
+records, and removes one deprecated module**, as pre-1.0 SemVer permits in a minor release
 ([STABILITY.md](STABILITY.md) says what counts as breaking). A session that
 passed under 0.6.0 can fail now with nothing in it changed: the registry carries
 37 more `2026-07-28` clauses (16 judged, 21 excluded with a reason), judges one it
@@ -38,6 +38,8 @@ below is stated again in its entry, with the reasoning.
 | Verdict, no longer failing | `LIFE-001`/`LIFE-004` at `2025-11-25` (a dual-era client's refused modern attempt over Streamable HTTP before `initialize`), `SUBS-001` (reused subscription ids), `MRTR-018` (a round before the recording), `TRAN-124` (a reused cancelled id), `CACH-008` (`ttlMs` written as `60000.0`), `BASE-040` (a higher `traceparent` version with extra fields), `TRAN-070` (a stream close after another response), `TRAN-073`/`TRAN-074`/`VERS-001`/`TRAN-096` (another defined rejection; a discover probe answered with its result), `BASE-031`/`BASE-045`/`TRAN-097`/`TRAN-100` (a retry after a null-id refusal), `BASE-034`/`MRTR-012`/`MRTR-013` (a reused request id) | None: these failed conforming sessions |
 | Verdict, now not observed | `TRAN-074` on stdio (an HTTP clause; `VERS-001` judges stdio); `DISC-002`/`TRAN-128` over Streamable HTTP (stdio rules) | None; `VERS-001` still judges the unsupported-version rule on stdio |
 | SARIF | Findings against `TRAN-074` name a new check, so their fingerprints change | An open alert for one closes and reopens once |
+| `mcp-trace-capture` traces | A message whose parsed value would differ from its text (an integer past 64 bits, a repeated member name) is recorded as its raw line over stdio and left out over HTTP; SSE events whose type is not `message` are not recorded; a forced HTTP stop ends the trace with `transport-abort` | None for a conforming peer; the summary counts what was left out |
+| `mcp-trace-capture stdio` | A stop gives the server 1 s (was 3 s) before its process group is killed, inside the official SDKs' 2 s; on Windows the exit code is the server's whole code, not its low eight bits | A server needing longer to shut down should finish on stdin closing |
 | Report totals | `2026-07-28` reports carry 37 more rows; `excluded` grows by 20 | Re-baseline any comparison of totals across versions |
 | Registry data | `TOOL-033` and `TRAN-080` quotes rewritten in the flattened-list form (`; ` between items), the clauses unchanged. `TOOL-034` and `TRAN-081` each bundled clauses binding different parties: both now name only the safe-integer bound (binding the client), and the reachability and client-rejection clauses are `TOOL-045`, `TOOL-046` and `TRAN-137` | Key on the requirement ID; gate on the new IDs for the clauses that moved |
 
@@ -225,9 +227,96 @@ below is stated again in its entry, with the reasoning.
 - **`requirements` with an ID of the other revision says which revision has
   it** (`requirements BASE-003` at the default `2026-07-28`: "it is a 2025-11-25
   requirement: pass --revision 2025-11-25").
+- **`mcp-trace-capture stdio` no longer strands a server when an official SDK stops
+  it, and its trace is always closed.** The Python and TypeScript stdio clients close
+  stdin, wait 2 seconds, send `SIGTERM`, wait 2 more, then `SIGKILL` — the wrapper
+  alone (TypeScript) or its process group (Python), never the server's. The wrapper
+  relayed `SIGTERM` and waited 3 seconds, so it was killed mid-wait: a server ignoring
+  `SIGTERM` kept running, and the trace never got its closing event. A stop now writes
+  the closing `transport-close` before anything else, and the server's processes get
+  1 second (was 3) from the signal, one deadline for the server and anything still
+  holding its stdout, before the group is killed. What the server sends after the
+  close is relayed and counted in the summary (`N event(s) came after the trace was
+  closed`), not recorded; a stop that ends in a kill now ends the trace with that
+  `transport-close` rather than `transport-abort`.
+- **`mcp-trace-capture http` works with a plain `http://` upstream where the platform
+  has no root certificates** (a minimal container): it loaded them for every upstream
+  and failed. They are now loaded only for an `https://` upstream, and before the
+  trace file is created — the failure came after the file and the "listening on"
+  line, leaving an empty trace that made the next run refuse to start without
+  `--force`.
+- **`mcp-trace-capture http`: the proxy's root path is the `--upstream` URL itself.**
+  A request for `/` was forwarded with `/` appended — `--upstream http://h/mcp` made
+  it `/mcp/`, which servers answer with a redirect — so no client URL reached exactly
+  `/mcp`. Other paths are still appended (`/x` reaches `/mcp/x`). A redirect whose
+  `Location` points into the upstream is now pointed back at the proxy, so the client
+  does not leave the recording.
+- **`mcp-trace-capture http`: stopping cuts only standalone event streams.** Every
+  event stream was ended at once, with a clean end of body — including SSE responses
+  to POSTs, whose response then never arrived. Only the GET stream a client holds for
+  its session is cut now, and it is aborted rather than ended, so the client can tell
+  it from a stream the server finished; a POST's SSE response gets the same 3 seconds
+  as any other request in flight.
+- **`mcp-trace-capture` no longer records a value the message did not carry.** An
+  integer past 64 bits (an id of `12345678901234567890123`) was recorded as the
+  nearest double, which the validator then convicted as a non-integer id
+  (`BASE-043`), and of a member name repeated in one object only the last value was
+  kept. The validator reads payloads as parsed JSON too, so no recorded payload could
+  be faithful; such a message is now treated as the transport treats non-JSON —
+  recorded as the line over stdio, left out over HTTP — and counted in the summary.
+  A spelling (`1E2` for `100`) is not a change of value and is recorded as before.
+- **`mcp-trace-capture http` records only SSE events of type `message`.** An event
+  with another `event:` type was recorded as a message, though MCP clients — both
+  official SDKs' — ignore it. It is forwarded, left out, and counted.
+- **`mcp-trace-capture http` never repeats an `--upstream` it refuses.** A value
+  that would not parse (`http://user:pa ss@host/`, `?key=SEC RET`) was echoed whole
+  in the argument error, credentials and all, and an upstream that was not
+  `http`/`https` was echoed by the proxy's own check. Errors now say what is wrong
+  without the value.
+- **`mcp-trace-capture http` with `{session}`: a request naming a stale or unknown
+  `Mcp-Session-Id` no longer takes over the current session.** It began a new trace
+  and made it the one every later request without an id went to, even when the
+  server answered it 404. It still gets a trace of its own, but becomes current only
+  once the server answers it with a 2xx.
+- **`mcp-trace-capture`: `{session}` numbers continue after the highest one present.**
+  The lowest free number was taken, so after an earlier trace was deleted the next
+  session filled its gap and the files no longer sorted in session order.
+- **`mcp-trace-capture stdio` says when the client has gone away.** A failed write to
+  the client (a closed pipe) ended the relay of the server's output without a word;
+  it is now reported once on stderr.
+- **`mcp-trace-capture http`: a forced stop ends the trace with `transport-abort`.** A
+  second signal cuts off the requests still in flight, but the trace recorded an
+  orderly `transport-close`. Events refused because the trace was already closed are
+  now counted in the summary, over HTTP and stdio alike.
+- **`mcp-trace-capture` no longer offers a trace with no exchange in it for
+  validation.** A server that exited before any message (`stdio -- true`,
+  `sh -c 'exit 7'`) got "recorded 2 event(s) … validate with …", and the validator
+  then refused the trace. The summary now says the server exited, with its status,
+  before any message was exchanged. The suggested `mcp-trace-validator validate`
+  command quotes a path with spaces or shell metacharacters.
+- **`mcp-trace-capture stdio` on Windows passes the server's whole exit code.** It
+  kept the low eight bits, as a Unix wait status does, so a server exiting 256 made
+  the wrapper exit 0. Unix behaviour is unchanged.
+- **`mcp-trace-capture`'s README states what it did not.** How the default `Host`
+  rewrite defeats a server's DNS-rebinding check and when `--preserve-host` keeps it
+  effective; what works on Windows and what does not (no signals or process groups:
+  Ctrl-C only, no grace period, a launcher's children are not ended); that a non-SSE
+  response is held until complete; that every `2026-07-28` session through one proxy
+  lands in one trace; and the exit codes it left out (`stdio` 1 when waiting for the
+  server fails, `http` 2 when serving fails).
 
 ### Added
 
+- **`mcp-trace-capture http` names the client URL when it starts, and the statuses
+  when it stops**: how many responses were not 2xx, and, for 404s, whether the
+  endpoint path is right — with the upstream path ending in `/mcp`, a client also
+  asking for `/mcp` reaches `/mcp/mcp` and was answered 404 without a word.
+- **`mcp-trace-capture` explains near-miss arguments, and `--help` lists the exit
+  codes.** `--upstream localhost:3999` suggests `http://localhost:3999`; `--listen
+  18081` and `--listen localhost:18081` show the `IP:PORT` form that works (they said
+  only "invalid socket address syntax"); a `{…}` in `-o`'s file name that is not
+  `{session}` (`{sesion}`) is warned about instead of silently naming one literal
+  file.
 - **`2026-07-28` registry rows for three pages that were in neither page list:**
   `basic/patterns/cancellation` (`CANC-001`–`CANC-017`), `basic/patterns/progress`
   (`PROG-001`–`PROG-008`) and `basic/patterns/index` (`BASE-084`, "Servers MUST NOT

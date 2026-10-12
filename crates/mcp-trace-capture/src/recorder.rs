@@ -50,6 +50,8 @@ struct Inner {
     failed: Option<io::Error>,
     dropped: u64,
     closed: bool,
+    after_close: u64,
+    messages: u64,
 }
 
 impl std::fmt::Debug for Inner {
@@ -68,10 +70,17 @@ impl std::fmt::Debug for Inner {
 pub struct Summary {
     /// Events written.
     pub recorded: u64,
+    /// Of those, message events: none means the trace records no exchange at
+    /// all, only the transport around it.
+    pub messages: u64,
     /// Events lost after a write failed; zero for a complete trace.
     pub dropped: u64,
     /// The first write error, if any.
     pub error: Option<io::Error>,
+    /// Events refused because the trace had already been closed: traffic still
+    /// relayed after a request to stop closed the trace, or that a forced stop
+    /// cut off. They crossed the wire but are not in the trace.
+    pub after_close: u64,
     /// The sessions the recorded traffic showed.
     pub sessions: Sessions,
 }
@@ -144,6 +153,8 @@ impl Recorder {
                 failed: None,
                 dropped: 0,
                 closed: false,
+                after_close: 0,
+                messages: 0,
             }),
             max_line,
         }
@@ -181,9 +192,10 @@ impl Recorder {
     }
 
     /// Records the trace's closing lifecycle event and seals it: every later
-    /// [`Recorder::record`] is refused with [`NotRecorded::Closed`], so the close
-    /// stays the last event even if a task still relaying records after it. A
-    /// second close is refused the same way, so the first one wins.
+    /// [`Recorder::record`] is refused with [`NotRecorded::Closed`] (and counted,
+    /// [`Summary::after_close`]), so the close stays the last event even if a
+    /// task still relaying records after it. A second close is refused the same
+    /// way, uncounted, so the first one wins.
     ///
     /// # Errors
     ///
@@ -195,6 +207,9 @@ impl Recorder {
         event: LifecycleEvent,
     ) -> Result<u64, NotRecorded> {
         let mut inner = self.lock();
+        if inner.closed {
+            return Err(NotRecorded::Closed);
+        }
         let written = self.write(
             &mut inner,
             direction,
@@ -224,6 +239,7 @@ impl Recorder {
         body: EventBody,
     ) -> Result<u64, NotRecorded> {
         if inner.closed {
+            inner.after_close += 1;
             return Err(NotRecorded::Closed);
         }
         // Observed whether or not the event is then written: a session the trace
@@ -234,6 +250,7 @@ impl Recorder {
             return Err(NotRecorded::SinkFailed);
         }
         let seq = inner.next_seq;
+        let message = matches!(body, EventBody::Message { .. });
         let event = TraceEvent::new(seq, direction, transport, body);
         let line = serde_json::to_vec(&event).map_err(io::Error::other);
         if line.as_ref().is_ok_and(|line| line.len() > self.max_line) {
@@ -242,6 +259,7 @@ impl Recorder {
         match line.and_then(|line| write_line(&mut inner.sink, line)) {
             Ok(()) => {
                 inner.next_seq += 1;
+                inner.messages += u64::from(message);
                 Ok(seq)
             }
             Err(error) => {
@@ -267,8 +285,10 @@ impl Recorder {
         }
         Summary {
             recorded: inner.next_seq,
+            messages: inner.messages,
             dropped: inner.dropped,
             error: inner.failed.take(),
+            after_close: inner.after_close,
             sessions: inner.sessions.clone(),
         }
     }

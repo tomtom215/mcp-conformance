@@ -7,8 +7,9 @@
 //! A number is claimed by creating its file with `create_new`, which the
 //! operating system makes atomic: an existing file is never opened, let alone
 //! overwritten, and two captures starting at once (a client relaunching a server,
-//! or launching two) cannot both claim the same number. Each takes the lowest
-//! number free when it looks, so a numbered directory reads in session order.
+//! or launching two) cannot both claim the same number. Each takes the number
+//! after the highest one present, never a gap an earlier trace left when it was
+//! deleted, so a numbered directory reads in session order.
 
 use std::fs::{File, OpenOptions};
 use std::io;
@@ -87,15 +88,19 @@ impl Numbered {
         }
     }
 
-    /// Creates the lowest-numbered trace, from `from` up, whose file does not
-    /// exist yet; returns its number, path and file.
+    /// Creates the next trace: numbered from `from`, or from one past the
+    /// highest number already in the directory if that is later, the first
+    /// whose file does not exist yet. Returns its number, path and file.
     ///
     /// # Errors
     ///
     /// A file could not be created for a reason other than its existing, or no
     /// number up to a million was free. The error names the path tried.
     pub fn create_next(&self, from: u64) -> io::Result<(u64, PathBuf, File)> {
-        for number in from.max(1)..=MAX_NUMBER {
+        let after_highest = self
+            .highest()
+            .map_or(1, |highest| highest.saturating_add(1));
+        for number in from.max(after_highest).max(1)..=MAX_NUMBER {
             let path = self.path(number);
             match OpenOptions::new().write(true).create_new(true).open(&path) {
                 Ok(file) => return Ok((number, path, file)),
@@ -112,6 +117,28 @@ impl Numbered {
             "no free trace number for {} up to {MAX_NUMBER}",
             self.path(0).display()
         )))
+    }
+
+    /// The highest number a file in the directory carries in this template's
+    /// place, if any. An unreadable directory has none; creating the file then
+    /// says why.
+    fn highest(&self) -> Option<u64> {
+        std::fs::read_dir(self.dir())
+            .ok()?
+            .filter_map(Result::ok)
+            .filter_map(|entry| {
+                let name = entry.file_name();
+                let digits = name
+                    .to_str()?
+                    .strip_prefix(&self.prefix)?
+                    .strip_suffix(&self.suffix)?
+                    .to_owned();
+                if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+                    return None;
+                }
+                digits.parse::<u64>().ok()
+            })
+            .max()
     }
 }
 
@@ -170,12 +197,28 @@ mod tests {
             .unwrap();
         std::fs::write(numbered.path(1), "keep\n").unwrap();
         std::fs::write(numbered.path(3), "keep\n").unwrap();
+        // Not this template's: another prefix or suffix, or not a number.
+        for other in [
+            "x-007.jsonl",
+            "s-009.txt",
+            "s-.jsonl",
+            "s-1a.jsonl",
+            "s-+9.jsonl",
+        ] {
+            std::fs::write(dir.join(other), "").unwrap();
+        }
         let (first, path, _) = numbered.create_next(1).unwrap();
-        assert_eq!((first, path), (2, numbered.path(2)));
+        assert_eq!(
+            (first, path),
+            (4, numbered.path(4)),
+            "after the highest, not into the gap at 2"
+        );
         let (second, ..) = numbered.create_next(1).unwrap();
-        assert_eq!(second, 4, "3 is taken, 2 was just claimed");
+        assert_eq!(second, 5);
         let (later, ..) = numbered.create_next(10).unwrap();
-        assert_eq!(later, 10);
+        assert_eq!(later, 10, "a later start wins");
+        let (next, ..) = numbered.create_next(1).unwrap();
+        assert_eq!(next, 11);
         assert_eq!(std::fs::read_to_string(numbered.path(1)).unwrap(), "keep\n");
         assert_eq!(std::fs::read_to_string(numbered.path(3)).unwrap(), "keep\n");
         let missing = Numbered::parse(&dir.join("absent/{session}"))
