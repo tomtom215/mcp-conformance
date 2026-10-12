@@ -148,6 +148,60 @@ fn an_unsupported_version_is_judged_against_what_the_server_declared() {
 
     // With no discovery at all there is no list to judge against.
     assert!(findings_for(check, &exchange("2026-07-28", "2026-07-28", 200, RESULT)).is_empty());
+
+    // The error itself is the answer the clause asks for.
+    let refused = r#"{"jsonrpc":"2.0","id":2,"error":{"code":-32022,"message":"x","data":{"supported":["2026-07-28"]}}}"#;
+    assert!(
+        findings_for(
+            check,
+            &after_discovery(r#"["2026-07-28"]"#, "2025-11-25", refused)
+        )
+        .is_empty()
+    );
+}
+
+#[test]
+fn a_discovery_probe_may_answer_an_unsupported_version_with_its_result() {
+    // `basic/versioning`: "The stdio probe returns a `DiscoverResult` (or
+    // `UnsupportedProtocolVersionError`)". The probe names the client's
+    // preferred version, and the result's `supportedVersions` is the answer.
+    let check = "transport.unsupported-version-error";
+    let line = |seq: u64, direction: &str, payload: &str| {
+        format!(
+            r#"{{"seq":{seq},"direction":"{direction}","transport":"stdio","kind":"message","payload":{payload}}}"#
+        )
+    };
+    let probe = |answer: &str| {
+        [
+            line(
+                0,
+                "client-to-server",
+                r#"{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2027-03-01","io.modelcontextprotocol/clientCapabilities":{}}}}"#,
+            ),
+            line(1, "server-to-client", answer),
+        ]
+        .join("\n")
+    };
+    let result = r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","supportedVersions":["2026-07-28"],"capabilities":{}}}"#;
+    assert!(findings_for(check, &probe(result)).is_empty());
+
+    // Any other answer is still held to the rule: the exemption is the result.
+    let wrong_error = trace(&[
+        probe(result),
+        line(
+            2,
+            "client-to-server",
+            r#"{"jsonrpc":"2.0","id":2,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2027-03-01","io.modelcontextprotocol/clientCapabilities":{}}}}"#,
+        ),
+        line(
+            3,
+            "server-to-client",
+            r#"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"x"}}"#,
+        ),
+    ]);
+    let findings = findings_for(check, &wrong_error);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].contains("error -32603"), "{findings:?}");
 }
 
 #[test]

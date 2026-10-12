@@ -11,6 +11,22 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A request that earns more than one rejection may draw any of them.** A
+  POST whose `MCP-Protocol-Version` header disagrees with a body `_meta` naming
+  a version the server does not implement can be refused with `-32020`
+  (`HeaderMismatch`) or `-32022` (`UnsupportedProtocolVersionError`): the
+  specification defines both and orders neither, yet `TRAN-073` failed the
+  first answer and `TRAN-074`/`VERS-001` the second. The same held between
+  `-32022` and the `-32602` a request missing a required `_meta` field draws.
+  `TRAN-073`, `TRAN-074`, `VERS-001` and `TRAN-096` now accept the code of any
+  rejection the request also earned; a result, or any other code, still fails.
+- **A `server/discover` probe answered with its result no longer fails
+  `TRAN-074`/`VERS-001`.** A probe naming a version the server does not
+  implement may be answered with the `DiscoverResult` listing the ones it does —
+  the outcome `basic/versioning`'s compatibility matrix names.
+
 ## [0.6.0] - 2026-10-04
 
 **This is a minor release with breaking behaviour changes and one Rust API
