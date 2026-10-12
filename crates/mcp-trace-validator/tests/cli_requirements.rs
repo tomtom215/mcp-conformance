@@ -240,3 +240,23 @@ fn an_id_of_the_other_revision_says_which_revision_has_it() {
     let nowhere = stderr(&run(&["requirements", "BASE-999"]));
     assert!(!nowhere.contains("--revision"), "{nowhere}");
 }
+
+#[test]
+fn the_readmes_requirements_and_completions_examples_run() {
+    // The crate README shows these commands; each must succeed as written,
+    // at the default revision (an earlier example named two `2025-11-25`
+    // IDs and exited 2).
+    let readme = include_str!("../README.md");
+    let commands: Vec<Vec<&str>> = readme
+        .lines()
+        .filter_map(|line| line.strip_prefix("mcp-trace-validator "))
+        .map(|line| line.split(['#', '>']).next().unwrap_or_default())
+        .map(|line| line.split_whitespace().collect::<Vec<_>>())
+        .filter(|args| matches!(args.first(), Some(&("requirements" | "completions"))))
+        .collect();
+    assert!(commands.len() >= 4, "{commands:?}");
+    for args in commands {
+        let output = run(&args);
+        assert_eq!(output.status.code(), Some(0), "{args:?}: {output:?}");
+    }
+}
