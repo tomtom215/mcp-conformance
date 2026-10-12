@@ -56,6 +56,9 @@ pub struct Options {
     /// The server's base URL. Request paths are appended to its path, so
     /// `http://localhost:3000` forwards `/mcp` to `http://localhost:3000/mcp`; its
     /// query, if any, is kept, and the request's appended to it.
+    ///
+    /// The connection settings are made for it by [`Options::new`]: change it
+    /// from `http` to `https` afterwards and no certificate is trusted.
     pub upstream: Uri,
     /// The largest body or SSE event recorded; larger ones are forwarded unrecorded.
     pub max_message: usize,
@@ -69,6 +72,8 @@ pub struct Options {
     /// for it: they are ended at once (an MCP client holds a GET stream open for
     /// its whole session, so waiting for one to finish would never stop).
     pub grace: std::time::Duration,
+    /// How the proxy connects upstream, made once the upstream is known.
+    connector: Connector,
 }
 
 impl Options {
@@ -77,7 +82,10 @@ impl Options {
     /// # Errors
     ///
     /// `upstream` is not an absolute `http` URL, or an `https` one in a build
-    /// without the `tls` feature, or it carries credentials (`user:password@`).
+    /// without the `tls` feature, or it carries credentials (`user:password@`);
+    /// or, for an `https` one, the platform's root certificates could not be
+    /// loaded. Checked here, so a caller can refuse to start before it has
+    /// created anything (a trace file).
     pub fn new(upstream: Uri, max_message: usize) -> Result<Self, String> {
         // Checked first, and the URL not repeated: the proxy would never send these
         // credentials, and echoing them would put a password on the terminal.
@@ -99,11 +107,15 @@ impl Options {
             }
             _ => return Err(format!("{upstream} is not an absolute http or https URL")),
         }
+        let connector = connector(upstream.scheme_str() == Some("https")).map_err(|error| {
+            format!("cannot load the platform's root certificates for an https upstream: {error}")
+        })?;
         Ok(Self {
             upstream,
             max_message,
             preserve_host: false,
             grace: crate::STOP_GRACE,
+            connector,
         })
     }
 }
@@ -178,8 +190,7 @@ pub async fn serve(
 ///
 /// # Errors
 ///
-/// The platform's root certificates could not be loaded (`tls` builds), or the
-/// server failed.
+/// The server failed.
 pub async fn serve_traces(
     listener: tokio::net::TcpListener,
     traces: Arc<Traces>,
@@ -190,7 +201,7 @@ pub async fn serve_traces(
     let grace = options.grace;
     let proxy = Arc::new(Proxy {
         traces,
-        client: Client::builder(TokioExecutor::new()).build(connector()?),
+        client: Client::builder(TokioExecutor::new()).build(options.connector.clone()),
         options,
         counters: Counters::default(),
         stopping: stopping.clone(),
@@ -233,6 +244,11 @@ async fn stopped(mut stopping: watch::Receiver<bool>) {
 
 /// The upstream connector: HTTPS and HTTP with the `tls` feature, HTTP without.
 ///
+/// The platform's root certificates are loaded only for an `https` upstream:
+/// where none can be found (a minimal container), a plain `http` upstream must
+/// still work. The proxy only ever connects to the one upstream, so an `http`
+/// one never uses the TLS settings, and gets none it could trust.
+///
 /// One function with the variants inside, rather than one function per `cfg`, so
 /// that every build compiles the whole of it and mutation testing (which runs
 /// with all features) never mutates a body that build does not contain.
@@ -243,15 +259,30 @@ async fn stopped(mut stopping: watch::Receiver<bool>) {
         reason = "only loading root certificates can fail"
     )
 )]
-fn connector() -> io::Result<Connector> {
+fn connector(https: bool) -> io::Result<Connector> {
     #[cfg(feature = "tls")]
-    let connector = hyper_rustls::HttpsConnectorBuilder::new()
-        .with_provider_and_native_roots(rustls::crypto::ring::default_provider())?
-        .https_or_http()
-        .enable_http1()
-        .build();
+    let connector = {
+        let builder = hyper_rustls::HttpsConnectorBuilder::new();
+        let builder = if https {
+            builder.with_provider_and_native_roots(rustls::crypto::ring::default_provider())?
+        } else {
+            builder.with_tls_config(
+                rustls::ClientConfig::builder_with_provider(Arc::new(
+                    rustls::crypto::ring::default_provider(),
+                ))
+                .with_safe_default_protocol_versions()
+                .map_err(io::Error::other)?
+                .with_root_certificates(rustls::RootCertStore::empty())
+                .with_no_client_auth(),
+            )
+        };
+        builder.https_or_http().enable_http1().build()
+    };
     #[cfg(not(feature = "tls"))]
-    let connector = HttpConnector::new();
+    let connector = {
+        let _ = https;
+        HttpConnector::new()
+    };
     Ok(connector)
 }
 

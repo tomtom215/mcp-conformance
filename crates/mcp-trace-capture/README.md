@@ -111,8 +111,9 @@ Stop it with Ctrl-C (or `SIGTERM`/`SIGHUP`). Open event streams — an MCP clien
 a GET stream open for its whole session — are ended at once; other requests in flight
 get 3 seconds to finish. The trace is then closed with a `transport-close` event and
 the summary printed. A second signal stops at once. `https://` upstreams work (rustls,
-the platform's root certificates). SSE streams are relayed as they arrive, event by
-event.
+the platform's root certificates — loaded only for an `https` upstream, and checked
+before the trace is created: where none can be found, the proxy refuses to start).
+SSE streams are relayed as they arrive, event by event.
 
 ## What it guarantees
 

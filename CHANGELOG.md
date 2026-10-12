@@ -25,6 +25,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   close is relayed and counted in the summary (`N event(s) came after the trace was
   closed`), not recorded; a stop that ends in a kill now ends the trace with that
   `transport-close` rather than `transport-abort`.
+- **`mcp-trace-capture http` works with a plain `http://` upstream where the platform
+  has no root certificates** (a minimal container): it loaded them for every upstream
+  and failed. They are now loaded only for an `https://` upstream, and before the
+  trace file is created — the failure came after the file and the "listening on"
+  line, leaving an empty trace that made the next run refuse to start without
+  `--force`.
 
 ## [0.6.0] - 2026-10-04
 
