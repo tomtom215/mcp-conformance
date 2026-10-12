@@ -22,11 +22,13 @@ use serde_json::Value;
 use super::super::support::decode_base64;
 use crate::context::TraceContext;
 
-pub(in crate::checks) mod framing;
 mod headers;
 mod stdio;
 mod stream;
 mod validation;
+
+pub(in crate::checks) use crate::context::framing;
+pub(super) use framing::Post;
 
 #[cfg(test)]
 mod tests;
@@ -63,20 +65,6 @@ pub(super) const META_PROTOCOL_VERSION: &str = "io.modelcontextprotocol/protocol
 const SENTINEL_OPEN: &str = "=?base64?";
 /// The sentinel's closing marker.
 const SENTINEL_CLOSE: &str = "?=";
-
-/// A client POST: the HTTP headers it carried, and the message they framed.
-#[derive(Debug, Clone, Copy)]
-pub(super) struct Post<'a> {
-    /// The `seq` of the HTTP event carrying the headers.
-    pub seq: u64,
-    /// The `seq` of the message event the POST framed.
-    pub message_seq: u64,
-    /// The POST's headers. The trace reader lowercases the keys, so lookups
-    /// here are by lowercase name and on-the-wire casing cannot hide anything.
-    pub headers: &'a BTreeMap<String, String>,
-    /// The JSON-RPC message the POST carried.
-    pub payload: &'a Value,
-}
 
 impl Post<'_> {
     /// The message's `method`, when it has one.

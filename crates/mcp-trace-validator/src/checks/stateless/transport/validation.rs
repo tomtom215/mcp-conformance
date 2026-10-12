@@ -93,47 +93,24 @@ pub(in crate::checks) fn header_mismatch_status(
     }
 }
 
-/// Every answered request as `(request message seq, response event)`: the
-/// exchanges the ids pair, plus the null-`id` answers the HTTP framing ties to
-/// their POST.
-///
-/// The second half exists for a refusal that drops the id. Recorded off the
-/// official Python SDK's server: a POST whose `MCP-Protocol-Version` disagreed
-/// with its body drew `400 {"id":null,"error":{"code":-32600,...}}`. Paired by
-/// id, that answer belonged to no request, and TRAN-073 reported *not observed*
-/// for a POST the server had in fact answered with the wrong code.
-fn answered<'t>(
-    context: &TraceContext<'t>,
-    framing: &Framing<'_>,
-) -> Vec<(u64, &'t mcp_conformance_core::trace::TraceEvent)> {
-    let mut out: Vec<_> = context
-        .exchanges()
-        .map(|exchange| (exchange.request.seq, exchange.response))
-        .collect();
-    let events = context.events();
-    for (response, request) in framing.unidentified_answers() {
-        if let Some(event) = events.iter().find(|event| event.seq == response) {
-            out.push((request, event));
-        }
-    }
-    out.sort_by_key(|(_, response)| response.seq);
-    out
-}
-
 /// Reports every exchange whose POST carried `fault` yet drew something other
 /// than a `HeaderMismatch` rejection — the shared body of TRAN-073 and TRAN-096.
+///
+/// Walks the context's exchanges, which include the null-`id` answers the HTTP
+/// framing ties to their POST. That half matters for a refusal that drops the
+/// id. Recorded off the official Python SDK's server: a POST whose
+/// `MCP-Protocol-Version` disagreed with its body drew
+/// `400 {"id":null,"error":{"code":-32600,...}}`. Paired by id alone, that
+/// answer belonged to no request, and TRAN-073 reported *not observed* for a
+/// POST the server had in fact answered with the wrong code.
 fn rejected_for(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
     fault: impl Fn(&Post<'_>) -> Option<String>,
 ) {
-    let framing = Framing::new(context);
-    let by_message: std::collections::BTreeMap<u64, Post<'_>> = framing
-        .posts()
-        .iter()
-        .map(|post| (post.message_seq, *post))
-        .collect();
-    for (request_seq, response) in answered(context, &framing) {
+    let by_message = posts_by_message(context);
+    for exchange in context.exchanges() {
+        let (request_seq, response) = (exchange.request.seq, exchange.response);
         let Some(post) = by_message.get(&request_seq) else {
             continue;
         };

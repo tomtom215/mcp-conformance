@@ -11,6 +11,21 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A null-id answer on Streamable HTTP now answers its request everywhere.**
+  When the status a `"id": null` error rides ties it to one POST, that request
+  is now closed for every check, not only for `TRAN-073`/`TRAN-096`. Before,
+  it stayed open, so a client retrying with the same id failed `BASE-045`, and
+  the retry's result was held against the first request: a server that had
+  rejected a malformed `_meta` with `-32602` failed `BASE-031`, and one that
+  had rejected a header mismatch failed `TRAN-097`/`TRAN-100`. The same link
+  means `BASE-052` (and `BASE-009` at `2025-11-25`, which shares its check)
+  now judges such an answer instead of reporting *not observed*: when the
+  request's id could be read, answering it with `null` fails, because the
+  clause excuses only "error cases where the ID could not be read". Two
+  `2026-07-28` corpus goldens record that new failure.
+
 ## [0.6.0] - 2026-10-04
 
 **This is a minor release with breaking behaviour changes and one Rust API

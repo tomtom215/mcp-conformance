@@ -443,4 +443,49 @@ mod tests {
         let unsolicited = trace.replace(r#""id":"x","error""#, r#""id":"y","error""#);
         assert_eq!(run_check("base.error-id-matches", &unsolicited).len(), 1);
     }
+
+    #[test]
+    fn a_null_id_error_the_framing_ties_is_judged_against_its_request() {
+        // The null-id escape hatch is for an id that "could not be read". On
+        // HTTP the status ties the error to its POST, whose request the trace
+        // holds — and whose id it can read.
+        let http = |seq: u64, direction: &str, rest: &str| {
+            format!(
+                r#"{{"seq":{seq},"direction":"{direction}","transport":"streamable-http",{rest}}}"#
+            )
+        };
+        let refused = |id: &str| {
+            [
+                http(0, "client-to-server", r#""kind":"http","method":"POST""#),
+                http(
+                    1,
+                    "client-to-server",
+                    &format!(r#""kind":"message","payload":{{"jsonrpc":"2.0","id":{id},"method":"ping"}}"#),
+                ),
+                http(2, "server-to-client", r#""kind":"http","status":400"#),
+                http(
+                    3,
+                    "server-to-client",
+                    r#""kind":"message","payload":{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"x"}}"#,
+                ),
+            ]
+            .join("\n")
+        };
+        let findings = run_check("base.error-id-matches", &refused("1"));
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert_eq!(findings[0].seq, Some(3));
+        // An object is no id at all; that one could not be read.
+        assert!(run_check("base.error-id-matches", &refused("{}")).is_empty());
+        // The null answer closed the request, so a second answer is unsolicited.
+        let twice = format!(
+            "{}\n{}",
+            refused("1"),
+            http(
+                4,
+                "server-to-client",
+                r#""kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{}}"#
+            )
+        );
+        assert_eq!(run_check("base.result-id-matches", &twice).len(), 1);
+    }
 }

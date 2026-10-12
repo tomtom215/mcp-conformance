@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! Tests for the `2026-07-28` error-code partition.
+//! Tests for the `2026-07-28` error-code partition, and for when a request id
+//! stops being in flight.
 //!
 //! The partition is four checks reading six constants, and a corpus trace only
 //! ever proves that *one* code lands in the right bucket. What matters here is
@@ -9,7 +10,7 @@
 //! and a code the specification defines must not be reported as undefined. Each
 //! assertion below pins one edge.
 
-use crate::checks::stateless::testkit::{client, error, findings_for, trace};
+use crate::checks::stateless::testkit::{client, error, findings_for, post, status, trace};
 
 /// What `check` reports for a session whose single error carries `code`.
 fn for_code(check: &str, code: i64) -> Vec<String> {
@@ -106,4 +107,34 @@ fn a_non_integer_code_is_left_to_its_own_clause() {
     ] {
         assert!(findings_for(check, &document).is_empty(), "{check}");
     }
+}
+
+#[test]
+fn a_null_id_answer_the_framing_ties_frees_its_request_id() {
+    // BASE-045 lets a sender reuse an id once its request is answered. On HTTP
+    // a null-id refusal is tied to its POST by the status it rides; read by id
+    // alone it answered nothing, and the retry looked like an in-flight reuse.
+    let check = "base.request-id-unique-in-flight";
+    let ask = |seq| client(seq, r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#);
+    let retried = trace(&[
+        post(0, "{}"),
+        ask(1),
+        status(2, 400),
+        error(3, "null", -32020),
+        post(4, "{}"),
+        ask(5),
+    ]);
+    let findings = findings_for(check, &retried);
+    assert!(findings.is_empty(), "{findings:?}");
+
+    // With no status to tie it, the null id answers nothing the trace can
+    // name, and the request is still in flight when the id comes back.
+    let unframed = trace(&[
+        post(0, "{}"),
+        ask(1),
+        error(2, "null", -32020),
+        post(3, "{}"),
+        ask(4),
+    ]);
+    assert_eq!(findings_for(check, &unframed).len(), 1);
 }

@@ -7,7 +7,7 @@
 //! here is the protocol's own `_meta` fields — the required envelope, what a
 //! missing one must draw, and the HTTP status that answer rides.
 
-use crate::checks::stateless::testkit::{META, client, findings_for, server, status, trace};
+use crate::checks::stateless::testkit::{META, client, findings_for, post, server, status, trace};
 
 /// A request whose `_meta` omits `clientCapabilities`, answered by `answer`.
 fn incomplete_envelope(answer: &str) -> String {
@@ -419,4 +419,46 @@ fn a_reused_id_is_judged_by_the_request_its_answer_pairs_with() {
     let findings = findings_for(check, &malformed_second);
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert!(findings[0].contains("seq 2"), "{findings:?}");
+}
+
+#[test]
+fn a_null_id_rejection_the_framing_ties_answers_the_malformed_request() {
+    // On HTTP the status ties a null-id `-32602` to its POST. Paired by id
+    // alone it answered nothing, the malformed request stayed open, and the
+    // well-formed retry reusing its id had its result held against it.
+    const INCOMPLETE: &str = r#""_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}"#;
+    let ask = |seq, meta: &str| {
+        client(
+            seq,
+            &format!(r#"{{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{{{meta}}}}}"#),
+        )
+    };
+    let session = |rejection_status| {
+        trace(&[
+            post(0, "{}"),
+            ask(1, INCOMPLETE),
+            status(2, rejection_status),
+            server(
+                3,
+                r#"{"jsonrpc":"2.0","id":null,"error":{"code":-32602,"message":"x"}}"#,
+            ),
+            post(4, "{}"),
+            ask(5, META),
+            status(6, 200),
+            server(
+                7,
+                r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","tools":[]}}"#,
+            ),
+        ])
+    };
+    for check in [
+        "meta.missing-required-field-rejected",
+        "meta.missing-required-field-http-status",
+    ] {
+        let findings = findings_for(check, &session(400));
+        assert!(findings.is_empty(), "{check}: {findings:?}");
+    }
+    // The null-id answer is the one BASE-032 judges, so its status counts.
+    let findings = findings_for("meta.missing-required-field-http-status", &session(500));
+    assert_eq!(findings.len(), 1, "{findings:?}");
 }

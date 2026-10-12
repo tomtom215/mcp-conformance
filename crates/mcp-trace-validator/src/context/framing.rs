@@ -44,6 +44,18 @@
 //!   `id` is null is tied to a request only when it is the first message after
 //!   a status that is unambiguously that request's — the one case where "the
 //!   ID could not be read" can be checked against the request the trace holds.
+//!   The context's request pairing reads these too, so such an answer closes
+//!   its request for every check rather than leaving it open for the next
+//!   response reusing the id.
+//!
+//! Part of the context rather than of the transport checks for that reason:
+//! pairing is computed once, here, and must not reach up into `checks`.
+
+// `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
+// opposite demands about items in a private module the rest of the crate
+// reads; this follows the rustc lint and quiets the clippy one, per its
+// known-problems note.
+#![allow(clippy::redundant_pub_crate)]
 
 use std::collections::BTreeMap;
 
@@ -52,8 +64,21 @@ use mcp_conformance_core::trace::{
 };
 use serde_json::Value;
 
-use super::Post;
-use crate::context::TraceContext;
+use super::TraceContext;
+
+/// A client POST: the HTTP headers it carried, and the message they framed.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Post<'a> {
+    /// The `seq` of the HTTP event carrying the headers.
+    pub seq: u64,
+    /// The `seq` of the message event the POST framed.
+    pub message_seq: u64,
+    /// The POST's headers. The trace reader lowercases the keys, so lookups
+    /// here are by lowercase name and on-the-wire casing cannot hide anything.
+    pub headers: &'a BTreeMap<String, String>,
+    /// The JSON-RPC message the POST carried.
+    pub payload: &'a Value,
+}
 
 /// One client `http` event awaiting its response status.
 #[derive(Debug, Clone)]
@@ -77,7 +102,7 @@ struct Slot<'a> {
 
 /// One HTTP exchange whose response status the trace attributes.
 #[derive(Debug, Clone, Copy)]
-pub(in crate::checks) struct Exchange<'a> {
+pub(crate) struct Exchange<'a> {
     /// The client `http` event: its `seq`, method and headers. `None` for a
     /// status no recorded exchange awaited.
     pub request: Option<(u64, Option<&'a str>, &'a BTreeMap<String, String>)>,
@@ -95,14 +120,14 @@ pub(in crate::checks) struct Exchange<'a> {
 
 impl Exchange<'_> {
     /// The request's HTTP method, when the exchange has a recorded request.
-    pub(in crate::checks) fn method(&self) -> Option<&str> {
+    pub(crate) fn method(&self) -> Option<&str> {
         self.request.and_then(|(_, method, _)| method)
     }
 
     /// Whether the exchange carried a JSON-RPC request: known from the paired
     /// body, or — with no request side recorded — from a response following
     /// the status.
-    pub(in crate::checks) fn carried_request(&self) -> bool {
+    pub(crate) fn carried_request(&self) -> bool {
         self.carried.map_or_else(
             || self.request.is_none() && self.framed_response,
             |payload| {
@@ -112,7 +137,7 @@ impl Exchange<'_> {
     }
 
     /// The response's media type, lowercased and without parameters.
-    pub(in crate::checks) fn media_type(&self) -> Option<String> {
+    pub(crate) fn media_type(&self) -> Option<String> {
         self.headers.get("content-type").map(|content_type| {
             content_type
                 .split(';')
@@ -126,7 +151,7 @@ impl Exchange<'_> {
 
 /// The order-derived HTTP framing of a trace.
 #[derive(Debug, Default)]
-pub(in crate::checks) struct Framing<'a> {
+pub(crate) struct Framing<'a> {
     posts: Vec<Post<'a>>,
     exchanges: Vec<Exchange<'a>>,
     /// Response message `seq` → the status `(seq, code)` it rode.
@@ -138,9 +163,15 @@ pub(in crate::checks) struct Framing<'a> {
 
 impl<'a> Framing<'a> {
     /// Derives the framing of `context`'s Streamable HTTP events in one pass.
-    pub(in crate::checks) fn new(context: &'a TraceContext<'_>) -> Self {
+    pub(crate) fn new(context: &'a TraceContext<'_>) -> Self {
+        Self::of(context.events())
+    }
+
+    /// Derives the framing of `events` directly — what the context's own
+    /// request pairing reads, before there is a context to pass.
+    pub(super) fn of(events: &'a [TraceEvent]) -> Self {
         let mut builder = Builder::default();
-        for event in context.events() {
+        for event in events {
             if event.transport == TransportKind::StreamableHttp {
                 builder.step(event);
             }
@@ -149,26 +180,24 @@ impl<'a> Framing<'a> {
     }
 
     /// The POSTs whose headers and body the trace pairs unambiguously, in order.
-    pub(in crate::checks::stateless) fn posts(&self) -> &[Post<'a>] {
+    pub(crate) fn posts(&self) -> &[Post<'a>] {
         &self.posts
     }
 
     /// The exchanges whose response status the trace attributes, in the order
     /// their statuses were recorded.
-    pub(in crate::checks) fn exchanges(&self) -> &[Exchange<'a>] {
+    pub(crate) fn exchanges(&self) -> &[Exchange<'a>] {
         &self.exchanges
     }
 
     /// The status the response message at `seq` rode, when the trace says.
-    pub(in crate::checks::stateless) fn status_for(&self, seq: u64) -> Option<(u64, u16)> {
+    pub(crate) fn status_for(&self, seq: u64) -> Option<(u64, u16)> {
         self.statuses.get(&seq).copied()
     }
 
     /// The null-`id` responses the framing ties to a request, as
     /// `(response seq, request message seq)`, in trace order.
-    pub(in crate::checks::stateless) fn unidentified_answers(
-        &self,
-    ) -> impl Iterator<Item = (u64, u64)> + '_ {
+    pub(crate) fn unidentified_answers(&self) -> impl Iterator<Item = (u64, u64)> + '_ {
         self.answers
             .iter()
             .map(|(response, request)| (*response, *request))

@@ -3,12 +3,12 @@
   "verdict": "fail",
   "totals": {
     "pass": 31,
-    "fail": 2,
+    "fail": 3,
     "warn": 0,
     "excluded": 149,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 91
+    "not_observed": 90
   },
   "requirements": [
     {
@@ -49,7 +49,19 @@
     {
       "id": "BASE-052",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "base.error-id-matches",
+          "seq": 3,
+          "detail": "error response carries a null id, but the request it answers (seq 1) has the readable id 1; only an id that could not be read may be answered with null"
+        }
+      ],
+      "source": {
+        "section": "basic/index#error-responses",
+        "quote": "Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#error-responses"
+      }
     },
     {
       "id": "BASE-053",
