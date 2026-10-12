@@ -123,6 +123,9 @@ fn a_redirect_into_the_upstream_comes_back_through_the_proxy() {
     let root: Uri = "http://h:1".parse().unwrap();
     assert_eq!(location(&root, "/mcp", None).as_deref(), Some("/mcp"));
     assert_eq!(location(&root, "/", None).as_deref(), Some("/"));
+    // A scheme-relative reference names another server, even though its
+    // path would map through a root upstream.
+    assert_eq!(location(&root, "//elsewhere/mcp", None), None);
 
     // The upstream's own query is prepended to every request's, so only a
     // query carrying it maps back, without it.
