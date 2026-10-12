@@ -49,12 +49,17 @@ fn progress_params(event: &TraceEvent) -> Option<&Value> {
     payload.get("params")
 }
 
-/// For each client request the trace saw answered, the `seq` of its answer.
-fn answered_at(context: &TraceContext<'_>) -> BTreeMap<u64, u64> {
+/// Every answer to a client request, keyed by the answer's `seq`: answer → the
+/// `seq` of the request it answers.
+///
+/// Keyed by the answer so a check walking the trace in order learns a request
+/// finished at the moment it reaches the answer — "after the answer" becomes
+/// where the walk is, not a comparison between two events' sequence numbers.
+fn answers(context: &TraceContext<'_>) -> BTreeMap<u64, u64> {
     context
         .exchanges()
         .filter(|exchange| exchange.request.direction == Direction::ClientToServer)
-        .map(|exchange| (exchange.request.seq, exchange.response.seq))
+        .map(|exchange| (exchange.response.seq, exchange.request.seq))
         .collect()
 }
 
@@ -83,19 +88,18 @@ pub(in crate::checks) fn token_unique_in_flight(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let answered = answered_at(context);
+    let answers = answers(context);
     // Active requests carrying a token, as (token text, request seq).
     let mut active: Vec<(String, u64)> = Vec::new();
     for (event, _, _) in context.messages() {
+        if let Some(request) = answers.get(&event.seq) {
+            active.retain(|(_, held)| held != request);
+            continue;
+        }
         let Some(token) = requested_token(event) else {
             continue;
         };
         sink.examined();
-        active.retain(|(_, request)| {
-            answered
-                .get(request)
-                .is_none_or(|answer| *answer > event.seq)
-        });
         let token = token.to_string();
         if let Some((_, earlier)) = active.iter().find(|(held, _)| *held == token) {
             sink.push(
@@ -163,10 +167,16 @@ pub(in crate::checks) fn no_progress_after_completion(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    let answered = answered_at(context);
+    let answers = answers(context);
     // Token text → the latest request that took it up.
     let mut owner: BTreeMap<String, u64> = BTreeMap::new();
+    // Request seq → the seq of its answer, once the walk has passed it.
+    let mut finished: BTreeMap<u64, u64> = BTreeMap::new();
     for (event, _, _) in context.messages() {
+        if let Some(request) = answers.get(&event.seq) {
+            finished.insert(*request, event.seq);
+            continue;
+        }
         if let Some(token) = requested_token(event) {
             owner.insert(token.to_string(), event.seq);
             continue;
@@ -183,7 +193,7 @@ pub(in crate::checks) fn no_progress_after_completion(
             continue;
         };
         sink.examined();
-        if let Some(answer) = answered.get(request).filter(|answer| **answer < event.seq) {
+        if let Some(answer) = finished.get(request) {
             sink.push(
                 Some(event.seq),
                 format!(

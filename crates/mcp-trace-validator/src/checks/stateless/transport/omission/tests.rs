@@ -193,6 +193,51 @@ fn a_value_in_the_body_without_its_header_must_be_rejected() {
 }
 
 #[test]
+fn only_a_tools_call_is_held_to_the_table() {
+    // A `prompts/get` naming a prompt that shares the tool's name has no
+    // designations: the table is about `tools/call` arguments.
+    let prompt = call(r#","mcp-param-region":"us""#, "{}", 200, RESULT)
+        .replace(
+            r#""mcp-method":"tools/call""#,
+            r#""mcp-method":"prompts/get""#,
+        )
+        .replace(r#""method":"tools/call""#, r#""method":"prompts/get""#);
+    for check in [NULL_OMITTED, ABSENT_OMITTED] {
+        assert_eq!(
+            findings_for(check, &prompt),
+            Vec::<String>::new(),
+            "{check}"
+        );
+    }
+}
+
+#[test]
+fn a_correctly_mirrored_second_parameter_is_no_reason_to_reject() {
+    // `limit` is designated too, has a value and carries its header exactly;
+    // only the valueless `region` is left out, so the rejection is still
+    // expecting a header the table says the server must not.
+    let trace = trace(&[
+        server(
+            0,
+            r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","tools":[{"name":"sql","inputSchema":{"type":"object","properties":{"region":{"type":"string","x-mcp-header":"Region"},"limit":{"type":"integer","x-mcp-header":"Limit"}}}}]}}"#,
+        ),
+        post(
+            1,
+            r#"{"mcp-protocol-version":"2026-07-28","mcp-method":"tools/call","mcp-name":"sql","mcp-param-limit":"42"}"#,
+        ),
+        client(
+            2,
+            &format!(
+                r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"sql","arguments":{{"limit":42}},{META}}}}}"#
+            ),
+        ),
+        status(3, 400),
+        server(4, MISMATCH),
+    ]);
+    assert_eq!(findings_for(ABSENT_NOT_EXPECTED, &trace).len(), 1);
+}
+
+#[test]
 fn nothing_is_judged_without_a_designating_tool_list() {
     // Each of these fails its check while the trace carries the tool list.
     let cases = [
