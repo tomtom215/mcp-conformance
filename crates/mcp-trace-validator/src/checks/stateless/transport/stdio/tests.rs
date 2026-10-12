@@ -245,6 +245,53 @@ fn a_session_without_cancellation_is_not_judged() {
 }
 
 #[test]
+fn a_request_reusing_a_cancelled_id_is_a_new_request() {
+    // Request 1 was cancelled and the server read the cancellation; the client
+    // then sends a new request 1, and answering *that* is what the server owes.
+    let [later, answered] = read_past(2);
+    let session = trace(&[
+        request(0, 1, None),
+        cancel(1, r#","params":{"requestId":1}"#),
+        later,
+        answered,
+        request(4, 1, None),
+        server(
+            5,
+            r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
+        ),
+    ]);
+    assert!(findings_for(AFTER, &session).is_empty());
+
+    // A client *response* carrying the id opens no request and clears nothing.
+    let responded = session.replace(
+        r#"{"jsonrpc":"2.0","id":1,"method":"tools/call"}"#,
+        r#"{"jsonrpc":"2.0","id":1,"result":{}}"#,
+    );
+    assert_eq!(findings_for(AFTER, &responded).len(), 1);
+}
+
+#[test]
+fn a_reused_id_does_not_inherit_the_earlier_requests_token() {
+    // The first request 1 opted into `tok-1` and finished; the second request 1
+    // opted into nothing and is cancelled. Progress on `tok-1` is the finished
+    // request's, not the cancelled one's.
+    let [later, answered] = read_past(4);
+    let session = trace(&[
+        request(0, 1, Some("tok-1")),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}"#,
+        ),
+        request(2, 1, None),
+        cancel(3, r#","params":{"requestId":1}"#),
+        later,
+        answered,
+        progress(6, "tok-1"),
+    ]);
+    assert!(findings_for(AFTER, &session).is_empty());
+}
+
+#[test]
 fn a_cancellation_naming_no_request_cancels_nothing_here() {
     // TRAN-123 reports the malformed notification; this check must not invent a
     // cancellation out of it and start failing the server as well.

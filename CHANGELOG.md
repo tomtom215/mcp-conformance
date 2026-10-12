@@ -11,6 +11,46 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`SUBS-001`/`SUBS-002` told a reused subscription id from the subscription
+  that first carried it.** Both checks keyed subscriptions by id alone, so a
+  `subscriptions/listen` reusing the id of a closed subscription replaced it:
+  the new filter judged the old stream's notifications (a false `SUBS-001`
+  failure), and the old stream's notifications were never examined (a missed
+  `SUBS-002` acknowledgment). A subscription is now open from its request until
+  its response or a cancellation naming it, each opening owes its own
+  acknowledgment, and a tagged message is judged against the subscription open
+  when it was sent.
+- **`LOG-009` missed a log sent when no request was in flight.** A
+  `notifications/message` must travel on the response stream of the request
+  that set the log level, and once every request has been answered there is no
+  such stream left, but the check judged only logs tagged with a subscription
+  id. It now also fails an untagged log arriving while nothing but a
+  `subscriptions/listen` is in flight, unless a later response answers a
+  request sent before the recording began.
+- **`MRTR-018` failed a retry whose round predates the recording.** A retry
+  carrying `requestState` with no `input_required` before it in the trace was
+  reported as inventing one, but `requestState` is designed to reach a server
+  instance that never saw the round, and a capture can start mid-flow. Like
+  `MRTR-015`/`MRTR-016`, the check now judges only retries of a recorded round.
+- **`TRAN-124` on stdio failed the answer to a request reusing a cancelled
+  id.** Once a client cancelled a request by notification, any later response
+  with that id was reported, including the answer to a new request the client
+  sent with the same id after the first was answered. A new request now clears
+  the cancellation, progress token and send time recorded under its id, as the
+  Streamable HTTP check (`TRAN-070`) already did.
+- **`CACH-008` rejected `ttlMs` written as a float.** The schema types `ttlMs`
+  as JSON Schema `integer`, which admits any number with a zero fractional
+  part, but the check accepted only values that parse as a 64-bit signed
+  integer, so `"ttlMs": 60000.0` failed. It now accepts any non-negative
+  number with no fractional part, and still fails a negative or fractional one.
+- **`BASE-040` read every `traceparent` as version `00`.** It failed a higher
+  version carrying fields after the flags, which W3C Trace Context allows
+  (future versions are "additive"), and passed version `ff`, which it forbids.
+  Version `00` is still exactly four fields; a higher version is judged on the
+  four it shares with `00`; `ff` now fails.
+
 ## [0.6.0] - 2026-10-04
 
 **This is a minor release with breaking behaviour changes and one Rust API

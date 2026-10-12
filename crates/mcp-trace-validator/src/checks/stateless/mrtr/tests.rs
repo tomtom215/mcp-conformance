@@ -228,12 +228,33 @@ fn a_round_without_state_asks_for_none_back() {
 }
 
 #[test]
-fn state_presented_with_no_round_at_all_is_unsolicited() {
-    let alone = client(
-        0,
-        r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"t","requestState":"mine"}}"#,
-    );
-    assert_eq!(findings_for(UNSOLICITED, &alone).len(), 1);
+fn state_presented_with_no_round_in_the_recording_is_not_judged() {
+    // `requestState` is built to reach a server instance that never saw the
+    // round, and a capture can begin between a round and its retry, so a state
+    // with no recorded round is no evidence the client made it up. This used to
+    // be asserted as a finding, which failed a conforming client.
+    let alone = trace(&[
+        client(
+            0,
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"t","inputResponses":{"login":{}},"requestState":"mine"}}"#,
+        ),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","content":[]}}"#,
+        ),
+    ]);
+    assert!(findings_for(UNSOLICITED, &alone).is_empty());
+
+    // A round for some other tool is no round of this retry's either.
+    let elsewhere = trace(&[
+        request(0, 1, "tools/call", ""),
+        input_required(1, 1, &format!(",{ELICIT}")),
+        client(
+            2,
+            r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"other","inputResponses":{"login":{}},"requestState":"mine"}}"#,
+        ),
+    ]);
+    assert!(findings_for(UNSOLICITED, &elsewhere).is_empty());
 }
 
 #[test]
