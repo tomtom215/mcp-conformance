@@ -50,6 +50,44 @@ fn the_traceparent_grammar_is_pinned_field_by_field() {
 }
 
 #[test]
+fn a_higher_version_may_append_fields_and_ff_is_forbidden() {
+    // "Version ff is forbidden" (§3.2.2.1), whatever follows it.
+    let forbidden = VALID.replacen("00", "ff", 1);
+    let verdict = validate_traceparent(&json!(forbidden));
+    assert!(
+        verdict
+            .as_ref()
+            .is_err_and(|reason| reason.contains("forbids")),
+        "{verdict:?}"
+    );
+
+    // A higher version is "additive": it may append fields after the flags, and
+    // the four it shares with `00` are all that is judged (§3.2.4).
+    let higher = VALID.replacen("00", "01", 1);
+    for value in [higher.clone(), format!("{higher}-what-comes-next")] {
+        assert!(
+            validate_traceparent(&json!(value)).is_ok(),
+            "{value:?} should be accepted"
+        );
+    }
+    // …and those four are still held to their grammar.
+    let bad_trace_id = "01-00000000000000000000000000000000-00f067aa0ba902b7-01-x";
+    assert!(validate_traceparent(&json!(bad_trace_id)).is_err());
+    let short = "cc-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7";
+    assert!(validate_traceparent(&json!(short)).is_err());
+
+    // Version `00` itself stays exactly four fields.
+    let extra = format!("{VALID}-extra");
+    let verdict = validate_traceparent(&json!(extra));
+    assert!(
+        verdict
+            .as_ref()
+            .is_err_and(|reason| reason.contains("version 00")),
+        "{verdict:?}"
+    );
+}
+
+#[test]
 fn trace_context_is_read_from_both_envelopes_and_only_when_present() {
     let check = "meta.trace-context-format";
 

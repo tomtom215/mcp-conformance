@@ -42,9 +42,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 59 | 105 |
+| Goldens | 59 | 107 |
 | Excluded rows the ledger holds | 86 | 149 |
-| Distinct not-observed sets across them | 30 | 83 |
+| Distinct not-observed sets across them | 30 | 84 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -497,6 +497,7 @@ falsifies exactly the requirement it is named for.
 | `subscription-server-teardown.jsonl` | A stdio subscription the *server* ends: acknowledgment, one requested change notification, then `notifications/cancelled` with `requestId` naming the `subscriptions/listen` request — the teardown basic/patterns/cancellation makes mandatory ("A server MUST send `notifications/cancelled` referencing a `subscriptions/listen` request ID when it tears down that subscription stream"). It carries no `subscriptionId` tag, since `requestId` already names the subscription; until 2026-10-04 BASE-039 failed it for the missing tag, and SUBS-001 failed the tagged form as an unrequested notification type, so the mandated message could not pass either way. |
 | `subscription-id-reused-after-close.jsonl` | A stdio subscription closed by its graceful-closure response, then a second `subscriptions/listen` reusing id 1 with a different filter (`promptsListChanged` only): each opening acknowledged first, each notification one its own filter requested (SUBS-001/002 pass paths). Until 2026-10-12 both checks keyed subscriptions by id alone, so the second filter judged the first stream's `tools/list_changed` and SUBS-001 failed. |
 | `caching-ttl-written-as-float.jsonl` | A `tools/list` result carrying `"ttlMs": 60000.0`. The schema types `ttlMs` as JSON Schema `integer`, which admits any number with a zero fractional part, so this is 60000 milliseconds (CACH-001/008 pass paths) — the spelling a serializer that holds every JSON number as a double may produce. Until 2026-10-12 CACH-008 accepted only values that parsed as `i64` and failed it. |
+| `traceparent-higher-version.jsonl` | A request `traceparent` of version `01` with a fifth field after the flags, answered with a result whose `traceparent` is downgraded to `00` — the first mutation W3C Trace Context §3.4 allows. §3.2.4 assumes future versions "will be additive" and has a parser check only that the flags are followed by "the end of the string or a dash", so the extra field is valid (BASE-040's pass path). Until 2026-10-12 the check demanded exactly four fields at every version and failed it. |
 | `resource-read-existing-empty.jsonl` | A listed resource (`file:///project/empty.log`) read back with an empty `contents` array. RES-022 forbids that shape only "for a non-existent resource", and the page concedes the other reading — "it could mean the resource exists but has no content" — so with nothing in the session saying this resource is missing, nothing is reported. Until 2026-10-04 the shape alone failed the MUST. |
 | `base-030-request-meta-missing-required-field.jsonl` | Request `_meta` omits `io.modelcontextprotocol/clientCapabilities` (BASE-030) |
 | `base-030-malformed-request-id-reused-correctly.jsonl` | A `tools/list` whose `_meta` omits `clientCapabilities` is correctly rejected with `-32602`; the client then reuses id 1 — legal once answered (BASE-045) — for a well-formed `tools/list`, which is served (BASE-030 for the first request only). The golden pins BASE-031 *passing*: correlated by id text alone, the second request's result was held against the first, malformed one. |
@@ -508,6 +509,7 @@ falsifies exactly the requirement it is named for.
 | `base-036-missing-capability-not-http-400.jsonl` | `-32021` returned with HTTP 500 rather than 400 (BASE-036) |
 | `base-039-subscription-notification-untagged.jsonl` | Notification on a `subscriptions/listen` stream with no `io.modelcontextprotocol/subscriptionId` (BASE-039) |
 | `base-040-malformed-traceparent.jsonl` | `traceparent` that is not W3C Trace Context shaped (BASE-040) |
+| `base-040-traceparent-version-ff.jsonl` | `traceparent` with version `ff`, which W3C Trace Context forbids ("Version ff is forbidden"), and otherwise well formed (BASE-040). Passed until 2026-10-12, when the check accepted any two hex digits as the version. |
 | `base-045-request-id-reused-in-flight.jsonl` | Request id reused while the first is still outstanding (BASE-045) — legal at `2025-11-25` only after a response, and this trace reuses *before* one |
 | `base-048-result-without-result-type.jsonl` | Result omits the `resultType` SEP-2322 requires (BASE-048) |
 | `base-083-legacy-error-code.jsonl` | Error code `-32010` from the legacy sub-range, which new implementations SHOULD NOT use (BASE-083, a warning). Named `base-055-…` until 2026-10-04, when BASE-055 carried this use at MUST NOT alongside the allocation rule it actually states. |

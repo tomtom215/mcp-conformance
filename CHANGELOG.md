@@ -45,6 +45,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   part, but the check accepted only values that parse as a 64-bit signed
   integer, so `"ttlMs": 60000.0` failed. It now accepts any non-negative
   number with no fractional part, and still fails a negative or fractional one.
+- **`BASE-040` read every `traceparent` as version `00`.** It failed a higher
+  version carrying fields after the flags, which W3C Trace Context allows
+  (future versions are "additive"), and passed version `ff`, which it forbids.
+  Version `00` is still exactly four fields; a higher version is judged on the
+  four it shares with `00`; `ff` now fails.
 
 ## [0.6.0] - 2026-10-04
 

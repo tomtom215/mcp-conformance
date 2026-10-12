@@ -20,10 +20,11 @@ mod tests;
 
 /// `BASE-040`: `traceparent` and `tracestate`/`baggage` follow their W3C formats.
 ///
-/// Only the `traceparent` grammar is fixed enough to judge from a trace: version
-/// `00`, a 32-hex trace id that is not all zeroes, a 16-hex parent id that is not
-/// all zeroes, and 2 hex flags. `tracestate` and `baggage` are list formats whose
-/// members are vendor-defined, so only their gross shape is checked.
+/// Only the `traceparent` grammar is fixed enough to judge from a trace: a
+/// 2-hex version other than the forbidden `ff`, a 32-hex trace id that is not
+/// all zeroes, a 16-hex parent id that is not all zeroes, and 2 hex flags.
+/// `tracestate` and `baggage` are list formats whose members are
+/// vendor-defined, so only their gross shape is checked.
 pub(in crate::checks) fn trace_context_format(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for (event, _, _) in context.messages() {
         let Some(payload) = event.message_payload() else {
@@ -61,13 +62,20 @@ pub(in crate::checks) fn trace_context_format(context: &TraceContext<'_>, sink: 
     }
 }
 
-/// The W3C Trace Context `traceparent` grammar, version `00`.
+/// The W3C Trace Context `traceparent` grammar.
+///
+/// Version `00` is exactly four fields. A higher version may carry more: the
+/// specification "assumes that future versions of the traceparent header will
+/// be additive to the current one", and its parser for one checks only that
+/// the flags are followed by "the end of the string or a dash" (§3.2.4). So a
+/// higher version is judged on the four fields it shares with `00`, and what
+/// follows them is not read. Version `ff` "is forbidden" outright (§3.2.2.1).
 fn validate_traceparent(value: &Value) -> Result<(), String> {
     let Some(text) = value.as_str() else {
         return Err("is not a string".to_owned());
     };
     let parts: Vec<&str> = text.split('-').collect();
-    let [version, trace_id, parent_id, flags] = parts.as_slice() else {
+    let [version, trace_id, parent_id, flags, rest @ ..] = parts.as_slice() else {
         return Err(format!(
             "is {text:?}; W3C Trace Context requires four `-`-separated fields"
         ));
@@ -79,6 +87,14 @@ fn validate_traceparent(value: &Value) -> Result<(), String> {
     if version.len() != 2 || !hex(version) {
         return Err(format!(
             "has version {version:?}; expected two lowercase hex digits"
+        ));
+    }
+    if *version == "ff" {
+        return Err("has version \"ff\", which W3C Trace Context forbids".to_owned());
+    }
+    if *version == "00" && !rest.is_empty() {
+        return Err(format!(
+            "is {text:?}; version 00 has exactly four `-`-separated fields"
         ));
     }
     if trace_id.len() != 32 || !hex(trace_id) {
