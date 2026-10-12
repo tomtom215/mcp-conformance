@@ -88,7 +88,16 @@ fn annotated_call(value: &str) -> String {
 
 #[test]
 fn a_mirrored_integer_beyond_the_safe_range_is_reported() {
-    for value in ["9007199254740992", "-9007199254740992"] {
+    // Beyond `i64` serde_json holds the number as `u64`, then `f64`; an
+    // integral float is an integer to JSON Schema all the same.
+    for value in [
+        "9007199254740992",
+        "-9007199254740992",
+        "9223372036854775808",
+        "18446744073709551616",
+        "-1e300",
+        "9007199254740992.0",
+    ] {
         let findings = findings_for(RANGE, &annotated_call(value));
         assert_eq!(findings.len(), 1, "value {value}: {findings:?}");
         assert!(findings[0].contains("Mcp-Param-Region"), "{findings:?}");
@@ -97,7 +106,7 @@ fn a_mirrored_integer_beyond_the_safe_range_is_reported() {
 
 #[test]
 fn the_boundary_values_are_inside_the_range() {
-    for value in ["9007199254740991", "-9007199254740991", "0"] {
+    for value in ["9007199254740991", "-9007199254740991", "0", "1.0"] {
         assert!(
             findings_for(RANGE, &annotated_call(value)).is_empty(),
             "value {value}"
