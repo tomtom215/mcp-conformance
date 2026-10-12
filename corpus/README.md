@@ -42,9 +42,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 59 | 103 |
+| Goldens | 59 | 104 |
 | Excluded rows the ledger holds | 86 | 149 |
-| Distinct not-observed sets across them | 30 | 84 |
+| Distinct not-observed sets across them | 30 | 85 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -434,14 +434,14 @@ read as a specimen instead.
 |---------|-------:|-----:|-----:|-----:|-------------:|
 | `official-suite-2026-07-28-scenarios` | 60 | 59 | 1 | 0 | 64 |
 | `official-suite-2026-07-28-stateless` | 60 | 60 | 0 | 0 | 64 |
-| `probe-2026-07-28-http` | 66 | 55 | 9 | 2 | 58 |
+| `probe-2026-07-28-http` | 64 | 55 | 9 | 0 | 60 |
 | `reference-host-2026-07-28-http` | 92 | 92 | 0 | 0 | 32 |
 | `reference-host-2026-07-28-stdio` | 81 | 81 | 0 | 0 | 43 |
-| **Union** | **112** | | | | **12** |
+| **Union** | **110** | | | | **14** |
 
-Across all 5 captures, **112 of the 124 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 5 captures, **110 of the 124 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
-The 12 clauses no capture reaches: `CACH-015`, `CACH-016`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TRAN-061`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-096`, `VERS-004`.
+The 14 clauses no capture reaches: `CACH-015`, `CACH-016`, `DISC-002`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TRAN-061`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-096`, `TRAN-128`, `VERS-004`.
 <!-- draft-coverage:end -->
 
 The probe session closed the largest group — the rejection rules — and the
@@ -517,6 +517,7 @@ falsifies exactly the requirement it is named for.
 | `http-upstream-abort.jsonl` | Two requests in flight; the capture proxy records a `transport-abort` — what it writes when the upstream server fails and it answers the client 502 itself — and the server then answers the other request normally. An abort is a failed transport, not a client closing its stream, and a lifecycle event names no request; until 2026-10-04 TRAN-070 read any close or abort as cancelling every request in flight and failed the server for the second answer. |
 | `http-stream-closed-by-client.jsonl` | A `tools/call` whose SSE response stream closes while it is the only request in flight — the cancellation signal at this revision — after which the server sends nothing more for it, and a later `tools/list` is answered normally (TRAN-070's pass path, now that a close is attributed only when exactly one request is in flight). |
 | `stdio-discover-preferred-version-unsupported.jsonl` | A stdio `server/discover` probe naming `2027-03-01`, answered with a `DiscoverResult` listing only `2026-07-28`, then a `tools/list` at that version. `basic/versioning`'s compatibility matrix names the outcome: "The stdio probe returns a `DiscoverResult` (or `UnsupportedProtocolVersionError`)". Until 2026-10-12 TRAN-074 and VERS-001 failed the result for not being `-32022`. |
+| `http-dual-era-modern-request-first.jsonl` | A dual-era client over Streamable HTTP opening with a modern `tools/list`, refused `400` with `-32600`, then falling back to `initialize` (carrying a full `_meta` envelope and left unanswered, as in `disc-002-…`, so nothing else fires). HTTP's own rule lets it "detect which era the server implements by attempting a modern request first"; the probe-first clause is stdio's. Until 2026-10-12 DISC-002 and TRAN-128 warned here. |
 | `stdio-cancellation-race.jsonl` | A `tools/call` cancelled by notification whose progress and result were already on their way: both land after the cancellation in the recording, then a later `tools/list` is answered. basic/patterns/cancellation names this race ("this notification MAY arrive after the request has already finished"; "Both parties MUST handle these race conditions gracefully"), and nothing shows the server had read the cancellation when it wrote them. Until 2026-10-04 TRAN-124 convicted every message recorded after a cancellation. |
 | `logging-per-request.jsonl` | Per-request logging done right: a declared `logging` capability, a `tools/call` carrying `io.modelcontextprotocol/logLevel` that receives a log while it is the only request in flight, then a second call that sets no level and receives none (LOG-007/008/009 pass paths). |
 | `stdio-x-mcp-header-large-integer.jsonl` | The `tool-034` session over **stdio**: an `x-mcp-header`-annotated integer argument of 2^53. Mirroring is a Streamable HTTP mechanism ("Clients using other transports (e.g., stdio) MAY ignore `x-mcp-header` annotations entirely"), so no value is put through a header and TOOL-034 does not bind; until 2026-10-04 it failed the MUST here. |

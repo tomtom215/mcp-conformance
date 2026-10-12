@@ -26,6 +26,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `TRAN-074`/`VERS-001`.** A probe naming a version the server does not
   implement may be answered with the `DiscoverResult` listing the ones it does —
   the outcome `basic/versioning`'s compatibility matrix names.
+- **`DISC-002`/`TRAN-128` are judged on stdio only.** Both state the stdio
+  probe rule; over Streamable HTTP a dual-era client "MAY detect which era the
+  server implements by attempting a modern request first", and doing so drew a
+  warning. The committed HTTP probe capture loses its two warnings, and both
+  clauses join the list no capture reaches.
 
 ## [0.6.0] - 2026-10-04
 
