@@ -180,7 +180,10 @@ SSE streams are relayed as they arrive, event by event.
 - **One session per trace.** The validator judges a trace as one session. With
   `{session}` in `-o`, the HTTP proxy writes each client session to its own numbered
   file: a session begins with an `initialize`, or with an `Mcp-Session-Id` the proxy
-  has not seen, and every later exchange naming that id goes to its trace.
+  has not seen, and every later exchange naming that id goes to its trace. An
+  exchange naming no id goes to the session begun last — counting one begun by an
+  unseen id only once the server has answered it with a 2xx, so a stale id the
+  server refuses gets its own trace without drawing in the rest.
   `2026-07-28` traffic carries no session id and no `initialize`, so the proxy cannot
   tell its clients apart: it is all one trace, and concurrent `2026-07-28` clients
   need a proxy each. Without `{session}`, everything goes to the one file, and the

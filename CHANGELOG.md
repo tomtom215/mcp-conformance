@@ -72,6 +72,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   in the argument error, credentials and all, and an upstream that was not
   `http`/`https` was echoed by the proxy's own check. Errors now say what is wrong
   without the value.
+- **`mcp-trace-capture http` with `{session}`: a request naming a stale or unknown
+  `Mcp-Session-Id` no longer takes over the current session.** It began a new trace
+  and made it the one every later request without an id went to, even when the
+  server answered it 404. It still gets a trace of its own, but becomes current only
+  once the server answers it with a 2xx.
 
 ## [0.6.0] - 2026-10-04
 

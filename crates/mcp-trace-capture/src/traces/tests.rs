@@ -78,10 +78,10 @@ fn each_session_gets_its_own_file_with_seq_from_zero() {
     // Two clients interleaved: each initializes, is assigned an id, and uses it.
     let first = traces.route(None, Some(INITIALIZE));
     record(&first);
-    traces.respond(&first, Some("a"));
+    traces.respond(&first, Some("a"), true);
     let second = traces.route(None, Some(INITIALIZE));
     record(&second);
-    traces.respond(&second, Some("b"));
+    traces.respond(&second, Some("b"), true);
     for id in ["a", "b", "a"] {
         record(&traces.route(Some(id), Some(PING)));
     }
@@ -123,7 +123,7 @@ fn an_id_first_seen_on_a_request_begins_a_session_and_keeps_it() {
     let traces = per_session(&dir);
     let first = traces.route(Some("x"), Some(PING));
     // A response naming another id does not rename a session that has one.
-    traces.respond(&first, Some("y"));
+    traces.respond(&first, Some("y"), true);
     let again = traces.route(Some("x"), None);
     assert_eq!(again.index, first.index);
     let other = traces.route(Some("y"), None);
@@ -132,17 +132,56 @@ fn an_id_first_seen_on_a_request_begins_a_session_and_keeps_it() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+/// A request naming an id the proxy has not seen gets a trace of its own, but
+/// later requests without an id join it only once the server has accepted it:
+/// a stale id the server answers 404 must not capture the current session's
+/// traffic.
+#[test]
+fn an_unseen_id_becomes_the_current_session_only_once_accepted() {
+    let dir = scratch("stale-id");
+    let traces = per_session(&dir);
+    let live = traces.route(None, Some(INITIALIZE));
+    traces.respond(&live, None, true);
+    let stale = traces.route(Some("gone"), Some(PING));
+    assert_ne!(stale.index, live.index);
+    traces.respond(&stale, None, false);
+    assert_eq!(
+        traces.route(None, Some(PING)).index,
+        live.index,
+        "the refused id did not become current"
+    );
+    traces.respond(&stale, None, true);
+    assert_eq!(
+        traces.route(None, Some(PING)).index,
+        stale.index,
+        "an accepted one did"
+    );
+    // An answer to an earlier session's request does not take it back.
+    traces.respond(&live, None, true);
+    assert_eq!(traces.route(None, Some(PING)).index, stale.index);
+
+    // With no session yet, an unaccepted id still leaves id-less traffic to
+    // begin its own.
+    let dir_alone = scratch("stale-id-alone");
+    let traces = per_session(&dir_alone);
+    let stale = traces.route(Some("gone"), Some(PING));
+    traces.respond(&stale, None, false);
+    assert_ne!(traces.route(None, Some(PING)).index, stale.index);
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::remove_dir_all(&dir_alone).ok();
+}
+
 #[test]
 fn an_id_already_bound_is_not_rebound_by_a_later_response() {
     let dir = scratch("rebind");
     let traces = per_session(&dir);
     let first = traces.route(None, Some(INITIALIZE));
-    traces.respond(&first, Some("a"));
+    traces.respond(&first, Some("a"), true);
     let second = traces.route(None, Some(INITIALIZE));
-    traces.respond(&second, Some("a"));
+    traces.respond(&second, Some("a"), true);
     assert_eq!(traces.route(Some("a"), None).index, first.index);
     // `second` is still unnamed, so a fresh id may name it.
-    traces.respond(&second, Some("b"));
+    traces.respond(&second, Some("b"), true);
     assert_eq!(traces.route(Some("b"), None).index, second.index);
     std::fs::remove_dir_all(&dir).ok();
 }
@@ -154,7 +193,7 @@ fn sessionless_traffic_is_one_session() {
     for _ in 0..3 {
         let route = traces.route(None, Some(PING));
         record(&route);
-        traces.respond(&route, None);
+        traces.respond(&route, None, true);
     }
     let finished = traces.finish();
     assert_eq!(finished.len(), 1);

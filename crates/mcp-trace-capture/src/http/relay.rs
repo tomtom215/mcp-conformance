@@ -134,6 +134,7 @@ impl Proxy {
                 .headers
                 .get("mcp-session-id")
                 .and_then(|id| id.to_str().ok()),
+            parts.status.is_success(),
         );
         let recorder = route.recorder();
         let http = EventBody::Http {

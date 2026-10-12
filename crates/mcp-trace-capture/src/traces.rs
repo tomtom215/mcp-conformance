@@ -9,7 +9,9 @@
 //! - **`Mcp-Session-Id`** (`2025-11-25`). The server assigns it on the response to
 //!   `initialize`; the client sends it on every later request. A request naming an
 //!   id belongs to that id's session — an id first seen on a request (the proxy
-//!   started mid-session) begins a session of its own.
+//!   started mid-session) begins a session of its own, which becomes the one
+//!   later id-less requests join only once the server has answered it with a 2xx:
+//!   a stale or unknown id the server refuses (404) must not capture them.
 //! - **`initialize` without an id** begins a session: it is how every
 //!   `2025-11-25` session starts, with or without the server assigning an id.
 //! - **Nothing else.** A request with neither belongs to the session begun most
@@ -64,6 +66,9 @@ struct Session {
     recorder: Arc<Recorder>,
     path: Option<PathBuf>,
     id: Option<String>,
+    /// Begun by an id the proxy had not seen, and not yet answered with a 2xx:
+    /// not yet the current session.
+    unconfirmed: bool,
 }
 
 /// The trace one exchange is recorded in: hand it back to
@@ -126,16 +131,16 @@ impl Traces {
         let index = if let Some(id) = session_id {
             let known = state.by_id.get(id).copied();
             known.unwrap_or_else(|| {
-                let index = self.begin(&mut state);
+                let index = self.begin(&mut state, false);
                 state.sessions[index].id = Some(id.to_owned());
                 state.by_id.insert(id.to_owned(), index);
                 index
             })
         } else if body.is_some_and(is_initialize) {
-            self.begin(&mut state)
+            self.begin(&mut state, true)
         } else {
             let current = state.current;
-            current.unwrap_or_else(|| self.begin(&mut state))
+            current.unwrap_or_else(|| self.begin(&mut state, true))
         };
         Route {
             index,
@@ -143,11 +148,16 @@ impl Traces {
         }
     }
 
-    /// Notes the session id a response to `route`'s request carried: the one an
-    /// `initialize` response assigns names that session from then on.
-    pub fn respond(&self, route: &Route, session_id: Option<&str>) {
-        let Some(id) = session_id else { return };
+    /// Notes how the server answered `route`'s request: the session id the
+    /// response carried — the one an `initialize` response assigns names that
+    /// session from then on — and whether it `succeeded` (a 2xx), which makes a
+    /// session begun by an unseen id the current one.
+    pub fn respond(&self, route: &Route, session_id: Option<&str>, succeeded: bool) {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        if succeeded && std::mem::take(&mut state.sessions[route.index].unconfirmed) {
+            state.current = Some(route.index);
+        }
+        let Some(id) = session_id else { return };
         if state.sessions[route.index].id.is_none() && !state.by_id.contains_key(id) {
             state.sessions[route.index].id = Some(id.to_owned());
             state.by_id.insert(id.to_owned(), route.index);
@@ -203,8 +213,8 @@ impl Traces {
         }
     }
 
-    /// Starts a session and makes it the current one.
-    fn begin(&self, state: &mut State) -> usize {
+    /// Starts a session, and makes it the current one if `current`.
+    fn begin(&self, state: &mut State, current: bool) -> usize {
         let (recorder, path) = match &self.output {
             Output::One(recorder) => (Arc::clone(recorder), None),
             Output::PerSession(numbered) => match numbered.create_next(state.next_number) {
@@ -232,9 +242,12 @@ impl Traces {
             recorder,
             path,
             id: None,
+            unconfirmed: !current,
         });
         let index = state.sessions.len() - 1;
-        state.current = Some(index);
+        if current {
+            state.current = Some(index);
+        }
         index
     }
 }
