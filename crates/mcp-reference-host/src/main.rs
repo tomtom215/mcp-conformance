@@ -68,10 +68,11 @@ async fn main() -> ExitCode {
 async fn dispatch(cli: Cli) -> ExitCode {
     let scenario = std::env::var("MCP_CONFORMANCE_SCENARIO").ok();
     let plan = plan_for(scenario.as_deref());
-    eprintln!(
-        "mcp-reference-host: scenario {:?}",
-        scenario.as_deref().unwrap_or("(none: generic plan)")
-    );
+    // Only the official suite sets a scenario; announcing its absence on every
+    // ordinary run, usage errors included, was noise.
+    if let Some(scenario) = &scenario {
+        eprintln!("mcp-reference-host: scenario {scenario:?}");
+    }
 
     let url = cli.url.or(cli.positional_url);
     if cli.probe {

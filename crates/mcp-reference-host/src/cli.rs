@@ -99,7 +99,7 @@ pub(crate) struct Cli {
     /// Protocol revision to speak. `2026-07-28` uses the stateless lifecycle:
     /// `server/discover` instead of `initialize`, and a `_meta` envelope on
     /// every request.
-    #[arg(long, value_enum, default_value_t = Revision::default())]
+    #[arg(long, visible_alias = "revision", value_enum, default_value_t = Revision::default())]
     pub(crate) protocol_version: Revision,
 }
 

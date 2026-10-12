@@ -3,9 +3,25 @@
 
 # mcp-reference-host
 
-A native Rust MCP host and bounded agent loop — the client-side system-under-test
-for the conformance toolkit (roadmap M3, ADR-0009), built on
-[rmcp](https://crates.io/crates/rmcp) like the rest of the workspace. What ships:
+A native Rust MCP host (client) and bounded agent loop, built on
+[rmcp](https://crates.io/crates/rmcp). The
+[mcp-conformance](https://github.com/tomtom215/mcp-conformance) project runs it as
+the official conformance suite's client under test, and uses it to drive servers
+through recorded sessions. It is also a quick way to exercise an MCP **server**:
+
+```text
+cargo install mcp-reference-host
+mcp-reference-host --server-cmd "python my_server.py" --sweep --trace-dir traces/
+mcp-reference-host --url http://127.0.0.1:3000/mcp --sweep --revision 2026-07-28
+mcp-trace-validator validate traces/*.jsonl
+```
+
+`--sweep` drives prompts, resources, templates and completion after the tool
+loop; `--trace-dir` records the session (the recording sits at the message seam,
+so it carries no HTTP headers — record with `mcp-trace-capture` when transport
+behaviour matters). `--help` lists the rest.
+
+What the library contains:
 
 - `script` — every behavior a model or user would supply, as data: the sampling
   reply, the elicitation policy (SEP-1034 schema defaults, fixed content,
@@ -43,9 +59,9 @@ for the conformance toolkit (roadmap M3, ADR-0009), built on
 - `resume` (feature `http`) — the spec's SSE-resumption dance (server-named
   `retry` delay honored through `RetryPolicy::delay_honoring_retry_after`,
   `Last-Event-ID` offered on the GET reconnect), implemented on rmcp's public
-  `StreamableHttpClient` seam because rmcp's own transport (measured at 1.7) lost an
-  in-flight request when its POST SSE stream closes early (measured; ADR-0009
-  §Amendment).
+  `StreamableHttpClient` seam because rmcp's own transport lost an in-flight
+  request when its POST SSE stream closed early (measured at rmcp 1.7; not
+  re-measured since the workspace moved to 3.x).
 - the binary (feature `cli`, on by default: `cargo install mcp-reference-host`
   installs it; library users opt out with `default-features = false`) — the
   official suite's client SUT: the runner
@@ -54,7 +70,8 @@ for the conformance toolkit (roadmap M3, ADR-0009), built on
   mapping names to plans. All four `2025-11-25` protocol scenarios pass at
   the pinned 0.1.16 (`initialize`, `tools_call`, `sse-retry` 3/3 including
   the retry-timing window, `elicitation-sep1034-client-defaults` 5/5). The
-  `auth/*` set is deferred exactly as the registry's TRAN-009 records. The
+  suite's `auth/*` (OAuth) client scenarios are out of scope: the host is not an
+  OAuth client. The
   host owns a hard `--deadline-secs` (default 25): the runner's 30 s kill
   reaches only the `sh -c` wrapper it spawns, so a host that outlives its
   server must exit by itself rather than wedge the runner.

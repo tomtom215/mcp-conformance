@@ -32,10 +32,11 @@ struct Cli {
     transport: Transport,
     /// Protocol revision to serve. `2026-07-28` is stateless (SEP-2575): no
     /// `initialize`, no sessions, per-request `_meta` required.
-    #[arg(long, value_enum, default_value_t = Revision::default())]
+    #[arg(long, visible_alias = "revision", value_enum, default_value_t = Revision::default())]
     protocol_version: Revision,
-    /// Bind address for the HTTP transport.
-    #[arg(long, default_value = "127.0.0.1:0")]
+    /// Address for the HTTP transport to listen on (`IP:PORT`; port 0 picks a
+    /// free one, which the readiness line reports).
+    #[arg(long, visible_alias = "listen", default_value = "127.0.0.1:0")]
     bind: SocketAddr,
     /// Additional allowed `Host`/`Origin` hostnames (repeatable); replaces
     /// the loopback-only default allowlist.
@@ -71,7 +72,7 @@ enum Transport {
 /// here — which is the outcome to want.
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 enum Revision {
-    /// Sessions and `initialize`; the surface the conformance registry judges.
+    /// Sessions and the `initialize` handshake.
     #[default]
     #[value(name = "2025-11-25")]
     V20251125,
@@ -206,13 +207,14 @@ async fn serve_app(bind: SocketAddr, app: axum::Router, host_policy_disabled: bo
             return ExitCode::FAILURE;
         }
     };
-    match listener.local_addr() {
-        Ok(addr) => eprintln!("{}{addr}", mcp_everything_server::READINESS_LINE_PREFIX),
+    let addr = match listener.local_addr() {
+        Ok(addr) => addr,
         Err(error) => {
             eprintln!("mcp-everything-server: no local addr: {error}");
             return ExitCode::FAILURE;
         }
-    }
+    };
+    eprintln!("{}{addr}", mcp_everything_server::READINESS_LINE_PREFIX);
     if host_policy_disabled {
         // The security model's stated control is that disabling validation
         // "requires the self-describing --dangerously-allow-any-host flag".
@@ -227,6 +229,12 @@ async fn serve_app(bind: SocketAddr, app: axum::Router, host_policy_disabled: bo
              Safe only behind a proxy that already enforces host policy."
         );
     }
+    // After the readiness line (which `xtask` parses) and any warning (which
+    // must directly follow it): the URL a person points a client at.
+    eprintln!(
+        "mcp-everything-server: MCP endpoint http://{addr}{}",
+        mcp_everything_server::http::MCP_PATH
+    );
     match axum::serve(listener, app)
         .with_graceful_shutdown(async {
             let _ = tokio::signal::ctrl_c().await;
