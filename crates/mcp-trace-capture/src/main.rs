@@ -15,70 +15,20 @@
 
 use std::ffi::OsString;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use clap::{Parser, Subcommand};
+use args::{Cli, Mode};
+use clap::Parser as _;
 use mcp_conformance_core::trace::LifecycleEvent;
 use mcp_trace_capture::traces::Traces;
-use mcp_trace_capture::{DEFAULT_MAX_MESSAGE, Signals, http, stdio};
+use mcp_trace_capture::{Signals, http, stdio};
 
+pub mod args;
 pub mod output;
 
 const EXIT_USAGE: u8 = 2;
-
-/// Record a Model Context Protocol session as a trace for `mcp-trace-validator`.
-#[derive(Debug, Parser)]
-#[command(name = "mcp-trace-capture", version, about, long_about = None)]
-struct Cli {
-    /// Where to write the trace (JSON Lines); `{session}` in the file name numbers a
-    /// trace per session.
-    ///
-    /// With `{session}` in the file name, each session gets its own numbered file
-    /// (`traces/{session}.jsonl` writes `traces/001.jsonl`, `002`, …), and no
-    /// existing file is ever overwritten.
-    #[arg(
-        short,
-        long,
-        value_name = "PATH",
-        default_value = "mcp-trace.jsonl",
-        global = true
-    )]
-    output: PathBuf,
-    /// Overwrite the output file if it exists (not needed with `{session}`).
-    #[arg(long, global = true)]
-    force: bool,
-    /// The largest message recorded, in bytes; larger ones are forwarded unrecorded.
-    #[arg(long, value_name = "BYTES", default_value_t = DEFAULT_MAX_MESSAGE, global = true)]
-    max_message_bytes: usize,
-    #[command(subcommand)]
-    mode: Mode,
-}
-
-#[derive(Debug, Subcommand)]
-enum Mode {
-    /// Wrap a stdio server: configure your client to launch
-    /// `mcp-trace-capture stdio -- <server> [args…]` instead of the server.
-    Stdio {
-        /// The server command and its arguments.
-        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
-        command: Vec<OsString>,
-    },
-    /// Proxy a streamable-HTTP server: point your client at the listen address.
-    Http {
-        /// The server's base URL; request paths are appended to its path.
-        #[arg(long, value_name = "URL")]
-        upstream: axum::http::Uri,
-        /// Where the proxy listens.
-        #[arg(long, value_name = "ADDR", default_value = "127.0.0.1:8080")]
-        listen: SocketAddr,
-        /// Forward the client's `Host` header unchanged instead of naming the
-        /// upstream, so the server's own `Host` validation sees the client's.
-        #[arg(long)]
-        preserve_host: bool,
-    },
-}
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
@@ -167,11 +117,13 @@ async fn run_stdio(cli: &Cli, target: &output::Target, command: &[OsString]) -> 
 async fn run_http(
     cli: &Cli,
     target: &output::Target,
-    upstream: &axum::http::Uri,
+    upstream: &str,
     listen: SocketAddr,
     preserve_host: bool,
 ) -> u8 {
-    let options = match http::Options::new(upstream.clone(), cli.max_message_bytes) {
+    let checked = args::upstream(upstream)
+        .and_then(|upstream| http::Options::new(upstream, cli.max_message_bytes));
+    let options = match checked {
         Ok(mut options) => {
             options.preserve_host = preserve_host;
             options
@@ -189,6 +141,7 @@ async fn run_http(
         }
     };
     let bound = listener.local_addr().unwrap_or(listen);
+    let upstream = &options.upstream.clone();
     // Installed before the address is announced: a client (or a test) may signal
     // the moment it reads that line.
     let signals = match Signals::install() {

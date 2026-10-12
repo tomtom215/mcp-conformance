@@ -17,6 +17,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   when it stops**: how many responses were not 2xx, and, for 404s, whether the
   endpoint path is right — with the upstream path ending in `/mcp`, a client also
   asking for `/mcp` reaches `/mcp/mcp` and was answered 404 without a word.
+- **`mcp-trace-capture` explains near-miss arguments, and `--help` lists the exit
+  codes.** `--upstream localhost:3999` suggests `http://localhost:3999`; `--listen
+  18081` and `--listen localhost:18081` show the `IP:PORT` form that works (they said
+  only "invalid socket address syntax"); a `{…}` in `-o`'s file name that is not
+  `{session}` (`{sesion}`) is warned about instead of silently naming one literal
+  file.
 
 ### Fixed
 
@@ -61,6 +67,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 - **`mcp-trace-capture http` records only SSE events of type `message`.** An event
   with another `event:` type was recorded as a message, though MCP clients — both
   official SDKs' — ignore it. It is forwarded, left out, and counted.
+- **`mcp-trace-capture http` never repeats an `--upstream` it refuses.** A value
+  that would not parse (`http://user:pa ss@host/`, `?key=SEC RET`) was echoed whole
+  in the argument error, credentials and all, and an upstream that was not
+  `http`/`https` was echoed by the proxy's own check. Errors now say what is wrong
+  without the value.
 
 ## [0.6.0] - 2026-10-04
 

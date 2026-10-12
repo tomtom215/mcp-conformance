@@ -111,7 +111,8 @@ impl Options {
             (Some("https"), Some(_)) => {
                 return Err("this build has no TLS support (feature `tls`)".to_owned());
             }
-            _ => return Err(format!("{upstream} is not an absolute http or https URL")),
+            // Not repeated either: a query can carry a key.
+            _ => return Err("not an absolute http:// or https:// URL".to_owned()),
         }
         let connector = connector(upstream.scheme_str() == Some("https")).map_err(|error| {
             format!("cannot load the platform's root certificates for an https upstream: {error}")

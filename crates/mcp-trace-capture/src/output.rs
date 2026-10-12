@@ -65,10 +65,26 @@ pub fn check(path: &Path, force: bool) -> Result<Target, String> {
         }
         return Ok(Target::Numbered(numbered));
     }
+    if let Some(warning) = stray_braces(path) {
+        eprintln!("mcp-trace-capture: warning: {warning}");
+    }
     if !force && path.symlink_metadata().is_ok() {
         return Err(exists(path));
     }
     Ok(Target::File(path.to_path_buf()))
+}
+
+/// A warning for a file name with a `{…}` in it that is not [`PLACEHOLDER`] —
+/// `{sesion}`, say — which would otherwise be written as a literal name.
+fn stray_braces(path: &Path) -> Option<String> {
+    let name = path.file_name()?.to_str()?;
+    let open = name.find('{')?;
+    name[open..].contains('}').then(|| {
+        format!(
+            "{name} has a {{…}} that is not {PLACEHOLDER}, so it is the file's literal name; \
+             {PLACEHOLDER} numbers a trace per session"
+        )
+    })
 }
 
 fn exists(path: &Path) -> String {
@@ -254,6 +270,20 @@ fn warn_about_sessions(sessions: &Sessions, hint: Hint) {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_misspelt_placeholder_is_warned_about() {
+        let warning = stray_braces(Path::new("t/{sesion}.jsonl")).unwrap();
+        assert!(warning.starts_with("{sesion}.jsonl has a {…} that is not {session}"));
+        assert_eq!(stray_braces(Path::new("t/{x.jsonl")), None);
+        assert_eq!(stray_braces(Path::new("t/x}{.jsonl")), None);
+        assert_eq!(
+            stray_braces(Path::new("{x}/t.jsonl")),
+            None,
+            "only the file name"
+        );
+        assert_eq!(stray_braces(Path::new("t.jsonl")), None);
+    }
 
     #[test]
     fn an_existing_file_is_refused_for_what_it_is_and_others_say_why() {
