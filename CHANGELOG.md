@@ -247,7 +247,8 @@ below is stated again in its entry, with the reasoning.
 - **Versioned documentation.** <https://mcp-conformance.com> now documents the
   newest release at its root, keeps every release's book at `/vX.Y.Z/` and
   `main`'s at `/dev/`, and offers a version selector; a page for anything but the
-  newest release says so. Built by `cargo xtask book-site`.
+  newest release says so, and a release's links into the repository open that
+  release's files, not `main`'s. Built by `cargo xtask book-site`.
 - **A requirement reference in the book**: every clause of each revision under
   its ID, with its level, the party it binds, the verbatim quote, a link to the
   published text, and the checks that judge it or the reason none can.
