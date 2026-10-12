@@ -53,8 +53,9 @@ Clients launch a stdio server from a command and its arguments; the wrapper goes
 front of both. Two things matter when a client, not you, starts it: give `-o` an
 **absolute path** (the client's working directory is its own), and put
 **`{session}`** in the file name. A client relaunches its servers, and the wrapper
-never overwrites a trace: with `{session}` each launch takes the next free number
-(`my-server-001.jsonl`, `my-server-002.jsonl`, …), so every session is kept. Without
+never overwrites a trace: with `{session}` each launch takes the number after the
+highest one present (`my-server-001.jsonl`, `my-server-002.jsonl`, …), so every
+session is kept and the files sort in session order. Without
 it, a second launch refuses to start unless `--force` lets it overwrite the first.
 
 The `mcpServers` shape most desktop clients use:

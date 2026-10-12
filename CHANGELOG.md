@@ -77,6 +77,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   and made it the one every later request without an id went to, even when the
   server answered it 404. It still gets a trace of its own, but becomes current only
   once the server answers it with a 2xx.
+- **`mcp-trace-capture`: `{session}` numbers continue after the highest one present.**
+  The lowest free number was taken, so after an earlier trace was deleted the next
+  session filled its gap and the files no longer sorted in session order.
 
 ## [0.6.0] - 2026-10-04
 

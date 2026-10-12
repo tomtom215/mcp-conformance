@@ -33,7 +33,7 @@ const EXIT_INCOMPLETE: u8 = 3;
 pub enum Target {
     /// One file, written as named.
     File(PathBuf),
-    /// `{session}` in the file name: the next free number per session.
+    /// `{session}` in the file name: the next number per session.
     Numbered(Numbered),
 }
 
@@ -140,8 +140,8 @@ pub fn traces(
         }
         Target::Numbered(numbered) => {
             eprintln!(
-                "mcp-trace-capture: recording a trace per session, numbered from the first \
-                 free name like {}",
+                "mcp-trace-capture: recording a trace per session, numbered after any already \
+                 there, like {}",
                 numbered.path(1).display()
             );
             Ok((

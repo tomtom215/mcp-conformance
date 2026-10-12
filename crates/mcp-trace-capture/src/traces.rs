@@ -105,7 +105,7 @@ impl Traces {
         Self::new(Output::One(recorder), 0)
     }
 
-    /// Each session into the next free file `numbered` names, lines up to
+    /// Each session into the next numbered file `numbered` names, lines up to
     /// `max_line` bytes. A file is opened only for the moment of each write, so
     /// a long-lived proxy holds no descriptor per session.
     #[must_use]
