@@ -46,9 +46,11 @@ mcp-trace-validator validate session.jsonl
 ```
 
 In CI, the exit code is the verdict (`0` pass, `1` a clause failed — or warned, with
-`--strict` — `2` bad invocation, `3` malformed trace); `validate` takes any number of
-traces, `--format junit` produces a test report, and `--format sarif` puts each
-finding on the trace line it concerns in GitHub code scanning (or any SARIF viewer).
+`--strict` — `2` bad invocation or nothing judgeable or output not written, `3`
+malformed trace); `validate` takes any number of traces, and a trace it cannot judge
+is listed in every format's report, whose verdict then reads `incomplete`.
+`--format junit` produces a test report, and `--format sarif` puts each finding on
+the trace line it concerns in GitHub code scanning (or any SARIF viewer).
 [`mcp-trace-capture`'s README](crates/mcp-trace-capture/README.md) covers what the
 recorder guarantees and what it leaves out.
 
@@ -107,8 +109,9 @@ verdict: fail
 - **An empty recording is a bad invocation**, not a pass: the shape a broken capture
   step produces should fail the build.
 
-The report lists what needs attention; `--all` lists every clause with its outcome
-and, for exclusions, the reason. `--format json` gives the whole report as data.
+The report lists what needs attention, with the first 20 findings under each
+clause; `--all` lists every clause with its outcome, every finding and, for
+exclusions, the reason. `--format json` gives the whole report as data.
 
 ## How this relates to other tools
 
@@ -145,7 +148,7 @@ audience in [docs/design/trace-validation.md](docs/design/trace-validation.md).
 | Crate | What it gives you |
 |-------|-------------------|
 | [`mcp-trace-capture`](crates/mcp-trace-capture) | **The recorder.** A stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write a validator-ready trace, recording each message before the bytes that complete it are forwarded. CI runs reference-host sessions through it at both revisions and requires them to judge clean, and runs the official suite through the proxy. New; ships with the next release. |
-| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Findings with the clause ID and the offending event `seq`, as human text (full or `--quiet`), JSON (with a published JSON Schema), JUnit, or SARIF, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
+| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Findings with the clause ID and the offending event `seq`, as human text (what needs attention, or `--all`), JSON (with a published JSON Schema), JUnit, or SARIF, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The spec as data.** Requirement registries for `2025-11-25` and `2026-07-28` whose every entry carries a verbatim spec quote, an RFC 2119 level, an optional capability gate, and either a mechanical check or a documented exclusion (the SEP-2484 traceability shape); a weekly job re-verifies every quote against the published text. Plus the JSON Lines trace schema and RFC 8785 canonical JSON. Serde only. |
 | [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk). It passes the pinned official suite's `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy. `--protocol-version 2026-07-28` serves the stateless revision; the suite's pre-release `2026-07-28` scenarios score **42 passing / 0 failing** against it, and five committed captures evidence **112 of the 124 judgeable clauses** between them. Its tap records each suite session for the calibration check. |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference client.** Passes all four of the official suite's `2025-11-25` client scenarios at the pinned version; bounded tool-use loops over stdio and streamable HTTP, scriptable sampling / elicitation / roots with no model-provider network use. |

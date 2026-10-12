@@ -38,14 +38,17 @@ The recording holds no `initialize`, no `_meta` protocol version and no
 `--revision` to say which rules apply.
 
 **`error: malformed trace: …`** (exit 3). The file is not a trace as written by a
-recorder:
+recorder. Given several traces, the error starts with the trace's name
+(`error: traces/b.jsonl: malformed trace: …`), the report lists it as not judged,
+and the overall verdict reads `incomplete`:
 
 | The error says | Cause and fix |
 |----------------|---------------|
 | `the document begins with a UTF-8 byte-order mark` | An editor or Windows tool added a BOM. Strip the first three bytes. |
 | `the file is UTF-16` (a hint after `not valid UTF-8`) | Windows PowerShell's `>` writes UTF-16. Re-encode: `Get-Content in.jsonl \| Set-Content -Encoding utf8 out.jsonl`. |
 | `the document is a single JSON value, not JSON Lines` | A pretty-printed file or a JSON array. The message names the `jq` command that converts it. |
-| `blank line` | JSON Lines has no blank records; remove the empty line. |
+| `blank line` | JSON Lines has no blank records; remove the empty line. A hint says when it is a trailing blank line at the end of the file — one final newline is fine, an empty line after it is not. |
+| ``missing field `seq` `` (a hint: `this is a bare JSON-RPC message`) | The file holds JSON-RPC messages, not trace events: a trace wraps each message in an event with `seq`, `direction`, `transport` and `kind`. Record the session with `mcp-trace-capture`. |
 | `record is N bytes, exceeding the …-byte limit` | A message larger than the default limit. Re-run with the `--max-line-bytes` value the hint gives. |
 | `seq N is not greater than the previous event's seq` | Two recordings concatenated, or a hand-edited file. Each trace's `seq` must increase. |
 

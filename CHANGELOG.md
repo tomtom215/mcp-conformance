@@ -11,6 +11,66 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A multi-trace `validate` run no longer reads as passing when it could not judge
+  a trace.** With a malformed trace among good ones the run exited 3, but the report
+  ended `overall verdict: pass`, the JSON said `"verdict": "pass"`, the JUnit document
+  had no suite for the trace and the SARIF log said `executionSuccessful: true`. The
+  overall verdict is now `incomplete` whenever a trace could not be judged, and every
+  format names each such trace with its error: a `not judged:` section in human
+  output, `unjudged_traces` in JSON, a suite with an `<error>` test case in JUnit
+  (and an `errors` count on `<testsuites>`), and an error notification located at the
+  trace in SARIF, with `executionSuccessful: false`. **This can break a consumer:**
+  the JSON envelope's `verdict` gains the value `incomplete` (and is no longer `null`
+  when no trace was judged), JUnit gains `<error>` elements and an `errors`
+  attribute, and SARIF reports a failed invocation for such a run. A run that judged
+  every trace renders byte-for-byte as before; `report.schema.json` documents the new
+  members.
+- **Errors about a trace's content name the trace** when several are judged
+  (`error: traces/b.jsonl: malformed trace: line 4: …`); a single trace reads as
+  before. Hints now cover a glob the shell passed through unmatched, a directory, a
+  trailing blank line at the end of the file, and a bare JSON-RPC message with no
+  event around it. A record's parse error no longer repeats serde's `line 1`, which
+  contradicted the line it named; the column stays.
+- **The human report lists at most 20 findings under a clause** and counts the
+  rest, with how to see them: a trace repeating one defect 250,000 times printed four
+  million lines. `--all` now lists every clause *and* every finding; JSON, JUnit and
+  SARIF carry every finding as before, and a report with 20 or fewer findings under
+  each clause is unchanged.
+- **`--strict` over several traces notes once**, naming the traces it failed,
+  instead of once per trace with nothing to tell them apart.
+- **A repeated `--revision` is judged once**, not as two identical columns.
+- **`--max-events 0` and `--max-line-bytes 0` are refused** as bad flags (exit 2)
+  rather than failing every trace as malformed.
+- **`requirements --help` offers only `human` and `json`**: it listed `junit` and
+  `sarif`, then rejected them.
+- **Library text no longer names CLI flags.** `Report::render_human` told library
+  callers to "re-run with `--revision …`"; it now words the advice without a flag,
+  and the CLI asks for its own wording (`HumanOptions::cli`).
+
+### Added
+
+- **`requirements LIFE-001 …`** prints a requirement in full — level, the party it
+  binds, the clause verbatim with its link, its capability gate, and its checks or
+  the reason it is excluded — and `--area`, `--level`, `--checked` and `--excluded`
+  filter the listing, in human or JSON form.
+- **`mcp-trace-validator completions <shell>`** prints a bash, zsh, fish,
+  PowerShell or elvish completion script, generated from the command-line
+  definition itself (new optional dependency `clap_complete`, under `cli`).
+- **`--version` names the protocol revisions the build judges** on a second line;
+  the first line, and `-V`, are unchanged.
+- **`judge::judge_with(document, &Options)`** judges a document by the CLI's rules
+  under caller-chosen reader limits and revisions; `Judgment` gains the parsed
+  `events` a `sarif::Artifact` needs, and `JudgeError` gains `UnknownRevision`. The
+  crate-level example uses it, so copying it no longer judges a `2026-07-28`
+  recording by `2025-11-25` rules.
+- **Library rendering of multi-trace runs and human reports:** `report::Unjudged`,
+  `junit::render_run` and `sarif::render_run` take the traces a run could not judge;
+  `report::HumanOptions` with `Report::render_with` and `MultiReport::render_with`
+  choose the clause filter, the finding limit and the wording. `Verdict` gains
+  `Incomplete`. All additions; every enum and struct touched is `#[non_exhaustive]`.
+
 ## [0.6.0] - 2026-10-04
 
 **This is a minor release with breaking behaviour changes and one Rust API

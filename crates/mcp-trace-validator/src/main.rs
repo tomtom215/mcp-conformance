@@ -9,7 +9,7 @@
 //! |------|---------|
 //! | 0    | Validation ran; no MUST-level violations (warnings allowed unless `--strict`) |
 //! | 1    | MUST-level violations — or SHOULD-level ones under `--strict`, which says so on stderr |
-//! | 2    | Invocation, registry, or check-inventory problem (including `unsupported` outcomes) |
+//! | 2    | Invocation, registry, or check-inventory problem (including `unsupported` outcomes), a trace that judges nothing, or output not written |
 //! | 3    | The trace document itself was malformed |
 
 use std::fs;
