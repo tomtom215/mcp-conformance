@@ -255,6 +255,8 @@ sessions for every area.
   two revisions, the corpus, and conformance results ([`book/`](book), built on every
   push).
 - **API docs** for every crate on [docs.rs](https://docs.rs/mcp-trace-validator).
+- **[STABILITY.md](STABILITY.md)** — what each release keeps stable: verdicts,
+  requirement IDs, exit codes, report and trace formats, the MSRV.
 - **The plan** — charter, ecosystem register, architecture, conformance strategy,
   engineering standards, security model, roadmap, and decision records — in
   [`docs/plan/`](docs/plan/README.md). The ecosystem register dates every external

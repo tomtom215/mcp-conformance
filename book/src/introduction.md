@@ -13,7 +13,9 @@ ecosystem with its own authoritative test suite has reason to trust the verdict.
 > **Status: `0.x` on crates.io.** Before 1.0 the public API and the verdicts
 > may change between minor releases; the
 > [changelog](https://github.com/tomtom215/mcp-conformance/blob/main/CHANGELOG.md)
-> says so explicitly when they do.
+> says so explicitly when they do;
+> [STABILITY.md](https://github.com/tomtom215/mcp-conformance/blob/main/STABILITY.md)
+> lists what each release keeps stable.
 >
 > **Versions of this book.** The site's root documents the newest release. Each
 > release's own book stays at `/vX.Y.Z/`, and the unreleased `main` branch is at
