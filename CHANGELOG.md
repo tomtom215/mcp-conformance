@@ -13,6 +13,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Fixed
 
+- **`BASE-034`, `MRTR-012` and `MRTR-013` judged an `input_required` result
+  against the wrong request when an id was reused.** Capabilities were looked
+  up by id across the whole trace, so once a client reused an answered id —
+  which `2026-07-28` permits — a server's elicitation answering a request that
+  declared `elicitation` was failed because a *later* request with that id did
+  not. Each result is now judged against the request it answers.
 - **A null-id answer on Streamable HTTP now answers its request everywhere.**
   When the status a `"id": null` error rides ties it to one POST, that request
   is now closed for every check, not only for `TRAN-073`/`TRAN-096`. Before,
@@ -25,6 +31,13 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   request's id could be read, answering it with `null` fails, because the
   clause excuses only "error cases where the ID could not be read". Two
   `2026-07-28` corpus goldens record that new failure.
+- **`BASE-034`, `MRTR-012` and `MRTR-013` compared only top-level capability
+  names.** A URL-mode `elicitation/create` sent to a client declaring only
+  `elicitation.form`, or a `sampling/createMessage` with `tools` or
+  `toolChoice` sent to a client without `sampling.tools`, passed. Both now
+  fail. A request with no `mode` counts as form mode, and an empty
+  `elicitation: {}` counts as form-only declared, as `client/elicitation`
+  specifies.
 
 ## [0.6.0] - 2026-10-04
 

@@ -5,7 +5,8 @@
 //!
 //! The trace-context keys have their own module and their own tests; what is
 //! here is the protocol's own `_meta` fields — the required envelope, what a
-//! missing one must draw, and the HTTP status that answer rides.
+//! missing one must draw, and the HTTP status that answer rides. Capability
+//! reliance has its own module too.
 
 use crate::checks::stateless::testkit::{META, client, findings_for, post, server, status, trace};
 
@@ -30,25 +31,6 @@ fn capability_error(data: &str) -> String {
         server(
             1,
             &format!(r#"{{"jsonrpc":"2.0","id":1,"error":{{"code":-32021,"message":"x"{data}}}}}"#),
-        ),
-    ])
-}
-
-/// A `tools/call` declaring `capabilities`, answered by an `input_required`
-/// result asking for `method`.
-fn asks_for(capabilities: &str, method: &str) -> String {
-    trace(&[
-        client(
-            0,
-            &format!(
-                r#"{{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{{"name":"t","_meta":{{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{capabilities}}}}}}}"#
-            ),
-        ),
-        server(
-            1,
-            &format!(
-                r#"{{"jsonrpc":"2.0","id":1,"result":{{"resultType":"input_required","inputRequests":{{"a":{{"method":"{method}"}}}}}}}}"#
-            ),
         ),
     ])
 }
@@ -195,39 +177,6 @@ fn the_missing_capability_error_must_name_what_was_missing() {
     // Any other error code is outside this clause.
     let other = capability_error("").replace("-32021", "-32602");
     assert!(findings_for(check, &other).is_empty());
-}
-
-#[test]
-fn an_input_request_is_matched_to_the_capability_it_needs() {
-    let check = "meta.no-undeclared-capability-reliance";
-
-    // Each of the three methods maps to its own capability name; asking for one
-    // the request never declared is the violation.
-    for (method, capability) in [
-        ("elicitation/create", "elicitation"),
-        ("sampling/createMessage", "sampling"),
-        ("roots/list", "roots"),
-    ] {
-        assert_eq!(
-            findings_for(check, &asks_for("{}", method)).len(),
-            1,
-            "{method} needs {capability}"
-        );
-        let declared = format!(r#"{{"{capability}":{{}}}}"#);
-        assert!(
-            findings_for(check, &asks_for(&declared, method)).is_empty(),
-            "{method} is fine once {capability} is declared"
-        );
-        // Declaring a *different* capability does not cover it.
-        assert_eq!(
-            findings_for(check, &asks_for(r#"{"logging":{}}"#, method)).len(),
-            1,
-            "{method} is not covered by an unrelated capability"
-        );
-    }
-
-    // A method outside the map needs no capability and is not reported.
-    assert!(findings_for(check, &asks_for("{}", "tools/list")).is_empty());
 }
 
 #[test]

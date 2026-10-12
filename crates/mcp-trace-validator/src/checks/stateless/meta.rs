@@ -19,11 +19,13 @@ use super::transport::framing::Framing;
 use crate::context::TraceContext;
 use mcp_conformance_core::trace::Direction;
 
+mod reliance;
 mod trace_context;
 
 #[cfg(test)]
 mod tests;
 
+pub(in crate::checks) use reliance::no_undeclared_capability_reliance;
 pub(in crate::checks) use trace_context::trace_context_format;
 
 /// Fields `2026-07-28` requires in every client request's `_meta`.
@@ -317,77 +319,6 @@ pub(in crate::checks) fn missing_capability_error(
                      naming the missing capabilities"
                 ),
             ),
-        }
-    }
-}
-
-/// `BASE-034`: a server must not rely on capabilities the client did not declare.
-///
-/// Reliance is internal, so this reports its one wire-visible form: the server
-/// asking the client for input (`resultType: "input_required"`, SEP-2322) of a
-/// kind the request's own `clientCapabilities` never advertised.
-pub(in crate::checks) fn no_undeclared_capability_reliance(
-    context: &TraceContext<'_>,
-    sink: &mut FindingSink,
-) {
-    // Capabilities declared per request id, from the request's own `_meta` —
-    // there is no session-wide declaration to fall back on at this revision.
-    let mut declared: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for (_, id, payload) in client_requests(context) {
-        let Some(id) = id else { continue };
-        let names = params_meta(payload)
-            .and_then(|meta| meta.get("io.modelcontextprotocol/clientCapabilities"))
-            .and_then(Value::as_object)
-            .map(|caps| caps.keys().cloned().collect())
-            .unwrap_or_default();
-        declared.insert(id.to_string(), names);
-    }
-    for (event, _, _) in context.messages() {
-        if !matches!(event.direction, Direction::ServerToClient) {
-            continue;
-        }
-        let Some(payload) = event.message_payload() else {
-            continue;
-        };
-        let Some(result) = payload.get("result") else {
-            continue;
-        };
-        if result.get("resultType").and_then(Value::as_str) != Some("input_required") {
-            continue;
-        }
-        let Some(id) = payload.get("id") else {
-            continue;
-        };
-        let Some(declared) = declared.get(&id.to_string()) else {
-            continue;
-        };
-        let requests = result
-            .get("inputRequests")
-            .and_then(Value::as_object)
-            .map(|map| map.values().collect::<Vec<_>>())
-            .unwrap_or_default();
-        for request in requests {
-            let Some(method) = request.get("method").and_then(Value::as_str) else {
-                continue;
-            };
-            let needed = match method {
-                "elicitation/create" => "elicitation",
-                "sampling/createMessage" => "sampling",
-                "roots/list" => "roots",
-                _ => continue,
-            };
-            // The subject is an input request of a kind a capability governs;
-            // the revision's other input kinds need none.
-            sink.examined();
-            if !declared.iter().any(|name| name == needed) {
-                sink.push(
-                    Some(event.seq),
-                    format!(
-                        "server asked for `{method}`, which needs the `{needed}` capability, \
-                         but the request's `clientCapabilities` did not declare it"
-                    ),
-                );
-            }
         }
     }
 }
