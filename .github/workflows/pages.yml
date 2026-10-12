@@ -1,10 +1,22 @@
 # SPDX-License-Identifier: MIT
 # Copyright 2026 Tom F. (https://github.com/tomtom215)
 #
-# Deploys the mdBook (book/) to GitHub Pages. The book is BUILT and gated on
-# every push and PR by ci.yml's `book` job (a broken include or anchor fails
-# there); this workflow builds and DEPLOYS it — on pushes to main that touch the
-# book's sources, and on manual dispatch. Pages source is "GitHub Actions".
+# Deploys the versioned documentation site to GitHub Pages: the newest
+# release's book at the root, every release's book under /vX.Y.Z/, and main's
+# under /dev/, with a version switcher (`cargo xtask book-site`, which says why
+# the site has that shape). The site is rebuilt from git on every deploy, so it
+# is a function of the repository's tags and main, never of an earlier deploy.
+# ci.yml's `book` job builds the same site on every push and PR; this workflow
+# builds and DEPLOYS it. Pages source is "GitHub Actions".
+#
+# Triggers:
+#   - a push to main that touches what the dev book is built from;
+#   - a completed Release run, so a new release's book reaches `/` once the
+#     release has published. `workflow_run` runs in the default branch's
+#     context, which the github-pages environment's branch policy allows; the
+#     tag push itself would not be, and the release's own jobs hold no Pages
+#     permission;
+#   - manual dispatch.
 
 name: Pages
 
@@ -15,7 +27,15 @@ on:
       - "book/**"
       - "README.md" # the trace-format chapter embeds the README example
       - "corpus/README.md" # the corpus chapter embeds this verbatim
+      - "xtask/src/book_site.rs"
       - ".github/workflows/pages.yml"
+  # zizmor flags workflow_run because a privileged run that consumes the
+  # triggering run's artifacts or code can be steered by it. This one consumes
+  # neither: it checks out the default branch and the repository's tags, and
+  # reads nothing from the Release run but its conclusion.
+  workflow_run: # zizmor: ignore[dangerous-triggers]
+    workflows: ["Release"]
+    types: [completed]
   workflow_dispatch:
 
 # Default-deny; the deploy job requests exactly what Pages deployment needs.
@@ -38,32 +58,46 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # Unprivileged: compiles xtask and mdBook (build scripts, a restored cache)
+  # with nothing to steal but read access to a public repository.
+  build:
+    name: Build the versioned book
+    # A failed Release run published nothing new to document.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Every release tag's book is rebuilt, so the tags must be here.
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install mdBook
+        run: cargo install mdbook --locked --version 0.5.3
+      - name: Build the versioned site
+        run: cargo xtask book-site --out site
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  # Privileged, and runs nothing it built: it deploys the artifact above.
   deploy:
-    name: Build and deploy the book
+    name: Deploy to GitHub Pages
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     permissions:
-      contents: read # checkout
       pages: write # deploy to Pages
       id-token: write # OIDC verification of the deployment origin
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Install toolchain
-        run: |
-          rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - name: Install mdBook
-        run: cargo install mdbook --locked --version 0.5.3
-      - name: Build the book
-        run: mdbook build book
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: book/book
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

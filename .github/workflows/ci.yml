@@ -165,6 +165,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The versioned site rebuilds every release tag's book.
+          fetch-depth: 0
+          fetch-tags: true
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -173,16 +176,17 @@ jobs:
         # action: one fewer supply-chain dependency, the same discipline as the
         # plain-rustup toolchain installs. rust-cache restores the prior build.
         run: cargo install mdbook --locked --version 0.5.3
-      - name: Build the book (a missing include file or anchor fails here)
-        run: mdbook build book
-      - name: Upload the rendered book
-        # The deployable artifact. "Live" GitHub Pages deployment is a separate,
-        # owner-gated step (repository Pages settings); this job proves the book
-        # builds on every push and publishes the bytes a deploy would serve.
+      - name: Build the versioned site (a missing include file or anchor fails here)
+        # The same command pages.yml deploys from: main's book plus every
+        # release's, so a change that breaks an older book's build, the
+        # switcher, or the root copy fails here rather than at deploy.
+        run: cargo xtask book-site --out site
+      - name: Upload the rendered site
+        # The bytes a deploy would serve; pages.yml builds them again on main.
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: book
-          path: book/book
+          path: site
           if-no-files-found: error
           retention-days: 30
 
