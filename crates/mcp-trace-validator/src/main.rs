@@ -108,6 +108,15 @@ enum Command {
     /// Print the requirement registry this build validates against, part of
     /// it, or single requirements in full.
     Requirements(requirements::Args),
+    /// Print a shell completion script.
+    ///
+    /// Bash: `mcp-trace-validator completions bash > ~/.local/share/bash-completion/completions/mcp-trace-validator`.
+    /// Zsh: write `_mcp-trace-validator` to a directory on `$fpath`. Fish:
+    /// `~/.config/fish/completions/mcp-trace-validator.fish`.
+    Completions {
+        /// The shell to complete for.
+        shell: clap_complete::Shell,
+    },
 }
 
 /// `validate` output formats.
@@ -153,8 +162,26 @@ fn main() -> ExitCode {
             },
         ),
         Command::Requirements(args) => requirements::run(&args),
+        Command::Completions { shell } => completions(shell),
     };
     ExitCode::from(code)
+}
+
+/// Writes `shell`'s completion script, generated from the same definition
+/// that parses the command line, so it cannot drift from the flags.
+fn completions(shell: clap_complete::Shell) -> u8 {
+    let mut script = Vec::new();
+    clap_complete::generate(
+        shell,
+        &mut Cli::command(),
+        "mcp-trace-validator",
+        &mut script,
+    );
+    if emit::emit(&String::from_utf8_lossy(&script)) {
+        EXIT_OK
+    } else {
+        EXIT_USAGE
+    }
 }
 
 /// `--version`'s text: `-V`'s line, unchanged for the scripts that read it,

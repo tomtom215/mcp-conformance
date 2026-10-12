@@ -116,6 +116,22 @@ fn a_limit_of_zero_is_refused_as_a_bad_flag() {
 }
 
 #[test]
+fn completions_are_generated_from_the_command_line_itself() {
+    for shell in ["bash", "zsh", "fish", "powershell", "elvish"] {
+        let output = run(&["completions", shell]);
+        assert_eq!(output.status.code(), Some(0), "{shell}: {output:?}");
+        let script = stdout(&output);
+        // Subcommands and the flags added most recently are all there: the
+        // script is the parser's own definition, not a hand-kept copy.
+        for word in ["validate", "requirements", "max-events", "excluded"] {
+            assert!(script.contains(word), "{shell} lacks {word}");
+        }
+    }
+    let unknown = run(&["completions", "tcsh"]);
+    assert_eq!(unknown.status.code(), Some(2), "{unknown:?}");
+}
+
+#[test]
 fn version_keeps_its_first_line_and_names_the_revisions_judged() {
     let short = stdout(&run(&["-V"]));
     assert_eq!(
