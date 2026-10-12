@@ -69,6 +69,54 @@ fn json_the_trace_cannot_hold_is_reported_per_side() {
     std::fs::remove_file(&trace).ok();
 }
 
+/// A server that exits before any message is exchanged leaves a trace of two
+/// transport events and no session: the summary says so, with the server's
+/// status, instead of suggesting a validation that can only refuse it.
+#[test]
+fn a_server_that_exits_before_any_message_is_not_offered_for_validation() {
+    let trace = scratch("silent.jsonl");
+    for (script, code, status) in [
+        ("exit 0", 0, "exit status: 0"),
+        ("exit 7", 7, "exit status: 7"),
+    ] {
+        let output = wrap(&trace, &["sh", "-c", script], b"");
+        assert_eq!(output.status.code(), Some(code), "{output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains(&format!(
+                "the server exited ({status}) before any message was exchanged"
+            )),
+            "{stderr}"
+        );
+        assert!(stderr.contains("2 transport event(s)"), "{stderr}");
+        assert!(!stderr.contains("validate with"), "{stderr}");
+        std::fs::remove_file(&trace).ok();
+    }
+}
+
+/// The suggested command is one a shell runs as shown: a path with a space in
+/// it is quoted.
+#[test]
+fn the_suggested_validation_command_quotes_the_path() {
+    let dir = scratch("dir with space");
+    std::fs::create_dir_all(&dir).unwrap();
+    let trace = dir.join("t.jsonl");
+    let output = wrap(
+        &trace,
+        &["cat"],
+        b"{\"jsonrpc\":\"2.0\",\"method\":\"x\"}\n",
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(&format!(
+            "validate with `mcp-trace-validator validate '{}'`",
+            trace.display()
+        )),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 /// A client that goes away is said once: the wrapper's write to it fails, and
 /// the server's output is neither relayed nor recorded from then on. Writing to
 /// a server that has exited — a client's normal race with it — is not.

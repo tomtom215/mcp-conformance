@@ -209,6 +209,7 @@ fn a_closed_trace_keeps_its_close_as_the_last_event() {
         "a refusal after the close is not a loss"
     );
     assert_eq!((summary.recorded, summary.dropped), (2, 0));
+    assert_eq!(summary.messages, 0, "lifecycle events are not messages");
     assert_eq!(
         summary.after_close, 1,
         "the event refused after the close is counted; the second close is not"
@@ -230,8 +231,21 @@ fn events_recorded_together_are_adjacent_and_a_refused_one_takes_no_seq() {
         (Direction::ClientToServer, TransportKind::Stdio, open()),
     ]);
     assert_eq!(results, [Ok(0), Err(NotRecorded::TooLong), Ok(1)]);
+    let message = EventBody::Message {
+        payload: serde_json::json!({"jsonrpc": "2.0", "method": "x"}),
+    };
+    let _ = recorder.record(Direction::ClientToServer, TransportKind::Stdio, message);
+    assert_eq!(
+        recorder.finish().messages,
+        1,
+        "the message written, not the one refused"
+    );
     let text = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
-    assert_eq!(text.lines().count(), 2);
+    assert_eq!(
+        text.lines().count(),
+        3,
+        "two lifecycle events and the message"
+    );
 }
 
 #[test]

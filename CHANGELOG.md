@@ -87,6 +87,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   second signal cuts off the requests still in flight, but the trace recorded an
   orderly `transport-close`. Events refused because the trace was already closed are
   now counted in the summary, over HTTP and stdio alike.
+- **`mcp-trace-capture` no longer offers a trace with no exchange in it for
+  validation.** A server that exited before any message (`stdio -- true`,
+  `sh -c 'exit 7'`) got "recorded 2 event(s) … validate with …", and the validator
+  then refused the trace. The summary now says the server exited, with its status,
+  before any message was exchanged. The suggested `mcp-trace-validator validate`
+  command quotes a path with spaces or shell metacharacters.
 
 ## [0.6.0] - 2026-10-04
 

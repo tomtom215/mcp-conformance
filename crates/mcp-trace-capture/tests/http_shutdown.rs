@@ -181,8 +181,13 @@ fn ctrl_c_stops_the_proxy_promptly_with_an_event_stream_open() {
     let _ = stream.read_to_end(&mut rest);
     std::thread::sleep(Duration::from_millis(100));
     let stderr: Vec<String> = lines.try_iter().collect();
+    // The stream carried comments only, so the summary says no message was
+    // exchanged rather than offering the trace for validation.
     assert!(
-        stderr.iter().any(|line| line.contains("recorded")),
+        stderr.iter().any(
+            |line| line.contains("no message was exchanged; the trace at")
+                && line.contains("transport event(s)")
+        ),
         "the summary is written: {stderr:?}"
     );
     let text = std::fs::read_to_string(&trace).unwrap();

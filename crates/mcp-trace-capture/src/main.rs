@@ -84,7 +84,7 @@ async fn run_stdio(cli: &Cli, target: &output::Target, command: &[OsString]) -> 
             return EXIT_USAGE;
         }
     };
-    let code = match stdio::run_server(
+    let (code, ended) = match stdio::run_server(
         Arc::clone(&recorder),
         server,
         signals,
@@ -103,14 +103,14 @@ async fn run_stdio(cli: &Cli, target: &output::Target, command: &[OsString]) -> 
             }
             report_stdio("client", outcome.client);
             report_stdio("server", outcome.server);
-            exit_code_of(outcome.status)
+            (exit_code_of(outcome.status), Some(outcome.status))
         }
         Err(error) => {
             eprintln!("mcp-trace-capture: {error}");
-            1
+            (1, None)
         }
     };
-    output::finish(&recorder, &path, code)
+    output::finish(&recorder, &path, code, ended)
 }
 
 /// Checks the upstream and binds, then creates the trace, then serves.

@@ -51,6 +51,7 @@ struct Inner {
     dropped: u64,
     closed: bool,
     after_close: u64,
+    messages: u64,
 }
 
 impl std::fmt::Debug for Inner {
@@ -69,6 +70,9 @@ impl std::fmt::Debug for Inner {
 pub struct Summary {
     /// Events written.
     pub recorded: u64,
+    /// Of those, message events: none means the trace records no exchange at
+    /// all, only the transport around it.
+    pub messages: u64,
     /// Events lost after a write failed; zero for a complete trace.
     pub dropped: u64,
     /// The first write error, if any.
@@ -150,6 +154,7 @@ impl Recorder {
                 dropped: 0,
                 closed: false,
                 after_close: 0,
+                messages: 0,
             }),
             max_line,
         }
@@ -245,6 +250,7 @@ impl Recorder {
             return Err(NotRecorded::SinkFailed);
         }
         let seq = inner.next_seq;
+        let message = matches!(body, EventBody::Message { .. });
         let event = TraceEvent::new(seq, direction, transport, body);
         let line = serde_json::to_vec(&event).map_err(io::Error::other);
         if line.as_ref().is_ok_and(|line| line.len() > self.max_line) {
@@ -253,6 +259,7 @@ impl Recorder {
         match line.and_then(|line| write_line(&mut inner.sink, line)) {
             Ok(()) => {
                 inner.next_seq += 1;
+                inner.messages += u64::from(message);
                 Ok(seq)
             }
             Err(error) => {
@@ -278,6 +285,7 @@ impl Recorder {
         }
         Summary {
             recorded: inner.next_seq,
+            messages: inner.messages,
             dropped: inner.dropped,
             error: inner.failed.take(),
             after_close: inner.after_close,
