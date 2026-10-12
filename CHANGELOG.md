@@ -11,6 +11,13 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Added
+
+- **`mcp-trace-capture http` names the client URL when it starts, and the statuses
+  when it stops**: how many responses were not 2xx, and, for 404s, whether the
+  endpoint path is right — with the upstream path ending in `/mcp`, a client also
+  asking for `/mcp` reaches `/mcp/mcp` and was answered 404 without a word.
+
 ### Fixed
 
 - **`mcp-trace-capture stdio` no longer strands a server when an official SDK stops
@@ -31,6 +38,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   trace file is created — the failure came after the file and the "listening on"
   line, leaving an empty trace that made the next run refuse to start without
   `--force`.
+- **`mcp-trace-capture http`: the proxy's root path is the `--upstream` URL itself.**
+  A request for `/` was forwarded with `/` appended — `--upstream http://h/mcp` made
+  it `/mcp/`, which servers answer with a redirect — so no client URL reached exactly
+  `/mcp`. Other paths are still appended (`/x` reaches `/mcp/x`). A redirect whose
+  `Location` points into the upstream is now pointed back at the proxy, so the client
+  does not leave the recording.
 
 ## [0.6.0] - 2026-10-04
 

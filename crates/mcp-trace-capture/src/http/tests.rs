@@ -4,7 +4,7 @@
 #![allow(clippy::unwrap_used)]
 
 use super::relay::{End, read_prefix};
-use super::target::{is_event_stream, target};
+use super::target::{is_event_stream, location, target};
 use super::*;
 use axum::body::Bytes;
 use axum::http::uri::PathAndQuery;
@@ -58,6 +58,81 @@ fn target_appends_the_request_path_to_the_upstream_path() {
         "https://example.com/api/mcp"
     );
     assert_eq!(target(&root, None).to_string(), "http://localhost:3000/");
+}
+
+/// The proxy's root is the upstream URL itself: appending `/` sent a client
+/// pointed at the proxy to `/mcp/`, which servers answer with a redirect to
+/// `/mcp` — so no client URL reached exactly `/mcp`.
+#[test]
+fn the_root_path_is_the_upstream_itself() {
+    let pq = |text: &str| text.parse::<PathAndQuery>().unwrap();
+    let endpoint: Uri = "http://h:1/mcp".parse().unwrap();
+    assert_eq!(
+        target(&endpoint, Some(&pq("/"))).to_string(),
+        "http://h:1/mcp"
+    );
+    assert_eq!(target(&endpoint, None).to_string(), "http://h:1/mcp");
+    assert_eq!(
+        target(&endpoint, Some(&pq("/?x=1"))).to_string(),
+        "http://h:1/mcp?x=1"
+    );
+    assert_eq!(
+        target(&endpoint, Some(&pq("/x"))).to_string(),
+        "http://h:1/mcp/x"
+    );
+    let slashed: Uri = "http://h:1/mcp/".parse().unwrap();
+    assert_eq!(
+        target(&slashed, Some(&pq("/"))).to_string(),
+        "http://h:1/mcp/"
+    );
+}
+
+/// A redirect into the upstream is pointed back through the proxy, by the
+/// inverse of the request mapping; anything it cannot reach is left alone.
+#[test]
+fn a_redirect_into_the_upstream_comes_back_through_the_proxy() {
+    let endpoint: Uri = "http://h:1/mcp".parse().unwrap();
+    let back = |sent: &str| location(&endpoint, sent, Some("proxy:8"));
+    assert_eq!(back("http://h:1/mcp").as_deref(), Some("http://proxy:8/"));
+    assert_eq!(
+        back("HTTP://H:1/mcp/x?y=1").as_deref(),
+        Some("http://proxy:8/x?y=1")
+    );
+    assert_eq!(back("/mcp/x").as_deref(), Some("/x"), "a path stays a path");
+    assert_eq!(back("/mcp").as_deref(), Some("/"));
+    // Unreachable through the proxy, or not the upstream at all.
+    assert_eq!(back("/mcp/"), None, "the proxy's / is /mcp, not /mcp/");
+    assert_eq!(back("/other"), None);
+    assert_eq!(back("/mcpx"), None);
+    assert_eq!(back("http://h:2/mcp"), None);
+    assert_eq!(back("https://h:1/mcp"), None);
+    assert_eq!(back("//h:1/mcp"), None);
+    assert_eq!(back("mcp"), None);
+    assert_eq!(back("not a uri"), None);
+    assert_eq!(
+        location(&endpoint, "http://h:1/mcp", None),
+        None,
+        "no Host to point the client back by"
+    );
+    assert_eq!(
+        location(&endpoint, "/mcp/x", None).as_deref(),
+        Some("/x"),
+        "a path needs no Host"
+    );
+
+    let root: Uri = "http://h:1".parse().unwrap();
+    assert_eq!(location(&root, "/mcp", None).as_deref(), Some("/mcp"));
+    assert_eq!(location(&root, "/", None).as_deref(), Some("/"));
+
+    // The upstream's own query is prepended to every request's, so only a
+    // query carrying it maps back, without it.
+    let keyed: Uri = "http://h:1/mcp?key=k".parse().unwrap();
+    let back = |sent: &str| location(&keyed, sent, Some("p"));
+    assert_eq!(back("/mcp?key=k").as_deref(), Some("/"));
+    assert_eq!(back("/mcp/x?key=k&y=1").as_deref(), Some("/x?y=1"));
+    assert_eq!(back("/mcp?key=other"), None);
+    assert_eq!(back("/mcp?key=kk"), None);
+    assert_eq!(back("/mcp"), None);
 }
 
 #[test]

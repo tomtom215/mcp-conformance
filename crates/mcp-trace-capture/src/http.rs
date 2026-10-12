@@ -54,8 +54,10 @@ type Connector = HttpConnector;
 #[non_exhaustive]
 pub struct Options {
     /// The server's base URL. Request paths are appended to its path, so
-    /// `http://localhost:3000` forwards `/mcp` to `http://localhost:3000/mcp`; its
-    /// query, if any, is kept, and the request's appended to it.
+    /// `http://localhost:3000` forwards `/mcp` to `http://localhost:3000/mcp`,
+    /// and the root path is the URL itself: with `http://localhost:3000/mcp`,
+    /// `/` is forwarded to `/mcp` and `/x` to `/mcp/x`. Its query, if any, is
+    /// kept, and the request's appended to it.
     ///
     /// The connection settings are made for it by [`Options::new`]: change it
     /// from `http` to `https` afterwards and no certificate is trusted.
@@ -133,6 +135,10 @@ pub struct Unrecorded {
     /// Responses the upstream cut off after its status and headers (relayed to
     /// the client as the same truncation; recorded as `transport-abort`).
     pub upstream_cut: u64,
+    /// Responses whose status was not 2xx (recorded as the server sent them).
+    pub not_2xx: u64,
+    /// Of those, `404 Not Found`: usually a client pointed at the wrong path.
+    pub not_found: u64,
 }
 
 #[derive(Debug, Default)]
@@ -141,6 +147,8 @@ struct Counters {
     oversized: AtomicU64,
     upstream_failures: AtomicU64,
     upstream_cut: AtomicU64,
+    not_2xx: AtomicU64,
+    not_found: AtomicU64,
 }
 
 impl Counters {
@@ -150,6 +158,8 @@ impl Counters {
             oversized: self.oversized.load(Ordering::Relaxed),
             upstream_failures: self.upstream_failures.load(Ordering::Relaxed),
             upstream_cut: self.upstream_cut.load(Ordering::Relaxed),
+            not_2xx: self.not_2xx.load(Ordering::Relaxed),
+            not_found: self.not_found.load(Ordering::Relaxed),
         }
     }
 }

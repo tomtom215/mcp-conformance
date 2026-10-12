@@ -97,9 +97,17 @@ and the exit code.
 Start the proxy in front of the server and point the client at the proxy:
 
 ```text
-mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000 --listen 127.0.0.1:8080
-# client URL: http://127.0.0.1:8080/mcp   (request paths are appended to --upstream's)
+mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000/mcp --listen 127.0.0.1:8080
+# client URL: http://127.0.0.1:8080/   (the proxy's root is --upstream itself)
 ```
+
+The proxy's root path is the `--upstream` URL itself, and any other request path is
+appended to the upstream's: above, `/` reaches `/mcp` and `/x` reaches `/mcp/x`
+(with `--upstream http://localhost:3000`, point the client at
+`http://127.0.0.1:8080/mcp`). The proxy prints the client URL when it starts. At exit
+it says how many responses had a status outside 2xx, and, when the server answered
+404, asks whether the endpoint path is right — a client at `http://127.0.0.1:8080/mcp`
+in front of `--upstream http://localhost:3000/mcp` reaches `/mcp/mcp`.
 
 An upstream URL's own query (`https://host/mcp?key=…`) is kept, and each request's
 query is appended to it. Credentials in the URL (`user:password@`) are refused: the
@@ -119,8 +127,11 @@ SSE streams are relayed as they arrive, event by event.
 
 - **Transparent.** Bytes are forwarded unchanged. Over HTTP, the only changes are the
   ones a proxy must make: hop-by-hop headers (RFC 9110 §7.6.1), `Host` (names the
-  upstream — `--preserve-host` keeps the client's instead), and `Accept-Encoding`
-  (removed, so the server answers uncompressed and the body can be recorded). The
+  upstream — `--preserve-host` keeps the client's instead), `Accept-Encoding`
+  (removed, so the server answers uncompressed and the body can be recorded), and a
+  redirect's `Location` that points into the upstream (pointed back at the proxy, by
+  the `Host` the client used, so the client does not leave the recording; one the
+  proxy cannot reach is relayed as sent, and `Location` is not recorded). The
   official conformance suite scores the same through the proxy as without it; this
   repository's CI checks that on every run.
 - **Upstream failures as they happened.** An upstream that fails mid-response reaches

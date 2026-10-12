@@ -142,3 +142,99 @@ fn root_certificates_are_loaded_for_an_https_upstream_only_and_before_the_trace(
     }
     std::fs::remove_dir_all(&dir).ok();
 }
+
+/// An upstream answering every request with `respond(own address, path)`;
+/// returns its address.
+fn upstream(respond: fn(&str, &str) -> String) -> String {
+    use std::io::{Read as _, Write as _};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap().to_string();
+    let own = address.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut head = Vec::new();
+            let mut byte = [0_u8; 1];
+            while !head.ends_with(b"\r\n\r\n") {
+                if stream.read(&mut byte).unwrap_or(0) == 0 {
+                    break;
+                }
+                head.push(byte[0]);
+            }
+            let head = String::from_utf8_lossy(&head).into_owned();
+            let path = head.split(' ').nth(1).unwrap_or_default().to_owned();
+            let _ = stream.write_all(respond(&own, &path).as_bytes());
+        }
+    });
+    address
+}
+
+/// Sends `GET path` through the proxy at `address`; returns the response.
+fn get(address: &str, path: &str) -> String {
+    use std::io::{Read as _, Write as _};
+    let mut stream = std::net::TcpStream::connect(address).unwrap();
+    write!(
+        stream,
+        "GET {path} HTTP/1.1\r\nhost: {address}\r\nconnection: close\r\n\r\n"
+    )
+    .unwrap();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    response
+}
+
+/// With `--upstream http://h/mcp`, the proxy's root is `/mcp` itself, a redirect
+/// into the upstream comes back through the proxy, and a client pointed at the
+/// wrong path — `/mcp` again, so `/mcp/mcp` upstream — hears about the 404s at
+/// exit instead of nothing at all. The startup lines name the client URL.
+#[test]
+fn the_client_url_redirects_and_404s_are_spelled_out() {
+    let server = upstream(|own, path| match path {
+        "/mcp" => format!(
+            "HTTP/1.1 307 Temporary Redirect\r\nlocation: http://{own}/mcp/next\r\n\
+             content-length: 0\r\nconnection: close\r\n\r\n"
+        ),
+        _ => "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n".to_owned(),
+    });
+    let trace = scratch("paths.jsonl");
+    let (mut proxy, address, lines) = Proxy::start(http(&trace, &format!("http://{server}/mcp")));
+    let redirect = get(&address, "/");
+    assert!(redirect.starts_with("HTTP/1.1 307"), "{redirect}");
+    assert!(
+        redirect
+            .to_ascii_lowercase()
+            .contains(&format!("location: http://{address}/next\r\n")),
+        "{redirect}"
+    );
+    let missing = get(&address, "/mcp");
+    assert!(missing.starts_with("HTTP/1.1 404"), "{missing}");
+    assert_eq!(proxy.interrupt().code(), Some(0));
+    std::thread::sleep(Duration::from_millis(100));
+    let stderr: Vec<String> = lines.try_iter().collect();
+    let has = |text: &str| stderr.iter().any(|line| line.contains(text));
+    assert!(
+        has(&format!(
+            "client URL: http://{address}/ (it reaches http://{server}/mcp;"
+        )),
+        "{stderr:?}"
+    );
+    assert!(has("2 response(s) had a status outside 2xx"), "{stderr:?}");
+    assert!(
+        has("the server answered 404 to 1 request(s) — is the endpoint path right?"),
+        "{stderr:?}"
+    );
+    std::fs::remove_file(&trace).ok();
+
+    // A root upstream: the client URL needs the endpoint path, and with no
+    // traffic there is nothing to remark on.
+    let trace = scratch("root.jsonl");
+    let (mut proxy, address, lines) = Proxy::start(http(&trace, &format!("http://{server}")));
+    assert_eq!(proxy.interrupt().code(), Some(0));
+    std::thread::sleep(Duration::from_millis(100));
+    let stderr: Vec<String> = lines.try_iter().collect();
+    let has = |text: &str| stderr.iter().any(|line| line.contains(text));
+    assert!(has(&format!("e.g. http://{address}/mcp")), "{stderr:?}");
+    assert!(!has("outside 2xx"), "{stderr:?}");
+    assert!(!has("404"), "{stderr:?}");
+    std::fs::remove_file(&trace).ok();
+}

@@ -16,7 +16,7 @@ use futures::{Stream, StreamExt as _, TryStreamExt as _};
 use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TransportKind};
 
 use super::Proxy;
-use super::target::{is_event_stream, target};
+use super::target::{is_event_stream, location, target};
 use crate::framing::{SseParser, parse_json};
 use crate::headers;
 use crate::recorder::{NotRecorded, Recorder};
@@ -43,8 +43,12 @@ pub(super) async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -
     };
     *upstream_request.headers_mut() = headers::forwardable(&parts.headers, dropped);
     let uri = upstream_request.uri().clone();
+    let host = parts
+        .headers
+        .get(header::HOST)
+        .and_then(|host| host.to_str().ok());
     match proxy.client.request(upstream_request).await {
-        Ok(upstream) => proxy.relay_response(upstream, route).await,
+        Ok(upstream) => proxy.relay_response(upstream, route, host).await,
         Err(error) => proxy.upstream_failed(route.recorder(), &uri, &error),
     }
 }
@@ -102,13 +106,16 @@ impl Proxy {
     ///
     /// A session id the response assigns is noted before the response is
     /// returned, so the client's next request — which names it — is routed to
-    /// this session's trace.
+    /// this session's trace. A redirect into the upstream is pointed back at
+    /// the proxy, by the `host` the client addressed it by.
     async fn relay_response(
         self: &Arc<Self>,
         upstream: axum::http::Response<hyper::body::Incoming>,
         route: Route,
+        host: Option<&str>,
     ) -> Response {
         let (parts, incoming) = upstream.into_parts();
+        self.count_status(parts.status);
         self.traces.respond(
             &route,
             parts
@@ -161,7 +168,27 @@ impl Proxy {
         let mut response = Response::new(body);
         *response.status_mut() = parts.status;
         *response.headers_mut() = headers::forwardable(&parts.headers, &[header::CONTENT_LENGTH]);
+        let back = parts
+            .headers
+            .get(header::LOCATION)
+            .and_then(|sent| sent.to_str().ok())
+            .and_then(|sent| location(&self.options.upstream, sent, host))
+            .and_then(|back| header::HeaderValue::from_str(&back).ok());
+        if let Some(back) = back {
+            response.headers_mut().insert(header::LOCATION, back);
+        }
         response
+    }
+
+    /// Counts a status outside 2xx, and a 404 apart: the summary asks about
+    /// the endpoint path when there were any.
+    fn count_status(&self, status: StatusCode) {
+        if !status.is_success() {
+            self.counters.not_2xx.fetch_add(1, Ordering::Relaxed);
+        }
+        if status == StatusCode::NOT_FOUND {
+            self.counters.not_found.fetch_add(1, Ordering::Relaxed);
+        }
     }
 
     /// Writes an `http` event and the message its body carried, if any, as

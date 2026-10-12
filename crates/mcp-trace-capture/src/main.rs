@@ -216,7 +216,9 @@ async fn run_http(
         "mcp-trace-capture: listening on http://{bound}, forwarding to {} (Ctrl-C to stop)",
         shown(upstream)
     );
-    let code = serve_until_stopped(listener, &traces, options, signals).await;
+    eprintln!("mcp-trace-capture: {}", client_url(bound, upstream));
+    let served = serve_until_stopped(listener, &traces, options, signals).await;
+    let code = served.map_or_else(|code| code, |served| http_summary(served, bound, upstream));
     output::finish_traces(&traces, path.as_deref().map(Path::new), code)
 }
 
@@ -235,21 +237,37 @@ fn shown(upstream: &axum::http::Uri) -> String {
     format!("{scheme}://{authority}{path}{query}")
 }
 
+/// Where to point the client: the proxy's root is the upstream URL itself.
+fn client_url(bound: SocketAddr, upstream: &axum::http::Uri) -> String {
+    if upstream.path() == "/" {
+        format!(
+            "client URL: http://{bound}/ plus the server's endpoint path, e.g. \
+             http://{bound}/mcp (each request's path is appended to the upstream's)"
+        )
+    } else {
+        format!(
+            "client URL: http://{bound}/ (it reaches {}; http://{bound}/<path> reaches \
+             <upstream>/<path>)",
+            shown(upstream)
+        )
+    }
+}
+
 /// Serves until a request to stop, then lets the proxy stop within its grace
-/// period — or at once on a second request.
+/// period — or at once on a second request, whose exit code is the `Err`.
 async fn serve_until_stopped(
     listener: tokio::net::TcpListener,
     traces: &Arc<Traces>,
     options: http::Options,
     mut signals: Signals,
-) -> u8 {
+) -> Result<std::io::Result<http::Unrecorded>, u8> {
     let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
     let serving = http::serve_traces(listener, Arc::clone(traces), options, async {
         let _ = stopped.await;
     });
     tokio::pin!(serving);
     let first = tokio::select! {
-        served = &mut serving => return http_summary(served),
+        served = &mut serving => return Ok(served),
         first = signals.recv() => first,
     };
     eprintln!(
@@ -260,14 +278,14 @@ async fn serve_until_stopped(
     );
     let _ = stop.send(());
     tokio::select! {
-        served = &mut serving => http_summary(served),
+        served = &mut serving => Ok(served),
         again = signals.recv() => {
             traces.close_all(LifecycleEvent::TransportClose);
             eprintln!(
                 "mcp-trace-capture: {} again: stopped without waiting for open requests",
                 again.name()
             );
-            exit_code_of_stop(again)
+            Err(exit_code_of_stop(again))
         }
     }
 }
@@ -278,7 +296,11 @@ fn exit_code_of_stop(stop: mcp_trace_capture::Stop) -> u8 {
     u8::try_from(128 + stop.number()).unwrap_or(1)
 }
 
-fn http_summary(served: std::io::Result<http::Unrecorded>) -> u8 {
+fn http_summary(
+    served: std::io::Result<http::Unrecorded>,
+    bound: SocketAddr,
+    upstream: &axum::http::Uri,
+) -> u8 {
     match served {
         Ok(unrecorded) => {
             report_unrecorded("session", unrecorded.not_json, unrecorded.oversized);
@@ -296,12 +318,34 @@ fn http_summary(served: std::io::Result<http::Unrecorded>) -> u8 {
                     unrecorded.upstream_cut
                 );
             }
+            report_statuses(unrecorded, bound, upstream);
             0
         }
         Err(error) => {
             eprintln!("mcp-trace-capture: {error}");
             EXIT_USAGE
         }
+    }
+}
+
+/// Says how many responses were not 2xx, and asks about the path when the
+/// server answered 404: a client pointed at the wrong path gets 404s, recorded
+/// faithfully and otherwise unremarked.
+fn report_statuses(unrecorded: http::Unrecorded, bound: SocketAddr, upstream: &axum::http::Uri) {
+    if unrecorded.not_2xx > 0 {
+        eprintln!(
+            "mcp-trace-capture: {} response(s) had a status outside 2xx (recorded as sent)",
+            unrecorded.not_2xx
+        );
+    }
+    if unrecorded.not_found > 0 {
+        eprintln!(
+            "mcp-trace-capture: the server answered 404 to {} request(s) — is the endpoint \
+             path right? The proxy maps http://{bound}/ to {} and http://{bound}/<path> to \
+             <upstream>/<path>",
+            unrecorded.not_found,
+            shown(upstream)
+        );
     }
 }
 
