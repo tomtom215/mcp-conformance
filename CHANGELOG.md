@@ -34,6 +34,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   reported as inventing one, but `requestState` is designed to reach a server
   instance that never saw the round, and a capture can start mid-flow. Like
   `MRTR-015`/`MRTR-016`, the check now judges only retries of a recorded round.
+- **`TRAN-124` on stdio failed the answer to a request reusing a cancelled
+  id.** Once a client cancelled a request by notification, any later response
+  with that id was reported, including the answer to a new request the client
+  sent with the same id after the first was answered. A new request now clears
+  the cancellation, progress token and send time recorded under its id, as the
+  Streamable HTTP check (`TRAN-070`) already did.
 
 ## [0.6.0] - 2026-10-04
 

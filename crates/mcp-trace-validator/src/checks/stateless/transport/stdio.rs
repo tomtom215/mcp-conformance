@@ -132,7 +132,7 @@ pub(in crate::checks) fn no_messages_after_cancel_notification(
             continue;
         }
         if event.direction == Direction::ClientToServer {
-            record_request(event, &mut tokens, &mut sent_at);
+            record_request(event, &mut tokens, &mut sent_at, &mut cancelled);
             continue;
         }
         if cancelled.is_empty() {
@@ -174,29 +174,38 @@ fn mark_read(
 
 /// Remembers when a client request was sent, and the `_meta.progressToken`
 /// it opted into.
+///
+/// A request reusing an id is a new request, as the HTTP twin
+/// ([`super::stream`]) already treats one: a cancellation, a token or a send
+/// time recorded under that id belonged to the request before it, and carrying
+/// them over would convict the server for answering the request it was just
+/// sent.
 fn record_request(
     event: &TraceEvent,
     tokens: &mut BTreeMap<String, String>,
     sent_at: &mut BTreeMap<String, u64>,
+    cancelled: &mut BTreeMap<String, (u64, bool)>,
 ) {
     let Some(payload) = event.message_payload() else {
         return;
     };
-    if payload.get("method").is_some()
-        && let Some(id) = payload.get("id").filter(|id| !id.is_null())
-    {
-        sent_at.insert(id.to_string(), event.seq);
+    if payload.get("method").is_none() {
+        return; // A client response opens nothing.
     }
-    let (Some(id), Some(token)) = (
-        payload.get("id").filter(|id| !id.is_null()),
-        payload
-            .get("params")
-            .and_then(|params| params.get("_meta"))
-            .and_then(|meta| meta.get("progressToken")),
-    ) else {
+    let Some(id) = payload.get("id").filter(|id| !id.is_null()) else {
         return;
     };
-    tokens.insert(id.to_string(), token.to_string());
+    let id = id.to_string();
+    cancelled.remove(&id);
+    tokens.remove(&id);
+    sent_at.insert(id.clone(), event.seq);
+    if let Some(token) = payload
+        .get("params")
+        .and_then(|params| params.get("_meta"))
+        .and_then(|meta| meta.get("progressToken"))
+    {
+        tokens.insert(id, token.to_string());
+    }
 }
 
 /// Reports a server message that belongs to an already-cancelled request.
