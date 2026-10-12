@@ -93,6 +93,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   then refused the trace. The summary now says the server exited, with its status,
   before any message was exchanged. The suggested `mcp-trace-validator validate`
   command quotes a path with spaces or shell metacharacters.
+- **`mcp-trace-capture stdio` on Windows passes the server's whole exit code.** It
+  kept the low eight bits, as a Unix wait status does, so a server exiting 256 made
+  the wrapper exit 0. Unix behaviour is unchanged.
 
 ## [0.6.0] - 2026-10-04
 

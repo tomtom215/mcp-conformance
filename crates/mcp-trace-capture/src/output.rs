@@ -26,7 +26,7 @@ use mcp_trace_capture::{Recorder, Summary};
 
 /// The exit code for a session whose trace is incomplete, when it would otherwise
 /// be 0.
-const EXIT_INCOMPLETE: u8 = 3;
+const EXIT_INCOMPLETE: i32 = 3;
 
 /// Where traces go: the one file `-o` names, or a numbered file per session.
 #[derive(Debug)]
@@ -188,15 +188,15 @@ fn max_line(max_message: usize) -> usize {
 pub fn finish(
     recorder: &Recorder,
     path: &Path,
-    code: u8,
+    code: i32,
     ended: Option<std::process::ExitStatus>,
-) -> u8 {
+) -> i32 {
     report(&recorder.finish(), Some(path), code, Hint::None, ended)
 }
 
 /// Flushes every trace the proxy wrote and reports each; the exit code is
 /// [`EXIT_INCOMPLETE`] in place of a 0 when any is incomplete.
-pub fn finish_traces(traces: &Traces, path: Option<&Path>, code: u8) -> u8 {
+pub fn finish_traces(traces: &Traces, path: Option<&Path>, code: i32) -> i32 {
     let finished = traces.finish();
     if traces.is_per_session() && finished.is_empty() {
         eprintln!("mcp-trace-capture: no session began; no trace was written");
@@ -229,10 +229,10 @@ enum Hint {
 fn report(
     summary: &Summary,
     path: Option<&Path>,
-    code: u8,
+    code: i32,
     hint: Hint,
     ended: Option<std::process::ExitStatus>,
-) -> u8 {
+) -> i32 {
     let shown = path.map_or_else(
         || "a session's trace, whose file could not be created,".to_owned(),
         |path| path.display().to_string(),

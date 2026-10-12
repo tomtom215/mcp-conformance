@@ -28,7 +28,7 @@ use mcp_trace_capture::{Signals, http, stdio};
 pub mod args;
 pub mod output;
 
-const EXIT_USAGE: u8 = 2;
+const EXIT_USAGE: i32 = 2;
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
@@ -36,7 +36,7 @@ fn main() -> ExitCode {
         Ok(target) => target,
         Err(message) => {
             eprintln!("mcp-trace-capture: {message}");
-            return ExitCode::from(EXIT_USAGE);
+            return exit(EXIT_USAGE);
         }
     };
     let runtime = match tokio::runtime::Builder::new_multi_thread()
@@ -46,7 +46,7 @@ fn main() -> ExitCode {
         Ok(runtime) => runtime,
         Err(error) => {
             eprintln!("mcp-trace-capture: cannot start the async runtime: {error}");
-            return ExitCode::from(EXIT_USAGE);
+            return exit(EXIT_USAGE);
         }
     };
     let code = match &cli.mode {
@@ -59,11 +59,26 @@ fn main() -> ExitCode {
     };
     // A client blocked on this process's stdin would otherwise hold the runtime open.
     runtime.shutdown_background();
-    ExitCode::from(code)
+    exit(code)
+}
+
+/// Ends the process with `code`. Windows keeps a process's whole exit code,
+/// which `ExitCode` (a `u8`) cannot carry, so one that does not fit is passed
+/// with `std::process::exit`; everywhere else every code here fits.
+fn exit(code: i32) -> ExitCode {
+    if whole_exit(code, cfg!(windows)) {
+        std::process::exit(code);
+    }
+    ExitCode::from(u8::try_from(code).unwrap_or(1))
+}
+
+/// Whether `code` must be passed whole, past `ExitCode`.
+const fn whole_exit(code: i32, windows: bool) -> bool {
+    windows && (code < 0 || code > 255)
 }
 
 /// Starts the server, then creates the trace, then relays the session.
-async fn run_stdio(cli: &Cli, target: &output::Target, command: &[OsString]) -> u8 {
+async fn run_stdio(cli: &Cli, target: &output::Target, command: &[OsString]) -> i32 {
     let Some((program, args)) = command.split_first() else {
         return EXIT_USAGE; // clap requires the command
     };
@@ -120,7 +135,7 @@ async fn run_http(
     upstream: &str,
     listen: SocketAddr,
     preserve_host: bool,
-) -> u8 {
+) -> i32 {
     let checked = args::upstream(upstream)
         .and_then(|upstream| http::Options::new(upstream, cli.max_message_bytes));
     let options = match checked {
@@ -213,7 +228,7 @@ async fn serve_until_stopped(
     traces: &Arc<Traces>,
     options: http::Options,
     mut signals: Signals,
-) -> Result<std::io::Result<http::Unrecorded>, u8> {
+) -> Result<std::io::Result<http::Unrecorded>, i32> {
     let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
     let serving = http::serve_traces(listener, Arc::clone(traces), options, async {
         let _ = stopped.await;
@@ -247,15 +262,15 @@ async fn serve_until_stopped(
 
 /// The exit code for a capture a second signal stopped: as a shell reports a
 /// process that signal ended.
-fn exit_code_of_stop(stop: mcp_trace_capture::Stop) -> u8 {
-    u8::try_from(128 + stop.number()).unwrap_or(1)
+const fn exit_code_of_stop(stop: mcp_trace_capture::Stop) -> i32 {
+    128 + stop.number()
 }
 
 fn http_summary(
     served: std::io::Result<http::Unrecorded>,
     bound: SocketAddr,
     upstream: &axum::http::Uri,
-) -> u8 {
+) -> i32 {
     match served {
         Ok(unrecorded) => {
             report_unrecorded("session", unrecorded.not_json, unrecorded.oversized);
@@ -359,16 +374,42 @@ fn report_unrecorded(side: &str, not_json: u64, oversized: u64) {
 }
 
 /// The wrapped server's exit code, as a shell would report it.
-fn exit_code_of(status: std::process::ExitStatus) -> u8 {
+fn exit_code_of(status: std::process::ExitStatus) -> i32 {
     if let Some(code) = status.code() {
-        return u8::try_from(code & 0xFF).unwrap_or(1);
+        return passed_through(code, cfg!(windows));
     }
     #[cfg(unix)]
     {
         use std::os::unix::process::ExitStatusExt as _;
         if let Some(signal) = status.signal() {
-            return u8::try_from(128 + (signal & 0x7F)).unwrap_or(1);
+            return 128 + (signal & 0x7F);
         }
     }
     1
+}
+
+/// A server's exit code as this process passes it on: whole where the platform
+/// keeps a whole code (Windows: `exit(256)` is 256, which the low eight bits
+/// would make a success), else the eight bits a Unix wait status holds.
+const fn passed_through(code: i32, whole: bool) -> i32 {
+    if whole { code } else { code & 0xFF }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_exit_code_is_passed_whole_where_the_platform_keeps_it_whole() {
+        assert_eq!(passed_through(7, false), 7);
+        assert_eq!(passed_through(256, false), 0);
+        assert_eq!(passed_through(256, true), 256);
+        assert_eq!(passed_through(-1_073_741_819, true), -1_073_741_819);
+        assert!(whole_exit(256, true));
+        assert!(whole_exit(-1, true));
+        assert!(!whole_exit(255, true));
+        assert!(!whole_exit(0, true));
+        assert!(!whole_exit(256, false));
+        assert!(!whole_exit(-1, false));
+    }
 }
