@@ -24,6 +24,10 @@ use crate::traces::Route;
 
 pub(super) async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -> Response {
     let (parts, body) = request.into_parts();
+    // An event stream answering a GET is the standalone stream a client holds
+    // open for its whole session; one answering a POST carries that request's
+    // response.
+    let standalone = parts.method == axum::http::Method::GET;
     let (route, upstream_body) = proxy.record_request(&parts, body).await;
     let Some(upstream_body) = upstream_body else {
         // The client went away mid-body; there is nothing left to answer.
@@ -48,7 +52,11 @@ pub(super) async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -
         .get(header::HOST)
         .and_then(|host| host.to_str().ok());
     match proxy.client.request(upstream_request).await {
-        Ok(upstream) => proxy.relay_response(upstream, route, host).await,
+        Ok(upstream) => {
+            proxy
+                .relay_response(upstream, route, host, standalone)
+                .await
+        }
         Err(error) => proxy.upstream_failed(route.recorder(), &uri, &error),
     }
 }
@@ -102,7 +110,10 @@ impl Proxy {
     ///
     /// For a JSON body, the status event and the message are written together,
     /// for the reason [`Proxy::record_request`] gives. An event stream's status is
-    /// recorded at once: its messages follow over time, each as it is relayed.
+    /// recorded at once: its messages follow over time, each as it is relayed. A
+    /// `standalone` one (the answer to a GET) is cut when the proxy stops; one
+    /// answering a POST carries a request's response, and gets the grace period
+    /// every other request in flight gets.
     ///
     /// A session id the response assigns is noted before the response is
     /// returned, so the client's next request — which names it — is routed to
@@ -113,6 +124,7 @@ impl Proxy {
         upstream: axum::http::Response<hyper::body::Incoming>,
         route: Route,
         host: Option<&str>,
+        standalone: bool,
     ) -> Response {
         let (parts, incoming) = upstream.into_parts();
         self.count_status(parts.status);
@@ -132,7 +144,12 @@ impl Proxy {
         let mut stream = Body::new(incoming).into_data_stream();
         let body = if is_event_stream(&parts.headers) {
             self.record_together(recorder, Direction::ServerToClient, http, None);
-            Body::from_stream(Arc::clone(self).record_events(route.clone(), stream))
+            let events = Arc::clone(self).record_events(route.clone(), stream);
+            if standalone {
+                Body::from_stream(cut_at_stop(events, super::stopped(self.stopping.clone())))
+            } else {
+                Body::from_stream(events)
+            }
         } else {
             let prefix = read_prefix(&mut stream, self.options.max_message).await;
             match prefix.end {
@@ -167,17 +184,23 @@ impl Proxy {
         };
         let mut response = Response::new(body);
         *response.status_mut() = parts.status;
-        *response.headers_mut() = headers::forwardable(&parts.headers, &[header::CONTENT_LENGTH]);
-        let back = parts
-            .headers
+        *response.headers_mut() = self.response_headers(&parts.headers, host);
+        response
+    }
+
+    /// The headers relayed with a response: the upstream's, less hop-by-hop
+    /// fields, with a `Location` into the upstream pointed back at the proxy.
+    fn response_headers(&self, sent: &header::HeaderMap, host: Option<&str>) -> header::HeaderMap {
+        let mut relayed = headers::forwardable(sent, &[header::CONTENT_LENGTH]);
+        let back = sent
             .get(header::LOCATION)
-            .and_then(|sent| sent.to_str().ok())
-            .and_then(|sent| location(&self.options.upstream, sent, host))
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| location(&self.options.upstream, value, host))
             .and_then(|back| header::HeaderValue::from_str(&back).ok());
         if let Some(back) = back {
-            response.headers_mut().insert(header::LOCATION, back);
+            relayed.insert(header::LOCATION, back);
         }
-        response
+        relayed
     }
 
     /// Counts a status outside 2xx, and a 404 apart: the summary asks about
@@ -243,9 +266,6 @@ impl Proxy {
     {
         let mut parser = SseParser::new(self.options.max_message);
         let mut oversized_seen = 0;
-        // At shutdown the stream ends between two chunks, so the client sees a
-        // stream that closed rather than a proxy that will not stop.
-        let stopping = super::stopped(self.stopping.clone());
         // The upstream failing mid-stream reaches the client as the same
         // truncation, and the trace as an aborted transport.
         let on_error = Arc::clone(&self);
@@ -274,7 +294,6 @@ impl Proxy {
                     .fetch_add(oversized - oversized_seen, Ordering::Relaxed);
                 oversized_seen = oversized;
             })
-            .take_until(stopping)
     }
 
     /// The upstream failed mid-response, after its status and headers were
@@ -345,6 +364,29 @@ fn causes(error: &dyn std::error::Error) -> String {
         source = cause.source();
     }
     text
+}
+
+/// `stream` until `stop` resolves, between two chunks, then an error: hyper
+/// aborts a response whose body fails rather than ending it, so the client sees
+/// a stream that was cut — not one the server finished — and a proxy that is
+/// stopping is not held open by it.
+fn cut_at_stop<S, F>(stream: S, stop: F) -> impl Stream<Item = Result<Bytes, axum::Error>>
+where
+    S: Stream<Item = Result<Bytes, axum::Error>>,
+    F: std::future::Future<Output = ()>,
+{
+    use futures::FutureExt as _;
+    let mut stream = Box::pin(stream);
+    // Fused: once it has fired, polling it again is harmless.
+    let mut stop = Box::pin(stop.fuse());
+    futures::stream::poll_fn(move |context| {
+        if stop.as_mut().poll(context).is_ready() {
+            return std::task::Poll::Ready(Some(Err(axum::Error::new(std::io::Error::other(
+                "the proxy is stopping",
+            )))));
+        }
+        stream.as_mut().poll_next(context)
+    })
 }
 
 /// A body of `prefix` followed by whatever `rest` yields.

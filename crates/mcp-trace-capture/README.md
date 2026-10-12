@@ -115,10 +115,11 @@ proxy would not send them, so have the client send them as a header. The proxy
 listens on loopback unless `--listen` says otherwise, and warns when it does — anyone
 who can reach a non-loopback address can send requests through it.
 
-Stop it with Ctrl-C (or `SIGTERM`/`SIGHUP`). Open event streams — an MCP client keeps
-a GET stream open for its whole session — are ended at once; other requests in flight
-get 3 seconds to finish. The trace is then closed with a `transport-close` event and
-the summary printed. A second signal stops at once. `https://` upstreams work (rustls,
+Stop it with Ctrl-C (or `SIGTERM`/`SIGHUP`). Standalone event streams — the GET
+stream an MCP client keeps open for its whole session — are cut at once (aborted, not
+ended cleanly, so the client can tell); every other request in flight, SSE responses
+to POSTs included, gets 3 seconds to finish. The trace is then closed with a
+`transport-close` event and the summary printed. A second signal stops at once. `https://` upstreams work (rustls,
 the platform's root certificates — loaded only for an `https` upstream, and checked
 before the trace is created: where none can be found, the proxy refuses to start).
 SSE streams are relayed as they arrive, event by event.

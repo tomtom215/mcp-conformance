@@ -271,8 +271,8 @@ async fn serve_until_stopped(
         first = signals.recv() => first,
     };
     eprintln!(
-        "mcp-trace-capture: {}: stopping; open event streams are ended, other requests get \
-         {}s (signal again to stop now)",
+        "mcp-trace-capture: {}: stopping; standalone event streams (GET) are cut, other \
+         requests get {}s (signal again to stop now)",
         first.name(),
         mcp_trace_capture::STOP_GRACE.as_secs()
     );

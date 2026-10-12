@@ -70,9 +70,11 @@ pub struct Options {
     /// `Host`.
     pub preserve_host: bool,
     /// How long open connections get to finish once [`serve`]'s `shutdown`
-    /// resolves, before the proxy stops without them. Event streams do not wait
-    /// for it: they are ended at once (an MCP client holds a GET stream open for
-    /// its whole session, so waiting for one to finish would never stop).
+    /// resolves, before the proxy stops without them. A standalone event stream
+    /// (the answer to a GET) does not wait for it: it is cut at once (an MCP
+    /// client holds one open for its whole session, so waiting for it to finish
+    /// would never stop). An event stream answering a POST does: it carries a
+    /// request's response.
     pub grace: std::time::Duration,
     /// How the proxy connects upstream, made once the upstream is known.
     connector: Connector,
@@ -193,10 +195,12 @@ pub async fn serve(
 /// Serves the proxy on `listener` until `shutdown` resolves, then stops, with
 /// each exchange recorded into the trace `traces` routes it to.
 ///
-/// Stopping ends every open event stream (cleanly, between two chunks the
-/// upstream sent), gives other connections [`Options::grace`] to finish, and
-/// closes every trace with a `transport-close` event — so a client holding a
-/// stream open cannot keep the proxy running.
+/// Stopping cuts every standalone event stream (the answer to a GET) between
+/// two chunks the upstream sent — aborting the response, so the client can tell
+/// it from a stream the server ended — gives every other request in flight, SSE
+/// responses to POSTs included, [`Options::grace`] to finish, and closes every
+/// trace with a `transport-close` event — so a client holding a stream open
+/// cannot keep the proxy running.
 ///
 /// # Errors
 ///

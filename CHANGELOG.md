@@ -44,6 +44,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `/mcp`. Other paths are still appended (`/x` reaches `/mcp/x`). A redirect whose
   `Location` points into the upstream is now pointed back at the proxy, so the client
   does not leave the recording.
+- **`mcp-trace-capture http`: stopping cuts only standalone event streams.** Every
+  event stream was ended at once, with a clean end of body — including SSE responses
+  to POSTs, whose response then never arrived. Only the GET stream a client holds for
+  its session is cut now, and it is aborted rather than ended, so the client can tell
+  it from a stream the server finished; a POST's SSE response gets the same 3 seconds
+  as any other request in flight.
 
 ## [0.6.0] - 2026-10-04
 
