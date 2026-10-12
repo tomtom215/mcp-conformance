@@ -11,6 +11,20 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+**`2026-07-28` verdicts change: the registry now judges clauses it did not
+carry before.** A clause with no registry row is never judged, so no trace could
+fail it; the rows below can. A session that passed under 0.6.0 can fail now with
+nothing in it changed, and every `2026-07-28` report carries 34 more rows:
+
+| Surface | Change | Migration |
+|---------|--------|-----------|
+| `2026-07-28` verdict | A server `notifications/cancelled` naming anything but a `subscriptions/listen` request fails `CANC-003`/`CANC-011` | Servers end only subscriptions this way; cancel nothing else by notification |
+| `2026-07-28` verdict | A progress token that is not a string or integer (`PROG-001`), one shared by two unanswered requests (`PROG-002`), a `progress` value that does not increase (`PROG-003`), and — on stdio — progress after the request's answer (`PROG-005`/`PROG-008`) fail | Fix the sender; nothing to configure |
+| `2026-07-28` verdict | Over Streamable HTTP: an `Mcp-Param-*` header for a `null` or absent designated parameter (`TRAN-132`/`TRAN-134`), a `HeaderMismatch` answering a POST that omitted such a header correctly (`TRAN-133`/`TRAN-135`), and a result answering a POST missing the header its body requires (`TRAN-136`) fail | Clients omit the header when there is no value; servers reject a missing header and accept an omitted one |
+| `2026-07-28` verdict | Four rows restate rules already judged and share their checks, so an existing failure now also fails them: `TRAN-066`/`TRAN-120`/`MRTR-001` → `BASE-084`, `TRAN-123` → `CANC-005`, `TRAN-079` → `TRAN-130`, `TRAN-097` → `TRAN-131` | Gate on requirement IDs, not on how many rows fail |
+| Report totals | `2026-07-28` `excluded` grows by 18 and `not_observed`/`pass` move with the new judged rows | Re-baseline any comparison of totals across versions |
+| Registry data | `TOOL-033`, `TOOL-034`, `TRAN-080` and `TRAN-081` quotes rewritten in the documented flattened-list form (`; ` between items); the clauses did not change | Key on the requirement ID |
+
 ### Removed
 
 - **`context::draft`**, deprecated in 0.6.0 as promised there: use
@@ -164,6 +178,27 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ### Added
 
+- **`2026-07-28` registry rows for three pages that were in neither page list:**
+  `basic/patterns/cancellation` (`CANC-001`–`CANC-017`), `basic/patterns/progress`
+  (`PROG-001`–`PROG-008`) and `basic/patterns/index` (`BASE-084`, "Servers MUST NOT
+  initiate JSON-RPC requests"). Every MUST, SHOULD and their negations on those pages
+  is entered, with a check or a documented exclusion.
+- **Rows for the `x-mcp-header` behaviour table** on `basic/transports/streamable-http`
+  (`TRAN-130`–`TRAN-136`), and for the caching page's "Caches MUST NOT be shared
+  across authorization contexts" (`CACH-019`, excluded: a cache hit sends nothing).
+- **Ten checks** behind those rows: `cancellation.server-cancels-only-subscriptions`;
+  `progress.token-type`, `progress.token-unique-in-flight`, `progress.value-increases`
+  and `progress.no-progress-after-completion`; and
+  `transport.x-mcp-header-{null,absent}-omitted`,
+  `transport.{null,absent}-param-header-not-expected` and
+  `transport.missing-param-header-rejected`. Each has unit tests and a passing and a
+  violating trace in `corpus/draft/`.
+- **The spec page set is a gate.** `cargo xtask spec-drift` now reads the site's
+  navigation and fails when a published page is in neither `in_scope` nor
+  `out_of_scope` of its revision's `sources.json`, or a listed page is not published;
+  `cargo xtask gates` (new task `page-set`) checks offline that no page is in both
+  lists, every exclusion has a reason, and every in-scope page names its source file
+  and has a census entry.
 - **Release binaries embed their dependency list** (built with `cargo auditable`),
   so `cargo audit bin` checks a downloaded `mcp-trace-validator` or
   `mcp-trace-capture` against RustSec without its lockfile.
@@ -197,6 +232,12 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   `report::HumanOptions` with `Report::render_with` and `MultiReport::render_with`
   choose the clause filter, the finding limit and the wording. `Verdict` gains
   `Incomplete`. All additions; every enum and struct touched is `#[non_exhaustive]`.
+
+### Changed
+
+- **Table-row quotes have a documented form.** `SourceRef::quote` now states how a
+  clause that only reads as one with its table row is quoted: the row from its first
+  cell to the clause's cell, cells joined with ` | `.
 
 ### Dependencies
 

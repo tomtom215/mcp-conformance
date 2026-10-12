@@ -1,0 +1,232 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "CANC-001",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation",
+        "quote": "A client SHOULD send a cancellation notification to indicate that a request it previously issued should be terminated."
+      },
+      "exclusion": "The antecedent is the client's wish to stop a request, which produces no message of its own: a session with no cancellation is indistinguishable from one where nothing was abandoned. The same boundary TRAN-123's check records for the stdio half of this rule. What a cancellation looks like once sent is CANC-005's."
+    },
+    {
+      "id": "CANC-002",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation",
+        "quote": "A server MUST send `notifications/cancelled` referencing a `subscriptions/listen` request ID when it tears down that subscription stream"
+      },
+      "exclusion": "The antecedent — the server deciding to tear a subscription down — is internal, and a stream that simply stops is indistinguishable in a recording from one the client closed or the network lost, so a missing notification has no falsifier. The message itself, when sent, is accepted by the checks it would otherwise trip: `meta.subscription-id-present` (BASE-039) and `subscriptions.only-requested-notifications` (SUBS-001) both treat a `notifications/cancelled` whose `requestId` names a `subscriptions/listen` request as the stream's own ending. Sending it for anything else is CANC-003's and judged."
+    },
+    {
+      "id": "CANC-003",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation",
+        "quote": "Servers MUST NOT send `notifications/cancelled` for any other purpose."
+      },
+      "checks": [
+        "cancellation.server-cancels-only-subscriptions"
+      ]
+    },
+    {
+      "id": "CANC-004",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#transport-specific-cancellation",
+        "quote": "The server MUST treat a client disconnect as cancellation of that request."
+      },
+      "exclusion": "The cancellation page's statement of TRAN-069, excluded for the same reason: how a server treats a closed stream is a decision, and the trace shows only that the transport ended. The observable consequence — anything sent for the request afterwards — is TRAN-070's, judged by `transport.no-messages-after-cancellation`."
+    },
+    {
+      "id": "CANC-005",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#transport-specific-cancellation",
+        "quote": "The client MUST send a `notifications/cancelled` notification referencing the request ID."
+      },
+      "checks": [
+        "transport.cancel-notification-references-request"
+      ]
+    },
+    {
+      "id": "CANC-006",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#timeouts",
+        "quote": "Implementations SHOULD establish timeouts for all sent requests, to prevent hung connections and resource exhaustion."
+      },
+      "exclusion": "A timeout is a duration configured inside the sender, and checks may not consult time — the limit LIFE-015 records. A trace shows a request answered or not, never the deadline the sender held it to."
+    },
+    {
+      "id": "CANC-007",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#timeouts",
+        "quote": "When the request has not received a success or error response within the timeout period, the sender SHOULD cancel the request and stop waiting for a response."
+      },
+      "exclusion": "The trigger is the sender's own timeout expiring, which no message records and which checks may not compute from timestamps (LIFE-015's limit). A cancellation that is sent is judged for its shape by CANC-005; whether a timeout prompted it is not on the wire."
+    },
+    {
+      "id": "CANC-008",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#timeouts",
+        "quote": "SDKs and other middleware SHOULD allow these timeouts to be configured on a per-request basis."
+      },
+      "exclusion": "Binds an SDK's programming interface — what its callers can configure — which has no protocol representation at all."
+    },
+    {
+      "id": "CANC-009",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#timeouts",
+        "quote": "However, implementations SHOULD always enforce a maximum timeout, regardless of progress notifications, to limit the impact of a misbehaving client or server."
+      },
+      "exclusion": "A maximum timeout is a duration the sender enforces internally; checks may not consult time (LIFE-015), and a request still open when the recording ends says nothing about the deadline it would have hit."
+    },
+    {
+      "id": "CANC-010",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#behavior-requirements",
+        "quote": "Cancellation notifications MUST only reference requests that: Were previously issued by the client; Are believed to still be in-progress"
+      },
+      "exclusion": "Neither condition has a sound falsifier. A recording may begin mid-session, so a `requestId` the trace never saw issued may still have been — the reason `transport.cancel-notification-references-request` judges only that a request is named. \"Believed to still be in-progress\" is the sender's belief, and the page's own Timing Considerations make a cancellation that crosses the response on the wire conforming. The server-sent case is narrowed further by CANC-011, which is judged."
+    },
+    {
+      "id": "CANC-011",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#behavior-requirements",
+        "quote": "Server-sent cancellation notifications MUST reference a `subscriptions/listen` request, to terminate that subscription stream"
+      },
+      "checks": [
+        "cancellation.server-cancels-only-subscriptions"
+      ]
+    },
+    {
+      "id": "CANC-012",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#behavior-requirements",
+        "quote": "Servers receiving cancellation notifications SHOULD: Stop processing the cancelled request; Free associated resources; Not send a response for the cancelled request"
+      },
+      "exclusion": "Stopping work and freeing resources are internal. The one wire-visible item, not answering a cancelled request, is a MUST NOT on both transport pages and judged there at that strength: TRAN-124 (`transport.no-messages-after-cancel-notification`, stdio) and TRAN-070 (`transport.no-messages-after-cancellation`, Streamable HTTP). Judging it again here would report every such answer twice, once as a warning."
+    },
+    {
+      "id": "CANC-013",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#behavior-requirements",
+        "quote": "The client SHOULD ignore any response to the cancelled request that arrives afterward"
+      },
+      "exclusion": "Ignoring a response is the absence of a reaction inside the client; nothing it does with a late response reaches the wire."
+    },
+    {
+      "id": "CANC-014",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#timing-considerations",
+        "quote": "Both parties MUST handle these race conditions gracefully:"
+      },
+      "exclusion": "Graceful handling is internal; the race itself is what a recording shows, and the checks are built not to convict it — TRAN-124 reports a message after a cancellation only once the server has demonstrably read it, and the conforming `stdio-cancellation-race` trace pins that. A party that failed to handle the race would show it through some other clause's violation, judged there."
+    },
+    {
+      "id": "CANC-015",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#implementation-notes",
+        "quote": "Both parties SHOULD log cancellation reasons for debugging"
+      },
+      "exclusion": "Logging is local diagnostics with no wire footprint."
+    },
+    {
+      "id": "CANC-016",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#implementation-notes",
+        "quote": "Application UIs SHOULD indicate when cancellation is requested"
+      },
+      "exclusion": "User-interface presentation, out by strategy rule 2: nothing a UI shows reaches the protocol."
+    },
+    {
+      "id": "CANC-017",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/cancellation#error-handling",
+        "quote": "Invalid cancellation notifications SHOULD be ignored: Unknown request IDs; Already completed requests; Malformed notifications"
+      },
+      "exclusion": "Ignoring a notification is the absence of a reaction, which a trace cannot tell apart from the notification never mattering. The party that sent the invalid notification is judged instead, where it can be: CANC-005 for a cancellation naming no request, CANC-011 for a server cancelling anything but a subscription."
+    }
+  ]
+}

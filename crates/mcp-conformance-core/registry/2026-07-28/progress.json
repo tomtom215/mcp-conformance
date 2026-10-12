@@ -1,0 +1,119 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "PROG-001",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/progress#progress-flow",
+        "quote": "Progress tokens MUST be a string or integer value"
+      },
+      "checks": [
+        "progress.token-type"
+      ]
+    },
+    {
+      "id": "PROG-002",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/progress#progress-flow",
+        "quote": "Progress tokens can be chosen by the client using any means, but MUST be unique across all active requests."
+      },
+      "checks": [
+        "progress.token-unique-in-flight"
+      ]
+    },
+    {
+      "id": "PROG-003",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/progress#progress-flow",
+        "quote": "The `progress` value MUST increase with each notification, even if the total is unknown."
+      },
+      "checks": [
+        "progress.value-increases"
+      ]
+    },
+    {
+      "id": "PROG-004",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/progress#progress-flow",
+        "quote": "The `message` field SHOULD provide relevant human readable progress information."
+      },
+      "exclusion": "Whether a message is relevant and human readable is a judgment about its meaning, not its shape; any string satisfies the schema, and no mechanical reading of one decides relevance."
+    },
+    {
+      "id": "PROG-005",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/progress#behavior-requirements",
+        "quote": "Progress notifications MUST only reference tokens that: Were provided in an active request; Are associated with an in-progress operation"
+      },
+      "checks": [
+        "progress.no-progress-after-completion"
+      ]
+    },
+    {
+      "id": "PROG-006",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/progress#implementation-notes",
+        "quote": "Clients and servers SHOULD track active progress tokens"
+      },
+      "exclusion": "Tracking is bookkeeping inside each party. Its wire consequences are the MUST rows beside it, which are judged: a reused token (PROG-002) and progress for a finished request (PROG-005, PROG-008)."
+    },
+    {
+      "id": "PROG-007",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/progress#implementation-notes",
+        "quote": "Both parties SHOULD implement rate limiting to prevent flooding"
+      },
+      "exclusion": "A rate is messages per unit of time, and checks may not consult time — the limit LIFE-015 records. No count of notifications alone separates a flood from a long operation reporting often."
+    },
+    {
+      "id": "PROG-008",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/patterns/progress#implementation-notes",
+        "quote": "Progress notifications MUST stop after completion"
+      },
+      "checks": [
+        "progress.no-progress-after-completion"
+      ]
+    }
+  ]
+}

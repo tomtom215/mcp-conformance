@@ -482,6 +482,91 @@
       "exclusion": "The obligation begins after a re-established connection, which is a second session: the evidence would have to span two recordings, and nothing in either identifies the other as its predecessor. Same boundary as TRAN-127, which excludes the restart that precedes it."
     },
     {
+      "id": "CANC-001",
+      "level": "SHOULD",
+      "exclusion": "The antecedent is the client's wish to stop a request, which produces no message of its own: a session with no cancellation is indistinguishable from one where nothing was abandoned. The same boundary TRAN-123's check records for the stdio half of this rule. What a cancellation looks like once sent is CANC-005's."
+    },
+    {
+      "id": "CANC-002",
+      "level": "MUST",
+      "exclusion": "The antecedent — the server deciding to tear a subscription down — is internal, and a stream that simply stops is indistinguishable in a recording from one the client closed or the network lost, so a missing notification has no falsifier. The message itself, when sent, is accepted by the checks it would otherwise trip: `meta.subscription-id-present` (BASE-039) and `subscriptions.only-requested-notifications` (SUBS-001) both treat a `notifications/cancelled` whose `requestId` names a `subscriptions/listen` request as the stream's own ending. Sending it for anything else is CANC-003's and judged."
+    },
+    {
+      "id": "CANC-004",
+      "level": "MUST",
+      "exclusion": "The cancellation page's statement of TRAN-069, excluded for the same reason: how a server treats a closed stream is a decision, and the trace shows only that the transport ended. The observable consequence — anything sent for the request afterwards — is TRAN-070's, judged by `transport.no-messages-after-cancellation`."
+    },
+    {
+      "id": "CANC-006",
+      "level": "SHOULD",
+      "exclusion": "A timeout is a duration configured inside the sender, and checks may not consult time — the limit LIFE-015 records. A trace shows a request answered or not, never the deadline the sender held it to."
+    },
+    {
+      "id": "CANC-007",
+      "level": "SHOULD",
+      "exclusion": "The trigger is the sender's own timeout expiring, which no message records and which checks may not compute from timestamps (LIFE-015's limit). A cancellation that is sent is judged for its shape by CANC-005; whether a timeout prompted it is not on the wire."
+    },
+    {
+      "id": "CANC-008",
+      "level": "SHOULD",
+      "exclusion": "Binds an SDK's programming interface — what its callers can configure — which has no protocol representation at all."
+    },
+    {
+      "id": "CANC-009",
+      "level": "SHOULD",
+      "exclusion": "A maximum timeout is a duration the sender enforces internally; checks may not consult time (LIFE-015), and a request still open when the recording ends says nothing about the deadline it would have hit."
+    },
+    {
+      "id": "CANC-010",
+      "level": "MUST",
+      "exclusion": "Neither condition has a sound falsifier. A recording may begin mid-session, so a `requestId` the trace never saw issued may still have been — the reason `transport.cancel-notification-references-request` judges only that a request is named. \"Believed to still be in-progress\" is the sender's belief, and the page's own Timing Considerations make a cancellation that crosses the response on the wire conforming. The server-sent case is narrowed further by CANC-011, which is judged."
+    },
+    {
+      "id": "CANC-012",
+      "level": "SHOULD",
+      "exclusion": "Stopping work and freeing resources are internal. The one wire-visible item, not answering a cancelled request, is a MUST NOT on both transport pages and judged there at that strength: TRAN-124 (`transport.no-messages-after-cancel-notification`, stdio) and TRAN-070 (`transport.no-messages-after-cancellation`, Streamable HTTP). Judging it again here would report every such answer twice, once as a warning."
+    },
+    {
+      "id": "CANC-013",
+      "level": "SHOULD",
+      "exclusion": "Ignoring a response is the absence of a reaction inside the client; nothing it does with a late response reaches the wire."
+    },
+    {
+      "id": "CANC-014",
+      "level": "MUST",
+      "exclusion": "Graceful handling is internal; the race itself is what a recording shows, and the checks are built not to convict it — TRAN-124 reports a message after a cancellation only once the server has demonstrably read it, and the conforming `stdio-cancellation-race` trace pins that. A party that failed to handle the race would show it through some other clause's violation, judged there."
+    },
+    {
+      "id": "CANC-015",
+      "level": "SHOULD",
+      "exclusion": "Logging is local diagnostics with no wire footprint."
+    },
+    {
+      "id": "CANC-016",
+      "level": "SHOULD",
+      "exclusion": "User-interface presentation, out by strategy rule 2: nothing a UI shows reaches the protocol."
+    },
+    {
+      "id": "CANC-017",
+      "level": "SHOULD",
+      "exclusion": "Ignoring a notification is the absence of a reaction, which a trace cannot tell apart from the notification never mattering. The party that sent the invalid notification is judged instead, where it can be: CANC-005 for a cancellation naming no request, CANC-011 for a server cancelling anything but a subscription."
+    },
+    {
+      "id": "PROG-004",
+      "level": "SHOULD",
+      "exclusion": "Whether a message is relevant and human readable is a judgment about its meaning, not its shape; any string satisfies the schema, and no mechanical reading of one decides relevance."
+    },
+    {
+      "id": "PROG-006",
+      "level": "SHOULD",
+      "exclusion": "Tracking is bookkeeping inside each party. Its wire consequences are the MUST rows beside it, which are judged: a reused token (PROG-002) and progress for a finished request (PROG-005, PROG-008)."
+    },
+    {
+      "id": "PROG-007",
+      "level": "SHOULD",
+      "exclusion": "A rate is messages per unit of time, and checks may not consult time — the limit LIFE-015 records. No count of notifications alone separates a flood from a long operation reporting often."
+    },
+    {
       "id": "CACH-002",
       "level": "MUST NOT",
       "exclusion": "Binds which cached response a client serves itself, and a cache hit is precisely the case where nothing reaches the wire. Serving from a cache produces no message: the client either sends a request or does not, and a session shows the request it sent, never the cached response it served instead."
@@ -525,6 +610,11 @@
       "id": "CACH-011",
       "level": "MUST",
       "exclusion": "Both the antecedent (this client is polling) and the obligation (its intervals are jittered and backed off) are properties of a request *schedule*, measurable only in elapsed time — which checks may not consult (LIFE-015) — and only across a run far longer than one recorded session."
+    },
+    {
+      "id": "CACH-019",
+      "level": "MUST NOT",
+      "exclusion": "A cache, and which authorization context may read from it, live inside the client or an intermediary: a hit serves a stored result without sending anything, so a cache shared across contexts produces no message. Nor does a trace carry the authorization context to compare: `mcp-trace-capture` records an allowlist of headers that never includes credentials, so no access token reaches the recording. Same boundary as CACH-002 (what a client may serve from its cache)."
     },
     {
       "id": "CACH-012",

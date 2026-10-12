@@ -32,6 +32,12 @@
 //! A third check reads the page as the site publishes it: every `source.section`
 //! anchor must be a heading id there, because reports link failing clauses to it
 //! ([`anchors`]).
+//!
+//! The census can only count the pages it is told about. A fourth check reads
+//! the site's navigation and holds `sources.json` to it: every page a revision
+//! publishes is in exactly one of `in_scope` / `out_of_scope`, and every
+//! exclusion carries its reason ([`pages`]) — so a page can no longer sit in
+//! neither list, where nothing above would ever read it.
 
 // `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
 // opposite demands about items in a binary crate's private modules; this follows
@@ -46,6 +52,7 @@ use serde::Deserialize;
 
 mod anchors;
 mod census;
+pub(crate) mod pages;
 
 /// The revisions this gate verifies, each against its own published pages.
 ///
@@ -85,7 +92,6 @@ struct Sources {
     /// spec-repo file it is published from.
     in_scope: BTreeMap<String, String>,
     /// Pages of the revision deliberately out of scope, with reasons.
-    #[allow(dead_code)]
     out_of_scope: BTreeMap<String, String>,
     /// Why the census exists and how to re-decide it, beside the data.
     #[serde(rename = "_must_census_policy")]
@@ -107,9 +113,13 @@ pub(crate) fn run() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    let Ok(navigation) = pages::navigation() else {
+        return ExitCode::FAILURE;
+    };
     let mut drifted = 0u32;
     let mut checked = 0u32;
     let mut broken = 0u32;
+    let mut unlisted = 0u32;
     let mut verified: Vec<&str> = Vec::new();
     let mut skipped: Vec<&str> = Vec::new();
     for revision in REVISIONS {
@@ -124,17 +134,18 @@ pub(crate) fn run() -> ExitCode {
             continue;
         };
         verified.push(revision);
-        match verify_revision(revision, &registry) {
+        match verify_revision(revision, &registry, &navigation) {
             Ok(count) => {
                 checked += count.quotes;
                 drifted += count.drifted;
                 broken += count.broken_anchors;
+                unlisted += count.unlisted_pages;
             }
             Err(()) => return ExitCode::FAILURE,
         }
     }
 
-    if !explain_failures(drifted, broken) {
+    if !explain_failures(drifted, broken, unlisted) {
         return ExitCode::FAILURE;
     }
     // The count is of revisions *verified*, not of revisions looped over. It
@@ -160,7 +171,7 @@ pub(crate) fn run() -> ExitCode {
 }
 
 /// Says what to do about each kind of failure found; `true` when there were none.
-fn explain_failures(drifted: u32, broken: u32) -> bool {
+fn explain_failures(drifted: u32, broken: u32, unlisted: u32) -> bool {
     if drifted > 0 {
         eprintln!(
             "xtask: spec-drift — {drifted} quote(s) drifted from the published text. \
@@ -175,7 +186,14 @@ fn explain_failures(drifted: u32, broken: u32) -> bool {
              (the nearest `####` or shallower heading: deeper ones get no anchor)."
         );
     }
-    drifted == 0 && broken == 0
+    if unlisted > 0 {
+        eprintln!(
+            "xtask: spec-drift — {unlisted} page-set problem(s) in sources.json. Every page \
+             the revision publishes belongs in exactly one of `in_scope` (with its source \
+             file, its entries and its census) or `out_of_scope` (with the reason)."
+        );
+    }
+    drifted == 0 && broken == 0 && unlisted == 0
 }
 
 /// What one revision's verification found.
@@ -186,6 +204,8 @@ struct Counts {
     drifted: u32,
     /// Requirements whose section anchor the published page does not offer.
     broken_anchors: u32,
+    /// Ways `sources.json` disagrees with the pages the revision publishes.
+    unlisted_pages: u32,
 }
 
 /// Verifies one revision's quotes against its own published pages, and each
@@ -194,10 +214,13 @@ struct Counts {
 /// Returns the [`Counts`], or `Err(())` when the revision could not be verified at
 /// all — an unreadable sources file, a page/registry disagreement, or a failed
 /// fetch. An unverified page is not a verified page.
-fn verify_revision(revision: &str, registry: &Registry) -> Result<Counts, ()> {
+fn verify_revision(revision: &str, registry: &Registry, navigation: &str) -> Result<Counts, ()> {
     let sources = load_sources(revision).map_err(|message| {
         eprintln!("xtask: spec-drift — {revision}: {message}");
     })?;
+    // First, because everything after it reads only the pages `in_scope` names:
+    // a page in neither list would otherwise pass every check this gate runs.
+    let unlisted_pages = pages::report(revision, &sources, navigation);
     let by_page = requirements_by_page(registry);
     if !sets_agree(&sources, &by_page) {
         return Err(());
@@ -253,6 +276,7 @@ fn verify_revision(revision: &str, registry: &Registry) -> Result<Counts, ()> {
         quotes: checked,
         drifted,
         broken_anchors: broken,
+        unlisted_pages,
     })
 }
 
@@ -366,126 +390,4 @@ pub(crate) mod quote;
 use quote::{normalize, quote_present};
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
-mod tests {
-    use super::*;
-    // Private to the quote module now; the test stays here with its siblings.
-    use super::quote::strip_numbered_marker;
-
-    #[test]
-    fn normalization_flattens_lists_the_way_quotes_are_written() {
-        // The SourceRef::quote convention: list items joined with "; " after
-        // the introducing ":". The page text has them as markdown bullets.
-        let page = "The client MUST send a request containing:\n\n- Protocol version supported\n- Client capabilities\n- Client implementation information\n";
-        let quote = "The client MUST send a request containing: Protocol version supported; Client capabilities; Client implementation information";
-        assert!(quote_present(&normalize(page), quote));
-    }
-
-    #[test]
-    fn drifted_text_is_not_matched() {
-        let page = "The server SHOULD respond promptly.";
-        let quote = "The server MUST respond promptly.";
-        assert!(!quote_present(&normalize(page), quote));
-    }
-
-    #[test]
-    fn bold_and_typographic_punctuation_are_normalized() {
-        let page = "Servers **MUST** validate the \u{201c}Origin\u{201d} header.";
-        let quote = "Servers MUST validate the \"Origin\" header.";
-        assert!(quote_present(&normalize(page), quote));
-    }
-
-    #[test]
-    fn numbered_markers_strip_like_bullets() {
-        assert_eq!(strip_numbered_marker("1. First"), Some("First"));
-        assert_eq!(strip_numbered_marker("12. Twelfth"), Some("Twelfth"));
-        assert_eq!(strip_numbered_marker("1.5a not a marker"), None);
-        assert_eq!(strip_numbered_marker("no digits"), None);
-    }
-
-    #[test]
-    fn links_unwrap_to_their_text_even_across_lines() {
-        let page = "Custom URI schemes **MUST** be in accordance with [RFC3986](https://datatracker.ietf.org/doc/html/rfc3986),\ntaking the above guidance in to account.";
-        let quote = "Custom URI schemes MUST be in accordance with RFC3986, taking the above guidance in to account.";
-        assert!(quote_present(&normalize(page), quote));
-        let cross_line = "declare it during\n[initialization](/specification/x#initialization):";
-        assert!(quote_present(
-            &normalize(cross_line),
-            "declare it during initialization:"
-        ));
-    }
-
-    #[test]
-    fn mdx_escaped_underscores_match_their_rendered_form() {
-        let page = "underscore (\\_), hyphen (-), and dot (.)";
-        assert!(quote_present(
-            &normalize(page),
-            "underscore (_), hyphen (-), and dot (.)"
-        ));
-    }
-
-    #[test]
-    fn selected_list_fragments_verify_individually() {
-        // The extraction convention may join a parent with one selected
-        // sub-item, skipping non-normative siblings: each fragment must
-        // still be verbatim on the page.
-        let page = "- `inputSchema`: JSON Schema defining expected parameters\n  - Follows the guidelines\n  - **MUST** be a valid JSON Schema object (not `null`)\n";
-        let quote = "`inputSchema`: JSON Schema defining expected parameters; MUST be a valid JSON Schema object (not `null`)";
-        assert!(quote_present(&normalize(page), quote));
-        // A reworded fragment still fails.
-        let drifted = "`inputSchema`: JSON Schema defining expected parameters; MUST be a valid JSON Schema object or null";
-        assert!(!quote_present(&normalize(page), drifted));
-    }
-
-    #[test]
-    fn italic_markers_strip_but_identifier_underscores_survive() {
-        let page = "This **SHOULD** be the _latest_ version; see `notifications/tools/list_changed` and the rendered (\\_) escape.";
-        let normalized = normalize(page);
-        assert!(normalized.contains("the latest version"), "{normalized}");
-        assert!(normalized.contains("list_changed"), "{normalized}");
-        assert!(normalized.contains("(_)"), "{normalized}");
-        assert!(quote_present(
-            &normalize(
-                "the server **MUST** either return `Content-Type: text/event-stream`, to initiate an SSE stream, or `Content-Type: application/json`, to return one JSON object, when the input is a JSON-RPC _request_"
-            ),
-            "the server MUST either return `Content-Type: text/event-stream`, to initiate an SSE stream, or `Content-Type: application/json`, to return one JSON object, when the input is a JSON-RPC request"
-        ));
-    }
-
-    #[test]
-    fn intro_colon_quotes_verify_parent_and_selected_item() {
-        let page = "Both parties **MUST**:\n\n- Respect the negotiated protocol version\n- Only use capabilities that were successfully negotiated\n";
-        let quote = "Both parties MUST: Only use capabilities that were successfully negotiated";
-        assert!(quote_present(&normalize(page), quote));
-        // The intro alone is not enough: a deleted item must still drift.
-        let drifted = "Both parties MUST: Only use capabilities that were never negotiated";
-        assert!(!quote_present(&normalize(page), drifted));
-    }
-
-    #[test]
-    fn the_committed_sources_file_parses_and_matches_the_registry() {
-        // The offline halves of the gate, pinned in `cargo test`: the file
-        // parses strictly and the two page sets agree. The network half
-        // (quote verification) runs in the scheduled job.
-        let sources = load_sources("2025-11-25").unwrap();
-        let registry = Registry::builtin_2025_11_25().unwrap();
-        let by_page = requirements_by_page(&registry);
-        assert!(sets_agree(&sources, &by_page));
-        assert_eq!(sources.in_scope.len(), 9, "the nine in-scope pages");
-        assert!(!sources.out_of_scope.is_empty());
-    }
-
-    #[test]
-    fn pages_and_sources_resolve_under_their_own_revision() {
-        // The point of deriving both from a revision rather than fixing them:
-        // with `2026-07-28` published beside `2025-11-25`, a quote checked
-        // against the wrong revision's page would drift silently in whichever
-        // direction the two texts happen to agree.
-        assert!(raw_base("2026-07-28").ends_with("/docs/specification/2026-07-28"));
-        assert!(
-            sources_path("2026-07-28")
-                .starts_with("crates/mcp-conformance-core/registry/2026-07-28/")
-        );
-        assert_ne!(raw_base("2025-11-25"), raw_base("2026-07-28"));
-    }
-}
+mod tests;

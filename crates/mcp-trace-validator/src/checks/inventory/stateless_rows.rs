@@ -292,4 +292,41 @@ pub(super) const ROWS: &[Check] = &[
         "resources.read-contents-non-empty",
         stateless::features::read_contents_non_empty
     ),
+    check!(
+        "cancellation.server-cancels-only-subscriptions",
+        stateless::cancellation::server_cancels_only_subscriptions
+    ),
+    check!("progress.token-type", stateless::progress::token_type),
+    check!(
+        "progress.token-unique-in-flight",
+        stateless::progress::token_unique_in_flight
+    ),
+    check!(
+        "progress.value-increases",
+        stateless::progress::value_increases
+    ),
+    check!(
+        "progress.no-progress-after-completion",
+        stateless::progress::no_progress_after_completion
+    ),
+    check!(
+        "transport.x-mcp-header-null-omitted",
+        stateless::transport::x_mcp_header_null_omitted
+    ),
+    check!(
+        "transport.null-param-header-not-expected",
+        stateless::transport::null_param_header_not_expected
+    ),
+    check!(
+        "transport.x-mcp-header-absent-omitted",
+        stateless::transport::x_mcp_header_absent_omitted
+    ),
+    check!(
+        "transport.absent-param-header-not-expected",
+        stateless::transport::absent_param_header_not_expected
+    ),
+    check!(
+        "transport.missing-param-header-rejected",
+        stateless::transport::missing_param_header_rejected
+    ),
 ];

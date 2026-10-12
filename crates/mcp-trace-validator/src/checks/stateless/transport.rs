@@ -12,8 +12,9 @@
 //! Split by subject. This file holds what the area shares: the POST pairing,
 //! header safety, and the *mirror* vocabulary that names each body value a POST
 //! must carry in a header. [`headers`] holds the request-header clauses the
-//! client owns, [`stream`] the response-stream clauses, and [`validation`] the
-//! rejection clauses the server owns.
+//! client owns, [`stream`] the response-stream clauses, [`validation`] the
+//! rejection clauses the server owns, and [`omission`] the `x-mcp-header`
+//! behaviour table's rows about headers left out, both parties' halves.
 
 use std::collections::BTreeMap;
 
@@ -23,6 +24,7 @@ use super::super::support::decode_base64;
 use crate::context::TraceContext;
 
 mod headers;
+mod omission;
 mod stdio;
 mod stream;
 mod validation;
@@ -37,6 +39,10 @@ pub(in crate::checks) use headers::{
     header_value_encoding, protocol_version_header_matches_body, protocol_version_header_present,
     request_metadata_headers, sentinel_marker_case, sentinel_pattern_encoded,
     x_mcp_header_mirrored, x_mcp_header_name_valid,
+};
+pub(in crate::checks) use omission::{
+    absent_param_header_not_expected, missing_param_header_rejected,
+    null_param_header_not_expected, x_mcp_header_absent_omitted, x_mcp_header_null_omitted,
 };
 pub(in crate::checks) use stdio::{
     cancel_notification_references_request, no_messages_after_cancel_notification,
@@ -255,7 +261,7 @@ pub(in crate::checks::stateless) fn designations_by_tool(
 }
 
 /// The instance value at a designation's exact property path, when present.
-fn value_at<'a>(root: &'a Value, path: &[String]) -> Option<&'a Value> {
+pub(super) fn value_at<'a>(root: &'a Value, path: &[String]) -> Option<&'a Value> {
     let mut cursor = root;
     for step in path {
         cursor = cursor.get(step)?;

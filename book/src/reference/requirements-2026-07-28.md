@@ -4,7 +4,7 @@
 
 # Requirements — `2026-07-28`
 
-Every normative clause of the `2026-07-28` specification that the validator's registry carries — 273 in all, 124 judged from a recorded trace and 149 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
+Every normative clause of the `2026-07-28` specification that the validator's registry carries — 307 in all, 140 judged from a recorded trace and 167 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -588,6 +588,16 @@ Judged by `meta.trace-context-format`.
 
 **Excluded.** Rejection is client-side handling after receipt; the trace records the icon metadata served, not what the client did with it. Same reasoning as BASE-024 at 2025-11-25.
 
+### BASE-084
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT initiate JSON-RPC requests, and clients do not send JSON-RPC responses.
+
+[`basic/patterns/index`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns)
+
+Judged by `transport.no-independent-server-requests`.
+
 ## TRAN
 
 ### TRAN-050
@@ -894,7 +904,7 @@ Judged by `transport.x-mcp-header-mirrored`.
 
 **MUST NOT** · binds the server
 
-> MUST NOT be empty MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1) MUST NOT contain control characters, including carriage return (CR, `\r`) or line feed (LF, `\n`) MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema` MUST only be applied to parameters with primitive types (integer, string, boolean).
+> Constraints on `x-mcp-header` values: MUST NOT be empty; MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1); MUST NOT contain control characters, including carriage return (CR, `\r`) or line feed (LF, `\n`); MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema`; MUST only be applied to parameters with primitive types (integer, string, boolean).
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
@@ -904,7 +914,7 @@ Judged by `transport.x-mcp-header-name-valid`.
 
 **MUST** · binds the server
 
-> Integer values MUST be within the safe range for JavaScript (−2<sup>53</sup>+1 to 2<sup>53</sup>−1) MUST only be applied to properties that are statically reachable from the schema root: reachable via a chain consisting solely of `properties` keys.
+> Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for JavaScript (−2<sup>53</sup>+1 to 2<sup>53</sup>−1); MUST only be applied to properties that are statically reachable from the schema root: reachable via a chain consisting solely of `properties` keys.
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
@@ -1079,6 +1089,76 @@ Judged by `transport.header-body-match-validated`.
 [`basic/transports/streamable-http#server-behavior-for-custom-headers`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
 
 Judged by `transport.header-mismatch-status`.
+
+### TRAN-130
+
+**MUST** · binds the client
+
+> Parameter value provided | Client MUST include the header
+
+[`basic/transports/streamable-http#server-behavior-for-custom-headers`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
+
+Judged by `transport.x-mcp-header-mirrored`.
+
+### TRAN-131
+
+**MUST** · binds the server
+
+> Parameter value provided | Client MUST include the header | Server MUST validate header matches body
+
+[`basic/transports/streamable-http#server-behavior-for-custom-headers`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
+
+Judged by `transport.header-body-match-validated`.
+
+### TRAN-132
+
+**MUST** · binds the client
+
+> Parameter value is `null` | Client MUST omit the header
+
+[`basic/transports/streamable-http#server-behavior-for-custom-headers`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
+
+Judged by `transport.x-mcp-header-null-omitted`.
+
+### TRAN-133
+
+**MUST NOT** · binds the server
+
+> Parameter value is `null` | Client MUST omit the header | Server MUST NOT expect the header
+
+[`basic/transports/streamable-http#server-behavior-for-custom-headers`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
+
+Judged by `transport.null-param-header-not-expected`.
+
+### TRAN-134
+
+**MUST** · binds the client
+
+> Parameter not in arguments | Client MUST omit the header
+
+[`basic/transports/streamable-http#server-behavior-for-custom-headers`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
+
+Judged by `transport.x-mcp-header-absent-omitted`.
+
+### TRAN-135
+
+**MUST NOT** · binds the server
+
+> Parameter not in arguments | Client MUST omit the header | Server MUST NOT expect the header
+
+[`basic/transports/streamable-http#server-behavior-for-custom-headers`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
+
+Judged by `transport.absent-param-header-not-expected`.
+
+### TRAN-136
+
+**MUST** · binds the server
+
+> Client omits header but value is in body | Non-conforming client | Server MUST reject the request
+
+[`basic/transports/streamable-http#server-behavior-for-custom-headers`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
+
+Judged by `transport.missing-param-header-rejected`.
 
 ### TRAN-099
 
@@ -1840,6 +1920,260 @@ Judged by `subscriptions.graceful-close-result-shape`.
 
 **Excluded.** The obligation begins after a re-established connection, which is a second session: the evidence would have to span two recordings, and nothing in either identifies the other as its predecessor. Same boundary as TRAN-127, which excludes the restart that precedes it.
 
+## CANC
+
+### CANC-001
+
+**SHOULD** · binds the client
+
+> A client SHOULD send a cancellation notification to indicate that a request it previously issued should be terminated.
+
+[`basic/patterns/cancellation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation)
+
+**Excluded.** The antecedent is the client's wish to stop a request, which produces no message of its own: a session with no cancellation is indistinguishable from one where nothing was abandoned. The same boundary TRAN-123's check records for the stdio half of this rule. What a cancellation looks like once sent is CANC-005's.
+
+### CANC-002
+
+**MUST** · binds the server
+
+> A server MUST send `notifications/cancelled` referencing a `subscriptions/listen` request ID when it tears down that subscription stream
+
+[`basic/patterns/cancellation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation)
+
+**Excluded.** The antecedent — the server deciding to tear a subscription down — is internal, and a stream that simply stops is indistinguishable in a recording from one the client closed or the network lost, so a missing notification has no falsifier. The message itself, when sent, is accepted by the checks it would otherwise trip: `meta.subscription-id-present` (BASE-039) and `subscriptions.only-requested-notifications` (SUBS-001) both treat a `notifications/cancelled` whose `requestId` names a `subscriptions/listen` request as the stream's own ending. Sending it for anything else is CANC-003's and judged.
+
+### CANC-003
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT send `notifications/cancelled` for any other purpose.
+
+[`basic/patterns/cancellation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation)
+
+Judged by `cancellation.server-cancels-only-subscriptions`.
+
+### CANC-004
+
+**MUST** · binds the server
+
+> The server MUST treat a client disconnect as cancellation of that request.
+
+[`basic/patterns/cancellation#transport-specific-cancellation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#transport-specific-cancellation)
+
+**Excluded.** The cancellation page's statement of TRAN-069, excluded for the same reason: how a server treats a closed stream is a decision, and the trace shows only that the transport ended. The observable consequence — anything sent for the request afterwards — is TRAN-070's, judged by `transport.no-messages-after-cancellation`.
+
+### CANC-005
+
+**MUST** · binds the client
+
+> The client MUST send a `notifications/cancelled` notification referencing the request ID.
+
+[`basic/patterns/cancellation#transport-specific-cancellation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#transport-specific-cancellation)
+
+Judged by `transport.cancel-notification-references-request`.
+
+### CANC-006
+
+**SHOULD** · binds the client and server
+
+> Implementations SHOULD establish timeouts for all sent requests, to prevent hung connections and resource exhaustion.
+
+[`basic/patterns/cancellation#timeouts`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#timeouts)
+
+**Excluded.** A timeout is a duration configured inside the sender, and checks may not consult time — the limit LIFE-015 records. A trace shows a request answered or not, never the deadline the sender held it to.
+
+### CANC-007
+
+**SHOULD** · binds the client and server
+
+> When the request has not received a success or error response within the timeout period, the sender SHOULD cancel the request and stop waiting for a response.
+
+[`basic/patterns/cancellation#timeouts`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#timeouts)
+
+**Excluded.** The trigger is the sender's own timeout expiring, which no message records and which checks may not compute from timestamps (LIFE-015's limit). A cancellation that is sent is judged for its shape by CANC-005; whether a timeout prompted it is not on the wire.
+
+### CANC-008
+
+**SHOULD** · binds the client and server
+
+> SDKs and other middleware SHOULD allow these timeouts to be configured on a per-request basis.
+
+[`basic/patterns/cancellation#timeouts`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#timeouts)
+
+**Excluded.** Binds an SDK's programming interface — what its callers can configure — which has no protocol representation at all.
+
+### CANC-009
+
+**SHOULD** · binds the client and server
+
+> However, implementations SHOULD always enforce a maximum timeout, regardless of progress notifications, to limit the impact of a misbehaving client or server.
+
+[`basic/patterns/cancellation#timeouts`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#timeouts)
+
+**Excluded.** A maximum timeout is a duration the sender enforces internally; checks may not consult time (LIFE-015), and a request still open when the recording ends says nothing about the deadline it would have hit.
+
+### CANC-010
+
+**MUST** · binds the client and server
+
+> Cancellation notifications MUST only reference requests that: Were previously issued by the client; Are believed to still be in-progress
+
+[`basic/patterns/cancellation#behavior-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#behavior-requirements)
+
+**Excluded.** Neither condition has a sound falsifier. A recording may begin mid-session, so a `requestId` the trace never saw issued may still have been — the reason `transport.cancel-notification-references-request` judges only that a request is named. "Believed to still be in-progress" is the sender's belief, and the page's own Timing Considerations make a cancellation that crosses the response on the wire conforming. The server-sent case is narrowed further by CANC-011, which is judged.
+
+### CANC-011
+
+**MUST** · binds the server
+
+> Server-sent cancellation notifications MUST reference a `subscriptions/listen` request, to terminate that subscription stream
+
+[`basic/patterns/cancellation#behavior-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#behavior-requirements)
+
+Judged by `cancellation.server-cancels-only-subscriptions`.
+
+### CANC-012
+
+**SHOULD** · binds the server
+
+> Servers receiving cancellation notifications SHOULD: Stop processing the cancelled request; Free associated resources; Not send a response for the cancelled request
+
+[`basic/patterns/cancellation#behavior-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#behavior-requirements)
+
+**Excluded.** Stopping work and freeing resources are internal. The one wire-visible item, not answering a cancelled request, is a MUST NOT on both transport pages and judged there at that strength: TRAN-124 (`transport.no-messages-after-cancel-notification`, stdio) and TRAN-070 (`transport.no-messages-after-cancellation`, Streamable HTTP). Judging it again here would report every such answer twice, once as a warning.
+
+### CANC-013
+
+**SHOULD** · binds the client
+
+> The client SHOULD ignore any response to the cancelled request that arrives afterward
+
+[`basic/patterns/cancellation#behavior-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#behavior-requirements)
+
+**Excluded.** Ignoring a response is the absence of a reaction inside the client; nothing it does with a late response reaches the wire.
+
+### CANC-014
+
+**MUST** · binds the client and server
+
+> Both parties MUST handle these race conditions gracefully:
+
+[`basic/patterns/cancellation#timing-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#timing-considerations)
+
+**Excluded.** Graceful handling is internal; the race itself is what a recording shows, and the checks are built not to convict it — TRAN-124 reports a message after a cancellation only once the server has demonstrably read it, and the conforming `stdio-cancellation-race` trace pins that. A party that failed to handle the race would show it through some other clause's violation, judged there.
+
+### CANC-015
+
+**SHOULD** · binds the client and server
+
+> Both parties SHOULD log cancellation reasons for debugging
+
+[`basic/patterns/cancellation#implementation-notes`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#implementation-notes)
+
+**Excluded.** Logging is local diagnostics with no wire footprint.
+
+### CANC-016
+
+**SHOULD** · binds the client
+
+> Application UIs SHOULD indicate when cancellation is requested
+
+[`basic/patterns/cancellation#implementation-notes`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#implementation-notes)
+
+**Excluded.** User-interface presentation, out by strategy rule 2: nothing a UI shows reaches the protocol.
+
+### CANC-017
+
+**SHOULD** · binds the client and server
+
+> Invalid cancellation notifications SHOULD be ignored: Unknown request IDs; Already completed requests; Malformed notifications
+
+[`basic/patterns/cancellation#error-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation#error-handling)
+
+**Excluded.** Ignoring a notification is the absence of a reaction, which a trace cannot tell apart from the notification never mattering. The party that sent the invalid notification is judged instead, where it can be: CANC-005 for a cancellation naming no request, CANC-011 for a server cancelling anything but a subscription.
+
+## PROG
+
+### PROG-001
+
+**MUST** · binds the client
+
+> Progress tokens MUST be a string or integer value
+
+[`basic/patterns/progress#progress-flow`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/progress#progress-flow)
+
+Judged by `progress.token-type`.
+
+### PROG-002
+
+**MUST** · binds the client
+
+> Progress tokens can be chosen by the client using any means, but MUST be unique across all active requests.
+
+[`basic/patterns/progress#progress-flow`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/progress#progress-flow)
+
+Judged by `progress.token-unique-in-flight`.
+
+### PROG-003
+
+**MUST** · binds the server
+
+> The `progress` value MUST increase with each notification, even if the total is unknown.
+
+[`basic/patterns/progress#progress-flow`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/progress#progress-flow)
+
+Judged by `progress.value-increases`.
+
+### PROG-004
+
+**SHOULD** · binds the server
+
+> The `message` field SHOULD provide relevant human readable progress information.
+
+[`basic/patterns/progress#progress-flow`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/progress#progress-flow)
+
+**Excluded.** Whether a message is relevant and human readable is a judgment about its meaning, not its shape; any string satisfies the schema, and no mechanical reading of one decides relevance.
+
+### PROG-005
+
+**MUST** · binds the server
+
+> Progress notifications MUST only reference tokens that: Were provided in an active request; Are associated with an in-progress operation
+
+[`basic/patterns/progress#behavior-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/progress#behavior-requirements)
+
+Judged by `progress.no-progress-after-completion`.
+
+### PROG-006
+
+**SHOULD** · binds the client and server
+
+> Clients and servers SHOULD track active progress tokens
+
+[`basic/patterns/progress#implementation-notes`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/progress#implementation-notes)
+
+**Excluded.** Tracking is bookkeeping inside each party. Its wire consequences are the MUST rows beside it, which are judged: a reused token (PROG-002) and progress for a finished request (PROG-005, PROG-008).
+
+### PROG-007
+
+**SHOULD** · binds the client and server
+
+> Both parties SHOULD implement rate limiting to prevent flooding
+
+[`basic/patterns/progress#implementation-notes`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/progress#implementation-notes)
+
+**Excluded.** A rate is messages per unit of time, and checks may not consult time — the limit LIFE-015 records. No count of notifications alone separates a flood from a long operation reporting often.
+
+### PROG-008
+
+**MUST** · binds the server
+
+> Progress notifications MUST stop after completion
+
+[`basic/patterns/progress#implementation-notes`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/progress#implementation-notes)
+
+Judged by `progress.no-progress-after-completion`.
+
 ## CACH
 
 ### CACH-001
@@ -1951,6 +2285,16 @@ Judged by `caching.ttl-non-negative`.
 [`server/utilities/caching#freshness-calculation`](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#freshness-calculation)
 
 **Excluded.** Both the antecedent (this client is polling) and the obligation (its intervals are jittered and backed off) are properties of a request *schedule*, measurable only in elapsed time — which checks may not consult (LIFE-015) — and only across a run far longer than one recorded session.
+
+### CACH-019
+
+**MUST NOT** · binds the client
+
+> Caches MUST NOT be shared across authorization contexts (e.g. a different access token requires a different cache).
+
+[`server/utilities/caching#cache-scope-field`](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cache-scope-field)
+
+**Excluded.** A cache, and which authorization context may read from it, live inside the client or an intermediary: a hit serves a stored result without sending anything, so a cache shared across contexts produces no message. Nor does a trace carry the authorization context to compare: `mcp-trace-capture` records an allowlist of headers that never includes credentials, so no access token reaches the recording. Same boundary as CACH-002 (what a client may serve from its cache).
 
 ### CACH-012
 
@@ -2404,7 +2748,7 @@ Judged by `tools.name-unique`.
 
 **MUST NOT** · binds the server
 
-> MUST NOT be empty MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1) MUST NOT contain control characters, including carriage return (CR, `\r`) or line feed (LF, `\n`) MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema` MUST only be applied to parameters with primitive types (integer, string, boolean).
+> Constraints on `x-mcp-header` values: MUST NOT be empty; MUST match HTTP field-name token syntax (`1*tchar`, RFC 9110 Section 5.1); MUST NOT contain control characters, including carriage return (CR, `\r`) or line feed (LF, `\n`); MUST be case-insensitively unique among all `x-mcp-header` values in the `inputSchema`; MUST only be applied to parameters with primitive types (integer, string, boolean).
 
 [`server/tools#x-mcp-header`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header)
 
@@ -2414,7 +2758,7 @@ Judged by `transport.x-mcp-header-name-valid`.
 
 **MUST** · binds the client
 
-> Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (−2<sup>53</sup>+1 to 2<sup>53</sup>−1) MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints.
+> Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (−2<sup>53</sup>+1 to 2<sup>53</sup>−1); MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments; Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints.
 
 [`server/tools#x-mcp-header`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header)
 
