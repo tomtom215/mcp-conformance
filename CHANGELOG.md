@@ -249,6 +249,10 @@ below is stated again in its entry, with the reasoning.
   `cargo xtask gates` (new task `page-set`) checks offline that no page is in both
   lists, every exclusion has a reason, and every in-scope page names its source file
   and has a census entry.
+- **[STABILITY.md](STABILITY.md)**: what each release keeps stable (the Rust API,
+  verdicts, requirement IDs, exit codes, CLI flags, the JSON, JUnit and SARIF
+  reports, the trace format, the MSRV, Cargo features), what counts as breaking
+  each, and how a breaking change is made.
 - **Release binaries embed their dependency list** (built with `cargo auditable`),
   so `cargo audit bin` checks a downloaded `mcp-trace-validator` or
   `mcp-trace-capture` against RustSec without its lockfile.
