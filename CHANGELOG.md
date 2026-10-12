@@ -11,6 +11,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Removed
+
+- **`context::draft`**, deprecated in 0.6.0 as promised there: use
+  `context::stateless`, which holds the same items.
+
 ### Fixed
 
 - **`SUBS-001`/`SUBS-002` told a reused subscription id from the subscription

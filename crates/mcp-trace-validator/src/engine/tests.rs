@@ -290,14 +290,3 @@ fn try_validate_reports_events_out_of_order_instead_of_panicking() {
          strictly increasing seq"
     );
 }
-
-/// The pre-0.6.0 path still names the same items, for one minor release.
-#[test]
-#[allow(deprecated)]
-fn the_deprecated_draft_path_names_the_stateless_items() {
-    fn same<T>(_: fn() -> T, _: fn() -> T) {}
-    same::<Option<crate::context::draft::DraftPhase>>(
-        || None,
-        || None::<crate::context::stateless::DraftPhase>,
-    );
-}
