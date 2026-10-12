@@ -242,10 +242,11 @@ fn a_response_that_never_completes_does_not_hold_the_proxy_open() {
         started.elapsed()
     );
     assert_eq!(status.code(), Some(128 + 15), "{status:?}");
+    // The forced stop cut a request off: the trace says the transport was torn
+    // down, not closed in an orderly way.
     let text = std::fs::read_to_string(&trace).unwrap();
-    assert!(
-        text.lines().last().unwrap().contains("transport-close"),
-        "{text}"
-    );
+    let last: serde_json::Value = serde_json::from_str(text.lines().last().unwrap()).unwrap();
+    assert_eq!(last["event"], "transport-abort", "{text}");
+    assert_eq!(last["direction"], "client-to-server", "{text}");
     std::fs::remove_file(&trace).ok();
 }

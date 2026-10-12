@@ -233,7 +233,9 @@ async fn serve_until_stopped(
     tokio::select! {
         served = &mut serving => Ok(served),
         again = signals.recv() => {
-            traces.close_all(LifecycleEvent::TransportClose);
+            // Requests still in flight are cut off: the transport did not close in
+            // an orderly way.
+            traces.close_all(LifecycleEvent::TransportAbort);
             eprintln!(
                 "mcp-trace-capture: {} again: stopped without waiting for open requests",
                 again.name()

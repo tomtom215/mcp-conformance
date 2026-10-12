@@ -120,7 +120,10 @@ Stop it with Ctrl-C (or `SIGTERM`/`SIGHUP`). Standalone event streams — the GE
 stream an MCP client keeps open for its whole session — are cut at once (aborted, not
 ended cleanly, so the client can tell); every other request in flight, SSE responses
 to POSTs included, gets 3 seconds to finish. The trace is then closed with a
-`transport-close` event and the summary printed. A second signal stops at once. `https://` upstreams work (rustls,
+`transport-close` event and the summary printed. A second signal stops at once, and
+the trace ends with a `transport-abort` instead: requests still in flight were cut
+off. Anything a cut-off exchange carries after the close is counted in the summary,
+not recorded. `https://` upstreams work (rustls,
 the platform's root certificates — loaded only for an `https` upstream, and checked
 before the trace is created: where none can be found, the proxy refuses to start).
 SSE streams are relayed as they arrive, event by event.

@@ -83,6 +83,10 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 - **`mcp-trace-capture stdio` says when the client has gone away.** A failed write to
   the client (a closed pipe) ended the relay of the server's output without a word;
   it is now reported once on stderr.
+- **`mcp-trace-capture http`: a forced stop ends the trace with `transport-abort`.** A
+  second signal cuts off the requests still in flight, but the trace recorded an
+  orderly `transport-close`. Events refused because the trace was already closed are
+  now counted in the summary, over HTTP and stdio alike.
 
 ## [0.6.0] - 2026-10-04
 
