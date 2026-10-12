@@ -304,6 +304,20 @@ fn http_summary(
     match served {
         Ok(unrecorded) => {
             report_unrecorded("session", unrecorded.not_json, unrecorded.oversized);
+            if unrecorded.altered > 0 {
+                eprintln!(
+                    "mcp-trace-capture: {} session message(s) were JSON the trace cannot hold \
+                     as sent ({ALTERED}) and are not in the trace (forwarded unchanged)",
+                    unrecorded.altered
+                );
+            }
+            if unrecorded.other_events > 0 {
+                eprintln!(
+                    "mcp-trace-capture: {} SSE event(s) had a type other than `message`, which \
+                     MCP clients ignore, and are not in the trace (forwarded unchanged)",
+                    unrecorded.other_events
+                );
+            }
             if unrecorded.upstream_failures > 0 {
                 eprintln!(
                     "mcp-trace-capture: {} request(s) could not reach the upstream and were \
@@ -359,8 +373,20 @@ fn report_stdio(side: &str, unrecorded: stdio::Unrecorded) {
             unrecorded.not_json
         );
     }
+    if unrecorded.altered > 0 {
+        eprintln!(
+            "mcp-trace-capture: {} {side} line(s) were JSON the trace cannot hold as sent \
+             ({ALTERED}); each is recorded as a string payload, which the validator reports as \
+             not a valid MCP message",
+            unrecorded.altered
+        );
+    }
     report_unrecorded(side, 0, unrecorded.oversized);
 }
+
+/// Why a JSON message cannot be recorded as parsed JSON.
+const ALTERED: &str = "a number a double cannot hold exactly, such as an integer past 64 bits, or a repeated \
+     member name";
 
 fn report_unrecorded(side: &str, not_json: u64, oversized: u64) {
     if not_json > 0 {

@@ -50,6 +50,17 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   its session is cut now, and it is aborted rather than ended, so the client can tell
   it from a stream the server finished; a POST's SSE response gets the same 3 seconds
   as any other request in flight.
+- **`mcp-trace-capture` no longer records a value the message did not carry.** An
+  integer past 64 bits (an id of `12345678901234567890123`) was recorded as the
+  nearest double, which the validator then convicted as a non-integer id
+  (`BASE-043`), and of a member name repeated in one object only the last value was
+  kept. The validator reads payloads as parsed JSON too, so no recorded payload could
+  be faithful; such a message is now treated as the transport treats non-JSON —
+  recorded as the line over stdio, left out over HTTP — and counted in the summary.
+  A spelling (`1E2` for `100`) is not a change of value and is recorded as before.
+- **`mcp-trace-capture http` records only SSE events of type `message`.** An event
+  with another `event:` type was recorded as a message, though MCP clients — both
+  official SDKs' — ignore it. It is forwarded, left out, and counted.
 
 ## [0.6.0] - 2026-10-04
 

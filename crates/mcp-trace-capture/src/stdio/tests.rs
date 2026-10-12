@@ -71,7 +71,8 @@ async fn bytes_pass_through_unchanged_and_non_json_lines_are_recorded_as_strings
             unrecorded,
             Unrecorded {
                 not_json: 4,
-                oversized: 0
+                oversized: 0,
+                altered: 0,
             }
         );
         let payloads: Vec<serde_json::Value> = events(&sink)
@@ -217,12 +218,60 @@ async fn a_line_that_would_outgrow_the_line_limit_is_counted_as_oversized() {
             unrecorded,
             Unrecorded {
                 not_json: 0,
-                oversized: 1
+                oversized: 1,
+                altered: 0,
             }
         );
         let written = events(&sink);
         assert_eq!(written.len(), 1);
         assert_eq!(written[0].seq, 0, "the refused line used no seq");
+    })
+    .await;
+}
+
+/// JSON the trace cannot hold as sent — an id past 64 bits, which parsing
+/// turns into a non-integer the validator would then convict, or a repeated
+/// member name, which parsing collapses — is recorded as the line itself, as
+/// non-JSON is, and counted apart.
+#[tokio::test]
+async fn json_the_trace_would_alter_is_recorded_as_the_line() {
+    bounded(async {
+        let sink = Shared::default();
+        let recorder = Recorder::new(sink.clone());
+        let input = "{\"jsonrpc\":\"2.0\",\"id\":12345678901234567890123,\"method\":\"ping\"}\n\
+                     {\"jsonrpc\":\"2.0\",\"id\":1,\"id\":2,\"method\":\"ping\"}\n\
+                     {\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"ping\",\"params\":{\"x\":1E2}}\n";
+        let unrecorded = pump(
+            &recorder,
+            Direction::ClientToServer,
+            input.as_bytes(),
+            tokio::io::sink(),
+            1024,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            unrecorded,
+            Unrecorded {
+                not_json: 0,
+                oversized: 0,
+                altered: 2,
+            }
+        );
+        let payloads: Vec<serde_json::Value> = events(&sink)
+            .into_iter()
+            .map(|event| match event.body {
+                EventBody::Message { payload } => payload,
+                other => panic!("{other:?}"),
+            })
+            .collect();
+        let lines: Vec<&str> = input.lines().collect();
+        assert_eq!(payloads[0], lines[0]);
+        assert_eq!(payloads[1], lines[1]);
+        assert_eq!(
+            payloads[2]["params"]["x"], 100.0,
+            "a spelling is not a change"
+        );
     })
     .await;
 }

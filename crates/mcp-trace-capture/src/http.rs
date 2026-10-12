@@ -22,7 +22,9 @@
 //! are passed on — so `seq` order is causal.
 //!
 //! **Limits.** A body or SSE event larger than the message limit is forwarded intact
-//! and counted, not recorded: the proxy never alters traffic to fit its trace.
+//! and counted, not recorded: the proxy never alters traffic to fit its trace. So
+//! is one that is not JSON, or is JSON the trace cannot hold as sent, and an SSE
+//! event of a type other than `message`.
 
 use std::future::{Future, IntoFuture as _};
 use std::io;
@@ -130,6 +132,11 @@ impl Options {
 pub struct Unrecorded {
     /// Bodies or SSE events that were not JSON.
     pub not_json: u64,
+    /// Bodies or SSE events that were JSON the trace cannot hold as sent
+    /// ([`Parsed::Altered`](crate::framing::Parsed::Altered)).
+    pub altered: u64,
+    /// SSE events of a type other than `message`, which MCP clients ignore.
+    pub other_events: u64,
     /// Bodies or SSE events over the message limit.
     pub oversized: u64,
     /// Requests the upstream could not be reached for (answered 502 by the proxy).
@@ -146,6 +153,8 @@ pub struct Unrecorded {
 #[derive(Debug, Default)]
 struct Counters {
     not_json: AtomicU64,
+    altered: AtomicU64,
+    other_events: AtomicU64,
     oversized: AtomicU64,
     upstream_failures: AtomicU64,
     upstream_cut: AtomicU64,
@@ -157,6 +166,8 @@ impl Counters {
     fn snapshot(&self) -> Unrecorded {
         Unrecorded {
             not_json: self.not_json.load(Ordering::Relaxed),
+            altered: self.altered.load(Ordering::Relaxed),
+            other_events: self.other_events.load(Ordering::Relaxed),
             oversized: self.oversized.load(Ordering::Relaxed),
             upstream_failures: self.upstream_failures.load(Ordering::Relaxed),
             upstream_cut: self.upstream_cut.load(Ordering::Relaxed),

@@ -236,5 +236,39 @@ fn the_client_url_redirects_and_404s_are_spelled_out() {
     assert!(has(&format!("e.g. http://{address}/mcp")), "{stderr:?}");
     assert!(!has("outside 2xx"), "{stderr:?}");
     assert!(!has("404"), "{stderr:?}");
+    assert!(!has("cannot hold"), "{stderr:?}");
+    assert!(!has("other than `message`"), "{stderr:?}");
+    std::fs::remove_file(&trace).ok();
+}
+
+/// What the proxy forwarded but left out of the trace rather than record wrongly
+/// is named at exit: JSON the trace cannot hold as sent, and SSE events of a type
+/// MCP clients do not read as messages.
+#[test]
+fn json_the_trace_cannot_hold_and_typed_events_are_reported() {
+    let server = upstream(|_, _| {
+        let body = "event: ping\ndata: {}\n\ndata: {\"id\":1,\"id\":2}\n\n";
+        format!(
+            "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\n\
+             connection: close\r\n\r\n{body}",
+            body.len()
+        )
+    });
+    let trace = scratch("unrecorded.jsonl");
+    let (mut proxy, address, lines) = Proxy::start(http(&trace, &format!("http://{server}")));
+    let response = get(&address, "/mcp");
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+    assert_eq!(proxy.interrupt().code(), Some(0));
+    std::thread::sleep(Duration::from_millis(100));
+    let stderr: Vec<String> = lines.try_iter().collect();
+    let has = |text: &str| stderr.iter().any(|line| line.contains(text));
+    assert!(
+        has("1 session message(s) were JSON the trace cannot hold as sent"),
+        "{stderr:?}"
+    );
+    assert!(
+        has("1 SSE event(s) had a type other than `message`"),
+        "{stderr:?}"
+    );
     std::fs::remove_file(&trace).ok();
 }

@@ -17,7 +17,7 @@ use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, Transpor
 
 use super::Proxy;
 use super::target::{is_event_stream, location, target};
-use crate::framing::{SseParser, parse_json};
+use crate::framing::{Parsed, SseParser, parse_message};
 use crate::headers;
 use crate::recorder::{NotRecorded, Recorder};
 use crate::traces::Route;
@@ -234,16 +234,18 @@ impl Proxy {
     }
 
     /// The message a complete body carries: none for an empty one; for one that
-    /// is not JSON, none, counted.
+    /// is not JSON, or JSON the trace cannot hold as sent, none, counted.
     fn message_of(&self, body: &[u8]) -> Option<EventBody> {
         if body.is_empty() {
             return None;
         }
-        let payload = parse_json(body);
-        if payload.is_none() {
-            self.counters.not_json.fetch_add(1, Ordering::Relaxed);
-        }
-        payload.map(|payload| EventBody::Message { payload })
+        let count = match parse_message(body) {
+            Parsed::Json(payload) => return Some(EventBody::Message { payload }),
+            Parsed::Altered => &self.counters.altered,
+            Parsed::NotJson => &self.counters.not_json,
+        };
+        count.fetch_add(1, Ordering::Relaxed);
+        None
     }
 
     /// Counts a message the recorder refused for its length — one whose bytes fit
@@ -265,7 +267,7 @@ impl Proxy {
         S: Stream<Item = Result<Bytes, axum::Error>>,
     {
         let mut parser = SseParser::new(self.options.max_message);
-        let mut oversized_seen = 0;
+        let (mut oversized_seen, mut other_seen) = (0, 0);
         // The upstream failing mid-stream reaches the client as the same
         // truncation, and the trace as an aborted transport.
         let on_error = Arc::clone(&self);
@@ -274,25 +276,23 @@ impl Proxy {
             .inspect_err(move |error| on_error.upstream_cut(error_route.recorder(), error))
             .inspect_ok(move |chunk| {
                 for data in parser.push(chunk) {
-                    match parse_json(&data) {
-                        Some(payload) => {
-                            self.count_refused(route.recorder().record(
-                                Direction::ServerToClient,
-                                TransportKind::StreamableHttp,
-                                EventBody::Message { payload },
-                            ));
-                        }
-                        None => {
-                            self.counters.not_json.fetch_add(1, Ordering::Relaxed);
-                        }
+                    if let Some(message) = self.message_of(&data) {
+                        self.count_refused(route.recorder().record(
+                            Direction::ServerToClient,
+                            TransportKind::StreamableHttp,
+                            message,
+                        ));
                     }
                 }
-                // The parser's count only grows; add what this chunk contributed.
-                let oversized = parser.oversized();
+                // The parser's counts only grow; add what this chunk contributed.
+                let (oversized, other) = (parser.oversized(), parser.other_types());
                 self.counters
                     .oversized
                     .fetch_add(oversized - oversized_seen, Ordering::Relaxed);
-                oversized_seen = oversized;
+                self.counters
+                    .other_events
+                    .fetch_add(other - other_seen, Ordering::Relaxed);
+                (oversized_seen, other_seen) = (oversized, other);
             })
     }
 

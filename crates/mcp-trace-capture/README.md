@@ -145,13 +145,16 @@ SSE streams are relayed as they arrive, event by event.
 - **Nothing altered to fit the trace.** A message larger than `--max-message-bytes`
   (default 64 MiB) is forwarded intact, left out of the trace, and counted in the
   summary printed at exit. So is the rare message within the limit whose recorded
-  line would not be (below), and, over HTTP, a body or SSE event that is not JSON.
+  line would not be (below), and, over HTTP, a body or SSE event that is not JSON or
+  is JSON the trace cannot hold as sent (below), and an SSE event whose `event` type
+  is not `message` — MCP clients, both official SDKs' among them, act on no other.
 - **Nothing on a stdio stream goes unjudged.** A stdio line that is not JSON — a log
   line on the server's stdout, a blank line, a truncated message — is forwarded
   intact and recorded as a message whose payload is the line as a JSON string
   (invalid UTF-8 replaced, line terminator removed). The validator reports it as
   not a valid MCP message (`TRAN-004`/`TRAN-005` at 2025-11-25, `TRAN-117` at
-  2026-07-28), and the exit summary counts it.
+  2026-07-28), and the exit summary counts it. So is a line of JSON the trace cannot
+  hold as sent (below), counted apart.
 - **Readable by the validator as recorded.** No trace line is longer than
   `--max-message-bytes` plus 1 MiB, checked on the line as written — which, at the
   default, is exactly the longest line `mcp-trace-validator` accepts by default. With
@@ -162,7 +165,13 @@ SSE streams are relayed as they arrive, event by event.
   `mcp-conformance-core`). `Authorization` and cookies are forwarded, never written.
   **Message content is recorded in full** — as parsed JSON, so whitespace, member
   order (written sorted) and number spelling (`1E2` as `100.0`) are not kept, but
-  every value is: review a trace before sharing it.
+  every value is: review a trace before sharing it. JSON whose parsed value would
+  differ from what was sent — a number a double cannot hold exactly (an id past 64
+  bits, which would come back as a non-integer), or a member name repeated in one
+  object (only the last would remain) — is never recorded as parsed JSON: the
+  validator reads payloads the same way, so no recorded value could say what was
+  sent. It is treated as the transport treats non-JSON: over stdio, recorded as the
+  line, over HTTP, left out; counted in the summary either way.
 - **Crash-safe.** Every event is flushed as it is written; a capture killed with
   `SIGKILL` keeps what it recorded. Any other request to stop closes the trace first.
 
@@ -177,6 +186,10 @@ SSE streams are relayed as they arrive, event by event.
   need a proxy each. Without `{session}`, everything goes to the one file, and the
   capture warns at exit when it holds more than one session (more than one client
   `initialize` request, or more than one `Mcp-Session-Id`).
+- **An SSE event's data, and nothing else.** Only the `data` of events of type
+  `message` is recorded; `id` and `retry` fields are forwarded but not recorded, so a
+  trace does not show which event a client could resume from (the `Last-Event-ID`
+  request header is recorded).
 - **The SDK-independent path.** The wrapper and proxy link no MCP SDK; what is recorded
   is what crossed the wire.
 

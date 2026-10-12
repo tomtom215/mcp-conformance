@@ -23,7 +23,7 @@ use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, Transpor
 use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 use tokio::process::{ChildStdin, ChildStdout};
 
-use crate::framing::{Line, LineSplitter, parse_json};
+use crate::framing::{Line, LineSplitter, Parsed, parse_message};
 use crate::recorder::{NotRecorded, Recorder};
 use crate::signals::{Signals, Stop};
 use process::ServerProcess;
@@ -42,6 +42,11 @@ pub struct Unrecorded {
     pub not_json: u64,
     /// Lines longer than the message limit, forwarded but not recorded.
     pub oversized: u64,
+    /// JSON lines the trace cannot hold as sent — a number a double cannot
+    /// represent exactly, or a repeated member name ([`Parsed::Altered`]).
+    /// Each is recorded as non-JSON lines are, as a string payload: the parsed
+    /// value would say something the line did not.
+    pub altered: u64,
 }
 
 /// A pump's running [`Unrecorded`] counts, readable while it runs — so what it left
@@ -50,6 +55,7 @@ pub struct Unrecorded {
 struct Tally {
     not_json: AtomicU64,
     oversized: AtomicU64,
+    altered: AtomicU64,
 }
 
 impl Tally {
@@ -57,6 +63,7 @@ impl Tally {
         Unrecorded {
             not_json: self.not_json.load(Ordering::Relaxed),
             oversized: self.oversized.load(Ordering::Relaxed),
+            altered: self.altered.load(Ordering::Relaxed),
         }
     }
 }
@@ -119,13 +126,20 @@ where
 fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Tally) {
     match line {
         Line::Complete(bytes) => {
-            let parsed = parse_json(&bytes);
-            let is_json = parsed.is_some();
-            // A line that is not JSON is still what crossed the wire: record it as a
-            // string (lossy UTF-8) so the validator can judge it.
-            let payload = parsed.unwrap_or_else(|| {
-                serde_json::Value::String(String::from_utf8_lossy(&bytes).into_owned())
-            });
+            // A line that is not JSON, or JSON whose parsed value would not say
+            // what it said, is still what crossed the wire: record it as a string
+            // (lossy UTF-8) so the validator can judge it.
+            let (payload, tally_of) = match parse_message(&bytes) {
+                Parsed::Json(value) => (value, None),
+                parsed => (
+                    serde_json::Value::String(String::from_utf8_lossy(&bytes).into_owned()),
+                    Some(if parsed == Parsed::Altered {
+                        &tally.altered
+                    } else {
+                        &tally.not_json
+                    }),
+                ),
+            };
             let outcome = recorder.record(
                 direction,
                 TransportKind::Stdio,
@@ -138,10 +152,11 @@ fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Ta
                 // Not in the trace, so not a finding in it: the recorder counts
                 // what arrived after the close.
                 Err(NotRecorded::Closed) => {}
-                _ if !is_json => {
-                    tally.not_json.fetch_add(1, Ordering::Relaxed);
+                _ => {
+                    if let Some(count) = tally_of {
+                        count.fetch_add(1, Ordering::Relaxed);
+                    }
                 }
-                _ => {}
             }
         }
         Line::Oversized => {
