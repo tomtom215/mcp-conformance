@@ -194,6 +194,7 @@ fn the_client_url_redirects_and_404s_are_spelled_out() {
             "HTTP/1.1 307 Temporary Redirect\r\nlocation: http://{own}/mcp/next\r\n\
              content-length: 0\r\nconnection: close\r\n\r\n"
         ),
+        "/ok" => "HTTP/1.1 200 OK\r\ncontent-length: 0\r\nconnection: close\r\n\r\n".to_owned(),
         _ => "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n".to_owned(),
     });
     let trace = scratch("paths.jsonl");
@@ -225,10 +226,12 @@ fn the_client_url_redirects_and_404s_are_spelled_out() {
     );
     std::fs::remove_file(&trace).ok();
 
-    // A root upstream: the client URL needs the endpoint path, and with no
-    // traffic there is nothing to remark on.
+    // A root upstream: the client URL needs the endpoint path, and with only
+    // a 200 answered there is nothing to remark on.
     let trace = scratch("root.jsonl");
     let (mut proxy, address, lines) = Proxy::start(http(&trace, &format!("http://{server}")));
+    let ok = get(&address, "/ok");
+    assert!(ok.starts_with("HTTP/1.1 200"), "{ok}");
     assert_eq!(proxy.interrupt().code(), Some(0));
     std::thread::sleep(Duration::from_millis(100));
     let stderr: Vec<String> = lines.try_iter().collect();
