@@ -102,12 +102,22 @@ pub(in crate::checks) fn ttl_non_negative(context: &TraceContext<'_>, sink: &mut
             continue;
         };
         sink.examined();
-        match ttl.as_i64() {
-            Some(value) if value >= 0 => {}
-            Some(value) => sink.push(
+        // The schema types `ttlMs` as JSON Schema `integer`, which admits any
+        // number whose fractional part is zero: `60000.0` is an integer, and so
+        // is a value beyond `i64`. Read as `f64`, a magnitude of 2^53 or more
+        // has no fractional bits left, so it reads as an integer — the only
+        // reading the parsed value supports. Negative zero equals zero, which
+        // `>= 0` admits.
+        match ttl.as_f64() {
+            Some(value) if value.fract() != 0.0 => sink.push(
                 Some(event.seq),
-                format!("`ttlMs` is {value}; servers must provide a value that is >= 0"),
+                format!("`ttlMs` is {ttl}, which is not an integer number of milliseconds"),
             ),
+            Some(value) if value < 0.0 => sink.push(
+                Some(event.seq),
+                format!("`ttlMs` is {ttl}; servers must provide a value that is >= 0"),
+            ),
+            Some(_) => {}
             None => sink.push(
                 Some(event.seq),
                 format!("`ttlMs` is {ttl}, which is not an integer number of milliseconds"),

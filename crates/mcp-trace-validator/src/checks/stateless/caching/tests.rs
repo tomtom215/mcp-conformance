@@ -106,7 +106,10 @@ fn a_negative_or_non_numeric_ttl_is_reported() {
     for (ttl, needle) in [
         ("-1", "-1"),
         ("-3600000", "-3600000"),
+        ("-1.0", ">= 0"),
         (r#""600""#, "not an integer"),
+        ("1.5", "not an integer"),
+        ("-0.5", "not an integer"),
     ] {
         let session = trace(&[
             request(0, 1, "tools/list", ""),
@@ -120,7 +123,20 @@ fn a_negative_or_non_numeric_ttl_is_reported() {
 
 #[test]
 fn zero_and_positive_ttls_conform() {
-    for ttl in ["0", "1", "3600000"] {
+    // JSON Schema's `integer` is any number with a zero fractional part, so the
+    // float spellings and a value beyond `i64` conform as well; negative zero
+    // is zero.
+    for ttl in [
+        "0",
+        "1",
+        "3600000",
+        "60000.0",
+        "6e4",
+        "0.0",
+        "-0.0",
+        "18446744073709551615",
+        "1e30",
+    ] {
         let session = trace(&[
             request(0, 1, "tools/list", ""),
             complete(1, 1, &format!(r#","ttlMs":{ttl}"#)),

@@ -40,6 +40,11 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
   sent with the same id after the first was answered. A new request now clears
   the cancellation, progress token and send time recorded under its id, as the
   Streamable HTTP check (`TRAN-070`) already did.
+- **`CACH-008` rejected `ttlMs` written as a float.** The schema types `ttlMs`
+  as JSON Schema `integer`, which admits any number with a zero fractional
+  part, but the check accepted only values that parse as a 64-bit signed
+  integer, so `"ttlMs": 60000.0` failed. It now accepts any non-negative
+  number with no fractional part, and still fails a negative or fractional one.
 
 ## [0.6.0] - 2026-10-04
 

@@ -42,7 +42,7 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 59 | 104 |
+| Goldens | 59 | 105 |
 | Excluded rows the ledger holds | 86 | 149 |
 | Distinct not-observed sets across them | 30 | 83 |
 
@@ -496,6 +496,7 @@ falsifies exactly the requirement it is named for.
 | `mrtr-retry-round-before-recording.jsonl` | A fresh stdio process receives a `tools/call` retry carrying `inputResponses` and a `requestState` minted by an earlier server process, and completes it; the `input_required` round predates the recording. `requestState` exists so a retry can reach an instance that never saw the round, so MRTR-015/016/018 have no round to judge it against. Until 2026-10-12 MRTR-018 read the missing round as one that issued no state and failed it. |
 | `subscription-server-teardown.jsonl` | A stdio subscription the *server* ends: acknowledgment, one requested change notification, then `notifications/cancelled` with `requestId` naming the `subscriptions/listen` request — the teardown basic/patterns/cancellation makes mandatory ("A server MUST send `notifications/cancelled` referencing a `subscriptions/listen` request ID when it tears down that subscription stream"). It carries no `subscriptionId` tag, since `requestId` already names the subscription; until 2026-10-04 BASE-039 failed it for the missing tag, and SUBS-001 failed the tagged form as an unrequested notification type, so the mandated message could not pass either way. |
 | `subscription-id-reused-after-close.jsonl` | A stdio subscription closed by its graceful-closure response, then a second `subscriptions/listen` reusing id 1 with a different filter (`promptsListChanged` only): each opening acknowledged first, each notification one its own filter requested (SUBS-001/002 pass paths). Until 2026-10-12 both checks keyed subscriptions by id alone, so the second filter judged the first stream's `tools/list_changed` and SUBS-001 failed. |
+| `caching-ttl-written-as-float.jsonl` | A `tools/list` result carrying `"ttlMs": 60000.0`. The schema types `ttlMs` as JSON Schema `integer`, which admits any number with a zero fractional part, so this is 60000 milliseconds (CACH-001/008 pass paths) — the spelling a serializer that holds every JSON number as a double may produce. Until 2026-10-12 CACH-008 accepted only values that parsed as `i64` and failed it. |
 | `resource-read-existing-empty.jsonl` | A listed resource (`file:///project/empty.log`) read back with an empty `contents` array. RES-022 forbids that shape only "for a non-existent resource", and the page concedes the other reading — "it could mean the resource exists but has no content" — so with nothing in the session saying this resource is missing, nothing is reported. Until 2026-10-04 the shape alone failed the MUST. |
 | `base-030-request-meta-missing-required-field.jsonl` | Request `_meta` omits `io.modelcontextprotocol/clientCapabilities` (BASE-030) |
 | `base-030-malformed-request-id-reused-correctly.jsonl` | A `tools/list` whose `_meta` omits `clientCapabilities` is correctly rejected with `-32602`; the client then reuses id 1 — legal once answered (BASE-045) — for a well-formed `tools/list`, which is served (BASE-030 for the first request only). The golden pins BASE-031 *passing*: correlated by id text alone, the second request's result was held against the first, malformed one. |
