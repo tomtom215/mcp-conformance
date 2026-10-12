@@ -96,6 +96,13 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 - **`mcp-trace-capture stdio` on Windows passes the server's whole exit code.** It
   kept the low eight bits, as a Unix wait status does, so a server exiting 256 made
   the wrapper exit 0. Unix behaviour is unchanged.
+- **`mcp-trace-capture`'s README states what it did not.** How the default `Host`
+  rewrite defeats a server's DNS-rebinding check and when `--preserve-host` keeps it
+  effective; what works on Windows and what does not (no signals or process groups:
+  Ctrl-C only, no grace period, a launcher's children are not ended); that a non-SSE
+  response is held until complete; that every `2026-07-28` session through one proxy
+  lands in one trace; and the exit codes it left out (`stdio` 1 when waiting for the
+  server fails, `http` 2 when serving fails).
 
 ## [0.6.0] - 2026-10-04
 

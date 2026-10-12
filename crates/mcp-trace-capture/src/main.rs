@@ -7,10 +7,11 @@
 //!
 //! | Code | Meaning |
 //! |------|---------|
-//! | server's | `stdio`: the wrapped server's own exit code, passed through (128 + signal when it was killed by one, on Unix) |
-//! | 0    | `http`: stopped cleanly with a complete trace |
+//! | server's | `stdio`: the wrapped server's own exit code, passed through (128 + signal when it was killed by one, on Unix; the whole code on Windows) |
+//! | 1    | `stdio`: waiting for the server failed |
+//! | 0    | `http`: stopped with a complete trace |
 //! | 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests |
-//! | 2    | Invocation problem: bad arguments, an existing output file, a misplaced `{session}` or a missing directory for it, a server that would not start, an address that would not bind (no trace file is created) |
+//! | 2    | Invocation problem: bad arguments, an existing output file, a misplaced `{session}` or a missing directory for it, a server that would not start, an address that would not bind (no trace file is created); also `http` serving failed after it started |
 //! | 3    | The session ran but a trace is incomplete (a write failed); only when the exit code would otherwise be 0 |
 
 use std::ffi::OsString;

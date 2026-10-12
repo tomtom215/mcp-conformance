@@ -128,6 +128,45 @@ the platform's root certificates — loaded only for an `https` upstream, and ch
 before the trace is created: where none can be found, the proxy refuses to start).
 SSE streams are relayed as they arrive, event by event.
 
+### `Host`, and DNS rebinding
+
+By default the proxy sends the upstream's own name in `Host`, as a reverse proxy must
+for a virtually hosted server, which routes on it; the trace records the `Host` the
+client sent. The cost: a server that defends against DNS rebinding by checking
+`Host` — the MCP specification's transport security advice — sees its own name on
+every request the proxy forwards, so its check passes for all of them, including one
+a web page has a browser send to the proxy's loopback address under a rebound domain
+name. The proxy checks no `Host` itself. (`Origin` is forwarded unchanged, so a
+server that checks `Origin` still sees the page's.)
+
+When that matters — you are testing the server's `Host` check, or a browser you do
+not trust can reach the proxy — run with `--preserve-host`: the server then sees, and
+judges, the `Host` the client sent. Not in front of a virtually hosted remote server,
+which needs its own name. This repository's CI runs the official conformance suite
+through the proxy with `--preserve-host` (`xtask/src/conformance/capture.rs`), so the
+suite's `dns-rebinding-protection` scenario exercises the server's own check.
+
+## Windows
+
+The HTTP proxy works as described. The stdio wrapper relays and records the same
+way, but Windows has no signals and no process groups, so stopping differs:
+
+- Only Ctrl-C asks the capture to stop (there is no `SIGTERM` or `SIGHUP`). For the
+  stdio wrapper it closes the trace, then ends the server at once: there is no grace
+  period. A console's Ctrl-C also reaches every process attached to it, the server
+  included.
+- Ending the server ends that one process. A launcher's children (`npx` starting
+  `node`, `uv run` starting `python`) are not ended with it and can outlive the
+  session: put the real server behind `--`, not a launcher.
+- A client that force-stops the wrapper — the TypeScript SDK's `kill()` is
+  `TerminateProcess` — ends it before it can write the trace's closing event, and
+  leaves the server running unless the client ends the whole process tree (the
+  Python SDK does, with a job object).
+- The server's exit code is passed through whole, not cut to eight bits.
+
+CI builds and tests the crate on Windows, but the tests of stopping — signals,
+process groups, the SDKs' shutdown sequence — run only on Unix.
+
 ## What it guarantees
 
 - **Transparent.** Bytes are forwarded unchanged. Over HTTP, the only changes are the
@@ -189,10 +228,20 @@ SSE streams are relayed as they arrive, event by event.
   unseen id only once the server has answered it with a 2xx, so a stale id the
   server refuses gets its own trace without drawing in the rest.
   `2026-07-28` traffic carries no session id and no `initialize`, so the proxy cannot
-  tell its clients apart: it is all one trace, and concurrent `2026-07-28` clients
-  need a proxy each. Without `{session}`, everything goes to the one file, and the
+  tell its clients apart: every `2026-07-28` session through one proxy lands in one
+  trace, `{session}` or not, and concurrent `2026-07-28` clients need a proxy each. Without `{session}`, everything goes to the one file, and the
   capture warns at exit when it holds more than one session (more than one client
   `initialize` request, or more than one `Mcp-Session-Id`).
+- **A response that is not an event stream is held until it is complete.** The
+  proxy reads a JSON (or any other non-SSE) body whole — up to `--max-message-bytes`
+  — before it relays the status, headers and body. That is how the status event and
+  the message are written as adjacent lines, which is how the validator pairs a body
+  with its headers when exchanges overlap, and how the message is recorded before the
+  bytes that complete it. So such a response reaches the client only once it has
+  ended or passed the limit (the rest then streams): a body sent slowly arrives all
+  at once at the end, one that never ends (an endless ndjson stream) starts only past
+  the limit, and each response in flight can hold up to `--max-message-bytes` in
+  memory. Event streams are relayed event by event.
 - **An SSE event's data, and nothing else.** Only the `data` of events of type
   `message` is recorded; `id` and `retry` fields are forwarded but not recorded, so a
   trace does not show which event a client could resume from (the `Last-Event-ID`
@@ -204,10 +253,11 @@ SSE streams are relayed as they arrive, event by event.
 
 | Code | Meaning |
 |------|---------|
-| server's | `stdio`: the wrapped server's exit code (128 + signal if a signal ended it, on Unix — 137 for a server killed after the grace period) |
-| 0 | `http`: stopped cleanly with a complete trace |
-| 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests |
-| 2 | Bad arguments (`-o -` among them: the trace needs a path), an existing output file (`--force` overwrites), `{session}` outside the file name or more than once, a `{session}` path whose directory does not exist, a server that would not start, an address that would not bind. No trace file is created: the file is made only once the session can start |
+| server's | `stdio`: the wrapped server's exit code — on Unix 128 + signal if a signal ended it (137 for a server killed at the end of the grace period); on Windows the whole code |
+| 1 | `stdio`: waiting for the server failed (an operating-system error); the trace keeps what it recorded, without a closing event unless a stop wrote one |
+| 0 | `http`: stopped with a complete trace |
+| 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests; the trace ends with `transport-abort` |
+| 2 | A run that could not start: bad arguments (`-o -` among them: the trace needs a path; an `--upstream` that is not an absolute `http`/`https` URL, carries credentials, or whose root certificates cannot be loaded), an existing output file (`--force` overwrites), `{session}` outside the file name or more than once, a `{session}` path whose directory does not exist, a server that would not start, an address that would not bind. No trace file is created: the file is made only once the session can start. Also `http`, after it started: serving failed (the error is printed; the trace keeps what it recorded, without a closing event) |
 | 3 | The session ran but a trace is incomplete (a write failed), when the code would otherwise be 0 |
 
 ## License
