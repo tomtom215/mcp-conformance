@@ -89,7 +89,7 @@ content lands:
 | `auth` | `corpus/auth/` | OAuth flows, metadata discovery — traces include the HTTP layer |
 | `backcompat` | `corpus/backcompat/` | Older-revision behavior against `applies` ranges |
 | `extensions` | `corpus/extensions/` | Reverse-DNS extension negotiation ([register 1.5](01-ecosystem-context.md)) |
-| `draft` | `corpus/draft/` | `2026-07-28` RC behavior, behind the `draft-2026-07-28` feature |
+| `draft` | `corpus/draft/` | `2026-07-28` traces: `good/`, `violations/`, and `captured/` (recordings of real sessions). The directory keeps its pre-release name; every build judges it |
 | `metadata`, `sep-NNN` | per-SEP directories | Tagged for SEP-2484 traceability |
 
 Each corpus entry is: the trace (`.jsonl`), the expected report, and a provenance note
@@ -166,7 +166,8 @@ informational SHOULD warning on the suite's version-compat probe.
   holds, and holding a pin deliberately remains a legitimate outcome — recorded where
   the pin lives, not by leaving the gate red. Before this existed the re-check was a
   dated line in the deferral ledger, and it had already missed two alpha releases.
-- The `draft` suite runs only under the `draft-2026-07-28` feature. The readiness ratchet
+- The `draft` corpus is judged in every build (ADR-0018 retired the feature that once
+  gated it). The readiness ratchet
   above is *not* that: it records the runner's verdicts and nothing else. The registry's
   verdict on the same traffic is taken separately — each leg's session is captured to
   `corpus/draft/captured/`, where the golden suite replays it through the `2026-07-28`

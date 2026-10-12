@@ -4,7 +4,7 @@
 # Project Plan
 
 **Status:** Active
-**Last reviewed:** 2026-06-09
+**Last reviewed:** 2026-10-12
 **Maintainer:** Tom F. ([@tomtom215](https://github.com/tomtom215))
 
 ---

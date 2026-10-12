@@ -4,7 +4,7 @@
 # Engineering Standards
 
 **Status:** Active
-**Last reviewed:** 2026-06-11
+**Last reviewed:** 2026-10-12
 
 ---
 
@@ -41,7 +41,9 @@ later never arrives.
   [register 3.5](01-ecosystem-context.md)),
   tested in CI on every platform, bumped only in minor releases with a changelog entry.
 - **Edition:** latest stable edition compatible with the chosen MSRV, fixed at M0.
-- Stable toolchain for all gates; nightly runs as a non-blocking informational job.
+- The pinned stable toolchain for all gates (CI gate 0 below). Nightly runs a non-blocking
+  informational test job, and is required where a tool needs it: cargo-fuzz (the per-PR
+  fuzz smoke and the weekly fuzz job), cargo-careful and the minimal-versions resolver.
 
 ## Testing pyramid
 
@@ -55,7 +57,7 @@ Package registries are reachable only at dependency-install time, under lockfile
 | Golden corpus | trace fixtures + golden reports | 100% on known-good traces; every check killed by at least one injected-violation trace ([03-conformance-strategy.md](03-conformance-strategy.md)) |
 | Integration | `tests/`, real processes over stdio/HTTP on loopback | Host ↔ everything-server round trips per transport |
 | Mutation | `cargo-mutants` | Zero surviving mutants in every shipped crate (xtask excluded); diff-scoped gate (`--in-diff`) on PRs, full workspace sweep scheduled |
-| Fuzz | `cargo-fuzz` | Targets: trace parsing, JSON canonicalization, registry deserialization (single-revision and the multi-revision *set*, whose document shapes the judgment). Clean for the CI fuzz budget; corpora checked in. The weekly job takes its list from `cargo fuzz list` rather than naming targets, and `cargo xtask fuzz-targets` checks that every target source is declared as a `[[bin]]` — between them, a target that exists is a target that runs. Written-out lists are why `registry_set_multi` sat unrun for three weeks after it was added. The fuzz build enables `draft-2026-07-28` on both engine crates: without it 71 checks are not compiled in, so the target whose subject *is* multi-revision judgment would fuzz a build answering `unsupported` for the newer registry's every clause |
+| Fuzz | `cargo-fuzz` | Targets: trace parsing, JSON canonicalization, registry deserialization (single-revision and the multi-revision *set*, whose document shapes the judgment). Every target runs 60 s per PR from its committed seeds (`fuzz-smoke`, which is also what proves every target builds) and five minutes weekly from a corpus that accumulates across weeks in the Actions cache; a crash's input is uploaded. The jobs take their list from `cargo fuzz list` rather than naming targets, and `cargo xtask fuzz-targets` checks that every target source is declared as a `[[bin]]` — between them, a target that exists is a target that runs. Written-out lists are why `registry_set_multi` sat unrun for three weeks after it was added. Every build compiles both revisions' checks, so the fuzz build needs no feature to judge `2026-07-28` |
 | Sanitization | `cargo-careful` | The engine crates (`mcp-conformance-core`, `mcp-trace-validator`) run their suites against a std built with debug assertions and extra const-UB checks; a UB or integer-overflow regression a release build folds is a failure. Scheduled (nightly toolchain) |
 | Cross-architecture | `s390x` + `powerpc` (qemu) + `i686` (native) | The engine crates' suites run on every corner of the (endianness × pointer-width) square CI's hosts leave untested — `s390x` (64-bit big-endian) and `powerpc` (32-bit big-endian) under qemu, `i686` (32-bit little-endian) native — via `cargo xtask cross-arch`: the canonical form, the JSON/`JUnit` reports, and the golden corpus must be byte-identical where every CI host is 64-bit little-endian (`x86-64`/`aarch64`). A byte-for-byte divergence is a failure. Scheduled (`cross-arch` matrix) |
 | Dependency floors | `-Z direct-minimal-versions` | Each declared floor (`Cargo.toml` `>=x.y.z`) is the oldest version the workspace resolves to and builds/tests against, not an assertion: `cargo xtask minimal-versions` pins every direct dependency to its floor, builds the workspace, and runs the engine suites there. A floor below the resolvable minimum (a transitive crate forces higher), or below an API the code uses, is a failure. Scheduled (`minimal-versions` job, nightly) |
@@ -79,8 +81,7 @@ Package registries are reachable only at dependency-install time, under lockfile
    or record what the new lints say — and holding the pin is a legitimate outcome.
 1. `cargo fmt --all -- --check`
 2. `cargo clippy --workspace --all-targets -- -D warnings` — repeated per feature
-   combination: default, `--no-default-features`, and `--all-features` (the
-   `draft-2026-07-28` feature joins the matrix when M2.5 introduces it)
+   combination: default, `--no-default-features`, and `--all-features`
 3. `cargo test` matrix: {stable, MSRV} × {Linux, macOS, Windows} × feature combinations
 4. `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` — twice: default
    features and `--all-features` (feature-gated modules carry rustdoc the default
@@ -100,8 +101,8 @@ Package registries are reachable only at dependency-install time, under lockfile
 7. `cargo package --workspace --exclude xtask --locked` validation (publishability
    of every release crate; xtask is `publish = false` yet `--workspace` would
    package it)
-8. Mutation gate (diff-scoped), golden-corpus run, agreement check; fuzzing runs
-   in the weekly scheduled job (five minutes per target)
+8. Mutation gate (diff-scoped), golden-corpus run, agreement check, fuzz smoke
+   (every target, 60 s); the weekly scheduled job fuzzes five minutes per target
 9. Nightly toolchain (per-push, informational) + official-suite `0.2.0-alpha`
    tracking as a scheduled, non-blocking job
 
@@ -113,9 +114,9 @@ superseded pushes (never for `main`); least-privilege workflow permissions.
 - Every dependency is a liability; the burden of proof is on adding it.
   `mcp-conformance-core` carries serde-family only ([02-architecture.md](02-architecture.md)).
 - Workspace-level version ranges with upper bounds (`>=x.y, <next-major`), the a2a-rust
-  convention; `deny.toml` enforces the license allowlist, denies wildcards, and warns on
-  duplicate-major drift (warn, not deny: transitive churn happens — the config carries
-  the justification). The floors are not aspirational: `cargo xtask minimal-versions`
+  convention; `deny.toml` enforces the license allowlist, denies wildcards, and denies a new
+  duplicate version of any crate: each accepted duplicate is skipped by exact version with
+  its reason, so it re-fires when either version moves and warns when it collapses. The floors are not aspirational: `cargo xtask minimal-versions`
   (scheduled, nightly) pins every direct dependency to its declared floor and builds and
   tests there, so a floor below the version the workspace actually resolves to — or below
   an API the code uses — fails CI.
@@ -129,12 +130,12 @@ dependencies are justified where they are declared):
 |------------|--------|----------------------|
 | `serde`, `serde_json` | all | The protocol is JSON; `float_roundtrip` is correctness (canonical fixpoint) |
 | `clap` | binaries, behind `cli` features | [ADR-0005](decisions/0005-cli-argument-parsing.md): library consumers never pay for it |
-| `rmcp` | everything-server | The point of M2: parity proven *on the official SDK*, not beside it. Feature-minimal (`server`, `macros`, `transport-io`, `transport-streamable-http-server`); MSRV consequence in [ADR-0008](decisions/0008-msrv-1.88.md) |
+| `rmcp` | everything-server, reference-host | The point of M2: parity proven *on the official SDK*, not beside it. Feature-minimal (`server`, `macros`, `transport-io`, `transport-streamable-http-server`); MSRV consequence in [ADR-0008](decisions/0008-msrv-1.88.md) |
 | `tokio` | everything-server (`cli`), reference-host (M3) | rmcp's runtime, not re-litigated; no default features, per-crate feature grants |
 | `schemars` | everything-server | Tool/prompt parameter schemas for rmcp's `#[tool]`; already in rmcp's `server` feature tree |
 | `tokio-util` | reference-host; everything-server (floor shim) | Direct in the host: `CancellationToken` is the bounded loop's cooperative stop condition (ADR-0009), already in the tree as rmcp's own dependency. In the everything-server only as a documented minimal-versions floor repair |
 | `tokio-stream` | everything-server | Direct under the `tap` feature (`StreamExt::then` drives the SSE recording pass-through) *and* a documented floor repair for rmcp's under-specified requirement — the manifest comment carries both facts |
-| `rmcp-macros` | everything-server (ceiling shim) | Not used directly and never named in code: a documented *upper* bound repairing rmcp's own caret requirement on its lockstep-coupled proc-macro crate (register 3.13). Without it Cargo resolves `rmcp 1.7.0` + `rmcp-macros 1.8.0`, which does not compile. It also keeps the deferred SDK upgrade deliberate — rmcp 1.8.0 needs `rmcp-macros ^1.8.0`, so `cargo update` cannot perform it silently |
+| `rmcp-macros` | everything-server (ceiling shim) | Not used directly and never named in code: a documented *upper* bound repairing rmcp's own caret requirement on its lockstep-coupled proc-macro crate (register 3.13). Without it Cargo can resolve an older `rmcp` against a newer `rmcp-macros`, which does not compile (demonstrated at 1.7.0 + 1.8.0). It also keeps each SDK upgrade deliberate — every rmcp release requires its own macro version, so `cargo update` cannot move rmcp to a new minor silently |
 | `http-body-util`, `tracing` | everything-server (floor shims) | Not used directly: documented minimal-versions floor repairs for under-specified third-party requirements (each names its culprit in the manifest; removable when upstream fixes) |
 | `axum`, `hyper`, `hyper-util`, `futures` | trace-capture | The HTTP recording proxy ([ADR-0019](decisions/0019-a-recording-tap-is-not-a-gateway.md)): axum listens, hyper's legacy client forwards so bodies stream through as the endpoints sent them, `futures` splices a recorded prefix back onto a stream. All four were already in the tree (axum for the everything server; hyper and futures under axum and reqwest) |
 | `tokio` | trace-capture | Child-process stdio, the listener, and signal relay; per-crate feature grant (`process`, `io-util`, `io-std`, `net`, `sync`, `signal`) |
