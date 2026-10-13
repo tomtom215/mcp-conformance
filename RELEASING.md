@@ -17,7 +17,8 @@
 
 - All publishable crates share one version and release together
   (`mcp-conformance-core`, `mcp-trace-validator`, `mcp-trace-capture`,
-  `mcp-everything-server`, `mcp-reference-host`; `xtask` is never published).
+  `mcp-everything-server`, `mcp-reference-host`, `mcp-conformance`; `xtask` is
+  never published).
 - [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html). Pre-1.0, minor releases may
   break APIs; the changelog says so explicitly when they do.
 - **Trusted publishing (OIDC)** to crates.io — no long-lived registry tokens exist
@@ -39,6 +40,7 @@
 3. `mcp-everything-server` (core, optional; validator, dev)
 4. `mcp-reference-host` (core, everything-server, validator — all dev)
 5. `mcp-trace-capture` (core; everything-server and validator, dev)
+6. `mcp-conformance` (core, validator, capture)
 
 **Dev-dependencies count.** `cargo publish` resolves a crate's dev-dependencies
 against crates.io too, so a crate published before a sibling it names only in
@@ -62,7 +64,13 @@ at once.
 publishing for a crate that has never been published
 ([register 2.14](docs/plan/01-ecosystem-context.md)), so the first release that
 includes a new crate needs one token publish by the owner — the next section is
-the procedure, as used for `mcp-trace-capture`.
+the procedure, as used for `mcp-trace-capture`. **`mcp-conformance` is the next
+such crate** ([ADR-0021](docs/plan/decisions/0021-a-workbench-people-keep-open.md)):
+the first release that includes it needs the same procedure, with the crate name
+substituted, and the name's availability re-verified at that moment
+([ADR-0003](docs/plan/decisions/0003-crate-naming.md) §5; `404` on 2026-10-13). Until
+the bootstrap, `publish` fails at once on it, last in the order, after the other
+five have published.
 
 ## The v0.6.0 bootstrap of `mcp-trace-capture` (history, and the procedure for a new crate)
 

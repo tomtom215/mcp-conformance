@@ -436,8 +436,12 @@ jobs:
   # sequential so the sse-retry clock is never under parallel load), a
   # child-process stdio smoke between the two real binaries, and the
   # agreement replay on both sides (cargo xtask conformance documents the
-  # steps and the version pin). This job is the one deliberate exception
-  # to "no network beyond the package registries": npx fetches the pinned
+  # steps; the version pin is crates/mcp-conformance/src/suite.rs). Last, the
+  # product leg (ADR-0021 W1): `mcp-conformance test` against the everything
+  # server over HTTP and over stdio, and against the reference host as a
+  # client, each report held to this job's own results for the same subject.
+  # This job is the one deliberate exception to "no network beyond the
+  # package registries": npx fetches the pinned
   # runner from npm, and the runner dials loopback in both directions. Tests
   # (`cargo test` anywhere in the workspace) still never touch a network.
   conformance:
@@ -450,10 +454,12 @@ jobs:
     # and the host capture tests), so two more npx jobs would re-run Node to
     # re-prove Rust code already proven cross-platform.
     runs-on: ubuntu-latest
-    # A warm run takes ~2 minutes; the bound exists because this is the one
-    # job whose tools (npx, the runner) can hang on network state, and a
-    # wedged job should fail in minutes, not at the 6-hour runner cap.
-    timeout-minutes: 15
+    # A warm run took ~2 minutes before the product leg, which adds three
+    # `mcp-conformance test` runs (the stdio one is one suite invocation per
+    # scenario). The bound exists because this is the one job whose tools
+    # (npx, the runner) can hang on network state, and a wedged job should
+    # fail in minutes, not at the 6-hour runner cap.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

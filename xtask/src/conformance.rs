@@ -35,15 +35,17 @@ use std::time::Duration;
 
 /// The npm package both suite pins name. One spelling, because
 /// `suite-currency` asks npm about this package and the two runner
-/// invocations fetch it.
-pub(crate) const SUITE_PACKAGE: &str = "@modelcontextprotocol/conformance";
+/// invocations fetch it. Defined beside the pin, in `mcp_conformance::suite`,
+/// which `mcp-conformance test` runs.
+pub(crate) const SUITE_PACKAGE: &str = mcp_conformance::suite::PACKAGE;
 
-/// The pinned official suite version. Bumps are deliberate changes: review
-/// the upstream diff, refresh `conformance/expected-failures.yaml`, and
-/// update register row 2.4 in the same commit. `MCP_SUITE_VERSION` overrides
-/// it for the scheduled alpha-tracking job only — the PR gate always runs
-/// the pin.
-pub(crate) const SUITE_VERSION: &str = "0.1.16";
+/// The pinned official suite version: `mcp_conformance::suite::VERSION`, the
+/// one place it is written, shared with `mcp-conformance test`. Bumps are
+/// deliberate changes: review the upstream diff, refresh
+/// `conformance/expected-failures.yaml`, and update register row 2.4 in the
+/// same commit. `MCP_SUITE_VERSION` overrides it for the scheduled
+/// alpha-tracking job only — the PR gate always runs the pin.
+pub(crate) const SUITE_VERSION: &str = mcp_conformance::suite::VERSION;
 
 /// The suite version this run uses: the pin, unless `MCP_SUITE_VERSION`
 /// overrides it (the scheduled alpha-line early-warning job).
@@ -51,8 +53,9 @@ fn suite_version() -> String {
     std::env::var("MCP_SUITE_VERSION").unwrap_or_else(|_| SUITE_VERSION.to_owned())
 }
 
-/// Spec revision under test — the registry's revision.
-pub(crate) const SPEC_VERSION: &str = "2025-11-25";
+/// Spec revision under test — the registry's revision, and the suite's
+/// default for `mcp-conformance test`.
+pub(crate) const SPEC_VERSION: &str = mcp_conformance::suite::SPEC_VERSION;
 
 /// Committed baseline of expected scenario failures (suite-native YAML:
 /// `server:`/`client:` keys). Empty today; whole-scenario entries only —
@@ -117,12 +120,28 @@ pub(crate) fn run() -> ExitCode {
     if client::run(&root, &suite) != ExitCode::SUCCESS {
         return ExitCode::FAILURE;
     }
-    capture::run(&root, &suite)
+    if capture::run(&root, &suite) != ExitCode::SUCCESS {
+        return ExitCode::FAILURE;
+    }
+    // `mcp-conformance test` runs the pin; under an override (the alpha
+    // early-warning job) it would be comparing two different suites.
+    if suite != SUITE_VERSION {
+        eprintln!(
+            "xtask: conformance — product leg skipped: suite {suite} is not the pinned \
+             {SUITE_VERSION} that mcp-conformance test runs"
+        );
+        return ExitCode::SUCCESS;
+    }
+    product::run(&root)
 }
 
 /// The capture leg: `mcp-trace-capture` between real endpoints — stdio sessions
 /// judged clean at both revisions, and the suite green through the HTTP proxy.
 mod capture;
+
+/// The product leg: `mcp-conformance test` against the same subjects, held
+/// to the gate's own results (ADR-0021, roadmap W1).
+mod product;
 
 /// The client leg: the host binary as the suite's SUT, plus the
 /// child-process transport's real-binary proof and the client-side

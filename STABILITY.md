@@ -3,15 +3,16 @@
 
 # Stability policy
 
-What you can rely on across releases of the five crates —
+What you can rely on across releases of the six crates —
 `mcp-conformance-core`, `mcp-trace-validator`, `mcp-trace-capture`,
-`mcp-everything-server` and `mcp-reference-host` — and how a change to any of it
+`mcp-everything-server`, `mcp-reference-host` and `mcp-conformance` (on `main`,
+not yet released) — and how a change to any of it
 is made. [RELEASING.md](RELEASING.md) is the release runbook;
 [CHANGELOG.md](CHANGELOG.md) records every change this policy covers.
 
 ## Versions
 
-All five crates share one version and release together, under
+All six crates share one version and release together, under
 [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html). Before 1.0:
 
 - a **patch** release (`0.6.0` → `0.6.1`) changes no public API and no
@@ -30,10 +31,10 @@ of these is a breaking change:
 
 | Surface | Stable | Breaking |
 |---------|--------|----------|
-| Rust API | Every public item of the five crates; `cargo-semver-checks` runs against the crates.io baseline before each release | Removing or changing an item; adding a variant or field to a type that is not `#[non_exhaustive]` (protocol-facing types are) |
+| Rust API | Every public item of the six crates; `cargo-semver-checks` runs against the crates.io baseline before each release | Removing or changing an item; adding a variant or field to a type that is not `#[non_exhaustive]` (protocol-facing types are) |
 | Verdicts | The outcome of every requirement, and of the wire schema, for a given trace | A trace that passed now failing, or the reverse — a new check, a check fixed, a clause moving between checked and excluded, a refreshed vendored schema or a changed erratum ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)) |
 | Requirement IDs | `BASE-003` names one clause, forever; an ID is never reused for another | Never done. A row found to bundle several clauses is split: its ID stays with one of them, the others get new IDs, and the changelog names each (`BASE-055`/`BASE-083` in 0.6.0) |
-| Exit codes | `mcp-trace-validator`: `0` pass, `1` a clause failed (or warned, under `--strict`), `2` a bad invocation, nothing judgeable or output not written, `3` a malformed trace. `mcp-trace-capture`: its README's table | Any code changing meaning |
+| Exit codes | `mcp-trace-validator`: `0` pass, `1` a clause failed (or warned, under `--strict`), `2` a bad invocation, nothing judgeable or output not written, `3` a malformed trace. `mcp-trace-capture`: its README's table. `mcp-conformance`: `0` the suite passed and the validator agrees, `1` findings, `2` a run that could not be made or judged | Any code changing meaning |
 | CLI | Subcommands, flags and their defaults; the first line of `--version` | Removing or renaming a flag, or changing a default. A retired flag is first kept, accepted and hidden (as `--quiet` has been since 0.6.0) |
 | JSON report | The shape [`report.schema.json`](crates/mcp-trace-validator/schema/report.schema.json) describes | Removing or retyping a member, or a new value of an enumerated member (as `incomplete` joined `verdict`). **Adding a member is not breaking: accept members you do not know** |
 | JUnit report | Suite and test-case naming (a requirement's case is `ID (LEVEL)`; the schema's is `wire schema`); failures carry the finding in `message` | Changing either |

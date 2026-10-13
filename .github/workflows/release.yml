@@ -61,9 +61,10 @@ env:
   #   everything-server -> core (normal, optional), validator (dev)
   #   reference-host    -> core, everything-server, validator (all dev)
   #   capture           -> core (normal), everything-server, validator (dev)
+  #   conformance       -> core, validator, capture (all normal)
   PUBLISH_ORDER: >-
     mcp-conformance-core mcp-trace-validator mcp-everything-server
-    mcp-reference-host mcp-trace-capture
+    mcp-reference-host mcp-trace-capture mcp-conformance
 
 jobs:
   # ── Gate 1: tag ↔ version ↔ changelog agreement, full local gate set ───────
@@ -289,7 +290,7 @@ jobs:
         run: |
           set -euo pipefail
           read -r -a order <<< "$PUBLISH_ORDER"
-          [[ "${#order[@]}" -eq 5 ]] || { echo "::error::PUBLISH_ORDER has ${#order[@]} crates; add an SBOM attestation step for each"; exit 1; }
+          [[ "${#order[@]}" -eq 6 ]] || { echo "::error::PUBLISH_ORDER has ${#order[@]} crates; add an SBOM attestation step for each"; exit 1; }
       # actions/attest, not actions/attest-sbom: at v4 the latter is a
       # deprecated wrapper that calls this action with the same inputs.
       - name: Attest SBOM (mcp-conformance-core)
@@ -322,6 +323,12 @@ jobs:
         with:
           subject-path: target/package/mcp-trace-capture-${{ needs.verify.outputs.version }}.crate
           sbom-path: target/package/mcp-trace-capture-${{ needs.verify.outputs.version }}.cdx.json
+      - name: Attest SBOM (mcp-conformance)
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/package/mcp-conformance-${{ needs.verify.outputs.version }}.crate
+          sbom-path: target/package/mcp-conformance-${{ needs.verify.outputs.version }}.cdx.json
       - name: Upload release artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
