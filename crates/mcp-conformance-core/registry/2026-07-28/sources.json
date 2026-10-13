@@ -35,7 +35,7 @@
         "schema": "Generated schema reference: constraints stated only in schema field documentation without RFC 2119 keywords are excluded by strategy rule 3.",
         "server/index": "Overview page: no RFC 2119 keyword instances (verified 2026-08-06); the capability MUSTs live on the per-feature pages."
     },
-    "_must_census_policy": "Rule 1 of §What enters the registry — every MUST / MUST NOT on an in-scope page enters, no exceptions — is the strongest claim this registry makes, and until 2026-08-20 nothing enforced it. `must_census` is how many MUST-family keyword instances each page's prose carries (frontmatter and fenced code excluded; RFC 8174 makes only the uppercase instance normative). `cargo xtask spec-drift` recounts them against the published text: a reworded clause keeps the number, a clause added or removed moves it, and a move fails the gate. Re-decide it the way a deferral is re-decided — read the page, enter the new clause or retire the removed one, and update the number in the same commit. The sibling quote check proves what the registry has is still accurate; this proves the pages have gained nothing it lacks.",
+    "_census_policy": "Rules 1 and 2 of §What enters the registry — every MUST-family keyword on an in-scope page enters, no exceptions, and every SHOULD-family one enters too, judged where it constrains observable wire behavior and excluded with the reason where it does not — are only claims until something counts the pages. Three censuses do, one per RFC 2119 family, each the number of keyword instances a page's prose carries (frontmatter and fenced code excluded; table rows included; RFC 8174 makes only the uppercase instance normative): `must_census` (MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT; REQUIRED counted since 2026-10-13), `should_census` (SHOULD, SHOULD NOT, RECOMMENDED, NOT RECOMMENDED) and `may_census` (MAY, OPTIONAL). `cargo xtask spec-drift` recounts all three against the published text — a reworded clause keeps the numbers, a clause added or removed moves one, and a move fails the gate — and requires every MUST-family and SHOULD-family instance to sit inside the quote of an entry citing its page, so a counted clause nobody entered fails too. MAY-family instances are counted, so an edit still asks for a re-read, but are not required to be entered: a MAY grants latitude and leaves a trace nothing to violate. Re-decide a move the way a deferral is re-decided — read the page, enter the new clause or retire the removed one, and update the number in the same commit. The sibling quote check proves what the registry has is still accurate; this proves the pages have gained nothing it lacks.",
     "must_census": {
         "basic/index": 45,
         "basic/patterns/cancellation": 7,
@@ -45,7 +45,7 @@
         "basic/patterns/subscriptions": 5,
         "basic/transports/index": 3,
         "basic/transports/stdio": 9,
-        "basic/transports/streamable-http": 60,
+        "basic/transports/streamable-http": 61,
         "basic/versioning": 4,
         "server/discover": 1,
         "server/prompts": 8,
@@ -55,5 +55,45 @@
         "server/utilities/completion": 3,
         "server/utilities/logging": 4,
         "server/utilities/pagination": 4
+    },
+    "should_census": {
+        "basic/index": 20,
+        "basic/patterns/cancellation": 10,
+        "basic/patterns/index": 0,
+        "basic/patterns/mrtr": 5,
+        "basic/patterns/progress": 3,
+        "basic/patterns/subscriptions": 3,
+        "basic/transports/index": 2,
+        "basic/transports/stdio": 8,
+        "basic/transports/streamable-http": 15,
+        "basic/versioning": 5,
+        "server/discover": 4,
+        "server/prompts": 5,
+        "server/resources": 7,
+        "server/tools": 18,
+        "server/utilities/caching": 9,
+        "server/utilities/completion": 3,
+        "server/utilities/logging": 5,
+        "server/utilities/pagination": 3
+    },
+    "may_census": {
+        "basic/index": 11,
+        "basic/patterns/cancellation": 2,
+        "basic/patterns/index": 1,
+        "basic/patterns/mrtr": 7,
+        "basic/patterns/progress": 4,
+        "basic/patterns/subscriptions": 3,
+        "basic/transports/index": 2,
+        "basic/transports/stdio": 3,
+        "basic/transports/streamable-http": 7,
+        "basic/versioning": 4,
+        "server/discover": 0,
+        "server/prompts": 5,
+        "server/resources": 6,
+        "server/tools": 10,
+        "server/utilities/caching": 11,
+        "server/utilities/completion": 0,
+        "server/utilities/logging": 2,
+        "server/utilities/pagination": 0
     }
 }

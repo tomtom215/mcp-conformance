@@ -26,7 +26,7 @@
         "schema": "Generated schema reference: constraints stated only in schema field documentation without RFC 2119 keywords are excluded by strategy rule 3 (03-conformance-strategy.md §What enters the registry).",
         "server": "Overview page (server/index.mdx): no RFC 2119 keyword instances (verified at spec 1304c8fe); the capability MUSTs live on the per-feature pages the registry cites."
     },
-    "_must_census_policy": "Rule 1 of §What enters the registry — every MUST / MUST NOT on an in-scope page enters, no exceptions — is the strongest claim this registry makes, and until 2026-08-20 nothing enforced it. `must_census` is how many MUST-family keyword instances each page's prose carries (frontmatter and fenced code excluded; RFC 8174 makes only the uppercase instance normative). `cargo xtask spec-drift` recounts them against the published text: a reworded clause keeps the number, a clause added or removed moves it, and a move fails the gate. Re-decide it the way a deferral is re-decided — read the page, enter the new clause or retire the removed one, and update the number in the same commit. The sibling quote check proves what the registry has is still accurate; this proves the pages have gained nothing it lacks.",
+    "_census_policy": "Rules 1 and 2 of §What enters the registry — every MUST-family keyword on an in-scope page enters, no exceptions, and every SHOULD-family one enters too, judged where it constrains observable wire behavior and excluded with the reason where it does not — are only claims until something counts the pages. Three censuses do, one per RFC 2119 family, each the number of keyword instances a page's prose carries (frontmatter and fenced code excluded; table rows included; RFC 8174 makes only the uppercase instance normative): `must_census` (MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT; REQUIRED counted since 2026-10-13), `should_census` (SHOULD, SHOULD NOT, RECOMMENDED, NOT RECOMMENDED) and `may_census` (MAY, OPTIONAL). `cargo xtask spec-drift` recounts all three against the published text — a reworded clause keeps the numbers, a clause added or removed moves one, and a move fails the gate — and requires every MUST-family and SHOULD-family instance to sit inside the quote of an entry citing its page, so a counted clause nobody entered fails too. MAY-family instances are counted, so an edit still asks for a re-read, but are not required to be entered: a MAY grants latitude and leaves a trace nothing to violate. Re-decide a move the way a deferral is re-decided — read the page, enter the new clause or retire the removed one, and update the number in the same commit. The sibling quote check proves what the registry has is still accurate; this proves the pages have gained nothing it lacks.",
     "must_census": {
         "basic": 24,
         "basic/lifecycle": 9,
@@ -37,5 +37,27 @@
         "server/utilities/completion": 2,
         "server/utilities/logging": 2,
         "server/utilities/pagination": 2
+    },
+    "should_census": {
+        "basic": 7,
+        "basic/lifecycle": 11,
+        "basic/transports": 22,
+        "server/prompts": 5,
+        "server/resources": 6,
+        "server/tools": 13,
+        "server/utilities/completion": 3,
+        "server/utilities/logging": 3,
+        "server/utilities/pagination": 3
+    },
+    "may_census": {
+        "basic": 8,
+        "basic/lifecycle": 2,
+        "basic/transports": 21,
+        "server/prompts": 0,
+        "server/resources": 1,
+        "server/tools": 3,
+        "server/utilities/completion": 0,
+        "server/utilities/logging": 2,
+        "server/utilities/pagination": 0
     }
 }

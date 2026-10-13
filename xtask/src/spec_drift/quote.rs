@@ -114,28 +114,58 @@ pub(super) fn strip_numbered_marker(line: &str) -> Option<&str> {
 /// fragment path cannot detect reordering, only rewording; the contiguous
 /// path is tried first and covers every single-sentence quote.
 pub(super) fn quote_present(page_normalized: &str, quote: &str) -> bool {
-    let relaxed_page = page_normalized.replace("; ", " ");
+    spans(&page_normalized.replace("; ", " "), quote).is_some()
+}
+
+/// Where `quote` sits in `relaxed_page` — normalized page text with the
+/// `"; "` list joins already relaxed to single spaces — as byte ranges, one
+/// per place a verbatim unit of the quote occurs; `None` when the quote is not
+/// present. [`quote_present`] is this asked yes or no; the census asks *where*,
+/// to tell which keyword instances an entry covers, so the two can never
+/// disagree about whether a quote is on the page.
+pub(super) fn spans(relaxed_page: &str, quote: &str) -> Option<Vec<(usize, usize)>> {
     let normalized_quote = normalize(quote);
-    if relaxed_page.contains(&normalized_quote.replace("; ", " ")) {
-        return true;
+    let whole = occurrences(relaxed_page, &normalized_quote.replace("; ", " "));
+    if !whole.is_empty() {
+        return Some(whole);
     }
-    if normalized_quote
-        .split("; ")
-        .all(|fragment| !fragment.is_empty() && relaxed_page.contains(fragment))
-    {
-        return true;
+    if let Some(found) = all_fragments(relaxed_page, &normalized_quote) {
+        return Some(found);
     }
     // The convention's full shape: an introducing clause ending `:` whose
     // selected items follow. Verify the intro (with its colon) and each item
     // independently — LIFE-009 quotes the parent plus one of its bullets.
-    if let Some((intro, items)) = normalized_quote.split_once(": ") {
-        let intro_present = relaxed_page.contains(&format!("{intro}:"));
-        let items_present = items
-            .split("; ")
-            .all(|fragment| !fragment.is_empty() && relaxed_page.contains(fragment));
-        if intro_present && items_present {
-            return true;
-        }
+    let (intro, items) = normalized_quote.split_once(": ")?;
+    let intro = occurrences(relaxed_page, &format!("{intro}:"));
+    if intro.is_empty() {
+        return None;
     }
-    false
+    let items = all_fragments(relaxed_page, items)?;
+    Some(intro.into_iter().chain(items).collect())
+}
+
+/// Every occurrence of each `"; "`-separated fragment of `joined`, or `None`
+/// when any fragment is empty or absent.
+fn all_fragments(relaxed_page: &str, joined: &str) -> Option<Vec<(usize, usize)>> {
+    let mut found = Vec::new();
+    for fragment in joined.split("; ") {
+        let at = occurrences(relaxed_page, fragment);
+        if at.is_empty() {
+            return None;
+        }
+        found.extend(at);
+    }
+    Some(found)
+}
+
+/// Every non-overlapping occurrence of `needle` in `haystack`; none for an
+/// empty needle, which would otherwise match everywhere.
+fn occurrences(haystack: &str, needle: &str) -> Vec<(usize, usize)> {
+    if needle.is_empty() {
+        return Vec::new();
+    }
+    haystack
+        .match_indices(needle)
+        .map(|(at, matched)| (at, at + matched.len()))
+        .collect()
 }
