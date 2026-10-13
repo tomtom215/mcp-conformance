@@ -6,7 +6,8 @@
 # Jobs: format, clippy (stable + MSRV × 3 OS × 3 feature modes), test (same matrix),
 #       docs (-D warnings), cargo-deny, package validation (with an SBOM dry run),
 #       semver (vs crates.io), coverage (95% line floor), nightly (informational),
-#       visual (the HTML report's screenshot baselines, no network on open).
+#       visual (the HTML report's screenshot baselines, no network on open),
+#       registry-packages (npm and PyPI packages installed and run, 3 OS).
 #
 # Toolchains are installed with plain `rustup` rather than a third-party action:
 # one fewer supply-chain dependency. Remaining actions are pinned by commit SHA.
@@ -770,3 +771,70 @@ jobs:
           status=0
           run mcp-trace-validator validate --quiet corpus/draft/violations/mrtr-019-retry-reuses-id.jsonl || status=$?
           [[ "$status" -eq 1 ]] || { echo "::error::a violation trace exited ${status}, expected 1"; exit 1; }
+
+  # The npm and PyPI packages (ADR-0021 decision 5), built and installed on each
+  # OS the way a user installs them, from local files only. Each leg builds the
+  # three CLIs for the target release.yml builds on that OS (same profile, same
+  # Windows crt-static flag; without cargo-auditable, which changes no code
+  # path), archives them with the script release.yml uses, checksums the
+  # archive, runs `cargo xtask packages` over it, then tools/test-packages.sh:
+  # `npm install` of the main and platform tarballs (offline) and
+  # `npx mcp-conformance --version` and its siblings, and `pip install` from the
+  # wheel directory into a venv (pip picks the wheel by its tags) and the same
+  # checks through the installed scripts — each judging corpus traces too.
+  # Nothing is published from here; release.yml publishes, on a tag.
+  registry-packages:
+    name: npm and PyPI packages (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, rustflags: "-D warnings" }
+          - { os: macos-latest, target: aarch64-apple-darwin, rustflags: "-D warnings" }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, rustflags: "-D warnings -C target-feature=+crt-static" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain and target
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          rustup show active-toolchain
+          rustup target add "$TARGET"
+      - name: Install the musl C toolchain (ring compiles C)
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build the three CLIs as release.yml does
+        shell: bash
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+          TARGET: ${{ matrix.target }}
+        run: cargo build --release --locked --target "$TARGET" -p mcp-trace-validator -p mcp-trace-capture -p mcp-conformance-cli --bins
+      - name: Archive and checksum as release.yml does
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          id="$(cargo pkgid -p mcp-conformance-cli)"
+          # `path+file:///…/mcp-conformance-cli#0.6.0` (cargo writes `#name@`
+          # before the version when the directory is named differently).
+          version="${id##*[#@]}"
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          mkdir dist
+          cd dist
+          bash ../tools/archive-binaries.sh "$TARGET" "$version" "../target/${TARGET}/release"
+          if command -v sha256sum > /dev/null; then sums="$(sha256sum ./*)"; else sums="$(shasum -a 256 ./*)"; fi
+          printf '%s\n' "$sums" | tee SHA256SUMS-binaries
+      - name: Generate the packages
+        run: cargo xtask packages --from dist --out packages
+      - name: Install them from the local files and run them
+        shell: bash
+        run: bash tools/test-packages.sh packages "$VERSION"

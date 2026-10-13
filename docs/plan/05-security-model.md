@@ -56,7 +56,7 @@ occasionally attached to it belongs to a different package's advisory
 
 No workflow grants a write scope at workflow level: every `permissions:` block
 at the top of a file is `{}` or `contents: read`. Write scopes exist only on
-individual jobs, and this is the complete list — seven jobs across three
+individual jobs, and this is the complete list — nine jobs across three
 workflows, each scope with an inline comment in the YAML naming what it writes.
 
 | Workflow (triggers) | Job | Write scope | For |
@@ -66,6 +66,8 @@ workflows, each scope with an inline comment in the YAML naming what it writes.
 | `release.yml` | `image` | `packages`, `id-token`, `attestations` | push the container image to `ghcr.io/tomtom215/mcp-conformance` (tag runs only; a rehearsal builds and runs it and pushes nothing), and Sigstore OIDC + build-provenance attestation of its digest, pushed to the registry beside it |
 | `release.yml` | `github-release` | `contents` | create the release, upload `.crate` + `SHA256SUMS`, the SBOMs + `SHA256SUMS-sbom`, the binary archives + `SHA256SUMS-binaries` |
 | `release.yml` | `publish` | `id-token` | crates.io Trusted Publishing (no long-lived token exists to steal) |
+| `release.yml` | `publish-npm` | `id-token` | npm trusted publishing and `--provenance` for the six npm packages (tag runs only; `release` environment) |
+| `release.yml` | `publish-pypi` | `id-token` | PyPI trusted publishing and PEP 740 attestations for the five wheels (tag runs only; `release` environment) |
 | `pages.yml` (`push` to the default branch, a completed `Release` run via `workflow_run`, `workflow_dispatch`) | `deploy` | `pages`, `id-token` | deploy the versioned book, built by the unprivileged `build` job; `deploy` checks out and compiles nothing |
 | `scheduled.yml` (`schedule`, `workflow_dispatch`) | `claims-expire` | `issues` | open, comment on, and close the tracking issue a red claims-expiry run files ([ADR-0010 §Amendment](decisions/0010-deferral-ledger-and-scheduled-reverification.md)) |
 
@@ -75,8 +77,21 @@ their `id-token` grants. What bounds it is what bounds those — `Cargo.lock`
 with `--locked`, the base images pinned by digest, no restored cache, a tag
 pushed only after `verify` (cargo-deny included) and `tests` pass — and
 GitHub documents the `GITHUB_TOKEN`'s package access as the packages
-associated with the workflow's own repository. `publish` remains the one job
-that compiles nothing, because its grant is the one that reaches crates.io.
+associated with the workflow's own repository. `publish` remains a job that
+compiles nothing, because its grant is the one that reaches crates.io.
+
+`publish-npm` and `publish-pypi` hold the grants that reach the two other
+registries, and are shaped like `publish`: tag runs only, behind the `release`
+environment's reviewer, no checkout and nothing compiled. They upload the
+packages the unprivileged `registry-packages` job built from the release's
+binary archives (each archive checked against `SHA256SUMS-binaries` by
+`cargo xtask packages`), and only after checking that file is byte-equal to
+the one the GitHub release carries — so what reaches npm and PyPI is the
+attested binary. Two tools run beside those grants: npm itself, installed at
+an exact version (`npm@11.19.1`) because trusted publishing needs a newer npm
+than the runner image may carry, and `pypa/gh-action-pypi-publish`, pinned by
+commit like every other action. Neither registry holds a long-lived token for
+this project.
 
 `ci.yml` and `mutants.yml` — the only two workflows that run on
 `pull_request`, and so the only two that ever execute contributor-authored
