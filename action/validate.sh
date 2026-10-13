@@ -3,9 +3,10 @@
 # Copyright 2026 Tom F. (https://github.com/tomtom215)
 
 # Runs mcp-trace-validator for action.yml over the traces the TRACES globs
-# name: findings to the log and the job summary, SARIF and JUnit to files, and
-# the exit status to the `exit-code` output (the step itself always succeeds,
-# so the reports are written either way).
+# name and the sessions the capture step recorded (CAPTURED): findings to the
+# log and the job summary, SARIF and JUnit to files, and the exit status to the
+# `exit-code` output (the step itself always succeeds, so the reports are
+# written either way).
 #
 # "Either way" includes a run the validator cannot start — a pattern matching
 # no trace, or a lone trace it cannot read, for which it writes no document.
@@ -94,10 +95,17 @@ write_unjudged_reports() {
 
 # Split on whitespace with globbing off, then expand each pattern on its own,
 # so a pattern that matches nothing is reported rather than silently dropped.
+# CAPTURED is the capture step's glob, judged beside any `traces` given.
 set -f
 # shellcheck disable=SC2206 # word splitting is the point; globbing is off
-patterns=( $TRACES )
+patterns=( ${TRACES:-} ${CAPTURED:-} )
 set +f
+if [[ ${#patterns[@]} -eq 0 ]]; then
+  echo "::error::nothing to validate: set \`traces\`, or \`capture\` to record a session"
+  write_unjudged_reports "nothing to validate: no traces given and nothing captured"
+  echo "exit-code=2" >> "$GITHUB_OUTPUT"
+  exit 0
+fi
 traces=()
 for pattern in "${patterns[@]}"; do
   # shellcheck disable=SC2206 # the glob expansion is the point

@@ -67,7 +67,7 @@ To use the tools:
   Desktop, VS Code and Cursor, and driving a server with no client at all.
 - **[Reading a report](reading-a-report.md)** — what to do about each outcome,
   triaging a finding, raising coverage, and disputing a verdict.
-- **[Using it in CI](ci.md)** — exit codes, JUnit and SARIF, and the GitHub Action.
+- **[Using it in CI](ci.md)** — exit codes, JUnit and SARIF, the GitHub Action, and the container image.
 - **[Upgrading](upgrading.md)** — what a release may change, and how to compare
   verdicts across versions before you move a gate.
 - **[Troubleshooting](troubleshooting.md)** — what the common failures mean.

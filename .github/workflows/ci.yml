@@ -566,11 +566,14 @@ jobs:
 
   # The repository's own GitHub Action (action.yml), run as a user would run
   # it: built from this checkout, over passing traces (exit 0, reports written)
-  # and over a violating one (exit 1, the step fails, the reports still written).
+  # and over a violating one (exit 1, the step fails, the reports still written);
+  # then recording sessions itself (`capture`): the everything server driven by
+  # the reference host over stdio and through the HTTP proxy, each recording
+  # judged clean, and a client that fails failing the action.
   action:
-    name: GitHub Action (action.yml over the corpus)
+    name: GitHub Action (action.yml over the corpus, and recording sessions)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       # Shared by both runs of the action, so the second build is incremental.
       CARGO_TARGET_DIR: ${{ github.workspace }}/target
@@ -607,6 +610,45 @@ jobs:
           sarif-file: none.sarif
           junit-file: none.xml
           fail-on-findings: "false"
+      - name: Build the server and the client the recorded sessions run
+        run: cargo build --locked -p mcp-everything-server -p mcp-reference-host
+      - name: A stdio session, recorded and judged
+        id: stdio
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          capture: stdio
+          server: target/debug/mcp-everything-server --transport stdio --protocol-version 2026-07-28
+          client: >-
+            target/debug/mcp-reference-host --protocol-version 2026-07-28
+            --turn-limit 40 --error-budget 5 --server-cmd "$MCP_SERVER_COMMAND"
+          capture-dir: capture-stdio
+          sarif-file: stdio.sarif
+          junit-file: stdio.xml
+      - name: An HTTP session, recorded through the proxy and judged
+        id: http
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          capture: http
+          server: target/debug/mcp-everything-server --transport http --bind 127.0.0.1:38311 --protocol-version 2026-07-28
+          upstream: http://127.0.0.1:38311/mcp
+          client: target/debug/mcp-reference-host --protocol-version 2026-07-28 --url "$MCP_PROXY_URL"
+          capture-dir: capture-http
+          sarif-file: http.sarif
+          junit-file: http.xml
+      # A client that fails must fail the action, although the validator,
+      # with nothing recorded to judge, still writes its reports.
+      - name: A client that fails
+        id: badclient
+        continue-on-error: true
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          capture: stdio
+          server: target/debug/mcp-everything-server --transport stdio
+          client: exit 7
+          capture-dir: capture-badclient
+          sarif-file: badclient.sarif
+          junit-file: badclient.xml
+          fail-on-findings: "false"
       - name: The action reported what each run decided
         shell: bash
         env:
@@ -614,6 +656,12 @@ jobs:
           FAIL_CODE: ${{ steps.fail.outputs.exit-code }}
           FAIL_OUTCOME: ${{ steps.fail.outcome }}
           NONE_CODE: ${{ steps.none.outputs.exit-code }}
+          STDIO_CODE: ${{ steps.stdio.outputs.exit-code }}
+          STDIO_CLIENT: ${{ steps.stdio.outputs.client-exit-code }}
+          HTTP_CODE: ${{ steps.http.outputs.exit-code }}
+          HTTP_CLIENT: ${{ steps.http.outputs.client-exit-code }}
+          BAD_CLIENT: ${{ steps.badclient.outputs.client-exit-code }}
+          BAD_OUTCOME: ${{ steps.badclient.outcome }}
         run: |
           set -euo pipefail
           [[ "$PASS_CODE" == 0 ]] || { echo "::error::passing traces exited ${PASS_CODE}"; exit 1; }
@@ -625,3 +673,48 @@ jobs:
           jq -e '.runs[0].results | length == 0' pass.sarif
           jq -e '.runs[0].results[0].ruleId == "BASE-003"' fail.sarif
           grep -q '<failure' fail.xml
+          # Recorded sessions: one trace per leg, judged clean.
+          for leg in stdio http; do
+            traces=( "capture-${leg}"/*.jsonl )
+            [[ ${#traces[@]} -eq 1 && -s "${traces[0]}" ]] || { echo "::error::${leg}: expected one recorded trace, found ${traces[*]}"; exit 1; }
+            jq -e '.runs[0].invocations[0].executionSuccessful and (.runs[0].results | length == 0)' "${leg}.sarif"
+          done
+          [[ "$STDIO_CODE" == 0 && "$STDIO_CLIENT" == 0 ]] || { echo "::error::stdio capture exited ${STDIO_CODE}, client ${STDIO_CLIENT}"; exit 1; }
+          [[ "$HTTP_CODE" == 0 && "$HTTP_CLIENT" == 0 ]] || { echo "::error::HTTP capture exited ${HTTP_CODE}, client ${HTTP_CLIENT}"; exit 1; }
+          [[ "$BAD_CLIENT" == 7 ]] || { echo "::error::the failing client was reported as exiting ${BAD_CLIENT}, expected 7"; exit 1; }
+          [[ "$BAD_OUTCOME" == failure ]] || { echo "::error::a failing client did not fail the action"; exit 1; }
+          jq -e '.runs[0].invocations[0].executionSuccessful == false' badclient.sarif
+
+  # The container image (Dockerfile), built as release.yml builds it and run as
+  # a user would run it. Never pushed: this job holds no write scope, and the
+  # image is published only by release.yml on a release tag.
+  image:
+    name: Container image (built and run, never pushed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the image
+        run: docker build --pull --tag mcp-conformance:ci .
+      - name: Both binaries run, as a non-root user with no shell, and judge the corpus
+        run: |
+          set -euo pipefail
+          run() { docker run --rm -v "$PWD/corpus:/work/corpus:ro" mcp-conformance:ci "$@"; }
+          validator="$(run mcp-trace-validator --version | head -n 1)"
+          capture="$(run mcp-trace-capture --version | head -n 1)"
+          echo "$validator / $capture"
+          [[ "$validator" == "mcp-trace-validator ${capture#mcp-trace-capture }" ]] \
+            || { echo "::error::the two binaries report different versions"; exit 1; }
+          user="$(docker inspect --format '{{.Config.User}}' mcp-conformance:ci)"
+          [[ "$user" == 65532:65532 ]] || { echo "::error::the image runs as '${user}', expected 65532:65532"; exit 1; }
+          if docker run --rm mcp-conformance:ci sh -c true 2> /dev/null; then
+            echo "::error::the image has a shell"; exit 1
+          fi
+          run mcp-trace-validator validate --quiet corpus/good/*.jsonl corpus/draft/good/*.jsonl
+          # A violation trace must exit 1 (findings): 0 means it passed, and 2
+          # means the binary could not judge it at all.
+          status=0
+          run mcp-trace-validator validate --quiet corpus/draft/violations/mrtr-019-retry-reuses-id.jsonl || status=$?
+          [[ "$status" -eq 1 ]] || { echo "::error::a violation trace exited ${status}, expected 1"; exit 1; }
