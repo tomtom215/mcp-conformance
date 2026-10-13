@@ -17,8 +17,8 @@ use super::{Requirement, Verification};
 use crate::revision::{ProtocolRevision, REVISION_2025_11_25};
 
 /// The embedded per-area registry documents for protocol revision `2025-11-25`, in
-/// report order: base protocol, lifecycle, transports, then the capability-gated
-/// feature areas.
+/// report order: base protocol, lifecycle, transports, the capability-gated server
+/// feature areas, then the client-feature pages.
 const AREAS_2025_11_25: &[&str] = &[
     include_str!("../../registry/2025-11-25/base.json"),
     include_str!("../../registry/2025-11-25/lifecycle.json"),
@@ -30,6 +30,10 @@ const AREAS_2025_11_25: &[&str] = &[
     include_str!("../../registry/2025-11-25/logging.json"),
     include_str!("../../registry/2025-11-25/completion.json"),
     include_str!("../../registry/2025-11-25/pagination.json"),
+    include_str!("../../registry/2025-11-25/elicitation.json"),
+    include_str!("../../registry/2025-11-25/elicitation-security.json"),
+    include_str!("../../registry/2025-11-25/sampling.json"),
+    include_str!("../../registry/2025-11-25/roots.json"),
 ];
 
 /// The embedded per-area registry documents for protocol revision `2026-07-28`.
@@ -66,6 +70,10 @@ const AREAS_2026_07_28: &[&str] = &[
     include_str!("../../registry/2026-07-28/tools.json"),
     include_str!("../../registry/2026-07-28/resources.json"),
     include_str!("../../registry/2026-07-28/prompts.json"),
+    include_str!("../../registry/2026-07-28/elicitation.json"),
+    include_str!("../../registry/2026-07-28/elicitation-security.json"),
+    include_str!("../../registry/2026-07-28/sampling.json"),
+    include_str!("../../registry/2026-07-28/roots.json"),
 ];
 
 /// A complete requirement registry for one protocol revision.

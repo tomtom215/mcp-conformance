@@ -800,6 +800,296 @@
       "id": "PROM-021",
       "level": "MUST",
       "exclusion": "\"Carefully validate to prevent injection attacks\" is a property of the server's handling, not of the message: a prompt that was validated and one that was not look identical when both are accepted. What a trace can hold an implementation to is the concrete shape rules, PROM-016 through PROM-020."
+    },
+    {
+      "id": "ELIC-054",
+      "level": "MUST NOT",
+      "exclusion": "Whether a requested field is \"sensitive information\" — the page's own definition is \"secrets and credentials that grant access or authorize transactions\" — is a judgement about meaning, not syntax: a schema property named `token` may be a display preference and one named `answer` may collect a password. A check would have to guess from field names, and a guess convicts conforming servers. The server's author decides it; nothing in the message settles it."
+    },
+    {
+      "id": "ELIC-055",
+      "level": "MUST",
+      "exclusion": "The counterpart of the form mode prohibition, and blocked by the same judgement: that an interaction \"involves such sensitive information\" is a fact about what the user will be asked for, which no message states, so a form mode request cannot be shown to have needed URL mode."
+    },
+    {
+      "id": "ELIC-056",
+      "level": "MUST",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-058",
+      "level": "MUST",
+      "exclusion": "No declaration can violate it on the wire. The page makes an `elicitation` object naming neither mode \"equivalent to declaring support for `form` mode only\", so every declared `elicitation` capability names at least one mode. What remains is whether the client can actually handle the mode it declared, which is internal: a client that cannot still returns a well-formed `decline` or `cancel`."
+    },
+    {
+      "id": "ELIC-061",
+      "level": "MUST",
+      "exclusion": "A reading, not an act, like MRTR-007: a client's answers to a form mode request and to one without `mode` are the same messages (`accept` with `content`, `decline`, `cancel`), and `content` is optional in the result, so no answer shows which reading the client took. The server half — that such a request is form mode — is what `elicitation.mode-supported` and `elicitation.form-schema-present` apply."
+    },
+    {
+      "id": "ELIC-063",
+      "level": "SHOULD",
+      "exclusion": "UI behaviour: pre-populating a form is what the user sees before submitting. The submitted `content` cannot show it — the user may change or clear every default — so no message carries the clause."
+    },
+    {
+      "id": "ELIC-066",
+      "level": "SHOULD",
+      "exclusion": "UI behaviour: the controls the client offers its user. The wire shows only whether a retry or cancellation was eventually sent, which a user may decline to do whatever controls exist."
+    },
+    {
+      "id": "ELIC-067",
+      "level": "SHOULD NOT",
+      "exclusion": "Forbids an assumption. Its wire-visible consequence would be a server that breaks when an elicitation is declined, and the page leaves the server free to answer a declined retry with a result, an error or another round, so no answer is wrong on its face — the same reasoning as MRTR-014."
+    },
+    {
+      "id": "ELIC-068",
+      "level": "MUST",
+      "exclusion": "\"Handle\" names no observable outcome: the specification lets a server answer a declined, cancelled or failed elicitation with a result, an error or a further `input_required` round, and every one of those is handling. A server that fails to handle the case shows it only by breaking — a crash or a hang ends the recording rather than writing anything into it."
+    },
+    {
+      "id": "ELIC-069",
+      "level": "MUST",
+      "exclusion": "Server-internal state handling. How a server stores per-user state, protects it and binds it to an identity happens behind its own storage and authorization, and the identity it binds to is established outside the session's messages, by MCP authorization (whose pages this registry keeps out of scope, `sources.json`). Verified, where verified at all, by the server's own security review and tests; at `2026-07-28` the state a client carries is `requestState`, opaque by construction (MRTR-008)."
+    },
+    {
+      "id": "ELIC-070",
+      "level": "MUST NOT",
+      "exclusion": "Concerns what the server treats as authorization of its own users — an internal decision. A URL mode elicitation used to sign a user in to the server looks on the wire exactly like one used for a third-party grant; the difference is what the server does with the outcome."
+    },
+    {
+      "id": "ELIC-071",
+      "level": "MUST NOT",
+      "exclusion": "Third-party credentials are opaque strings whose provenance no message declares: a check cannot tell one in a result from any other string, and by design they never enter the session at all. The obligation is the server's — credentials could only transit the client if the server sent them — and it is kept by the flow the server builds, outside the recording."
+    },
+    {
+      "id": "ELIC-072",
+      "level": "MUST NOT",
+      "exclusion": "Token passthrough happens between the server and the third-party service, outside the MCP session; the recording holds only the client–server exchange, in which the client's credentials appear (as HTTP authorization) whether or not the server reuses them elsewhere."
+    },
+    {
+      "id": "ELIC-073",
+      "level": "MUST",
+      "exclusion": "By the clause's own words the interaction \"happens outside the MCP protocol, without involving the MCP client\": it is between the user's browser and the server or a third-party authorization server, so a recording of the MCP session cannot contain it."
+    },
+    {
+      "id": "ELIC-074",
+      "level": "MUST NOT",
+      "exclusion": "The same barrier as the transit clause: a credential obtained through URL mode elicitation is an opaque string whose provenance no message declares, so a check cannot tell one in a result from any other value the server returns."
+    },
+    {
+      "id": "ELIC-075",
+      "level": "MUST",
+      "exclusion": "Binding is server-internal state, and the identity it binds to is established by authorization outside the session's messages, so no message shows whether an elicitation was bound to it."
+    },
+    {
+      "id": "ELIC-076",
+      "level": "MUST",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-077",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-078",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-079",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-080",
+      "level": "MUST NOT",
+      "exclusion": "Whether a URL's path or query carries \"sensitive information about the end-user\" is a semantic judgement about opaque values — an identifier in a query may be a random nonce or an email address — so a check would convict on a guess. The page's own examples put an `elicitationId` in the query, which is exactly the kind of value a pattern would misread."
+    },
+    {
+      "id": "ELIC-081",
+      "level": "MUST NOT",
+      "exclusion": "Whether a URL grants access without further authentication is a property of the server it points to, observable only by dereferencing it — which a validator must not do (the client rules on the same page forbid even pre-fetching it), and which a recording does not contain."
+    },
+    {
+      "id": "ELIC-082",
+      "level": "SHOULD NOT",
+      "exclusion": "Intent: the clause forbids URLs \"intended to be clickable\", and a form's `message` or a field's description may mention a URL for reference. A check for URL-shaped text would convict a server for mentioning a link, and the intent itself is not on the wire."
+    },
+    {
+      "id": "ELIC-083",
+      "level": "SHOULD",
+      "exclusion": "Its antecedent — that this is a non-development environment — is not in the trace. A loopback host suggests development without proving it, and a staging or internal host proves nothing either way, so an `http` URL is not by itself evidence of a violation. The scheme is recorded; the environment is not."
+    },
+    {
+      "id": "ELIC-084",
+      "level": "MUST",
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-085",
+      "level": "MUST NOT",
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-086",
+      "level": "MUST NOT",
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-087",
+      "level": "MUST",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-088",
+      "level": "MUST",
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-089",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-090",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-091",
+      "level": "SHOULD NOT",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-092",
+      "level": "MUST NOT",
+      "exclusion": "Server-internal: whether the server verified an identity before trusting it is a decision made with information — its authorization context — that the session's messages do not carry."
+    },
+    {
+      "id": "ELIC-093",
+      "level": "SHOULD",
+      "exclusion": "Points to a separate document whose practices are server-internal; nothing in the session's messages shows which were followed."
+    },
+    {
+      "id": "ELIC-094",
+      "level": "MUST NOT",
+      "exclusion": "Whether a requested field is \"sensitive information\" — the page's own definition is \"secrets and credentials that grant access or authorize transactions\" — is a judgement about meaning, not syntax: a schema property named `token` may be a display preference and one named `answer` may collect a password. A check would have to guess from field names, and a guess convicts conforming servers. The server's author decides it; nothing in the message settles it."
+    },
+    {
+      "id": "ELIC-096",
+      "level": "SHOULD",
+      "exclusion": "Binds an act of validation, as MRTR-021 does: the server's outcome — accepting the data, re-asking, or failing — is the only thing that reaches the wire, and each is consistent with a server that validated and with one that did not."
+    },
+    {
+      "id": "ELIC-097",
+      "level": "MUST",
+      "exclusion": "Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it."
+    },
+    {
+      "id": "ELIC-098",
+      "level": "MUST",
+      "exclusion": "Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it."
+    },
+    {
+      "id": "ELIC-099",
+      "level": "MUST",
+      "exclusion": "Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it."
+    },
+    {
+      "id": "SAMP-021",
+      "level": "SHOULD NOT",
+      "exclusion": "Whether an implementation is new is not in any message: a session using the feature is equally consistent with an existing implementation that has not yet migrated, which the sentence asks only to migrate."
+    },
+    {
+      "id": "SAMP-022",
+      "level": "SHOULD",
+      "exclusion": "Asks for a migration over time, which one recording cannot show either way — a session that uses the feature may come from an implementation partway through migrating, and the feature remains in the specification until removal."
+    },
+    {
+      "id": "SAMP-023",
+      "level": "SHOULD",
+      "exclusion": "Policy and UI: whether a human reviews sampling requests, and whether they can deny one, is the client application's design. A request answered with a result may have been approved by a person or by policy; nothing in the answer says which."
+    },
+    {
+      "id": "SAMP-024",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "SAMP-025",
+      "level": "MUST",
+      "exclusion": "The precondition half of the sentence. A client that has not declared `sampling.tools` does nothing wrong by receiving a tool-enabled request — the server does, and the sentence's other half (`sampling.tools-declared`) judges it. Nothing the client sends can break this half: the declaration is either made or not, and its absence becomes a violation only when such a request arrives, which is the server's act."
+    },
+    {
+      "id": "SAMP-035",
+      "level": "SHOULD NOT",
+      "exclusion": "Retention is client-internal state: the next request's `messages` are the server's, and say nothing about what the client kept from the last one."
+    },
+    {
+      "id": "SAMP-036",
+      "level": "MUST",
+      "exclusion": "A bound in the model's tokens, and the tokenizer is the model's: a validator cannot count the tokens of a result's `content` without knowing which tokenizer produced it (the result's `model` names the model, not its vocabulary), so an over-long answer cannot be shown."
+    },
+    {
+      "id": "SAMP-037",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "SAMP-038",
+      "level": "SHOULD",
+      "exclusion": "Validation is internal; its outcome is whatever each party sends next, and the shape of what they send is judged directly by the clauses that constrain it (tool-message balance, message roles)."
+    },
+    {
+      "id": "SAMP-039",
+      "level": "SHOULD",
+      "exclusion": "Hints are advisory and mapping them is the client's choice (the page: clients \"MAY map hints to equivalent models from different providers\"); the result's `model` names what was used, but no rule says which model a hint selects, so no answer contradicts one."
+    },
+    {
+      "id": "SAMP-040",
+      "level": "SHOULD",
+      "exclusion": "A request schedule: rate limiting is measured in elapsed time, which checks may not consult (LIFE-015, the time boundary in `02-architecture.md`), and its threshold is the client's own policy."
+    },
+    {
+      "id": "SAMP-041",
+      "level": "MUST",
+      "exclusion": "\"Appropriately\" names no observable criterion, and which data is sensitive is a semantic judgement about content (see the elicitation pages' sensitive-information clauses): no message can be shown to have mishandled it."
+    },
+    {
+      "id": "SAMP-043",
+      "level": "SHOULD",
+      "exclusion": "A limit on a loop's length is a policy whose threshold the page does not set: any finite loop in a recording is consistent with some limit, and an unbounded one cannot be recorded."
+    },
+    {
+      "id": "ROOT-011",
+      "level": "SHOULD NOT",
+      "exclusion": "Whether an implementation is new is not in any message: a session using the feature is equally consistent with an existing implementation that has not yet migrated, which the sentence asks only to migrate."
+    },
+    {
+      "id": "ROOT-012",
+      "level": "SHOULD",
+      "exclusion": "Asks for a migration over time, which one recording cannot show either way — a session that uses the feature may come from an implementation partway through migrating, and the feature remains in the specification until removal."
+    },
+    {
+      "id": "ROOT-015",
+      "level": "MUST",
+      "exclusion": "Client-internal policy: which directories the user permitted, how paths are validated and accessed, and whether they remain reachable are facts about the client's host system, not its messages. The one part a message carries — the URI's form — is judged by `roots.uri-file-scheme`; a `file://` URI with `..` segments is still well formed, and whether it escapes a permitted directory depends on the filesystem."
+    },
+    {
+      "id": "ROOT-016",
+      "level": "SHOULD",
+      "exclusion": "Server-internal: what the server does with roots — keeping within their boundaries, validating paths against them, coping when they vanish or change, caching them — happens in its own operations on its host, which the MCP session does not record."
+    },
+    {
+      "id": "ROOT-017",
+      "level": "SHOULD",
+      "exclusion": "UI and internal monitoring: consent prompts and root-management screens are the client's interface, and checking or watching roots' accessibility happens on its filesystem. A recording carries only the roots it finally reported."
+    },
+    {
+      "id": "ROOT-019",
+      "level": "SHOULD",
+      "exclusion": "Server-internal: what the server does with roots — keeping within their boundaries, validating paths against them, coping when they vanish or change, caching them — happens in its own operations on its host, which the MCP session does not record."
     }
   ]
 }

@@ -618,7 +618,7 @@ below is stated again in its entry, with the reasoning.
 - **`mcp-reference-host` follows `nextCursor`** in its tool loop and sweep, and
   `--probe` adds one request: a call with a designated argument's `Mcp-Param-*` header
   left out (`TRAN-136`).
-- **The `2026-07-28` captures evidence 140 of the 154 judgeable clauses** (127 before the new surface; the totals also count the rows 2.3 made judgeable):
+- **The `2026-07-28` captures evidenced `140 of the 154 judgeable clauses`** when the new surface landed (`127` before it; later registry rows have since raised both counts):
   `CACH-015`/`CACH-016`, `PROM-017`, `TOOL-034`, `TRAN-079`, `TRAN-081`, `TRAN-130`,
   `TRAN-134`, `TRAN-135` and `TRAN-136`. The ten that remain are listed in
   `corpus/README.md`, each with its reason.
@@ -678,6 +678,20 @@ below is stated again in its entry, with the reasoning.
   protocol exports as traces, each listing what its source does not record.
 - **`mcp_trace_validator::timeline`** (`shape`, `pair`, `preview`) and
   `mcp_trace_validator::html::STYLESHEET` are public.
+- **The client-feature pages enter the registry at both revisions.**
+  `client/elicitation`, `client/sampling` and `client/roots` were excluded wholesale;
+  every MUST- and SHOULD-family keyword on them is now entered — 83 entries at
+  `2025-11-25`, 78 at `2026-07-28` (areas `ELIC`, `SAMP`, `ROOT`). 45 are judged by 26
+  new checks, each with a passing and a violating corpus trace: undeclared elicitation
+  modes, each mode's required parameters, an RFC 3986-valid `url`, tool-enabled
+  sampling without `sampling.tools`, the deprecated `includeContext` values,
+  tool-use/tool-result balance, `toolChoice` honoured, `file://` roots, answering a
+  feature never declared, and accepted form content against its schema; at
+  `2025-11-25` also the `elicitationId` and `-32042` bookkeeping and the client error
+  codes. The rest carry exclusions saying why a recording cannot show them. No
+  verdict changed: the Go SDK at `2026-07-28` fails `ELIC-059` on the elicitation
+  `BASE-034` already reports, and this project's reference host warns `ELIC-095` (it
+  accepts a form with empty content where the schema requires fields).
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.

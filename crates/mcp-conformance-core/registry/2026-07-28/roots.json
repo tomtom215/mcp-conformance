@@ -1,0 +1,128 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "ROOT-011",
+      "level": "SHOULD NOT",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "client/roots",
+        "quote": "New implementations SHOULD NOT adopt it"
+      },
+      "exclusion": "Whether an implementation is new is not in any message: a session using the feature is equally consistent with an existing implementation that has not yet migrated, which the sentence asks only to migrate."
+    },
+    {
+      "id": "ROOT-012",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "client/roots",
+        "quote": "existing implementations SHOULD migrate to passing directories or files via tool parameters, resource URIs, or server configuration."
+      },
+      "exclusion": "Asks for a migration over time, which one recording cannot show either way — a session that uses the feature may come from an implementation partway through migrating, and the feature remains in the specification until removal."
+    },
+    {
+      "id": "ROOT-013",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "client/roots#capabilities",
+        "quote": "Clients that support roots MUST declare the `roots` capability in `_meta.io.modelcontextprotocol/clientCapabilities` on each request:"
+      },
+      "checks": [
+        "roots.client-declares-capability"
+      ]
+    },
+    {
+      "id": "ROOT-014",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "client/roots#root",
+        "quote": "`uri`: Unique identifier for the root. This MUST be a `file://` URI in the current specification."
+      },
+      "checks": [
+        "roots.uri-file-scheme"
+      ]
+    },
+    {
+      "id": "ROOT-015",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "client/roots#security-considerations",
+        "quote": "Clients MUST: Only expose roots with appropriate permissions; Validate all root URIs to prevent path traversal; Implement proper access controls; Monitor root accessibility"
+      },
+      "exclusion": "Client-internal policy: which directories the user permitted, how paths are validated and accessed, and whether they remain reachable are facts about the client's host system, not its messages. The one part a message carries — the URI's form — is judged by `roots.uri-file-scheme`; a `file://` URI with `..` segments is still well formed, and whether it escapes a permitted directory depends on the filesystem."
+    },
+    {
+      "id": "ROOT-016",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "client/roots#security-considerations",
+        "quote": "Servers SHOULD: Handle cases where roots become unavailable; Respect root boundaries during operations; Validate all paths against provided roots"
+      },
+      "exclusion": "Server-internal: what the server does with roots — keeping within their boundaries, validating paths against them, coping when they vanish or change, caching them — happens in its own operations on its host, which the MCP session does not record."
+    },
+    {
+      "id": "ROOT-017",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "client/roots#implementation-guidelines",
+        "quote": "Clients SHOULD: Prompt users for consent before exposing roots to servers; Provide clear user interfaces for root management; Validate root accessibility before exposing; Monitor for root changes"
+      },
+      "exclusion": "UI and internal monitoring: consent prompts and root-management screens are the client's interface, and checking or watching roots' accessibility happens on its filesystem. A recording carries only the roots it finally reported."
+    },
+    {
+      "id": "ROOT-018",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "client/roots#implementation-guidelines",
+        "quote": "Servers SHOULD: Check for roots capability before usage"
+      },
+      "checks": [
+        "roots.capability-checked"
+      ]
+    },
+    {
+      "id": "ROOT-019",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "client/roots#implementation-guidelines",
+        "quote": "Servers SHOULD: Respect root boundaries in operations; Cache root information appropriately"
+      },
+      "exclusion": "Server-internal: what the server does with roots — keeping within their boundaries, validating paths against them, coping when they vanish or change, caching them — happens in its own operations on its host, which the MCP session does not record."
+    }
+  ]
+}

@@ -178,7 +178,7 @@ const SHIPPED: &[Check] = &[
     ),
 ];
 
-/// Concatenates the two halves at compile time, so each may live in its own file
+/// Concatenates two row lists at compile time, so each may live in its own file
 /// while `ALL` stays one `&[Check]` — the shape every caller and the coverage
 /// invariants read. `Check` is `Copy`, which is what makes the const loop legal.
 const fn concatenated<const N: usize>(first: &[Check], second: &[Check]) -> [Check; N] {
@@ -196,9 +196,13 @@ const fn concatenated<const N: usize>(first: &[Check], second: &[Check]) -> [Che
     out
 }
 
-/// The backing storage for [`ALL`].
-static EVERY: [Check; SHIPPED.len() + stateless_rows::ROWS.len()] =
+/// The two revision halves, before the rows both share.
+const REVISION_ROWS: [Check; SHIPPED.len() + stateless_rows::ROWS.len()] =
     concatenated(SHIPPED, stateless_rows::ROWS);
+
+/// The backing storage for [`ALL`].
+static EVERY: [Check; REVISION_ROWS.len() + client_feature_rows::ROWS.len()] =
+    concatenated(&REVISION_ROWS, client_feature_rows::ROWS);
 
 /// Every check implemented by this build, in stable order.
 pub static ALL: &[Check] = &EVERY;
@@ -208,6 +212,7 @@ pub fn find(id: &str) -> Option<&'static Check> {
     ALL.iter().find(|check| check.id == id)
 }
 
+mod client_feature_rows;
 mod stateless_rows;
 
 #[cfg(test)]

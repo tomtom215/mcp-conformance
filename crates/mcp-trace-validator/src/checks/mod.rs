@@ -20,6 +20,7 @@
 //! here as [`ALL`].
 
 mod base;
+mod client_features;
 mod inventory;
 mod lifecycle;
 mod negotiation;
