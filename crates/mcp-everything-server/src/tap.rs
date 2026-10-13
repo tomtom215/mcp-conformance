@@ -52,10 +52,10 @@
 //!   no finer identity once sessions are gone. A session's state is kept for
 //!   the run, `DELETE` included: releasing it there would split a session
 //!   whose stream records after it, and send a request after teardown to the
-//!   `unassigned` trace. The tap is diagnostics for runs
-//!   this repository drives (the official runner over loopback), not a forensic
-//!   recorder against adversarial clients — the security boundary lives in the
-//!   policy layer in front of it.
+//!   `unassigned` trace. The tap is diagnostics for runs this repository
+//!   drives (the official runner over loopback), not a forensic recorder
+//!   against adversarial clients — the security boundary lives in the policy
+//!   layer in front of it.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -125,11 +125,11 @@ const STATELESS_TRACE: &str = "stateless";
 ///
 /// The service answers those 404 (`2025-11-25` basic/transports §session
 /// management), and the exchange is evidence of that, so it is recorded — but
-/// not under the name the client sent: until 2026-10-13 each made-up id opened a file
-/// of its own, so a client could open files at will, and the agreement replay
-/// judged each as a session that never initialized. One trace per run holds
-/// them all; as with [`STATELESS_TRACE`], the run is the only grouping the
-/// wire offers for them.
+/// not under the name the client sent: until 2026-10-13 each made-up id opened
+/// a file of its own, so a client could open files at will, and the agreement
+/// replay judged each as a session that never initialized. One trace per run
+/// holds them all; as with [`STATELESS_TRACE`], the run is the only grouping
+/// the wire offers for them.
 const UNASSIGNED_TRACE: &str = "unassigned";
 
 /// Largest request/response body the tap will buffer for recording. The
