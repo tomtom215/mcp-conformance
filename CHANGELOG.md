@@ -61,6 +61,9 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **`interop/ts-client.mjs` waits for its standalone GET to be answered** before its
+  next request. A recording that interleaved the two left `TRAN-040` unattributable,
+  so it read *not observed* on some runs.
 - **The everything server's tap sequences each request when it observes it**, not
   after the service answers. Two overlapping requests on a session were written in
   the order of their answers, and a notification a request caused could precede the
@@ -530,6 +533,21 @@ below is stated again in its entry, with the reasoning.
   `traces` is now optional; existing inputs are unchanged.
 - **`cargo xtask toolchain-pin` also checks the `Dockerfile`** builds on the pinned
   toolchain's `rust` image.
+- **The cross-SDK matrix.** Each Tier 1 SDK's own conformance server (TypeScript
+  1.32.0, Python 2.3.0, Go v1.8.0, rmcp 3.5.1) is recorded through
+  `mcp-trace-capture` while an official SDK client drives it, judged at each revision
+  it serves, and committed as corpus (`corpus/captured/`,
+  `corpus/draft/captured/sdk-*`). `cargo xtask sdk-matrix` publishes the results as a
+  book page, `sdk-matrix --check` (a new gate) holds the page, the pins and the guide
+  to them, and a weekly scheduled job re-records every session and fails if a result
+  moves. Findings are published, not hidden: at `2026-07-28` the Go SDK's server asks
+  a client for `elicitation/create` it never declared (`BASE-034`,
+  `MRTR-012`/`MRTR-013`) and omits `X-Accel-Buffering` (`TRAN-068`). The SDK
+  captures evidence six more `2026-07-28` clauses: 125 of the 145 judgeable, up from
+  119.
+- **"Recording an SDK's server"**, a book chapter of worked guides for the TypeScript
+  and Python SDKs, whose commands are included from `interop/matrix.sh`, the script
+  the scheduled job runs.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.

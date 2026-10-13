@@ -36,7 +36,9 @@ Pre-1.0: the API and the verdicts may change between minor releases, and the
 >   and the five clauses it made judgeable;
 > - the container image (`ghcr.io/tomtom215/mcp-conformance`, first published by
 >   the next release) and the GitHub Action's `capture` input, which records the
->   sessions it then judges.
+>   sessions it then judges;
+> - the cross-SDK matrix: the official TypeScript, Python, Go and Rust SDKs'
+>   conformance servers, recorded and judged weekly ([book](book/src/sdk-matrix.md)).
 
 ## Quickstart
 
