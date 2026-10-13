@@ -26,7 +26,7 @@ use mcp_conformance_core::trace::{DEFAULT_MAX_LINE_BYTES, LINE_ENVELOPE_BYTES};
 
 /// The exit code for a session whose trace is incomplete, when it would otherwise
 /// be 0.
-const EXIT_INCOMPLETE: i32 = 3;
+pub const EXIT_INCOMPLETE: i32 = 3;
 
 /// Where traces go: the one file `-o` names, or a numbered file per session.
 #[derive(Debug)]

@@ -14,7 +14,7 @@
 //! 3. **`--client-command`** — the reference host as the suite's client.
 //!
 //! "Agrees with `cargo xtask conformance` on the same subject" is checked, not
-//! eyeballed ([`compare`]):
+//! eyeballed (the `compare` module):
 //!
 //! - **the suite's side is identical**: every scenario the gate's run reported,
 //!   with the same check statuses (for stdio: the gate's server scenarios less
@@ -23,7 +23,7 @@
 //!   actually leaves out);
 //! - **the validator's side contains the gate's**: every requirement the gate's
 //!   recordings fail, `test`'s fail too; and what `test` fails beyond them is
-//!   exactly the committed [`WIRE_FINDINGS`] — each an exchange the gate's
+//!   exactly the committed `WIRE_FINDINGS` — each an exchange the gate's
 //!   recorders cannot see (the server tap sits behind the `Host` check; the
 //!   host's capture sits above the HTTP layer), with why. A new one fails this
 //!   leg, and so does an entry that no longer occurs.
