@@ -265,7 +265,8 @@ sessions for every area.
   [`docs/plan/`](docs/plan/README.md). The ecosystem register dates every external
   fact it records, and a weekly CI job fails when a row is older than ninety days.
 - **The [project review of 2026-09-24](docs/reports/project-review-2026-09-24.md)** —
-  what was wrong, and the plan being executed to fix it.
+  a dated review: what was wrong on that date, and the plan it proposed. It is kept as
+  written; [the roadmap](docs/plan/06-roadmap.md) records what has been done since.
 
 ## Engineering
 
