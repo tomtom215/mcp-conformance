@@ -103,6 +103,11 @@ async fn the_launch_link_sets_the_cookie_once_and_redirects_away_from_itself() {
     hardened(&headers);
     let (status, _, _) = send(&shared, launch()).await;
     assert_eq!(status, StatusCode::FORBIDDEN);
+    // The browser that holds the cookie, reloading the link, is sent on.
+    let reload = request(&shared, Method::GET, &link, None);
+    let (status, headers, _) = send(&shared, reload).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert!(headers.get(header::SET_COOKIE).is_none());
 }
 
 #[tokio::test]

@@ -76,6 +76,16 @@ async fn route(shared: Arc<Shared>, parts: &Parts, body: Body) -> Response {
     if let Err((status, why)) = shared.keys.check_origin(&parts.method, &parts.headers) {
         return plain(status, why);
     }
+    let authenticated = shared.keys.authenticated(&parts.headers);
+    if parts.uri.path() == "/" && guard::query(&parts.uri, "token").is_some() && authenticated {
+        // The browser that launched, reloading the link: it already holds
+        // the cookie, so it is sent on rather than refused.
+        let mut response = plain(StatusCode::SEE_OTHER, "");
+        response
+            .headers_mut()
+            .insert(header::LOCATION, HeaderValue::from_static("/"));
+        return response;
+    }
     if parts.uri.path() == "/"
         && let Some(launch) = shared.keys.launch(&parts.uri)
     {
@@ -92,7 +102,7 @@ async fn route(shared: Arc<Shared>, parts: &Parts, body: Body) -> Response {
             Err((status, why)) => plain(status, why),
         };
     }
-    if !shared.keys.authenticated(&parts.headers) {
+    if !authenticated {
         return plain(
             StatusCode::UNAUTHORIZED,
             "unauthorized: open the link `mcp-conformance serve` printed when it started\n",

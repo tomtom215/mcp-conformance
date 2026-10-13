@@ -173,20 +173,30 @@ pub(crate) fn documented_commands(text: &str) -> Vec<String> {
     commands
 }
 
-/// Each documented command is one this binary accepts: run with no Node on
-/// PATH, it gets as far as asking for Node — past argument parsing — rather
-/// than failing as a usage error.
+/// Each documented command is one this binary accepts. A `test` command, run
+/// with no Node on PATH, gets as far as asking for Node — past argument
+/// parsing — rather than failing as a usage error. Any other (`serve`, which
+/// would start serving; `library`, which would change a library) is run with
+/// `--help` after its arguments, which clap answers only once every argument
+/// before it has parsed.
 #[test]
 fn every_documented_command_parses() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let empty = scratch("documented");
     let mut seen = 0;
-    for document in ["README.md", "../../book/src/testing.md"] {
+    for document in [
+        "README.md",
+        "../../book/src/testing.md",
+        "../../book/src/workbench.md",
+    ] {
         let text = std::fs::read_to_string(root.join(document)).unwrap();
         let commands = documented_commands(&text);
         assert!(!commands.is_empty(), "{document} shows no command");
         for command in commands {
-            let words = words(&command);
+            let mut words = words(&command);
+            if words.get(1).is_some_and(|sub| sub != "test") {
+                words.push("--help".to_owned());
+            }
             let output = binary()
                 .args(&words[1..])
                 .env("PATH", &empty)

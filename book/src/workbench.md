@@ -12,6 +12,11 @@ runs on your machine, reads and writes one directory, and sends nothing anywhere
 
 ```text
 mcp-conformance serve --library ./recordings
+```
+
+It prints the link to open:
+
+```console
 mcp-conformance serve: library ./recordings (12 recordings)
 mcp-conformance serve: open http://127.0.0.1:41245/?token=ae0c…4f71
 mcp-conformance serve: the link works once; Ctrl-C stops the workbench

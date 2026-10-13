@@ -87,7 +87,7 @@ trace before you share it ([the security model](../../docs/plan/05-security-mode
 ## The workbench
 
 ```text
-mcp-conformance serve --library ./recordings [--open]
+mcp-conformance serve --library ./recordings --open
 ```
 
 A local web page over a directory of recordings (traces, each with an optional
@@ -101,10 +101,11 @@ export, and redacted copies. It listens on `127.0.0.1` and prints a link with a 
 token; it sends nothing anywhere. [The workbench](../../book/src/workbench.md) chapter has
 the details.
 
-The same library from the command line, for scripts:
+The same library from the command line, for scripts (`stats --format json` prints
+exactly what the dashboards read):
 
 ```text
-mcp-conformance library --library ./recordings stats --format json   # what the dashboards read
+mcp-conformance library --library ./recordings stats --format json
 mcp-conformance library --library ./recordings import capture.jsonl --from mcpsnoop
 mcp-conformance library --library ./recordings redact ID --meta --pointer /params/arguments/apiKey
 mcp-conformance library --library ./recordings prune --retain-days 30 --apply
