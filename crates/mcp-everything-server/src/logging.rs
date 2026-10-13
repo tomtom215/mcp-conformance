@@ -9,17 +9,13 @@
 //! (`debug` lowest → `emergency` highest) is encoded here explicitly and
 //! exhaustively tested.
 
-// SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
-// functional and REQUIRED on the `2025-11-25` surface this crate implements
-// and the official suite exercises, so rmcp 3.x's deprecation attributes fire
-// on correct code — here, Logging. Scoped to this module, never the crate:
-// a blanket allow would also hide a deprecation that genuinely matters. The
-// honest cost is that a *different* future deprecation in this module would
-// be silenced too. Retires when the `2025-11-25` surface does.
-#![allow(deprecated)]
+// SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+#[allow(deprecated)]
 use rmcp::model::LoggingLevel;
 
 /// Spec severity order, `debug` = 0 (least severe) … `emergency` = 7.
+// SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+#[allow(deprecated)]
 const fn severity(level: LoggingLevel) -> u8 {
     match level {
         LoggingLevel::Debug => 0,
@@ -36,6 +32,8 @@ const fn severity(level: LoggingLevel) -> u8 {
 /// Whether a message at `candidate` severity passes a `threshold` set via
 /// `logging/setLevel`: everything at or above the threshold flows.
 #[must_use]
+// SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+#[allow(deprecated)]
 pub const fn permits(threshold: LoggingLevel, candidate: LoggingLevel) -> bool {
     severity(candidate) >= severity(threshold)
 }
@@ -44,6 +42,8 @@ pub const fn permits(threshold: LoggingLevel, candidate: LoggingLevel) -> bool {
 /// a conformance server must not hide messages the client never asked to
 /// filter.
 #[must_use]
+// SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+#[allow(deprecated)]
 pub const fn default_level() -> LoggingLevel {
     LoggingLevel::Debug
 }
@@ -52,6 +52,8 @@ pub const fn default_level() -> LoggingLevel {
 mod tests {
     use super::*;
 
+    // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     const ALL: [LoggingLevel; 8] = [
         LoggingLevel::Debug,
         LoggingLevel::Info,

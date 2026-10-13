@@ -5,11 +5,6 @@
 //! `tokio::io::duplex` — full initialize/list/call exchanges through the same
 //! codec the stdio transport uses, with no sockets and no subprocesses.
 
-// These tests exercise Roots/Sampling/Logging, which SEP-2577
-// forward-deprecates but `2025-11-25` still requires — the very surface the
-// official suite grades. Scoped to this test module; see the library modules
-// for the same note.
-#![allow(deprecated)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use mcp_everything_server::EverythingServer;
@@ -303,6 +298,8 @@ struct Recorder {
 }
 
 impl rmcp::ClientHandler for Recorder {
+    // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     async fn on_logging_message(
         &self,
         params: rmcp::model::LoggingMessageNotificationParam,
@@ -674,6 +671,8 @@ async fn resources_surface_matches_the_scenarios() {
 #[tokio::test]
 async fn subscribe_acknowledges_with_an_update_then_unsubscribe_round_trips() {
     let (client, recorder) = connect_recording().await;
+    // rmcp deprecates resources/subscribe for `2026-07-28`; `2025-11-25` defines it.
+    #[allow(deprecated)]
     client
         .subscribe(rmcp::model::SubscribeRequestParams::new(
             "test://watched-resource",
@@ -692,6 +691,8 @@ async fn subscribe_acknowledges_with_an_update_then_unsubscribe_round_trips() {
     })
     .await
     .expect("update notification arrives");
+    // rmcp deprecates resources/subscribe for `2026-07-28`; `2025-11-25` defines it.
+    #[allow(deprecated)]
     client
         .unsubscribe(rmcp::model::UnsubscribeRequestParams::new(
             "test://watched-resource",
@@ -701,6 +702,8 @@ async fn subscribe_acknowledges_with_an_update_then_unsubscribe_round_trips() {
     // Unsubscription is observable through resubscription: only a URI that
     // was actually dropped is "newly tracked" again, so a second
     // acknowledgment update must arrive.
+    // rmcp deprecates resources/subscribe for `2026-07-28`; `2025-11-25` defines it.
+    #[allow(deprecated)]
     client
         .subscribe(rmcp::model::SubscribeRequestParams::new(
             "test://watched-resource",
@@ -872,6 +875,8 @@ async fn completion_filters_the_documented_candidates_by_prefix() {
 async fn set_level_filters_subsequent_log_notifications() {
     let (client, recorder) = connect_recording().await;
 
+    // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     client
         .set_level(rmcp::model::SetLevelRequestParams::new(
             rmcp::model::LoggingLevel::Error,
@@ -892,6 +897,8 @@ async fn set_level_filters_subsequent_log_notifications() {
         "info messages must be filtered at error threshold"
     );
 
+    // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     client
         .set_level(rmcp::model::SetLevelRequestParams::new(
             rmcp::model::LoggingLevel::Debug,
@@ -922,6 +929,8 @@ struct InteractiveClient {
 }
 
 impl rmcp::ClientHandler for InteractiveClient {
+    // SEP-2577 deprecates Sampling; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     fn get_info(&self) -> rmcp::model::ClientConfig {
         let mut info = rmcp::model::ClientConfig::default();
         info.capabilities = rmcp::model::ClientCapabilities::builder()
@@ -931,6 +940,8 @@ impl rmcp::ClientHandler for InteractiveClient {
         info
     }
 
+    // SEP-2577 deprecates Sampling; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     async fn create_message(
         &self,
         _params: rmcp::model::CreateMessageRequestParams,

@@ -106,6 +106,8 @@ fn subscription_set_is_capped_against_unbounded_growth() {
 }
 
 #[test]
+// SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+#[allow(deprecated)]
 fn log_threshold_starts_permissive_and_tightens() {
     let server = EverythingServer::new();
     assert!(server.log_permitted_for(None, LoggingLevel::Debug));
@@ -148,6 +150,8 @@ fn only_the_stateless_mode_narrows_the_advertised_versions() {
 }
 
 #[test]
+// SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+#[allow(deprecated)]
 fn the_stateless_revision_logs_only_for_a_request_that_asked() {
     // LOG-008 is a MUST NOT, and the default is silence: `logging/setLevel` is
     // gone at this revision, so a session threshold would be one nobody set.
@@ -165,6 +169,8 @@ fn the_stateless_revision_logs_only_for_a_request_that_asked() {
 }
 
 #[test]
+// SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+#[allow(deprecated)]
 fn the_legacy_revision_ignores_a_per_request_level() {
     // The field is a `2026-07-28` addition. Honouring it at `2025-11-25` would
     // let a client silently bypass the threshold `logging/setLevel` set, which

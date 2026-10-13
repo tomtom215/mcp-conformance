@@ -25,9 +25,11 @@
 
 use rmcp::RoleServer;
 use rmcp::model::{
-    CreateMessageRequest, CreateMessageRequestParams, ElicitRequest, ElicitRequestParams,
-    ErrorData, InputRequest, InputRequests, InputRequiredResult,
+    ElicitRequest, ElicitRequestParams, ErrorData, InputRequest, InputRequests, InputRequiredResult,
 };
+// SEP-2577 deprecates Sampling; both revisions still define it.
+#[allow(deprecated)]
+use rmcp::model::{CreateMessageRequest, CreateMessageRequestParams};
 use rmcp::service::RequestContext;
 use serde_json::Value;
 
@@ -62,11 +64,15 @@ pub(super) enum Ask {
     /// `elicitation/create`.
     Elicit(ElicitRequestParams),
     /// `sampling/createMessage`.
+    // SEP-2577 deprecates Sampling; both revisions still define it.
+    #[allow(deprecated)]
     Sample(CreateMessageRequestParams),
 }
 
 impl Ask {
     /// This ask as an MRTR `inputRequests` entry.
+    // SEP-2577 deprecates Sampling; both revisions still define it.
+    #[allow(deprecated)]
     fn into_input_request(self) -> InputRequest {
         match self {
             Self::Elicit(params) => InputRequest::Elicitation(ElicitRequest::new(params)),
@@ -141,6 +147,8 @@ impl Round {
 
 /// The `2025-11-25` flow: send the request and await the client's answer.
 async fn legacy(context: &RequestContext<RoleServer>, ask: Ask) -> Result<Value, ErrorData> {
+    // SEP-2577 deprecates Sampling; both revisions still define it.
+    #[allow(deprecated)]
     let (result, what) = match ask {
         Ask::Elicit(params) => (
             context

@@ -32,11 +32,9 @@
 // SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
 // functional and REQUIRED on the `2025-11-25` surface this crate implements
 // and the official suite exercises, so rmcp 3.x's deprecation attributes fire
-// on correct code — here, Logging. Scoped to this module, never the crate:
-// a blanket allow would also hide a deprecation that genuinely matters. The
-// honest cost is that a *different* future deprecation in this module would
-// be silenced too. Retires when the `2025-11-25` surface does.
-#![allow(deprecated)]
+// on correct code. Each use is allowed on the item or statement that makes it,
+// never the module or the crate, so a *different* future deprecation still
+// warns everywhere else. They retire when the `2025-11-25` surface does.
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -46,11 +44,13 @@ use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::model::{
     CompleteRequestParams, CompleteResult, CompletionInfo, DiscoverResult, ErrorData as McpError,
     Implementation, InitializeRequestParams, InitializeResult, ListResourceTemplatesResult,
-    ListResourcesResult, LoggingLevel, PaginatedRequestParams, ProtocolVersion,
-    ReadResourceRequestParams, ReadResourceResponse, Reference, ResourceUpdatedNotificationParam,
-    ServerCapabilities, ServerConfig, SetLevelRequestParams, SubscribeRequestParams,
-    UnsubscribeRequestParams,
+    ListResourcesResult, PaginatedRequestParams, ProtocolVersion, ReadResourceRequestParams,
+    ReadResourceResponse, Reference, ResourceUpdatedNotificationParam, ServerCapabilities,
+    ServerConfig, SubscribeRequestParams, UnsubscribeRequestParams,
 };
+// SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+#[allow(deprecated)]
+use rmcp::model::{LoggingLevel, SetLevelRequestParams};
 use rmcp::service::RequestContext;
 use rmcp::{RoleServer, ServerHandler, prompt_handler, tool_handler};
 
@@ -80,6 +80,8 @@ pub struct EverythingServer {
     /// URIs the client subscribed to (`resources/subscribe` bookkeeping).
     subscriptions: Arc<Mutex<HashSet<String>>>,
     /// Threshold set via `logging/setLevel`; messages below it are dropped.
+    // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     log_level: Arc<Mutex<LoggingLevel>>,
     /// The protocol revision this instance presents.
     revision: ServedRevision,
@@ -129,6 +131,8 @@ impl EverythingServer {
     /// did not (`server/utilities/logging#per-request-log-level`). So at the
     /// newer revision silence is the default and the request is the only thing
     /// that can lift it — a session threshold would be a threshold nobody set.
+    // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     pub(crate) fn log_permits(
         &self,
         context: &RequestContext<RoleServer>,
@@ -141,6 +145,8 @@ impl EverythingServer {
     ///
     /// Split so the rule is testable: building a `RequestContext` needs a live
     /// peer, and the peer has no bearing on the decision.
+    // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     fn log_permitted_for(&self, asked: Option<LoggingLevel>, candidate: LoggingLevel) -> bool {
         if self.revision.is_stateless() {
             return asked.is_some_and(|asked| logging::permits(asked, candidate));
@@ -200,6 +206,8 @@ impl Default for EverythingServer {
 #[tool_handler(router = self.tool_router)]
 #[prompt_handler(router = self.prompt_router)]
 impl ServerHandler for EverythingServer {
+    // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     fn get_info(&self) -> ServerConfig {
         // Not `Implementation::from_build_env()`: that helper expands
         // `env!(..)` inside rmcp and therefore always says "rmcp 1.x".
@@ -375,6 +383,8 @@ impl ServerHandler for EverythingServer {
         Ok(())
     }
 
+    // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     async fn set_level(
         &self,
         request: SetLevelRequestParams,

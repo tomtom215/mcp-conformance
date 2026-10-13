@@ -28,6 +28,8 @@
 #![allow(clippy::redundant_pub_crate)]
 
 use rmcp::ErrorData as McpError;
+// SEP-2577 deprecates Logging, yet a `2026-07-28` request still asks for a level.
+#[allow(deprecated)]
 use rmcp::model::LoggingLevel;
 use serde_json::Value;
 
@@ -71,6 +73,8 @@ pub(crate) fn fault(payload: &Value) -> Option<McpError> {
 /// honour by staying silent — and the second is the malformed request this
 /// clause exists to reject. A server that cannot tell them apart serves the
 /// second, which is exactly what this one did until a probe session asked.
+// SEP-2577 deprecates Logging, yet a `2026-07-28` request still asks for a level.
+#[allow(deprecated)]
 fn log_level_fault(asked: Option<&Value>) -> Option<McpError> {
     let asked = asked?;
     if serde_json::from_value::<LoggingLevel>(asked.clone()).is_ok() {

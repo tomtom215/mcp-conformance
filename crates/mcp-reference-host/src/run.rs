@@ -8,14 +8,10 @@
 //! that order, so every run ends for a reason the report names
 //! (02-architecture.md: no "the loop usually terminates").
 
-// SEP-2577 forward-deprecates Logging, and rmcp 3.x carries the attribute, so
-// naming `LoggingLevel` fires it on correct code: the level a request asks for
-// is how `2026-07-28` *replaced* `logging/setLevel`, and it is the only way a
-// recording can carry the logging clauses at all. Scoped to this module rather
-// than the crate, matching `mcp-everything-server`'s two module-level allows —
-// a blanket allow would also hide a deprecation that genuinely matters.
-#![allow(deprecated)]
-use rmcp::model::{CallToolRequestParams, LoggingLevel, RequestMetaObject};
+use rmcp::model::{CallToolRequestParams, RequestMetaObject};
+// SEP-2577 deprecates Logging, yet a `2026-07-28` request still asks for a level.
+#[allow(deprecated)]
+use rmcp::model::LoggingLevel;
 use rmcp::service::{Peer, RoleClient, RunningService, Service};
 use serde_json::{Map, Value};
 use tokio_util::sync::CancellationToken;
@@ -45,6 +41,8 @@ pub struct RunPlan {
     /// clauses are unjudgeable against a session that never asked to see a log
     /// line — and asking is the client-side half of the mechanism that
     /// replaced `logging/setLevel`.
+    // SEP-2577 deprecates Logging, yet a `2026-07-28` request still asks for a level.
+    #[allow(deprecated)]
     pub log_level: Option<LoggingLevel>,
     /// The W3C Trace Context `traceparent` to carry in each call's `_meta`.
     ///

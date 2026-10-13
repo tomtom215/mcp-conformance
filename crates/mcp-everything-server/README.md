@@ -94,7 +94,10 @@ is almost certainly the client's.
   via `--allowed-host` / `--dangerously-allow-any-host`;
   `--revision`/`--protocol-version` for the revision).
 - A session trace tap (feature `tap`, `--tap-dir`): records each admitted HTTP
-  exchange as a validator-ready JSON Lines trace, session or not. The feature is
+  exchange as a validator-ready JSON Lines trace, session or not: one file per
+  session the server assigned, one `stateless` file for exchanges naming no
+  session and one `unassigned` file for those naming a session the server never
+  assigned, each sequenced in the order the server saw it. The feature is
   off by default, so a plain `cargo install mcp-everything-server` has no
   `--tap-dir`; install with `cargo install mcp-everything-server --features tap`,
   or record with `mcp-trace-capture` in front of the server instead. Only the

@@ -14,7 +14,10 @@
 use std::path::PathBuf;
 
 use clap::{Parser, ValueEnum};
-use rmcp::model::{LoggingLevel, ProtocolVersion};
+use rmcp::model::ProtocolVersion;
+// SEP-2577 deprecates Logging, yet a `2026-07-28` request still asks for a level.
+#[allow(deprecated)]
+use rmcp::model::LoggingLevel;
 use rmcp::service::ClientLifecycleMode;
 
 /// Reference MCP host: scripted client behavior, bounded loops, suite SUT.
@@ -126,6 +129,8 @@ pub(crate) enum LogLevel {
     Emergency,
 }
 
+// SEP-2577 deprecates Logging, yet a `2026-07-28` request still asks for a level.
+#[allow(deprecated)]
 impl From<LogLevel> for LoggingLevel {
     fn from(level: LogLevel) -> Self {
         match level {

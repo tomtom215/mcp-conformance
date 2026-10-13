@@ -7,11 +7,6 @@
 //! `ClientHandler` trait methods themselves are invoked, which is what the
 //! diff-scoped mutation gate demands of them.
 
-// These tests exercise Roots/Sampling/Logging, which SEP-2577
-// forward-deprecates but `2025-11-25` still requires — the very surface the
-// official suite grades. Scoped to this test module; see the library modules
-// for the same note.
-#![allow(deprecated)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::sync::{Arc, Mutex};
@@ -19,15 +14,18 @@ use std::time::Duration;
 
 use mcp_reference_host::handler::{HostEvent, HostHandler};
 use mcp_reference_host::script::InteractionScript;
-use rmcp::model::{
-    CustomNotification, ElicitRequestParams, Root, ServerConfig, ServerNotification,
-};
+use rmcp::model::{CustomNotification, ElicitRequestParams, ServerConfig, ServerNotification};
+// SEP-2577 deprecates Roots; `2025-11-25` still requires it.
+#[allow(deprecated)]
+use rmcp::model::Root;
 use rmcp::service::{NotificationContext, RoleServer};
 use rmcp::{ServerHandler, ServiceExt as _};
 
 /// What the probe observed from the host, plus a completion signal.
 #[derive(Debug, Default)]
 struct Observed {
+    // SEP-2577 deprecates Roots; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     roots: Mutex<Option<Vec<Root>>>,
     done: tokio::sync::Notify,
 }
@@ -45,6 +43,8 @@ impl ServerHandler for ProbeServer {
         ServerConfig::default()
     }
 
+    // SEP-2577 deprecates Roots; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     async fn on_initialized(&self, context: NotificationContext<RoleServer>) {
         let observed = Arc::clone(&self.observed);
         let peer = context.peer;
@@ -84,6 +84,8 @@ impl ServerHandler for ProbeServer {
 }
 
 #[tokio::test]
+// SEP-2577 deprecates Roots; `2025-11-25` still requires it.
+#[allow(deprecated)]
 async fn roots_and_url_elicitation_flow_through_the_real_trait_dispatch() {
     let observed = Arc::new(Observed::default());
     let probe = ProbeServer {
