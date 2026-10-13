@@ -68,6 +68,16 @@ instances are normative):
 3. Constraints stated only in schema field documentation without RFC 2119 keywords
    (e.g. completion's 100-value cap) are not registry entries; the agreement check
    (M2) covers any divergence that matters in practice.
+4. **An official extension's specification enters by the same rules, beside the
+   revision it attaches to, and is never scored**
+   ([ADR-0023](decisions/0023-extensions-are-reported-never-scored.md)). Extensions are
+   published in their own repositories, not under the revision's pages, so they have
+   their own page set and census (`registry/2026-07-28/extensions/sources.json`), held
+   to the site's `extensions/` navigation; every keyword is entered and decided as rules
+   1 and 2 say. Their entries name their extension, and a report judges them into an
+   `extensions` block whose verdict the report's never reads — the official suite's
+   `not_scored: extension`. Tasks and skills are entered; MCP Apps is deferred
+   (`mcp-apps-extension`) and the authorization extensions are reasoned out.
 
 ### How the next revision starts
 
@@ -109,6 +119,7 @@ which point the release gate, not this report, holds it to its text.
 | MUST / MUST NOT | Error | Fails the run (exit 1) |
 | SHOULD / SHOULD NOT | Warning | Reported, never fails the run by default; `--strict` promotes to error |
 | MAY | Informational | Coverage signal only |
+| An extension's clause, any level | In the extension's own block, with its own verdict | Never fails the run, `--strict` or not: the extension is optional by definition ([ADR-0023](decisions/0023-extensions-are-reported-never-scored.md)) |
 
 Two hard rules:
 
@@ -132,7 +143,7 @@ content lands:
 | `core` | `corpus/core/` | Lifecycle, tools, resources, prompts, logging, completion, pagination |
 | `auth` | `corpus/{,draft/}{good,violations}/` (`http-authorization`, `auth-*`) | The HTTP-observable subset only (review item 2.8): a protected server's `401`/`403` `WWW-Authenticate` challenge. OAuth flows and metadata discovery run off the MCP endpoint and are excluded clause by clause (`AUTH-*`); the suite's `auth/*` client scenarios stay deferred (`auth-client-scenarios`) |
 | `backcompat` | `corpus/backcompat/` | Older-revision behavior against `applies` ranges |
-| `extensions` | `corpus/extensions/` | Reverse-DNS extension negotiation ([register 1.5](01-ecosystem-context.md)) |
+| `extensions` | `corpus/draft/{good,violations}/` (`tasks-*`, `task-*`, `skills-*`, `skill-*`) | The tasks and skills extensions' clauses, judged beside `2026-07-28` and never scored, as the suite runs its `tasks-*` scenarios under `not_scored: extension` ([ADR-0023](decisions/0023-extensions-are-reported-never-scored.md)); reverse-DNS extension negotiation itself is a core clause ([register 1.5](01-ecosystem-context.md)) |
 | `draft` | `corpus/draft/` | `2026-07-28` traces: `good/`, `violations/`, and `captured/` (recordings of real sessions). The directory keeps its pre-release name; every build judges it |
 | `metadata`, `sep-NNN` | per-SEP directories | Tagged for SEP-2484 traceability |
 

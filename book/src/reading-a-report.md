@@ -78,6 +78,41 @@ verdict. Where the published schema is stricter than `schema.ts`, the validator
 corrects it and says where
 ([ADR-0020](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0020-wire-schema-validation.md)).
 
+## Extensions
+
+An official extension — tasks (`io.modelcontextprotocol/tasks`) and skills
+(`io.modelcontextprotocol/skills`) at `2026-07-28` — is optional by definition, so
+conforming to the protocol cannot depend on one. A session that uses one is judged
+against the extension's own clauses in a block of its own, and **the block never moves
+the report's totals, verdict or exit status**. This session conforms to the protocol and
+breaks the tasks extension:
+
+```text
+MCP trace validation — revision 2026-07-28 (declared by the trace)
+extension io.modelcontextprotocol/tasks — not scored: its outcomes never change the verdict
+  FAIL  TASK-001 (MUST NOT)
+        seq 3: a `resultType: "task"` result answered a `tools/call` request whose `_meta` client capabilities do not declare `io.modelcontextprotocol/tasks`
+        spec: "A server MUST NOT return `CreateTaskResult` to a client that did not include the extension capability on its request, regardless of prior declarations."
+        see:  https://modelcontextprotocol.github.io/ext-tasks/specification/2026-07-28/tasks#capability-negotiation
+  extension totals: 2 pass, 1 fail, 0 warn, 24 excluded, 0 unsupported, 0 not applicable, 22 not observed — extension verdict: fail
+totals: 35 pass, 0 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 146 not observed
+wire schema: pass (4 messages valid)
+verdict: pass
+```
+
+The command exits `0`. The official suite draws the same line: its requirement sets run
+an extension's scenarios under `not_scored: extension`, reported and never counted. An
+extension appears only when the session exercised it — one of its clauses passed,
+failed or warned — so a session that never touched tasks or skills shows no block at
+all. JUnit gives the extension a suite of its own, named `… (2026-07-28, extension
+io.modelcontextprotocol/tasks, not scored)`, whose findings are in passing cases'
+`<system-out>` and never a `<failure>`; SARIF reports them at level `note`; the HTML
+page gives them a section after the verdict. `--strict` does not change any of it. Each
+clause links to the extension's own specification, which its repository publishes; the
+[extensions reference](reference/extensions-2026-07-28.md) lists every one, and
+[ADR-0023](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0023-extensions-are-reported-never-scored.md)
+records why.
+
 ## Why so many clauses are not observed
 
 A pass verdict says that nothing *this session* did broke a clause. A short session
@@ -153,8 +188,18 @@ A single trace gives one object: `revision`, `revision_source` (how the revision
 chosen), `totals` per outcome, `verdict`, and `requirements`, one row per clause
 with its `id`, `level` and `outcome`. A failing or warning row also carries `source`
 (the quote, its section and URL) and `findings`, each with the `check` that found it,
-the `seq` of the event, and a `detail`. Several traces, or several `--revision`s, give
-the multi-trace and multi-revision shapes the schema also describes.
+the `seq` of the event, and a `detail`. An extension the session exercised is an entry
+of `extensions`, with its own `extension`, `verdict`, `totals` and `requirements` — read
+by nothing that decides the report's `verdict`. Several traces, or several `--revision`s,
+give the multi-trace and multi-revision shapes the schema also describes.
+
+To hold an extension you implement to its clauses yourself:
+
+```text
+mcp-trace-validator validate --format json session.jsonl \
+  | jq -e '[.extensions[]? | select(.extension == "io.modelcontextprotocol/tasks")
+            | .verdict] | all(. == "pass" or . == "pass-with-warnings")'
+```
 
 The findings alone, for a script:
 
