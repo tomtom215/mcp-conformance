@@ -133,15 +133,26 @@ async fn an_upstream_that_never_accepts_the_connection_is_a_502() {
         socket.bind("127.0.0.1:0".parse().unwrap()).unwrap();
         let upstream = socket.listen(0).unwrap();
         let upstream_address = upstream.local_addr().unwrap();
-        // Fill the accept queue; nothing ever accepts.
+        // Fill the accept queue; nothing ever accepts. How many connections a
+        // backlog of 0 admits is the platform's choice (one on Linux, more on
+        // macOS), so connect until one does not complete: the queue is full.
         let mut held = Vec::new();
-        for _ in 0..4 {
+        let mut full = false;
+        for _ in 0..256 {
             let connect = tokio::net::TcpStream::connect(upstream_address);
             if let Ok(Ok(stream)) = tokio::time::timeout(Duration::from_millis(200), connect).await
             {
                 held.push(stream);
+            } else {
+                full = true;
+                break;
             }
         }
+        assert!(
+            full,
+            "the accept queue took {} connections and was not full",
+            held.len()
+        );
         let (address, _, stop) = proxy(format!("http://{upstream_address}"), |options| {
             options.connect_timeout = Duration::from_millis(300);
         })
