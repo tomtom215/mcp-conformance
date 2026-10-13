@@ -30,7 +30,9 @@ mcp-conformance/
 ├── action/, action.yml         # the repository as a GitHub Action (record sessions, validate traces)
 ├── Dockerfile                  # the container image: both CLIs on distroless (GHCR, per release)
 ├── book/                       # the mdBook site; `cargo xtask book-site` builds every version
-├── tools/                      # registry extraction scripts
+├── packaging/                  # the npm launcher and Python shim `cargo xtask packages` puts
+│                               #   around the release binaries (npm, PyPI; ADR-0021 W3)
+├── tools/                      # registry extraction; release archive and package-install scripts
 └── docs/                       # this plan, ADRs, dated reports, the design note
 ```
 

@@ -111,7 +111,7 @@ fn citation_version(citation: &str) -> Result<String, String> {
 
 /// The `version` value from the manifest's `[workspace.package]` table — *not*
 /// `rust-version`, and not a `version` key from any other table.
-fn workspace_version(manifest: &str) -> Option<String> {
+pub(crate) fn workspace_version(manifest: &str) -> Option<String> {
     // Walk tables, reading `version` only inside `[workspace.package]` proper —
     // the table is matched as a header *line*, never a substring, so a comment
     // or a value that merely mentions the table name cannot misdirect the scan.

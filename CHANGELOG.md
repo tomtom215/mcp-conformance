@@ -614,6 +614,16 @@ below is stated again in its entry, with the reasoning.
   `CACH-015`/`CACH-016`, `PROM-017`, `TOOL-034`, `TRAN-079`, `TRAN-081`, `TRAN-130`,
   `TRAN-134`, `TRAN-135` and `TRAN-136`. The ten that remain are listed in
   `corpus/README.md`, each with its reason.
+- **npm and PyPI packages** (not yet published). `npx mcp-conformance` /
+  `npm install -g mcp-conformance` and `pip install mcp-conformance` install
+  `mcp-conformance`, `mcp-trace-validator` and `mcp-trace-capture` as the release's own
+  binaries: on npm a main package plus one `@mcp-conformance/<os>-<cpu>` optional
+  dependency per target, with no install scripts; on PyPI one wheel per target, its tags
+  read from the binary's own headers. `cargo xtask packages` builds them from the
+  release archives, checked against `SHA256SUMS-binaries`; CI installs and runs them on
+  Linux, macOS and Windows, and `release.yml` publishes them by trusted publishing once
+  the owner has set up the registries (RELEASING.md).
+- **The release archives carry `mcp-conformance`** beside the validator and the recorder.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.

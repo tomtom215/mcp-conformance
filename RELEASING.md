@@ -115,6 +115,78 @@ tags.
    crates as already published; `verify-install` then runs for the first time
    for this release.
 
+## npm and PyPI (ADR-0021 decision 5; one-time owner setup)
+
+The release also publishes the binaries to two more registries, from
+`release.yml`'s last two jobs:
+
+- **npm:** `mcp-conformance` (whose `bin` launchers run the platform binary) and
+  five platform packages, `@mcp-conformance/linux-x64`, `linux-arm64`,
+  `darwin-x64`, `darwin-arm64` and `win32-x64`, each carrying the three binaries
+  of one release archive and selected by its `os`/`cpu` fields as an optional
+  dependency. No install scripts.
+- **PyPI:** `mcp-conformance`, one wheel per target, the binaries installed as
+  the wheel's scripts (`manylinux_2_17` + `musllinux_1_1` for the static Linux
+  binaries, `macosx_10_12_x86_64`, `macosx_11_0_arm64`, `win_amd64`; the tags
+  are derived from each binary's headers, not written down).
+
+`registry-packages` builds them on every run, rehearsals included: it checks each
+archive against the `SHA256SUMS-binaries` the release attaches
+(`cargo xtask packages --require-all`), and installs and runs the Linux x86_64
+packages from the files (`tools/test-packages.sh`); ci.yml does the same on
+Linux, macOS and Windows on every change. On a tag, after `github-release`,
+`publish-npm` and `publish-pypi` — each behind the `release` environment, each
+holding `id-token: write` and nothing else that writes — check the release's
+`SHA256SUMS-binaries` is byte-equal to the one the packages were built from, then
+publish through trusted publishing: npm with `--provenance` (platform packages
+first, then `mcp-conformance`; `--tag next` for a pre-release), PyPI through
+`pypa/gh-action-pypi-publish` with attestations. Both skip a version already
+there, so **Re-run failed jobs** resumes. They are independent of crates.io:
+either can fail without stopping the other or `publish`.
+
+Names, checked 2026-10-13 and **not reserved**: the registry answered 404 for
+npm `mcp-conformance` (and `mcpconformance`, `mcp_conformance`,
+`mcp.conformance`, which npm would treat as too similar),
+`@mcp-conformance/linux-x64` and `@mcp-conformance/cli`, and for PyPI
+`mcp-conformance` (`mcp_conformance` normalizes to the same name) and
+`mcpconformance`. Whether an npm user or organisation named `mcp-conformance`
+exists cannot be read without logging in. Until the names are claimed, anyone can
+take them, so the setup below is best done before the release that first carries
+the packages.
+
+What only the owner can do, once:
+
+1. **npm organisation.** Create the npm organisation `mcp-conformance` (free, for
+   public packages), which owns the `@mcp-conformance` scope. If the name is
+   taken, choose another scope and change `NPM_SCOPE` in
+   `xtask/src/packages/targets.rs` (the launcher reads the package names from
+   the main package's `optionalDependencies`, so nothing else changes).
+2. **npm first publish.** npm configures trusted publishing on a package that
+   already exists (as this project understands npm's documentation; not
+   verified here — if a publisher can now be set up before the first version,
+   do that and skip to step 3). So on the first release that carries the
+   packages, `publish-npm` fails at once for want of a credential, and the owner
+   publishes that version by hand, the way `mcp-trace-capture` 0.6.0 was
+   bootstrapped: download the tag's Release run artifact `registry-packages`,
+   check its `release-binaries/SHA256SUMS-binaries` with
+   `cmp` against the release's asset (`gh release download vX.Y.Z -p
+   SHA256SUMS-binaries`), and with a granular access token (read and write,
+   7-day expiry) run `npm publish <tgz> --access public` for the five
+   `registry-packages/npm-tarballs/mcp-conformance-<os>-<cpu>-X.Y.Z.tgz`, then
+   `mcp-conformance-X.Y.Z.tgz`. Revoke the token, do step 3, and **Re-run failed
+   jobs**: `publish-npm` then skips all six as already published.
+3. **npm trusted publishers.** For each of the six packages, on npmjs.com →
+   package → Settings → Trusted publishing → GitHub Actions: organisation or user
+   `tomtom215`, repository `mcp-conformance`, workflow `release.yml`, environment
+   `release`. Then set "Require two-factor authentication and disallow tokens".
+4. **PyPI pending publisher.** On pypi.org → Account → Publishing → add a pending
+   publisher for project `mcp-conformance`: owner `tomtom215`, repository
+   `mcp-conformance`, workflow `release.yml`, environment `release`. PyPI creates
+   the project on the first trusted upload, so no token is ever needed.
+5. **Verify after the first release:** `npx mcp-conformance@X.Y.Z --version` and
+   `pip install mcp-conformance==X.Y.Z` on a clean machine, and each package's
+   provenance or attestation on its registry page.
+
 ## v0.3.0 pre-flight (third audit, 2026-06-13)
 
 At the time, the next release was **0.3.0** — the version-class call and its two breaking
@@ -307,9 +379,11 @@ the release PR, not in this file.
    workspace-wide dry run; per-crate `--dry-run` cannot resolve unpublished sibling
    dependencies), attests SLSA build provenance over the `.crate` files, writes
    one CycloneDX SBOM per crate (`cargo xtask sbom`, which CI's `package` job
-   also runs on every PR) and attests each against its `.crate`, builds both
-   CLIs with `cargo auditable` for five targets (Linux x86_64/aarch64 musl, macOS arm64/x86_64, Windows
-   x86_64) and attests each archive, builds the container image from the
+   also runs on every PR) and attests each against its `.crate`, builds the three
+   CLIs (`mcp-trace-validator`, `mcp-trace-capture`, `mcp-conformance`) with
+   `cargo auditable` for five targets (Linux x86_64/aarch64 musl, macOS arm64/x86_64, Windows
+   x86_64) and attests each archive, builds the npm and PyPI packages from those
+   archives and installs and runs the Linux x86_64 ones (§npm and PyPI), builds the container image from the
    `Dockerfile` (no cache), smoke-tests it, pushes it as
    `ghcr.io/tomtom215/mcp-conformance:X.Y.Z` and attests its digest (the
    attestation pushed to the registry too), creates the GitHub Release with the changelog
@@ -321,11 +395,12 @@ the release PR, not in this file.
    grant), **byte-compares against the attested SHA256SUMS**, and publishes to
    crates.io in `PUBLISH_ORDER` (§Publish order). Re-running a partially published
    tag ("Re-run failed jobs") skips the crates already on crates.io and continues
-   the chain.
+   the chain. Beside `publish`, also behind that approval, `publish-npm` and
+   `publish-pypi` publish the packages (§npm and PyPI), resumable the same way.
    Rehearse first: `Actions → Release → Run workflow` from the `release/vX.Y.Z`
    branch runs every gate and packaging step but can never publish.
 5. **Verify**: crates on crates.io and docs on docs.rs — both still eyeball
-   steps. So is the container image's visibility, once: the first release that
+   steps, as are the npm and PyPI packages (§npm and PyPI, step 5). So is the container image's visibility, once: the first release that
    pushes it creates the GHCR package, and a new package may start private
    whatever the repository's visibility (not yet observed for this one). If
    `docker pull ghcr.io/tomtom215/mcp-conformance:X.Y.Z` fails signed out, set

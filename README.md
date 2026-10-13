@@ -37,6 +37,9 @@ Pre-1.0: the API and the verdicts may change between minor releases, and the
 > - the container image (`ghcr.io/tomtom215/mcp-conformance`, first published by
 >   the next release) and the GitHub Action's `capture` input, which records the
 >   sessions it then judges;
+> - the npm (`npx mcp-conformance`) and PyPI (`pip install mcp-conformance`)
+>   packages carrying the release binaries, and `mcp-conformance` in the release
+>   archives;
 > - the cross-SDK matrix: the official TypeScript, Python, Go and Rust SDKs'
 >   conformance servers, recorded and judged weekly ([book](book/src/sdk-matrix.md)).
 
@@ -52,6 +55,17 @@ aarch64), macOS (arm64 and x86_64) and Windows (x86_64), with SLSA build-provena
 attestations (`gh attestation verify <archive> --repo tomtom215/mcp-conformance`)
 and `SHA256SUMS-binaries` beside them. The binaries embed their dependency list
 (`cargo auditable`), so `cargo audit bin` checks them against RustSec.
+
+**Not yet released:** from the first release after `0.6.0`, the same attested
+binaries — and the `mcp-conformance` workbench beside them — also install from npm
+and PyPI, with no compiler and no download at install time:
+
+```text
+npx mcp-conformance --version     # or: npm install -g mcp-conformance
+pip install mcp-conformance       # mcp-trace-capture, mcp-trace-validator, mcp-conformance
+```
+
+Neither package is published yet; until it is, these commands fail or find nothing.
 
 Record a session. For a **stdio** server, configure your client to launch the
 capture wrapper instead of the server:

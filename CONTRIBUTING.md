@@ -92,7 +92,10 @@ Additionally enforced in CI: `cargo package --workspace --exclude xtask --locked
 against crates.io as the changelog's `[Unreleased]` section declares it
 (`cargo xtask semver --unreleased`: while `[Unreleased]` declares no breaking
 change, any API break fails the PR; once it carries a breaking-changes table,
-every break is listed for the reviewer to hold against the table), and
+every break is listed for the reviewer to hold against the table), the npm and
+PyPI packages built from a release-shaped archive and installed and run on Linux,
+macOS and Windows (`cargo xtask packages`, then `tools/test-packages.sh`, which
+runs locally the same way), and
 diff-scoped mutation testing
 (`cargo mutants --in-diff`) on PRs. Coverage is measured and reported in the job
 summary, and the job fails below 95% of lines. The standard is **zero surviving mutants in every shipped crate**
