@@ -21,6 +21,7 @@
 - [Two revisions at once](revisions.md)
 - [The trace corpus](corpus.md)
 - [Conformance results](conformance-results.md)
+- [A second opinion: mcpsnoop](mcpsnoop.md)
 
 # Reference
 

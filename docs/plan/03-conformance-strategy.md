@@ -132,6 +132,20 @@ as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/
 2026-06-11) and one
 informational SHOULD warning on the suite's version-compat probe.
 
+### A second calibration source: mcpsnoop
+
+Since 2026-10-13 the corpus is also read by `mcpsnoop check`, the one other tool
+that judges recorded sessions ([register 5.10](01-ecosystem-context.md)). Our
+traces are converted into its capture format without inventing anything a
+verdict reads, and the conversion is held against mcpsnoop's own recordings of
+the same sessions on every measurement. Its rules are mapped to registry clauses
+by reading both texts, and every divergence is triaged much as above — our
+defect (fixed, with a regression trace), its defect (an upstream
+issue drafted for the owner), or a reading the text does not settle (an open
+item). `cargo xtask mcpsnoop` measures with the pinned binary — informational and
+scheduled, never a gate; `cargo xtask mcpsnoop --check` gates the committed table
+offline. The table and its triage: [book/src/mcpsnoop.md](../../book/src/mcpsnoop.md).
+
 ## Official-suite version policy
 
 - **Pin** the stable line (`0.1.16` as of 2026-06-11 — [register 2.4](01-ecosystem-context.md))

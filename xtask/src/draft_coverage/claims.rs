@@ -91,6 +91,7 @@ pub(super) const CLAIM_FILES: &[&str] = &[
     "book/src/revisions.md",
     "book/src/corpus.md",
     "book/src/conformance-results.md",
+    "book/src/mcpsnoop.md",
     "book/src/glossary.md",
     "book/src/SUMMARY.md",
 ];
