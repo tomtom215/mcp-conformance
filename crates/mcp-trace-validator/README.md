@@ -6,7 +6,7 @@
 Deterministic offline validation of recorded MCP protocol traces: replay a JSON Lines
 trace against the requirement registry and get requirement-level findings — the clause
 verbatim with its link, the offending event `seq`, actionable detail — as human text,
-JSON, JUnit XML, or SARIF.
+JSON, JUnit XML, SARIF, or one self-contained HTML page.
 
 > **This README is `main`'s.** `cargo install` gets the latest release, `0.6.0`,
 > whose own README is the one on crates.io. Documentation for the release is at
@@ -24,7 +24,8 @@ JSON, JUnit XML, or SARIF.
 > - the wire schema: every message validated against its revision's JSON Schema
 >   (the report's `wire_schema`), and five clauses that needed a schema engine
 >   to judge — `BASE-017`/`BASE-073`, `TOOL-045`/`TRAN-137`/`TRAN-082` — plus
->   `TOOL-011`/`TOOL-040` judging conformance to the `outputSchema`, not presence.
+>   `TOOL-011`/`TOOL-040` judging conformance to the `outputSchema`, not presence;
+> - `--format html` (`html::render`): one self-contained page per run.
 
 `cargo install mcp-trace-validator` (or `cargo binstall mcp-trace-validator` for a
 prebuilt binary), then:
@@ -34,6 +35,7 @@ mcp-trace-validator validate session.jsonl                 # what needs attentio
 mcp-trace-validator validate --all session.jsonl           # every clause and finding, with exclusion reasons
 mcp-trace-validator validate - --format json < session.jsonl
 mcp-trace-validator validate session.jsonl --format sarif > results.sarif
+mcp-trace-validator validate session.jsonl --format html > report.html     # one file, for a browser or a bug report
 mcp-trace-validator validate traces/*.jsonl --format junit > junit.xml   # one document for many traces
 mcp-trace-validator validate session.jsonl --revision 2025-11-25 --revision 2026-07-28
 mcp-trace-validator requirements --revision 2025-11-25
@@ -48,12 +50,22 @@ rule per violated clause, one result per finding at the trace line holding its e
 [`schema/report.schema.json`](schema/report.schema.json)
 (`report::JSON_SCHEMA`).
 
+`--format html` writes one page to attach to a bug report against an SDK: the verdict and
+every outcome's count per revision, the wire-schema outcome, each failing or warning clause
+with its quote, link and findings, the message timeline — direction, kind, method and id,
+which request each response answers, HTTP exchanges — with every finding at its event and
+linked both ways, and the passed, not-observed, not-applicable and excluded clauses with
+their reasons. It loads nothing: no script, no font, no image; its only style is inline and
+admitted by a Content Security Policy that names its SHA-256 digest, and everything taken
+from the trace is escaped. Its layout is not a stable surface ([STABILITY.md](../../STABILITY.md)).
+
 The human report lists the first 20 findings under each clause and counts the rest;
 `--all` and the machine formats carry every one. Given several traces, `validate`
 writes one document per format; a trace it cannot judge (unreadable, malformed, of an
 unsupported revision, or judging nothing) is named in its error, listed with that
 error in every format — `unjudged_traces` in JSON, an `<error>` test case in JUnit, a
-failed-invocation notification in SARIF — and makes the overall verdict `incomplete`.
+failed-invocation notification in SARIF, a line with its reason in HTML — and makes the
+overall verdict `incomplete`.
 
 A trace is JSON Lines — one event per line with a capture-assigned `seq`,
 `direction`, `transport`, and a `kind`-discriminated body (`message` carries the

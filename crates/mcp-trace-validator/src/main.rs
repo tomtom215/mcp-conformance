@@ -67,8 +67,8 @@ enum Command {
         /// Human output: list every clause with its outcome, every finding,
         /// and the reason for each exclusion. By default only failing, warning
         /// and unsupported clauses are listed, each with its first 20 findings
-        /// (the totals always count every clause). JSON, `JUnit` and SARIF
-        /// always carry every clause and finding.
+        /// (the totals always count every clause). JSON, `JUnit`, SARIF and
+        /// HTML always carry every clause and finding.
         #[arg(short, long)]
         all: bool,
         /// Accepted for compatibility: the findings-only listing it selected is
@@ -130,6 +130,11 @@ enum Format {
     Junit,
     /// SARIF 2.1.0, for code scanning: GitHub, GitLab, IDEs.
     Sarif,
+    /// One self-contained HTML page, to read in a browser or attach to a bug
+    /// report: the verdict, each finding at its event in the message timeline
+    /// beside the clause it breaks, and the accounting of every other clause.
+    /// It loads nothing — no script, font or image.
+    Html,
 }
 
 fn main() -> ExitCode {

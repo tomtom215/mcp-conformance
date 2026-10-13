@@ -111,6 +111,40 @@ three outcomes: a bug here (fixed), a divergence from the official conformance s
 [contributing guide](https://github.com/tomtom215/mcp-conformance/blob/main/CONTRIBUTING.md#reporting-verdict-disputes)
 has the process.
 
+## The report as a page
+
+`--format html` writes the report as one HTML file — the one to attach to a bug report
+against an SDK, or to open while debugging:
+
+```text
+mcp-trace-validator validate session.jsonl --format html > report.html
+```
+
+From the top: the verdict, with every outcome's count (one card per revision when the trace
+is judged at several) and the wire-schema outcome; then **Clauses to act on**, each failing,
+warning or unsupported clause with its level, the clause verbatim, a link to its published
+page, and every finding with the `seq` it points at; then the **Message timeline**, every
+event in capture order with its direction, kind, method and id, the request a response
+answers (both linked), HTTP requests and responses with their recorded headers, and each
+finding shown at its event. A finding links to its event and the event back to the finding,
+and the switch above the timeline hides the events no finding names. **Accounting** closes
+the page: the passed, not-observed, not-applicable and excluded clauses, collapsed, each
+excluded one with the registry's reason and each not-applicable one with the capability the
+session never declared — the same arithmetic as the totals, clause by clause.
+
+Anchors are names you can type: `report.html#BASE-003` opens a clause, `#e12` an event
+(`#2026-07-28-BASE-045` when two revisions share a page, `#t1-e12` in a page over several
+traces).
+
+The page is safe to open from anyone. It loads nothing — no script, font or image — and the
+only style it applies is its own, which its Content Security Policy admits by digest;
+everything from the trace (method names, ids, headers, payloads) is shown as text, so a
+recording holding `<script>` shows the word. It is still a trace: payloads are shown in
+full up to 16 KiB per message, so read it before you share it, as you would the trace.
+
+The page is for people. Its layout changes between releases; for anything a script reads,
+use `--format json`.
+
 ## The report as data
 
 `--format json` is the whole report, described by its

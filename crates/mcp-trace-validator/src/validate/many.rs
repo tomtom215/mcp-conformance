@@ -13,10 +13,12 @@
 use std::fmt::Write as _;
 
 use mcp_trace_validator::report::{Report, Unjudged, Verdict};
-use mcp_trace_validator::{junit, sarif};
+use mcp_trace_validator::{html, junit, sarif};
 use serde_json::json;
 
-use super::{Judged, Output, artifact, junit_options, note_strict, promoted, verdict_to_code};
+use super::{
+    Judged, Output, artifact, junit_options, note_strict, page_trace, promoted, verdict_to_code,
+};
 use crate::emit::emit;
 use crate::{EXIT_OK, Format};
 
@@ -48,6 +50,13 @@ pub(super) fn render(judged: &[Judged], unjudged: &[Unjudged], output: Output) -
                 unjudged,
                 &sarif::Options::default().strict(output.strict),
             ))
+        }
+        Format::Html => {
+            let traces: Vec<(html::Trace<'_>, &[Report])> = judged
+                .iter()
+                .map(|one| (page_trace(&one.trace, &one.events), one.reports.as_slice()))
+                .collect();
+            emit(&html::render_run(&traces, unjudged))
         }
     };
     written.then(|| {

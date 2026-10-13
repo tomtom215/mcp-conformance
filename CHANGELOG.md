@@ -588,6 +588,17 @@ below is stated again in its entry, with the reasoning.
   to its own results.
 - **`mcp-trace-capture` library: `stdio::relay`**, the stdio wrapper with
   caller-supplied client streams, and `Signals::requested` with `StopRequests`.
+- **`validate --format html`**, and `html::render` / `html::render_run`: one
+  self-contained page per run — the verdict and counts per revision, each failing or
+  warning clause with its quote, link and findings, the message timeline with
+  request/response pairing, HTTP exchanges and every finding at its event (linked both
+  ways), and the excluded / not-applicable / not-observed accounting with reasons. No
+  script, no font, no image; a Content Security Policy admits only the inline
+  stylesheet, by its SHA-256, and all trace text is escaped. Its layout is not a stable
+  surface (STABILITY.md).
+- **A screenshot suite** (`visual/`, Playwright 1.56.1) and its CI job: a passing, a
+  failing and a two-revision page at 1280 and 360 px in light and dark, compared with
+  committed baselines and opened with no network request allowed.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.

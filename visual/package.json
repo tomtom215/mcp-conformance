@@ -1,0 +1,14 @@
+{
+  "name": "mcp-conformance-visual",
+  "private": true,
+  "description": "Screenshot baselines and no-network checks for mcp-trace-validator's HTML report (ADR-0021)",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "bless": "playwright test --update-snapshots"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
