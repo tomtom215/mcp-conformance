@@ -492,6 +492,9 @@ below is stated again in its entry, with the reasoning.
   that edit; it restores each file and fails unless the tree is clean at the end.
   A gate added without a falsifier fails a unit test. The `doc` job runs it after
   the gates.
+- **A runnable library example**, `cargo run -p mcp-trace-validator --example
+  judge_file -- <trace.jsonl>`: judges a trace, prints its findings, and exits 1
+  unless the session passed (2 when the file cannot be read or judged).
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.

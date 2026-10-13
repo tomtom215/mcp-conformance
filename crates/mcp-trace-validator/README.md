@@ -108,6 +108,11 @@ println!("{}", report.render_findings());
 # Ok::<(), Box<dyn core::error::Error>>(())
 ```
 
+The same as a program that exits non-zero unless the session passed, from a
+checkout of the repository:
+`cargo run -p mcp-trace-validator --example judge_file -- <trace.jsonl>`
+([`examples/judge_file.rs`](examples/judge_file.rs)).
+
 Part of
 [mcp-conformance](https://github.com/tomtom215/mcp-conformance); [the
 book](https://mcp-conformance.com) covers recording a session, the trace format,
