@@ -798,15 +798,17 @@ jobs:
           jq -e '.runs[0].results[0].ruleId == "BASE-003"' fail.sarif
           grep -q '<failure' fail.xml
           # Recorded sessions: one trace per leg, judged with no finding but the
-          # one this project's server is known to draw at 2026-07-28 — BASE-037,
-          # a warning: rmcp sets serverInfo on server/discover and
-          # subscriptions/listen results only. Exactly that set: a new finding
-          # fails, and so does this one once the server or rmcp fixes it.
+          # two this project's server and host are known to draw at 2026-07-28,
+          # both warnings: BASE-037 (rmcp sets serverInfo on server/discover and
+          # subscriptions/listen results only) and ELIC-095 (the host's
+          # AcceptWithDefaults answers a form that requires fields with empty
+          # content). Exactly that set: a new finding fails, and so does either
+          # of these once fixed.
           for leg in stdio http; do
             traces=( "capture-${leg}"/*.jsonl )
             [[ ${#traces[@]} -eq 1 && -s "${traces[0]}" ]] || { echo "::error::${leg}: expected one recorded trace, found ${traces[*]}"; exit 1; }
             jq -e '.runs[0].invocations[0].executionSuccessful
-              and ([.runs[0].results[].ruleId] | unique) == ["BASE-037"]
+              and ([.runs[0].results[].ruleId] | unique) == ["BASE-037", "ELIC-095"]
               and all(.runs[0].results[]; .level == "warning")' "${leg}.sarif"
           done
           [[ "$STDIO_CODE" == 0 && "$STDIO_CLIENT" == 0 ]] || { echo "::error::stdio capture exited ${STDIO_CODE}, client ${STDIO_CLIENT}"; exit 1; }
