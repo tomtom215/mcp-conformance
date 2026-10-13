@@ -30,7 +30,7 @@
         "client/elicitation": "Client-feature page: the reference host enforces its wire-visible client MUSTs in code (ADR-0009), as at 2025-11-25.",
         "client/roots": "Client-feature page, deprecated forward by SEP-2577 (register 1.5b).",
         "client/sampling": "Client-feature page, deprecated forward by SEP-2577 (register 1.5b).",
-        "deprecated": "Registry of features in the Deprecated lifecycle state; no RFC 2119 keyword instances of its own (verified 2026-08-06).",
+        "deprecated": "Registry of features in the Deprecated lifecycle state. Its two keywords (new implementations SHOULD NOT adopt a deprecated feature; existing ones SHOULD migrate before its earliest removal) bind an implementer's adoption plans, not anything a trace carries: strategy rule 2 (checked 2026-10-13; the earlier reason, verified 2026-08-06, said the page had no keyword instances, which the published page contradicts).",
         "index": "Landing page: keyword instances are the BCP 14 boilerplate plus security-principles guidance about consent and authorization flows — UI and internal policy, out by strategy rule 2.",
         "schema": "Generated schema reference: constraints stated only in schema field documentation without RFC 2119 keywords are excluded by strategy rule 3.",
         "server/index": "Overview page: no RFC 2119 keyword instances (verified 2026-08-06); the capability MUSTs live on the per-feature pages."

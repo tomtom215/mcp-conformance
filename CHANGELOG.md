@@ -61,6 +61,10 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **The `2026-07-28` page set's reason for excluding `deprecated` was wrong**: it said
+  the page had no keyword instances, and the published page carries a SHOULD NOT and a
+  SHOULD. The page stays out of scope, for the reason that holds: those keywords bind an
+  implementer's adoption plans, which no trace carries.
 - **`BASE-009`/`BASE-052` no longer fail the id-less error a server may return in the
   body of a `403` Origin refusal**, which both revisions' transport pages permit; the
   official suite's DNS-rebinding scenario drew it. The everything server's refusal body
@@ -647,6 +651,16 @@ below is stated again in its entry, with the reasoning.
 - **`mcp-trace-capture` library:** `run::stdio`/`run::http`, `output`, `run::values`,
   the `Observer` trait, `http::client` and a public `output::EXIT_INCOMPLETE`;
   **`mcp-trace-validator`:** `report::printable` is public.
+- **`cargo xtask spec-drift --draft`**: an informational report of what the
+  specification's unreleased draft has changed since `2026-07-28` — page set and census
+  against a committed tracking skeleton, keywords no released quote covers, and whether
+  each `2026-07-28` quote is still on its draft page (present, changed, removed, page
+  removed). The weekly `draft-drift` job runs it, with the report in the job summary.
+- **`registry/draft/`**: the tracking skeleton and a post-release record, data only —
+  not embedded, not a `--revision` value, excluded from the published crate. Its first
+  record is `TRAN-081`'s rewording ("for JavaScript" → "for integers represented using
+  IEEE754 double-precision floating point numbers"); the bound and the verdict are
+  unchanged.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.
