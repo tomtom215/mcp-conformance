@@ -352,6 +352,13 @@ fn report_stdio(side: &str, unrecorded: stdio::Unrecorded) {
             unrecorded.altered
         );
     }
+    if unrecorded.unterminated > 0 {
+        eprintln!(
+            "mcp-trace-capture: the {side}'s output ended mid-line, without the newline that \
+             frames a stdio message; the remainder is recorded as a string payload, which the \
+             validator reports as not a valid MCP message"
+        );
+    }
     report_unrecorded(side, 0, unrecorded.oversized);
 }
 

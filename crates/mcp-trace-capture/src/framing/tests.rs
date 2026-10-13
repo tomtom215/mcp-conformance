@@ -31,7 +31,7 @@ fn lines_are_the_same_wherever_the_input_is_cut() {
             Line::Complete(b"{\"a\":\"\xc3\xa9\"}".to_vec()),
             Line::Complete("{\"b\":\"日本\"}".as_bytes().to_vec()),
             Line::Complete(Vec::new()),
-            Line::Complete(b"{\"c\":1}".to_vec()),
+            Line::Unterminated(b"{\"c\":1}".to_vec()),
         ]
     );
     for cut in 0..=input.len() {
@@ -137,7 +137,10 @@ fn a_line_of_exactly_the_limit_is_kept() {
     // …and unterminated at end of stream.
     let mut splitter = LineSplitter::new(4);
     assert_eq!(splitter.push(b"abcd"), Vec::<Line>::new());
-    assert_eq!(splitter.finish(), Some(Line::Complete(b"abcd".to_vec())));
+    assert_eq!(
+        splitter.finish(),
+        Some(Line::Unterminated(b"abcd".to_vec()))
+    );
     // One byte more is oversized in each case.
     let mut splitter = LineSplitter::new(4);
     assert_eq!(splitter.push(b"abcde\n"), [Line::Oversized]);
@@ -197,7 +200,10 @@ fn a_crlf_line_of_exactly_the_limit_is_kept() {
     // Unterminated at end of stream, with and without a stray `\r`.
     let mut splitter = LineSplitter::new(4);
     assert_eq!(splitter.push(b"abcd\r"), Vec::<Line>::new());
-    assert_eq!(splitter.finish(), Some(Line::Complete(b"abcd".to_vec())));
+    assert_eq!(
+        splitter.finish(),
+        Some(Line::Unterminated(b"abcd".to_vec()))
+    );
     let mut splitter = LineSplitter::new(4);
     assert_eq!(splitter.push(b"abcde"), Vec::<Line>::new());
     assert_eq!(splitter.finish(), Some(Line::Oversized));

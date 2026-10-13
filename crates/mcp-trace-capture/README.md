@@ -236,7 +236,9 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   (invalid UTF-8 replaced, line terminator removed). The validator reports it as
   not a valid MCP message (`TRAN-004`/`TRAN-005` at 2025-11-25, `TRAN-117` at
   2026-07-28), and the exit summary counts it. So is a line of JSON the trace cannot
-  hold as sent (below), counted apart.
+  hold as sent (below), counted apart, and what a stream ends with after its last
+  newline — JSON or not: stdio frames a message by its newline, so the peer never
+  received it as one.
 - **Readable by the validator as recorded.** No trace line is longer than
   `--max-message-bytes` plus 1 MiB, checked on the line as written — which, at the
   default, is exactly the longest line `mcp-trace-validator` accepts by default. With

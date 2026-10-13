@@ -47,6 +47,11 @@ pub struct Unrecorded {
     /// Each is recorded as non-JSON lines are, as a string payload: the parsed
     /// value would say something the line did not.
     pub altered: u64,
+    /// A last line the stream ended in the middle of, with no newline: stdio
+    /// framing never completed it, so the peer never received it as a
+    /// message. Recorded as non-JSON lines are, as a string payload, even
+    /// when it is JSON.
+    pub unterminated: u64,
 }
 
 /// A pump's running [`Unrecorded`] counts, readable while it runs — so what it left
@@ -56,6 +61,7 @@ struct Tally {
     not_json: AtomicU64,
     oversized: AtomicU64,
     altered: AtomicU64,
+    unterminated: AtomicU64,
 }
 
 impl Tally {
@@ -64,6 +70,7 @@ impl Tally {
             not_json: self.not_json.load(Ordering::Relaxed),
             oversized: self.oversized.load(Ordering::Relaxed),
             altered: self.altered.load(Ordering::Relaxed),
+            unterminated: self.unterminated.load(Ordering::Relaxed),
         }
     }
 }
@@ -141,43 +148,47 @@ async fn write<W: AsyncWrite + Unpin>(to: &mut W, chunk: &[u8]) -> io::Result<()
 }
 
 fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Tally) {
-    match line {
-        Line::Complete(bytes) => {
-            // A line that is not JSON, or JSON whose parsed value would not say
-            // what it said, is still what crossed the wire: record it as a string
-            // (lossy UTF-8) so the validator can judge it.
-            let (payload, tally_of) = match parse_message(&bytes) {
-                Parsed::Json(value) => (value, None),
-                parsed => (
-                    serde_json::Value::String(String::from_utf8_lossy(&bytes).into_owned()),
-                    Some(if parsed == Parsed::Altered {
-                        &tally.altered
-                    } else {
-                        &tally.not_json
-                    }),
-                ),
-            };
-            let outcome = recorder.record(
-                direction,
-                TransportKind::Stdio,
-                EventBody::Message { payload },
-            );
-            match outcome {
-                Err(NotRecorded::TooLong) => {
-                    tally.oversized.fetch_add(1, Ordering::Relaxed);
-                }
-                // Not in the trace, so not a finding in it: the recorder counts
-                // what arrived after the close.
-                Err(NotRecorded::Closed) => {}
-                _ => {
-                    if let Some(count) = tally_of {
-                        count.fetch_add(1, Ordering::Relaxed);
-                    }
-                }
-            }
-        }
+    let (bytes, unterminated) = match line {
+        Line::Complete(bytes) => (bytes, false),
+        Line::Unterminated(bytes) => (bytes, true),
         Line::Oversized => {
             tally.oversized.fetch_add(1, Ordering::Relaxed);
+            return;
+        }
+    };
+    // A line that is not JSON, or JSON whose parsed value would not say what
+    // it said, is still what crossed the wire: record it as a string (lossy
+    // UTF-8) so the validator can judge it. So is a remainder the stream ended
+    // in the middle of, JSON or not: stdio framing never delivered it.
+    let (payload, tally_of) = match parse_message(&bytes) {
+        Parsed::Json(value) if !unterminated => (value, None),
+        parsed => (
+            serde_json::Value::String(String::from_utf8_lossy(&bytes).into_owned()),
+            Some(if unterminated {
+                &tally.unterminated
+            } else if parsed == Parsed::Altered {
+                &tally.altered
+            } else {
+                &tally.not_json
+            }),
+        ),
+    };
+    let outcome = recorder.record(
+        direction,
+        TransportKind::Stdio,
+        EventBody::Message { payload },
+    );
+    match outcome {
+        Err(NotRecorded::TooLong) => {
+            tally.oversized.fetch_add(1, Ordering::Relaxed);
+        }
+        // Not in the trace, so not a finding in it: the recorder counts what
+        // arrived after the close.
+        Err(NotRecorded::Closed) => {}
+        _ => {
+            if let Some(count) = tally_of {
+                count.fetch_add(1, Ordering::Relaxed);
+            }
         }
     }
 }

@@ -28,11 +28,16 @@ pub struct LineSplitter {
 
 /// One unit the splitter produced.
 #[derive(Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Line {
     /// A complete line, without its terminator.
     Complete(Vec<u8>),
     /// A line that exceeded the limit; its content was not kept.
     Oversized,
+    /// What the stream ended with after its last newline, without a trailing
+    /// `\r`: stdio framing never completed it, so no peer received it as a
+    /// message — not even when it is JSON.
+    Unterminated(Vec<u8>),
 }
 
 impl LineSplitter {
@@ -86,7 +91,8 @@ impl LineSplitter {
         lines
     }
 
-    /// The unterminated remainder at end of stream, if any.
+    /// The unterminated remainder at end of stream, if any: [`Line::Unterminated`],
+    /// or [`Line::Oversized`] past the limit.
     pub fn finish(&mut self) -> Option<Line> {
         if std::mem::take(&mut self.discarding) {
             return Some(Line::Oversized);
@@ -98,7 +104,7 @@ impl LineSplitter {
         if line.len() > self.max_line {
             return Some(Line::Oversized);
         }
-        (!line.is_empty()).then_some(Line::Complete(line))
+        (!line.is_empty()).then_some(Line::Unterminated(line))
     }
 }
 
