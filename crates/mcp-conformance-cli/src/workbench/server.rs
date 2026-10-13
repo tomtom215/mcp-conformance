@@ -91,8 +91,21 @@ async fn start(
     Ok((listener, address, shared))
 }
 
-/// Runs the workbench; returns the exit code.
+/// Runs the workbench until Ctrl-C; returns the exit code.
 pub(crate) async fn run(settings: Settings<'_>) -> u8 {
+    let shutdown = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
+    run_until(settings, shutdown, |line| println!("{line}")).await
+}
+
+/// Runs the workbench until `shutdown` completes, telling the user what it
+/// serves through `say`; returns the exit code.
+pub(crate) async fn run_until(
+    settings: Settings<'_>,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+    mut say: impl FnMut(String),
+) -> u8 {
     let (listener, address, shared) = match start(&settings).await {
         Ok(started) => started,
         Err(why) => {
@@ -102,12 +115,12 @@ pub(crate) async fn run(settings: Settings<'_>) -> u8 {
     };
     let url = shared.keys.launch_url();
     let count = shared.lock_count();
-    println!(
+    say(format!(
         "mcp-conformance serve: library {} ({count} recordings)",
         settings.library.display()
-    );
-    println!("mcp-conformance serve: open {url}");
-    println!("mcp-conformance serve: the link works once; Ctrl-C stops the workbench");
+    ));
+    say(format!("mcp-conformance serve: open {url}"));
+    say("mcp-conformance serve: the link works once; Ctrl-C stops the workbench".to_owned());
     if !address.ip().is_loopback() {
         eprintln!(
             "mcp-conformance serve: WARNING: listening on {address}, which is not loopback: \
@@ -117,12 +130,10 @@ pub(crate) async fn run(settings: Settings<'_>) -> u8 {
     if settings.open {
         open_browser(&url);
     }
-    let served = axum::serve(listener, app(shared))
-        .with_graceful_shutdown(async {
-            let _ = tokio::signal::ctrl_c().await;
-        })
-        .await;
-    match served {
+    match axum::serve(listener, app(shared))
+        .with_graceful_shutdown(shutdown)
+        .await
+    {
         Ok(()) => crate::EXIT_OK,
         Err(error) => {
             eprintln!("mcp-conformance serve: {error}");
@@ -154,5 +165,77 @@ mod tests {
             );
             assert!(check_address(address, true).is_ok());
         }
+    }
+
+    #[tokio::test]
+    async fn it_serves_until_told_to_stop() {
+        let dir = crate::workbench::fixture::library("serve");
+        let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
+        let (lines, mut said) = tokio::sync::mpsc::unbounded_channel();
+        let library = dir.clone();
+        let serving = tokio::spawn(async move {
+            let settings = Settings {
+                library: &library,
+                listen: "127.0.0.1:0".parse().unwrap(),
+                non_loopback: false,
+                open: false,
+            };
+            run_until(
+                settings,
+                async { stopped.await.ok().unwrap_or(()) },
+                move |line| {
+                    lines.send(line).ok();
+                },
+            )
+            .await
+        });
+        let first = said.recv().await.unwrap();
+        assert!(first.ends_with("(11 recordings)"), "{first}");
+        let link = said.recv().await.unwrap();
+        let link = link
+            .strip_prefix("mcp-conformance serve: open ")
+            .unwrap()
+            .to_owned();
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .unwrap();
+        assert_eq!(client.get(&link).send().await.unwrap().status(), 303);
+        stop.send(()).unwrap();
+        assert_eq!(serving.await.unwrap(), crate::EXIT_OK);
+    }
+
+    #[tokio::test]
+    async fn what_cannot_be_opened_or_bound_is_refused() {
+        let dir = crate::workbench::fixture::library("serve-refused");
+        // A file is not a library, and an address that is not loopback is not bound.
+        let file = dir.join("everything-http.jsonl");
+        for (library, listen) in [
+            (file.as_path(), "127.0.0.1:0"),
+            (dir.as_path(), "0.0.0.0:0"),
+        ] {
+            let settings = Settings {
+                library,
+                listen: listen.parse().unwrap(),
+                non_loopback: false,
+                open: false,
+            };
+            assert_eq!(
+                run_until(settings, async {}, |_| {}).await,
+                crate::EXIT_USAGE
+            );
+        }
+        // Nor is an address already taken.
+        let taken = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let settings = Settings {
+            library: &dir,
+            listen: taken.local_addr().unwrap(),
+            non_loopback: false,
+            open: false,
+        };
+        assert_eq!(
+            run_until(settings, async {}, |_| {}).await,
+            crate::EXIT_USAGE
+        );
     }
 }

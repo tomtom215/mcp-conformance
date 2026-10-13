@@ -155,3 +155,36 @@ pub(crate) fn execute(wb: &mut Workbench, command: LibraryCommand) -> Result<Str
         }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::args::LibraryDir;
+
+    #[test]
+    fn a_library_that_cannot_be_opened_or_an_operation_that_fails_exits_2() {
+        let dir = crate::workbench::fixture::library("library-cmd");
+        let args = |library: std::path::PathBuf, command| LibraryArgs {
+            dir: LibraryDir { library },
+            command,
+        };
+        let stats = || LibraryCommand::Stats {
+            format: StatsFormat::Json,
+        };
+        assert_eq!(run(args(dir.clone(), stats())), EXIT_OK);
+        assert_eq!(
+            run(args(dir.join("everything-http.jsonl"), stats())),
+            EXIT_USAGE
+        );
+        let missing = LibraryCommand::Delete {
+            ids: vec!["nope".to_owned()],
+        };
+        assert_eq!(run(args(dir.clone(), missing)), EXIT_USAGE);
+        let import = LibraryCommand::Import {
+            file: dir.join("absent.jsonl"),
+            from: "auto".to_owned(),
+            transport: None,
+        };
+        assert_eq!(run(args(dir, import)), EXIT_USAGE);
+    }
+}
