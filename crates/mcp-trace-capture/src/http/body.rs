@@ -157,7 +157,8 @@ where
 {
     Body::from_stream(
         futures::stream::once(async move {
-            let _held = held;
+            // The prefix is relayed: its share of the budget is free again.
+            drop(held);
             Ok::<_, axum::Error>(Bytes::from(prefix))
         })
         .chain(rest),

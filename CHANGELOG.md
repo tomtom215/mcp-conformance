@@ -34,7 +34,8 @@ below is stated again in its entry, with the reasoning.
 | `validate` flags | `--max-events 0` and `--max-line-bytes 0` exit `2` (bad invocation), not `3` | Pass a limit of at least 1 |
 | `validate` human output | At most 20 findings under a clause, then a count of the rest | `--all`, or a machine format, for every finding |
 | Rust API | `context::draft` removed (deprecated in 0.6.0) | `context::stateless` holds the same items |
-| Rust API, `mcp-trace-capture` | `traces::Traces::respond` takes a third argument, `succeeded`; `http::Options` is no longer `UnwindSafe` or `RefUnwindSafe` | Pass whether the response was a 2xx; wrap `Options` in `AssertUnwindSafe` to move it into `catch_unwind` |
+| Rust API, `mcp-trace-capture` | `traces::Traces::respond` takes a third argument, `succeeded`; `http::Options` is no longer `UnwindSafe` or `RefUnwindSafe`; `framing::Line` is `#[non_exhaustive]` and gains `Unterminated`; `signals::Stop` gains `Quit`; `http::Unrecorded` gains `over_budget` and `refused_paths`, `stdio::Unrecorded` gains `unterminated`; `http::Options` gains `buffer_budget`, `header_read_timeout` and `connect_timeout` | Pass whether the response was a 2xx; wrap `Options` in `AssertUnwindSafe` to move it into `catch_unwind`; match `Line` with a wildcard arm (the structs are `#[non_exhaustive]`) |
+| `mcp-trace-capture http` | A request path with a `.` or `..` segment is answered `400` by the proxy; a request head not complete within 30 s, or an idle kept-alive connection, is closed; an upstream not connected within 10 s is a `502`; ids the server has not assigned share one trace until it accepts one | Send normalized paths; nothing to do for a conforming client |
 | `2026-07-28` verdict, new rows | `CANC-003`/`CANC-011`: a server `notifications/cancelled` naming anything but a `subscriptions/listen` request fails | Servers end only subscriptions this way |
 | `2026-07-28` verdict, new rows | `PROG-001`/`002`/`003`, and on stdio `PROG-005`/`008`: a progress token that is not a string or integer, one shared by two unanswered requests, a `progress` value that does not increase, progress after the answer | Fix the sender |
 | `2026-07-28` verdict, new rows | Over Streamable HTTP, `TRAN-132`–`TRAN-136`: an `Mcp-Param-*` header for a `null` or absent parameter, a `HeaderMismatch` for a POST that omitted one correctly, a result for a POST missing the header its body requires | Clients omit the header when there is no value; servers reject a missing header and accept an omitted one |
@@ -60,6 +61,58 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **The HTTP proxy's memory no longer grows with the number of concurrent
+  exchanges.** Each request body and non-SSE response was read whole, up to
+  `--max-message-bytes`, with nothing limiting how many were held at once:
+  eight concurrent 60 MB POSTs held 488 MB. Bodies and SSE events now share one
+  budget of four times `--max-message-bytes` (256 MiB by default). A body or event
+  that arrives while the budget is spent is streamed on intact, left out of the
+  trace, and counted in the exit summary.
+- **A client inventing `Mcp-Session-Id` values no longer makes the proxy open a
+  trace file for each one.** In per-session mode every unseen id began a numbered
+  file and a map entry that was never removed. Exchanges naming an id the server
+  has not accepted now share one trace until the server answers one with a 2xx,
+  which makes that trace the id's session; a refused id is not remembered, and a
+  `DELETE` the server accepts ends its session.
+- **A client sending a request head slowly can no longer hold proxy connections
+  open indefinitely.** `axum::serve` set no timer, so hyper's header read timeout
+  never applied. The proxy now serves through hyper with a 30-second request-head
+  timeout, which also closes kept-alive connections idle for that long.
+- **An upstream that never completes the connection is a `502` after 10 seconds.**
+  There was no connect timeout, so the client waited until the operating system
+  gave up. A connected upstream may still take as long as it likes to answer.
+- **`HEAD` responses keep their `Content-Length`, and bodies over the message
+  limit keep their framing.** The proxy dropped `Content-Length` both ways, so a
+  `HEAD` response reached the client as `content-length: 0` and an oversized body
+  went out chunked. It is now forwarded as sent.
+- **Request paths with `.` or `..` segments are refused instead of forwarded.**
+  With `--upstream http://h/mcp`, `/../../secret` reached `/mcp/../../secret`
+  (spelled out or percent-encoded alike). The proxy now answers such a path `400`
+  itself, does not record it, and counts it at exit.
+- **A redirect the proxy rewrites points at the proxy's own address, not at the
+  client's `Host` header.** `Host: evil.example` turned the upstream's `Location`
+  into `http://evil.example/…`; the rewrite now uses the local address the
+  client's connection reached.
+- **`Proxy-Connection` and `Expect` are no longer forwarded upstream.** The first
+  is hop-by-hop in practice; the second asked the upstream to approve a body the
+  proxy had already accepted and read.
+- **A client that disconnects mid-body is recorded as `transport-abort`.** The
+  request's `http` event used to stand alone in the trace, unanswered.
+- **The stdio wrapper relays `SIGQUIT` instead of dying and orphaning the
+  server.** Its default action ended the wrapper at once, with the server in its
+  own process group and the trace unclosed; it is now a stop request like
+  `SIGINT`, `SIGTERM` and `SIGHUP`.
+- **A last stdio line with no newline is recorded as a string, even when it is
+  JSON.** stdio framing never delivered it, and both official SDKs drop it, yet it
+  was recorded as a complete message. It is now recorded like other undelivered
+  lines and counted in the summary.
+- **On Windows, a Ctrl-C between two waits is no longer lost.** Each wait created
+  a fresh listener, so a Ctrl-C arriving outside one fell to the default handler
+  and ended the capture without its closing event; the listener is now created
+  once, at start. Compile-checked only, not yet run on Windows.
+- **A stray `{session}` file numbered past the search bound no longer blocks
+  numbering.** A hand-named `s-9999999.jsonl` made every later session fail with
+  "no free trace number"; numbers past the bound are now ignored.
 - **The everything server's tap named trace files after the raw session id.**
   `--tap-dir` wrote `NNN-<Mcp-Session-Id>.jsonl` with the header's value as
   sent, so an id carrying `/` named a path outside the file and one carrying
