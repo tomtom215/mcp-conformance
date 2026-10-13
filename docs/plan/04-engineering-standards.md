@@ -108,7 +108,8 @@ Package registries are reachable only at dependency-install time, under lockfile
    API against crates.io as the changelog's `[Unreleased]` section declares it — an
    API break fails the PR while that section declares none, and is listed for the
    reviewer once it carries a breaking-changes table; line and
-   region coverage is measured (`cargo llvm-cov`) and reported, not gated
+   region coverage is measured (`cargo llvm-cov`) and reported, and fails the
+   build below 95% of lines
 8. Mutation gate (diff-scoped), golden-corpus run, agreement check, fuzz smoke
    (every target, 60 s); the weekly scheduled job fuzzes five minutes per target
 9. Nightly toolchain (per-push, informational) + official-suite `0.2.0-alpha`

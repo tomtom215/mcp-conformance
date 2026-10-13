@@ -238,7 +238,8 @@ fn the_client_url_redirects_and_404s_are_spelled_out() {
     let has = |text: &str| stderr.iter().any(|line| line.contains(text));
     assert!(has(&format!("e.g. http://{address}/mcp")), "{stderr:?}");
     assert!(!has("outside 2xx"), "{stderr:?}");
-    assert!(!has("404"), "{stderr:?}");
+    // The 404 remark, not the digits: the trace path carries the process id.
+    assert!(!has("answered 404"), "{stderr:?}");
     assert!(!has("cannot hold"), "{stderr:?}");
     assert!(!has("other than `message`"), "{stderr:?}");
     std::fs::remove_file(&trace).ok();

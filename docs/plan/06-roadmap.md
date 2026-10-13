@@ -445,7 +445,7 @@ D1, D3, D4, D6, 0.1, 0.3–0.7, 1.1–1.3, 1.5, 2.1, 4.4, M6, M8, M10.
 | 2.9 — draft tracking | Not started | No `draft` registry skeleton; `spec-drift` does not read `draft/` |
 | 3.1 / M5 — calibration at `2026-07-28` | Blocked | Needs a stable official suite `0.2.0` (deferral row `suite-0-2-0-stable-pin-bump`) |
 | 3.3 — second calibration source | Not started | No `mcpsnoop` divergence table |
-| 3.4 — a2a-rust ports | Partial | Per-PR semver checks, per-crate SBOMs, PR fuzzing, generated requirement pages and coverage measurement done; coverage is not gated, and no gate-falsification script |
+| 3.4 — a2a-rust ports | **Done** | Per-PR semver checks, per-crate SBOMs, PR fuzzing, generated requirement pages, a coverage floor (95% of lines; 96.40% measured) and `cargo xtask falsify-gates` (every offline gate and the golden corpus) all run in CI |
 | 4.1–4.3 — upstream | Owner | Close #9; file the clause-level-rows proposal and the two small upstream PRs |
 | Phase 5 — proportionality | Partial | Roadmap condensed; CHANGELOG still carries audit narrative; merged branches not deleted |
 | Low — `#[allow]` attributes | Open | Module-wide `#![allow(deprecated)]` in the server and host, for rmcp's deprecated `2025-11-25` surface |

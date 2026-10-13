@@ -61,6 +61,11 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **`the_client_url_redirects_and_404s_are_spelled_out` failed whenever the test's
+  process id contained `404`**: it asserted no stderr line contained those digits,
+  and the trace path in the startup line carries the process id. It now asserts
+  the absence of the 404 remark itself. The informational coverage job failed on
+  it, and nothing else saw the failure.
 - **The HTTP proxy's memory no longer grows with the number of concurrent
   exchanges.** Each request body and non-SSE response was read whole, up to
   `--max-message-bytes`, with nothing limiting how many were held at once:
@@ -476,6 +481,14 @@ below is stated again in its entry, with the reasoning.
   `<crate>-<version>.cdx.json` beside the `.crate` (checksummed in
   `SHA256SUMS-sbom`), with a signed attestation binding the two; RELEASING.md's
   "Verifying a release" gives the `gh attestation verify` commands.
+- **Every offline gate is shown able to fail, in CI.** `cargo xtask falsify-gates`
+  runs each gate `cargo xtask gates` runs, and the golden corpus, on the clean tree,
+  makes one edit of the kind it exists to catch, and requires it to go red naming
+  that edit, then green again once the file is restored. A gate added without a
+  falsifier fails a unit test. The `doc` job runs it after the gates.
+- **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
+  on 2026-10-13, all features) and is no longer informational. As informational it
+  had hidden a failing test: see Fixed.
 - **`mcp-trace-capture http` names the client URL when it starts, and the statuses
   when it stops**: how many responses were not 2xx, and, for 404s, whether the
   endpoint path is right — with the upstream path ending in `/mcp`, a client also

@@ -77,7 +77,10 @@ exactly `cargo xtask gates`: they need nothing but a stable
 toolchain and the checked-out tree, CI's `doc` job runs that one command, and
 `cargo xtask ci` calls the same function — so what you run locally and what CI
 runs cannot drift apart. They used to be written out in the workflow, and two of
-them were left out of it.
+them were left out of it. `cargo xtask falsify-gates` (also run by the `doc` job)
+then breaks each of them, and the golden corpus, with one edit apiece on a clean
+tree, and fails unless every one goes red for the reason it names and green again
+once the file is restored; a new gate without a falsifier fails its unit test.
 
 Additionally enforced in CI: `cargo package --workspace --exclude xtask --locked`
 (publishability, with a CycloneDX SBOM dry run, `cargo xtask sbom`), the Rust API
@@ -87,7 +90,7 @@ change, any API break fails the PR; once it carries a breaking-changes table,
 every break is listed for the reviewer to hold against the table), and
 diff-scoped mutation testing
 (`cargo mutants --in-diff`) on PRs. Coverage is measured and reported in the job
-summary, not gated. The standard is **zero surviving mutants in every shipped crate**
+summary, and the job fails below 95% of lines. The standard is **zero surviving mutants in every shipped crate**
 (xtask is excluded via `.cargo/mutants.toml`). Run it locally with
 `cargo xtask mutants`, which issues exactly the invocation CI does;
 `--jobs N` is the only argument it accepts, and raising it spends the timeout
