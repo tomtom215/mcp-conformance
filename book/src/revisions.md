@@ -19,9 +19,9 @@ changelog and becomes a measurement.
 
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Registry entries | 236 | 392 |
-| Judged by a named check | 84 | 174 |
-| Carrying a documented exclusion | 152 | 218 |
+| Registry entries | 321 | 501 |
+| Judged by a named check | 89 | 181 |
+| Carrying a documented exclusion | 232 | 320 |
 | Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -81,9 +81,9 @@ And the verdict splits:
 
 ```text
 per revision:
-  2025-11-25: 17 pass, 0 fail, 0 warn, 152 excluded, 0 unsupported, 14 not applicable, 53 not observed — verdict pass
+  2025-11-25: 17 pass, 0 fail, 0 warn, 232 excluded, 0 unsupported, 14 not applicable, 58 not observed — verdict pass
   2025-11-25: wire schema pass (3 messages valid)
-  2026-07-28: 15 pass, 8 fail, 0 warn, 218 excluded, 0 unsupported, 0 not applicable, 151 not observed — verdict fail
+  2026-07-28: 15 pass, 8 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 158 not observed — verdict fail
   2026-07-28: wire schema fail (1 of 3 messages invalid)
 overall verdict: fail
 ```
@@ -91,8 +91,8 @@ overall verdict: fail
 A conforming session today, and eight concrete failures tomorrow — nine, with
 the `2026-07-28` schema's own finding: the `initialize` result carries no
 `resultType`, which every result at that revision must. Both summary
-lines account for **every** clause in their revision — the counts add up to 236
-and 392 — because a line that quietly omits an outcome is a line that overstates
+lines account for **every** clause in their revision — the counts add up to 321
+and 501 — because a line that quietly omits an outcome is a line that overstates
 what was measured.
 
 > The example above is executed by a test (`book_examples.rs`) against the real
@@ -164,7 +164,7 @@ usually are.
   session of deliberately malformed requests, the official runner's two, and
   three of the official SDKs' own conformance servers
   ([the cross-SDK matrix](sdk-matrix.md)) — evidence
-  **148 of the 174 judgeable clauses** between them. What no capture
+  **148 of the 181 judgeable clauses** between them. What no capture
   reaches is named, one clause at a time, in [the corpus chapter](corpus.md).
 - The project's CI re-runs that measurement weekly and **ratchets** it against a
   committed baseline: any change in either direction fails the build, so a

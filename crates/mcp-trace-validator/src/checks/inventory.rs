@@ -200,9 +200,13 @@ const fn concatenated<const N: usize>(first: &[Check], second: &[Check]) -> [Che
 const REVISION_ROWS: [Check; SHIPPED.len() + stateless_rows::ROWS.len()] =
     concatenated(SHIPPED, stateless_rows::ROWS);
 
-/// The backing storage for [`ALL`].
-static EVERY: [Check; REVISION_ROWS.len() + client_feature_rows::ROWS.len()] =
+/// The revision rows and the client-feature pages' rows.
+const FEATURE_ROWS: [Check; REVISION_ROWS.len() + client_feature_rows::ROWS.len()] =
     concatenated(&REVISION_ROWS, client_feature_rows::ROWS);
+
+/// The backing storage for [`ALL`].
+static EVERY: [Check; FEATURE_ROWS.len() + auth_rows::ROWS.len()] =
+    concatenated(&FEATURE_ROWS, auth_rows::ROWS);
 
 /// Every check implemented by this build, in stable order.
 pub static ALL: &[Check] = &EVERY;
@@ -212,6 +216,7 @@ pub fn find(id: &str) -> Option<&'static Check> {
     ALL.iter().find(|check| check.id == id)
 }
 
+mod auth_rows;
 mod client_feature_rows;
 mod stateless_rows;
 

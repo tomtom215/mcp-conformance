@@ -15,8 +15,10 @@
 //! 2. **The four `2025-11-25` protocol scenarios**, sequentially: parallel
 //!    suite mode would put the `sse-retry` clock under load noise, and
 //!    client runs fail on WARNINGs, so the timing window is load-bearing.
-//!    The `auth/*` set is deferred (registry TRAN-009; deferral ledger row
-//!    `auth-client-scenarios`).
+//!    The `auth/*` set is deferred (deferral ledger row
+//!    `auth-client-scenarios`): it needs a full OAuth client in the host. The
+//!    registry judges what a recording shows of authorization — the
+//!    server's challenge (`AUTH-*`) — without one.
 //! 3. **Client-side agreement** — every host-captured trace replays through
 //!    `mcp-trace-validator` against
 //!    `conformance/client-agreement-divergences.json`. The `sse-retry`

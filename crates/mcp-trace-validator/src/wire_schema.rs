@@ -310,6 +310,12 @@ pub(crate) fn check(
             // A raw line the recorder kept as text: not a JSON value to judge.
             continue;
         }
+        if context.refused(event.seq) && payload.get("jsonrpc").is_none() {
+            // An authorization refusal's own body, not a protocol message
+            // (`context::refusal`). A refused *request* is still judged: it
+            // was a JSON-RPC message, only an unread one.
+            continue;
+        }
         messages = messages.saturating_add(1);
         let (definition, errors) = judge(compiled, revision, payload, answered.get(&event.seq));
         if errors.is_empty() {

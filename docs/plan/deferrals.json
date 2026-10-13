@@ -3,9 +3,9 @@
   "deferrals": [
     {
       "id": "auth-client-scenarios",
-      "what": "The pinned suite's auth/* client scenarios (OAuth metadata discovery, registration, PKCE flows) as host-SUT gates. Re-decided 2026-09-24 with the project review's D4: the HTTP-observable authorization clauses (401 with WWW-Authenticate, protected-resource metadata) enter the validator's registry (review item 2.8); a full OAuth client in the reference host stays out",
-      "why": "A full OAuth client is a large build whose only consumer would be the host-as-SUT gate; the trace validator gets the observable half without it",
-      "meanwhile": "TRAN-009 documented exclusion until item 2.8 lands; the four protocol client scenarios gate in CI",
+      "what": "The pinned suite's auth/* client scenarios (OAuth metadata discovery, registration, PKCE flows) as host-SUT gates, which need a full OAuth client in the reference host. Re-decided 2026-10-13: review item 2.8, the half D4 (2026-09-24) brought in, is built — the authorization pages are in scope at both revisions, every MUST- and SHOULD-family keyword on them entered (AUTH-001..AUTH-085 at 2025-11-25, AUTH-086..AUTH-194 at 2026-07-28), and the clauses a recording can judge (the server's 401/403 WWW-Authenticate challenge: its scope, its error against the status, the insufficient_scope response's resource_metadata, and at 2026-07-28 offline_access and single-challenge) carry checks with corpus pairs. What remains deferred is only the host-as-SUT half D4 kept out",
+      "why": "A full OAuth client is a large build whose only consumer would be the host-as-SUT gate, and the trace validator cannot use it: the flow it would exercise runs between the client, the browser and the authorization server, off the MCP endpoint a recording captures (registry exclusions AUTH-* say clause by clause why). Making the exclusion permanent is an ADR, not a date; until one is written this row keeps the question on a clock",
+      "meanwhile": "The AUTH-* registry entries judge the HTTP-observable challenge clauses on every recorded session (corpus pairs under corpus/violations/auth-* and corpus/draft/violations/auth-*); TRAN-009 and TRAN-054 stay excluded and point at them; the four protocol client scenarios gate in CI",
       "review_by": "2026-12-31"
     },
     {

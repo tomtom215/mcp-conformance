@@ -72,7 +72,7 @@ fn builtin_registry_parses_and_validates() {
     // dropped from the embed (a forgotten include, a bad merge) shrinks
     // the count without failing any floor check. The README coverage
     // gate pins the same number from the other direction.
-    assert_eq!(registry.requirements().len(), 236);
+    assert_eq!(registry.requirements().len(), 321);
     assert!(registry.get("LIFE-001").is_some());
     assert!(registry.get("NOPE-999").is_none());
 }
@@ -134,7 +134,7 @@ fn builtin_registry_areas_merge_in_report_order() {
 /// Area prefixes in their report order, for the order test above.
 const AREA_ORDER: &[&str] = &[
     "BASE-", "LIFE-", "TRAN-", "TOOL-", "RES-", "PROM-", "LOG-", "COMP-", "PAGE-", "ELIC-",
-    "SAMP-", "ROOT-",
+    "SAMP-", "ROOT-", "AUTH-",
 ];
 
 #[test]

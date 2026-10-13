@@ -111,13 +111,23 @@ mod tests {
             ("Accept", "application/json"),
             ("Accept", "text/event-stream"),
             ("Mcp-Param-Region", "eu"),
+            ("WWW-Authenticate", "Bearer scope=\"files:read\""),
             ("X-Unrelated", "1"),
         ]);
         let recorded = recorded(&headers);
+        // The server's challenge is kept and the client's credential is not:
+        // the two halves of an authorization exchange sit on opposite sides of
+        // the allowlist.
         assert_eq!(
             recorded.keys().map(String::as_str).collect::<Vec<_>>(),
-            ["accept", "mcp-param-region", "mcp-session-id"]
+            [
+                "accept",
+                "mcp-param-region",
+                "mcp-session-id",
+                "www-authenticate"
+            ]
         );
+        assert_eq!(recorded["www-authenticate"], "Bearer scope=\"files:read\"");
         assert_eq!(recorded["accept"], "application/json, text/event-stream");
         assert!(!format!("{recorded:?}").contains("secret"));
     }

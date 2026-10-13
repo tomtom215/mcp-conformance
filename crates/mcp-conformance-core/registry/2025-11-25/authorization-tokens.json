@@ -1,0 +1,338 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "AUTH-032",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#resource-parameter-implementation",
+        "quote": "MCP clients MUST implement Resource Indicators for OAuth 2.0 as defined in RFC 8707 to explicitly specify the target resource for which the token is being requested."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-033",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#resource-parameter-implementation",
+        "quote": "The `resource` parameter: MUST be included in both authorization requests and token requests.; MUST identify the MCP server that the client intends to use the token with.; MUST use the canonical URI of the MCP server as defined in RFC 8707 Section 2."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-034",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#canonical-server-uri",
+        "quote": "MCP clients SHOULD provide the most specific URI that they can for the MCP server they intend to access, following the guidance in RFC 8707."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-035",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#canonical-server-uri",
+        "quote": "While the canonical form uses lowercase scheme and host components, implementations SHOULD accept uppercase scheme and host components for robustness and interoperability."
+      },
+      "exclusion": "Accepting a URI is a comparison made by whoever receives the `resource` parameter or validates a token's audience — the authorization server, or the MCP server inside its validation — and neither comparison is a message on the MCP endpoint."
+    },
+    {
+      "id": "AUTH-036",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#canonical-server-uri",
+        "quote": "While both `https://mcp.example.com/` (with trailing slash) and `https://mcp.example.com` (without trailing slash) are technically valid absolute URIs according to RFC 3986, implementations SHOULD consistently use the form without the trailing slash for better interoperability unless the trailing slash is semantically significant for the specific resource."
+      },
+      "exclusion": "The canonical URI's spelling appears in the `resource` parameter of requests to the authorization server and in token audiences, neither of which a recording of the MCP endpoint carries; and an `http` event records no request target, so not even the endpoint URL the client used is there."
+    },
+    {
+      "id": "AUTH-037",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#canonical-server-uri",
+        "quote": "MCP clients MUST send this parameter regardless of whether authorization servers support it."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-038",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#token-requirements",
+        "quote": "Access token handling when making requests to MCP servers MUST conform to the requirements defined in OAuth 2.1 Section 5 \"Resource Requests\"."
+      },
+      "exclusion": "`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording. The section's other requirement, no token in the query string, has its own entry."
+    },
+    {
+      "id": "AUTH-039",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#token-requirements",
+        "quote": "MCP client MUST use the Authorization request header field defined in OAuth 2.1 Section 5.1.1:"
+      },
+      "exclusion": "`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording."
+    },
+    {
+      "id": "AUTH-040",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#token-requirements",
+        "quote": "Note that authorization MUST be included in every HTTP request from client to server, even if they are part of the same logical session."
+      },
+      "exclusion": "`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording. A 401 to a request in mid-session does not settle it either: an expired token draws the same answer as a missing one."
+    },
+    {
+      "id": "AUTH-041",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#token-requirements",
+        "quote": "Access tokens MUST NOT be included in the URI query string"
+      },
+      "exclusion": "An `http` event records the method, status and allowlisted headers, and no request target: neither the path nor the query string a request was sent to is in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs."
+    },
+    {
+      "id": "AUTH-042",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#token-handling",
+        "quote": "MCP servers, acting in their role as an OAuth 2.1 resource server, MUST validate access tokens as described in OAuth 2.1 Section 5.2."
+      },
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+    },
+    {
+      "id": "AUTH-043",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#token-handling",
+        "quote": "MCP servers MUST validate that access tokens were issued specifically for them as the intended audience, according to RFC 8707 Section 2."
+      },
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+    },
+    {
+      "id": "AUTH-044",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#token-handling",
+        "quote": "If validation fails, servers MUST respond according to OAuth 2.1 Section 5.3 error handling requirements."
+      },
+      "exclusion": "Whether validation failed is decided inside the server, against a token the recording never holds, and the sentence imports OAuth 2.1 Section 5.3 wholesale. What a recording can hold the response to is the page's own statement of it: the status each declared error receives and the 401 for an invalid token, judged by `auth.error-status` and `auth.invalid-token-401`."
+    },
+    {
+      "id": "AUTH-045",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#token-handling",
+        "quote": "Invalid or expired tokens MUST receive a HTTP 401 response."
+      },
+      "checks": [
+        "auth.invalid-token-401"
+      ]
+    },
+    {
+      "id": "AUTH-046",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#token-handling",
+        "quote": "MCP clients MUST NOT send tokens to the MCP server other than ones issued by the MCP server's authorization server."
+      },
+      "exclusion": "`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording."
+    },
+    {
+      "id": "AUTH-047",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#token-handling",
+        "quote": "MCP servers MUST only accept tokens that are valid for use with their own resources."
+      },
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+    },
+    {
+      "id": "AUTH-048",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#token-handling",
+        "quote": "MCP servers MUST NOT accept or transit any other tokens."
+      },
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. Transiting a token is a request to an upstream service, outside the MCP session."
+    },
+    {
+      "id": "AUTH-049",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#error-handling",
+        "quote": "Servers MUST return appropriate HTTP status codes for authorization errors"
+      },
+      "checks": [
+        "auth.error-status"
+      ]
+    },
+    {
+      "id": "AUTH-050",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#runtime-insufficient-scope-errors",
+        "quote": "When a client makes a request with an access token with insufficient scope during runtime operations, the server SHOULD respond with: `HTTP 403 Forbidden` status code (per RFC 6750 Section 3.1); `WWW-Authenticate` header with the `Bearer` scheme and additional parameters: `error=\"insufficient_scope\"` - indicating the specific type of authorization failure; `scope=\"required_scope1 required_scope2\"` - specifying the minimum scopes needed for the operation; `resource_metadata` - the URI of the Protected Resource Metadata document (for consistency with 401 responses)"
+      },
+      "checks": [
+        "auth.insufficient-scope-response"
+      ]
+    },
+    {
+      "id": "AUTH-051",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#runtime-insufficient-scope-errors",
+        "quote": "Server Scope Management: When responding with insufficient scope errors, servers SHOULD include the scopes needed to satisfy the current request in the `scope` parameter."
+      },
+      "checks": [
+        "auth.insufficient-scope-names-scopes"
+      ]
+    },
+    {
+      "id": "AUTH-052",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#runtime-insufficient-scope-errors",
+        "quote": "Servers SHOULD be consistent in their scope inclusion strategy to provide predictable behavior for clients."
+      },
+      "exclusion": "A strategy is a policy over every challenge the server issues, across sessions and users; one recording shows a few challenges for different operations, which legitimately name different scopes, and cannot tell an inconsistent strategy from a consistent one applied to different requests."
+    },
+    {
+      "id": "AUTH-053",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#runtime-insufficient-scope-errors",
+        "quote": "Servers SHOULD consider the user experience impact when determining which scopes to include in the response, as misconfigured scopes may require frequent user interaction."
+      },
+      "exclusion": "Binds the server's deliberation, not a message: a challenge shows the scopes chosen, not whether their user experience impact was weighed."
+    },
+    {
+      "id": "AUTH-054",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#step-up-authorization-flow",
+        "quote": "Clients SHOULD respond to these errors by requesting a new access token with an increased set of scopes via a step-up authorization flow or handle the errors in other, appropriate ways."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (the token request a step-up makes), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records. The clause also admits \"other, appropriate ways\", which no message distinguishes."
+    },
+    {
+      "id": "AUTH-055",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#step-up-authorization-flow",
+        "quote": "Clients acting on behalf of a user SHOULD attempt the step-up authorization flow."
+      },
+      "exclusion": "Whether a client acts on behalf of a user or on its own (`client_credentials`) is a fact about its grant, which no MCP message states. Conduct inside the client's OAuth flow (the step-up re-authorization), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-056",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#step-up-authorization-flow",
+        "quote": "Clients SHOULD implement retry limits and SHOULD track scope upgrade attempts to avoid repeated failures for the same resource and operation combination."
+      },
+      "exclusion": "A limit is a property of the client's implementation, which a session that simply stops retrying satisfies whatever the limit is; the page fixes no number (\"no more than a few times\") a recording could be held to, and the attempts tracked are re-authorizations off the MCP endpoint."
+    }
+  ]
+}

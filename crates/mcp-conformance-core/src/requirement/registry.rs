@@ -18,7 +18,7 @@ use crate::revision::{ProtocolRevision, REVISION_2025_11_25};
 
 /// The embedded per-area registry documents for protocol revision `2025-11-25`, in
 /// report order: base protocol, lifecycle, transports, the capability-gated server
-/// feature areas, then the client-feature pages.
+/// feature areas, the client-feature pages, then authorization.
 const AREAS_2025_11_25: &[&str] = &[
     include_str!("../../registry/2025-11-25/base.json"),
     include_str!("../../registry/2025-11-25/lifecycle.json"),
@@ -34,6 +34,9 @@ const AREAS_2025_11_25: &[&str] = &[
     include_str!("../../registry/2025-11-25/elicitation-security.json"),
     include_str!("../../registry/2025-11-25/sampling.json"),
     include_str!("../../registry/2025-11-25/roots.json"),
+    include_str!("../../registry/2025-11-25/authorization.json"),
+    include_str!("../../registry/2025-11-25/authorization-tokens.json"),
+    include_str!("../../registry/2025-11-25/authorization-security.json"),
 ];
 
 /// The embedded per-area registry documents for protocol revision `2026-07-28`.
@@ -74,6 +77,10 @@ const AREAS_2026_07_28: &[&str] = &[
     include_str!("../../registry/2026-07-28/elicitation-security.json"),
     include_str!("../../registry/2026-07-28/sampling.json"),
     include_str!("../../registry/2026-07-28/roots.json"),
+    include_str!("../../registry/2026-07-28/authorization.json"),
+    include_str!("../../registry/2026-07-28/authorization-tokens.json"),
+    include_str!("../../registry/2026-07-28/authorization-discovery.json"),
+    include_str!("../../registry/2026-07-28/authorization-security.json"),
 ];
 
 /// A complete requirement registry for one protocol revision.

@@ -285,6 +285,10 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 - **No credentials in the trace.** Only an allowlist of headers is recorded — the same
   list every capture in this project uses (`RECORDED_HEADERS` in
   `mcp-conformance-core`). `Authorization` and cookies are forwarded, never written.
+  A server's `WWW-Authenticate` challenge is on the list (since 2026-10-13): it asks
+  for a credential and carries none, and the authorization checks read it. The
+  proxy records every path it relays but not the path itself, so a request to a
+  well-known metadata URI cannot be told from an MCP one in the trace.
   **Message content is recorded in full** — as parsed JSON, so whitespace, member
   order (written sorted) and number spelling (`1E2` as `100.0`) are not kept, but
   every value is: review a trace before sharing it. JSON whose parsed value would

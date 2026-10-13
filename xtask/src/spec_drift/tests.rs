@@ -134,7 +134,7 @@ fn the_committed_sources_file_parses_and_matches_the_registry() {
     let registry = Registry::builtin_2025_11_25().unwrap();
     let by_page = requirements_by_page(&registry);
     assert!(sets_agree(&sources, &by_page));
-    assert_eq!(sources.in_scope.len(), 12, "the twelve in-scope pages");
+    assert_eq!(sources.in_scope.len(), 13, "the thirteen in-scope pages");
     assert!(!sources.out_of_scope.is_empty());
 }
 

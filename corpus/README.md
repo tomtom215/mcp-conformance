@@ -49,9 +49,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 98 | 174 |
-| Excluded rows the ledger holds | 152 | 218 |
-| Distinct not-observed sets across them | 63 | 131 |
+| Goldens | 104 | 182 |
+| Excluded rows the ledger holds | 232 | 320 |
+| Distinct not-observed sets across them | 67 | 136 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -126,6 +126,7 @@ below: the implementations on both ends, the tool that recorded them, and when.
 | `stdio-full-session.jsonl` | Handshake plus ping, tools/list, tools/call over stdio |
 | `stdio-minimal-init.jsonl` | Smallest conformant session: the three-message handshake |
 | `http-origin-refused-without-id.jsonl` | A Streamable HTTP `initialize` carrying `Host`/`Origin` `evil.example.com`, refused `403` with a JSON-RPC error that has no `id`, then the same handshake from `localhost` completing. The transport's security warning permits exactly that body ("If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`"), so BASE-009 passes. Until 2026-10-13 the framing tied the error to the refused request, whose id was readable, and BASE-009 failed it — the shape of the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`). Added 2026-10-13 |
+| `http-authorization.jsonl` | A protected Streamable HTTP server, conformant (added 2026-10-13, review item 2.8): `initialize` refused `401` with a Bearer challenge carrying `resource_metadata` and `scope` (AUTH-014's pass path), then sent again **with the same id**, as the official SDKs' clients retry, and answered; a `ping` refused `403` `insufficient_scope` naming `scope` and `resource_metadata` (AUTH-049/050/051), retried and answered; another refused `401` `invalid_token` (AUTH-045/049) whose `application/json` body is the resource server's own `{"error":"invalid_token",…}` object, retried and answered. That body is the HTTP layer's, not a JSON-RPC message; read as one it failed BASE-006/008/009 and the wire schema. The retries are why a request refused at the HTTP layer is *not delivered* (`context/refusal.rs`): judged as two deliveries, each retry failed BASE-003 and the trace counted two sessions. No metadata fetch appears, because none would: see `checks/auth.rs` for what a recording carries for authorization |
 
 ### `violations/`
 
@@ -224,6 +225,11 @@ example).
 | `root-003-root-not-file-uri.jsonl` | ROOT-003: a root listed as `https://example.com/repos/trips` |
 | `root-004-unsupported-answered-internal-error.jsonl` | ROOT-004, a warning: a client without `roots` refuses `roots/list` with `-32603` rather than `-32601`. LIFE-009 and ROOT-009 for the request, the antecedent |
 | `root-009-asked-without-capability.jsonl` | ROOT-009, a warning: `roots/list` sent to a client that did not declare `roots` (LIFE-009 states the MUST behind it). The client refuses with `-32601` — ROOT-004's pass path |
+| `auth-014-challenge-without-scope.jsonl` | AUTH-014, a warning: the `401` challenge carries `resource_metadata` but no `scope` |
+| `auth-045-invalid-token-answered-403.jsonl` | AUTH-045: a challenge declaring `error="invalid_token"` sent with `403`. AUTH-049 fails too: the error-handling table gives the same error the same status |
+| `auth-049-insufficient-scope-answered-401.jsonl` | AUTH-049: `error="insufficient_scope"` sent with `401` rather than the table's `403`. AUTH-050 warns too: its list begins with the `403` |
+| `auth-050-insufficient-scope-without-resource-metadata.jsonl` | AUTH-050, a warning: a `403` `insufficient_scope` challenge naming its scopes but no `resource_metadata` |
+| `auth-051-insufficient-scope-names-no-scope.jsonl` | AUTH-051, a warning: a `403` `insufficient_scope` challenge with no `scope`. AUTH-050 warns too: `scope` is one of the parameters its list requires |
 
 ### `2026-07-28` captured (`corpus/draft/captured/`)
 
@@ -239,7 +245,7 @@ two reports is attributable to that one change.
 | Server | `mcp-everything-server` on rmcp 3.4.1, serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode, same build |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-04 | same run, second leg |
 | Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
-| Our verdict | 69 pass, **1 fail**, 1 warn, 103 not observed, 218 excluded | **70 pass, 0 fail**, 1 warn, 103 not observed, 218 excluded |
+| Our verdict | 69 pass, **1 fail**, 1 warn, 110 not observed, 320 excluded | **70 pass, 0 fail**, 1 warn, 110 not observed, 320 excluded |
 | The official runner's verdict, that run | `38 passing / 4 failing` | `42 passing / 0 failing` |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
@@ -339,7 +345,7 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-10-13 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, an 18-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all five prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every listing is followed to its last page: the server serves each in two, the suite's catalogue first and the rest — icons, annotations, a `resource_link` result, an audio prompt, `x-mcp-header` designations — behind a `nextCursor`. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **107 pass, 0 fail, 2 warn**, 65 not observed, 218 excluded |
+| Our verdict | **107 pass, 0 fail, 2 warn**, 72 not observed, 320 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -413,7 +419,7 @@ the transport keeps it unobserved here.
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-10-13 |
 | Contents | 195 events — the session's 103 messages plus 92 `http` events carrying status and headers, the `Mcp-Param-Region`/`Mcp-Param-Limit` pair rmcp mirrors for the designated tool among them |
-| Our verdict | **123 pass, 0 fail, 2 warn**, 49 not observed, 218 excluded |
+| Our verdict | **123 pass, 0 fail, 2 warn**, 56 not observed, 320 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -426,7 +432,7 @@ in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 125 of the 174 judgeable clauses it is the best-covered capture here, and
+At 125 of the 181 judgeable clauses it is the best-covered capture here, and
 the fourteen it gained on 2026-10-13 are the server's own doing: the second
 pages carry the pagination clauses (`CACH-015`/`CACH-016`), the audio prompt
 (`PROM-017`), and a tool designating three arguments for `Mcp-Param-*`
@@ -536,19 +542,19 @@ read as a specimen instead.
 <!-- draft-coverage:begin (generated by `cargo xtask draft-coverage`; do not edit by hand) -->
 | Capture | Judged | pass | fail | warn | Not observed |
 |---------|-------:|-----:|-----:|-----:|-------------:|
-| `official-suite-2026-07-28-scenarios` | 71 | 69 | 1 | 1 | 103 |
-| `official-suite-2026-07-28-stateless` | 71 | 70 | 0 | 1 | 103 |
-| `probe-2026-07-28-http` | 85 | 72 | 11 | 2 | 89 |
-| `reference-host-2026-07-28-http` | 125 | 123 | 0 | 2 | 49 |
-| `reference-host-2026-07-28-stdio` | 109 | 107 | 0 | 2 | 65 |
-| `sdk-go-2026-07-28` | 83 | 78 | 4 | 1 | 91 |
-| `sdk-python-2026-07-28` | 65 | 65 | 0 | 0 | 109 |
-| `sdk-rust-2026-07-28` | 74 | 73 | 0 | 1 | 100 |
-| **Union** | **148** | | | | **26** |
+| `official-suite-2026-07-28-scenarios` | 71 | 69 | 1 | 1 | 110 |
+| `official-suite-2026-07-28-stateless` | 71 | 70 | 0 | 1 | 110 |
+| `probe-2026-07-28-http` | 85 | 72 | 11 | 2 | 96 |
+| `reference-host-2026-07-28-http` | 125 | 123 | 0 | 2 | 56 |
+| `reference-host-2026-07-28-stdio` | 109 | 107 | 0 | 2 | 72 |
+| `sdk-go-2026-07-28` | 83 | 78 | 4 | 1 | 98 |
+| `sdk-python-2026-07-28` | 65 | 65 | 0 | 0 | 116 |
+| `sdk-rust-2026-07-28` | 74 | 73 | 0 | 1 | 107 |
+| **Union** | **148** | | | | **33** |
 
-Across all 8 captures, **148 of the 174 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 8 captures, **148 of the 181 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
-The 26 clauses no capture reaches: `CANC-003`, `CANC-011`, `DISC-002`, `ELIC-064`, `ELIC-065`, `MRTR-024`, `ROOT-013`, `ROOT-014`, `ROOT-018`, `SAMP-026`, `SAMP-029`, `SAMP-030`, `SAMP-031`, `SAMP-032`, `SAMP-033`, `SAMP-042`, `TOOL-035`, `TOOL-046`, `TRAN-061`, `TRAN-070`, `TRAN-083`, `TRAN-084`, `TRAN-096`, `TRAN-128`, `TRAN-132`, `TRAN-133`.
+The 33 clauses no capture reaches: `AUTH-097`, `AUTH-124`, `AUTH-129`, `AUTH-130`, `AUTH-131`, `AUTH-132`, `AUTH-133`, `CANC-003`, `CANC-011`, `DISC-002`, `ELIC-064`, `ELIC-065`, `MRTR-024`, `ROOT-013`, `ROOT-014`, `ROOT-018`, `SAMP-026`, `SAMP-029`, `SAMP-030`, `SAMP-031`, `SAMP-032`, `SAMP-033`, `SAMP-042`, `TOOL-035`, `TOOL-046`, `TRAN-061`, `TRAN-070`, `TRAN-083`, `TRAN-084`, `TRAN-096`, `TRAN-128`, `TRAN-132`, `TRAN-133`.
 <!-- draft-coverage:end -->
 
 The probe session closed the largest group — the rejection rules — and the
@@ -722,6 +728,7 @@ outcome moved.
 | `mrtr-parallel-rounds.jsonl` | Two `tools/call` rounds in flight at once — the shape the official Python SDK produces for concurrent calls: both requests, both `input_required` results, then the retries in the *opposite* order, each echoing its own `requestState` and answering its own `inputRequests`. Until retries were paired by the state they echo, the second retry was judged against the most recent round — the other call's — and this conforming exchange failed MRTR-003/015/016/017. |
 | `mrtr-retry-round-before-recording.jsonl` | A fresh stdio process receives a `tools/call` retry carrying `inputResponses` and a `requestState` minted by an earlier server process, and completes it; the `input_required` round predates the recording. `requestState` exists so a retry can reach an instance that never saw the round, so MRTR-015/016/018 have no round to judge it against. Until 2026-10-12 MRTR-018 read the missing round as one that issued no state and failed it. |
 | `client-features-mrtr.jsonl` | The client-feature traffic of `good/stdio-client-features.jsonl` under MRTR, over stdio (added 2026-10-13, review item 2.5): one `tools/call` whose `input_required` asks four inputs at once — form and URL mode elicitation (no `elicitationId` at this revision), a tool-enabled sampling request under `toolChoice` `required`, and `roots/list` — retried with all four answers; a second round continuing the tool loop under `toolChoice` `none`; then the result. Every request declares `elicitation` (both modes), `sampling.tools` and `roots` in its own `clientCapabilities` |
+| `http-authorization.jsonl` | `good/http-authorization.jsonl` at this revision (added 2026-10-13, review item 2.8): `server/discover` refused `401` with `resource_metadata` and `scope` (AUTH-097), resent with the same id and answered; a `tools/list` refused `403` `insufficient_scope` (AUTH-130/131/132), retried with the same id and answered — AUTH-133's pass path, a retry the server did not challenge again — and another refused `401` `invalid_token` (AUTH-124/130). No challenge names `offline_access` (AUTH-129). The same-id retries pass BASE-045: the refused request was never read, so it was never in flight |
 | `subscription-server-teardown.jsonl` | A stdio subscription the *server* ends: acknowledgment, one requested change notification, then `notifications/cancelled` with `requestId` naming the `subscriptions/listen` request — the teardown basic/patterns/cancellation makes mandatory ("A server MUST send `notifications/cancelled` referencing a `subscriptions/listen` request ID when it tears down that subscription stream"). It carries no `subscriptionId` tag, since `requestId` already names the subscription; until 2026-10-04 BASE-039 failed it for the missing tag, and SUBS-001 failed the tagged form as an unrequested notification type, so the mandated message could not pass either way. |
 | `subscription-id-reused-after-close.jsonl` | A stdio subscription closed by its graceful-closure response, then a second `subscriptions/listen` reusing id 1 with a different filter (`promptsListChanged` only): each opening acknowledged first, each notification one its own filter requested (SUBS-001/002 pass paths). Until 2026-10-12 both checks keyed subscriptions by id alone, so the second filter judged the first stream's `tools/list_changed` and SUBS-001 failed. |
 | `caching-ttl-written-as-float.jsonl` | A `tools/list` result carrying `"ttlMs": 60000.0`. The schema types `ttlMs` as JSON Schema `integer`, which admits any number with a zero fractional part, so this is 60000 milliseconds (CACH-001/008 pass paths) — the spelling a serializer that holds every JSON number as a double may produce. Until 2026-10-12 CACH-008 accepted only values that parsed as `i64` and failed it. |
@@ -884,3 +891,10 @@ outcome moved.
 | `root-013-answered-without-capability.jsonl` | ROOT-013: a retry declaring only `sampling` answers `roots/list` |
 | `root-014-root-not-file-uri.jsonl` | ROOT-014: a root listed as `https://example.com/repos/trips` |
 | `root-018-asked-without-capability.jsonl` | ROOT-018, a warning: `roots/list` asked of a request that did not declare `roots`. BASE-034, MRTR-012 and MRTR-013 state the MUST behind it and fail |
+| `auth-097-challenge-without-scope.jsonl` | AUTH-097, a warning: the `401` challenge carries `resource_metadata` but no `scope` |
+| `auth-124-invalid-token-answered-403.jsonl` | AUTH-124: `error="invalid_token"` sent with `403`; AUTH-130 fails too, as for `auth-045` at `2025-11-25` |
+| `auth-129-offline-access-challenged.jsonl` | AUTH-129, a warning: the `401` challenge asks for `files:read offline_access`. The clause's other half, Protected Resource Metadata's `scopes_supported`, is not in a recording |
+| `auth-130-insufficient-scope-answered-401.jsonl` | AUTH-130: `error="insufficient_scope"` sent with `401`; AUTH-131 warns too |
+| `auth-131-insufficient-scope-without-resource-metadata.jsonl` | AUTH-131, a warning: an `insufficient_scope` challenge without `resource_metadata` |
+| `auth-132-insufficient-scope-names-no-scope.jsonl` | AUTH-132, a warning: an `insufficient_scope` challenge with no `scope`; AUTH-131 warns too |
+| `auth-133-scope-challenged-incrementally.jsonl` | AUTH-133, a warning: a `tools/list` challenged for `tools:list`, retried unchanged, and challenged again for `tools:read`, which the first challenge did not name — the incremental challenging the page says forces "multiple authorization round-trips for a single operation" |

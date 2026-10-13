@@ -5,10 +5,10 @@
     "pass": 31,
     "fail": 3,
     "warn": 1,
-    "excluded": 218,
+    "excluded": 320,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 139
+    "not_observed": 146
   },
   "requirements": [
     {
@@ -928,6 +928,41 @@
         "quote": "Servers SHOULD: Check for roots capability before usage",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/client/roots#implementation-guidelines"
       }
+    },
+    {
+      "id": "AUTH-097",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-124",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-129",
+      "level": "SHOULD NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-130",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-131",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-132",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-133",
+      "level": "SHOULD",
+      "outcome": "not-observed"
     }
   ],
   "wire_schema": {

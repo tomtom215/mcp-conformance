@@ -77,7 +77,7 @@
         "section": "basic/index#auth",
         "quote": "Implementations using an HTTP-based transport SHOULD conform to this specification, whereas implementations using STDIO transport SHOULD NOT follow this specification, and instead retrieve credentials from the environment."
       },
-      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, which `sources.json` records as out of scope for the same reason it is at 2025-11-25."
+      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own pages: AUTH-086 and AUTH-087 restate this sentence there, and the challenge clauses a recording can judge carry checks. Same decision as BASE-085 at 2025-11-25."
     }
   ]
 }

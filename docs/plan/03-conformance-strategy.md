@@ -130,7 +130,7 @@ content lands:
 | Official suite | Our corpus directory | Notes |
 |----------------|---------------------|-------|
 | `core` | `corpus/core/` | Lifecycle, tools, resources, prompts, logging, completion, pagination |
-| `auth` | `corpus/auth/` | OAuth flows, metadata discovery — traces include the HTTP layer |
+| `auth` | `corpus/{,draft/}{good,violations}/` (`http-authorization`, `auth-*`) | The HTTP-observable subset only (review item 2.8): a protected server's `401`/`403` `WWW-Authenticate` challenge. OAuth flows and metadata discovery run off the MCP endpoint and are excluded clause by clause (`AUTH-*`); the suite's `auth/*` client scenarios stay deferred (`auth-client-scenarios`) |
 | `backcompat` | `corpus/backcompat/` | Older-revision behavior against `applies` ranges |
 | `extensions` | `corpus/extensions/` | Reverse-DNS extension negotiation ([register 1.5](01-ecosystem-context.md)) |
 | `draft` | `corpus/draft/` | `2026-07-28` traces: `good/`, `violations/`, and `captured/` (recordings of real sessions). The directory keeps its pre-release name; every build judges it |

@@ -1,0 +1,410 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "AUTH-001",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#protocol-requirements",
+        "quote": "Implementations using an HTTP-based transport SHOULD conform to this specification."
+      },
+      "exclusion": "Conformance to the page as a whole is what its own entries judge, clause by clause; the sentence adds no property of a message beyond them. It binds only implementations that support authorization at all, which the page makes OPTIONAL. Same sentence as BASE-085 on the basic page."
+    },
+    {
+      "id": "AUTH-002",
+      "level": "SHOULD NOT",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#protocol-requirements",
+        "quote": "Implementations using an STDIO transport SHOULD NOT follow this specification, and instead retrieve credentials from the environment."
+      },
+      "exclusion": "A stdio session has no HTTP layer for a challenge or a token header to appear in, so a recording cannot show the specification being followed there; retrieving credentials from the environment is process-local conduct with no wire footprint. Same sentence as BASE-085 on the basic page."
+    },
+    {
+      "id": "AUTH-003",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#protocol-requirements",
+        "quote": "Implementations using alternative transports MUST follow established security best practices for their protocol."
+      },
+      "exclusion": "Binds transports other than the two this revision defines, which no recording of an MCP session over stdio or Streamable HTTP carries, and names no practice a check could hold a message to."
+    },
+    {
+      "id": "AUTH-004",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#overview",
+        "quote": "Authorization servers MUST implement OAuth 2.1 with appropriate security measures for both confidential and public clients."
+      },
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-005",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#overview",
+        "quote": "Authorization servers and MCP clients SHOULD support OAuth Client ID Metadata Documents"
+      },
+      "exclusion": "Support for a client registration mechanism is exercised between the client and the authorization server, off the MCP endpoint. Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-006",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#overview",
+        "quote": "MCP servers MUST implement OAuth 2.0 Protected Resource Metadata (RFC9728)."
+      },
+      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-007",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#overview",
+        "quote": "MCP clients MUST use OAuth 2.0 Protected Resource Metadata for authorization server discovery."
+      },
+      "exclusion": "Which document a client used to find its authorization server is visible only in fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-008",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#overview",
+        "quote": "MCP authorization servers MUST provide at least one of the following discovery mechanisms:"
+      },
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-009",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#overview",
+        "quote": "MCP clients MUST support both discovery mechanisms to obtain the information required to interact with the authorization server."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (authorization server metadata discovery), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-010",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#authorization-server-location",
+        "quote": "MCP servers MUST implement the OAuth 2.0 Protected Resource Metadata (RFC9728) specification to indicate the locations of authorization servers."
+      },
+      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-011",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#authorization-server-location",
+        "quote": "The Protected Resource Metadata document returned by the MCP server MUST include the `authorization_servers` field containing at least one authorization server."
+      },
+      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-012",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#protected-resource-metadata-discovery-requirements",
+        "quote": "MCP servers MUST implement one of the following discovery mechanisms to provide authorization server location information to MCP clients:"
+      },
+      "exclusion": "A disjunction whose second branch a recording cannot witness. A 401 whose challenge carries no `resource_metadata` is conforming when the server serves the well-known document instead, and that document is not in the trace: The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-013",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#protected-resource-metadata-discovery-requirements",
+        "quote": "MCP clients MUST support both discovery mechanisms and use the resource metadata URL from the parsed `WWW-Authenticate` headers when present; otherwise, they MUST fall back to constructing and requesting the well-known URIs in the order listed above."
+      },
+      "exclusion": "Which URLs the client requested next, and in what order, are fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-014",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#protected-resource-metadata-discovery-requirements",
+        "quote": "MCP servers SHOULD include a `scope` parameter in the `WWW-Authenticate` header as defined in RFC 6750 Section 3 to indicate the scopes required for accessing the resource."
+      },
+      "checks": [
+        "auth.challenge-scope"
+      ]
+    },
+    {
+      "id": "AUTH-015",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#protected-resource-metadata-discovery-requirements",
+        "quote": "Clients MUST NOT assume any particular set relationship between the challenged scope set and `scopes_supported`."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (the scope it requests, whatever it assumes about `scopes_supported`), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-016",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#protected-resource-metadata-discovery-requirements",
+        "quote": "Clients MUST treat the scopes provided in the challenge as authoritative for satisfying the current request."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (the scope it requests in its authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-017",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#protected-resource-metadata-discovery-requirements",
+        "quote": "Servers SHOULD strive for consistency in how they construct scope sets but they are not required to surface every dynamically issued scope through `scopes_supported`."
+      },
+      "exclusion": "Striving for consistency is a design aim, not a property any one challenge has, and challenges for different operations legitimately name different scopes; `scopes_supported` lives in the Protected Resource Metadata document, which a recording does not carry."
+    },
+    {
+      "id": "AUTH-018",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#protected-resource-metadata-discovery-requirements",
+        "quote": "MCP clients MUST be able to parse `WWW-Authenticate` headers and respond appropriately to `HTTP 401 Unauthorized` responses from the MCP server."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (parsing the challenge, then the discovery, authorization and token requests that are the appropriate response to a 401), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-019",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#protected-resource-metadata-discovery-requirements",
+        "quote": "If the `scope` parameter is absent, clients SHOULD apply the fallback behavior defined in the Scope Selection Strategy section."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (the scope it requests in its authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-020",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#authorization-server-metadata-discovery",
+        "quote": "To handle different issuer URL formats and ensure interoperability with both OAuth 2.0 Authorization Server Metadata and OpenID Connect Discovery 1.0 specifications, MCP clients MUST attempt multiple well-known endpoints when discovering authorization server metadata."
+      },
+      "exclusion": "Requests to the authorization server's well-known endpoints. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-021",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#authorization-server-metadata-discovery",
+        "quote": "For issuer URLs with path components (e.g., `https://auth.example.com/tenant1`), clients MUST try endpoints in the following priority order:"
+      },
+      "exclusion": "Requests to the authorization server's well-known endpoints. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-022",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#authorization-server-metadata-discovery",
+        "quote": "For issuer URLs without path components (e.g., `https://auth.example.com`), clients MUST try:"
+      },
+      "exclusion": "Requests to the authorization server's well-known endpoints. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-023",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#client-registration-approaches",
+        "quote": "Clients supporting all options SHOULD follow the following priority order:"
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (choosing a registration mechanism), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-024",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#client-id-metadata-documents",
+        "quote": "MCP clients and authorization servers SHOULD support OAuth Client ID Metadata Documents as specified in OAuth Client ID Metadata Document."
+      },
+      "exclusion": "Support for a client registration mechanism is exercised between the client and the authorization server, off the MCP endpoint. Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-025",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#implementation-requirements",
+        "quote": "MCP implementations supporting Client ID Metadata Documents MUST follow the requirements specified in OAuth Client ID Metadata Document."
+      },
+      "exclusion": "Points at requirements stated elsewhere (the Client ID Metadata Document draft, and the two lists that follow on this page), each entered under its own id there; the sentence adds no obligation a recording could show apart from them."
+    },
+    {
+      "id": "AUTH-026",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#implementation-requirements",
+        "quote": "Clients MUST host their metadata document at an HTTPS URL following RFC requirements; The `client_id` URL MUST use the \"https\" scheme and contain a path component, e.g. `https://example.com/client.json`; The metadata document MUST include at least the following properties: `client_id`, `client_name`, `redirect_uris`; Clients MUST ensure the `client_id` value in the metadata matches the document URL exactly"
+      },
+      "exclusion": "The metadata document is hosted by the client and fetched by the authorization server; neither request touches the MCP endpoint, and the `client_id` travels in the authorization request. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-027",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#implementation-requirements",
+        "quote": "For Authorization Servers: SHOULD fetch metadata documents when encountering URL-formatted client_ids; MUST validate that the fetched document's `client_id` matches the URL exactly; SHOULD cache metadata respecting HTTP cache headers; MUST validate redirect URIs presented in an authorization request against those in the metadata document; MUST validate the document structure is valid JSON and contains required fields; SHOULD follow the security considerations in Section 6 of Client ID Metadata Document"
+      },
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-028",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#discovery",
+        "quote": "MCP clients SHOULD check for this capability and MAY fall back to Dynamic Client Registration or pre-registration if unavailable."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (reading authorization server metadata and choosing a registration mechanism), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-029",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#preregistration",
+        "quote": "MCP clients SHOULD support an option for static client credentials such as those supplied by a preregistration flow."
+      },
+      "exclusion": "A configuration option of the client, exercised against the authorization server; no MCP message shows whether the option exists."
+    },
+    {
+      "id": "AUTH-030",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#scope-selection-strategy",
+        "quote": "When implementing authorization flows, MCP clients SHOULD follow the principle of least privilege by requesting only the scopes necessary for their intended operations."
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (the scope of its authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-031",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/authorization#scope-selection-strategy",
+        "quote": "During the initial authorization handshake, MCP clients SHOULD follow this priority order for scope selection:"
+      },
+      "exclusion": "Conduct inside the client's OAuth flow (the scope of its authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    }
+  ]
+}
