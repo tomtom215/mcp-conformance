@@ -94,7 +94,7 @@ is almost certainly the client's.
   a handshake that leads nowhere. The suite's `2026-07-28` scenarios pass
   **42/42** against this mode at the pinned `0.2.0-alpha.12`, and the
   repository's own requirement registry
-  evidences **125 of the 145 judgeable clauses** across eight committed
+  evidences **135 of the 145 judgeable clauses** across eight committed
   captures — five of it over both transports, with 0 fail on the conforming
   ones, and three of the official SDKs' conformance servers — and everything
   the sessions never touched reported *not observed* rather than counted as a

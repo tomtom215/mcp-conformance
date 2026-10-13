@@ -298,9 +298,9 @@ golden diff, not something to do casually.
 |---|---|
 | Client | This workspace's `mcp-reference-host`, on rmcp's stateless client lifecycle |
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
-| Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-18 |
-| Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all four prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **89 pass, 0 fail, 0 warn**, 56 not observed, 165 excluded |
+| Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-10-13 |
+| Contents | `server/discover`, a full `subscriptions/listen` lifecycle, an 18-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all five prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every listing is followed to its last page: the server serves each in two, the suite's catalogue first and the rest — icons, annotations, a `resource_link` result, an audio prompt, `x-mcp-header` designations — behind a `nextCursor`. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
+| Our verdict | **97 pass, 0 fail, 0 warn**, 48 not observed, 165 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -323,25 +323,35 @@ header and status clauses, which no stdio recording can carry, and this one
 evidences the subscription, MRTR, prompts, resources, logging, completion and
 error-code clauses, which theirs never reach.
 
-**What the 43 not-observed rows still are, and why.** Twenty-five are
-Streamable HTTP clauses in the `TRAN-056`…`TRAN-102` band that a stdio
-recording structurally cannot carry — the band holds 27 judged clauses, and
-the two a stdio session does reach (`TRAN-060`, `TRAN-066`) are judged here.
-Eight are server *rejection* rules — `BASE-031`, `BASE-032`, `BASE-035`,
-`BASE-036`, `VERS-001`, `VERS-002`, `VERS-008`, `LOG-010` —
-reachable only by a client that deliberately sends something malformed, which
-this session does not: it is the conforming capture, and a probe session is a
-separate recording with a separate expected report. Five need surface this
-server does not have (`CACH-015`/`CACH-016` need a catalog large enough to
-paginate; `TOOL-033`/`TOOL-034` need an `x-mcp-header`
-designation; `PROM-017` needs a prompt carrying audio). `TOOL-022` is the
-interesting one: rmcp's client caches `tools/list` under the server's own
-`ttlMs`, so a second listing never reaches the wire — a conforming client
-cannot exercise the deterministic-order clause within the TTL, which is a
-property of the caching feature working rather than a gap to close (the
-official suite's runner does not cache, and judges it on both of its
-captures). The remaining four are reachable and not yet driven:
-`TRAN-128` and `DISC-002`'s dual-era probe, `MRTR-024`, and `VERS-004`.
+**What the 48 not-observed rows still are, and why.** Thirty-three are
+Streamable HTTP mechanisms a stdio recording structurally cannot carry:
+twenty-five clauses of the `TRAN-056`…`TRAN-102` band (it holds 27 judged
+clauses, and the two a stdio session does reach, `TRAN-060` and `TRAN-066`,
+are judged here), the seven rows of the `x-mcp-header` behaviour table
+(`TRAN-130`…`TRAN-136`), and `TOOL-034` — header mirroring is an HTTP
+mechanism, and "Clients using other transports (e.g., stdio) MAY ignore
+`x-mcp-header` annotations entirely". Eight are server *rejection* rules —
+`BASE-031`, `BASE-032`, `BASE-035`, `BASE-036`, `VERS-001`, `VERS-002`,
+`VERS-008`, `LOG-010` — reachable only by a client that deliberately sends
+something malformed, which this session does not: it is the conforming
+capture, and a probe session is a separate recording with a separate expected
+report. Two, `CANC-003`/`CANC-011`, bind a server that sends
+`notifications/cancelled`, and this one ends every subscription gracefully
+instead. `TOOL-022` is the interesting one: rmcp's client caches `tools/list`
+under the server's own `ttlMs`, so a second listing never reaches the wire — a
+conforming client cannot exercise the deterministic-order clause within the
+TTL, which is a property of the caching feature working rather than a gap to
+close (the official suite's runner does not cache, and judges it on both of
+its captures). The remaining four are not driven by this host: `TRAN-128` and
+`DISC-002`'s dual-era probe, `MRTR-024`, and `VERS-004`.
+
+**Five used to be on that list for want of server surface; four have left
+it.** `CACH-015`/`CACH-016` needed a catalogue served in pages and `PROM-017`
+a prompt carrying audio, and both are on the listings' second pages now;
+`TOOL-033` needed an `x-mcp-header` designation, and judges it as listed,
+which any transport carries (`TOOL-045` passes beside it). The fifth,
+`TOOL-034`, is in the HTTP group above: the designation exists now, and only
+the transport keeps it unobserved here.
 
 #### The HTTP capture of the same session
 
@@ -349,9 +359,9 @@ captures). The remaining four are reachable and not yet driven:
 |---|---|
 | Client | The same `mcp-reference-host`, driving the identical session over Streamable HTTP |
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
-| Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-08-18 |
-| Contents | 159 events — the stdio session's 85 messages plus 74 `http` events carrying status and headers |
-| Our verdict | **98 pass, 0 fail, 0 warn**, 47 not observed, 165 excluded |
+| Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-10-13 |
+| Contents | 195 events — the session's 103 messages plus 92 `http` events carrying status and headers, the `Mcp-Param-Region`/`Mcp-Param-Limit` pair rmcp mirrors for the designated tool among them |
+| Our verdict | **112 pass, 0 fail, 0 warn**, 33 not observed, 165 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -364,26 +374,37 @@ in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 98 of the 145 judgeable clauses it is the best-covered capture here. Its 47
-not-observed rows include the server-rejection rules a conforming client never
-triggers, the pagination and `x-mcp-header` clauses this server's surface does
-not reach, and `TOOL-022` (rmcp's client caches `tools/list` under the
-server's own `ttlMs`, so a second listing never reaches the wire).
+At 112 of the 145 judgeable clauses it is the best-covered capture here, and
+the fourteen it gained on 2026-10-13 are the server's own doing: the second
+pages carry the pagination clauses (`CACH-015`/`CACH-016`), the audio prompt
+(`PROM-017`), and a tool designating three arguments for `Mcp-Param-*`
+mirroring, which rmcp's client mirrors when the tool loop calls it — two
+supplied and mirrored, one left out and not, which is the header table's
+"value provided" and "not in arguments" rows from both sides (`TOOL-033`,
+`TOOL-034`, `TOOL-045`, `TRAN-079`…`TRAN-082`, `TRAN-130`, `TRAN-134`,
+`TRAN-135`, `TRAN-137`). Its 33 not-observed rows are the fourteen rejection
+rules only the probe exercises, seven clauses judged on the stdio leg and not
+on this one (`CANC-005`, `PROG-005`, `PROG-008`, `TRAN-117`, `TRAN-118`,
+`TRAN-123`, `TRAN-124`), `TOOL-022` (rmcp's client caches `tools/list` under
+the server's own `ttlMs`, so a second listing never reaches the wire),
+`VERS-004`, which only the Rust SDK's capture evidences, and the ten clauses
+no capture reaches, each with its reason under *What the captures evidence,
+together*.
 
 #### The probe session
 
 | Field | `probe-2026-07-28-http.jsonl` |
 |---|---|
-| Client | `mcp-reference-host --probe`: nine hand-built HTTP requests, each wrong on purpose |
+| Client | `mcp-reference-host --probe`: ten hand-built HTTP requests, each wrong on purpose, and the two conforming `tools/list` pages the last of them is built from |
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
-| Recorded by | The server's tap, during `cargo xtask draft-capture`, 2026-08-18 |
-| Contents | A `_meta` envelope missing a required field; an unimplemented protocol version and the retry after it; a header/body version mismatch; an unknown method; a log level outside RFC 5424's eight; a fabricated cursor; a tool needing a capability the request never declared; and the removed `initialize` handshake |
+| Recorded by | The server's tap, during `cargo xtask draft-capture`, 2026-10-13 |
+| Contents | A `_meta` envelope missing a required field; an unimplemented protocol version and the retry after it; a header/body version mismatch; an unknown method; a log level outside RFC 5424's eight; a fabricated cursor; a tool needing a capability the request never declared; the removed `initialize` handshake; and — after listing the tools, following `nextCursor` — a call of a tool with a designated argument whose `Mcp-Param-*` header is left out |
 | Our verdict | Judged against [`conformance/probe-baseline.json`](https://github.com/tomtom215/mcp-conformance/blob/main/conformance/probe-baseline.json), not for cleanliness |
 
 **A conforming client cannot exercise a rejection rule.** The clauses of
 this revision that say what a server owes a request it must *not* serve all
 reported *not observed* on every recording here, because nothing
-had ever sent such a request. This file is that request, nine times over.
+had ever sent such a request. This file is that request, ten times over.
 
 The probes are built outside rmcp, and that is the point rather than a
 shortcut: rmcp's client is what makes the other captures trustworthy — it
@@ -394,7 +415,8 @@ bytes here are the fixture.
 **Its verdict is a ledger, not a pass.** The probe breaks client-side clauses
 by construction: `BASE-030` because its first request omits a required `_meta`
 field, `TRAN-071`/`TRAN-072` because two probes are about exactly those
-headers. Demanding a clean report would mean demanding a probe that probes nothing. So
+headers, `TRAN-079`/`TRAN-130` because the last one leaves out the header
+whose absence `TRAN-136` obliges the server to reject. Demanding a clean report would mean demanding a probe that probes nothing. So
 every finding is listed in `conformance/probe-baseline.json` with a reason, and
 the gate holds the set in both directions: a finding not in the ledger is a new
 defect or a regression, and a listed finding that stopped occurring is either a
@@ -405,10 +427,10 @@ server-side findings — the server served a request naming log level
 `"chatty"`, and honoured a cursor it never issued — which went into the ledger
 as open defects. When they were fixed, the gate refused the change until their
 entries were retired, which is the half of a ratchet that is easy to leave
-out. Every rejection clause the probe reaches now passes; thirteen clauses pass
+out. Every rejection clause the probe reaches now passes; fourteen clauses pass
 on this capture and on no other (`BASE-031`, `BASE-032`, `BASE-035`,
 `BASE-036`, `LOG-010`, `TRAN-073`, `TRAN-074`, `TRAN-075`, `TRAN-098`,
-`TRAN-102`, `VERS-001`, `VERS-002`, `VERS-008`). The fabricated cursor is still
+`TRAN-102`, `TRAN-136`, `VERS-001`, `VERS-002`, `VERS-008`). The fabricated cursor is still
 sent, and judged by nothing: on 2026-10-04 `PAGE-010` and `PAGE-011` were
 excluded at this revision, because its caching rules make a cursor issued
 before the recording began a valid one (the registry entries record the
@@ -456,17 +478,17 @@ read as a specimen instead.
 |---------|-------:|-----:|-----:|-----:|-------------:|
 | `official-suite-2026-07-28-scenarios` | 66 | 65 | 1 | 0 | 79 |
 | `official-suite-2026-07-28-stateless` | 66 | 66 | 0 | 0 | 79 |
-| `probe-2026-07-28-http` | 67 | 58 | 9 | 0 | 78 |
-| `reference-host-2026-07-28-http` | 98 | 98 | 0 | 0 | 47 |
-| `reference-host-2026-07-28-stdio` | 89 | 89 | 0 | 0 | 56 |
+| `probe-2026-07-28-http` | 81 | 70 | 11 | 0 | 64 |
+| `reference-host-2026-07-28-http` | 112 | 112 | 0 | 0 | 33 |
+| `reference-host-2026-07-28-stdio` | 97 | 97 | 0 | 0 | 48 |
 | `sdk-go-2026-07-28` | 75 | 71 | 3 | 1 | 70 |
 | `sdk-python-2026-07-28` | 60 | 60 | 0 | 0 | 85 |
 | `sdk-rust-2026-07-28` | 69 | 69 | 0 | 0 | 76 |
-| **Union** | **125** | | | | **20** |
+| **Union** | **135** | | | | **10** |
 
-Across all 8 captures, **125 of the 145 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 8 captures, **135 of the 145 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
-The 20 clauses no capture reaches: `CACH-015`, `CACH-016`, `CANC-003`, `CANC-011`, `DISC-002`, `MRTR-024`, `PROM-017`, `TOOL-034`, `TRAN-061`, `TRAN-070`, `TRAN-079`, `TRAN-081`, `TRAN-096`, `TRAN-128`, `TRAN-130`, `TRAN-132`, `TRAN-133`, `TRAN-134`, `TRAN-135`, `TRAN-136`.
+The 10 clauses no capture reaches: `CANC-003`, `CANC-011`, `DISC-002`, `MRTR-024`, `TRAN-061`, `TRAN-070`, `TRAN-096`, `TRAN-128`, `TRAN-132`, `TRAN-133`.
 <!-- draft-coverage:end -->
 
 The probe session closed the largest group — the rejection rules — and the
@@ -475,14 +497,55 @@ cancellation round closed the next. The official SDKs' conformance servers
 the three that serve this revision lists a tool carrying an `x-mcp-header`
 designation, which `TOOL-033`, `TOOL-045`, `TRAN-080`, `TRAN-082` and
 `TRAN-137` judge, and the Rust SDK's declares an extension, which `VERS-004`
-judges. What is left divides in three, and only the first is ordinary backlog.
+judges.
 
-**Six need surface no recorded session exercises**: pagination for
-`CACH-015`/`CACH-016`; a *call* to a tool with an `x-mcp-header` designation,
-which `TOOL-034` and `TRAN-079` judge and neither this reference server (no
-designation) nor the SDK sessions (they never call that tool) supply, and a
-malformed `Mcp-Param-…` header for a server to reject (`TRAN-096`); and a
-prompt carrying audio for `PROM-017`.
+**The reference server's own surface closed ten more on 2026-10-13.** Every
+listing is now served in two pages — the suite's catalogue first, then what
+the suite does not name — and both captures of the host follow `nextCursor`:
+the pages are `CACH-015`/`CACH-016`'s subject, and the second prompt page
+carries audio for `PROM-017`. A second-page tool designates three arguments
+for `Mcp-Param-*` mirroring, and the host's tool loop calls it over HTTP with
+two supplied and one left out, so rmcp mirrors two headers and omits the third
+(`TOOL-034`, `TRAN-079`, `TRAN-081`, `TRAN-130`, `TRAN-134`, `TRAN-135`). The
+probe then sends the same call with one header missing, which the server must
+refuse and does (`TRAN-136`).
+
+What is left — ten clauses — is not backlog in the ordinary sense; each stays
+for a reason a richer session would not remove.
+
+**Two are out of an rmcp client's reach**: `TRAN-132`/`TRAN-133`, the
+behaviour table's "Parameter value is `null`" row. A client can only send
+`null` for a designated argument whose schema admits it, and rmcp's client
+drops any tool whose designated property's `type` is not a single primitive —
+`["string", "null"]` included — so a nullable designation never reaches an
+rmcp client's call, and this host synthesizes only required arguments and
+never a `null`. The row's pass path is authored
+(`good/http-x-mcp-header-omitted.jsonl`), and the rmcp restriction is a
+candidate to raise upstream.
+
+**One cannot be recorded by the server's tap**: `TRAN-096`, a recognized
+`Mcp-Param-…` header holding invalid characters. HTTP parsing strips a value's
+edge whitespace before any handler sees it, and the tap records only values
+that decode as visible ASCII — rmcp likewise reads anything else as no header
+at all, and refuses the call as a missing one — so the antecedent never
+reaches the recording however the request is built. Authored traces carry
+both halves (`draft/violations/tran-096-invalid-param-header-accepted.jsonl`,
+`draft/violations/tran-077-param-header-value-rejected.jsonl`).
+
+**Three belong to a client no capture has**: `TRAN-061` needs a client to POST
+a *notification* over Streamable HTTP, and no `2026-07-28` capture contains one
+— rmcp's stateless client cancels by closing the response stream, and neither
+the official runner nor the SDK client sends any. `DISC-002` and `TRAN-128`
+need a dual-era client that probes before falling back to `initialize`, and
+this host speaks only the stateless revision.
+
+**Two need server behaviour this one does not have**: `CANC-003`/`CANC-011`
+bind a server that sends `notifications/cancelled`, which at this revision may
+only tear down a `subscriptions/listen` stream. This server ends every
+subscription gracefully instead — the closure `SUBS-005`/`SUBS-006` judge, and
+pass — so tearing one down by cancellation would be a second closure path,
+added to light up a check; the pass path is authored
+(`good/subscription-server-teardown.jsonl`).
 
 **One cannot be reached by a conforming host at all**, and saying so is more
 useful than closing it. `MRTR-024` is a server *re-asking* after a client's

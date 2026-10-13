@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "pass",
   "totals": {
-    "pass": 89,
+    "pass": 97,
     "fail": 0,
     "warn": 0,
     "excluded": 165,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 56
+    "not_observed": 48
   },
   "requirements": [
     {
@@ -239,7 +239,7 @@
     {
       "id": "TRAN-080",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-081",
@@ -249,7 +249,7 @@
     {
       "id": "TRAN-082",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-086",
@@ -274,7 +274,7 @@
     {
       "id": "TRAN-137",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-096",
@@ -554,12 +554,12 @@
     {
       "id": "CACH-015",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "CACH-016",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "COMP-006",
@@ -644,7 +644,7 @@
     {
       "id": "TOOL-033",
       "level": "MUST NOT",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TOOL-034",
@@ -669,7 +669,7 @@
     {
       "id": "TOOL-045",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "RES-011",
@@ -724,7 +724,7 @@
     {
       "id": "PROM-017",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "PROM-018",
@@ -739,7 +739,7 @@
   ],
   "wire_schema": {
     "outcome": "pass",
-    "messages": 86,
+    "messages": 104,
     "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json",
     "source": {
       "section": "basic/index#schema",
