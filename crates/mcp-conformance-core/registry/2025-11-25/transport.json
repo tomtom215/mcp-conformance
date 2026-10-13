@@ -120,7 +120,7 @@
         "section": "basic/transports#security-warning",
         "quote": "Servers SHOULD implement proper authentication for all connections"
       },
-      "exclusion": "Whether authentication is properly implemented is not decidable from one session's headers; authorization flows are their own scenario area (corpus/auth, post-M1) mirroring the official suite's `auth` suite."
+      "exclusion": "Whether authentication is properly implemented is not decidable from one session's headers: the client's credential is never recorded, and the server's validation of it is internal. What a recording does show — the challenge a protected server answers with — is judged under the authorization page's own clauses (AUTH-014, AUTH-045, AUTH-049–AUTH-051)."
     },
     {
       "id": "TRAN-010",

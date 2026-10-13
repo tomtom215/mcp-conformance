@@ -2,6 +2,7 @@
     "_policy": "The registry's completeness claim — every MUST on an in-scope page enters, with a check or a documented exclusion — is only falsifiable if the in-scope page set is explicit. This file is that set, for revision 2025-11-25: `in_scope` maps each page (as `source.section` prefixes cite it) to its published source file under docs/specification/2025-11-25/ in the modelcontextprotocol repository; `out_of_scope` names every other page of the revision with the reason it is excluded. `cargo xtask spec-drift` enforces, both directions, that `in_scope` and the set of pages registry entries actually cite are identical, then verifies every quote against the published text (ADR-0010).",
     "in_scope": {
         "basic": "basic/index.mdx",
+        "basic/authorization": "basic/authorization.mdx",
         "basic/lifecycle": "basic/lifecycle.mdx",
         "basic/transports": "basic/transports.mdx",
         "client/elicitation": "client/elicitation.mdx",
@@ -16,7 +17,6 @@
     },
     "out_of_scope": {
         "architecture": "No RFC 2119 keyword instances on the page (verified at spec 1304c8fe).",
-        "basic/authorization": "Full OAuth flows — the registry's TRAN-009 exclusion records the boundary; the suite's auth/* scenario sets are deferred with a ledger row (deferrals.json: auth-client-scenarios).",
         "basic/utilities/cancellation": "Never claimed in the registry's surface (M1 DoD names lifecycle, tools, resources, prompts, logging, completion, pagination, transport security). Wire-checkable; expansion candidate alongside M2.5's multi-revision work.",
         "basic/utilities/ping": "Same as cancellation: unclaimed surface, wire-checkable, M2.5-window expansion candidate — and `2026-07-28` removes ping (register 1.5a), so expansion value is shrinking.",
         "basic/utilities/progress": "Same as cancellation: unclaimed surface, wire-checkable, M2.5-window expansion candidate.",
@@ -29,6 +29,7 @@
     "_census_policy": "Rules 1 and 2 of §What enters the registry — every MUST-family keyword on an in-scope page enters, no exceptions, and every SHOULD-family one enters too, judged where it constrains observable wire behavior and excluded with the reason where it does not — are only claims until something counts the pages. Three censuses do, one per RFC 2119 family, each the number of keyword instances a page's prose carries (frontmatter and fenced code excluded; table rows included; RFC 8174 makes only the uppercase instance normative): `must_census` (MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT; REQUIRED counted since 2026-10-13), `should_census` (SHOULD, SHOULD NOT, RECOMMENDED, NOT RECOMMENDED) and `may_census` (MAY, OPTIONAL). `cargo xtask spec-drift` recounts all three against the published text — a reworded clause keeps the numbers, a clause added or removed moves one, and a move fails the gate — and requires every MUST-family and SHOULD-family instance to sit inside the quote of an entry citing its page, so a counted clause nobody entered fails too. MAY-family instances are counted, so an edit still asks for a re-read, but are not required to be entered: a MAY grants latitude and leaves a trace nothing to violate. Re-decide a move the way a deferral is re-decided — read the page, enter the new clause or retire the removed one, and update the number in the same commit. The sibling quote check proves what the registry has is still accurate; this proves the pages have gained nothing it lacks.",
     "must_census": {
         "basic": 24,
+        "basic/authorization": 70,
         "basic/lifecycle": 9,
         "basic/transports": 31,
         "client/elicitation": 42,
@@ -43,6 +44,7 @@
     },
     "should_census": {
         "basic": 7,
+        "basic/authorization": 31,
         "basic/lifecycle": 11,
         "basic/transports": 22,
         "client/elicitation": 14,
@@ -57,6 +59,7 @@
     },
     "may_census": {
         "basic": 8,
+        "basic/authorization": 10,
         "basic/lifecycle": 2,
         "basic/transports": 21,
         "client/elicitation": 4,

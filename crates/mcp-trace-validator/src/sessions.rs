@@ -83,12 +83,17 @@ pub fn never_answered(events: &[TraceEvent]) -> Option<NeverAnswered> {
 /// Client `initialize` requests the server answered with a result. The
 /// response index is built once: scanning forward from every `initialize`
 /// made this quadratic in a trace of unanswered handshakes.
+///
+/// An `initialize` a protected resource refused with a `401` is not one: the
+/// client sends it again once it holds a token, and that retry is the session.
 fn handshakes(events: &[TraceEvent]) -> usize {
     let responses = crate::declared::Responses::of(events);
+    let refused = crate::context::refused_requests(events);
     events
         .iter()
         .enumerate()
         .filter(|(_, event)| event.direction == Direction::ClientToServer)
+        .filter(|(_, event)| !refused.contains(&event.seq))
         .filter(|(_, event)| {
             event.message_payload().is_some_and(|payload| {
                 payload.get("method").and_then(Value::as_str) == Some("initialize")

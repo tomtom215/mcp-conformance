@@ -363,7 +363,7 @@
         "section": "basic#auth",
         "quote": "Implementations using an HTTP-based transport SHOULD conform to this specification, whereas implementations using STDIO transport SHOULD NOT follow this specification, and instead retrieve credentials from the environment."
       },
-      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, which `sources.json` records as out of scope and TRAN-009 records as the boundary. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28."
+      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own page: AUTH-001 and AUTH-002 restate this sentence there, and the challenge clauses a recording can judge carry checks. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28."
     },
     {
       "id": "BASE-086",

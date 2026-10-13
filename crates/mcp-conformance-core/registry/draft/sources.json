@@ -1,6 +1,10 @@
 {
     "_policy": "Tracking skeleton for the specification's unreleased `draft` revision (docs/specification/draft/ upstream): data, not a judged revision. It has the shape of a dated revision's sources.json so the next revision starts from it: `in_scope` maps each page to its source file under docs/specification/draft/, `out_of_scope` gives every excluded page its reason, and the three censuses count each in-scope page's RFC 2119 keywords as last read. Nothing loads it into a verdict: the core crate embeds registry documents by an explicit list that names no file here, `draft` is not a protocol revision `--revision` accepts, the directory is excluded from the published package, and it holds no requirement entries. `cargo xtask spec-drift --draft` compares it, informationally, with the live draft (page set, census, and whether each released `2026-07-28` quote is still on its draft page), and `cargo xtask page-set` holds its shape offline like any revision's. The lists mirror `2026-07-28`'s decisions until a draft change gives a reason to re-decide one. When the draft is cut as a dated revision, this directory becomes that revision's (docs/plan/03-conformance-strategy.md, How the next revision starts).",
     "in_scope": {
+        "basic/authorization/authorization-server-discovery": "basic/authorization/authorization-server-discovery.mdx",
+        "basic/authorization/client-registration": "basic/authorization/client-registration.mdx",
+        "basic/authorization/index": "basic/authorization/index.mdx",
+        "basic/authorization/security-considerations": "basic/authorization/security-considerations.mdx",
         "basic/index": "basic/index.mdx",
         "basic/patterns/cancellation": "basic/patterns/cancellation.mdx",
         "basic/patterns/index": "basic/patterns/index.mdx",
@@ -25,10 +29,6 @@
     },
     "out_of_scope": {
         "architecture/index": "No RFC 2119 keyword instances on the draft page (checked 2026-10-13); out at 2026-07-28 for the same reason.",
-        "basic/authorization/authorization-server-discovery": "Full OAuth flows — the same boundary the registry's TRAN-009 exclusion records at 2025-11-25, with the suite's auth/* scenarios deferred under the `auth-client-scenarios` ledger row.",
-        "basic/authorization/client-registration": "Full OAuth flows; see `basic/authorization/authorization-server-discovery`.",
-        "basic/authorization/index": "Full OAuth flows; see `basic/authorization/authorization-server-discovery`.",
-        "basic/authorization/security-considerations": "Full OAuth flows; see `basic/authorization/authorization-server-discovery`.",
         "changelog": "Non-normative revision history; on the draft, the post-release stub until changes accumulate.",
         "deprecated": "Registry of features in the Deprecated lifecycle state. Its two keywords (new implementations SHOULD NOT adopt a deprecated feature; existing ones SHOULD migrate before its earliest removal) bind an implementer's adoption plans, not anything a trace carries: strategy rule 2 (checked against the draft 2026-10-13).",
         "index": "Landing page: keyword instances are the BCP 14 boilerplate plus security-principles guidance about consent and authorization flows — UI and internal policy, out by strategy rule 2.",
@@ -37,6 +37,10 @@
     },
     "_census_policy": "The same three censuses, counted the same way as at 2026-07-28 (frontmatter and fenced code excluded, table rows included, uppercase only), of the live draft text as last read. A move here is not a failure: `cargo xtask spec-drift --draft` reports it beside the `2026-07-28` committed number, so a reader sees what the next revision changes. Update a number once the move is read, and record a reworded released clause in post-release.json.",
     "must_census": {
+        "basic/authorization/authorization-server-discovery": 15,
+        "basic/authorization/client-registration": 13,
+        "basic/authorization/index": 37,
+        "basic/authorization/security-considerations": 29,
         "basic/index": 45,
         "basic/patterns/cancellation": 7,
         "basic/patterns/index": 1,
@@ -60,6 +64,10 @@
         "server/utilities/pagination": 4
     },
     "should_census": {
+        "basic/authorization/authorization-server-discovery": 0,
+        "basic/authorization/client-registration": 11,
+        "basic/authorization/index": 24,
+        "basic/authorization/security-considerations": 5,
         "basic/index": 20,
         "basic/patterns/cancellation": 10,
         "basic/patterns/index": 0,
@@ -83,6 +91,10 @@
         "server/utilities/pagination": 3
     },
     "may_census": {
+        "basic/authorization/authorization-server-discovery": 0,
+        "basic/authorization/client-registration": 4,
+        "basic/authorization/index": 6,
+        "basic/authorization/security-considerations": 3,
         "basic/index": 11,
         "basic/patterns/cancellation": 2,
         "basic/patterns/index": 1,

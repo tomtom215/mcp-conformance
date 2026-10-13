@@ -13,6 +13,7 @@ use serde_json::Value;
 
 pub(crate) mod framing;
 mod pairing;
+mod refusal;
 
 pub mod stateless;
 
@@ -59,6 +60,8 @@ pub struct TraceContext<'a> {
     /// The Streamable HTTP framing, derived once: every HTTP check reads it,
     /// and rebuilding it per check multiplied a full pass by their number.
     framing: framing::Framing<'a>,
+    /// What the HTTP layer refused before the protocol read it.
+    refusals: refusal::Refusals,
 }
 
 impl<'a> TraceContext<'a> {
@@ -83,9 +86,18 @@ impl<'a> TraceContext<'a> {
                 window[0].seq, window[1].seq
             );
         }
+        let framing = framing::Framing::of(events);
+        // A request refused at the HTTP layer was never read as one, and the
+        // refusal's own JSON body is not a protocol message (see `refusal`).
+        let refusals = refusal::refusals(events, &framing);
         let kinds: Vec<Option<MessageKind<'a>>> = events
             .iter()
-            .map(|event| event.message_payload().map(classify))
+            .map(|event| {
+                event
+                    .message_payload()
+                    .filter(|_| !refusals.contains(event.seq))
+                    .map(classify)
+            })
             .collect();
 
         let mut phases = Vec::with_capacity(events.len());
@@ -97,7 +109,6 @@ impl<'a> TraceContext<'a> {
             }
         }
 
-        let framing = framing::Framing::of(events);
         let pairs = pairing::pair_responses(events, &kinds, framing.unidentified_answers());
 
         Self {
@@ -108,6 +119,7 @@ impl<'a> TraceContext<'a> {
             init: tracker.init,
             final_phase: tracker.phase,
             framing,
+            refusals,
         }
     }
 
@@ -154,6 +166,20 @@ impl<'a> TraceContext<'a> {
     pub const fn final_phase(&self) -> Phase {
         self.final_phase
     }
+
+    /// Whether the message at `seq` never took part in the protocol: a request
+    /// refused at the HTTP layer, or the refusal's own non-JSON-RPC body.
+    pub(crate) fn refused(&self, seq: u64) -> bool {
+        self.refusals.contains(seq)
+    }
+}
+
+/// The `seq` of every request message in `events` that a protected resource
+/// refused before reading it — not delivered, so its retry is the request (see
+/// [`refusal`]). For readers of raw events that build no context, such as the
+/// session count.
+pub(crate) fn refused_requests(events: &[TraceEvent]) -> std::collections::BTreeSet<u64> {
+    refusal::refusals(events, &framing::Framing::of(events)).requests
 }
 
 /// The `2025-11-25` lifecycle state machine, folded over message events in order.

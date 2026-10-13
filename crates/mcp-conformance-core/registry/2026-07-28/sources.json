@@ -1,6 +1,10 @@
 {
     "_policy": "The in-scope page set for revision 2026-07-28, with the same contract as the 2025-11-25 file: `in_scope` maps each page (as `source.section` prefixes cite it) to its published source file under docs/specification/2026-07-28/, and `cargo xtask spec-drift` enforces both directions — every listed page is cited, every cited page is listed — then verifies each quote against the published text (ADR-0010). The registry was built area by area (docs/reports/registry-extraction-2026-07-28-inventory-2026-08-06.md), and while it was, a page in neither list meant 'not entered yet'. That reading let three published pages — basic/patterns/cancellation, basic/patterns/progress and basic/patterns/index — sit unlisted after extraction finished, audited by nothing. Since 2026-10-12 the two lists together must be every page the revision publishes, each page in exactly one, every exclusion with its reason: `cargo xtask spec-drift` compares them against the site navigation, and `cargo xtask gates` checks their shape offline (xtask/src/spec_drift/pages.rs). `out_of_scope` means what it means at 2025-11-25 — deliberately excluded, with the reason — and never 'not extracted yet'.",
     "in_scope": {
+        "basic/authorization/authorization-server-discovery": "basic/authorization/authorization-server-discovery.mdx",
+        "basic/authorization/client-registration": "basic/authorization/client-registration.mdx",
+        "basic/authorization/index": "basic/authorization/index.mdx",
+        "basic/authorization/security-considerations": "basic/authorization/security-considerations.mdx",
         "basic/index": "basic/index.mdx",
         "basic/patterns/cancellation": "basic/patterns/cancellation.mdx",
         "basic/patterns/index": "basic/patterns/index.mdx",
@@ -25,10 +29,6 @@
     },
     "out_of_scope": {
         "architecture/index": "No RFC 2119 keyword instances on the page (verified 2026-08-06 against the published text).",
-        "basic/authorization/authorization-server-discovery": "Full OAuth flows — the same boundary the registry's TRAN-009 exclusion records at 2025-11-25, with the suite's auth/* scenarios deferred under the `auth-client-scenarios` ledger row.",
-        "basic/authorization/client-registration": "Full OAuth flows; see `basic/authorization/authorization-server-discovery`.",
-        "basic/authorization/index": "Full OAuth flows; see `basic/authorization/authorization-server-discovery`.",
-        "basic/authorization/security-considerations": "Full OAuth flows; see `basic/authorization/authorization-server-discovery`.",
         "changelog": "Non-normative revision history.",
         "deprecated": "Registry of features in the Deprecated lifecycle state. Its two keywords (new implementations SHOULD NOT adopt a deprecated feature; existing ones SHOULD migrate before its earliest removal) bind an implementer's adoption plans, not anything a trace carries: strategy rule 2 (checked 2026-10-13; the earlier reason, verified 2026-08-06, said the page had no keyword instances, which the published page contradicts).",
         "index": "Landing page: keyword instances are the BCP 14 boilerplate plus security-principles guidance about consent and authorization flows — UI and internal policy, out by strategy rule 2.",
@@ -37,6 +37,10 @@
     },
     "_census_policy": "Rules 1 and 2 of §What enters the registry — every MUST-family keyword on an in-scope page enters, no exceptions, and every SHOULD-family one enters too, judged where it constrains observable wire behavior and excluded with the reason where it does not — are only claims until something counts the pages. Three censuses do, one per RFC 2119 family, each the number of keyword instances a page's prose carries (frontmatter and fenced code excluded; table rows included; RFC 8174 makes only the uppercase instance normative): `must_census` (MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT; REQUIRED counted since 2026-10-13), `should_census` (SHOULD, SHOULD NOT, RECOMMENDED, NOT RECOMMENDED) and `may_census` (MAY, OPTIONAL). `cargo xtask spec-drift` recounts all three against the published text — a reworded clause keeps the numbers, a clause added or removed moves one, and a move fails the gate — and requires every MUST-family and SHOULD-family instance to sit inside the quote of an entry citing its page, so a counted clause nobody entered fails too. MAY-family instances are counted, so an edit still asks for a re-read, but are not required to be entered: a MAY grants latitude and leaves a trace nothing to violate. Re-decide a move the way a deferral is re-decided — read the page, enter the new clause or retire the removed one, and update the number in the same commit. The sibling quote check proves what the registry has is still accurate; this proves the pages have gained nothing it lacks.",
     "must_census": {
+        "basic/authorization/authorization-server-discovery": 15,
+        "basic/authorization/client-registration": 13,
+        "basic/authorization/index": 37,
+        "basic/authorization/security-considerations": 29,
         "basic/index": 45,
         "basic/patterns/cancellation": 7,
         "basic/patterns/index": 1,
@@ -60,6 +64,10 @@
         "server/utilities/pagination": 4
     },
     "should_census": {
+        "basic/authorization/authorization-server-discovery": 0,
+        "basic/authorization/client-registration": 11,
+        "basic/authorization/index": 24,
+        "basic/authorization/security-considerations": 5,
         "basic/index": 20,
         "basic/patterns/cancellation": 10,
         "basic/patterns/index": 0,
@@ -83,6 +91,10 @@
         "server/utilities/pagination": 3
     },
     "may_census": {
+        "basic/authorization/authorization-server-discovery": 0,
+        "basic/authorization/client-registration": 4,
+        "basic/authorization/index": 6,
+        "basic/authorization/security-considerations": 3,
         "basic/index": 11,
         "basic/patterns/cancellation": 2,
         "basic/patterns/index": 1,

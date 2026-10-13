@@ -33,6 +33,24 @@
   ],
   "traces": [
     {
+      "trace": "good/http-authorization",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 3
+        }
+      }
+    },
+    {
       "trace": "good/http-origin-refused-without-id",
       "revision": "2025-11-25",
       "transport": "http",
@@ -143,6 +161,109 @@
         "exit": 0,
         "findings": [],
         "other": {}
+      }
+    },
+    {
+      "trace": "violations/auth-014-challenge-without-scope",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-014"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/auth-045-invalid-token-answered-403",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-045",
+          "AUTH-049"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "violations/auth-049-insufficient-scope-answered-401",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-049",
+          "AUTH-050"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "violations/auth-050-insufficient-scope-without-resource-metadata",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-050"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "violations/auth-051-insufficient-scope-names-no-scope",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-050",
+          "AUTH-051"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
       }
     },
     {
@@ -2005,6 +2126,24 @@
       }
     },
     {
+      "trace": "draft/good/http-authorization",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 13,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 3
+        }
+      }
+    },
+    {
       "trace": "draft/good/http-close-after-another-response",
       "revision": "2026-07-28",
       "transport": "http",
@@ -2411,6 +2550,149 @@
         "exit": 0,
         "findings": [],
         "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/auth-097-challenge-without-scope",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-097"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-124-invalid-token-answered-403",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-124",
+          "AUTH-130"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-129-offline-access-challenged",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-129"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-130-insufficient-scope-answered-401",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-130",
+          "AUTH-131"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-131-insufficient-scope-without-resource-metadata",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-131"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-132-insufficient-scope-names-no-scope",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-131",
+          "AUTH-132"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-133-scope-challenged-incrementally",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-133"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 3
+        }
       }
     },
     {
