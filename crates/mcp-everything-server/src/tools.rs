@@ -317,9 +317,10 @@ pub(crate) fn all_tools(revision: ServedRevision) -> ToolRouter<EverythingServer
 /// and listing either while answering an error would break this crate's one
 /// standing rule — advertise only what is implemented.
 ///
-/// - `test_url_elicitation`: URL-mode elicitation and its
-///   `notifications/elicitation/complete` completion are gone (register 1.5d,
-///   Minor #11), and that round trip is the tool's entire behaviour.
+/// - `test_url_elicitation`: URL-mode elicitation's
+///   `notifications/elicitation/complete` completion and its `elicitationId`
+///   are gone (register 1.5d, Minor #11), and that round trip is the tool's
+///   entire behaviour. URL mode itself remains (ELIC-064, ELIC-065).
 /// - `test_list_changed`: it broadcasts the three `list_changed` notifications
 ///   outside any subscription, which is the model `subscriptions/listen`
 ///   replaced — the page's own words are that it "replaces the former

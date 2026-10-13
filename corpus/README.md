@@ -254,9 +254,11 @@ request carries the revision's per-request `_meta` envelope and its SEP-2243
 metadata headers, and neither carries an `initialize` anywhere. Their
 `tools/list` results differ by two entries, which is the point of recording both:
 `test_url_elicitation` and `test_list_changed` are listed by the legacy server
-(18 tools) and not by the stateless one (16), because URL-mode elicitation and
-broadcast `list_changed` notifications are features `2026-07-28` removed. Each
-listing is the first page; neither session follows `nextCursor`.
+(18 tools) and not by the stateless one (16), because what each tool does has no
+place at `2026-07-28`: that revision removed `notifications/elicitation/complete`
+and URL mode's `elicitationId` (URL-mode elicitation itself remains), and moved
+`list_changed` notifications into subscriptions. Each listing is the first page;
+neither session follows `nextCursor`.
 
 **The one finding left: BASE-037, a warning, on the legacy leg.** Of that
 server's 24 results only the `server/discover` one carries
@@ -593,8 +595,10 @@ two supplied and one left out, so rmcp mirrors two headers and omits the third
 probe then sends the same call with one header missing, which the server must
 refuse and does (`TRAN-136`).
 
-What is left — ten clauses — is not backlog in the ordinary sense; each stays
-for a reason a richer session would not remove.
+What is left — 33 clauses — is not backlog in the ordinary sense; each stays
+for a reason a richer session would not remove. Ten are the transport and
+lifecycle clauses below; the other 23 came with the client-feature and
+authorization pages and are grouped after them.
 
 **Two are out of an rmcp client's reach**: `TRAN-132`/`TRAN-133`, the
 behaviour table's "Parameter value is `null`" row. A client can only send
@@ -645,6 +649,26 @@ declares one of its own accord, and that is evidence.
 response stream to close mid-session, and the server's tap records no
 lifecycle events at all, so no HTTP capture can carry one however the session
 is driven.
+
+**Seven need a protected server**: `AUTH-097`, `AUTH-124` and `AUTH-129`–`AUTH-133`
+read a `WWW-Authenticate` challenge, and no committed capture is of a server that
+requires authorization. Authored traces carry each (`draft/violations/auth-*`).
+
+**Four need a server that advertises a malformed `x-mcp-header`**: `TOOL-035`,
+`TOOL-046`, `TRAN-083` and `TRAN-084` bind a client to reject such a tool and never
+call it. This server advertises only what it implements, and every designation it
+serves is valid, so no client of it has anything to reject. Authored traces carry
+both halves (`tran-082-invalid-tool-excluded-valid-called`,
+`tran-083-invalid-tool-called`).
+
+**Twelve need a client feature no captured session uses.** No capture carries a
+URL-mode elicitation (`ELIC-064`, `ELIC-065`): the everything server's only one is
+`test_url_elicitation`, which it does not offer at `2026-07-28`, and the SDK servers
+send none. The one sampling request captured is plain (no `tools`, no
+`includeContext`), so tool-enabled sampling and its `toolChoice` and result-pairing
+rules (`SAMP-026`, `SAMP-029`–`SAMP-033`, `SAMP-042`) are unreached. No server in any
+capture sends `roots/list`, so `ROOT-013`, `ROOT-014` and `ROOT-018` are too. Each
+has an authored violation trace under `draft/violations/`.
 
 `BASE-047` used to be on this list. It left without a trace being written,
 because it was never a corpus gap: the check behind it counted only
