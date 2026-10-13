@@ -51,12 +51,14 @@ mcp-trace-validator validate session.jsonl
 **Stopping.** The server runs in a process group of its own (on Unix), so a
 launcher in front of it — `npx`, `uv run`, `sh -c` — cannot strand the real server,
 and a terminal's Ctrl-C reaches the server once, through the wrapper, not twice.
-`SIGINT`, `SIGTERM` and `SIGHUP` sent to the wrapper first close the trace with a
+`SIGINT`, `SIGTERM`, `SIGHUP` and `SIGQUIT` sent to the wrapper first close the trace with a
 `transport-close` event, then are relayed to that whole group; the server's processes
 get 1 second from the signal to exit on their own terms, then the group is killed
 (`SIGKILL`). A second signal skips the rest of the wait. What the server writes after
 the close is still relayed to the client, and counted in the exit summary instead of
-recorded. The wrapper then exits with the server's status.
+recorded. The wrapper then exits with the server's status. Other signals keep their
+default action: one that ends a process (`SIGUSR1`, `SIGUSR2`, `SIGALRM`) ends the
+wrapper as `SIGKILL` would, below, so send one of the four above.
 
 That 1-second grace is deliberately shorter than the 2 seconds the official SDKs' stdio
 clients wait between `SIGTERM` and `SIGKILL`. They send both to the wrapper alone
@@ -153,7 +155,7 @@ proxy would not send them, so have the client send them as a header. The proxy
 listens on loopback unless `--listen` says otherwise, and warns when it does — anyone
 who can reach a non-loopback address can send requests through it.
 
-Stop it with Ctrl-C (or `SIGTERM`/`SIGHUP`). Standalone event streams — the GET
+Stop it with Ctrl-C (or `SIGTERM`/`SIGHUP`/`SIGQUIT`). Standalone event streams — the GET
 stream an MCP client keeps open for its whole session — are cut at once (aborted, not
 ended cleanly, so the client can tell); every other request in flight, SSE responses
 to POSTs included, gets 3 seconds to finish. The trace is then closed with a

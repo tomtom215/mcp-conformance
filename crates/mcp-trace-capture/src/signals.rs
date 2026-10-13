@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! The requests to stop a capture answers: `SIGINT`, `SIGTERM` and `SIGHUP` on Unix,
-//! Ctrl-C elsewhere.
+//! The requests to stop a capture answers: `SIGINT`, `SIGTERM`, `SIGHUP` and
+//! `SIGQUIT` on Unix, Ctrl-C elsewhere.
 //!
 //! A capture never lets one of these kill it outright: the stdio wrapper relays it
 //! to the server and closes the trace once the server is gone; the HTTP proxy shuts
@@ -42,6 +42,10 @@ pub enum Stop {
     Terminate,
     /// `SIGHUP`: the terminal or the session that started the capture went away.
     Hangup,
+    /// `SIGQUIT` (a terminal's Ctrl-\\). Its default action ends a process at
+    /// once, which would leave the server — in a process group of its own, out
+    /// of the terminal's reach — running, and the trace unclosed.
+    Quit,
 }
 
 impl Stop {
@@ -53,6 +57,7 @@ impl Stop {
             Self::Interrupt => 2,
             Self::Terminate => 15,
             Self::Hangup => 1,
+            Self::Quit => 3,
         }
     }
 
@@ -63,6 +68,7 @@ impl Stop {
             Self::Interrupt => "SIGINT",
             Self::Terminate => "SIGTERM",
             Self::Hangup => "SIGHUP",
+            Self::Quit => "SIGQUIT",
         }
     }
 }
@@ -76,6 +82,8 @@ pub struct Signals {
     terminate: tokio::signal::unix::Signal,
     #[cfg(unix)]
     hangup: tokio::signal::unix::Signal,
+    #[cfg(unix)]
+    quit: tokio::signal::unix::Signal,
 }
 
 impl Signals {
@@ -105,6 +113,7 @@ impl Signals {
                 interrupt: signal(SignalKind::interrupt())?,
                 terminate: signal(SignalKind::terminate())?,
                 hangup: signal(SignalKind::hangup())?,
+                quit: signal(SignalKind::quit())?,
             })
         }
         #[cfg(not(unix))]
@@ -134,10 +143,16 @@ impl Signals {
                     std::future::pending::<()>().await;
                 }
             };
+            let quit = async {
+                if self.quit.recv().await.is_none() {
+                    std::future::pending::<()>().await;
+                }
+            };
             tokio::select! {
                 () = interrupt => Stop::Interrupt,
                 () = terminate => Stop::Terminate,
                 () = hangup => Stop::Hangup,
+                () = quit => Stop::Quit,
             }
         }
         #[cfg(not(unix))]
@@ -157,9 +172,10 @@ mod tests {
     #[test]
     fn numbers_and_names_are_the_unix_ones() {
         assert_eq!(
-            [Stop::Hangup, Stop::Interrupt, Stop::Terminate].map(Stop::number),
-            [1, 2, 15]
+            [Stop::Hangup, Stop::Interrupt, Stop::Quit, Stop::Terminate].map(Stop::number),
+            [1, 2, 3, 15]
         );
+        assert_eq!(Stop::Quit.name(), "SIGQUIT");
         assert_eq!(Stop::Terminate.name(), "SIGTERM");
         assert_eq!(Stop::Interrupt.name(), "SIGINT");
         assert_eq!(Stop::Hangup.name(), "SIGHUP");

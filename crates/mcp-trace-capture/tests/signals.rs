@@ -179,6 +179,26 @@ fn sighup_is_relayed_and_the_servers_clean_exit_closes_the_trace() {
     std::fs::remove_file(&trace).ok();
 }
 
+/// SIGQUIT (a terminal's Ctrl-\) is a request to stop like the others. Its
+/// default action ended the capture on the spot, and the server — in a process
+/// group of its own, so the terminal's signal never reached it — kept running
+/// with no trace closed.
+#[test]
+fn sigquit_is_relayed_and_the_trace_is_closed() {
+    let trace = scratch("quit", "jsonl");
+    let (mut capture, stdin) = start(
+        &trace,
+        "trap 'exit 0' QUIT; echo '{\"jsonrpc\":\"2.0\",\"method\":\"ready\"}'; while :; do sleep 0.1; done",
+    );
+    capture.signal("QUIT");
+    let status = capture.wait_within(Duration::from_secs(10));
+    drop(stdin);
+    assert_eq!(status.code(), Some(0), "{status:?}");
+    let last = last_event(&trace);
+    assert_eq!(last["event"], "transport-close", "{last}");
+    std::fs::remove_file(&trace).ok();
+}
+
 /// A server that ignores the relayed signal is killed after the grace period —
 /// which ends inside the 2 seconds the official SDKs allow between `SIGTERM` and
 /// `SIGKILL` — and a second signal skips the rest of the wait. The trace was

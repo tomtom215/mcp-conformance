@@ -88,6 +88,7 @@ impl ServerProcess {
                 Stop::Interrupt => nix::sys::signal::Signal::SIGINT,
                 Stop::Terminate => nix::sys::signal::Signal::SIGTERM,
                 Stop::Hangup => nix::sys::signal::Signal::SIGHUP,
+                Stop::Quit => nix::sys::signal::Signal::SIGQUIT,
             };
             self.signal_group(signal);
         }
