@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use axum::body::{Body, Bytes};
-use axum::extract::{Request, State};
+use axum::extract::Request;
 use axum::http::uri::{Authority, Uri};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse as _, Response};
@@ -22,7 +22,9 @@ use crate::headers;
 use crate::recorder::{NotRecorded, Recorder};
 use crate::traces::Route;
 
-pub(super) async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -> Response {
+/// Records `request`, forwards it upstream, and records and relays the
+/// response.
+pub(super) async fn forward(proxy: Arc<Proxy>, request: Request) -> Response {
     let (parts, body) = request.into_parts();
     if has_dot_segment(parts.uri.path()) {
         return proxy.refuse_path();

@@ -26,7 +26,7 @@
 //! is one that is not JSON, or is JSON the trace cannot hold as sent, and an SSE
 //! event of a type other than `message`.
 
-use std::future::{Future, IntoFuture as _};
+use std::future::Future;
 use std::io;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -43,8 +43,13 @@ use tokio::sync::watch;
 use crate::recorder::Recorder;
 use crate::traces::Traces;
 
+mod listen;
 mod relay;
 mod target;
+
+/// [`Options::header_read_timeout`]'s default: hyper's own default for it,
+/// which takes effect only once a server sets a timer.
+pub const HEADER_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 #[cfg(feature = "tls")]
 type Connector = hyper_rustls::HttpsConnector<HttpConnector>;
@@ -78,6 +83,12 @@ pub struct Options {
     /// would never stop). An event stream answering a POST does: it carries a
     /// request's response.
     pub grace: std::time::Duration,
+    /// How long a client gets to send a request's head — from when the proxy
+    /// starts waiting for one, on a new connection or an idle kept-alive one,
+    /// to its last header line — before the proxy closes the connection. So a
+    /// client that trickles header bytes (slowloris) cannot hold connections
+    /// open, and an idle connection is closed after this long.
+    pub header_read_timeout: std::time::Duration,
     /// How the proxy connects upstream, made once the upstream is known.
     connector: Connector,
 }
@@ -122,6 +133,7 @@ impl Options {
             max_message,
             preserve_host: false,
             grace: crate::STOP_GRACE,
+            header_read_timeout: HEADER_READ_TIMEOUT,
             connector,
         })
     }
@@ -221,7 +233,9 @@ pub async fn serve(
 ///
 /// # Errors
 ///
-/// The server failed.
+/// None at present: an `accept` that fails is retried, and a connection that
+/// fails concerns only its client. The `Result` leaves room to report a
+/// listener that cannot go on.
 pub async fn serve_traces(
     listener: tokio::net::TcpListener,
     traces: Arc<Traces>,
@@ -237,22 +251,17 @@ pub async fn serve_traces(
         counters: Counters::default(),
         stopping: stopping.clone(),
     });
-    let app = axum::Router::new()
-        .fallback(relay::forward)
-        .with_state(Arc::clone(&proxy));
-    let server = axum::serve(listener, app)
-        .with_graceful_shutdown(async move {
-            shutdown.await;
-            let _ = stop.send(true);
-        })
-        .into_future();
+    let server = listen::serve(listener, Arc::clone(&proxy), async move {
+        shutdown.await;
+        let _ = stop.send(true);
+    });
     tokio::pin!(server);
     let waited_out = async {
         stopped(stopping).await;
         tokio::time::sleep(grace).await;
     };
     tokio::select! {
-        result = &mut server => result?,
+        () = &mut server => {}
         () = waited_out => {
             eprintln!(
                 "mcp-trace-capture: connections still open {}s after the stop request are \

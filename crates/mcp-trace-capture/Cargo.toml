@@ -52,8 +52,10 @@ tokio = { workspace = true, features = ["process", "io-util", "io-std", "net", "
 axum = { workspace = true }
 # HTTP upstream client: hyper directly, so request and response bodies stream
 # through as the endpoints sent them. Already in the tree under reqwest and axum.
-hyper = { version = ">=1.11, <2", default-features = false, features = ["client", "http1"] }
-hyper-util = { version = ">=0.1.20, <0.2", default-features = false, features = ["client-legacy", "http1", "tokio"] }
+# The listener is hyper's HTTP/1 server too, for the header read timeout
+# axum::serve does not set.
+hyper = { version = ">=1.11, <2", default-features = false, features = ["client", "http1", "server"] }
+hyper-util = { version = ">=0.1.20, <0.2", default-features = false, features = ["client-legacy", "http1", "server-graceful", "tokio"] }
 futures = { version = ">=0.3.30, <0.4" }
 clap = { workspace = true, optional = true }
 hyper-rustls = { version = ">=0.27.10, <0.28", default-features = false, features = ["http1", "ring", "rustls-native-certs", "tls12"], optional = true }

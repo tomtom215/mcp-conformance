@@ -170,6 +170,11 @@ the platform's root certificates — loaded only for an `https` upstream, and ch
 before the trace is created: where none can be found, the proxy refuses to start).
 SSE streams are relayed as they arrive, event by event.
 
+A client gets 30 seconds to send each request's head, counted from when the proxy
+starts waiting for it, so one that opens connections and trickles header bytes into
+them cannot hold them open. The same bound closes a kept-alive connection left idle
+that long, as servers commonly do; clients open a new one.
+
 ### `Host`, and DNS rebinding
 
 By default the proxy sends the upstream's own name in `Host`, as a reverse proxy must
