@@ -4,7 +4,7 @@
 #![allow(clippy::unwrap_used)]
 
 use super::relay::{End, read_prefix};
-use super::target::{is_event_stream, location, target};
+use super::target::{has_dot_segment, is_event_stream, location, target};
 use super::*;
 use axum::body::Bytes;
 use axum::http::uri::PathAndQuery;
@@ -184,4 +184,35 @@ fn an_upstream_with_credentials_is_refused_without_repeating_them() {
     assert!(!error.contains("hunter2"), "{error}");
     assert!(error.contains("credentials"), "{error}");
     assert!(Options::new(uri("http://user@example.com"), 1).is_err());
+}
+
+#[test]
+fn dot_segments_are_found_however_they_are_spelled() {
+    for path in [
+        "/..",
+        "/.",
+        "/../x",
+        "/a/./b",
+        "/a/%2e%2e/b",
+        "/a/%2E.",
+        "/a/.%2e/",
+        "/a/..%2fb",
+        "/a/..%2Fb",
+        "/a\\..\\b",
+        "/a/..%5cb",
+        "/%2e",
+    ] {
+        assert!(has_dot_segment(path), "{path}");
+    }
+    for path in [
+        "/",
+        "/mcp",
+        "/a/..b",
+        "/.well-known/x",
+        "/a/b..",
+        "/a/%2e%2e%2e",
+        "/a.b/c",
+    ] {
+        assert!(!has_dot_segment(path), "{path}");
+    }
 }

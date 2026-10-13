@@ -144,7 +144,10 @@ mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000/mcp --l
 The proxy's root path is the `--upstream` URL itself, and any other request path is
 appended to the upstream's: above, `/` reaches `/mcp` and `/x` reaches `/mcp/x`
 (with `--upstream http://localhost:3000`, point the client at
-`http://127.0.0.1:8080/mcp`). The proxy prints the client URL when it starts. At exit
+`http://127.0.0.1:8080/mcp`). A path with a `.` or `..` segment (`/../x`, or
+`/%2e%2e/x`) would leave the upstream's path once the server resolved it, so the
+proxy answers it `400` itself: not forwarded, not recorded, counted at exit. The
+proxy prints the client URL when it starts. At exit
 it says how many responses had a status outside 2xx, and, when the server answered
 404, asks whether the endpoint path is right — a client at `http://127.0.0.1:8080/mcp`
 in front of `--upstream http://localhost:3000/mcp` reaches `/mcp/mcp`.

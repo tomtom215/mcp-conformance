@@ -303,6 +303,13 @@ fn http_summary(
                     unrecorded.upstream_cut
                 );
             }
+            if unrecorded.refused_paths > 0 {
+                eprintln!(
+                    "mcp-trace-capture: {} request(s) had a `.` or `..` path segment and were \
+                     answered 400 by the proxy, not forwarded (not in the trace)",
+                    unrecorded.refused_paths
+                );
+            }
             report_statuses(unrecorded, bound, upstream);
             0
         }

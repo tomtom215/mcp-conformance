@@ -149,6 +149,9 @@ pub struct Unrecorded {
     pub not_2xx: u64,
     /// Of those, `404 Not Found`: usually a client pointed at the wrong path.
     pub not_found: u64,
+    /// Requests whose path had a `.` or `..` segment, which would leave the
+    /// upstream's path: answered 400 by the proxy, not forwarded, not recorded.
+    pub refused_paths: u64,
 }
 
 #[derive(Debug, Default)]
@@ -161,6 +164,7 @@ struct Counters {
     upstream_cut: AtomicU64,
     not_2xx: AtomicU64,
     not_found: AtomicU64,
+    refused_paths: AtomicU64,
 }
 
 impl Counters {
@@ -174,6 +178,7 @@ impl Counters {
             upstream_cut: self.upstream_cut.load(Ordering::Relaxed),
             not_2xx: self.not_2xx.load(Ordering::Relaxed),
             not_found: self.not_found.load(Ordering::Relaxed),
+            refused_paths: self.refused_paths.load(Ordering::Relaxed),
         }
     }
 }

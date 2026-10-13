@@ -16,7 +16,7 @@ use futures::{Stream, StreamExt as _, TryStreamExt as _};
 use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TransportKind};
 
 use super::Proxy;
-use super::target::{is_event_stream, location, target};
+use super::target::{has_dot_segment, is_event_stream, location, target};
 use crate::framing::{Parsed, SseParser, parse_message};
 use crate::headers;
 use crate::recorder::{NotRecorded, Recorder};
@@ -24,6 +24,9 @@ use crate::traces::Route;
 
 pub(super) async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -> Response {
     let (parts, body) = request.into_parts();
+    if has_dot_segment(parts.uri.path()) {
+        return proxy.refuse_path();
+    }
     // An event stream answering a GET is the standalone stream a client holds
     // open for its whole session; one answering a POST carries that request's
     // response.
@@ -309,6 +312,17 @@ impl Proxy {
                     .fetch_add(other - other_seen, Ordering::Relaxed);
                 (oversized_seen, other_seen) = (oversized, other);
             })
+    }
+
+    /// A request whose path would leave the upstream's once the server resolves
+    /// its `.` or `..` segments: answered 400 by the proxy, never forwarded, so
+    /// not recorded — no server saw it.
+    fn refuse_path(&self) -> Response {
+        let message = "mcp-trace-capture: the request path has a `.` or `..` segment, which \
+                       would leave the upstream's path; refused, not forwarded";
+        eprintln!("{message}");
+        self.counters.refused_paths.fetch_add(1, Ordering::Relaxed);
+        (StatusCode::BAD_REQUEST, message).into_response()
     }
 
     /// The upstream failed mid-response, after its status and headers were

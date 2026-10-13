@@ -224,6 +224,55 @@ async fn proxy_connection_and_expect_are_not_forwarded() {
     .await;
 }
 
+/// A path with a `.` or `..` segment, spelled out or percent-encoded, would
+/// leave the upstream's path once the server resolves it (`/../../secret`
+/// against `--upstream http://h/mcp` is `/mcp/../../secret`): refused, never
+/// forwarded. A dot inside a segment is just a name.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dot_segments_are_refused_not_forwarded() {
+    bounded(async {
+        let (upstream, mut requests) =
+            upstream(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\nconnection: close\r\n\r\n".to_vec())
+                .await;
+        let (address, sink, stop) = proxy(format!("http://{upstream}/mcp"), 1024).await;
+        for path in [
+            "/../../secret",
+            "/a/..",
+            "/./x",
+            "/a/%2e%2E/b",
+            "/%2e",
+            "/a/.%2e",
+        ] {
+            let request =
+                format!("GET {path} HTTP/1.1\r\nhost: proxy\r\nconnection: close\r\n\r\n");
+            let response = exchange(address, request.as_bytes()).await;
+            assert!(response.starts_with("http/1.1 400"), "{path}: {response}");
+        }
+        assert!(requests.try_recv().is_err(), "nothing was forwarded");
+        let response = exchange(
+            address,
+            b"GET /a/..b/.c/x..y HTTP/1.1\r\nhost: proxy\r\nconnection: close\r\n\r\n",
+        )
+        .await;
+        assert!(response.starts_with("http/1.1 200"), "{response}");
+        let forwarded = requests.recv().await.unwrap();
+        assert!(
+            forwarded.starts_with("GET /mcp/a/..b/.c/x..y HTTP/1.1"),
+            "{forwarded}"
+        );
+        stop().await.unwrap().unwrap();
+        // The refused requests reached no server, so the trace has only the one
+        // that did.
+        let methods = sink
+            .events()
+            .iter()
+            .filter(|event| event["method"] == "GET")
+            .count();
+        assert_eq!(methods, 1);
+    })
+    .await;
+}
+
 /// A client that goes away mid-body leaves its request recorded without a
 /// body; the trace must say the exchange was cut off, as it does for an
 /// upstream that fails.
