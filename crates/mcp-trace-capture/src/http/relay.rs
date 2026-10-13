@@ -38,6 +38,11 @@ pub(super) async fn forward(
     // open for its whole session; one answering a POST carries that request's
     // response.
     let standalone = parts.method == axum::http::Method::GET;
+    // A `DELETE` naming a session ends it, once the server agrees.
+    let ending = (parts.method == axum::http::Method::DELETE)
+        .then(|| parts.headers.get("mcp-session-id")?.to_str().ok())
+        .flatten()
+        .map(str::to_owned);
     let (route, upstream_body) = proxy.record_request(&parts, body).await;
     let Some(upstream_body) = upstream_body else {
         // The client went away mid-body; there is nothing left to answer.
@@ -62,6 +67,9 @@ pub(super) async fn forward(
     let host = local.map(|local| local.to_string());
     match proxy.client.request(upstream_request).await {
         Ok(upstream) => {
+            if let Some(id) = ending.filter(|_| upstream.status().is_success()) {
+                proxy.traces.end(&id);
+            }
             proxy
                 .relay_response(upstream, route, host.as_deref(), standalone)
                 .await

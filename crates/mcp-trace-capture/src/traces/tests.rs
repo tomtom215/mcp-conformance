@@ -186,6 +186,65 @@ fn an_id_already_bound_is_not_rebound_by_a_later_response() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+/// Every id the proxy had not seen opened a numbered file of its own and a
+/// map entry that was never removed, so a client sending a fresh made-up id
+/// per request made the proxy create a file per request. Ids the server has
+/// not accepted now share one trace, and a refused one is not remembered.
+#[test]
+fn ids_the_server_refuses_share_one_trace_and_are_not_kept() {
+    let dir = scratch("refused-ids");
+    let traces = per_session(&dir);
+    let live = traces.route(None, Some(INITIALIZE));
+    traces.respond(&live, Some("real"), true);
+    for n in 0..50 {
+        let invented = traces.route(Some(&format!("made-up-{n}")), Some(PING));
+        record(&invented);
+        traces.respond(&invented, None, false);
+    }
+    let files = std::fs::read_dir(&dir).unwrap().count();
+    assert_eq!(files, 2, "the live session's trace, and one for unseen ids");
+    let state = traces.state.lock().unwrap();
+    assert_eq!(state.by_id.len(), 1, "only the server's id is remembered");
+    drop(state);
+    // The live session is untouched, and still current.
+    assert_eq!(traces.route(Some("real"), None).index, live.index);
+    assert_eq!(traces.route(None, Some(PING)).index, live.index);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// Once the server accepts an unseen id, that trace is the id's session; the
+/// next unseen id starts another.
+#[test]
+fn an_accepted_unseen_id_keeps_its_trace_and_the_next_gets_a_new_one() {
+    let dir = scratch("accepted-unseen");
+    let traces = per_session(&dir);
+    let first = traces.route(Some("x"), Some(PING));
+    let refused = traces.route(Some("y"), Some(PING));
+    assert_eq!(refused.index, first.index, "both unseen, one trace");
+    traces.respond(&refused, None, false);
+    traces.respond(&first, None, true);
+    assert_eq!(traces.route(Some("x"), None).index, first.index);
+    let next = traces.route(Some("y"), None);
+    assert_ne!(next.index, first.index, "y was refused; it is unseen again");
+    assert_eq!(traces.finish().len(), 2);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// A session the client deleted, and the server agreed to end, is forgotten:
+/// its id no longer holds an entry, and naming it again is an unseen id.
+#[test]
+fn a_deleted_session_is_forgotten() {
+    let dir = scratch("deleted");
+    let traces = per_session(&dir);
+    let live = traces.route(None, Some(INITIALIZE));
+    traces.respond(&live, Some("a"), true);
+    assert_eq!(traces.route(Some("a"), None).index, live.index);
+    traces.end("a");
+    assert!(traces.state.lock().unwrap().by_id.is_empty());
+    assert_ne!(traces.route(Some("a"), None).index, live.index);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 #[test]
 fn sessionless_traffic_is_one_session() {
     let dir = scratch("stateless");

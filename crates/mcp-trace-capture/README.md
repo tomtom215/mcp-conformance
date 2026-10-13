@@ -284,11 +284,16 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 
 - **One session per trace.** The validator judges a trace as one session. With
   `{session}` in `-o`, the HTTP proxy writes each client session to its own numbered
-  file: a session begins with an `initialize`, or with an `Mcp-Session-Id` the proxy
-  has not seen, and every later exchange naming that id goes to its trace. An
-  exchange naming no id goes to the session begun last — counting one begun by an
-  unseen id only once the server has answered it with a 2xx, so a stale id the
-  server refuses gets its own trace without drawing in the rest.
+  file: a session begins with an `initialize`, and every later exchange naming the
+  `Mcp-Session-Id` the server assigned goes to its trace. Exchanges naming an id the
+  proxy has not seen — it started mid-session, or the id is stale or made up — share
+  one trace until the server answers one of them with a 2xx: that trace is then the
+  id's session, and the next unseen id starts another. An id the server refuses is
+  not remembered, so made-up ids cannot make the proxy open a file each. A `DELETE`
+  the server accepts ends its session; a later request naming that id is an unseen
+  id's. An exchange naming no id goes to the session begun last — counting one begun
+  by an unseen id only once the server has accepted it, so a stale id the server
+  refuses does not draw in the rest.
   `2026-07-28` traffic carries no session id and no `initialize`, so the proxy cannot
   tell its clients apart: every `2026-07-28` session through one proxy lands in one
   trace, `{session}` or not, and concurrent `2026-07-28` clients need a proxy each. Without `{session}`, everything goes to the one file, and the
