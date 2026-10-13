@@ -254,6 +254,32 @@
       "checks": [
         "transport.protocol-version-header"
       ]
+    },
+    {
+      "id": "LIFE-019",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/lifecycle#timeouts",
+        "quote": "SDKs and other middleware SHOULD allow these timeouts to be configured on a per-request basis."
+      },
+      "exclusion": "Binds an SDK's programming interface — what its callers can configure — which has no protocol representation at all."
+    },
+    {
+      "id": "LIFE-020",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/lifecycle#error-handling",
+        "quote": "Implementations SHOULD be prepared to handle these error cases: Protocol version mismatch; Failure to negotiate required capabilities; Request timeouts"
+      },
+      "exclusion": "Preparedness is a property of the implementation, not of any session it took part in: a trace that happens to contain a version mismatch shows one case handled, and a trace without one evidences nothing. Where the handling has a wire form it is judged under the clause that states it, such as the version negotiation rules."
     }
   ]
 }

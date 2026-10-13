@@ -136,6 +136,8 @@ fn a_page_removed_from_both_lists_is_reported_by_name() {
             sources.in_scope.remove(&page);
             sources.out_of_scope.remove(&page);
             sources.must_census.remove(&page);
+            sources.should_census.remove(&page);
+            sources.may_census.remove(&page);
             let problems = verify(revision, &sources, &navigation);
             assert_eq!(problems.len(), 1, "{revision}/{page}: {problems:?}");
             assert!(
@@ -194,14 +196,19 @@ fn structure_reports_overlap_missing_reasons_wrong_files_and_census_gaps() {
         .insert("server/tools".to_owned(), "server/prompts.mdx".to_owned());
     sources.must_census.remove("basic/lifecycle");
     sources.must_census.insert("schema".to_owned(), 0);
+    // Every family's census is held to the page set, not only the MUST one.
+    sources.should_census.remove("server/tools");
+    sources.may_census.insert("index".to_owned(), 0);
     let problems = structure("r", &sources);
-    assert_eq!(problems.len(), 5, "{problems:#?}");
+    assert_eq!(problems.len(), 7, "{problems:#?}");
     for expected in [
         "r/basic/index: listed in `out_of_scope` and already in `in_scope`",
         "r/changelog: `out_of_scope` without a reason",
         "r/server/tools: `in_scope` names \"server/prompts.mdx\"",
         "r/basic/lifecycle: in scope with no `must_census` entry",
         "r/schema: has a `must_census` entry but is not in scope",
+        "r/server/tools: in scope with no `should_census` entry",
+        "r/index: has a `may_census` entry but is not in scope",
     ] {
         assert!(
             problems.iter().any(|problem| problem.starts_with(expected)),

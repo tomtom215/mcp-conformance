@@ -114,6 +114,19 @@
       "checks": [
         "versioning.initialize-error-names-versions"
       ]
+    },
+    {
+      "id": "VERS-009",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/versioning#compatibility-matrix",
+        "quote": "Modern | Legacy | Fails. The server may reject the request with an implementation-defined error, stay silent, or even process an era-ambiguous method under legacy semantics. On stdio, clients SHOULD send `server/discover` first to fail deterministically; the client then surfaces an actionable error to the user."
+      },
+      "exclusion": "The compatibility matrix's modern-client, legacy-server row. Its antecedent is the server being legacy, which is exactly what an unprobed exchange fails to reveal — the row itself says such a server may reject the request, stay silent, or process it under legacy semantics — and, as for TRAN-142, a recording cannot show that its first request was the client's first. The dual-era form of the same advice is TRAN-128, judged where a session witnesses both eras."
     }
   ]
 }

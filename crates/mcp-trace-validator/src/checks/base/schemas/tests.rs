@@ -10,6 +10,10 @@ use crate::context::TraceContext;
 use crate::reader::{Limits, parse_trace};
 
 fn findings(messages: &[(&str, Value)]) -> (Vec<String>, u32) {
+    findings_of("base.schemas-valid-for-dialect", messages)
+}
+
+fn findings_of(check: &str, messages: &[(&str, Value)]) -> (Vec<String>, u32) {
     let text = messages
         .iter()
         .enumerate()
@@ -21,7 +25,7 @@ fn findings(messages: &[(&str, Value)]) -> (Vec<String>, u32) {
         .collect::<Vec<_>>()
         .join("\n");
     let events = parse_trace(&text, &Limits::default()).unwrap();
-    let outcome = checks::find("base.schemas-valid-for-dialect")
+    let outcome = checks::find(check)
         .unwrap()
         .run(&TraceContext::new(&events));
     (
@@ -116,4 +120,42 @@ fn elicitation_schemas_are_examined_at_both_revisions() {
         found[0].contains("input request \"who\"'s requestedSchema"),
         "{found:?}"
     );
+}
+
+const USE_2020_12: &str = "base.schemas-use-2020-12";
+
+#[test]
+fn an_undeclared_or_2020_12_dialect_follows_the_recommendation() {
+    for schema in [
+        json!({"type": "object"}),
+        json!({"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object"}),
+        json!({"$schema": "https://json-schema.org/draft/2020-12/schema#", "type": "object"}),
+    ] {
+        let (found, subjects) = findings_of(USE_2020_12, &tools_list(&schema));
+        assert_eq!(found, Vec::<String>::new(), "{schema}");
+        assert_eq!(subjects, 2, "both schemas are subjects");
+    }
+}
+
+#[test]
+fn another_declared_dialect_is_reported_even_when_valid_or_unreadable() {
+    // draft-07 is the specification's own example of an explicit dialect:
+    // permitted, valid, and still not the recommended one.
+    let draft7 = json!({"$schema": "http://json-schema.org/draft-07/schema#", "type": "object"});
+    let (found, subjects) = findings_of(USE_2020_12, &tools_list(&draft7));
+    assert_eq!(subjects, 2);
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(
+        found[0].starts_with(
+            "the server sent tool \"t\"'s inputSchema declaring `$schema` \
+             \"http://json-schema.org/draft-07/schema#\""
+        ),
+        "{found:?}"
+    );
+    assert_eq!(findings(&tools_list(&draft7)).0, Vec::<String>::new());
+    // A dialect the validity check cannot read is still not 2020-12.
+    let custom = json!({"$schema": "https://example.test/dialect"});
+    assert_eq!(findings_of(USE_2020_12, &tools_list(&custom)).0.len(), 1);
+    let not_a_uri = json!({"$schema": 2020});
+    assert_eq!(findings_of(USE_2020_12, &tools_list(&not_a_uri)).0.len(), 1);
 }

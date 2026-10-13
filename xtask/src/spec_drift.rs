@@ -25,9 +25,10 @@
 //! Quotes are only half of it. Verifying the ones the registry *has* cannot see
 //! a clause it never had, so a page could gain a MUST with every committed quote
 //! still verifying and the run still green. [`census`] closes that direction:
-//! each page's MUST-family keyword count is committed beside the page list and
-//! recounted here. Together the two say the registry still quotes the spec
-//! accurately *and* still quotes all of it.
+//! each page's keyword count per RFC 2119 family is committed beside the page
+//! list and recounted here, and every MUST-family and SHOULD-family instance
+//! must sit inside the quote of an entry citing its page. Together they say the
+//! registry still quotes the spec accurately *and* still quotes all of it.
 //!
 //! A third check reads the page as the site publishes it: every `source.section`
 //! anchor must be a heading id there, because reports link failing clauses to it
@@ -95,15 +96,32 @@ struct Sources {
     /// Pages of the revision deliberately out of scope, with reasons.
     out_of_scope: BTreeMap<String, String>,
     /// Why the census exists and how to re-decide it, beside the data.
-    #[serde(rename = "_must_census_policy")]
+    #[serde(rename = "_census_policy")]
     #[allow(dead_code)]
-    must_census_policy: String,
-    /// Page → how many MUST-family clauses its prose carries, so rule 1's
+    census_policy: String,
+    /// Page → how many MUST-family keywords its prose carries, so rule 1's
     /// "no exceptions" is a gate rather than a claim (`census`). Defaults to
     /// empty, which the reconciliation then reports page by page — a revision
     /// mid-extraction is not required to have censused every page yet.
     #[serde(default)]
     must_census: BTreeMap<String, u32>,
+    /// Page → its SHOULD-family keyword count, the same way.
+    #[serde(default)]
+    should_census: BTreeMap<String, u32>,
+    /// Page → its MAY-family keyword count, the same way.
+    #[serde(default)]
+    may_census: BTreeMap<String, u32>,
+}
+
+impl Sources {
+    /// Each family's committed census.
+    const fn censuses(&self) -> [(census::Family, &BTreeMap<String, u32>); 3] {
+        [
+            (census::Family::Must, &self.must_census),
+            (census::Family::Should, &self.should_census),
+            (census::Family::May, &self.may_census),
+        ]
+    }
 }
 
 pub(crate) fn run() -> ExitCode {
@@ -117,10 +135,7 @@ pub(crate) fn run() -> ExitCode {
     let Ok(navigation) = pages::navigation() else {
         return ExitCode::FAILURE;
     };
-    let mut drifted = 0u32;
-    let mut checked = 0u32;
-    let mut broken = 0u32;
-    let mut unlisted = 0u32;
+    let mut total = Counts::default();
     let mut verified: Vec<&str> = Vec::new();
     let mut skipped: Vec<&str> = Vec::new();
     for revision in REVISIONS {
@@ -136,21 +151,16 @@ pub(crate) fn run() -> ExitCode {
         };
         verified.push(revision);
         match verify_revision(revision, &registry, &navigation) {
-            Ok(count) => {
-                checked += count.quotes;
-                drifted += count.drifted;
-                broken += count.broken_anchors;
-                unlisted += count.unlisted_pages;
-            }
+            Ok(count) => total.add(&count),
             Err(()) => return ExitCode::FAILURE,
         }
     }
 
     match wire_schema::verify() {
-        Ok(schema_drift) => drifted += schema_drift,
+        Ok(schema_drift) => total.drifted += schema_drift,
         Err(()) => return ExitCode::FAILURE,
     }
-    if !explain_failures(drifted, broken, unlisted) {
+    if !explain_failures(&total) {
         return ExitCode::FAILURE;
     }
     // The count is of revisions *verified*, not of revisions looped over. It
@@ -159,8 +169,9 @@ pub(crate) fn run() -> ExitCode {
     // a gate overstating its own coverage, which is the failure this gate
     // exists to catch in other people's documents.
     eprintln!(
-        "xtask: spec-drift — {checked} quote(s) and their anchors across {} revision(s) \
+        "xtask: spec-drift — {} quote(s) and their anchors across {} revision(s) \
          verified against the published text{}",
+        total.quotes,
         verified.len(),
         if skipped.is_empty() {
             String::new()
@@ -176,7 +187,14 @@ pub(crate) fn run() -> ExitCode {
 }
 
 /// Says what to do about each kind of failure found; `true` when there were none.
-fn explain_failures(drifted: u32, broken: u32, unlisted: u32) -> bool {
+fn explain_failures(total: &Counts) -> bool {
+    let Counts {
+        drifted,
+        broken_anchors: broken,
+        unlisted_pages: unlisted,
+        census,
+        ..
+    } = *total;
     if drifted > 0 {
         eprintln!(
             "xtask: spec-drift — {drifted} quote(s) drifted from the published text. \
@@ -198,10 +216,18 @@ fn explain_failures(drifted: u32, broken: u32, unlisted: u32) -> bool {
              file, its entries and its census) or `out_of_scope` (with the reason)."
         );
     }
-    drifted == 0 && broken == 0 && unlisted == 0
+    if census > 0 {
+        eprintln!(
+            "xtask: spec-drift — {census} census problem(s): a keyword count that moved, \
+             or a MUST-family or SHOULD-family keyword no entry quotes. Read the clause, \
+             enter or retire it, and update the committed census in the same commit."
+        );
+    }
+    drifted == 0 && broken == 0 && unlisted == 0 && census == 0
 }
 
 /// What one revision's verification found.
+#[derive(Debug, Clone, Copy, Default)]
 struct Counts {
     /// Quotes checked.
     quotes: u32,
@@ -211,6 +237,19 @@ struct Counts {
     broken_anchors: u32,
     /// Ways `sources.json` disagrees with the pages the revision publishes.
     unlisted_pages: u32,
+    /// Census disagreements and keywords no entry quotes (`census::report`).
+    census: u32,
+}
+
+impl Counts {
+    /// Adds another revision's findings to these.
+    const fn add(&mut self, other: &Self) {
+        self.quotes += other.quotes;
+        self.drifted += other.drifted;
+        self.broken_anchors += other.broken_anchors;
+        self.unlisted_pages += other.unlisted_pages;
+        self.census += other.census;
+    }
 }
 
 /// Verifies one revision's quotes against its own published pages, and each
@@ -234,13 +273,18 @@ fn verify_revision(revision: &str, registry: &Registry, navigation: &str) -> Res
     let mut checked = 0u32;
     let mut drifted = 0u32;
     let mut broken = 0u32;
-    let mut live_census: BTreeMap<String, u32> = BTreeMap::new();
+    let mut live_census: BTreeMap<String, census::Tally> = BTreeMap::new();
+    let mut unentered: Vec<String> = Vec::new();
     for (page, requirements) in &by_page {
         let url = format!("{}/{}", raw_base(revision), sources.in_scope[page]);
         let text = fetch(&url).map_err(|message| {
             eprintln!("xtask: spec-drift — cannot fetch {url}: {message}");
         })?;
         live_census.insert(page.clone(), census::count(&text));
+        let quotes = requirements.iter().map(|r| r.source.quote.as_str());
+        for missing in census::uncovered(&census::prose(&text), quotes) {
+            unentered.push(format!("{revision}/{page}: {missing}"));
+        }
         let normalized = normalize(&text);
         let mut page_drifted = 0u32;
         for requirement in requirements {
@@ -264,24 +308,13 @@ fn verify_revision(revision: &str, registry: &Registry, navigation: &str) -> Res
 
     // The other direction: the quotes above prove what the registry *has* is
     // still accurate; this proves the pages have gained nothing it lacks.
-    match census::reconcile(revision, &sources.must_census, &live_census) {
-        Ok(total) => eprintln!(
-            "xtask: spec-drift — {revision}: {total} MUST-family clause(s) across \
-             {} in-scope page(s), matching the committed census",
-            live_census.len()
-        ),
-        Err(problems) => {
-            for problem in &problems {
-                eprintln!("xtask: spec-drift — {problem}");
-            }
-            drifted += u32::try_from(problems.len()).unwrap_or(u32::MAX);
-        }
-    }
+    let census = census::report(revision, &sources, &live_census, &unentered);
     Ok(Counts {
         quotes: checked,
         drifted,
         broken_anchors: broken,
         unlisted_pages,
+        census,
     })
 }
 

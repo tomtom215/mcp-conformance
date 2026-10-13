@@ -72,7 +72,7 @@ fn builtin_registry_parses_and_validates() {
     // dropped from the embed (a forgotten include, a bad merge) shrinks
     // the count without failing any floor check. The README coverage
     // gate pins the same number from the other direction.
-    assert_eq!(registry.requirements().len(), 142);
+    assert_eq!(registry.requirements().len(), 153);
     assert!(registry.get("LIFE-001").is_some());
     assert!(registry.get("NOPE-999").is_none());
 }
@@ -80,14 +80,29 @@ fn builtin_registry_parses_and_validates() {
 #[test]
 fn builtin_registry_quotes_are_normative() {
     // Every entry's quote must contain the keyword its level claims — a cheap
-    // tripwire against paraphrased (non-verbatim) quotes sneaking in.
-    let registry = Registry::builtin_2025_11_25().unwrap();
-    for requirement in registry.requirements() {
+    // tripwire against paraphrased (non-verbatim) quotes sneaking in. RFC 2119
+    // gives three levels a synonym ("REQUIRED" and "SHALL" mean MUST, "SHALL
+    // NOT" means MUST NOT, "RECOMMENDED" means SHOULD, "NOT RECOMMENDED" means
+    // SHOULD NOT, "OPTIONAL" means MAY), and a clause written with one is
+    // entered at the level it means, so either spelling satisfies the check.
+    use crate::requirement::Level;
+    let synonyms = |level: Level| -> &'static [&'static str] {
+        match level {
+            Level::Must => &["MUST", "REQUIRED", "SHALL"],
+            Level::MustNot => &["MUST NOT", "SHALL NOT"],
+            Level::Should => &["SHOULD", "RECOMMENDED"],
+            Level::ShouldNot => &["SHOULD NOT", "NOT RECOMMENDED"],
+            Level::May => &["MAY", "OPTIONAL"],
+        }
+    };
+    // Every revision's entries, not only `2025-11-25`'s: the set holds them all.
+    let set = crate::requirement::RegistrySet::builtin().unwrap();
+    for requirement in set.requirements() {
         let quote = &requirement.source.quote;
-        let keyword = requirement.level.keyword();
+        let spellings = synonyms(requirement.level);
         assert!(
-            quote.contains(keyword),
-            "{}: quote lacks its level keyword {keyword}: {quote}",
+            spellings.iter().any(|keyword| quote.contains(keyword)),
+            "{}: quote lacks its level keyword (any of {spellings:?}): {quote}",
             requirement.id
         );
     }

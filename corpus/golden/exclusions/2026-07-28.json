@@ -337,6 +337,11 @@
       "exclusion": "The cached value is the era determination — client-internal state, and the clause's horizon is the server process or origin, which outlives the recorded session. The one wire-visible candidate, a repeated probe, is not evidence: the clause's own \"re-probing if the cached assumption later fails\" permits it."
     },
     {
+      "id": "VERS-009",
+      "level": "SHOULD",
+      "exclusion": "The compatibility matrix's modern-client, legacy-server row. Its antecedent is the server being legacy, which is exactly what an unprobed exchange fails to reveal — the row itself says such a server may reject the request, stay silent, or process it under legacy semantics — and, as for TRAN-142, a recording cannot show that its first request was the client's first. The dual-era form of the same advice is TRAN-128, judged where a session witnesses both eras."
+    },
+    {
       "id": "TRAN-110",
       "level": "MUST",
       "exclusion": "Restates TRAN-001 at 2025-11-25, whose exclusion this project already argued and which holds unchanged: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because capture tooling drops undecodable bytes. Violations surface as capture-time parse failures, not trace findings."
@@ -400,6 +405,11 @@
       "id": "TRAN-129",
       "level": "MUST NOT",
       "exclusion": "Binds the client's decision function, not any message it sends. A session exhibits one probe answered by one error code and one decision taken; whether the client would have fallen back on a *different* code is a property of code paths that session never exercised, and no number of traces settles it."
+    },
+    {
+      "id": "TRAN-142",
+      "level": "SHOULD",
+      "exclusion": "Asks a modern-only client to open with a `server/discover` probe, and a recording can show neither half. Not the antecedent: a modern-only client and a dual-era client whose server never forced a fallback send the same messages. Not the order: a modern stdio session has no handshake marking where it began, so a recording that opens on `tools/call` is equally one that started after the probe. The dual-era statement, TRAN-128, is judged by `discover.dual-era-probe-first`, which reports only where a session witnesses both eras; this clause offers no such witness."
     },
     {
       "id": "MRTR-005",

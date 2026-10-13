@@ -2,10 +2,10 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 42,
-    "fail": 4,
+    "pass": 43,
+    "fail": 5,
     "warn": 0,
-    "excluded": 165,
+    "excluded": 167,
     "unsupported": 0,
     "not_applicable": 0,
     "not_observed": 99
@@ -89,6 +89,11 @@
     {
       "id": "BASE-073",
       "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-088",
+      "level": "SHOULD",
       "outcome": "pass"
     },
     {
@@ -287,6 +292,23 @@
       "id": "TRAN-137",
       "level": "MUST",
       "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-141",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.request-metadata-headers",
+          "seq": 12,
+          "detail": "`Mcp-Name` header is \"beta\" but `params.name` is \"alpha\""
+        }
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#standard-request-headers",
+        "quote": "These headers are REQUIRED for compliance.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#standard-request-headers"
+      }
     },
     {
       "id": "TRAN-096",

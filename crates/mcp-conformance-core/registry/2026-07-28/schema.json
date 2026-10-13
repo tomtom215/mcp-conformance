@@ -119,6 +119,21 @@
         "quote": "Implementations SHOULD apply reasonable bounds, such as a maximum schema depth, a cap on the total number of subschemas, or a per-validation time budget, to prevent a malicious schema from acting as a Denial-of-Service vector against the validator."
       },
       "exclusion": "Depth caps, subschema counts and time budgets are validator-internal resource policy, invisible in the messages exchanged."
+    },
+    {
+      "id": "BASE-088",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/index#schema-dialect",
+        "quote": "Implementors are RECOMMENDED to use JSON Schema 2020-12."
+      },
+      "checks": [
+        "base.schemas-use-2020-12"
+      ]
     }
   ]
 }

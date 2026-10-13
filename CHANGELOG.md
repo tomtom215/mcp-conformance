@@ -561,6 +561,22 @@ below is stated again in its entry, with the reasoning.
   this validator passed; 9 divergent traces are triaged in a book page
   (`book/src/mcpsnoop.md`), gated offline by `mcpsnoop --check` in `cargo xtask
   gates`, and re-measured by an informational scheduled job.
+- **The census covers every RFC 2119 keyword family.** `cargo xtask spec-drift` counts
+  MUST-family (now with `REQUIRED`), SHOULD-family (`SHOULD`, `SHOULD NOT`,
+  `RECOMMENDED`, `NOT RECOMMENDED`) and MAY-family keywords per in-scope page, table
+  rows included, committed as `must_census`, `should_census` and `may_census`, and
+  fails unless every MUST- and SHOULD-family keyword sits inside the quote of an entry
+  citing its page. MAY-family keywords are counted but not required to be entered.
+- **15 requirements for the 16 keywords the census found unentered**: at `2025-11-25`
+  `BASE-085`–`BASE-087`, `LIFE-019`, `LIFE-020`, `TRAN-138`–`TRAN-140`,
+  `TOOL-047`–`TOOL-049`; at `2026-07-28` `BASE-088`, `TRAN-141`, `TRAN-142`,
+  `VERS-009`. Three are judged: `BASE-086`/`BASE-088` ("Implementors are RECOMMENDED
+  to use JSON Schema 2020-12") by the new SHOULD check `base.schemas-use-2020-12`, and
+  `TRAN-141` ("These headers are REQUIRED for compliance") by
+  `transport.request-metadata-headers`. The registries grow to 153 and 314 entries.
+  No conforming corpus trace's verdict changes; the TypeScript SDK's conformance
+  server now reads *pass-with-warnings* at `2025-11-25`, because two of its tools
+  declare draft-07 input schemas.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.

@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 32,
+    "pass": 33,
     "fail": 1,
     "warn": 0,
-    "excluded": 165,
+    "excluded": 167,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 112
+    "not_observed": 113
   },
   "requirements": [
     {
@@ -102,6 +102,11 @@
         "quote": "Schemas MUST be valid according to their declared or default dialect",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#schema-validation"
       }
+    },
+    {
+      "id": "BASE-088",
+      "level": "SHOULD",
+      "outcome": "pass"
     },
     {
       "id": "BASE-026",
@@ -285,6 +290,11 @@
     },
     {
       "id": "TRAN-137",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-141",
       "level": "MUST",
       "outcome": "not-observed"
     },

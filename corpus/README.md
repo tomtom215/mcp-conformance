@@ -49,9 +49,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 69 | 146 |
-| Excluded rows the ledger holds | 85 | 165 |
-| Distinct not-observed sets across them | 39 | 111 |
+| Goldens | 70 | 148 |
+| Excluded rows the ledger holds | 95 | 167 |
+| Distinct not-observed sets across them | 39 | 112 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -191,6 +191,7 @@ example).
 | `tran-029-error-without-content-type.jsonl` | TRAN-029 (a `tools/list` request answered `500` with a JSON-RPC error and no `Content-Type`). The clause names no status; until 2026-10-13 only success statuses were judged, and the calibration against mcpsnoop (`book/src/mcpsnoop.md`) found the gap. Added 2026-10-13 |
 | `tran-040-get-answered-json.jsonl` | TRAN-040 (a standalone-stream GET answered `200` with `application/json` rather than `text/event-stream` or `405`) |
 | `base-017-input-schema-invalid.jsonl` | BASE-017 (a tool `inputSchema` whose property declares `"type": "text"`, not a JSON Schema type — invalid in 2020-12, the default dialect) |
+| `base-086-input-schema-draft-07.jsonl` | BASE-086, a warning (a tool `inputSchema` declaring `$schema` draft-07: valid in its dialect, so BASE-017 passes it, and permitted, but not the 2020-12 that "Implementors are RECOMMENDED to use") |
 | `tool-011-structured-content-not-conforming.jsonl` | TOOL-011 (`structuredContent` of the right shape, an object, whose `temperature` is the string `"warm"` where the tool's `outputSchema` says `number` — passed until the check could apply the schema) |
 | `wire-schema-resource-missing-uri.jsonl` | Wire schema: a `resources/list` result whose resource has no `uri`, which `Resource` requires |
 | `wire-schema-log-level-not-in-enum.jsonl` | Wire schema: a `notifications/message` at level `chatty`, outside `LoggingLevel` |
@@ -210,7 +211,7 @@ two reports is attributable to that one change.
 | Server | `mcp-everything-server` on rmcp 3.4.1, serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode, same build |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-04 | same run, second leg |
 | Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
-| Our verdict | 65 pass, **1 fail**, 0 warn, 79 not observed, 165 excluded | **66 pass, 0 fail, 0 warn**, 79 not observed, 165 excluded |
+| Our verdict | 67 pass, **1 fail**, 0 warn, 79 not observed, 167 excluded | **68 pass, 0 fail, 0 warn**, 79 not observed, 167 excluded |
 | The official runner's verdict, that run | `38 passing / 4 failing` | `42 passing / 0 failing` |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
@@ -301,7 +302,7 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, a 16-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all four prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **89 pass, 0 fail, 0 warn**, 56 not observed, 165 excluded |
+| Our verdict | **90 pass, 0 fail, 0 warn**, 57 not observed, 167 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -352,7 +353,7 @@ captures). The remaining four are reachable and not yet driven:
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | 159 events — the stdio session's 85 messages plus 74 `http` events carrying status and headers |
-| Our verdict | **98 pass, 0 fail, 0 warn**, 47 not observed, 165 excluded |
+| Our verdict | **100 pass, 0 fail, 0 warn**, 47 not observed, 167 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -365,7 +366,7 @@ in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 98 of the 145 judgeable clauses it is the best-covered capture here. Its 47
+At 100 of the 147 judgeable clauses it is the best-covered capture here. Its 47
 not-observed rows include the server-rejection rules a conforming client never
 triggers, the pagination and `x-mcp-header` clauses this server's surface does
 not reach, and `TOOL-022` (rmcp's client caches `tools/list` under the
@@ -455,17 +456,17 @@ read as a specimen instead.
 <!-- draft-coverage:begin (generated by `cargo xtask draft-coverage`; do not edit by hand) -->
 | Capture | Judged | pass | fail | warn | Not observed |
 |---------|-------:|-----:|-----:|-----:|-------------:|
-| `official-suite-2026-07-28-scenarios` | 66 | 65 | 1 | 0 | 79 |
-| `official-suite-2026-07-28-stateless` | 66 | 66 | 0 | 0 | 79 |
-| `probe-2026-07-28-http` | 67 | 58 | 9 | 0 | 78 |
-| `reference-host-2026-07-28-http` | 98 | 98 | 0 | 0 | 47 |
-| `reference-host-2026-07-28-stdio` | 89 | 89 | 0 | 0 | 56 |
-| `sdk-go-2026-07-28` | 75 | 71 | 3 | 1 | 70 |
-| `sdk-python-2026-07-28` | 60 | 60 | 0 | 0 | 85 |
-| `sdk-rust-2026-07-28` | 69 | 69 | 0 | 0 | 76 |
-| **Union** | **125** | | | | **20** |
+| `official-suite-2026-07-28-scenarios` | 68 | 67 | 1 | 0 | 79 |
+| `official-suite-2026-07-28-stateless` | 68 | 68 | 0 | 0 | 79 |
+| `probe-2026-07-28-http` | 69 | 60 | 9 | 0 | 78 |
+| `reference-host-2026-07-28-http` | 100 | 100 | 0 | 0 | 47 |
+| `reference-host-2026-07-28-stdio` | 90 | 90 | 0 | 0 | 57 |
+| `sdk-go-2026-07-28` | 77 | 73 | 3 | 1 | 70 |
+| `sdk-python-2026-07-28` | 62 | 62 | 0 | 0 | 85 |
+| `sdk-rust-2026-07-28` | 71 | 71 | 0 | 0 | 76 |
+| **Union** | **127** | | | | **20** |
 
-Across all 8 captures, **125 of the 145 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 8 captures, **127 of the 147 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
 The 20 clauses no capture reaches: `CACH-015`, `CACH-016`, `CANC-003`, `CANC-011`, `DISC-002`, `MRTR-024`, `PROM-017`, `TOOL-034`, `TRAN-061`, `TRAN-070`, `TRAN-079`, `TRAN-081`, `TRAN-096`, `TRAN-128`, `TRAN-130`, `TRAN-132`, `TRAN-133`, `TRAN-134`, `TRAN-135`, `TRAN-136`.
 <!-- draft-coverage:end -->
@@ -705,6 +706,8 @@ it is named for.
 | `vers-002-retry-with-unsupported-version.jsonl` | After a `-32022` offering `2026-07-28`, the client retries with `1899-01-01` — a version the list it was just handed does not contain (VERS-002) |
 | `vers-004-extension-identifier-without-prefix.jsonl` | Client capabilities advertise the extension `ui`: a valid `_meta` key, but extension identifiers require the prefix a `_meta` key may omit (VERS-004) |
 | `base-073-input-schema-invalid.jsonl` | BASE-073 (the same invalid `inputSchema`, at this revision) |
+| `base-088-input-schema-draft-07.jsonl` | BASE-088, a warning (the same valid draft-07 `inputSchema` as `base-086-…`, at this revision) |
+| `tran-141-mcp-name-header-missing.jsonl` | A `tools/call` POST carrying `Mcp-Method` but not `Mcp-Name`, which the Standard Request Headers table requires for `tools/call` ("These headers are REQUIRED for compliance", TRAN-141; TRAN-058 shares the check) |
 | `tool-045-x-mcp-header-in-defs.jsonl` | TOOL-045 (an `x-mcp-header` annotation on a `$defs` entry the property reaches by `$ref`; TRAN-137 and TRAN-082, the transport page's statements of the same rule, share the check) |
 | `tran-082-x-mcp-header-under-any-of.jsonl` | TRAN-082 (the annotation inside an `anyOf` branch, a composition keyword the chain must not pass through; TRAN-137 and TOOL-045 share the check) |
 | `tran-137-x-mcp-header-under-items.jsonl` | TRAN-137 (the annotation on an array's `items` schema, not a property reachable by `properties` keys alone; TRAN-082 and TOOL-045 share the check) |

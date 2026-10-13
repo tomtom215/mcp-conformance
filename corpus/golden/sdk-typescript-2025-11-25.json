@@ -1,11 +1,11 @@
 {
   "revision": "2025-11-25",
-  "verdict": "pass",
+  "verdict": "pass-with-warnings",
   "totals": {
     "pass": 39,
     "fail": 0,
-    "warn": 0,
-    "excluded": 85,
+    "warn": 1,
+    "excluded": 95,
     "unsupported": 0,
     "not_applicable": 0,
     "not_observed": 18
@@ -75,6 +75,58 @@
       "id": "BASE-020",
       "level": "MUST",
       "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-086",
+      "level": "SHOULD",
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "base.schemas-use-2020-12",
+          "seq": 12,
+          "detail": "the server sent tool \"test_tool_with_logging\"'s inputSchema declaring `$schema` \"http://json-schema.org/draft-07/schema#\"; JSON Schema 2020-12 (https://json-schema.org/draft/2020-12/schema) is the recommended dialect"
+        },
+        {
+          "check": "base.schemas-use-2020-12",
+          "seq": 12,
+          "detail": "the server sent tool \"test_tool_with_progress\"'s inputSchema declaring `$schema` \"http://json-schema.org/draft-07/schema#\"; JSON Schema 2020-12 (https://json-schema.org/draft/2020-12/schema) is the recommended dialect"
+        },
+        {
+          "check": "base.schemas-use-2020-12",
+          "seq": 12,
+          "detail": "the server sent tool \"test_reconnection\"'s inputSchema declaring `$schema` \"http://json-schema.org/draft-07/schema#\"; JSON Schema 2020-12 (https://json-schema.org/draft/2020-12/schema) is the recommended dialect"
+        },
+        {
+          "check": "base.schemas-use-2020-12",
+          "seq": 12,
+          "detail": "the server sent tool \"test_sampling\"'s inputSchema declaring `$schema` \"http://json-schema.org/draft-07/schema#\"; JSON Schema 2020-12 (https://json-schema.org/draft/2020-12/schema) is the recommended dialect"
+        },
+        {
+          "check": "base.schemas-use-2020-12",
+          "seq": 12,
+          "detail": "the server sent tool \"test_elicitation\"'s inputSchema declaring `$schema` \"http://json-schema.org/draft-07/schema#\"; JSON Schema 2020-12 (https://json-schema.org/draft/2020-12/schema) is the recommended dialect"
+        },
+        {
+          "check": "base.schemas-use-2020-12",
+          "seq": 12,
+          "detail": "the server sent tool \"test_elicitation_sep1034_defaults\"'s inputSchema declaring `$schema` \"http://json-schema.org/draft-07/schema#\"; JSON Schema 2020-12 (https://json-schema.org/draft/2020-12/schema) is the recommended dialect"
+        },
+        {
+          "check": "base.schemas-use-2020-12",
+          "seq": 12,
+          "detail": "the server sent tool \"test_elicitation_sep1330_enums\"'s inputSchema declaring `$schema` \"http://json-schema.org/draft-07/schema#\"; JSON Schema 2020-12 (https://json-schema.org/draft/2020-12/schema) is the recommended dialect"
+        },
+        {
+          "check": "base.schemas-use-2020-12",
+          "seq": 12,
+          "detail": "the server sent tool \"json_schema_2020_12_tool\"'s inputSchema declaring `$schema` \"http://json-schema.org/draft-07/schema#\"; JSON Schema 2020-12 (https://json-schema.org/draft/2020-12/schema) is the recommended dialect"
+        }
+      ],
+      "source": {
+        "section": "basic#schema-dialect",
+        "quote": "Implementors are RECOMMENDED to use JSON Schema 2020-12.",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#schema-dialect"
+      }
     },
     {
       "id": "LIFE-001",

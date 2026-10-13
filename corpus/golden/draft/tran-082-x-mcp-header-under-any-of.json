@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 32,
+    "pass": 33,
     "fail": 3,
     "warn": 0,
-    "excluded": 165,
+    "excluded": 167,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 110
+    "not_observed": 111
   },
   "requirements": [
     {
@@ -89,6 +89,11 @@
     {
       "id": "BASE-073",
       "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-088",
+      "level": "SHOULD",
       "outcome": "pass"
     },
     {
@@ -299,6 +304,11 @@
         "quote": "Constraints on `x-mcp-header` values: MUST only be applied to properties that are statically reachable from the schema root: reachable via a chain consisting solely of `properties` keys.",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension"
       }
+    },
+    {
+      "id": "TRAN-141",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-096",

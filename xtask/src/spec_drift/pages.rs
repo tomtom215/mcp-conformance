@@ -195,18 +195,24 @@ fn structure(revision: &str, sources: &Sources) -> Vec<String> {
                 "{revision}/{page}: `in_scope` names {file:?}, which is not this page's source"
             ));
         }
-        if !sources.must_census.contains_key(page) {
-            problems.push(format!(
-                "{revision}/{page}: in scope with no `must_census` entry; count its \
-                 MUST-family keywords"
-            ));
+        for (family, census) in sources.censuses() {
+            if !census.contains_key(page) {
+                problems.push(format!(
+                    "{revision}/{page}: in scope with no `{}` entry; count its {} keywords",
+                    family.field(),
+                    family.label()
+                ));
+            }
         }
     }
-    for page in sources.must_census.keys() {
-        if !sources.in_scope.contains_key(page) {
-            problems.push(format!(
-                "{revision}/{page}: has a `must_census` entry but is not in scope"
-            ));
+    for (family, census) in sources.censuses() {
+        for page in census.keys() {
+            if !sources.in_scope.contains_key(page) {
+                problems.push(format!(
+                    "{revision}/{page}: has a `{}` entry but is not in scope",
+                    family.field()
+                ));
+            }
         }
     }
     problems
