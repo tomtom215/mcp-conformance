@@ -24,11 +24,13 @@ use clap::Parser as _;
 mod args;
 mod bridge;
 mod judging;
+mod library_cmd;
 mod node;
 mod proxy;
 mod relay;
 mod render;
 mod run;
+mod workbench;
 
 const EXIT_OK: u8 = 0;
 const EXIT_FINDINGS: u8 = 1;
@@ -49,6 +51,15 @@ fn main() -> ExitCode {
     let code = match cli.command {
         args::Command::Test(args) => runtime.block_on(run::test(*args)),
         args::Command::ClientRelay { command } => runtime.block_on(relay::run(command)),
+        args::Command::Serve(serve) => {
+            runtime.block_on(workbench::server::run(workbench::server::Settings {
+                library: &serve.dir.library,
+                listen: serve.listen,
+                non_loopback: serve.dangerously_listen_non_loopback,
+                open: serve.open,
+            }))
+        }
+        args::Command::Library(library) => library_cmd::run(*library),
     };
     runtime.shutdown_background();
     ExitCode::from(code)

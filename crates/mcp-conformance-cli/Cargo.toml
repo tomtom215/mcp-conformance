@@ -32,6 +32,7 @@ cli = [
     "dep:axum",
     "dep:futures",
     "dep:mcp-trace-capture",
+    "dep:ring",
 ]
 
 [package.metadata.docs.rs]
@@ -55,6 +56,12 @@ axum = { workspace = true, optional = true }
 # The bridge's event streams (`Body::from_stream`). Already a direct
 # dependency of the recorder.
 futures = { version = ">=0.3.30, <0.4", optional = true }
+# The workbench (`serve`): its per-launch secrets from the operating system's
+# random source (`ring::rand::SystemRandom`) and each trace's SHA-256, the key
+# of its verdict cache. Already in this binary's tree as the TLS provider of
+# the recorder's `tls` feature (rustls's `ring`), at this version; no new
+# crate. The floor is the version rustls already requires.
+ring = { version = ">=0.17.14, <0.18", default-features = false, optional = true }
 
 [dev-dependencies]
 # The bridge's tests drive it over loopback; plain HTTP, no TLS features.

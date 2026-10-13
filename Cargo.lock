@@ -1169,6 +1169,7 @@ dependencies = [
  "mcp-trace-capture",
  "mcp-trace-validator",
  "reqwest",
+ "ring",
  "serde",
  "serde_json",
  "tokio",

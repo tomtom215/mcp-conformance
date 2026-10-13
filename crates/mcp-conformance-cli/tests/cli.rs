@@ -224,3 +224,6 @@ fn words_split_as_a_shell_would_here() {
     assert_eq!(words("  "), Vec::<String>::new());
     assert_eq!(words(r#"x """#), ["x", ""]);
 }
+
+#[path = "cli/library.rs"]
+mod library;

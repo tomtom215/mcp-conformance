@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright 2026 Tom F. (https://github.com/tomtom215) -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<title>MCP workbench</title>
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/report.css">
+<link rel="stylesheet" href="/assets/workbench.css">
+<script type="module" src="/assets/app.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar">
+  <div class="wrap bar-in">
+    <a class="brand" href="#/"><span class="brand-mark" aria-hidden="true"></span>MCP workbench</a>
+    <nav class="tabs" aria-label="Views">
+      <a href="#/" data-tab="library">Library</a>
+      <a href="#/dashboards" data-tab="dashboards">Dashboards</a>
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap" tabindex="-1">
+  <p class="lede">Loading the library…</p>
+  <noscript><p class="notice error">The workbench needs JavaScript; the HTML report (<code>--format html</code>) does not.</p></noscript>
+</main>
+<footer class="wrap foot">
+  <p>A local workbench: it reads and writes the library directory and sends nothing anywhere. Trace content is shown as text.</p>
+</footer>
+</body>
+</html>
