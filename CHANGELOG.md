@@ -61,6 +61,11 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **The register-currency and deferral gates accepted dates no calendar has.**
+  They checked a day of 1–31 whatever the month, so a `Verified` or review-by date
+  of `2026-02-30` passed (found by `falsify-gates`), and a sign was read as a digit
+  (`2026-+8-15`). Both now require digits and a day the month has, leap years
+  included.
 - **`the_client_url_redirects_and_404s_are_spelled_out` failed whenever the test's
   process id contained `404`**: it asserted no stderr line contained those digits,
   and the trace path in the startup line carries the process id. It now asserts

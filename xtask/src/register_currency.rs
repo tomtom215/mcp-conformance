@@ -87,22 +87,9 @@ fn first_date(text: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// `YYYY-MM-DD` shape with sane ranges — the same bar `deferrals` applies, for
-/// the same reason: this is reviewed prose, not hostile input.
+/// A `YYYY-MM-DD` date that exists — the bar `deferrals` applies.
 fn looks_like_iso_date(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    bytes.len() == 10
-        && bytes[4] == b'-'
-        && bytes[7] == b'-'
-        && text
-            .split('-')
-            .enumerate()
-            .all(|(index, part)| match (index, part.parse::<u32>()) {
-                (0, Ok(year)) => (2020..=9999).contains(&year),
-                (1, Ok(month)) => (1..=12).contains(&month),
-                (2, Ok(day)) => (1..=31).contains(&day),
-                _ => false,
-            })
+    crate::deferrals::valid_iso_date(text)
 }
 
 /// Days since 1970-01-01 for a `YYYY-MM-DD` that has already passed
