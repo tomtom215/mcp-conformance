@@ -50,6 +50,15 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **The GitHub Action writes its reports when the validator cannot start.** A
+  `traces` pattern matching nothing exited before any report was written, and a
+  lone unreadable or malformed trace left both files empty, so the
+  `upload-sarif` step the README pairs with it (`if: always()`) failed on a
+  missing or empty file and hid the real error. Each configured report is now a
+  SARIF run marked `executionSuccessful: false`, or a JUnit `<error>`, naming
+  the problem; the `exit-code` output is unchanged. `action.yml` now says that
+  exit `2` also covers output not written, and that `fail-on-findings: false`
+  stops exit `2` and `3` from failing the step too.
 - **`SUBS-001`/`SUBS-002` told a reused subscription id from the subscription
   that first carried it.** Both checks keyed subscriptions by id alone, so a
   `subscriptions/listen` reusing the id of a closed subscription replaced it:

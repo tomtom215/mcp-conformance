@@ -21,13 +21,23 @@ StdioServerParameters(
 
 For an HTTP server, start the proxy before the tests and stop it after:
 
-```text
-mcp-trace-capture -o 'traces/http-{session}.jsonl' http --upstream http://127.0.0.1:3000 &
+```bash
+mcp-trace-capture -o 'traces/http-{session}.jsonl' http --upstream http://127.0.0.1:3000 \
+  2> proxy.log &
 proxy=$!
+# Wait until the proxy is listening; stop if it exited instead (proxy.log says why).
+until grep -q 'listening on' proxy.log; do
+  kill -0 "$proxy" 2> /dev/null || { cat proxy.log; exit 1; }
+  sleep 0.2
+done
 npm test          # with the client pointed at http://127.0.0.1:8080/mcp
-kill -INT $proxy
-wait $proxy
+kill -INT "$proxy"
+wait "$proxy"
 ```
+
+The proxy prints its `listening on` line only once its port is bound, so waiting for
+it — rather than probing the port with a request, which the proxy would forward and
+record — keeps the first test from racing the proxy's start.
 
 `{session}` gives each test session its own numbered trace: each launch of the stdio
 wrapper, and each client session through the proxy (the `traces/` directory must
@@ -84,4 +94,10 @@ SARIF run with each result in its own trace file.
 
 A trace that cannot be judged — empty, malformed, or of a revision this build does not
 know — exits `2` or `3`, never `0`: a broken recording step fails the build rather
-than passing it.
+than passing it. `fail-on-findings: false` gives that up as well: the action's step
+then succeeds whatever the exit status, `2` and `3` included, so a step that relies on
+it should read the action's `exit-code` output and fail on `2` and `3` itself. When the
+validator cannot start at all — a `traces` pattern matching nothing, or a lone trace it
+cannot read — the action still writes both reports, as a SARIF run marked
+`executionSuccessful: false` and a JUnit `<error>`, so an `if: always()` upload step
+finds a valid file.

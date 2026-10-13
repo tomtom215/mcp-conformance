@@ -59,7 +59,10 @@ inputs:
     required: false
     default: mcp-conformance-junit.xml
   fail-on-findings:
-    description: Fail the step when the run's exit status is not 0.
+    description: >-
+      Fail the step when the run's exit status is not 0. `false` never fails
+      it, including for exit 2 and 3 (nothing judged, a malformed trace); read
+      the `exit-code` output to tell those from findings.
     required: false
     default: "true"
 
@@ -67,10 +70,13 @@ outputs:
   exit-code:
     description: >-
       The validator's exit status: 0 pass, 1 a clause failed (or warned, with
-      strict), 2 bad invocation or nothing judgeable, 3 a malformed trace.
+      strict), 2 bad invocation (a `traces` pattern matching nothing included)
+      or nothing judgeable or output not written, 3 a malformed trace.
     value: ${{ steps.validate.outputs.exit-code }}
   sarif-file:
-    description: The SARIF log written, if any.
+    description: >-
+      The SARIF log written, if any. It is written even when the validator
+      could not start, as a run marked `executionSuccessful: false`.
     value: ${{ inputs.sarif-file }}
   junit-file:
     description: The JUnit report written, if any.
@@ -102,5 +108,5 @@ runs:
       env:
         CODE: ${{ steps.validate.outputs.exit-code }}
       run: |
-        echo "::error::mcp-trace-validator exited ${CODE} (1: a clause failed; 2: bad invocation or nothing judgeable; 3: a malformed trace)"
+        echo "::error::mcp-trace-validator exited ${CODE} (1: a clause failed; 2: bad invocation, nothing judgeable, or output not written; 3: a malformed trace)"
         exit 1
