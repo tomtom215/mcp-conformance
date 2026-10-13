@@ -24,9 +24,12 @@
 //!   ([`prompts`]), completions, and logging-level filtering ([`logging`]) —
 //!   plus `get-structured-content`, the TypeScript everything server's
 //!   structured-output tool (`outputSchema` + `structuredContent`), which
-//!   the suite does not exercise but the spec defines. The crate README
-//!   records the one deliberate TypeScript-surface delta (async sampling,
-//!   which `2025-11-25` does not define) and why.
+//!   the suite does not exercise but the spec defines. Every listing is
+//!   served in two pages ([`pagination`]): the suite's catalogue first, then
+//!   icons, annotations, `resource_link` content, an audio prompt and
+//!   `x-mcp-header` designations behind a `nextCursor`. The crate README
+//!   records the one deliberate TypeScript-surface delta (async sampling —
+//!   tasks, which `2026-07-28` moves to an extension) and why.
 //! - The session trace tap (module `tap`, feature `tap`): each admitted HTTP
 //!   session recorded as a validator-ready JSON Lines trace, capturing only
 //!   the headers in its public `RECORDED_HEADERS` allowlist.
@@ -39,6 +42,7 @@ pub mod http;
 pub mod interactive;
 pub mod logging;
 pub mod notifying;
+pub mod pagination;
 pub mod policy;
 
 /// Prefix of the one readiness line the HTTP binary prints to stderr.

@@ -6,14 +6,15 @@
 //! The suite's `prompts-*` scenarios name four prompts and their exact
 //! message shapes; each handler documents the scenario it satisfies. The
 //! doc comment on each `#[prompt]` method doubles as the prompt's listed
-//! description (the scenarios require one).
+//! description (the scenarios require one). Those four are `prompts/list`'s
+//! first page; the second carries [`AUDIO_PROMPT`] ([`crate::pagination`]).
 
 use rmcp::handler::server::wrapper::Parameters;
-use rmcp::model::{PromptMessage, Role};
+use rmcp::model::{AudioContent, ContentBlock, Prompt, PromptMessage, Role};
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, prompt, prompt_router};
 
-use crate::fixtures::TINY_PNG_BASE64;
+use crate::fixtures::{TINY_PNG_BASE64, TINY_WAV_BASE64};
 use crate::server::EverythingServer;
 
 /// Arguments of `test_prompt_with_arguments`.
@@ -108,4 +109,39 @@ impl EverythingServer {
             PromptMessage::new_text(Role::User, "Please analyze the image above."),
         ])
     }
+
+    // Not a suite fixture: it is listed on `prompts/list`'s second page, and it
+    // exists because audio is the one content type a prompt may carry that no
+    // other prompt here does — so without it the clause binding audio in
+    // prompts (`PROM-017`: base64 data, a valid MIME type) has no traffic to
+    // judge. The content is annotated, and the prompt carries a title and
+    // icons, so the listing exercises those fields too. The description is
+    // given explicitly because the macro would otherwise join every doc line.
+    #[prompt(
+        name = "test_prompt_with_audio",
+        description = "A prompt carrying audio content",
+        title = "Prompt with audio",
+        icons = crate::fixtures::icons()
+    )]
+    async fn test_prompt_with_audio(&self) -> Result<Vec<PromptMessage>, ErrorData> {
+        Ok(vec![
+            PromptMessage::new(
+                Role::User,
+                ContentBlock::Audio(
+                    AudioContent::new(TINY_WAV_BASE64, "audio/wav")
+                        .with_annotations(crate::fixtures::annotations()),
+                ),
+            ),
+            PromptMessage::new_text(Role::User, "Please transcribe the audio above."),
+        ])
+    }
 }
+
+/// Which page of `prompts/list` a prompt is listed on.
+#[must_use]
+pub fn page_of(prompt: &Prompt) -> usize {
+    usize::from(prompt.name == AUDIO_PROMPT)
+}
+
+/// The prompt listed on `prompts/list`'s second page.
+pub const AUDIO_PROMPT: &str = "test_prompt_with_audio";

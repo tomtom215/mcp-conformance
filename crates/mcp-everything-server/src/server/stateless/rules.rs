@@ -36,16 +36,10 @@ use serde_json::Value;
 #[cfg(test)]
 mod tests;
 
+use crate::pagination::Listing;
+
 /// The `_meta` key a request asks for log messages with.
 pub(crate) const LOG_LEVEL: &str = "io.modelcontextprotocol/logLevel";
-
-/// The list operations that accept a `cursor`.
-const PAGINATED: &[&str] = &[
-    "tools/list",
-    "prompts/list",
-    "resources/list",
-    "resources/templates/list",
-];
 
 /// The fault in one request's JSON, if any.
 ///
@@ -88,24 +82,26 @@ fn log_level_fault(asked: Option<&Value>) -> Option<McpError> {
 
 /// `PAGE-011`: a cursor this server never issued draws `-32602`.
 ///
-/// This server issues none: every catalogue it serves fits in one page, so no
-/// result of its own has ever carried a `nextCursor`. That makes *any* cursor
-/// presented to it one it did not issue — fabricated, modified, or carried
-/// over from another server — which is what the clause forbids honouring. A
-/// server that paginated would compare against what it had issued; this one
-/// can answer from the stronger fact that it issued nothing.
+/// What "issued" means is [`Listing::requested_page`]'s to say — the cursors
+/// are stateless constants of the binary ([`crate::pagination`]), so the same
+/// membership test answers here, before dispatch, and in the handler, which
+/// enforces it at `2025-11-25` where this module is skipped. A cursor that is
+/// not even a string was issued by nobody, and is refused the same way.
 ///
 /// Scoped to the four list operations because they are the only requests a
 /// `cursor` means anything on. A `cursor` member on a `tools/call` is an
 /// argument named "cursor", not a pagination token, and rejecting it would be
 /// this server inventing a rule.
 fn cursor_fault(method: &str, cursor: Option<&Value>) -> Option<McpError> {
-    if !PAGINATED.contains(&method) {
-        return None;
-    }
+    let listing = Listing::of_method(method)?;
     let cursor = cursor?;
-    Some(McpError::invalid_params(
-        format!("cursor {cursor} was not issued by this server, which paginates nothing"),
-        Some(serde_json::json!({ "cursor": cursor })),
-    ))
+    cursor.as_str().map_or_else(
+        || {
+            Some(McpError::invalid_params(
+                format!("cursor {cursor} is not a string, so this server never issued it"),
+                Some(serde_json::json!({ "cursor": cursor })),
+            ))
+        },
+        |token| listing.requested_page(Some(token)).err(),
+    )
 }

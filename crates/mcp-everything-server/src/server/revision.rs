@@ -81,7 +81,10 @@ impl ServedRevision {
                  Tools include echo, add, and the suite's test_* contract; \
                  resources test://static-text, test://static-binary, and the \
                  test://template/{id}/data template; four test_* prompts; \
-                 logging/setLevel; completion/complete."
+                 logging/setLevel; completion/complete. That is the first page \
+                 of each listing; follow nextCursor for the second, which adds \
+                 icons, annotations, a resource_link tool, x-mcp-header \
+                 parameters and an audio prompt."
             }
             Self::V2026_07_28 => {
                 "Reference server for MCP conformance testing, serving the \
@@ -90,8 +93,11 @@ impl ServedRevision {
                  for capabilities. Tools include echo, add, and the suite's \
                  test_* contract; resources test://static-text, \
                  test://static-binary, and the test://template/{id}/data \
-                 template; four test_* prompts; completion/complete. Log level \
-                 rides each request's _meta at this revision; there is no \
+                 template; four test_* prompts; completion/complete. That is the \
+                 first page of each listing; follow nextCursor for the second, \
+                 which adds icons, annotations, a resource_link tool, \
+                 x-mcp-header parameters and an audio prompt. Log level rides \
+                 each request's _meta at this revision; there is no \
                  logging/setLevel."
             }
         }
@@ -187,6 +193,15 @@ mod tests {
             stateless.contains("server/discover"),
             "and it names the probe that replaced the handshake"
         );
+    }
+
+    #[test]
+    fn the_instructions_say_the_listings_have_a_second_page() {
+        // A client reading one page would otherwise take the suite's catalogue
+        // for the whole surface.
+        for revision in [ServedRevision::V2025_11_25, ServedRevision::V2026_07_28] {
+            assert!(revision.instructions().contains("follow nextCursor"));
+        }
     }
 
     #[test]

@@ -61,9 +61,23 @@ is almost certainly the client's.
   `structuredContent`), which the suite does not exercise but the spec
   defines.
 
-  One TypeScript-server feature is a deliberate delta at this revision, not
-  an omission: **async sampling** (the tasks pattern, which `2025-11-25` does
-  not define — SEP-2663 moves tasks to an extension in `2026-07-28`).
+  **Every listing is paginated**, and the split is deliberate: the first page
+  of `tools/list`, `prompts/list`, `resources/list` and
+  `resources/templates/list` is exactly the catalogue the suite's scenarios
+  name, and a `nextCursor` leads to a second page carrying what they do not —
+  `test_resource_link` (a `resource_link` result beside annotated text, listed
+  with tool annotations and icons), `test_parameter_headers` (three arguments
+  designated for `Mcp-Param-*` mirroring with `x-mcp-header`), an audio prompt,
+  and a resource and a template with titles, icons and annotations. The server
+  names itself with an icon too. Cursors are stateless — the catalogues are
+  constants, so "did this server issue it?" is a membership test any instance
+  can answer — and one it never issued draws `-32602` at both revisions.
+
+  One TypeScript-server feature is a deliberate delta, not an omission:
+  **async sampling** (the tasks pattern). `2025-11-25` defines tasks on a page
+  this repository's registry keeps out of scope, and SEP-2663 moves them to an
+  extension in `2026-07-28`, so they belong with the extensions work rather
+  than with this core surface.
   **URL-mode elicitation** closed when the reference host landed its
   URL-capable handler: `test_url_elicitation` sends a `mode: "url"`
   `elicitation/create` (only to a client that declared `elicitation.url`; a
