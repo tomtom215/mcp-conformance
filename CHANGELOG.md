@@ -507,6 +507,21 @@ below is stated again in its entry, with the reasoning.
   scenarios, the client leg and both draft-readiness legs agree with no divergences;
   neither side flagged a message, so the comparison is so far proven by its unit
   tests rather than by a real disagreement.
+- **A container image**, `ghcr.io/tomtom215/mcp-conformance:<version>`, carrying
+  `mcp-trace-validator` and `mcp-trace-capture`: built from the locked workspace with
+  the pinned toolchain and `cargo auditable`, on distroless (non-root, no shell),
+  linux/amd64. `release.yml` publishes it on release tags with build provenance for
+  its digest (`gh attestation verify oci://ghcr.io/tomtom215/mcp-conformance:<version>
+  -R tomtom215/mcp-conformance`); CI builds and runs it on every push.
+- **The GitHub Action can record the sessions it judges.** `capture: stdio` runs
+  `server` under `mcp-trace-capture` for the `client` command, which launches
+  `$MCP_SERVER_COMMAND`; `capture: http` puts the recording proxy in front of
+  `upstream` and gives the client `$MCP_PROXY_URL`, optionally starting and stopping
+  `server`. Every recorded session is judged, with SARIF and JUnit as before; a
+  failing client fails the step after its sessions are reported (`client-exit-code`).
+  `traces` is now optional; existing inputs are unchanged.
+- **`cargo xtask toolchain-pin` also checks the `Dockerfile`** builds on the pinned
+  toolchain's `rust` image.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.
