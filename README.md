@@ -33,7 +33,10 @@ Pre-1.0: the API and the verdicts may change between minor releases, and the
 > - the `2026-07-28` registry rows added since, so the example totals and the
 >   coverage table below are `main`'s, not `0.6.0`'s;
 > - the wire schema — every message validated against its revision's JSON Schema —
->   and the five clauses it made judgeable.
+>   and the five clauses it made judgeable;
+> - the container image (`ghcr.io/tomtom215/mcp-conformance`, first published by
+>   the next release) and the GitHub Action's `capture` input, which records the
+>   sessions it then judges.
 
 ## Quickstart
 
@@ -91,9 +94,30 @@ step, then
     sarif_file: mcp-conformance.sarif
 ```
 
+Or let the action record them: with `capture: stdio` (or `http`), it runs your
+`client` command against your `server` through `mcp-trace-capture`, then judges
+every session recorded:
+
+```yaml
+- uses: tomtom215/mcp-conformance@<commit or tag>
+  with:
+    capture: stdio
+    server: python my_server.py
+    client: python my_client.py --server-cmd "$MCP_SERVER_COMMAND"
+```
+
 [`action.yml`](action.yml) lists the inputs (`revision`, `strict`, a released `version`
-to download instead of building) and outputs; the `action` job in
-[CI](.github/workflows/ci.yml) runs it on every push.
+to download instead of building, the capture inputs) and outputs; the `action` job in
+[CI](.github/workflows/ci.yml) runs it on every push, recording sessions over both
+transports. The book's [CI chapter](book/src/ci.md#github-actions) has the details.
+
+Both CLIs also ship as a container image, from the release that follows `0.6.0` on
+([`Dockerfile`](Dockerfile); distroless, non-root, no shell; linux/amd64):
+
+```text
+docker run --rm -v "$PWD:/work" ghcr.io/tomtom215/mcp-conformance:<version> \
+  mcp-trace-validator validate session.jsonl
+```
 
 ## See it work
 

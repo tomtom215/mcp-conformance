@@ -45,6 +45,8 @@ happens. Pin it:
 - the GitHub Action at a tag or commit (`uses: tomtom215/mcp-conformance@v0.6.0`),
   or with `version: 0.6.0` to download that release's prebuilt binaries rather than
   build from the action's source;
+- the container image by version or, stricter, by digest
+  (`ghcr.io/tomtom215/mcp-conformance:X.Y.Z@sha256:…`), for releases after `0.6.0`;
 - `mcp-trace-validator = "=0.6.0"` for the library.
 
 `mcp-trace-validator --version` names the build that judged a report; on `main`

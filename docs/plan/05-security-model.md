@@ -54,17 +54,27 @@ occasionally attached to it belongs to a different package's advisory
 
 No workflow grants a write scope at workflow level: every `permissions:` block
 at the top of a file is `{}` or `contents: read`. Write scopes exist only on
-individual jobs, and this is the complete list — six jobs across three
+individual jobs, and this is the complete list — seven jobs across three
 workflows, each scope with an inline comment in the YAML naming what it writes.
 
 | Workflow (triggers) | Job | Write scope | For |
 |---|---|---|---|
 | `release.yml` (`push` tags, `workflow_dispatch`) | `package` | `id-token`, `attestations` | Sigstore OIDC + build-provenance attestation of the `.crate` files, and an SBOM attestation binding each to its CycloneDX SBOM |
 | `release.yml` | `binaries` | `id-token`, `attestations` | Sigstore OIDC + build-provenance attestation of each prebuilt archive |
+| `release.yml` | `image` | `packages`, `id-token`, `attestations` | push the container image to `ghcr.io/tomtom215/mcp-conformance` (tag runs only; a rehearsal builds and runs it and pushes nothing), and Sigstore OIDC + build-provenance attestation of its digest, pushed to the registry beside it |
 | `release.yml` | `github-release` | `contents` | create the release, upload `.crate` + `SHA256SUMS`, the SBOMs + `SHA256SUMS-sbom`, the binary archives + `SHA256SUMS-binaries` |
 | `release.yml` | `publish` | `id-token` | crates.io Trusted Publishing (no long-lived token exists to steal) |
 | `pages.yml` (`push` to the default branch, a completed `Release` run via `workflow_run`, `workflow_dispatch`) | `deploy` | `pages`, `id-token` | deploy the versioned book, built by the unprivileged `build` job; `deploy` checks out and compiles nothing |
 | `scheduled.yml` (`schedule`, `workflow_dispatch`) | `claims-expire` | `issues` | open, comment on, and close the tracking issue a red claims-expiry run files ([ADR-0010 §Amendment](decisions/0010-deferral-ledger-and-scheduled-reverification.md)) |
+
+The `image` job compiles while it holds `packages: write`: the Docker build
+runs every dependency's build script, as `package` and `binaries` do under
+their `id-token` grants. What bounds it is what bounds those — `Cargo.lock`
+with `--locked`, the base images pinned by digest, no restored cache, a tag
+pushed only after `verify` (cargo-deny included) and `tests` pass — and
+GitHub documents the `GITHUB_TOKEN`'s package access as the packages
+associated with the workflow's own repository. `publish` remains the one job
+that compiles nothing, because its grant is the one that reaches crates.io.
 
 `ci.yml` and `mutants.yml` — the only two workflows that run on
 `pull_request`, and so the only two that ever execute contributor-authored

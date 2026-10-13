@@ -20,7 +20,8 @@
 //!   the environment, and the MSRV matrices name their version in `matrix`,
 //!   which cannot read `env`. So the number is written out there and checked
 //!   here, exactly as `local_gates`' `MSRV` is checked against the manifest. It also fails on a workflow that installs bare `stable` inside
-//!   the workspace, which is the shape the pin exists to remove.
+//!   the workspace, which is the shape the pin exists to remove, and on a
+//!   `Dockerfile` whose builder is not the pinned version's `rust` image.
 //!
 //! - `toolchain-currency` is network and runs weekly beside the suite pins
 //!   ([ADR-0010](../../docs/plan/decisions/0010-deferral-ledger-and-scheduled-reverification.md)).
@@ -53,6 +54,9 @@ const GOVERNED: [&str; 5] = [
     ".github/workflows/pages.yml",
     ".github/workflows/release.yml",
 ];
+
+/// The container image's build file, whose builder stage is governed too.
+const DOCKERFILE: &str = "Dockerfile";
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -113,10 +117,17 @@ pub(crate) fn pin_gate() -> bool {
         };
         named += audit(workflow, &text, &pinned, &mut problems);
     }
+    match std::fs::read_to_string(root.join(DOCKERFILE)) {
+        Ok(text) => audit_dockerfile(&text, &pinned, &mut problems),
+        Err(error) => problems.push(format!(
+            "cannot read {DOCKERFILE}: {error}; its builder image cannot be checked"
+        )),
+    }
     if problems.is_empty() {
         eprintln!(
             "xtask: toolchain-pin — rust-toolchain.toml pins {pinned}; {named} workflow \
-             matrix entrie(s) name it and no governed workflow installs bare `stable`"
+             matrix entrie(s) name it, no governed workflow installs bare `stable`, and \
+             the {DOCKERFILE} builds on `rust:{pinned}`"
         );
         true
     } else {
@@ -164,6 +175,57 @@ fn audit(workflow: &str, text: &str, pinned: &str, problems: &mut Vec<String>) -
         }
     }
     named
+}
+
+/// The container image's builder must be the pinned toolchain's own image.
+///
+/// rustup inside the image build honours `rust-toolchain.toml` whatever the
+/// image ships, so a stale tag would not change the compiler — it would make
+/// every image build download the pinned toolchain beside the image's own, an
+/// input fetched by name rather than held by the base image's digest. A `rust`
+/// image whose tag names no `X.Y.Z` (`rust:slim`) is reported for the same
+/// reason, and at least one `FROM` must name the image at all: a builder moved
+/// to some other image would otherwise pass by saying nothing.
+fn audit_dockerfile(text: &str, pinned: &str, problems: &mut Vec<String>) {
+    let mut named = 0_u32;
+    for (number, line) in text.lines().enumerate() {
+        let mut words = line.split_whitespace();
+        if !words
+            .next()
+            .is_some_and(|word| word.eq_ignore_ascii_case("FROM"))
+        {
+            continue;
+        }
+        let Some(image) = words.find(|word| !word.starts_with("--")) else {
+            continue;
+        };
+        let Some(tag) = rust_tag(image) else {
+            continue;
+        };
+        named += 1;
+        let version = tag.split(['-', '@']).next().unwrap_or_default();
+        if version != pinned {
+            problems.push(format!(
+                "{DOCKERFILE}:{} builds on `rust:{tag}`, rust-toolchain.toml pins {pinned} \
+                 (use `rust:{pinned}-…@sha256:…`, the digest of that tag)",
+                number + 1
+            ));
+        }
+    }
+    if named == 0 {
+        problems.push(format!(
+            "{DOCKERFILE} has no `FROM` naming a tagged `rust` image; the builder must be \
+             the pinned toolchain's"
+        ));
+    }
+}
+
+/// The tag of a `rust` image reference (`docker.io/library/rust:1.99.0-slim@…`
+/// gives `1.99.0-slim@…`), or `None` for any other image and for a reference
+/// with no tag.
+fn rust_tag(image: &str) -> Option<&str> {
+    let (name, tag) = image.split_once(':')?;
+    (name.rsplit('/').next() == Some("rust")).then_some(tag)
 }
 
 /// The `X.Y.Z` entries of a `rust:` / `toolchain:` matrix line.
@@ -293,6 +355,39 @@ mod tests {
         // The gate, run against the real tree: the assertion that would have
         // caught a workflow gating on a compiler the pin does not name.
         assert!(pin_gate(), "see the report above");
+    }
+
+    #[test]
+    fn the_dockerfile_builder_must_be_the_pinned_rust_image() {
+        let mut problems = Vec::new();
+        audit_dockerfile(
+            "# FROM rust:1.0.0 in a comment is not a stage\n\
+             FROM docker.io/library/rust:1.98.0-slim-trixie@sha256:00 AS build\n\
+             FROM gcr.io/distroless/cc-debian13:nonroot@sha256:00\n",
+            "1.98.0",
+            &mut problems,
+        );
+        assert!(problems.is_empty(), "{problems:?}");
+
+        audit_dockerfile(
+            "FROM --platform=linux/amd64 rust:1.97.0-slim AS build\n",
+            "1.98.0",
+            &mut problems,
+        );
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].contains("rust:1.97.0-slim"), "{problems:?}");
+
+        // A floating tag names no version.
+        problems.clear();
+        audit_dockerfile("FROM rust:slim AS build\n", "1.98.0", &mut problems);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].contains("rust:slim"), "{problems:?}");
+
+        // A bare digest, or another image entirely, names no rust builder.
+        problems.clear();
+        audit_dockerfile("FROM rust@sha256:00 AS build\n", "1.98.0", &mut problems);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].contains("no `FROM`"), "{problems:?}");
     }
 
     #[test]
