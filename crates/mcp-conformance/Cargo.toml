@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+[package]
+name = "mcp-conformance"
+description = "Run the official Model Context Protocol conformance suite against a server or client through a recording tap, and report the suite's checks beside a clause-by-clause verdict of the same traffic"
+readme = "README.md"
+documentation = "https://docs.rs/mcp-conformance"
+keywords = ["mcp", "conformance", "testing", "protocol", "validator"]
+categories = ["development-tools::testing", "command-line-utilities"]
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+# Not published yet: ADR-0003 keeps the bare name `mcp-conformance` off crates.io,
+# because the official Rust SDK names its own internal conformance package that,
+# until a superseding ADR decides otherwise (ADR-0021, "The crate's name").
+publish = false
+
+[features]
+# The library is the agreement policy and the suite pin, which `cargo xtask
+# conformance` shares: serde-family and the validator only. The binary — the
+# recorder, the stdio bridge, the process orchestration and the CLI — needs the
+# rest (docs/plan/decisions/0005-cli-argument-parsing.md, 0021).
+default = ["cli"]
+cli = [
+    "dep:clap",
+    "dep:tokio",
+    "dep:axum",
+    "dep:futures",
+    "dep:mcp-trace-capture",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
+
+[dependencies]
+mcp-conformance-core = { workspace = true }
+mcp-trace-validator = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true, optional = true }
+# The recorder, in process: the HTTP proxy for `--url` and for a client under
+# test, the stdio relay behind the bridge for `--command`. `tls` for `https://`
+# servers.
+mcp-trace-capture = { workspace = true, features = ["tls"], optional = true }
+tokio = { workspace = true, optional = true, features = ["rt-multi-thread", "macros", "process", "io-util", "net", "sync", "time"] }
+# The stdio bridge's HTTP listener. Already in the tree for the recorder and
+# the everything server.
+axum = { workspace = true, optional = true }
+# The bridge's event streams (`Body::from_stream`). Already a direct
+# dependency of the recorder.
+futures = { version = ">=0.3.30, <0.4", optional = true }
+
+[dev-dependencies]
+# The bridge's tests drive it over loopback; plain HTTP, no TLS features.
+reqwest = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+
+[[bin]]
+name = "mcp-conformance"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[lints]
+workspace = true

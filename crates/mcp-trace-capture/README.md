@@ -36,6 +36,9 @@ cargo install mcp-trace-capture mcp-trace-validator
 >   a 10-second upstream connect timeout, `Content-Length` kept, dot-segment paths
 >   refused, redirects pointed at the proxy's own address, and unseen session ids
 >   sharing one trace until the server accepts one.
+> - in the library, `stdio::relay` (the stdio wrapper with the client on streams the
+>   caller supplies) and `Signals::requested` (stops a program asks for, not the
+>   operating system) — what `mcp-conformance test` runs a stdio server with.
 
 ## stdio servers
 

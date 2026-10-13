@@ -299,9 +299,44 @@ pub async fn run(
 pub async fn run_server(
     recorder: Arc<Recorder>,
     server: Server,
-    mut signals: Signals,
+    signals: Signals,
     max_message: usize,
 ) -> io::Result<Outcome> {
+    relay(
+        recorder,
+        server,
+        signals,
+        tokio::io::stdin(),
+        tokio::io::stdout(),
+        max_message,
+    )
+    .await
+}
+
+/// [`run_server`] with the client on `from_client` and `to_client` instead of
+/// this process's stdin and stdout.
+///
+/// For a program that is itself the client, or carries the client's messages
+/// from elsewhere. Everything else is as
+/// [`run_server`] describes: end of stream on `from_client` is the client
+/// closing its end, and a request to stop from `signals` (which may be
+/// [`Signals::requested`]) closes the trace and stops the server's group.
+///
+/// # Errors
+///
+/// Waiting for the server failed.
+pub async fn relay<R, W>(
+    recorder: Arc<Recorder>,
+    server: Server,
+    mut signals: Signals,
+    from_client: R,
+    to_client: W,
+    max_message: usize,
+) -> io::Result<Outcome>
+where
+    R: AsyncRead + Unpin + Send + 'static,
+    W: AsyncWrite + Unpin + Send + 'static,
+{
     let Server {
         mut process,
         stdin: child_stdin,
@@ -319,7 +354,7 @@ pub async fn run_server(
     let mut client = spawn_pump(
         &recorder,
         Direction::ClientToServer,
-        tokio::io::stdin(),
+        from_client,
         child_stdin,
         max_message,
         &client_tally,
@@ -328,17 +363,18 @@ pub async fn run_server(
         &recorder,
         Direction::ServerToClient,
         child_stdout,
-        tokio::io::stdout(),
+        to_client,
         max_message,
         &server_tally,
     );
 
     let end = ending::wait_for_end(&mut process, &mut client, &mut signals, &recorder).await?;
     if !end.client_finished {
-        // The client's pump is blocked on this process's stdin, which the client
-        // may hold open forever. Stop it, and wait until it has stopped, so nothing
-        // it reads after the server has gone is recorded behind the closing event
-        // below — and a library caller is not left with a task reading its stdin.
+        // The client's pump is blocked on the client's input (this process's stdin,
+        // for `run_server`), which the client may hold open forever. Stop it, and wait
+        // until it has stopped, so nothing it reads after the server has gone is
+        // recorded behind the closing event below — and a library caller is not left
+        // with a task reading its input.
         client.abort();
         let _ = client.await;
     }

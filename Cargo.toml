@@ -9,6 +9,7 @@ members = [
     "crates/mcp-everything-server",
     "crates/mcp-reference-host",
     "crates/mcp-trace-capture",
+    "crates/mcp-conformance",
     "xtask",
 ]
 
@@ -88,6 +89,9 @@ criterion = { version = ">=0.7, <0.9", default-features = false, features = ["ca
 mcp-conformance-core = { version = "0.6.0", path = "crates/mcp-conformance-core" }
 mcp-trace-validator = { version = "0.6.0", path = "crates/mcp-trace-validator" }
 mcp-everything-server = { version = "0.6.0", path = "crates/mcp-everything-server" }
+# The recorder as a library: no CLI, each user names the features it needs.
+mcp-trace-capture = { version = "0.6.0", path = "crates/mcp-trace-capture", default-features = false }
+mcp-conformance = { version = "0.6.0", path = "crates/mcp-conformance", default-features = false }
 
 # Cancellation tokens for the host's bounded loop (ADR-0009): already in the
 # tree as rmcp's own dependency; the direct use is the cooperative stop

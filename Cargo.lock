@@ -1159,6 +1159,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
+name = "mcp-conformance"
+version = "0.6.0"
+dependencies = [
+ "axum",
+ "clap",
+ "futures",
+ "mcp-conformance-core",
+ "mcp-trace-capture",
+ "mcp-trace-validator",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "mcp-conformance-core"
 version = "0.6.0"
 dependencies = [
@@ -2744,6 +2760,7 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 name = "xtask"
 version = "0.6.0"
 dependencies = [
+ "mcp-conformance",
  "mcp-conformance-core",
  "mcp-trace-validator",
  "serde",

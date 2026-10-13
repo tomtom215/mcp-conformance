@@ -192,7 +192,8 @@ offline. The table and its triage: [book/src/mcpsnoop.md](../../book/src/mcpsnoo
 ## Official-suite version policy
 
 - **Pin** the stable line (`0.1.16` as of 2026-06-11 — [register 2.4](01-ecosystem-context.md))
-  in `xtask` via an exact version (`SUITE_VERSION` in `xtask/src/conformance.rs`);
+  via an exact version (`VERSION` in `crates/mcp-conformance/src/suite.rs`, which
+  `xtask` and `mcp-conformance test` both run);
   upgrades are deliberate PRs with a diff of scenario changes.
 - **Track** the `0.2.0-alpha` line in a scheduled, non-blocking CI job so breakage arrives as
   an early warning, not a release-day surprise. That job floats the `alpha` dist-tag *by

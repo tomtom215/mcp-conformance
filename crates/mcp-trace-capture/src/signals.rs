@@ -73,9 +73,22 @@ impl Stop {
     }
 }
 
-/// The installed handlers.
+/// Where requests to stop come from: the handlers [`Signals::install`]
+/// registers, or the program itself ([`Signals::requested`]).
 #[derive(Debug)]
 pub struct Signals {
+    source: Source,
+}
+
+#[derive(Debug)]
+enum Source {
+    Os(Handlers),
+    Requested(tokio::sync::mpsc::UnboundedReceiver<Stop>),
+}
+
+/// The installed handlers.
+#[derive(Debug)]
+struct Handlers {
     #[cfg(unix)]
     interrupt: tokio::signal::unix::Signal,
     #[cfg(unix)]
@@ -92,6 +105,20 @@ pub struct Signals {
     ctrl_c: tokio::signal::windows::CtrlC,
 }
 
+/// The sending half of [`Signals::requested`]: the program asking for a stop,
+/// as a signal would. Dropping every copy asks for nothing.
+#[derive(Debug, Clone)]
+pub struct StopRequests(tokio::sync::mpsc::UnboundedSender<Stop>);
+
+impl StopRequests {
+    /// Asks for `stop`, delivered to the paired [`Signals::recv`] — the first
+    /// request and every later one, as signals are. A request after the
+    /// receiving side is gone is ignored: there is nothing left to stop.
+    pub fn request(&self, stop: Stop) {
+        let _ = self.0.send(stop);
+    }
+}
+
 impl Signals {
     /// Installs the handlers. A signal arriving any time after this call is kept
     /// for the next [`Signals::recv`], not lost and not fatal — the difference
@@ -104,6 +131,42 @@ impl Signals {
     ///
     /// A handler could not be registered.
     pub fn install() -> io::Result<Self> {
+        Ok(Self {
+            source: Source::Os(Handlers::install()?),
+        })
+    }
+
+    /// Requests to stop made by the program rather than the operating system:
+    /// no handler is registered, and [`Signals::recv`] returns what the paired
+    /// [`StopRequests`] asks for. For a caller that runs wrapped servers inside
+    /// a larger program and ends each on its own schedule, handling the
+    /// process's own signals itself.
+    #[must_use]
+    pub fn requested() -> (Self, StopRequests) {
+        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+        (
+            Self {
+                source: Source::Requested(receiver),
+            },
+            StopRequests(sender),
+        )
+    }
+
+    /// The next request to stop.
+    pub async fn recv(&mut self) -> Stop {
+        match &mut self.source {
+            Source::Os(handlers) => handlers.recv().await,
+            Source::Requested(receiver) => match receiver.recv().await {
+                Some(stop) => stop,
+                // Every sender is gone: no request can come.
+                None => std::future::pending().await,
+            },
+        }
+    }
+}
+
+impl Handlers {
+    fn install() -> io::Result<Self> {
         #[cfg(unix)]
         {
             use tokio::signal::unix::{SignalKind, signal};
@@ -122,8 +185,7 @@ impl Signals {
         }
     }
 
-    /// The next request to stop.
-    pub async fn recv(&mut self) -> Stop {
+    async fn recv(&mut self) -> Stop {
         #[cfg(unix)]
         {
             // A stream that ended can deliver nothing more; it must not win the
@@ -179,5 +241,28 @@ mod tests {
         assert_eq!(Stop::Terminate.name(), "SIGTERM");
         assert_eq!(Stop::Interrupt.name(), "SIGINT");
         assert_eq!(Stop::Hangup.name(), "SIGHUP");
+    }
+
+    /// Requested stops arrive in order, every one of them, and once every
+    /// sender is gone `recv` waits forever rather than inventing a stop.
+    #[tokio::test]
+    async fn requested_stops_arrive_in_order_and_none_once_the_senders_are_gone() {
+        let (mut signals, requests) = super::Signals::requested();
+        let copy = requests.clone();
+        requests.request(Stop::Terminate);
+        copy.request(Stop::Interrupt);
+        assert_eq!(signals.recv().await, Stop::Terminate);
+        assert_eq!(signals.recv().await, Stop::Interrupt);
+        drop((requests, copy));
+        let waited =
+            tokio::time::timeout(std::time::Duration::from_millis(50), signals.recv()).await;
+        assert!(waited.is_err(), "no stop without a request: {waited:?}");
+    }
+
+    #[tokio::test]
+    async fn a_request_after_the_receiver_is_gone_is_ignored() {
+        let (signals, requests) = super::Signals::requested();
+        drop(signals);
+        requests.request(Stop::Quit);
     }
 }

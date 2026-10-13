@@ -5,20 +5,12 @@
 //! summaries in, the reconciliation artifact out. Pure plumbing — every
 //! judgment lives in the parent module.
 
-use std::collections::BTreeMap;
 use std::path::Path;
 
+use mcp_conformance::suite::Summary;
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::reader::{Limits, parse_trace};
 use serde::Serialize;
-
-/// The runner's side of the diff, summarized from `checks.json` files.
-#[derive(Debug, Serialize)]
-pub(crate) struct RunnerSide {
-    pub(crate) scenarios: usize,
-    pub(crate) checks: usize,
-    pub(crate) checks_by_status: BTreeMap<String, u32>,
-}
 
 /// Loads every tapped session trace, sorted by file name (creation order —
 /// the tap prefixes an ordinal).
@@ -49,44 +41,17 @@ pub(crate) fn load_sessions(tap_dir: &Path) -> Result<Vec<(String, Vec<TraceEven
     Ok(sessions)
 }
 
-/// Summarizes the runner's per-scenario `checks.json` artifacts.
-pub(crate) fn summarize_runner(results_dir: &Path) -> Result<RunnerSide, String> {
-    let mut scenarios = 0;
-    let mut checks = 0;
-    let mut by_status: BTreeMap<String, u32> = BTreeMap::new();
-    let entries = std::fs::read_dir(results_dir)
-        .map_err(|error| format!("cannot read {}: {error}", results_dir.display()))?;
-    for entry in entries {
-        let entry = entry.map_err(|error| format!("{}: {error}", results_dir.display()))?;
-        let checks_path = entry.path().join("checks.json");
-        if !checks_path.is_file() {
-            continue;
-        }
-        scenarios += 1;
-        let text = std::fs::read_to_string(&checks_path)
-            .map_err(|error| format!("cannot read {}: {error}", checks_path.display()))?;
-        let parsed: Vec<serde_json::Value> = serde_json::from_str(&text)
-            .map_err(|error| format!("{} is not valid: {error}", checks_path.display()))?;
-        checks += parsed.len();
-        for check in &parsed {
-            let status = check
-                .get("status")
-                .and_then(serde_json::Value::as_str)
-                .unwrap_or("UNKNOWN");
-            *by_status.entry(status.to_owned()).or_insert(0) += 1;
-        }
-    }
-    if scenarios == 0 {
+/// Summarizes the runner's per-scenario `checks.json` artifacts, read by the
+/// same code `mcp-conformance test` reads them with.
+pub(crate) fn summarize_runner(results_dir: &Path) -> Result<Summary, String> {
+    let scenarios = mcp_conformance::suite::read_results(results_dir)?;
+    if scenarios.is_empty() {
         return Err(format!(
             "no checks.json found under {} — did the runner write its results?",
             results_dir.display()
         ));
     }
-    Ok(RunnerSide {
-        scenarios,
-        checks,
-        checks_by_status: by_status,
-    })
+    Ok(Summary::of(&scenarios))
 }
 
 /// Writes the reconciliation artifact as pretty JSON plus a trailing newline.

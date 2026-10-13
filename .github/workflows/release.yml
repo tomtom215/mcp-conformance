@@ -241,7 +241,7 @@ jobs:
         # `cargo package` resolves them locally. xtask is publish = false yet
         # `cargo package --workspace` still packages it (observed in v0.1.0,
         # whose release carries a stray xtask crate file) — exclude it.
-        run: cargo package --workspace --exclude xtask --locked
+        run: cargo package --workspace --exclude xtask --exclude mcp-conformance --locked
       - name: Exactly the published crates, at this version, and nothing else
         shell: bash
         env:
@@ -651,7 +651,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo package --workspace --exclude xtask --locked --no-verify
+          cargo package --workspace --exclude xtask --exclude mcp-conformance --locked --no-verify
           cd target/package
           sha256sum --check --strict ../../attested/SHA256SUMS
       - name: Authenticate with crates.io (OIDC trusted publishing)

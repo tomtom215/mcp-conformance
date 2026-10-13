@@ -33,13 +33,9 @@ use std::process::{Command, ExitCode};
 
 use super::{EXPECTED_FAILURES, SPEC_VERSION};
 
-/// The four protocol scenarios the pinned suite defines for `2025-11-25`.
-const CLIENT_SCENARIOS: [&str; 4] = [
-    "initialize",
-    "tools_call",
-    "elicitation-sep1034-client-defaults",
-    "sse-retry",
-];
+/// The four protocol scenarios the pinned suite defines for `2025-11-25`:
+/// the set `mcp-conformance test --client-command` runs by default too.
+const CLIENT_SCENARIOS: [&str; 4] = mcp_conformance::suite::CLIENT_SCENARIOS;
 
 /// Committed client-side divergence baseline, relative to the workspace root.
 const CLIENT_DIVERGENCE_BASELINE: &str = "conformance/client-agreement-divergences.json";
@@ -125,7 +121,7 @@ fn run_scenarios(
         eprintln!("xtask: conformance — client scenario {scenario} (suite {suite})");
         let status = Command::new("npx")
             .arg("-y")
-            .arg(format!("@modelcontextprotocol/conformance@{suite}"))
+            .arg(format!("{}@{suite}", super::SUITE_PACKAGE))
             .arg("client")
             .arg("--scenario")
             .arg(scenario)

@@ -18,10 +18,12 @@ mcp-conformance/
 │   ├── mcp-trace-validator/    # trace replay + validation engine; CLI binary
 │   ├── mcp-everything-server/  # reference server exercising every capability (on rmcp)
 │   ├── mcp-reference-host/     # reference host / agent loop (on rmcp)
-│   └── mcp-trace-capture/      # stdio wrapper + HTTP reverse proxy that record traces (no SDK)
+│   ├── mcp-trace-capture/      # stdio wrapper + HTTP reverse proxy that record traces (no SDK)
+│   └── mcp-conformance/        # `test`: the pinned official suite through capture, both verdicts
 ├── xtask/                      # cargo xtask: gates, official-suite runs, generators (publish = false)
 ├── conformance/                # committed suite baselines: expected-failures,
-│                               #   agreement divergences, coverage manifest, readiness ratchet
+│                               #   agreement divergences, coverage manifest, readiness ratchet,
+│                               #   wire-only findings
 ├── corpus/                     # recorded trace corpora + golden reports (test fixtures, not a crate)
 ├── fuzz/                       # cargo-fuzz targets
 ├── interop/                    # pinned third-party SDK clients and servers for cross-SDK sessions
@@ -35,7 +37,10 @@ mcp-conformance/
 Naming was decided against verified crates.io availability in
 [ADR-0003](decisions/0003-crate-naming.md). The bare name `mcp-conformance` is deliberately
 **not** published — the official Rust SDK uses it for an internal package
-([register 3.3](01-ecosystem-context.md)).
+([register 3.3](01-ecosystem-context.md)). [ADR-0021](decisions/0021-a-workbench-people-keep-open.md)
+(2026-10-13) adds a crate of that name, `crates/mcp-conformance`, as a sixth published
+crate; it does not say it supersedes ADR-0003's second decision, so whether the name is
+published is open until the owner records it (RELEASING.md lists the bootstrap).
 
 ## Crate responsibilities and dependency rules
 
@@ -46,6 +51,7 @@ Naming was decided against verified crates.io availability in
 | `mcp-everything-server` | rmcp, tokio, `mcp-conformance-core` (for self-description) | `mcp-trace-validator` (except as a dev-dependency, for its own tap tests) | stdio + streamable HTTP server. |
 | `mcp-reference-host` | rmcp, tokio, reqwest | `mcp-trace-validator` (except as a dev-dependency) | stdio + streamable HTTP client. |
 | `mcp-trace-capture` | `mcp-conformance-core`, tokio, axum, hyper, `hyper-rustls` | rmcp, `mcp-trace-validator` (except as a dev-dependency), reqwest's TLS features | Child process stdio; an HTTP listener and upstream client. |
+| `mcp-conformance` | `mcp-conformance-core`, `mcp-trace-validator`; behind its `cli` feature `mcp-trace-capture`, tokio, axum | rmcp, any MCP SDK | Spawns the subject and npx (the pinned official suite); a loopback recording proxy and stdio bridge for the run. The library (the suite pin and the agreement policy) does none. |
 | `xtask` | anything (dev-only, unpublished) | — | Spawns SUTs and the official runner. |
 
 The arrows only point one way: **core ← validator**, and **core ← {server, host}** for

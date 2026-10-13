@@ -1,0 +1,34 @@
+{
+  "policy": "Failing clauses `mcp-conformance test` reports on the wire that the agreement gate's own recordings cannot show, for the same subjects (the product leg of cargo xtask conformance; xtask/src/conformance/product.rs). The gate's server tap sits behind the everything server's Host/Origin check, and the reference host captures at rmcp's message seam, above HTTP; the recording proxy and the stdio wrapper see every exchange. Each entry names the leg (http | stdio | client), the requirement, optionally a substring of the trace's name, and why only the wire shows it. The leg fails on a finding not listed here and on an entry that no longer occurs. These are findings awaiting triage, not explanations: an entry leaves when its triage resolves it (a fix, a validator change, or an explained divergence filed upstream).",
+  "findings": [
+    {
+      "leg": "http",
+      "requirement": "BASE-009",
+      "why": "The dns-rebinding-protection scenario's refused initialize: the everything server answers its 403 with a JSON-RPC error whose id is null, though the request's id (1) was readable. The tap never records a request the Host/Origin policy refuses. Triage open: the refusal is transport-level (the server rejects before reading the body), and whether BASE-009 binds a 403 body is a reading of the spec the registry does not yet record."
+    },
+    {
+      "leg": "client",
+      "requirement": "BASE-004",
+      "trace_contains": "initialize/",
+      "why": "The suite's own initialize test server answers the client's notifications/initialized POST with HTTP 200 and a JSON-RPC result that has no id. A finding about the suite's test server, not the host; the host's message-seam capture never sees the unsolicited body."
+    },
+    {
+      "leg": "client",
+      "requirement": "TRAN-027",
+      "trace_contains": "initialize/",
+      "why": "The same exchange: the suite's initialize test server accepts a notification with 200 rather than 202. HTTP status codes are invisible at the host's message seam."
+    },
+    {
+      "leg": "client",
+      "requirement": "LIFE-018",
+      "trace_contains": "sse-retry/",
+      "why": "The suite's sse-retry test server negotiates protocol version 2025-03-26, which has no MCP-Protocol-Version header, and the host's later requests carry none; the validator judges the session at 2025-11-25, the revision the client's initialize declared (ADR-0018). Headers are invisible at the host's message seam. Triage open: judging a session at a revision its server did not agree to."
+    },
+    {
+      "leg": "client",
+      "requirement": "TRAN-017",
+      "trace_contains": "sse-retry/",
+      "why": "The transport-side clause of the same missing MCP-Protocol-Version header, for the same reason."
+    }
+  ]
+}

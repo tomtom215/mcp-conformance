@@ -82,6 +82,29 @@ paths for it. Each phase closes against its own definition of done
    carrying the same binary; plus the container image. Built and tested in CI on every
    change; published from the release job once the owner has configured the registries.
 
+### The crate's name (open, owner's decision)
+
+[ADR-0003](0003-crate-naming.md) §2 keeps the bare name `mcp-conformance` off
+crates.io: the official Rust SDK names its own internal, unpublished conformance
+package that, and publishing it from under them "would be hostile-adjacent". This ADR,
+as first written on 2026-10-13, chose the name without noticing that decision; the
+correction is recorded here rather than by editing the decision above. Until the owner
+decides, the crate is `publish = false` and the binary is installed from source. The
+options are a superseding ADR after asking upstream, or a different published crate
+name with `mcp-conformance` kept as the binary's name. The npm and PyPI names are not
+covered by ADR-0003.
+
+### Running the suite against a stdio server
+
+The suite tests servers only over HTTP. `test --command` therefore runs a loopback
+bridge, inside `test` only, that starts one server process per session under the
+capture's stdio wrapper and relays the suite's HTTP requests to it, so the recording is
+the stdio wire. It changes one thing in the bytes (CR and LF in a POST body become
+spaces, since a stdio message is one line), it skips the suite's three HTTP-transport
+scenarios and says so in the report, and it is reachable only from loopback with `Host`
+and `Origin` checked. It is a test harness, not a proxy offered to anyone: ADR-0019's
+"not a gateway" line holds because nothing outside `test` can route through it.
+
 ### The front end
 
 Plain HTML, CSS and ES-module JavaScript, embedded in the binary at compile time; charts

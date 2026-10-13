@@ -577,6 +577,17 @@ below is stated again in its entry, with the reasoning.
   No conforming corpus trace's verdict changes; the TypeScript SDK's conformance
   server now reads *pass-with-warnings* at `2025-11-25`, because two of its tools
   declare draft-07 input schemas.
+- **`mcp-conformance test`** (new crate, binary `mcp-conformance`; not yet published to
+  crates.io): runs the pinned official suite against a server (`--url`, or `--command`
+  for a stdio server through a loopback bridge) or a client (`--client-command`)
+  through `mcp-trace-capture`, and reports the suite's checks, the clause report of
+  every recorded session (`--format human|json|junit|sarif`, `-o`) and whether the two
+  agree against a divergence baseline. Exit 0, 1 or 2. Needs Node.js 18+, installs
+  nothing, and refuses any suite version other than the pin. `cargo xtask conformance`
+  runs it against the everything server and the reference host and holds each report
+  to its own results.
+- **`mcp-trace-capture` library: `stdio::relay`**, the stdio wrapper with
+  caller-supplied client streams, and `Signals::requested` with `StopRequests`.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.
