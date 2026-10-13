@@ -7,15 +7,18 @@ Run the official [Model Context Protocol](https://modelcontextprotocol.io) confo
 suite against your server or client *through* a recording tap, and get two verdicts on
 the same traffic: the suite's checks, and
 [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator)'s clause-by-clause
-report of every session the suite drove — with whether the two agree.
+report of every session the suite drove — with whether the two agree. Or keep it open
+while you work: `watch` records a session as it happens and prints each finding as the
+exchange that shows it completes.
 
 > **Not yet released.** This crate is on `main` only
-> ([ADR-0021](../../docs/plan/decisions/0021-a-workbench-people-keep-open.md), phase W1);
+> ([ADR-0021](../../docs/plan/decisions/0021-a-workbench-people-keep-open.md), phases W1
+> and W4);
 > build it from the repository: `cargo install --path crates/mcp-conformance-cli`.
 
 ## What it needs
 
-Node.js 18 or newer, with `npx`, on `PATH`. The official suite is a Node package; `test`
+For `test`: Node.js 18 or newer, with `npx`, on `PATH`. The official suite is a Node package; `test`
 checks for Node, says what to install when it is missing, and never installs anything
 itself. npx fetches the suite at exactly the version this build pins
 (`@modelcontextprotocol/conformance` `0.1.16`), and `test` reads the suite's own
@@ -76,6 +79,76 @@ one under the system's temporary directory), whose path is printed.
 | `1` | Findings: a suite check failed or warned, or the two verdicts disagree |
 | `2` | The run could not be made or judged: bad arguments, Node.js or npx missing, the suite did not run or reported another version, no recorded session judgeable, the report not written |
 
+## Watching a session
+
+`watch` is `mcp-trace-capture` with a judge attached. It takes the recorder's two modes
+and its flags, by the same names, and records the same trace file: configure your client
+to launch the wrapper in place of the server,
+
+```text
+mcp-conformance watch stdio -- python my_server.py
+```
+
+or point it at the proxy in front of a streamable-HTTP server:
+
+```text
+mcp-conformance watch http --upstream http://localhost:3000/mcp --listen 127.0.0.1:8080
+```
+
+After every completed exchange — a response paired with its request, or a notification —
+the trace so far is judged as `mcp-trace-validator validate` would judge it, and each
+**new** `fail` or `warn` finding is printed on stderr with its clause ID, level, `seq`,
+detail and the quoted clause, under a one-line running tally. At the end comes the
+validator's report of the whole trace. Only findings are printed: a clause going from
+`not observed` to `pass` is not one. A check that concludes from what the rest of the
+trace does not hold (`LIFE-003`, an `initialized` notification that has not come *yet*)
+waits for the end, and a finding the whole trace no longer shows is named as withdrawn.
+Text quoted from the session is printed with control characters escaped. The exit code
+is the recorder's: a stdio client still sees its server's.
+
+Judging never touches the session. The recorder hands each line to a channel and goes
+on; a thread of its own judges. Each pass re-judges the trace so far, so its cost grows
+with the session — measured with `cargo bench -p mcp-conformance-cli --bench live`
+(release profile; 4 vCPU Intel Xeon @ 2.10 GHz; criterion's 95% interval of the mean):
+
+| Session | One pass |
+|---------|----------|
+| the largest committed capture, 41 events | 158–176 µs |
+| synthetic, 10,001 messages | 74–86 ms |
+
+Every exchange of a short session gets its own pass. To keep a long one from taking a
+core, the next pass waits three times as long as the last one took, and the lines that
+arrive meanwhile are judged together — a pass about every 320 ms at 10,000 messages, so
+findings there lag by up to that much; the session never waits.
+
+### Exporting spans
+
+```text
+mcp-conformance watch --otlp http://localhost:4318 stdio -- python my_server.py
+```
+
+`--otlp` sends one span per exchange to an OpenTelemetry collector over OTLP/HTTP with JSON
+encoding (`POST /v1/traces`), named and attributed by the OpenTelemetry semantic
+conventions for MCP (`mcp.method.name`, `jsonrpc.request.id`, `mcp.session.id`,
+`mcp.protocol.version`, `gen_ai.tool.name`, `error.type`, …; span name
+`{mcp.method.name} {target}`), each finding a span event carrying the requirement ID,
+level and spec URL. Every span is `CLIENT`: a tap sees the request leave and the answer
+return, the initiator's view, never the receiver's processing. Spans go in batches off
+the session's path through a bounded queue; a collector that is down or slow costs only
+the spans it was sent, and the summary at the end counts them. CI runs this against a
+pinned OpenTelemetry Collector. No message payload is ever exported: no arguments, no
+results.
+
+| Exit code (`watch`) | Meaning |
+|-----------|---------|
+| server's | `stdio`: the wrapped server's own exit code, passed through |
+| `0` | `http`: stopped with a complete trace |
+| `2` | Bad arguments (an `--otlp` URL included), or a run that could not start |
+| `3` | The session ran but its trace is incomplete (a write failed) |
+
+Findings do not change the exit code — judge the trace with `mcp-trace-validator validate`
+for that. The full table is `mcp-trace-capture`'s.
+
 ## What it runs, and what it does not
 
 `test` runs your server or client, Node, and the pinned suite package npx fetches from
@@ -84,12 +157,21 @@ run. The stdio bridge answers only requests whose `Host` is its own loopback add
 whose `Origin`, if any, is loopback. Recordings hold message bodies in full: read a
 trace before you share it ([the security model](../../docs/plan/05-security-model.md)).
 
+`watch` runs what you give it (the stdio server's command, without a shell) and listens
+only where `mcp-trace-capture` would: nowhere in `stdio` mode, and on `--listen` in
+`http` mode (`127.0.0.1:8080` by default, with the recorder's warning for any other
+address). It sends nothing anywhere unless `--otlp` names a collector, and then only span
+fields — method, tool and prompt names, resource URIs, request and session IDs, error
+codes and messages, findings — never a payload; an `http://` collector that is not this
+machine is warned about, since those fields would cross the network unencrypted.
+
 ## The library
 
 The crate's library is the small part `mcp-conformance test` shares with this
 repository's own gate, `cargo xtask conformance`: the suite pin (`suite`) and the
-agreement policy (`agreement`). With `default-features = false` it depends on the
-validator and the serde family only.
+agreement policy (`agreement`); and `watch`'s live judge (`live`) and span encoding
+(`otlp`). With `default-features = false` it depends on the validator and the serde
+family only.
 
 ```rust
 use mcp_conformance_cli::agreement::{Baseline, ValidatorFailure, reconcile};

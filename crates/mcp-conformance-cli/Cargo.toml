@@ -22,9 +22,10 @@ publish = false
 
 [features]
 # The library is the agreement policy and the suite pin, which `cargo xtask
-# conformance` shares: serde-family and the validator only. The binary — the
-# recorder, the stdio bridge, the process orchestration and the CLI — needs the
-# rest (docs/plan/decisions/0005-cli-argument-parsing.md, 0021).
+# conformance` shares, and `watch`'s live judge and OTLP encoding: serde-family
+# and the validator only. The binary — the recorder, the stdio bridge, the
+# process orchestration, the span export and the CLI — needs the rest
+# (docs/plan/decisions/0005-cli-argument-parsing.md, 0021).
 default = ["cli"]
 cli = [
     "dep:clap",
@@ -32,6 +33,7 @@ cli = [
     "dep:axum",
     "dep:futures",
     "dep:mcp-trace-capture",
+    "dep:ring",
 ]
 
 [package.metadata.docs.rs]
@@ -55,11 +57,22 @@ axum = { workspace = true, optional = true }
 # The bridge's event streams (`Body::from_stream`). Already a direct
 # dependency of the recorder.
 futures = { version = ">=0.3.30, <0.4", optional = true }
+# `watch --otlp`'s trace and span ids: `ring::rand::SystemRandom`, the OS CSPRNG.
+# Already in the tree, at this version, as the recorder's TLS provider
+# (rustls's `ring` backend under mcp-trace-capture's `tls`, which this crate
+# enables), so no new crate; no default features (the OS generator needs none).
+ring = { version = ">=0.17.14, <0.18", default-features = false, optional = true }
 
 [dev-dependencies]
 # The bridge's tests drive it over loopback; plain HTTP, no TLS features.
 reqwest = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+# What a live judging pass costs `watch` (benches/live.rs); measures, never gates.
+criterion = { workspace = true }
+
+[[bench]]
+name = "live"
+harness = false
 
 [[bin]]
 name = "mcp-conformance"

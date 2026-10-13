@@ -3,15 +3,18 @@
 
 //! The command line.
 //!
-//! One subcommand today, `test`; the workbench's later ones (ADR-0021) join it
+//! `test` and `watch`; the workbench's later subcommands (ADR-0021) join them
 //! as siblings in [`Command`], sharing the report options in [`ReportArgs`].
 //!
 //! `--url` is taken as text and checked in `run`, not by clap: clap's error
 //! repeats the value, and a server URL can carry a key in its query.
 
+use std::ffi::OsString;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use mcp_trace_capture::run::values::listen_address;
 
 /// The exit codes, for `--help`; the README's table says the same.
 pub(crate) const EXIT_CODES: &str = "\
@@ -42,6 +45,13 @@ pub(crate) enum Command {
     /// package, fetched by npx at exactly the version this build pins.
     #[command(after_help = EXIT_CODES)]
     Test(TestArgs),
+    /// Record a session exactly as `mcp-trace-capture` does — stdio wrapper or
+    /// HTTP proxy, same flags, same trace — and judge it while it runs: each
+    /// new finding printed (stderr) as the exchange that shows it completes,
+    /// a live tally, the validator's report at the end, and with `--otlp` one
+    /// OpenTelemetry span per exchange.
+    #[command(after_help = WATCH_EXIT_CODES)]
+    Watch(WatchArgs),
     /// Carries a client under test to the suite's server through the recorder;
     /// `test --client-command` runs it as the client command it gives the
     /// suite. Not for direct use.
@@ -50,6 +60,80 @@ pub(crate) enum Command {
         /// The client's command and arguments, then the suite's server URL.
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
         command: Vec<String>,
+    },
+}
+
+/// `watch`'s exit codes: the recorder's, which a client launching the stdio
+/// wrapper relies on.
+pub(crate) const WATCH_EXIT_CODES: &str = "\
+Exit status (mcp-trace-capture's; findings do not change it — judge the
+trace with `mcp-trace-validator validate` for a verdict's exit code):
+  stdio  the server's exit code (128 + signal if a signal ended it, on Unix;
+         the whole code on Windows); 1 if waiting for the server failed
+  http   0 after a stop; 128 + signal when a second signal cut the stop short;
+         2 if serving failed
+  2      bad arguments, or a run that could not start (no trace file is created)
+  3      a trace is incomplete (a write failed), in place of a 0";
+
+/// What `watch` records, and where its spans go. `-o`, `--force` and
+/// `--max-message-bytes` are `mcp-trace-capture`'s, word for word.
+#[derive(Debug, Args)]
+pub(crate) struct WatchArgs {
+    #[command(subcommand)]
+    pub(crate) mode: WatchMode,
+    /// Where to write the trace (JSON Lines); `{session}` in the file name numbers a
+    /// trace per session.
+    ///
+    /// With `{session}` in the file name, each session gets its own numbered file
+    /// (`traces/{session}.jsonl` writes `traces/001.jsonl`, `002`, …), and no
+    /// existing file is ever overwritten.
+    #[arg(
+        short,
+        long,
+        value_name = "PATH",
+        default_value = "mcp-trace.jsonl",
+        global = true
+    )]
+    pub(crate) output: PathBuf,
+    /// Overwrite the output file if it exists (not needed with `{session}`).
+    #[arg(long, global = true)]
+    pub(crate) force: bool,
+    /// The largest message recorded, in bytes; larger ones are forwarded unrecorded.
+    #[arg(long, value_name = "BYTES", default_value_t = mcp_trace_capture::DEFAULT_MAX_MESSAGE, global = true)]
+    pub(crate) max_message_bytes: usize,
+    /// Also export one span per exchange, with each finding as a span event, to
+    /// an OpenTelemetry collector over OTLP/HTTP (JSON): its base URL, e.g.
+    /// `http://localhost:4318` (`/v1/traces` is appended), or a full URL ending
+    /// in `/v1/traces`.
+    #[arg(long, value_name = "URL", global = true)]
+    pub(crate) otlp: Option<String>,
+}
+
+/// What `watch` sits in front of: `mcp-trace-capture`'s two modes.
+#[derive(Debug, Subcommand)]
+pub(crate) enum WatchMode {
+    /// Wrap a stdio server: configure your client to launch
+    /// `mcp-conformance watch stdio -- <server> [args…]` instead of the server.
+    #[command(after_help = WATCH_EXIT_CODES)]
+    Stdio {
+        /// The server command and its arguments.
+        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
+        command: Vec<OsString>,
+    },
+    /// Proxy a streamable-HTTP server: point your client at the listen address.
+    #[command(after_help = WATCH_EXIT_CODES)]
+    Http {
+        /// The server's URL. The proxy's `/` is this URL itself; any other request
+        /// path is appended to its path.
+        #[arg(long, value_name = "URL")]
+        upstream: String,
+        /// Where the proxy listens: an IP address and a port.
+        #[arg(long, value_name = "IP:PORT", default_value = "127.0.0.1:8080", value_parser = listen_address)]
+        listen: SocketAddr,
+        /// Forward the client's `Host` header unchanged instead of naming the
+        /// upstream, so the server's own `Host` validation sees the client's.
+        #[arg(long)]
+        preserve_host: bool,
     },
 }
 

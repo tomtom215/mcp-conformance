@@ -325,8 +325,8 @@ fn an_observer_sees_each_written_line_in_seq_order_and_nothing_else() {
         recorder.record(Direction::ClientToServer, TransportKind::Stdio, open()),
         Err(NotRecorded::Closed)
     );
-    let seen = seen.0.lock().unwrap();
-    let written = sink.0.lock().unwrap();
+    let seen = seen.0.lock().unwrap().clone();
+    let written = sink.0.lock().unwrap().clone();
     let lines: Vec<&[u8]> = written
         .split(|byte| *byte == b'\n')
         .filter(|line| !line.is_empty())
