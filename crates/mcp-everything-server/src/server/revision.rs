@@ -117,6 +117,22 @@ impl ServedRevision {
         matches!(self, Self::V2026_07_28)
     }
 
+    /// Whether every result names this server in its `_meta`
+    /// (`io.modelcontextprotocol/serverInfo`, BASE-037).
+    ///
+    /// `2026-07-28` asks it of every result, because a stateless client holding
+    /// one answer has no handshake to have learned the server's name from;
+    /// `2025-11-25` names the server once, in `initialize`, and defines no such
+    /// field. Read from the served revision for the reason
+    /// [`Self::emits_caching_hints`] gives: the legacy server answering a
+    /// `2026-07-28` request in `draft-readiness` is that server being held to a
+    /// revision it does not implement, and keeping it honest about that is the
+    /// measurement.
+    #[must_use]
+    pub const fn names_itself_on_results(self) -> bool {
+        matches!(self, Self::V2026_07_28)
+    }
+
     /// The error answering a `resources/read` for a URI this server does not
     /// serve.
     ///
@@ -239,5 +255,11 @@ mod tests {
         assert!(!ServedRevision::V2025_11_25.emits_caching_hints());
         assert!(ServedRevision::V2026_07_28.is_stateless());
         assert!(ServedRevision::V2026_07_28.emits_caching_hints());
+    }
+
+    #[test]
+    fn only_the_newer_revision_names_itself_on_every_result() {
+        assert!(!ServedRevision::V2025_11_25.names_itself_on_results());
+        assert!(ServedRevision::V2026_07_28.names_itself_on_results());
     }
 }
