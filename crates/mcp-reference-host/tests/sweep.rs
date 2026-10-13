@@ -81,6 +81,11 @@ async fn the_sweep_drives_every_operation_it_claims_to() {
         "prompts/get test_prompt_with_arguments",
         "prompts/get test_prompt_with_embedded_resource",
         "prompts/get test_prompt_with_image",
+        // The everything server lists these on each listing's second page,
+        // so each one reached proves the sweep followed `nextCursor`.
+        "resources/read test://annotated-text",
+        "resources/read test://annotated/1",
+        "prompts/get test_prompt_with_audio",
         "completion/complete",
     ] {
         assert!(

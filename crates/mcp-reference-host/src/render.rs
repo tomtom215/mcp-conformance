@@ -28,10 +28,9 @@ use mcp_reference_host::sweep::SweepReport;
 #[cfg(feature = "http")]
 pub(crate) async fn probe(url: &str) -> ExitCode {
     let outcomes = mcp_reference_host::probe::run(url).await;
-    eprintln!(
-        "mcp-reference-host: probed {} malformed request(s)",
-        outcomes.len()
-    );
+    // "request(s)", not "malformed request(s)": the designated-header probe
+    // lists the server's tools first, conformingly, to learn what to call.
+    eprintln!("mcp-reference-host: probed {} request(s)", outcomes.len());
     for outcome in &outcomes {
         match &outcome.answer {
             Ok(status) => {

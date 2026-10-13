@@ -268,9 +268,11 @@ fn the_subscribe_and_sweep_phases_both_run_and_report() {
     );
     assert!(stderr.contains("ended graceful"), "{stderr}");
 
-    // The sweep phase: a step count, and the one deliberate failure.
+    // The sweep phase: a step count, and the one deliberate failure. Fifteen
+    // steps: every listing is followed to its second page, which adds one
+    // resource, one template and one prompt to what is read.
     assert!(
-        stderr.contains("swept 12 step(s), 1 drew errors"),
+        stderr.contains("swept 15 step(s), 1 drew errors"),
         "the sweep phase must run and report: {stderr}"
     );
     assert!(
@@ -278,7 +280,9 @@ fn the_subscribe_and_sweep_phases_both_run_and_report() {
         "including the read that is meant to fail: {stderr}"
     );
     // And the tool loop still ran, with the log level asked for.
-    assert!(stderr.contains("completed 16 turn(s)"), "{stderr}");
+    // Eighteen: the sixteen first-page tools and the two on `tools/list`'s
+    // second page, reached by following its `nextCursor`.
+    assert!(stderr.contains("completed 18 turn(s)"), "{stderr}");
 }
 
 /// The probe session, driven through the binary.
@@ -297,16 +301,19 @@ fn the_probe_sends_every_request_and_reports_what_each_drew() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(output.status.success(), "the probe exits clean: {stderr}");
     assert!(
-        stderr.contains("probed 9 malformed request(s)"),
+        stderr.contains("probed 12 request(s)"),
         "every probe is sent: {stderr}"
     );
     // The answers, not just the count: these are the clauses the probe exists
-    // to give traffic to, and each line is one of them being exercised.
+    // to give traffic to, and each line is one of them being exercised. The
+    // last is the designated-header probe, after two pages of `tools/list`.
     for expected in [
         "HTTP 400 [BASE-031, BASE-032]",
         "HTTP 404 [TRAN-075]",
         "HTTP 400 [LOG-010]",
         "HTTP 400 [PAGE-011]",
+        "HTTP 200 [TRAN-136 (setup)]",
+        "HTTP 400 [TRAN-136]",
     ] {
         assert!(
             stderr.contains(expected),
