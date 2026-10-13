@@ -39,7 +39,12 @@
 //! pin's verdict hostage to an alpha's. The reconciliation still happens — the
 //! two recordings this task takes are committed to `corpus/draft/captured/`,
 //! where the golden suite replays them through the `2026-07-28` registry on
-//! every `cargo test`. It is simply a separate reckoning from this one.
+//! every `cargo test`. It is simply a separate reckoning from this one. The
+//! one reconciliation that does run here is the wire schema's: the runner's
+//! `wire-schema-valid` check names the messages it flags, so each leg's are
+//! compared with the validator's over that leg's recording, against
+//! `conformance/wire-schema-divergences.json`
+//! (`agreement::run_wire_schema_only`), and a divergence fails the task.
 //!
 //! Like `conformance`, this is orchestration: it may use the network (npm for
 //! the runner) and real sockets, which `cargo test` never does.
@@ -155,6 +160,9 @@ fn measure(root: &Path, leg: &Path, revision: &str) -> Result<BTreeMap<String, S
     let (mut server, address) = crate::conformance::start_server(root, &tap_dir, revision)
         .ok_or_else(|| format!("the {revision} server did not start"))?;
     let ran = run_draft_suite(root, leg, &address);
+    // The wire-schema reconciliation below joins the runner's flagged
+    // messages to the recording, so the tap must be complete first.
+    crate::conformance::await_tap_quiescence(&tap_dir);
     let _ = server.kill();
     let _ = server.wait();
     if !ran {
@@ -169,6 +177,23 @@ fn measure(root: &Path, leg: &Path, revision: &str) -> Result<BTreeMap<String, S
              harness failure rather than a score of zero"
         ));
     }
+    // The runner's `wire-schema-valid` verdicts against the validator's on
+    // the very messages the tap recorded — judged at the scenarios' revision,
+    // which is the one the runner validates against whatever the server serves.
+    let schema_leg = crate::agreement::schema::DRAFT_LEGS
+        .iter()
+        .find(|(served, _)| *served == revision)
+        .map(|(_, schema_leg)| schema_leg)
+        .ok_or_else(|| format!("no wire-schema agreement leg for {revision}"))?;
+    crate::agreement::run_wire_schema_only(
+        root,
+        &tap_dir,
+        leg,
+        DRAFT_SUITE_VERSION,
+        DRAFT_SPEC_VERSION,
+        schema_leg,
+    )
+    .map_err(|message| format!("wire-schema agreement ({revision} leg) — {message}"))?;
     Ok(scores)
 }
 
