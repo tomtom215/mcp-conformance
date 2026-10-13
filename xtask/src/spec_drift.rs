@@ -39,6 +39,10 @@
 //! publishes is in exactly one of `in_scope` / `out_of_scope`, and every
 //! exclusion carries its reason ([`pages`]) — so a page can no longer sit in
 //! neither list, where nothing above would ever read it.
+//!
+//! Everything above reads released revisions, which do not move. The next one
+//! does: [`draft`] reads the specification's unreleased `draft/` the same way and
+//! reports, informationally, what it has changed against the newest release.
 
 // `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
 // opposite demands about items in a binary crate's private modules; this follows
@@ -53,6 +57,7 @@ use serde::Deserialize;
 
 mod anchors;
 mod census;
+mod draft;
 pub(crate) mod pages;
 mod wire_schema;
 
@@ -121,6 +126,18 @@ impl Sources {
             (census::Family::Should, &self.should_census),
             (census::Family::May, &self.may_census),
         ]
+    }
+}
+
+/// `cargo xtask spec-drift [--draft]`: the release gate, or the draft report.
+pub(crate) fn dispatch(argument: Option<&str>) -> ExitCode {
+    match argument {
+        None => run(),
+        Some("--draft") => draft::run(),
+        Some(other) => {
+            eprintln!("xtask: spec-drift takes no argument or `--draft`, not {other:?}");
+            ExitCode::from(2)
+        }
     }
 }
 

@@ -17,6 +17,9 @@ license = "MIT AND Apache-2.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
+# The draft tracking skeleton is xtask data about an unreleased revision: no
+# build reads it (the registry embeds an explicit file list), so it does not ship.
+exclude = ["registry/draft"]
 
 [features]
 # Deprecated no-op, kept so manifests that enabled it keep building. Until 0.6.0

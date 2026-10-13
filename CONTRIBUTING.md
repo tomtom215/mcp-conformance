@@ -75,8 +75,8 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
 Gates 7–13, plus seven structural checks — SPDX headers, a byte-identical copy of
 `LICENSE` in every published crate, the CI write-scope inventory, the toolchain pin,
 cross-revision registry continuity, the shape of each revision's spec page set
-(`sources.json`: every page in exactly one of `in_scope` / `out_of_scope`, every
-exclusion reasoned), and the ecosystem register's row shape — are
+and of the draft tracking skeleton's (`sources.json`: every page in exactly one of
+`in_scope` / `out_of_scope`, every exclusion reasoned), and the ecosystem register's row shape — are
 exactly `cargo xtask gates`: they need nothing but a stable
 toolchain and the checked-out tree, CI's `doc` job runs that one command, and
 `cargo xtask ci` calls the same function — so what you run locally and what CI
@@ -137,6 +137,21 @@ place" rule these numbers are projections of the data: the per-area table comes
 from the registry, the per-capture table from the committed golden reports, and
 any prose saying "N of the M judgeable clauses" is parsed and checked against
 them.
+
+### Tracking the next revision
+
+The specification's unreleased `draft/` is tracked, not judged: a skeleton in
+`crates/mcp-conformance-core/registry/draft/` (`sources.json`, shaped like a dated
+revision's, and `post-release.json`, the released clauses the draft rewords) that no
+build embeds. `cargo xtask spec-drift --draft` (network) prints a Markdown report of what
+the draft has changed — its page set and census against the skeleton, keywords no
+released quote covers, and whether each `2026-07-28` quote is still on its draft page —
+and exits 0 whatever it finds; the weekly `draft-drift` job puts the report in its job
+summary. When it lists a change, read the draft page and update the skeleton: a census
+number, a page decided into one of the two lists, or a `post-release.json` row for a
+reworded clause (its `released` quote must equal the registry's, which `cargo test`
+checks). [The conformance strategy](docs/plan/03-conformance-strategy.md#how-the-next-revision-starts)
+says how the skeleton becomes the next revision when the draft ships.
 
 ## Commits
 

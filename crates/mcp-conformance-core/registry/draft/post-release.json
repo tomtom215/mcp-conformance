@@ -1,0 +1,13 @@
+{
+    "_policy": "Clauses the specification's draft words differently from the released revision named in `base`, recorded when found so the next revision's extraction starts from them rather than from a report. Each row names the base registry entry, its quote as released (which must equal the registry's: `cargo test -p xtask` checks it offline), the draft's wording in the same quote form (which must be verbatim on the draft page: `cargo xtask spec-drift --draft` checks it, and marks the entry's change as recorded), the date found, and the reading: whether the requirement itself moved, and what the entry needs when the draft ships. Recording a change edits nothing the validator reads — the released entry keeps quoting the released text, which `cargo xtask spec-drift` still verifies — so a row here can never change a verdict. When the draft is cut, apply each row to the new revision's entry and retire the file's rows.",
+    "base": "2026-07-28",
+    "changes": [
+        {
+            "id": "TRAN-081",
+            "released": "Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for JavaScript (−2<sup>53</sup>+1 to 2<sup>53</sup>−1)",
+            "draft": "Constraints on `x-mcp-header` values: Integer values MUST be within the safe range for integers represented using IEEE754 double-precision floating point numbers (−2<sup>53</sup>+1 to 2<sup>53</sup>−1)",
+            "recorded": "2026-10-13",
+            "reading": "Wording only. On draft/basic/transports/streamable-http the bound is now named by its number format rather than by a language; the interval is unchanged, so the requirement is unchanged and the `tools.x-mcp-header-integer-range` check that judges it needs no edit. The new words are the ones server/tools already used at 2026-07-28 (TOOL-034 quotes them), so the edit makes the transport page agree with the tools page. When the draft ships, the new revision's TRAN-081 quotes the draft wording; the 2026-07-28 entry keeps the released text, which is still what that revision publishes."
+        }
+    ]
+}

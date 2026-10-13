@@ -50,7 +50,7 @@ pub(super) fn navigation() -> Result<String, ()> {
 /// lists `basic`, `2026-07-28` lists `basic/index`, and the site serves both at
 /// the directory — so the comparison folds the suffix away. The revision's own
 /// root page stays `index`.
-fn canonical(page: &str) -> &str {
+pub(super) fn canonical(page: &str) -> &str {
     page.strip_suffix("/index").unwrap_or(page)
 }
 
@@ -89,7 +89,7 @@ pub(super) fn verify(revision: &str, sources: &Sources, navigation: &str) -> Vec
 /// When the document does not parse, or lists no page for the revision — a
 /// navigation restructured past what this reads must fail, not verify an empty
 /// set against itself.
-fn published(navigation: &str, revision: &str) -> Result<BTreeSet<String>, String> {
+pub(super) fn published(navigation: &str, revision: &str) -> Result<BTreeSet<String>, String> {
     let document: Value = serde_json::from_str(navigation)
         .map_err(|error| format!("the site navigation is not JSON: {error}"))?;
     let mut listed = Vec::new();
@@ -164,7 +164,7 @@ fn coverage(revision: &str, sources: &Sources, published: &BTreeSet<String>) -> 
 /// What can be checked without the network: the two lists are disjoint and
 /// spell each page once, every exclusion has a reason, every in-scope page
 /// names its own source file, and the census covers exactly the in-scope pages.
-fn structure(revision: &str, sources: &Sources) -> Vec<String> {
+pub(super) fn structure(revision: &str, sources: &Sources) -> Vec<String> {
     let mut problems = Vec::new();
     let mut seen: BTreeMap<&str, &str> = BTreeMap::new();
     let lists = [
@@ -219,11 +219,13 @@ fn structure(revision: &str, sources: &Sources) -> Vec<String> {
 }
 
 /// The offline half, run by `cargo xtask gates`: every revision's lists are
-/// well-formed by [`structure`]. `true` when they are.
+/// well-formed by [`structure`], and so are the draft tracking skeleton's —
+/// it is the next revision's `sources.json` in waiting, so it is held to the
+/// same shape before it ever judges anything. `true` when they are.
 pub(crate) fn gate() -> bool {
     let mut ok = true;
     let mut pages = 0usize;
-    for revision in REVISIONS {
+    for revision in REVISIONS.iter().chain([&super::draft::DRAFT]) {
         let sources = match load_sources(revision) {
             Ok(sources) => sources,
             Err(message) => {
@@ -240,9 +242,9 @@ pub(crate) fn gate() -> bool {
     }
     if ok {
         eprintln!(
-            "xtask: page-set — {pages} page(s) across {} revision(s), each in exactly one \
-             list, every exclusion reasoned (the published set itself is checked by \
-             `cargo xtask spec-drift`)",
+            "xtask: page-set — {pages} page(s) across {} revision(s) and the draft skeleton, \
+             each in exactly one list, every exclusion reasoned (the published set itself is \
+             checked by `cargo xtask spec-drift`, the draft's by `spec-drift --draft`)",
             REVISIONS.len()
         );
     }

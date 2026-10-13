@@ -69,6 +69,39 @@ instances are normative):
    (e.g. completion's 100-value cap) are not registry entries; the agreement check
    (M2) covers any divergence that matters in practice.
 
+### How the next revision starts
+
+From data, not from a report. The specification publishes its unreleased next revision
+under `docs/specification/draft/`, and the registry tracks it with a skeleton in
+`crates/mcp-conformance-core/registry/draft/`:
+
+- `sources.json` has a dated revision's shape — every page the draft publishes in exactly
+  one of `in_scope` / `out_of_scope`, each exclusion with its reason, and the three
+  censuses as last read — and `cargo xtask page-set` holds it to that shape offline.
+- `post-release.json` records each released clause the draft words differently: the
+  entry, its released quote (checked against the registry by `cargo test`), the draft's
+  wording, and what the change means for the entry. The first row is TRAN-081's
+  safe-integer sentence, which the draft now bounds "for integers represented using
+  IEEE754 double-precision floating point numbers" rather than "for JavaScript" — the
+  interval and the check unchanged.
+
+The skeleton is data, never a judged revision: the core crate embeds registry documents
+by an explicit per-revision list that names nothing in `draft/`, `draft` is not a protocol
+revision `--revision` accepts, the directory is left out of the published package, and it
+carries no requirement entries. `cargo xtask spec-drift --draft` compares it with the live
+draft — the page set, each page's census, every MUST-family or SHOULD-family keyword no
+released quote covers, and for every `2026-07-28` entry whether its sentence is still on
+the draft page (present, changed with the draft wording shown, removed, or on a page the
+draft dropped). It is informational: it exits 0 with a Markdown report whatever it finds,
+failing only when the draft cannot be read, and runs weekly as the scheduled workflow's
+`draft-drift` job, where the report is the job summary.
+
+When the draft is cut as a dated revision, the skeleton becomes that revision's
+directory: its `sources.json` the new `sources.json`, each `post-release.json` row applied
+to the new revision's entry, each report finding entered or retired, the area files
+added to the embedded list, and the revision added to `spec-drift`'s `REVISIONS` — at
+which point the release gate, not this report, holds it to its text.
+
 ### Check semantics
 
 | Registry level | Finding on violation | Report effect |
