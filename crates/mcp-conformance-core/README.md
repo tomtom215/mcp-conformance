@@ -7,7 +7,8 @@ The Model Context Protocol specification as data: a requirement registry (normat
 clauses with stable IDs, verbatim quotes, and SEP-2484-shaped check-or-exclusion
 traceability), the recorded-trace event schema, JSON-RPC message classification, and
 canonical JSON serialization. No I/O; every function is a pure transformation.
-Start at `requirement::Registry::builtin_2025_11_25()`.
+Start at `requirement::RegistrySet::builtin()`, which loads the registries of every
+revision the crate carries; `.registry(revision)` projects one of them.
 
 Part of [mcp-conformance](https://github.com/tomtom215/mcp-conformance). Pre-1.0:
 the registry's *format* is stable-by-intent; its *contents* cover every in-scope

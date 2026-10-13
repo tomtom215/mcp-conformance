@@ -62,7 +62,7 @@ pub struct RegistrySet {
 }
 
 impl RegistrySet {
-    /// Loads the embedded seed set from the same per-area documents
+    /// Loads the embedded set from the same per-area documents
     /// [`Registry::builtin_2025_11_25`] merges.
     ///
     /// It describes exactly [`BUILTIN_REVISIONS`]. Every `2025-11-25` requirement is
