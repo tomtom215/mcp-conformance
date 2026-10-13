@@ -3,8 +3,10 @@
 
 # mdBook configuration. The book is a curated reader's guide; the planning
 # documents under docs/plan/ remain the single source of truth (the chapters
-# link to them, and two chapters embed canonical files verbatim with
-# {{#include}} so the book cannot drift from them). `mdbook build book` is a
+# link to them, and three chapters embed canonical files verbatim with
+# {{#include}} so the book cannot drift from them: corpus.md embeds
+# corpus/README.md, and getting-started.md and trace-format.md the README's
+# worked example). `mdbook build book` is a
 # CI gate (.github/workflows/ci.yml): a missing include file or anchor fails
 # the build.
 

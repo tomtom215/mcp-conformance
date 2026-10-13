@@ -63,6 +63,10 @@ To use the tools:
 
 - **[Getting started](getting-started.md)** — install, record a session, judge it,
   and read the report.
+- **[Capturing from your client](clients.md)** — the configuration for Claude
+  Desktop, VS Code and Cursor, and driving a server with no client at all.
+- **[Reading a report](reading-a-report.md)** — what to do about each outcome,
+  triaging a finding, raising coverage, and disputing a verdict.
 - **[Using it in CI](ci.md)** — exit codes, JUnit and SARIF, and the GitHub Action.
 - **[Troubleshooting](troubleshooting.md)** — what the common failures mean.
 
@@ -79,3 +83,12 @@ How it works:
   their provenance, embedded from `corpus/README.md`.
 - **[Conformance results](conformance-results.md)** — the published tier-gap
   measurements of real SDKs against the official suite.
+
+Reference:
+
+- **Requirements** — every clause of
+  [`2026-07-28`](reference/requirements-2026-07-28.md) and
+  [`2025-11-25`](reference/requirements-2025-11-25.md) under its ID: its level, the
+  party it binds, the verbatim quote with a link to the published text, and the
+  checks that judge it or the reason none can.
+- **[Glossary](glossary.md)** — the terms the book and the tools' output use.
