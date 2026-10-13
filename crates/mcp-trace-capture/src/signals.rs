@@ -84,6 +84,12 @@ pub struct Signals {
     hangup: tokio::signal::unix::Signal,
     #[cfg(unix)]
     quit: tokio::signal::unix::Signal,
+    /// Created once, at install: a Ctrl-C arriving before the first
+    /// [`Signals::recv`], or between two, is kept for the next one. A listener
+    /// made afresh by each call would miss it, and the default handler would
+    /// end the capture.
+    #[cfg(windows)]
+    ctrl_c: tokio::signal::windows::CtrlC,
 }
 
 impl Signals {
@@ -97,14 +103,6 @@ impl Signals {
     /// # Errors
     ///
     /// A handler could not be registered.
-    #[cfg_attr(
-        not(unix),
-        allow(
-            clippy::missing_const_for_fn,
-            clippy::unnecessary_wraps,
-            reason = "only the Unix handlers can fail to register"
-        )
-    )]
     pub fn install() -> io::Result<Self> {
         #[cfg(unix)]
         {
@@ -116,9 +114,11 @@ impl Signals {
                 quit: signal(SignalKind::quit())?,
             })
         }
-        #[cfg(not(unix))]
+        #[cfg(windows)]
         {
-            Ok(Self {})
+            Ok(Self {
+                ctrl_c: tokio::signal::windows::ctrl_c()?,
+            })
         }
     }
 
@@ -155,9 +155,9 @@ impl Signals {
                 () = quit => Stop::Quit,
             }
         }
-        #[cfg(not(unix))]
+        #[cfg(windows)]
         {
-            if tokio::signal::ctrl_c().await.is_err() {
+            if self.ctrl_c.recv().await.is_none() {
                 std::future::pending::<()>().await;
             }
             Stop::Interrupt
