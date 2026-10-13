@@ -121,3 +121,43 @@ async fn a_kept_alive_connection_serves_request_after_request() {
     })
     .await;
 }
+
+/// An upstream whose accept queue is full drops the proxy's SYNs, so its
+/// connect never completes: without a connect timeout the client waited for
+/// as long as the operating system kept retrying (minutes). It now gets the
+/// proxy's 502 once the connect timeout passes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_upstream_that_never_accepts_the_connection_is_a_502() {
+    bounded(async {
+        let socket = tokio::net::TcpSocket::new_v4().unwrap();
+        socket.bind("127.0.0.1:0".parse().unwrap()).unwrap();
+        let upstream = socket.listen(0).unwrap();
+        let upstream_address = upstream.local_addr().unwrap();
+        // Fill the accept queue; nothing ever accepts.
+        let mut held = Vec::new();
+        for _ in 0..4 {
+            let connect = tokio::net::TcpStream::connect(upstream_address);
+            if let Ok(Ok(stream)) = tokio::time::timeout(Duration::from_millis(200), connect).await
+            {
+                held.push(stream);
+            }
+        }
+        let (address, _, stop) = proxy(format!("http://{upstream_address}"), |options| {
+            options.connect_timeout = Duration::from_millis(300);
+        })
+        .await;
+        let started = Instant::now();
+        let response = reqwest::Client::new()
+            .post(format!("http://{address}/mcp"))
+            .body("{}")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 502);
+        assert!(started.elapsed() < Duration::from_secs(5));
+        let unrecorded = stop().await.unwrap().unwrap();
+        assert_eq!(unrecorded.upstream_failures, 1);
+        drop((held, upstream));
+    })
+    .await;
+}

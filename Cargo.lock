@@ -1228,6 +1228,7 @@ dependencies = [
  "rustls",
  "serde_json",
  "tokio",
+ "tower",
 ]
 
 [[package]]

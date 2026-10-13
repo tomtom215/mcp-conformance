@@ -34,7 +34,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use axum::body::Body;
 use axum::http::uri::Uri;
 use hyper_util::client::legacy::Client;
-use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
 
 use mcp_conformance_core::trace::LifecycleEvent;
@@ -43,6 +42,7 @@ use tokio::sync::watch;
 use crate::recorder::Recorder;
 use crate::traces::Traces;
 
+mod connect;
 mod listen;
 mod relay;
 mod target;
@@ -51,10 +51,8 @@ mod target;
 /// which takes effect only once a server sets a timer.
 pub const HEADER_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
-#[cfg(feature = "tls")]
-type Connector = hyper_rustls::HttpsConnector<HttpConnector>;
-#[cfg(not(feature = "tls"))]
-type Connector = HttpConnector;
+/// [`Options::connect_timeout`]'s default.
+pub const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Where to forward, and how much of any one message to keep.
 #[derive(Debug, Clone)]
@@ -89,8 +87,14 @@ pub struct Options {
     /// client that trickles header bytes (slowloris) cannot hold connections
     /// open, and an idle connection is closed after this long.
     pub header_read_timeout: std::time::Duration,
+    /// How long connecting to the upstream may take — the TCP connection, and
+    /// the TLS handshake for an `https` upstream — before the proxy gives up
+    /// and answers the request `502` itself. Only connecting: once connected,
+    /// an upstream may take as long as it likes to answer (an SSE stream, or a
+    /// long tool call, is open-ended by design).
+    pub connect_timeout: std::time::Duration,
     /// How the proxy connects upstream, made once the upstream is known.
-    connector: Connector,
+    connector: connect::Connector,
 }
 
 impl Options {
@@ -125,15 +129,19 @@ impl Options {
             // Not repeated either: a query can carry a key.
             _ => return Err("not an absolute http:// or https:// URL".to_owned()),
         }
-        let connector = connector(upstream.scheme_str() == Some("https")).map_err(|error| {
-            format!("cannot load the platform's root certificates for an https upstream: {error}")
-        })?;
+        let connector =
+            connect::connector(upstream.scheme_str() == Some("https")).map_err(|error| {
+                format!(
+                    "cannot load the platform's root certificates for an https upstream: {error}"
+                )
+            })?;
         Ok(Self {
             upstream,
             max_message,
             preserve_host: false,
             grace: crate::STOP_GRACE,
             header_read_timeout: HEADER_READ_TIMEOUT,
+            connect_timeout: CONNECT_TIMEOUT,
             connector,
         })
     }
@@ -198,7 +206,7 @@ impl Counters {
 #[derive(Debug)]
 struct Proxy {
     traces: Arc<Traces>,
-    client: Client<Connector, Body>,
+    client: Client<connect::Timed, Body>,
     options: Options,
     counters: Counters,
     /// Becomes `true` when the proxy is shutting down.
@@ -246,7 +254,10 @@ pub async fn serve_traces(
     let grace = options.grace;
     let proxy = Arc::new(Proxy {
         traces,
-        client: Client::builder(TokioExecutor::new()).build(options.connector.clone()),
+        client: Client::builder(TokioExecutor::new()).build(connect::Timed {
+            inner: options.connector.clone(),
+            timeout: options.connect_timeout,
+        }),
         options,
         counters: Counters::default(),
         stopping: stopping.clone(),
@@ -280,50 +291,6 @@ async fn stopped(mut stopping: watch::Receiver<bool>) {
     if stopping.wait_for(|stopping| *stopping).await.is_err() {
         std::future::pending::<()>().await;
     }
-}
-
-/// The upstream connector: HTTPS and HTTP with the `tls` feature, HTTP without.
-///
-/// The platform's root certificates are loaded only for an `https` upstream:
-/// where none can be found (a minimal container), a plain `http` upstream must
-/// still work. The proxy only ever connects to the one upstream, so an `http`
-/// one never uses the TLS settings, and gets none it could trust.
-///
-/// One function with the variants inside, rather than one function per `cfg`, so
-/// that every build compiles the whole of it and mutation testing (which runs
-/// with all features) never mutates a body that build does not contain.
-#[cfg_attr(
-    not(feature = "tls"),
-    allow(
-        clippy::unnecessary_wraps,
-        reason = "only loading root certificates can fail"
-    )
-)]
-fn connector(https: bool) -> io::Result<Connector> {
-    #[cfg(feature = "tls")]
-    let connector = {
-        let builder = hyper_rustls::HttpsConnectorBuilder::new();
-        let builder = if https {
-            builder.with_provider_and_native_roots(rustls::crypto::ring::default_provider())?
-        } else {
-            builder.with_tls_config(
-                rustls::ClientConfig::builder_with_provider(Arc::new(
-                    rustls::crypto::ring::default_provider(),
-                ))
-                .with_safe_default_protocol_versions()
-                .map_err(io::Error::other)?
-                .with_root_certificates(rustls::RootCertStore::empty())
-                .with_no_client_auth(),
-            )
-        };
-        builder.https_or_http().enable_http1().build()
-    };
-    #[cfg(not(feature = "tls"))]
-    let connector = {
-        let _ = https;
-        HttpConnector::new()
-    };
-    Ok(connector)
 }
 
 #[cfg(test)]

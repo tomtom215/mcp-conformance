@@ -236,8 +236,11 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 - **Upstream failures as they happened.** An upstream that fails mid-response reaches
   the client as the same truncation — its status and headers, then a body cut off —
   and the trace records `transport-abort`. Only an upstream that cannot be reached at
-  all gets the proxy's own `502`, whose body names the upstream (without its query)
-  and the cause.
+  all — no connection, TLS handshake included, within 10 seconds — gets the proxy's
+  own `502`, whose body names the upstream (without its query) and the cause. Once
+  connected, the proxy waits for the upstream's answer for as long as it takes:
+  there is no response timeout, since an event stream or a long tool call is
+  open-ended by design, and a stop request ends any wait.
 - **Causal order.** Each message is recorded before the bytes that complete it are
   forwarded, so a response is never recorded ahead of its request.
 - **Nothing altered to fit the trace.** A message larger than `--max-message-bytes`
