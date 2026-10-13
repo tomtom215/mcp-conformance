@@ -19,12 +19,16 @@ use super::transport::framing::Framing;
 use crate::context::TraceContext;
 use mcp_conformance_core::trace::Direction;
 
+mod identity;
 mod reliance;
 mod trace_context;
 
 #[cfg(test)]
 mod tests;
 
+pub(in crate::checks) use identity::{
+    client_info_on_requests, discover_server_info, server_info_on_results,
+};
 pub(in crate::checks) use reliance::no_undeclared_capability_reliance;
 pub(in crate::checks) use trace_context::trace_context_format;
 

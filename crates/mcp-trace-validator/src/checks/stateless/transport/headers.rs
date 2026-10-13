@@ -348,7 +348,7 @@ pub(in crate::checks) fn x_mcp_header_name_valid(
 }
 
 /// Every way `designation` breaks TRAN-080, as finding-ready clauses.
-fn annotation_faults(designation: &Designation, duplicate: bool) -> Vec<String> {
+pub(super) fn annotation_faults(designation: &Designation, duplicate: bool) -> Vec<String> {
     let mut faults = Vec::new();
     if designation.name.is_empty() {
         faults.push("is empty".to_owned());

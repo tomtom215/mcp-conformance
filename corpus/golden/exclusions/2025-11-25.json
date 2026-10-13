@@ -187,11 +187,6 @@
       "exclusion": "Which version a server assumed is internal state; subsequent traffic does not reveal it."
     },
     {
-      "id": "TRAN-020",
-      "level": "MUST",
-      "exclusion": "The server's supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. mcp-everything-server answers an in-session request bearing an unsupported MCP-Protocol-Version with 400 (rmcp's streamable HTTP tower layer; the initialize exchange itself negotiates in-band and does not consult the header), asserted by unsupported_protocol_version_is_rejected_with_400 in tests/http_policy.rs."
-    },
-    {
       "id": "TRAN-021",
       "level": "SHOULD NOT",
       "exclusion": "How a client interprets stderr is internal, and stderr bytes are not part of the protocol trace (the trace records MCP messages and transport lifecycle, not diagnostics channels)."

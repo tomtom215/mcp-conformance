@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 29,
+    "pass": 30,
     "fail": 3,
     "warn": 0,
-    "excluded": 167,
+    "excluded": 160,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 115
+    "not_observed": 121
   },
   "requirements": [
     {
@@ -127,6 +127,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "BASE-033",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
       "id": "BASE-034",
       "level": "MUST NOT",
       "outcome": "not-observed"
@@ -164,6 +169,11 @@
         "quote": "On HTTP, the response status MUST be `400 Bad Request`.",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
       }
+    },
+    {
+      "id": "BASE-037",
+      "level": "SHOULD",
+      "outcome": "not-observed"
     },
     {
       "id": "BASE-039",
@@ -293,6 +303,16 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-083",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-084",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-086",
       "level": "MUST",
       "outcome": "not-observed"
@@ -389,6 +409,11 @@
     },
     {
       "id": "DISC-002",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "DISC-003",
       "level": "SHOULD",
       "outcome": "not-observed"
     },
@@ -698,6 +723,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TOOL-035",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TOOL-038",
       "level": "SHOULD",
       "outcome": "not-observed"
@@ -714,6 +744,11 @@
     },
     {
       "id": "TOOL-045",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-046",
       "level": "MUST",
       "outcome": "not-observed"
     },

@@ -125,9 +125,10 @@ async fn unsupported_protocol_version_is_rejected_with_400() {
     // Request." Enforced by rmcp's streamable HTTP tower layer for requests
     // within an established session — the initialize exchange itself never
     // consults the header (negotiation is in-band there), measured against
-    // rmcp 1.7.0. Pinned here so an rmcp regression is caught in this repo,
-    // because the registry's TRAN-020 exclusion names this test as the
-    // enforcement.
+    // rmcp 1.7.0. Pinned here so an rmcp regression is caught in this repo.
+    // The registry judges TRAN-020 from a trace since 2026-10-13, but only for
+    // the one version a trace shows the server declining at `initialize`;
+    // every other unsupported version is still enforced only by this test.
     let app = router(HttpSecurityPolicy::default());
 
     let init = app

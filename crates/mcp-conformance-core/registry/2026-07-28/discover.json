@@ -42,7 +42,9 @@
         "section": "server/discover#discoverresult",
         "quote": "`meta['io.modelcontextprotocol/serverInfo']`: Name and version of the server software. Servers SHOULD include this field."
       },
-      "exclusion": "The same clause as BASE-037, restated for one result type: BASE-037 is the general rule for `serverInfo` in every result and carries the escape hatch \"unless specifically configured not to do so\". A restatement in the DiscoverResult field list does not withdraw that exemption, so an absent `serverInfo` here is still either non-compliance or the configured-off case, and the trace cannot tell which."
+      "checks": [
+        "discover.server-info-included"
+      ]
     },
     {
       "id": "DISC-004",

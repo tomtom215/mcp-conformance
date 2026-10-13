@@ -4,7 +4,7 @@
 
 # Requirements — `2025-11-25`
 
-Every normative clause of the `2025-11-25` specification that the validator's registry carries — 153 in all, 58 judged from a recorded trace and 95 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
+Every normative clause of the `2025-11-25` specification that the validator's registry carries — 153 in all, 59 judged from a recorded trace and 94 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -690,7 +690,7 @@ Judged by `transport.protocol-version-negotiated`.
 
 [`basic/transports#protocol-version-header`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header)
 
-**Excluded.** The server's supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. mcp-everything-server answers an in-session request bearing an unsupported MCP-Protocol-Version with 400 (rmcp's streamable HTTP tower layer; the initialize exchange itself negotiates in-band and does not consult the header), asserted by unsupported_protocol_version_is_rejected_with_400 in tests/http_policy.rs.
+Judged by `transport.unsupported-version-header-rejected`.
 
 ### TRAN-021
 

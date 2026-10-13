@@ -21,12 +21,14 @@ use crate::context::TraceContext;
 mod accept;
 mod post;
 mod status;
+mod version;
 
 pub(super) use accept::{client_get_accept_header, client_post_accept_header};
 pub(super) use post::client_messages_use_post;
 pub(super) use status::{
     accepted_input_status, get_stream_content_type, request_success_content_type,
 };
+pub(super) use version::unsupported_version_rejected;
 
 /// `TRAN-004`: nothing on the server's stdout that is not a valid MCP message.
 pub(super) fn stdio_server_output_valid(context: &TraceContext<'_>, sink: &mut FindingSink) {

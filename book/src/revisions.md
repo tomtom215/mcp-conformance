@@ -20,8 +20,8 @@ changelog and becomes a measurement.
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
 | Registry entries | 153 | 314 |
-| Judged by a named check | 58 | 147 |
-| Carrying a documented exclusion | 95 | 167 |
+| Judged by a named check | 59 | 154 |
+| Carrying a documented exclusion | 94 | 160 |
 | Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -81,9 +81,9 @@ And the verdict splits:
 
 ```text
 per revision:
-  2025-11-25: 17 pass, 0 fail, 0 warn, 95 excluded, 0 unsupported, 14 not applicable, 27 not observed — verdict pass
+  2025-11-25: 17 pass, 0 fail, 0 warn, 94 excluded, 0 unsupported, 14 not applicable, 28 not observed — verdict pass
   2025-11-25: wire schema pass (3 messages valid)
-  2026-07-28: 15 pass, 8 fail, 0 warn, 167 excluded, 0 unsupported, 0 not applicable, 124 not observed — verdict fail
+  2026-07-28: 15 pass, 8 fail, 0 warn, 160 excluded, 0 unsupported, 0 not applicable, 131 not observed — verdict fail
   2026-07-28: wire schema fail (1 of 3 messages invalid)
 overall verdict: fail
 ```
@@ -164,7 +164,7 @@ usually are.
   session of deliberately malformed requests, the official runner's two, and
   three of the official SDKs' own conformance servers
   ([the cross-SDK matrix](sdk-matrix.md)) — evidence
-  **127 of the 147 judgeable clauses** between them. What no capture
+  **130 of the 154 judgeable clauses** between them. What no capture
   reaches is named, one clause at a time, in [the corpus chapter](corpus.md).
 - The project's CI re-runs that measurement weekly and **ratchets** it against a
   committed baseline: any change in either direction fails the build, so a

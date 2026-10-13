@@ -505,10 +505,10 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <div class="t-pass"><dt>pass</dt><dd>26</dd></div>
 <div class="t-fail zero"><dt>fail</dt><dd>0</dd></div>
 <div class="t-warn zero"><dt>warn</dt><dd>0</dd></div>
-<div class="t-excluded"><dt>excluded</dt><dd>95</dd></div>
+<div class="t-excluded"><dt>excluded</dt><dd>94</dd></div>
 <div class="t-unsupported zero"><dt>unsupported</dt><dd>0</dd></div>
 <div class="t-not-applicable"><dt>not applicable</dt><dd>6</dd></div>
-<div class="t-not-observed"><dt>not observed</dt><dd>26</dd></div>
+<div class="t-not-observed"><dt>not observed</dt><dd>27</dd></div>
 </dl>
 <p class="schema-line s-pass">Wire schema: pass (9 messages valid)</p>
 </section>
@@ -677,7 +677,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="TOOL-008"><code class="rid">TOOL-008</code><span class="pill level">SHOULD</span></li>
 </ul>
 </details>
-<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">26</span></summary>
+<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">27</span></summary>
 <p class="meaning">Every covering check ran and found nothing to judge: the session carried none of the traffic these clauses bind to. A session that exercises them may pass or fail them.</p>
 <ul class="rows">
 <li id="BASE-006"><code class="rid">BASE-006</code><span class="pill level">MUST</span></li>
@@ -690,6 +690,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="TRAN-013"><code class="rid">TRAN-013</code><span class="pill level">MUST</span></li>
 <li id="TRAN-017"><code class="rid">TRAN-017</code><span class="pill level">MUST</span></li>
 <li id="TRAN-018"><code class="rid">TRAN-018</code><span class="pill level">SHOULD</span></li>
+<li id="TRAN-020"><code class="rid">TRAN-020</code><span class="pill level">MUST</span></li>
 <li id="TRAN-025"><code class="rid">TRAN-025</code><span class="pill level">MUST</span></li>
 <li id="TRAN-026"><code class="rid">TRAN-026</code><span class="pill level">MUST</span></li>
 <li id="TRAN-027"><code class="rid">TRAN-027</code><span class="pill level">MUST</span></li>
@@ -719,7 +720,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="PROM-008"><code class="rid">PROM-008</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
 </ul>
 </details>
-<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">95</span></summary>
+<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">94</span></summary>
 <p class="meaning">The registry does not judge these from a recording; each row says why.</p>
 <ul class="rows">
 <li id="BASE-011"><code class="rid">BASE-011</code><span class="pill level">MUST NOT</span><span class="reason">A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009.</span></li>
@@ -759,7 +760,6 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="TRAN-015"><code class="rid">TRAN-015</code><span class="pill level">MUST</span><span class="reason">Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden).</span></li>
 <li id="TRAN-016"><code class="rid">TRAN-016</code><span class="pill level">MUST</span><span class="reason">A 404 is attributed to the request it answered when the recording&#39;s order is unambiguous, but not to the moment the client read it: a recorder logs the status as it passes, and the client may already have sent further requests on the old session. Requests after the 404 therefore do not show the client ignored it, and a client that stops instead of reconnecting sends nothing to judge.</span></li>
 <li id="TRAN-019"><code class="rid">TRAN-019</code><span class="pill level">SHOULD</span><span class="reason">Which version a server assumed is internal state; subsequent traffic does not reveal it.</span></li>
-<li id="TRAN-020"><code class="rid">TRAN-020</code><span class="pill level">MUST</span><span class="reason">The server&#39;s supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. mcp-everything-server answers an in-session request bearing an unsupported MCP-Protocol-Version with 400 (rmcp&#39;s streamable HTTP tower layer; the initialize exchange itself negotiates in-band and does not consult the header), asserted by unsupported_protocol_version_is_rejected_with_400 in tests/http_policy.rs.</span></li>
 <li id="TRAN-021"><code class="rid">TRAN-021</code><span class="pill level">SHOULD NOT</span><span class="reason">How a client interprets stderr is internal, and stderr bytes are not part of the protocol trace (the trace records MCP messages and transport lifecycle, not diagnostics channels).</span></li>
 <li id="TRAN-022"><code class="rid">TRAN-022</code><span class="pill level">SHOULD</span><span class="reason">A client&#39;s supported-transport surface is a property of the implementation, not of any one session; a streamable-HTTP trace says nothing about whether stdio was available.</span></li>
 <li id="TRAN-023"><code class="rid">TRAN-023</code><span class="pill level">MUST</span><span class="reason">The trace vocabulary covers stdio and streamable HTTP; custom transports are outside the capture universe by construction (TransportKind is closed per revision).</span></li>
