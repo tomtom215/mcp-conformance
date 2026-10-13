@@ -450,6 +450,20 @@ D1, D3, D4, D6, 0.1, 0.3–0.7, 1.1–1.3, 1.5, 2.1, 4.4, M6, M8, M10.
 | Phase 5 — proportionality | Partial | Roadmap condensed; CHANGELOG still carries audit narrative; merged branches not deleted |
 | Low — `#[allow]` attributes | Open | Module-wide `#![allow(deprecated)]` in the server and host, for rmcp's deprecated `2025-11-25` surface |
 
+## The workbench
+
+[ADR-0021](decisions/0021-a-workbench-people-keep-open.md), decided 2026-10-13 by the
+owner: make the clause-level reading something people use daily, alongside the official
+suite and `mcpsnoop`. One phase at a time; each closes only against its definition of done.
+
+| Phase | Work | Done when | Status |
+|-------|------|-----------|--------|
+| W1 | `mcp-conformance` crate; `test` runs the pinned suite through capture against a server or client and reports both verdicts | A server and a client run end to end in CI through `test`; its report agrees with `cargo xtask conformance` on the same subject | Not started |
+| W2 | HTML report (`--format html`) | Golden HTML for the corpus; screenshot baselines for a passing, a failing and a two-revision report; no network requests when opened | Not started |
+| W3 | npm and PyPI packages carrying the release binaries; container image (1.4) | `npx mcp-conformance --version` and `pip install` + run work on Linux, macOS and Windows runners from locally built packages | Not started |
+| W4 | `watch`: live judging over capture, `--otlp` export under the MCP semantic conventions | Findings print within one exchange of the violating message on a corpus replay; exported spans accepted by an OpenTelemetry Collector in CI | Not started |
+| W5 | `serve`: library, search, timeline, inspector, diff, live tail, dashboards, administration (tags, retention, delete, export, redaction), importers (`mcpsnoop`, MCP Inspector) | Every view under screenshot baselines and end-to-end interaction tests; the security model's workbench section implemented and tested (token, Host/Origin, CSP, text-only rendering) | Not started |
+
 ## Sequencing rules
 
 1. M0 strictly precedes everything; no feature code on an unscaffolded repo.

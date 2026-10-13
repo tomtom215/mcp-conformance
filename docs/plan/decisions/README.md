@@ -37,6 +37,7 @@ or when the reasoning would otherwise live only in someone's head.
 | [0018](0018-judge-the-declared-revision.md) | Judge the Revision the Trace Declares, and Ship `2026-07-28` in Every Build | Accepted (replaces the feature-gate condition in 02-architecture and roadmap M5) |
 | [0019](0019-a-recording-tap-is-not-a-gateway.md) | A Recording Tap Is Not a Gateway — Ship `mcp-trace-capture` | Accepted (narrows 0002's gateway/proxy non-goal) |
 | [0020](0020-wire-schema-validation.md) | Judge Every Message Against the Revision's Own JSON Schema | Accepted (reverses the no-schema-engine boundary) |
+| [0021](0021-a-workbench-people-keep-open.md) | A Workbench People Keep Open — `mcp-conformance` | Accepted (adds a sixth published crate) |
 
 ## Process
 
