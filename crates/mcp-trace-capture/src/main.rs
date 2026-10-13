@@ -282,6 +282,14 @@ fn http_summary(
                     unrecorded.altered
                 );
             }
+            if unrecorded.over_budget > 0 {
+                eprintln!(
+                    "mcp-trace-capture: {} session message(s) arrived while the proxy already \
+                     held its buffer budget (4 x --max-message-bytes) of other messages and are \
+                     not in the trace (forwarded unchanged)",
+                    unrecorded.over_budget
+                );
+            }
             if unrecorded.other_events > 0 {
                 eprintln!(
                     "mcp-trace-capture: {} SSE event(s) had a type other than `message`, which \
@@ -301,6 +309,13 @@ fn http_summary(
                     "mcp-trace-capture: {} response(s) were cut off by the upstream mid-body; \
                      the truncation was relayed (recorded as transport-abort)",
                     unrecorded.upstream_cut
+                );
+            }
+            if unrecorded.refused_paths > 0 {
+                eprintln!(
+                    "mcp-trace-capture: {} request(s) had a `.` or `..` path segment and were \
+                     answered 400 by the proxy, not forwarded (not in the trace)",
+                    unrecorded.refused_paths
                 );
             }
             report_statuses(unrecorded, bound, upstream);
@@ -350,6 +365,13 @@ fn report_stdio(side: &str, unrecorded: stdio::Unrecorded) {
              ({ALTERED}); each is recorded as a string payload, which the validator reports as \
              not a valid MCP message",
             unrecorded.altered
+        );
+    }
+    if unrecorded.unterminated > 0 {
+        eprintln!(
+            "mcp-trace-capture: the {side}'s output ended mid-line, without the newline that \
+             frames a stdio message; the remainder is recorded as a string payload, which the \
+             validator reports as not a valid MCP message"
         );
     }
     report_unrecorded(side, 0, unrecorded.oversized);

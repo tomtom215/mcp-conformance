@@ -31,7 +31,7 @@ fn lines_are_the_same_wherever_the_input_is_cut() {
             Line::Complete(b"{\"a\":\"\xc3\xa9\"}".to_vec()),
             Line::Complete("{\"b\":\"日本\"}".as_bytes().to_vec()),
             Line::Complete(Vec::new()),
-            Line::Complete(b"{\"c\":1}".to_vec()),
+            Line::Unterminated(b"{\"c\":1}".to_vec()),
         ]
     );
     for cut in 0..=input.len() {
@@ -137,7 +137,10 @@ fn a_line_of_exactly_the_limit_is_kept() {
     // …and unterminated at end of stream.
     let mut splitter = LineSplitter::new(4);
     assert_eq!(splitter.push(b"abcd"), Vec::<Line>::new());
-    assert_eq!(splitter.finish(), Some(Line::Complete(b"abcd".to_vec())));
+    assert_eq!(
+        splitter.finish(),
+        Some(Line::Unterminated(b"abcd".to_vec()))
+    );
     // One byte more is oversized in each case.
     let mut splitter = LineSplitter::new(4);
     assert_eq!(splitter.push(b"abcde\n"), [Line::Oversized]);
@@ -197,7 +200,10 @@ fn a_crlf_line_of_exactly_the_limit_is_kept() {
     // Unterminated at end of stream, with and without a stray `\r`.
     let mut splitter = LineSplitter::new(4);
     assert_eq!(splitter.push(b"abcd\r"), Vec::<Line>::new());
-    assert_eq!(splitter.finish(), Some(Line::Complete(b"abcd".to_vec())));
+    assert_eq!(
+        splitter.finish(),
+        Some(Line::Unterminated(b"abcd".to_vec()))
+    );
     let mut splitter = LineSplitter::new(4);
     assert_eq!(splitter.push(b"abcde"), Vec::<Line>::new());
     assert_eq!(splitter.finish(), Some(Line::Oversized));
@@ -240,4 +246,29 @@ fn a_message_is_json_json_the_trace_would_alter_or_not_json() {
     );
     assert_eq!(parse_message(b"not json"), Parsed::NotJson);
     assert_eq!(parse_message(b" "), Parsed::NotJson);
+}
+
+/// What the parser holds is what the proxy's buffer budget pays for; an event
+/// the budget cannot cover is dropped, mid-line or between lines, and the
+/// parser picks up cleanly at the next event.
+#[test]
+fn a_dropped_event_is_skipped_to_its_end_and_the_next_is_kept() {
+    let mut parser = SseParser::new(1024);
+    assert_eq!(parser.push(b"data: {\"a\":"), Vec::<Vec<u8>>::new());
+    assert_eq!(parser.buffered(), 11);
+    parser.drop_event();
+    assert_eq!(parser.buffered(), 0);
+    assert_eq!(
+        parser.push(b"1}\ndata: more\n\ndata: {\"b\":2}\n\n"),
+        [b"{\"b\":2}".to_vec()]
+    );
+    // Dropped between two lines of its data.
+    assert_eq!(parser.push(b"data: x\n"), Vec::<Vec<u8>>::new());
+    assert_eq!(parser.buffered(), 1);
+    parser.drop_event();
+    assert_eq!(
+        parser.push(b"data: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\n\ndata: z\n\n"),
+        [b"z".to_vec()]
+    );
+    assert_eq!((parser.oversized(), parser.other_types()), (0, 0));
 }

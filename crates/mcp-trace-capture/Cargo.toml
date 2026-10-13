@@ -47,14 +47,19 @@ rustdoc-args = ["--generate-link-to-definition"]
 # capture cannot drift from what the judge accepts.
 mcp-conformance-core = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true, features = ["process", "io-util", "io-std", "net", "sync", "signal"] }
+tokio = { workspace = true, features = ["process", "io-util", "io-std", "net", "sync", "signal", "time"] }
 # HTTP listener. Already in the tree for the everything server.
 axum = { workspace = true }
 # HTTP upstream client: hyper directly, so request and response bodies stream
 # through as the endpoints sent them. Already in the tree under reqwest and axum.
-hyper = { version = ">=1.11, <2", default-features = false, features = ["client", "http1"] }
-hyper-util = { version = ">=0.1.20, <0.2", default-features = false, features = ["client-legacy", "http1", "tokio"] }
+# The listener is hyper's HTTP/1 server too, for the header read timeout
+# axum::serve does not set.
+hyper = { version = ">=1.11, <2", default-features = false, features = ["client", "http1", "server"] }
+hyper-util = { version = ">=0.1.20, <0.2", default-features = false, features = ["client-legacy", "http1", "server-graceful", "tokio"] }
 futures = { version = ">=0.3.30, <0.4" }
+# The upstream connector's timeout wraps it as a `Service`. Already in the tree
+# under axum.
+tower = { workspace = true }
 clap = { workspace = true, optional = true }
 hyper-rustls = { version = ">=0.27.10, <0.28", default-features = false, features = ["http1", "ring", "rustls-native-certs", "tls12"], optional = true }
 rustls = { version = ">=0.23.45, <0.24", default-features = false, features = ["ring", "std", "tls12"], optional = true }

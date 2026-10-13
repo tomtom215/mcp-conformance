@@ -45,8 +45,9 @@ pub(super) fn target(upstream: &Uri, path_and_query: Option<&PathAndQuery>) -> U
 /// server, past the proxy and out of the trace. Rewritten: a URL on the
 /// upstream's own scheme and authority, or a path (`/mcp`) on the same server,
 /// whose path the proxy can reach — the inverse of [`target`]. An absolute one
-/// becomes `http://` plus the `Host` the client addressed the proxy by
-/// (`proxy_host`). Anything else — another server, a relative reference, a path
+/// becomes `http://` plus `proxy_host`, the proxy's own address the client
+/// reached (never the client's `Host` header, which names whatever the client
+/// likes). Anything else — another server, a relative reference, a path
 /// outside the upstream's, a query that does not carry the upstream's own — is
 /// left alone.
 pub(super) fn location(upstream: &Uri, value: &str, proxy_host: Option<&str>) -> Option<String> {
@@ -86,6 +87,23 @@ fn proxy_path<'a>(upstream: &str, path: &'a str) -> Option<&'a str> {
     }
     let rest = path.strip_prefix(upstream.trim_end_matches('/'))?;
     (rest.starts_with('/') && rest != "/").then_some(rest)
+}
+
+/// Whether `path` has a `.` or `..` segment — spelled out, or with its dots
+/// percent-encoded (`%2e`), or between encoded separators (`%2f`, and `\` or
+/// `%5c`, which some servers also split on). Appended to the upstream's path,
+/// such a segment would leave it once the server resolves it: `/../secret`
+/// against `http://h/mcp` is `/mcp/../secret`, which is `/secret`.
+pub(super) fn has_dot_segment(path: &str) -> bool {
+    let mut decoded = path.to_owned();
+    for (encoded, plain) in [("%2e", "."), ("%2f", "/"), ("%5c", "\\")] {
+        for spelling in [encoded.to_owned(), encoded.to_ascii_uppercase()] {
+            decoded = decoded.replace(&spelling, plain);
+        }
+    }
+    decoded
+        .split(['/', '\\'])
+        .any(|segment| segment == "." || segment == "..")
 }
 
 pub(super) fn is_event_stream(headers: &HeaderMap) -> bool {

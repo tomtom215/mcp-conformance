@@ -31,8 +31,8 @@ pub mod traces;
 pub use recorder::{NotRecorded, Recorder, Summary};
 pub use signals::{SERVER_STOP_GRACE, STOP_GRACE, Signals, Stop};
 
-/// A future that resolves at the first request to stop: SIGINT, SIGTERM or SIGHUP
-/// on Unix, Ctrl-C elsewhere.
+/// A future that resolves at the first request to stop: SIGINT, SIGTERM, SIGHUP
+/// or SIGQUIT on Unix, Ctrl-C elsewhere.
 ///
 /// The handlers are registered by this call, not when the future is first polled,
 /// so a signal arriving between the call and the first poll is not lost. They stay

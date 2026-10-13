@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! The requests to stop a capture answers: `SIGINT`, `SIGTERM` and `SIGHUP` on Unix,
-//! Ctrl-C elsewhere.
+//! The requests to stop a capture answers: `SIGINT`, `SIGTERM`, `SIGHUP` and
+//! `SIGQUIT` on Unix, Ctrl-C elsewhere.
 //!
 //! A capture never lets one of these kill it outright: the stdio wrapper relays it
 //! to the server and closes the trace once the server is gone; the HTTP proxy shuts
@@ -42,6 +42,10 @@ pub enum Stop {
     Terminate,
     /// `SIGHUP`: the terminal or the session that started the capture went away.
     Hangup,
+    /// `SIGQUIT` (a terminal's Ctrl-\\). Its default action ends a process at
+    /// once, which would leave the server — in a process group of its own, out
+    /// of the terminal's reach — running, and the trace unclosed.
+    Quit,
 }
 
 impl Stop {
@@ -53,6 +57,7 @@ impl Stop {
             Self::Interrupt => 2,
             Self::Terminate => 15,
             Self::Hangup => 1,
+            Self::Quit => 3,
         }
     }
 
@@ -63,6 +68,7 @@ impl Stop {
             Self::Interrupt => "SIGINT",
             Self::Terminate => "SIGTERM",
             Self::Hangup => "SIGHUP",
+            Self::Quit => "SIGQUIT",
         }
     }
 }
@@ -76,6 +82,14 @@ pub struct Signals {
     terminate: tokio::signal::unix::Signal,
     #[cfg(unix)]
     hangup: tokio::signal::unix::Signal,
+    #[cfg(unix)]
+    quit: tokio::signal::unix::Signal,
+    /// Created once, at install: a Ctrl-C arriving before the first
+    /// [`Signals::recv`], or between two, is kept for the next one. A listener
+    /// made afresh by each call would miss it, and the default handler would
+    /// end the capture.
+    #[cfg(windows)]
+    ctrl_c: tokio::signal::windows::CtrlC,
 }
 
 impl Signals {
@@ -89,14 +103,6 @@ impl Signals {
     /// # Errors
     ///
     /// A handler could not be registered.
-    #[cfg_attr(
-        not(unix),
-        allow(
-            clippy::missing_const_for_fn,
-            clippy::unnecessary_wraps,
-            reason = "only the Unix handlers can fail to register"
-        )
-    )]
     pub fn install() -> io::Result<Self> {
         #[cfg(unix)]
         {
@@ -105,11 +111,14 @@ impl Signals {
                 interrupt: signal(SignalKind::interrupt())?,
                 terminate: signal(SignalKind::terminate())?,
                 hangup: signal(SignalKind::hangup())?,
+                quit: signal(SignalKind::quit())?,
             })
         }
-        #[cfg(not(unix))]
+        #[cfg(windows)]
         {
-            Ok(Self {})
+            Ok(Self {
+                ctrl_c: tokio::signal::windows::ctrl_c()?,
+            })
         }
     }
 
@@ -134,15 +143,21 @@ impl Signals {
                     std::future::pending::<()>().await;
                 }
             };
+            let quit = async {
+                if self.quit.recv().await.is_none() {
+                    std::future::pending::<()>().await;
+                }
+            };
             tokio::select! {
                 () = interrupt => Stop::Interrupt,
                 () = terminate => Stop::Terminate,
                 () = hangup => Stop::Hangup,
+                () = quit => Stop::Quit,
             }
         }
-        #[cfg(not(unix))]
+        #[cfg(windows)]
         {
-            if tokio::signal::ctrl_c().await.is_err() {
+            if self.ctrl_c.recv().await.is_none() {
                 std::future::pending::<()>().await;
             }
             Stop::Interrupt
@@ -157,9 +172,10 @@ mod tests {
     #[test]
     fn numbers_and_names_are_the_unix_ones() {
         assert_eq!(
-            [Stop::Hangup, Stop::Interrupt, Stop::Terminate].map(Stop::number),
-            [1, 2, 15]
+            [Stop::Hangup, Stop::Interrupt, Stop::Quit, Stop::Terminate].map(Stop::number),
+            [1, 2, 3, 15]
         );
+        assert_eq!(Stop::Quit.name(), "SIGQUIT");
         assert_eq!(Stop::Terminate.name(), "SIGTERM");
         assert_eq!(Stop::Interrupt.name(), "SIGINT");
         assert_eq!(Stop::Hangup.name(), "SIGHUP");

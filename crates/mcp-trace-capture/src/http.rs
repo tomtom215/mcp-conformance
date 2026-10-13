@@ -23,10 +23,11 @@
 //!
 //! **Limits.** A body or SSE event larger than the message limit is forwarded intact
 //! and counted, not recorded: the proxy never alters traffic to fit its trace. So
-//! is one that is not JSON, or is JSON the trace cannot hold as sent, and an SSE
-//! event of a type other than `message`.
+//! is one that is not JSON, or is JSON the trace cannot hold as sent, an SSE
+//! event of a type other than `message`, and one that arrives while the proxy
+//! already holds its [`Options::buffer_budget`] of other messages.
 
-use std::future::{Future, IntoFuture as _};
+use std::future::Future;
 use std::io;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -34,7 +35,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use axum::body::Body;
 use axum::http::uri::Uri;
 use hyper_util::client::legacy::Client;
-use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
 
 use mcp_conformance_core::trace::LifecycleEvent;
@@ -43,13 +43,22 @@ use tokio::sync::watch;
 use crate::recorder::Recorder;
 use crate::traces::Traces;
 
+mod body;
+mod connect;
+mod listen;
 mod relay;
 mod target;
 
-#[cfg(feature = "tls")]
-type Connector = hyper_rustls::HttpsConnector<HttpConnector>;
-#[cfg(not(feature = "tls"))]
-type Connector = HttpConnector;
+/// [`Options::header_read_timeout`]'s default: hyper's own default for it,
+/// which takes effect only once a server sets a timer.
+pub const HEADER_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// [`Options::buffer_budget`]'s default, in messages of the largest size
+/// recorded.
+pub const BUFFER_BUDGET_MESSAGES: usize = 4;
+
+/// [`Options::connect_timeout`]'s default.
+pub const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Where to forward, and how much of any one message to keep.
 #[derive(Debug, Clone)]
@@ -66,6 +75,13 @@ pub struct Options {
     pub upstream: Uri,
     /// The largest body or SSE event recorded; larger ones are forwarded unrecorded.
     pub max_message: usize,
+    /// The most bytes of bodies and SSE events the proxy holds at once, across
+    /// every exchange in flight, to record them. A body or event that arrives
+    /// when this is spent is forwarded unrecorded — streamed, as one over
+    /// `max_message` is — and counted ([`Unrecorded::over_budget`]), rather
+    /// than waiting or failing. [`Options::new`] makes it four times
+    /// `max_message`; change one, and set the other to match.
+    pub buffer_budget: usize,
     /// Forward the client's `Host` header instead of naming the upstream, so a
     /// server's own `Host` validation judges what the client sent rather than what
     /// the proxy sent. Wrong for a virtually hosted remote server, which routes on
@@ -78,8 +94,20 @@ pub struct Options {
     /// would never stop). An event stream answering a POST does: it carries a
     /// request's response.
     pub grace: std::time::Duration,
+    /// How long a client gets to send a request's head — from when the proxy
+    /// starts waiting for one, on a new connection or an idle kept-alive one,
+    /// to its last header line — before the proxy closes the connection. So a
+    /// client that trickles header bytes (slowloris) cannot hold connections
+    /// open, and an idle connection is closed after this long.
+    pub header_read_timeout: std::time::Duration,
+    /// How long connecting to the upstream may take — the TCP connection, and
+    /// the TLS handshake for an `https` upstream — before the proxy gives up
+    /// and answers the request `502` itself. Only connecting: once connected,
+    /// an upstream may take as long as it likes to answer (an SSE stream, or a
+    /// long tool call, is open-ended by design).
+    pub connect_timeout: std::time::Duration,
     /// How the proxy connects upstream, made once the upstream is known.
-    connector: Connector,
+    connector: connect::Connector,
 }
 
 impl Options {
@@ -114,14 +142,20 @@ impl Options {
             // Not repeated either: a query can carry a key.
             _ => return Err("not an absolute http:// or https:// URL".to_owned()),
         }
-        let connector = connector(upstream.scheme_str() == Some("https")).map_err(|error| {
-            format!("cannot load the platform's root certificates for an https upstream: {error}")
-        })?;
+        let connector =
+            connect::connector(upstream.scheme_str() == Some("https")).map_err(|error| {
+                format!(
+                    "cannot load the platform's root certificates for an https upstream: {error}"
+                )
+            })?;
         Ok(Self {
             upstream,
             max_message,
+            buffer_budget: max_message.saturating_mul(BUFFER_BUDGET_MESSAGES),
             preserve_host: false,
             grace: crate::STOP_GRACE,
+            header_read_timeout: HEADER_READ_TIMEOUT,
+            connect_timeout: CONNECT_TIMEOUT,
             connector,
         })
     }
@@ -140,6 +174,9 @@ pub struct Unrecorded {
     pub other_events: u64,
     /// Bodies or SSE events over the message limit.
     pub oversized: u64,
+    /// Bodies or SSE events that arrived when the buffer budget was spent
+    /// ([`Options::buffer_budget`]): streamed on, not recorded.
+    pub over_budget: u64,
     /// Requests the upstream could not be reached for (answered 502 by the proxy).
     pub upstream_failures: u64,
     /// Responses the upstream cut off after its status and headers (relayed to
@@ -149,6 +186,9 @@ pub struct Unrecorded {
     pub not_2xx: u64,
     /// Of those, `404 Not Found`: usually a client pointed at the wrong path.
     pub not_found: u64,
+    /// Requests whose path had a `.` or `..` segment, which would leave the
+    /// upstream's path: answered 400 by the proxy, not forwarded, not recorded.
+    pub refused_paths: u64,
 }
 
 #[derive(Debug, Default)]
@@ -157,10 +197,12 @@ struct Counters {
     altered: AtomicU64,
     other_events: AtomicU64,
     oversized: AtomicU64,
+    over_budget: AtomicU64,
     upstream_failures: AtomicU64,
     upstream_cut: AtomicU64,
     not_2xx: AtomicU64,
     not_found: AtomicU64,
+    refused_paths: AtomicU64,
 }
 
 impl Counters {
@@ -170,10 +212,12 @@ impl Counters {
             altered: self.altered.load(Ordering::Relaxed),
             other_events: self.other_events.load(Ordering::Relaxed),
             oversized: self.oversized.load(Ordering::Relaxed),
+            over_budget: self.over_budget.load(Ordering::Relaxed),
             upstream_failures: self.upstream_failures.load(Ordering::Relaxed),
             upstream_cut: self.upstream_cut.load(Ordering::Relaxed),
             not_2xx: self.not_2xx.load(Ordering::Relaxed),
             not_found: self.not_found.load(Ordering::Relaxed),
+            refused_paths: self.refused_paths.load(Ordering::Relaxed),
         }
     }
 }
@@ -181,9 +225,11 @@ impl Counters {
 #[derive(Debug)]
 struct Proxy {
     traces: Arc<Traces>,
-    client: Client<Connector, Body>,
+    client: Client<connect::Timed, Body>,
     options: Options,
     counters: Counters,
+    /// The buffer budget ([`Options::buffer_budget`]), in bytes.
+    budget: Arc<tokio::sync::Semaphore>,
     /// Becomes `true` when the proxy is shutting down.
     stopping: watch::Receiver<bool>,
 }
@@ -216,7 +262,9 @@ pub async fn serve(
 ///
 /// # Errors
 ///
-/// The server failed.
+/// None at present: an `accept` that fails is retried, and a connection that
+/// fails concerns only its client. The `Result` leaves room to report a
+/// listener that cannot go on.
 pub async fn serve_traces(
     listener: tokio::net::TcpListener,
     traces: Arc<Traces>,
@@ -225,29 +273,31 @@ pub async fn serve_traces(
 ) -> io::Result<Unrecorded> {
     let (stop, stopping) = watch::channel(false);
     let grace = options.grace;
+    let budget = options
+        .buffer_budget
+        .min(tokio::sync::Semaphore::MAX_PERMITS);
     let proxy = Arc::new(Proxy {
         traces,
-        client: Client::builder(TokioExecutor::new()).build(options.connector.clone()),
+        client: Client::builder(TokioExecutor::new()).build(connect::Timed {
+            inner: options.connector.clone(),
+            timeout: options.connect_timeout,
+        }),
         options,
         counters: Counters::default(),
+        budget: Arc::new(tokio::sync::Semaphore::new(budget)),
         stopping: stopping.clone(),
     });
-    let app = axum::Router::new()
-        .fallback(relay::forward)
-        .with_state(Arc::clone(&proxy));
-    let server = axum::serve(listener, app)
-        .with_graceful_shutdown(async move {
-            shutdown.await;
-            let _ = stop.send(true);
-        })
-        .into_future();
+    let server = listen::serve(listener, Arc::clone(&proxy), async move {
+        shutdown.await;
+        let _ = stop.send(true);
+    });
     tokio::pin!(server);
     let waited_out = async {
         stopped(stopping).await;
         tokio::time::sleep(grace).await;
     };
     tokio::select! {
-        result = &mut server => result?,
+        () = &mut server => {}
         () = waited_out => {
             eprintln!(
                 "mcp-trace-capture: connections still open {}s after the stop request are \
@@ -266,50 +316,6 @@ async fn stopped(mut stopping: watch::Receiver<bool>) {
     if stopping.wait_for(|stopping| *stopping).await.is_err() {
         std::future::pending::<()>().await;
     }
-}
-
-/// The upstream connector: HTTPS and HTTP with the `tls` feature, HTTP without.
-///
-/// The platform's root certificates are loaded only for an `https` upstream:
-/// where none can be found (a minimal container), a plain `http` upstream must
-/// still work. The proxy only ever connects to the one upstream, so an `http`
-/// one never uses the TLS settings, and gets none it could trust.
-///
-/// One function with the variants inside, rather than one function per `cfg`, so
-/// that every build compiles the whole of it and mutation testing (which runs
-/// with all features) never mutates a body that build does not contain.
-#[cfg_attr(
-    not(feature = "tls"),
-    allow(
-        clippy::unnecessary_wraps,
-        reason = "only loading root certificates can fail"
-    )
-)]
-fn connector(https: bool) -> io::Result<Connector> {
-    #[cfg(feature = "tls")]
-    let connector = {
-        let builder = hyper_rustls::HttpsConnectorBuilder::new();
-        let builder = if https {
-            builder.with_provider_and_native_roots(rustls::crypto::ring::default_provider())?
-        } else {
-            builder.with_tls_config(
-                rustls::ClientConfig::builder_with_provider(Arc::new(
-                    rustls::crypto::ring::default_provider(),
-                ))
-                .with_safe_default_protocol_versions()
-                .map_err(io::Error::other)?
-                .with_root_certificates(rustls::RootCertStore::empty())
-                .with_no_client_auth(),
-            )
-        };
-        builder.https_or_http().enable_http1().build()
-    };
-    #[cfg(not(feature = "tls"))]
-    let connector = {
-        let _ = https;
-        HttpConnector::new()
-    };
-    Ok(connector)
 }
 
 #[cfg(test)]
