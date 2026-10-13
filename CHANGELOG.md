@@ -316,6 +316,10 @@ below is stated again in its entry, with the reasoning.
 
 ### Added
 
+- **A CycloneDX SBOM for every crate, attested.** Each release attaches
+  `<crate>-<version>.cdx.json` beside the `.crate` (checksummed in
+  `SHA256SUMS-sbom`), with a signed attestation binding the two; RELEASING.md's
+  "Verifying a release" gives the `gh attestation verify` commands.
 - **`mcp-trace-capture http` names the client URL when it starts, and the statuses
   when it stops**: how many responses were not 2xx, and, for 404s, whether the
   endpoint path is right — with the upstream path ending in `/mcp`, a client also

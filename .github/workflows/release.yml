@@ -265,13 +265,74 @@ jobs:
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: target/package/*.crate
+      # ── One CycloneDX SBOM per crate, attested against that .crate ─────────
+      - name: Install cargo-cyclonedx
+        # Pinned and built --locked, like every tool whose output is shipped.
+        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+      - name: Generate the SBOMs
+        # The command ci.yml's `package` job runs on every PR. It writes
+        # target/package/<crate>-<version>.cdx.json beside each .crate, fails
+        # unless every published crate has one, and dates them by the commit,
+        # so the bytes are a function of the tag. Not added to SHA256SUMS,
+        # which covers exactly the .crate files `publish` re-packages and
+        # compares; SHA256SUMS-sbom covers these.
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo xtask sbom --out target/package
+          cd target/package
+          sha256sum ./*.cdx.json | tee SHA256SUMS-sbom
+      - name: One SBOM attestation step per published crate
+        # actions/attest takes one SBOM per call, so the steps below name the
+        # crates; this fails when PUBLISH_ORDER gains a crate they do not.
+        shell: bash
+        run: |
+          set -euo pipefail
+          read -r -a order <<< "$PUBLISH_ORDER"
+          [[ "${#order[@]}" -eq 5 ]] || { echo "::error::PUBLISH_ORDER has ${#order[@]} crates; add an SBOM attestation step for each"; exit 1; }
+      # actions/attest, not actions/attest-sbom: at v4 the latter is a
+      # deprecated wrapper that calls this action with the same inputs.
+      - name: Attest SBOM (mcp-conformance-core)
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/package/mcp-conformance-core-${{ needs.verify.outputs.version }}.crate
+          sbom-path: target/package/mcp-conformance-core-${{ needs.verify.outputs.version }}.cdx.json
+      - name: Attest SBOM (mcp-trace-validator)
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/package/mcp-trace-validator-${{ needs.verify.outputs.version }}.crate
+          sbom-path: target/package/mcp-trace-validator-${{ needs.verify.outputs.version }}.cdx.json
+      - name: Attest SBOM (mcp-everything-server)
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/package/mcp-everything-server-${{ needs.verify.outputs.version }}.crate
+          sbom-path: target/package/mcp-everything-server-${{ needs.verify.outputs.version }}.cdx.json
+      - name: Attest SBOM (mcp-reference-host)
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/package/mcp-reference-host-${{ needs.verify.outputs.version }}.crate
+          sbom-path: target/package/mcp-reference-host-${{ needs.verify.outputs.version }}.cdx.json
+      - name: Attest SBOM (mcp-trace-capture)
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/package/mcp-trace-capture-${{ needs.verify.outputs.version }}.crate
+          sbom-path: target/package/mcp-trace-capture-${{ needs.verify.outputs.version }}.cdx.json
       - name: Upload release artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-artifacts
+          # One directory, so the artifact stays flat: `publish` checks
+          # attested/SHA256SUMS against its own target/package.
           path: |
             target/package/*.crate
             target/package/SHA256SUMS
+            target/package/*.cdx.json
+            target/package/SHA256SUMS-sbom
           retention-days: 90
           if-no-files-found: error
 
@@ -459,6 +520,7 @@ jobs:
             echo "::warning::release ${TAG} already exists — updating in place"
             gh release edit "$TAG" $PRE_FLAG --title "$TAG" --notes-file release-notes.md
             gh release upload "$TAG" --clobber release-artifacts/*.crate release-artifacts/SHA256SUMS \
+              release-artifacts/*.cdx.json release-artifacts/SHA256SUMS-sbom \
               release-binaries/* SHA256SUMS-binaries
           else
             gh release create "$TAG" \
@@ -467,6 +529,7 @@ jobs:
               --title "$TAG" \
               --notes-file release-notes.md \
               release-artifacts/*.crate release-artifacts/SHA256SUMS \
+              release-artifacts/*.cdx.json release-artifacts/SHA256SUMS-sbom \
               release-binaries/* SHA256SUMS-binaries
           fi
 

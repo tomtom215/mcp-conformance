@@ -299,11 +299,14 @@ the release PR, not in this file.
    re-runs the full gate set (including MSRV clippy/tests and cross-OS tests), packages
    all publishable crates with verification builds (`cargo package --workspace --exclude xtask --locked` — the
    workspace-wide dry run; per-crate `--dry-run` cannot resolve unpublished sibling
-   dependencies), attests SLSA build provenance over the `.crate` files, builds both
+   dependencies), attests SLSA build provenance over the `.crate` files, writes
+   one CycloneDX SBOM per crate (`cargo xtask sbom`, which CI's `package` job
+   also runs on every PR) and attests each against its `.crate`, builds both
    CLIs with `cargo auditable` for five targets (Linux x86_64/aarch64 musl, macOS arm64/x86_64, Windows
    x86_64) and attests each archive, creates the GitHub Release with the changelog
-   excerpt, the checksummed `.crate` files and the checksummed binary archives
-   (`SHA256SUMS-binaries`), then — behind
+   excerpt, the checksummed `.crate` files, their SBOMs
+   (`<crate>-<version>.cdx.json`, checksummed in `SHA256SUMS-sbom`) and the
+   checksummed binary archives (`SHA256SUMS-binaries`), then — behind
    the `release` environment's required-reviewer approval — re-packages with
    `--no-verify` (the publish job compiles nothing while it holds the OIDC
    grant), **byte-compares against the attested SHA256SUMS**, and publishes to
@@ -335,6 +338,33 @@ the release PR, not in this file.
    release's book becomes the site's root and gains its own `/vX.Y.Z/` copy,
    and `/dev/` keeps tracking `main`. Nothing is edited by hand. Check that
    the site's version selector lists the new release as latest.
+
+## Verifying a release
+
+Every `.crate` carries two attestations, signed by `release.yml` on the tag:
+SLSA build provenance and its CycloneDX SBOM. Every binary archive carries
+provenance. Check them with the GitHub CLI, here for `mcp-trace-validator` at
+`X.Y.Z` (any crate works the same way):
+
+```text
+gh release download vX.Y.Z -R tomtom215/mcp-conformance -p 'mcp-trace-validator-X.Y.Z.*' -p 'SHA256SUMS*'
+sha256sum --check --ignore-missing SHA256SUMS SHA256SUMS-sbom
+gh attestation verify mcp-trace-validator-X.Y.Z.crate -R tomtom215/mcp-conformance
+gh attestation verify mcp-trace-validator-X.Y.Z.crate -R tomtom215/mcp-conformance \
+  --predicate-type https://cyclonedx.org/bom
+```
+
+The first `verify` checks provenance (its default predicate type); the second
+checks that the SBOM attestation names this exact `.crate`. The SBOM it
+attests is the predicate, printed by adding
+`--format json --jq '.[0].verificationResult.statement.predicate'`, and is the
+same document as the downloaded `mcp-trace-validator-X.Y.Z.cdx.json`. The
+`.crate` on crates.io is the same file: `publish` re-packages and
+byte-compares against the attested `SHA256SUMS` before uploading, so a copy
+from `https://crates.io/api/v1/crates/mcp-trace-validator/X.Y.Z/download`
+verifies too. For an archive, `gh attestation verify <archive> -R
+tomtom215/mcp-conformance`. Releases before the first one with SBOMs have
+provenance only.
 
 ## When publishing fails mid-way
 

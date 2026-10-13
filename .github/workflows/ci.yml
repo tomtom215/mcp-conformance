@@ -4,7 +4,7 @@
 # Continuous integration — every quality gate from docs/plan/04-engineering-standards.md.
 #
 # Jobs: format, clippy (stable + MSRV × 3 OS × 3 feature modes), test (same matrix),
-#       docs (-D warnings), cargo-deny, package validation,
+#       docs (-D warnings), cargo-deny, package validation (with an SBOM dry run),
 #       semver (vs crates.io), coverage and nightly (informational).
 #
 # Toolchains are installed with plain `rustup` rather than a third-party action:
@@ -284,6 +284,16 @@ jobs:
       # reason, so this job validates exactly what a release would package.
       - name: Package all publishable crates
         run: cargo package --workspace --exclude xtask --locked
+      # The release's SBOM step, rehearsed: release.yml's `package` job runs
+      # this command and attests each file against its .crate. Here nothing is
+      # signed; the point is that generation, and the one-per-published-crate
+      # check inside it, cannot first fail after a tag.
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+      - name: One CycloneDX SBOM per published crate (release dry run)
+        run: |
+          cargo xtask sbom --out target/package
+          ls -l target/package/*.cdx.json
 
   # The published crates' Rust API against their crates.io baseline, on every
   # PR rather than only before a release, where an undeclared break is found

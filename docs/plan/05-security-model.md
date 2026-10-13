@@ -50,7 +50,7 @@ Precision note: this advisory is DNS rebinding (CWE-346/350) only; the "CSRF" la
 occasionally attached to it belongs to a different package's advisory
 ([register 4.4](01-ecosystem-context.md)). We do not repeat the conflation.
 
-## CI write scopes (reviewed 2026-09-25)
+## CI write scopes (reviewed 2026-10-13)
 
 No workflow grants a write scope at workflow level: every `permissions:` block
 at the top of a file is `{}` or `contents: read`. Write scopes exist only on
@@ -59,9 +59,9 @@ workflows, each scope with an inline comment in the YAML naming what it writes.
 
 | Workflow (triggers) | Job | Write scope | For |
 |---|---|---|---|
-| `release.yml` (`push` tags, `workflow_dispatch`) | `package` | `id-token`, `attestations` | Sigstore OIDC + build-provenance attestation |
+| `release.yml` (`push` tags, `workflow_dispatch`) | `package` | `id-token`, `attestations` | Sigstore OIDC + build-provenance attestation of the `.crate` files, and an SBOM attestation binding each to its CycloneDX SBOM |
 | `release.yml` | `binaries` | `id-token`, `attestations` | Sigstore OIDC + build-provenance attestation of each prebuilt archive |
-| `release.yml` | `github-release` | `contents` | create the release, upload `.crate` + `SHA256SUMS`, the binary archives + `SHA256SUMS-binaries` |
+| `release.yml` | `github-release` | `contents` | create the release, upload `.crate` + `SHA256SUMS`, the SBOMs + `SHA256SUMS-sbom`, the binary archives + `SHA256SUMS-binaries` |
 | `release.yml` | `publish` | `id-token` | crates.io Trusted Publishing (no long-lived token exists to steal) |
 | `pages.yml` (`push` to the default branch, a completed `Release` run via `workflow_run`, `workflow_dispatch`) | `deploy` | `pages`, `id-token` | deploy the versioned book, built by the unprivileged `build` job; `deploy` checks out and compiles nothing |
 | `scheduled.yml` (`schedule`, `workflow_dispatch`) | `claims-expire` | `issues` | open, comment on, and close the tracking issue a red claims-expiry run files ([ADR-0010 §Amendment](decisions/0010-deferral-ledger-and-scheduled-reverification.md)) |
