@@ -58,6 +58,7 @@ use serde::Deserialize;
 mod anchors;
 mod census;
 mod draft;
+mod extensions;
 pub(crate) mod pages;
 mod wire_schema;
 
@@ -173,6 +174,11 @@ pub(crate) fn run() -> ExitCode {
         }
     }
 
+    match verify_extensions(&set, &navigation) {
+        Ok(found) => total.add(&found),
+        Err(()) => return ExitCode::FAILURE,
+    }
+
     match wire_schema::verify() {
         Ok(schema_drift) => total.drifted += schema_drift,
         Err(()) => return ExitCode::FAILURE,
@@ -186,10 +192,11 @@ pub(crate) fn run() -> ExitCode {
     // a gate overstating its own coverage, which is the failure this gate
     // exists to catch in other people's documents.
     eprintln!(
-        "xtask: spec-drift — {} quote(s) and their anchors across {} revision(s) \
-         verified against the published text{}",
+        "xtask: spec-drift — {} quote(s) and their anchors across {} revision(s) and the \
+         extensions attached to {} verified against the published text{}",
         total.quotes,
         verified.len(),
+        extensions::REVISION,
         if skipped.is_empty() {
             String::new()
         } else {
@@ -201,6 +208,30 @@ pub(crate) fn run() -> ExitCode {
         }
     );
     ExitCode::SUCCESS
+}
+
+/// The extensions attached to `2026-07-28` (ADR-0023): their own page set,
+/// read from each extension's repository rather than from a dated directory.
+fn verify_extensions(set: &RegistrySet, navigation: &str) -> Result<Counts, ()> {
+    let Some(extended) = extensions::REVISION
+        .parse()
+        .ok()
+        .and_then(|revision| set.registry(revision))
+    else {
+        eprintln!(
+            "xtask: spec-drift — the embedded set does not describe {}",
+            extensions::REVISION
+        );
+        return Err(());
+    };
+    let found = extensions::verify(navigation, &extended)?;
+    Ok(Counts {
+        quotes: found.quotes,
+        drifted: found.drifted,
+        broken_anchors: found.broken_anchors,
+        unlisted_pages: found.unlisted_pages,
+        census: found.census,
+    })
 }
 
 /// Says what to do about each kind of failure found; `true` when there were none.

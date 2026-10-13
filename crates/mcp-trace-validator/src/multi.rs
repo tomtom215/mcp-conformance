@@ -67,6 +67,11 @@ pub struct RevisionSummary {
     /// ([`Report::wire_schema`](crate::report::Report::wire_schema)).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wire_schema: Option<crate::report::WireSchemaReport>,
+    /// The extensions the session exercised at this revision, judged and never
+    /// scored ([`Report::extensions`](crate::report::Report::extensions)):
+    /// [`Self::verdict`] does not read them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extensions: Vec<crate::report::ExtensionReport>,
 }
 
 /// One clause's row across every judged revision.
@@ -218,6 +223,9 @@ impl MultiReport {
         for summary in &self.summaries {
             if let Some(wire_schema) = &summary.wire_schema {
                 wire_schema.write_human(&mut out, options, Some(&summary.revision));
+            }
+            for extension in &summary.extensions {
+                extension.write_human(&mut out, options, Some(&summary.revision));
             }
         }
         let _ = writeln!(out, "per revision:");
@@ -378,6 +386,7 @@ pub fn validate_revisions(
             totals: report.totals,
             verdict: report.verdict(),
             wire_schema: report.wire_schema.clone(),
+            extensions: report.extensions.clone(),
         });
         reports.push(report);
     }

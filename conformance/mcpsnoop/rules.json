@@ -304,6 +304,13 @@
       "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-080", "TOOL-033"] },
       "partial": ["TRAN-080", "TOOL-033"],
       "reading": "One `x-mcp-header` name on two properties of a tool: one of the constraints TRAN-080 lists."
+    },
+    {
+      "id": "task-for-undeclaring-client",
+      "match": ["a task handle uses the io.modelcontextprotocol/tasks extension, which the client never advertised"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TASK-001", "VERS-005"] },
+      "partial": ["VERS-005"],
+      "reading": "A `CreateTaskResult` answering a request whose client capabilities do not declare the tasks extension. The tasks extension's own clause, TASK-001 — reported in the extension's block and never scored — names exactly this; mcpsnoop cites the core negotiation clause VERS-005, of which it is one case and which our registry excludes because each extension, not the core, says what falling back means."
     }
   ]
 }

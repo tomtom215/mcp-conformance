@@ -11,6 +11,7 @@
 //! |------|---------------|
 //! | verdict | the verdict and every outcome's count, per judged revision, and the wire-schema outcome |
 //! | clauses to act on | each failing, warning or unsupported clause: ID, level, the quote, its published link, and every finding with its `seq` |
+//! | extensions | each extension the session used, never part of the verdict (ADR-0023): its own verdict and counts, its clauses to act on, and the rest accounted for |
 //! | message timeline | every event — direction, kind, method and id, which request a response answers, HTTP exchanges — with each finding at its event, linked both ways |
 //! | accounting | the passed, not-observed, not-applicable and excluded clauses, collapsed, each with its reason |
 //!
@@ -38,8 +39,9 @@ use mcp_conformance_core::trace::{TraceEvent, TransportKind};
 use crate::report::{Report, Unjudged, Verdict};
 
 mod clauses;
-mod digest;
+pub(crate) mod digest;
 mod escape;
+mod extensions;
 mod summary;
 mod timeline;
 
@@ -151,6 +153,7 @@ fn trace_body(out: &mut String, scope: &Scope<'_>) {
     summary::mismatch_notes(out, scope);
     summary::contents(out, scope);
     clauses::attention(out, scope);
+    extensions::write(out, scope);
     timeline::write(out, scope);
     clauses::accounting(out, scope);
 }

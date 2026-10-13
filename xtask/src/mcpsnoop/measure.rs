@@ -326,6 +326,10 @@ pub(crate) fn read_sarif(sarif: &Value, frames: &[Frame], exit: i32) -> Result<S
 }
 
 /// The revision and our flagged rows, from a committed golden report.
+///
+/// An extension's rows count as flagged too: mcpsnoop judges extension traffic
+/// as well, and the comparison is of readings, not of verdicts. They never
+/// reach `verdict`, which is the report's own (ADR-0023).
 pub(crate) fn read_golden(path: &Path) -> Result<(String, Ours), String> {
     let text = fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
     let golden: Value =
@@ -337,10 +341,17 @@ pub(crate) fn read_golden(path: &Path) -> Result<(String, Ours), String> {
             .unwrap_or_default()
             .to_owned()
     };
+    let extensions = golden
+        .get("extensions")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|extension| extension.get("requirements").and_then(Value::as_array));
     let mut flagged: Vec<String> = golden
         .get("requirements")
         .and_then(Value::as_array)
         .into_iter()
+        .chain(extensions)
         .flatten()
         .filter(|row| {
             matches!(

@@ -111,7 +111,7 @@ pub(super) fn published(navigation: &str, revision: &str) -> Result<BTreeSet<Str
 
 /// Every string in a `pages` array, at any depth: the navigation nests groups
 /// inside tabs inside versions, and a page is a string wherever it appears.
-fn navigation_pages<'v>(value: &'v Value, out: &mut Vec<&'v str>) {
+pub(super) fn navigation_pages<'v>(value: &'v Value, out: &mut Vec<&'v str>) {
     match value {
         Value::Object(map) => {
             for (key, child) in map {
@@ -240,6 +240,7 @@ pub(crate) fn gate() -> bool {
             ok = false;
         }
     }
+    ok &= extension_gate();
     if ok {
         eprintln!(
             "xtask: page-set — {pages} page(s) across {} revision(s) and the draft skeleton, \
@@ -249,6 +250,42 @@ pub(crate) fn gate() -> bool {
         );
     }
     ok
+}
+
+/// The offline half for the extension registries (ADR-0023): their page set's
+/// shape, and its agreement with the entries that cite it.
+fn extension_gate() -> bool {
+    let sources = match super::extensions::load() {
+        Ok(sources) => sources,
+        Err(message) => {
+            eprintln!("xtask: page-set — extensions: {message}");
+            return false;
+        }
+    };
+    let registry = mcp_conformance_core::requirement::RegistrySet::builtin()
+        .ok()
+        .and_then(|set| set.registry(super::extensions::REVISION.parse().ok()?));
+    let Some(registry) = registry else {
+        eprintln!(
+            "xtask: page-set — the embedded set does not describe {}",
+            super::extensions::REVISION
+        );
+        return false;
+    };
+    let problems = super::extensions::structure(&sources, &registry);
+    for problem in &problems {
+        eprintln!("xtask: page-set — extensions: {problem}");
+    }
+    if problems.is_empty() {
+        eprintln!(
+            "xtask: page-set — {} extension(s) attached to {}, each page in one list and \
+             cited by its entries, {} other extension page(s) of the site reasoned out",
+            sources.extensions.len(),
+            super::extensions::REVISION,
+            sources.site_out_of_scope.len()
+        );
+    }
+    problems.is_empty()
 }
 
 #[cfg(test)]

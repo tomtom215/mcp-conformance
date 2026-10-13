@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! SHA-256 and base64, for one purpose: the Content Security Policy source
-//! (`'sha256-…'`) that admits the page's own stylesheet and nothing else.
+//! SHA-256 and base64, for two purposes: the Content Security Policy source
+//! (`'sha256-…'`) that admits the page's own stylesheet and nothing else; and,
+//! crate-wide, the skills extension's check that a `SKILL.md` read back is the
+//! file its entry's manifest digests, before comparing the two's frontmatter.
 //!
 //! Written here rather than taken from a crate because the project adds no
 //! dependency it can avoid (04-engineering-standards §Dependency policy), and
-//! this is the whole of what is needed: one digest of a few kilobytes per
-//! render, checked against the FIPS 180-4 and RFC 4648 test vectors below and,
-//! end to end, by a browser that refuses the stylesheet when the digest is
-//! wrong (the screenshot suite fails on any console error, which is where a CSP
-//! violation is reported).
+//! this is the whole of what is needed: a digest of a few kilobytes at a time,
+//! checked against the FIPS 180-4 and RFC 4648 test vectors below and, end to
+//! end, by a browser that refuses the stylesheet when the digest is wrong (the
+//! screenshot suite fails on any console error, which is where a CSP violation
+//! is reported).
 
 /// The first 32 bits of the fractional parts of the cube roots of the first
 /// 64 primes (FIPS 180-4 §4.2.2).
@@ -94,7 +96,11 @@ const H0: [u32; 8] = [
 ];
 
 /// The SHA-256 digest of `data`.
-pub(super) fn sha256(data: &[u8]) -> [u8; 32] {
+// `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
+// opposite demands about an item in a private module that the crate reads
+// elsewhere; this follows the rustc lint and quiets the clippy one.
+#[allow(clippy::redundant_pub_crate)]
+pub(crate) fn sha256(data: &[u8]) -> [u8; 32] {
     let mut state = H0;
     // The message, a 1 bit, zeros, and its length in bits as a big-endian
     // 64-bit integer, to a multiple of 64 bytes (§5.1.1).

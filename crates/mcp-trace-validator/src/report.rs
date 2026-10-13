@@ -250,6 +250,55 @@ pub struct Report {
     /// vendors no schema for [`Self::revision`] (an external registry's).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wire_schema: Option<WireSchemaReport>,
+    /// The clauses of each extension the session exercised, judged and never
+    /// scored: nothing here moves [`Self::totals`] or [`Self::verdict`]
+    /// (ADR-0023). An extension appears once one of its clauses judged
+    /// something — passed, failed, warned — or names a check this build lacks;
+    /// one the session never touched has nothing to report and is absent.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extensions: Vec<ExtensionReport>,
+}
+
+/// One extension's clauses as a trace was judged against them: reported beside
+/// the revision's own, never counted with them (ADR-0023).
+///
+/// An extension is optional by definition — the specification's extensions are
+/// "disabled by default and require explicit opt-in" — so conforming to the
+/// protocol cannot depend on one. The official suite draws the same line: its
+/// requirement sets run an extension's scenarios under `not_scored` with the
+/// reason `extension`, reported and never moving the pass rate. Here the
+/// extension keeps its own [`Totals`] and its own [`verdict`](Self::verdict),
+/// for the reader who implements it; the report's verdict ignores both.
+///
+/// Serialized with its verdict after the extension's identifier, derived from
+/// the totals as [`Report`]'s is; a `verdict` member is ignored on input.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[non_exhaustive]
+pub struct ExtensionReport {
+    /// The extension's identifier (`io.modelcontextprotocol/tasks`).
+    pub extension: String,
+    /// The extension's own counts, kept out of the report's.
+    pub totals: Totals,
+    /// Its clauses' outcomes, in registry order.
+    pub requirements: Vec<RequirementReport>,
+}
+
+impl ExtensionReport {
+    /// What the extension's clauses add up to, by the rule a [`Report`] derives
+    /// its own: unsupported over fail over warnings over pass. Informational —
+    /// no exit status, and no report verdict, depends on it.
+    #[must_use]
+    pub const fn verdict(&self) -> Verdict {
+        if self.totals.unsupported > 0 {
+            Verdict::Unsupported
+        } else if self.totals.fail > 0 {
+            Verdict::Fail
+        } else if self.totals.warn > 0 {
+            Verdict::PassWithWarnings
+        } else {
+            Verdict::Pass
+        }
+    }
 }
 
 impl Report {

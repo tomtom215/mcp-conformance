@@ -51,6 +51,13 @@ fn marks<'a>(scope: &Scope<'a>) -> BTreeMap<u64, Vec<Mark<'a>>> {
         if let Some(schema) = &report.wire_schema {
             add(WIRE_SCHEMA, schema.outcome, &schema.findings);
         }
+        for row in report
+            .extensions
+            .iter()
+            .flat_map(|extension| &extension.requirements)
+        {
+            add(&row.id, row.outcome, &row.findings);
+        }
     }
     marks
 }

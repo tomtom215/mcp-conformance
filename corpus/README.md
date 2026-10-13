@@ -49,9 +49,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 104 | 182 |
+| Goldens | 104 | 234 |
 | Excluded rows the ledger holds | 232 | 320 |
-| Distinct not-observed sets across them | 67 | 136 |
+| Distinct not-observed sets across them | 67 | 149 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -939,3 +939,70 @@ outcome moved.
 | `auth-131-insufficient-scope-without-resource-metadata.jsonl` | AUTH-131, a warning: an `insufficient_scope` challenge without `resource_metadata` |
 | `auth-132-insufficient-scope-names-no-scope.jsonl` | AUTH-132, a warning: an `insufficient_scope` challenge with no `scope`; AUTH-131 warns too |
 | `auth-133-scope-challenged-incrementally.jsonl` | AUTH-133, a warning: a `tools/list` challenged for `tools:list`, retried unchanged, and challenged again for `tools:read`, which the first challenge did not name — the incremental challenging the page says forces "multiple authorization round-trips for a single operation" |
+
+### Extensions at `2026-07-28` (`corpus/draft/`, ADR-0023)
+
+Fixtures for the tasks (`io.modelcontextprotocol/tasks`) and skills
+(`io.modelcontextprotocol/skills`) extensions, hand-authored like the rest of
+`corpus/draft/` and judged by the `2026-07-28` registry, whose extension clauses
+report in each report's `extensions` block and never move its verdict. Every
+violation trace here leaves the core verdict `pass` unless its row says
+otherwise, which is the separation the corpus exists to show: the extension's
+own verdict fails, the report's does not. A `task-…` or `skill-…` trace is named
+for the extension clause it falsifies, and the golden tests look for that row in
+the extension block.
+
+| Trace | Exercises |
+|-------|-----------|
+| `tasks-session.jsonl` | Conformant tasks session over **stdio**: `server/discover` declaring the extension; a `tools/list` whose `deploy` tool declares an `outputSchema`; a `tools/call` of it from a declaring client answered with a task, polled `working`, then `input_required` twice with the same `inputRequests` key and request (the documented snapshot), answered once with `tasks/update` (acknowledged empty), then `completed` with its `result`, whose `structuredContent` TOOL-040 judges against the `outputSchema` (the task handle itself is not the tool's result: until 2026-10-13 TOOL-040 held it to the schema and failed this session); a second task `failed` with a JSON-RPC `error` and a `statusMessage`; a third followed on a `subscriptions/listen` stream asking for its `taskIds` (acknowledged, then `notifications/tasks` for it), cancelled with `tasks/cancel`, and the stream closed by a `notifications/cancelled` naming the listen request, not the task; and a non-declaring client refused `-32021` for `tasks/get` and for a task listen. The pass path of every tasks check but TASK-035 |
+| `tasks-http.jsonl` | Conformant tasks session over **Streamable HTTP**: a task created by `tools/call`, then `tasks/get` with `Mcp-Name: t-1`, the task's id (TASK-035's pass path) |
+| `task-001-task-for-undeclaring-client.jsonl` | TASK-001: a `tools/call` whose request does not declare the extension is answered with a task |
+| `task-006-task-without-result-type.jsonl` | TASK-006: a task returned for `tools/call` with `resultType: "complete"`. The core verdict fails too: a complete `tools/call` result without `content` is invalid against the revision's schema |
+| `task-007-task-result-type-without-task.jsonl` | TASK-007: `resultType: "task"` on a result with no `taskId` |
+| `task-015-get-result-not-a-task.jsonl` | TASK-015: a `tasks/get` result with status `running` and no timestamps or `ttlMs` |
+| `task-015-input-required-without-requests.jsonl` | TASK-015: an `input_required` task without `inputRequests` |
+| `task-017-get-result-type-not-complete.jsonl` | TASK-017: a `tasks/get` result marked `resultType: "task"`. TASK-028 and TASK-032 fail too: the three methods' results state one rule and share its check |
+| `task-022-input-request-key-reused.jsonl` | TASK-022: one `inputRequests` key naming two different elicitations across polls. TASK-023 states the same rule and shares the check |
+| `task-024-update-ack-not-empty.jsonl` | TASK-024: a `tasks/update` acknowledged with the task's state rather than an empty result. TASK-030, the same sentence for `tasks/cancel`, shares the check |
+| `task-026-input-answered-twice.jsonl` | TASK-026, a warning: a second `tasks/update` answering a key an acknowledged one already answered |
+| `task-029-task-cancelled-by-notification.jsonl` | TASK-029: `notifications/cancelled` naming the `tools/call` a task answered |
+| `task-033-task-listen-without-declaration.jsonl` | TASK-033: a non-declaring client's listen for task notifications acknowledged instead of refused. TASK-038, the error-handling list's statement of it, shares the check |
+| `task-034-progress-on-task-stream.jsonl` | TASK-034: a `notifications/message` on a task's listen stream. The core verdict fails too: the filter did not request it (SUBS-001), and a log message's own clauses (LOG-007 to LOG-009) bind it |
+| `task-035-mcp-name-missing.jsonl` | TASK-035: a `tasks/get` POSTed without `Mcp-Name` |
+| `task-039-get-without-declaration.jsonl` | TASK-039: a non-declaring client's `tasks/get` answered with the task |
+| `task-041-failed-without-status-message.jsonl` | TASK-041, a warning: a `failed` task without `statusMessage` |
+| `task-042-failed-without-error.jsonl` | TASK-042: a `failed` task without `error`. TASK-015 (its fifth item) and TASK-045 state the same rule |
+| `task-043-tool-error-reported-failed.jsonl` | TASK-043: a tool result with `isError: true` carried by a `failed` task. TASK-008 and TASK-044 state the same rule |
+| `task-046-completed-without-result.jsonl` | TASK-046: a `completed` task without `result`. TASK-015 (its third item) and TASK-044 state the same rule |
+| `skills-session.jsonl` | Conformant skills session over **stdio**: `server/discover` declaring the extension with `directoryRead: true` and the `resources` capability; a two-page `skills/list` (`pdf-processing` with a manifest of its `SKILL.md` and `templates/invoice.md`, then the nested-prefix `acme/billing/refunds` as `"dynamic"`); `skills/get` of the second, and of an unknown skill refused `-32602`; `resources/list` describing the `SKILL.md` as `text/markdown` with its frontmatter's name and description; `resources/read` of the `SKILL.md`, whose SHA-256 is the manifest's digest and whose frontmatter is the entry's; `resources/directory/read` of the skill root and of `templates/`, and of the `SKILL.md` itself refused `-32602`. The pass path of every skills check |
+| `skill-003-directory-read-not-implemented.jsonl` | SKILL-003: `directoryRead: true` declared, `resources/directory/read` answered `-32601` |
+| `skill-004-directory-read-undeclared.jsonl` | SKILL-004: the client calls `resources/directory/read` on a server that declared no `directoryRead` |
+| `skill-005-skills-without-resources.jsonl` | SKILL-005: the extension declared without the `resources` capability |
+| `skill-007-entry-uri-not-skill-md.jsonl` | SKILL-007: an entry whose `uri` is a `README.md` |
+| `skill-008-skill-md-without-frontmatter.jsonl` | SKILL-008: a `SKILL.md` read back without YAML frontmatter |
+| `skill-011-skill-under-other-scheme.jsonl` | SKILL-011, a warning: a skill served under `github://` |
+| `skill-012-path-not-ending-in-name.jsonl` | SKILL-012: `skill://pdf-tools/SKILL.md` named `pdf-processing`. SKILL-027 states the same rule and shares the check |
+| `skill-013-name-breaks-naming-rules.jsonl` | SKILL-013: a skill named `PDF--Processing` |
+| `skill-014-authority-not-reg-name.jsonl` | SKILL-014, a warning: a first path segment with a space |
+| `skill-015-prefix-segment-invalid.jsonl` | SKILL-015, a warning: a prefix segment containing `\|` |
+| `skill-018-skill-md-not-markdown.jsonl` | SKILL-018, a warning: a `SKILL.md` listed as `text/plain` |
+| `skill-019-resource-name-not-skill-name.jsonl` | SKILL-019, a warning: a `SKILL.md` listed under the name `SKILL.md` |
+| `skill-020-resource-description-differs.jsonl` | SKILL-020, a warning: a `SKILL.md` listed with a description its frontmatter does not give |
+| `skill-026-entry-frontmatter-differs.jsonl` | SKILL-026: the file read back has the manifest's digest but a different `description` from the entry's frontmatter |
+| `skill-029-listing-names-collide.jsonl` | SKILL-029, a warning: two skills in one listing named `pdf-processing` |
+| `skill-034-entry-without-resources.jsonl` | SKILL-034: an entry without `resources` |
+| `skill-035-manifest-without-skill-md.jsonl` | SKILL-035: a manifest that does not list the skill's own `SKILL.md` |
+| `skill-036-manifest-file-outside-skill.jsonl` | SKILL-036: a manifest listing `skill://shared/LICENSE` |
+| `skill-037-manifest-entry-without-size.jsonl` | SKILL-037: a manifest entry with a digest and no `size` |
+| `skill-042-skill-beyond-limits.jsonl` | SKILL-042, a warning: a manifest totalling 16,777,217 bytes, one over the limit |
+| `skill-044-list-not-implemented.jsonl` | SKILL-044: `skills/list` answered `-32601` by a declaring server. SKILL-002 states the same rule |
+| `skill-045-list-result-type-not-complete.jsonl` | SKILL-045: a `skills/list` result marked `resultType: "partial"` |
+| `skill-047-list-without-cache-fields.jsonl` | SKILL-047: a `skills/list` result without `ttlMs` and `cacheScope` |
+| `skill-048-get-not-implemented.jsonl` | SKILL-048: `skills/get` answered `-32601` by a declaring server. SKILL-002 states the same rule |
+| `skill-049-get-result-type-not-complete.jsonl` | SKILL-049: a `skills/get` result marked `resultType: "partial"` |
+| `skill-050-get-names-a-directory.jsonl` | SKILL-050: `skills/get` naming the skill's directory rather than its `SKILL.md` (the server's `-32602` is the conforming answer) |
+| `skill-051-unknown-skill-wrong-error.jsonl` | SKILL-051: an unknown skill refused with `-32600` rather than `-32602`. SKILL-071, the error-handling list, shares the check |
+| `skill-053-get-without-cache-fields.jsonl` | SKILL-053: a `skills/get` result without `ttlMs` and `cacheScope` |
+| `skill-065-directory-result-type-not-complete.jsonl` | SKILL-065: a `resources/directory/read` result marked `resultType: "partial"` |
+| `skill-066-directory-read-of-a-file-answered.jsonl` | SKILL-066: `resources/directory/read` of a file the manifest lists, answered with an empty listing. SKILL-071 shares the check |
+| `skill-067-skill-directory-refused.jsonl` | SKILL-067: `resources/directory/read` of `templates/`, a directory the manifest puts a file under, refused |

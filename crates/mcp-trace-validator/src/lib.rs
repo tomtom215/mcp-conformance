@@ -64,6 +64,8 @@ pub mod checks;
 pub mod context;
 pub mod declared;
 pub mod engine;
+#[cfg(test)]
+mod fixtures;
 pub mod html;
 pub mod judge;
 pub mod junit;

@@ -6,7 +6,7 @@
 
 # A second opinion: mcpsnoop
 
-[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 282 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
+[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 334 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
 
 ## How the comparison is made
 
@@ -19,7 +19,7 @@ The binary inside, `package/bin/mcpsnoop`, has SHA-256 `81c3636fa5a371833ab4558d
 
 **The same session in front of both.** Our traces are converted into the capture format mcpsnoop writes itself (`xtask/src/mcpsnoop/convert.rs`). On stdio the conversion is lossless. On HTTP a frame gets the headers, status and exchange the trace's own order settles — the rules our validator's framing applies — and no more; a frame whose context the trace cannot settle is marked unframed, and a finding that reads such context there is set aside, not counted. The conversion is checked against mcpsnoop's own recordings on every measurement: sessions recorded through both tools at once — the reference host against the everything server, committed under `conformance/mcpsnoop/native/` — must draw the same mcpsnoop findings from the converted trace as from mcpsnoop's capture once that capture's frames share one connection, the single field the conversion fixes rather than carries. In the committed run 3 of 3 such sessions did: `http-2025-11-25` (28 findings), `http-2026-07-28` (22 findings), `stdio-2025-11-25` (28 findings).
 
-**What is compared.** mcpsnoop's conformance signals — `invalid`, `warn` and `mismatch`, the three its own rule descriptions call protocol violations — against our `fail` and `warn` rows and the wire schema. Its other signals (a call that ended in an error, one still pending when the capture ended, a deprecated feature) are counted per trace but say nothing about conformance. Each mcpsnoop rule is mapped to the registry clauses its condition violates, read from both texts (`conformance/mcpsnoop/rules.json`, tabulated below); a mapping is *partial* where the rule checks only part of the clause. Then, per trace: a fired rule one of whose clauses we flag is **agreement**; a fired rule none of whose clauses we flag is a **mcpsnoop-only** divergence; a clause we flag that a rule maps fully, with that rule silent, is an **ours-only** divergence; a clause we flag that no rule maps fully is **beyond mcpsnoop**, a difference of scope rather than of reading.
+**What is compared.** mcpsnoop's conformance signals — `invalid`, `warn` and `mismatch`, the three its own rule descriptions call protocol violations — against our `fail` and `warn` rows, an extension's among them although they never decide our verdict, and the wire schema. Its other signals (a call that ended in an error, one still pending when the capture ended, a deprecated feature) are counted per trace but say nothing about conformance. Each mcpsnoop rule is mapped to the registry clauses its condition violates, read from both texts (`conformance/mcpsnoop/rules.json`, tabulated below); a mapping is *partial* where the rule checks only part of the clause. Then, per trace: a fired rule one of whose clauses we flag is **agreement**; a fired rule none of whose clauses we flag is a **mcpsnoop-only** divergence; a clause we flag that a rule maps fully, with that rule silent, is an **ours-only** divergence; a clause we flag that no rule maps fully is **beyond mcpsnoop**, a difference of scope rather than of reading.
 
 ## Summary
 
@@ -27,27 +27,27 @@ The binary inside, `package/bin/mcpsnoop`, has SHA-256 `81c3636fa5a371833ab4558d
 |---|---:|
 | `corpus/good/` | 7 |
 | `corpus/violations/` | 93 |
-| `corpus/draft/good/` | 25 |
-| `corpus/draft/violations/` | 149 |
+| `corpus/draft/good/` | 28 |
+| `corpus/draft/violations/` | 198 |
 | `corpus/draft/captured/` | 8 |
 
 Verdicts, ours against mcpsnoop's conformance signals:
 
 | | mcpsnoop flags the trace | mcpsnoop does not |
 |---|---:|---:|
-| our verdict `fail` | 80 | 126 |
-| our verdict `pass` or `pass-with-warnings` | 2 | 74 |
+| our verdict `fail` | 80 | 128 |
+| our verdict `pass` or `pass-with-warnings` | 3 | 123 |
 
 Traces by how the two readings relate:
 
 | Relation | Traces |
 |---|---:|
-| both clean | 34 |
-| agree | 75 |
-| beyond mcpsnoop | 162 |
+| both clean | 37 |
+| agree | 76 |
+| beyond mcpsnoop | 210 |
 | **divergent** | 11 |
 
-mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 198 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
+mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 256 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
 
 ## Divergences
 
@@ -314,6 +314,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `input-schema-not-object` | `advertises an inputSchema that is not a JSON object` | TOOL-003 | TOOL-025 | body | 1 | A tool whose `inputSchema` is not a JSON Schema object. |
 | `x-mcp-header-chain` | `declares an x-mcp-header under *, which * does not allow in the chain` | — | TRAN-082, TRAN-137, TOOL-045 | body | 5 | An `x-mcp-header` on a property not reachable through `properties` alone. |
 | `x-mcp-header-repeated` | `declares x-mcp-header * on more than one property` | — | *TRAN-080*, *TOOL-033* | body | 1 | One `x-mcp-header` name on two properties of a tool: one of the constraints TRAN-080 lists. |
+| `task-for-undeclaring-client` | `a task handle uses the io.modelcontextprotocol/tasks extension, which the client never advertised` | — | TASK-001, *VERS-005* | body | 1 | A `CreateTaskResult` answering a request whose client capabilities do not declare the tasks extension. The tasks extension's own clause, TASK-001 — reported in the extension's block and never scored — names exactly this; mcpsnoop cites the core negotiation clause VERS-005, of which it is one case and which our registry excludes because each extension, not the core, says what falling back means. |
 
 ## Every trace
 
@@ -434,6 +435,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/good/mrtr-parallel-rounds` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/mrtr-retry-round-before-recording` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/resource-read-existing-empty` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/good/skills-session` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/stateless-session` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/stdio-cancellation-race` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/stdio-cancelled-id-reused` | 2026-07-28 | pass | — | silent | — | — | both clean |
@@ -443,6 +445,8 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/good/streamable-http-session` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/subscription-id-reused-after-close` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/subscription-server-teardown` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/good/tasks-http` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/good/tasks-session` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/traceparent-higher-version` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/violations/auth-097-challenge-without-scope` | 2026-07-28 | pass-with-warnings | `AUTH-097` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/auth-124-invalid-token-answered-403` | 2026-07-28 | fail | `AUTH-124`, `AUTH-130` | silent | — | — | beyond mcpsnoop |
@@ -530,11 +534,60 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/samp-032-required-tool-choice-ignored` | 2026-07-28 | fail | `SAMP-032` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/samp-033-none-tool-choice-ignored` | 2026-07-28 | fail | `SAMP-033` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/samp-034-message-without-role` | 2026-07-28 | fail | `SAMP-034`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-003-directory-read-not-implemented` | 2026-07-28 | pass | `SKILL-003` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-004-directory-read-undeclared` | 2026-07-28 | pass | `SKILL-004` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-005-skills-without-resources` | 2026-07-28 | pass | `SKILL-005` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-007-entry-uri-not-skill-md` | 2026-07-28 | pass | `SKILL-007` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-008-skill-md-without-frontmatter` | 2026-07-28 | pass | `SKILL-008` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-011-skill-under-other-scheme` | 2026-07-28 | pass | `SKILL-011` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-012-path-not-ending-in-name` | 2026-07-28 | pass | `SKILL-012`, `SKILL-027` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-013-name-breaks-naming-rules` | 2026-07-28 | pass | `SKILL-013` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-014-authority-not-reg-name` | 2026-07-28 | pass | `SKILL-014` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-015-prefix-segment-invalid` | 2026-07-28 | pass | `SKILL-015` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-018-skill-md-not-markdown` | 2026-07-28 | pass | `SKILL-018` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-019-resource-name-not-skill-name` | 2026-07-28 | pass | `SKILL-019` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-020-resource-description-differs` | 2026-07-28 | pass | `SKILL-020` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-026-entry-frontmatter-differs` | 2026-07-28 | pass | `SKILL-026` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-029-listing-names-collide` | 2026-07-28 | pass | `SKILL-029` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-034-entry-without-resources` | 2026-07-28 | pass | `SKILL-034` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-035-manifest-without-skill-md` | 2026-07-28 | pass | `SKILL-035` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-036-manifest-file-outside-skill` | 2026-07-28 | pass | `SKILL-036` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-037-manifest-entry-without-size` | 2026-07-28 | pass | `SKILL-037` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-042-skill-beyond-limits` | 2026-07-28 | pass | `SKILL-042` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-044-list-not-implemented` | 2026-07-28 | pass | `SKILL-002`, `SKILL-044` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-045-list-result-type-not-complete` | 2026-07-28 | pass | `SKILL-045` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-047-list-without-cache-fields` | 2026-07-28 | pass | `SKILL-047` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-048-get-not-implemented` | 2026-07-28 | pass | `SKILL-002`, `SKILL-048` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-049-get-result-type-not-complete` | 2026-07-28 | pass | `SKILL-049` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-050-get-names-a-directory` | 2026-07-28 | pass | `SKILL-050` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-051-unknown-skill-wrong-error` | 2026-07-28 | pass | `SKILL-051`, `SKILL-071` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-053-get-without-cache-fields` | 2026-07-28 | pass | `SKILL-053` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-065-directory-result-type-not-complete` | 2026-07-28 | pass | `SKILL-065` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-066-directory-read-of-a-file-answered` | 2026-07-28 | pass | `SKILL-066`, `SKILL-071` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-067-skill-directory-refused` | 2026-07-28 | pass | `SKILL-067` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/subs-001-cancelled-for-another-request` | 2026-07-28 | fail | `CANC-003`, `CANC-011`, `SUBS-001` | flags | `server-cancellation` | — | agree |
 | `draft/violations/subs-001-unrequested-notification-type` | 2026-07-28 | fail | `SUBS-001`, `wire-schema` | flags | `subscription-unrequested` | — | agree |
 | `draft/violations/subs-002-notification-before-acknowledgment` | 2026-07-28 | fail | `SUBS-002`, `wire-schema` | flags | `subscription-before-ack` | — | agree |
 | `draft/violations/subs-002-reused-id-first-opening-unacknowledged` | 2026-07-28 | fail | `SUBS-002` | flags | `subscription-before-ack` | — | agree |
 | `draft/violations/subs-006-graceful-close-result-not-empty` | 2026-07-28 | pass-with-warnings | `SUBS-005`, `SUBS-006` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-001-task-for-undeclaring-client` | 2026-07-28 | pass | `TASK-001` | flags | `task-for-undeclaring-client` | — | agree |
+| `draft/violations/task-006-task-without-result-type` | 2026-07-28 | fail | `TASK-006`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-007-task-result-type-without-task` | 2026-07-28 | pass | `TASK-007` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-015-get-result-not-a-task` | 2026-07-28 | pass | `TASK-015` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-015-input-required-without-requests` | 2026-07-28 | pass | `TASK-015` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-017-get-result-type-not-complete` | 2026-07-28 | pass | `TASK-017`, `TASK-028`, `TASK-032` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-022-input-request-key-reused` | 2026-07-28 | pass | `TASK-022`, `TASK-023` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-024-update-ack-not-empty` | 2026-07-28 | pass | `TASK-024`, `TASK-030` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-026-input-answered-twice` | 2026-07-28 | pass | `TASK-026` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-029-task-cancelled-by-notification` | 2026-07-28 | pass | `TASK-029` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-033-task-listen-without-declaration` | 2026-07-28 | pass | `TASK-033`, `TASK-038` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-034-progress-on-task-stream` | 2026-07-28 | fail | `LOG-007`, `LOG-008`, `LOG-009`, `SUBS-001`, `TASK-034` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-035-mcp-name-missing` | 2026-07-28 | pass | `TASK-035` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-039-get-without-declaration` | 2026-07-28 | pass | `TASK-039` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-041-failed-without-status-message` | 2026-07-28 | pass | `TASK-041` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-042-failed-without-error` | 2026-07-28 | pass | `TASK-015`, `TASK-042`, `TASK-045` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-043-tool-error-reported-failed` | 2026-07-28 | pass | `TASK-008`, `TASK-043`, `TASK-044` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/task-046-completed-without-result` | 2026-07-28 | pass | `TASK-015`, `TASK-044`, `TASK-046` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tool-019-tools-undeclared` | 2026-07-28 | fail | `TOOL-019` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tool-020-declared-tools-list-unimplemented` | 2026-07-28 | fail | `TOOL-020` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tool-022-tools-list-order-changes` | 2026-07-28 | pass-with-warnings | `TOOL-022` | silent | — | — | beyond mcpsnoop |

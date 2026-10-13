@@ -265,6 +265,16 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 
 501 requirements: 181 judged by 144 distinct trace checks, 320 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
+**Extensions attached to `2026-07-28` — reported beside the verdict, never scored ([ADR-0023](docs/plan/decisions/0023-extensions-are-reported-never-scored.md))**
+
+| Extension | Requirements | Checked | Excluded |
+|-----------|-------------:|--------:|---------:|
+| `io.modelcontextprotocol/tasks` | 49 | 25 | 24 |
+| `io.modelcontextprotocol/skills` | 99 | 34 | 65 |
+| **Total** | **148** | **59** | **89** |
+
+148 extension requirements: 59 judged by 49 distinct trace checks, 89 carrying a documented exclusion. A report lists an extension's outcomes under its `extensions`, with a verdict of its own that the report's verdict and exit status never read.
+
 **`2025-11-25`**
 
 | Area | Requirements | Checked | Excluded | Capability-gated |

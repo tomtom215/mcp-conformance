@@ -299,7 +299,7 @@
     {
       "id": "VERS-005",
       "level": "MUST",
-      "exclusion": "Both permitted responses are defined by the extension, not by this specification: what \"core protocol behavior\" looks like for a given extension, and which error is \"appropriate\", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour."
+      "exclusion": "Both permitted responses are defined by the extension, not by this specification: what \"core protocol behavior\" looks like for a given extension, and which error is \"appropriate\", are each stated in that extension's own document. Where an official extension's clauses are entered (tasks and skills, beside this revision), they judge exactly that, in the extension's own block and never scored (ADR-0023): TASK-001, for one, is this clause for the tasks extension. Judging it here, among the core's clauses, would let an optional extension's behaviour move the core verdict."
     },
     {
       "id": "VERS-006",
@@ -1600,6 +1600,463 @@
       "id": "AUTH-194",
       "level": "MUST",
       "exclusion": "Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    }
+  ],
+  "extensions": [
+    {
+      "extension": "io.modelcontextprotocol/tasks",
+      "requirements": [
+        {
+          "id": "TASK-002",
+          "level": "MUST",
+          "exclusion": "Being prepared is a property of the client's code. What a recording could show — a client that receives a `CreateTaskResult` and never polls the task — is also how a client conforms when its user abandons the call or the capture ends first, so the wire cannot tell an unprepared client from either."
+        },
+        {
+          "id": "TASK-003",
+          "level": "MUST",
+          "exclusion": "How a client interprets a response is internal: the protocol defines no message for rejecting an invalid response, so a client that treated the task result as invalid and one that accepted it can send exactly the same thing next."
+        },
+        {
+          "id": "TASK-004",
+          "level": "MUST",
+          "exclusion": "Its antecedent — that the server cannot serve this request without creating a task — is the server's own judgment, which no message states: a server that can serve the call answers it normally, so a non-declaring client's call answered with a result conforms whichever way the server could have gone. The `-32021` error itself, when sent, is the core clause BASE-035 judges (`meta.missing-capability-error`)."
+        },
+        {
+          "id": "TASK-005",
+          "level": "SHOULD",
+          "exclusion": "A design property: what an implementation is ready to accept from a later revision is in its code, not in anything it sends today."
+        },
+        {
+          "id": "TASK-009",
+          "level": "MUST NOT",
+          "exclusion": "Durable creation shows only as its failure — a `tasks/get` for the returned id that does not resolve — and that answer is also the conforming one once the task's TTL has elapsed (the page: \"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"). Telling the two apart needs the time between creation and poll, and checks never consult an event's `ts`."
+        },
+        {
+          "id": "TASK-010",
+          "level": "MUST",
+          "exclusion": "How the server's storage reaches consistency is internal; its one observable consequence is TASK-009's, excluded for the reason recorded there."
+        },
+        {
+          "id": "TASK-011",
+          "level": "SHOULD",
+          "exclusion": "Every input-required round of the original request necessarily precedes the `CreateTaskResult` that ends it, so every recording of a server running such rounds shows them resolved first; how else the server could have resolved them is not a message."
+        },
+        {
+          "id": "TASK-012",
+          "level": "SHOULD",
+          "exclusion": "Polling frequency is the time between requests, and checks never consult an event's `ts`: it is optional, informational, and stamped by the recorder's clock rather than the client's."
+        },
+        {
+          "id": "TASK-013",
+          "level": "SHOULD",
+          "exclusion": "A recording ends when its capture stops: a task with no terminal status in the trace shows a capture that ended as often as a client that stopped, and nothing on the wire tells the two apart."
+        },
+        {
+          "id": "TASK-014",
+          "level": "SHOULD",
+          "exclusion": "Durable storage is the client's own, and it shows only across a crash or restart, which a recording of one session does not span."
+        },
+        {
+          "id": "TASK-016",
+          "level": "MUST",
+          "exclusion": "Which requests are outstanding is the server's own state: a `tasks/get` that lists fewer requests than the task is waiting on looks exactly like one that lists them all."
+        },
+        {
+          "id": "TASK-018",
+          "level": "SHOULD",
+          "exclusion": "Fulfilling an input request needs its user or model to answer, and the recording may end before they do: an unanswered `input_required` task shows a capture that stopped as often as a client that did not respond."
+        },
+        {
+          "id": "TASK-019",
+          "level": "SHOULD",
+          "exclusion": "A recording ends when its capture stops: a task with no terminal status in the trace shows a capture that ended as often as a client that stopped, and nothing on the wire tells the two apart."
+        },
+        {
+          "id": "TASK-020",
+          "level": "MUST",
+          "exclusion": "Binds how the host presents and trusts a request a task carries — consent and user interface, which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "TASK-021",
+          "level": "SHOULD",
+          "exclusion": "Deduplication here is presentation: receiving the same key on the next poll is the documented snapshot behaviour, and whether the user saw the request twice is user interface. Answering one key twice, which a recording does show, is TASK-026."
+        },
+        {
+          "id": "TASK-025",
+          "level": "SHOULD",
+          "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+        },
+        {
+          "id": "TASK-027",
+          "level": "SHOULD",
+          "exclusion": "Which keys are outstanding is the server's own state (TASK-016), and an ignored response leaves no trace of having been ignored: the acknowledgement is the same either way."
+        },
+        {
+          "id": "TASK-031",
+          "level": "SHOULD",
+          "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+        },
+        {
+          "id": "TASK-036",
+          "level": "MUST",
+          "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+        },
+        {
+          "id": "TASK-037",
+          "level": "SHOULD",
+          "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+        },
+        {
+          "id": "TASK-040",
+          "level": "SHOULD",
+          "exclusion": "Informativeness is a judgment about prose; any non-empty message passes a mechanical test of it, so a check would only ever restate the core clause that error messages exist."
+        },
+        {
+          "id": "TASK-047",
+          "level": "MUST",
+          "exclusion": "Entropy is a property of the generator, not of one identifier: a recording holds a handful of ids, and an unguessable one and a predictable one can be spelled alike."
+        },
+        {
+          "id": "TASK-048",
+          "level": "MUST",
+          "exclusion": "Authorization is decided inside the server against a credential no recording carries: `Authorization` is never recorded (ADR-0022, fact 1)."
+        },
+        {
+          "id": "TASK-049",
+          "level": "MUST",
+          "exclusion": "Binds how the host presents and trusts a request a task carries — consent and user interface, which strategy rule 2 keeps out: none of it is a message to the server."
+        }
+      ]
+    },
+    {
+      "extension": "io.modelcontextprotocol/skills",
+      "requirements": [
+        {
+          "id": "SKILL-001",
+          "level": "MUST",
+          "exclusion": "Restates the core rule the revision's own registry judges on every request (BASE-030, `meta.required-request-fields`). Judged there once, it is not judged again here, where a request missing its metadata would read as a skills defect in a session that never touched the extension."
+        },
+        {
+          "id": "SKILL-006",
+          "level": "MUST",
+          "exclusion": "The umbrella over the format rules this page goes on to state: those it states with their own keyword are entered and judged one by one (SKILL-007, SKILL-008, SKILL-013). The rest of the Agent Skills specification is another document, outside this registry's page set."
+        },
+        {
+          "id": "SKILL-009",
+          "level": "MUST",
+          "exclusion": "Binds a client's response to a future incompatible revision of another specification; no such revision exists, and what a client honours of one is in its code, not in what it sends."
+        },
+        {
+          "id": "SKILL-010",
+          "level": "SHOULD",
+          "exclusion": "As SKILL-009: support for a format revision is a property of client code."
+        },
+        {
+          "id": "SKILL-016",
+          "level": "MUST NOT",
+          "exclusion": "Name resolution happens off the MCP connection: a recording of the session carries none of the client's DNS queries or other network traffic."
+        },
+        {
+          "id": "SKILL-017",
+          "level": "MUST NOT",
+          "exclusion": "What a host concludes about a resource is internal. The only act on the wire it could lead to — reading the resource — is permitted whether or not the host takes it for a skill (the page: reading is transport, not a load)."
+        },
+        {
+          "id": "SKILL-021",
+          "level": "SHOULD",
+          "exclusion": "Binds the keys that expose frontmatter fields, and nothing on the wire says which `_meta` keys do: a key under another prefix on a skill resource may carry any other metadata, which the base protocol permits."
+        },
+        {
+          "id": "SKILL-022",
+          "level": "MUST NOT",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-023",
+          "level": "MUST",
+          "exclusion": "Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it."
+        },
+        {
+          "id": "SKILL-024",
+          "level": "MUST NOT",
+          "exclusion": "Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it."
+        },
+        {
+          "id": "SKILL-025",
+          "level": "MUST",
+          "exclusion": "Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it."
+        },
+        {
+          "id": "SKILL-028",
+          "level": "SHOULD",
+          "exclusion": "Ignoring a metadata key leaves nothing on the wire."
+        },
+        {
+          "id": "SKILL-030",
+          "level": "MUST NOT",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-031",
+          "level": "MUST",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-032",
+          "level": "MUST",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-033",
+          "level": "MUST NOT",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-038",
+          "level": "MUST",
+          "exclusion": "Its antecedent — content generated so that stable digests cannot be published — is the server's own knowledge. An array of digests and the string `\"dynamic\"` are both valid forms, and SKILL-034 judges that one of them is present."
+        },
+        {
+          "id": "SKILL-039",
+          "level": "MUST NOT",
+          "exclusion": "Loading is the host placing content in the model's context, which no message marks: a `resources/read` of the skill's `SKILL.md` is transport, not a load (the page says so), so a read after an invalid entry convicts nothing. The server's half — an entry without a valid `resources` — is SKILL-034."
+        },
+        {
+          "id": "SKILL-040",
+          "level": "SHOULD",
+          "exclusion": "An expectation held by a server's author is not behaviour."
+        },
+        {
+          "id": "SKILL-041",
+          "level": "MUST",
+          "exclusion": "The capacity of the host: a recording shows what was served and read, not what the host could have accepted."
+        },
+        {
+          "id": "SKILL-043",
+          "level": "SHOULD",
+          "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+        },
+        {
+          "id": "SKILL-046",
+          "level": "MUST NOT",
+          "exclusion": "How a host reasons from a listing, and whether it can load a skill by URI alone, are host capabilities; a session in which it never does either is conforming, and one in which it does looks like any `skills/get`."
+        },
+        {
+          "id": "SKILL-052",
+          "level": "MUST",
+          "exclusion": "What a server serves is its own state at the moment of the call: a skill listed earlier and refused later may have been withdrawn in between, which the page allows (an entry is a point-in-time snapshot), so a refusal convicts nothing."
+        },
+        {
+          "id": "SKILL-054",
+          "level": "MUST NOT",
+          "exclusion": "Whether a host treats a read as a load is internal: the page itself says a read is transport and a load is the host placing content in the model's context, which no message marks."
+        },
+        {
+          "id": "SKILL-055",
+          "level": "SHOULD",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-056",
+          "level": "MUST",
+          "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+        },
+        {
+          "id": "SKILL-057",
+          "level": "MUST NOT",
+          "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+        },
+        {
+          "id": "SKILL-058",
+          "level": "MUST",
+          "exclusion": "Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was."
+        },
+        {
+          "id": "SKILL-059",
+          "level": "MUST",
+          "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+        },
+        {
+          "id": "SKILL-060",
+          "level": "MUST",
+          "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+        },
+        {
+          "id": "SKILL-061",
+          "level": "MUST",
+          "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+        },
+        {
+          "id": "SKILL-062",
+          "level": "MUST NOT",
+          "exclusion": "Need is the model's or the user's request to load or read, which no recording carries: a read right after a listing is prefetching or a load the user asked for, and the wire is the same. The official suite judges this clause in a scripted scenario in which nothing asked for a load (`sep-2640-client-no-prefetch`), which a recording of an ordinary session cannot reproduce."
+        },
+        {
+          "id": "SKILL-063",
+          "level": "SHOULD",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        },
+        {
+          "id": "SKILL-064",
+          "level": "MUST NOT",
+          "exclusion": "A security policy inside the host; trusting or distrusting content produces no message."
+        },
+        {
+          "id": "SKILL-068",
+          "level": "MUST NOT",
+          "exclusion": "Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was."
+        },
+        {
+          "id": "SKILL-069",
+          "level": "SHOULD",
+          "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+        },
+        {
+          "id": "SKILL-070",
+          "level": "MUST NOT",
+          "exclusion": "Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was."
+        },
+        {
+          "id": "SKILL-072",
+          "level": "SHOULD",
+          "exclusion": "Informativeness is a judgment about prose; any non-empty message passes a mechanical test of it."
+        },
+        {
+          "id": "SKILL-073",
+          "level": "MUST",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-074",
+          "level": "MUST",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-075",
+          "level": "MUST",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-076",
+          "level": "MUST NOT",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-077",
+          "level": "MUST NOT",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-078",
+          "level": "MUST",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-079",
+          "level": "MUST",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-080",
+          "level": "MUST",
+          "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+        },
+        {
+          "id": "SKILL-081",
+          "level": "MUST NOT",
+          "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+        },
+        {
+          "id": "SKILL-082",
+          "level": "MUST",
+          "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+        },
+        {
+          "id": "SKILL-083",
+          "level": "MUST",
+          "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+        },
+        {
+          "id": "SKILL-084",
+          "level": "MUST",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-085",
+          "level": "MUST NOT",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-086",
+          "level": "SHOULD",
+          "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+        },
+        {
+          "id": "SKILL-087",
+          "level": "MUST NOT",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-088",
+          "level": "MUST",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-089",
+          "level": "MUST NOT",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-090",
+          "level": "SHOULD",
+          "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+        },
+        {
+          "id": "SKILL-091",
+          "level": "SHOULD",
+          "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+        },
+        {
+          "id": "SKILL-092",
+          "level": "MUST",
+          "exclusion": "Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one."
+        },
+        {
+          "id": "SKILL-093",
+          "level": "MUST",
+          "exclusion": "Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one."
+        },
+        {
+          "id": "SKILL-094",
+          "level": "MUST NOT",
+          "exclusion": "Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one."
+        },
+        {
+          "id": "SKILL-095",
+          "level": "SHOULD",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        },
+        {
+          "id": "SKILL-096",
+          "level": "MUST",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        },
+        {
+          "id": "SKILL-097",
+          "level": "MUST",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        },
+        {
+          "id": "SKILL-098",
+          "level": "MUST",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        },
+        {
+          "id": "SKILL-099",
+          "level": "SHOULD",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        }
+      ]
     }
   ]
 }

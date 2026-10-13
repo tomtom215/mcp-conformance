@@ -54,6 +54,9 @@ below is stated again in its entry, with the reasoning.
 | Report totals | Against 0.6.0, every change in this release together (the wire-schema row above included): a `2025-11-25` report has 321 rows (was 142) and `excluded` 232 (was 86); a `2026-07-28` report has 501 (was 273) and `excluded` 320 (was 149) | Re-baseline any comparison of totals across versions |
 | Verdict, new rows | `AUTH-045`/`AUTH-049`/`AUTH-124`/`AUTH-130`: a protected server's challenge with the wrong status for its declared error (`invalid_token` not 401, `insufficient_scope` not 403); with the others of the 12 judged `AUTH` rows, from the `WWW-Authenticate` header ([ADR-0022](docs/plan/decisions/0022-judge-the-challenge-not-the-flow.md)) | Answer each error with the status the authorization page names |
 | Rust API | `mcp_conformance_core::trace::RECORDED_HEADERS` and `mcp_everything_server::tap::RECORDED_HEADERS` are `[&str; 11]` (were `[&str; 10]`): `WWW-Authenticate` is recorded | Iterate the array or take it as a slice, not by its length |
+| JSON report | A report, and each summary of a multi-revision one, gains `extensions` when the session exercised an extension ([ADR-0023](docs/plan/decisions/0023-extensions-are-reported-never-scored.md)); `report.schema.json` describes it, and its `source.url` pattern also admits an extension's own publication | Accept the member; the verdict never reads it |
+| SARIF | Findings against an extension's clauses are results at level `note`, with `properties.extension` and `properties.scored: false` | A consumer treating every result as an error filters on the level or on `scored` |
+| JUnit | One more suite per exercised extension, named `… (revision, extension ID, not scored)`; its findings sit in passing cases' `<system-out>`, never a `<failure>` | None: those suites hold no failures |
 | Registry data | `TOOL-033` and `TRAN-080` quotes rewritten in the flattened-list form (`; ` between items), the clauses unchanged. `TOOL-034` and `TRAN-081` each bundled clauses binding different parties: both now name only the safe-integer bound (binding the client), and the reachability and client-rejection clauses are `TOOL-045`, `TOOL-046` and `TRAN-137` | Key on the requirement ID; gate on the new IDs for the clauses that moved |
 
 ### Removed
@@ -116,6 +119,10 @@ below is stated again in its entry, with the reasoning.
 
 **Checks that failed conforming sessions**
 
+- **`SUBS-001` accepts `notifications/tasks` requested through the tasks extension's
+  `taskIds` filter**, and **`TOOL-040` judges a task-augmented call's completed result**
+  (from `tasks/get`) against the tool's `outputSchema`, not the `CreateTaskResult`
+  handle. Both failed conforming tasks sessions; no committed verdict moves.
 - **A null-id answer on Streamable HTTP now closes its request for every check**,
   not only `TRAN-073`/`TRAN-096`, when its status ties it to one POST. Left open, a
   retry with the same id failed `BASE-045` and its result was held against the
@@ -586,6 +593,22 @@ below is stated again in its entry, with the reasoning.
   double-precision floating point numbers"); the bound and the verdict are
   unchanged.
 
+- **The tasks and skills extensions are judged beside `2026-07-28`, and never scored**
+  (review item 2.6, [ADR-0023](docs/plan/decisions/0023-extensions-are-reported-never-scored.md)).
+  Every MUST- and SHOULD-family keyword of `io.modelcontextprotocol/tasks` (ext-tasks,
+  its `2026-07-28` text) and `io.modelcontextprotocol/skills` (ext-skills, stable) is
+  entered: 49 `TASK` entries (25 judged by 18 checks) and 99 `SKILL` entries (34 judged
+  by 31 checks), each check with a violating corpus trace, plus three conforming
+  sessions. They sit in `registry/2026-07-28/extensions/` and the registry keeps them
+  apart (`Registry::extension_requirements`), so core totals, coverage and ledgers
+  never count them. A report gains an `extensions` block, one entry per extension the
+  session exercised (by the protocol's own negotiation; there is no flag), with its own
+  totals and verdict that the report's verdict and exit status never read, `--strict`
+  or not — as the official suite lists its tasks scenarios under
+  `not_scored: extension`. Tasks at `2025-11-25` stays out of scope (experimental
+  there; SEP-1730 and the suite score none of it), and MCP Apps is deferred
+  (`mcp-apps-extension`). `spec-drift` holds the extension pages and both censuses.
+
 **Calibration and captures**
 
 - **The cross-SDK matrix.** Each Tier 1 SDK's own conformance server (TypeScript
@@ -685,6 +708,12 @@ not yet published to crates.io)
 
 **`mcp-trace-validator`**
 
+- **Extension results in every format**: JSON `extensions[]` (also
+  `RevisionSummary.extensions`), a human block headed "not scored", JUnit suites
+  without failures, SARIF `note`s, an "Extensions — not scored" section in the HTML
+  report, and the book page `reference/extensions-2026-07-28.md`. Rust API:
+  `Requirement.extension`, `Requirement::url`, `Registry::extension_requirements`,
+  `Report.extensions`, `ExtensionReport`.
 - **`validate --format html`**, and `html::render` / `html::render_run`: one
   self-contained page per run — the verdict and counts per revision, each failing
   or warning clause with its quote, link and findings, the message timeline with

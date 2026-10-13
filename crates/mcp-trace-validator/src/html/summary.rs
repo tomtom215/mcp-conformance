@@ -301,10 +301,23 @@ pub(super) fn contents(out: &mut String, scope: &Scope<'_>) {
                 + usize::from(report.wire_schema_failed())
         })
         .sum();
+    let extensions: usize = scope
+        .reports
+        .iter()
+        .map(|report| report.extensions.len())
+        .sum();
+    let extensions = if extensions == 0 {
+        String::new()
+    } else {
+        format!(
+            "<a href=\"#{}\">Extensions, not scored <span class=\"count\">{extensions}</span></a>",
+            scope.id("extensions")
+        )
+    };
     let _ = writeln!(
         out,
         "<nav class=\"contents\" aria-label=\"Sections\"><a href=\"#{}\">Clauses to act on \
-         <span class=\"count\">{attention}</span></a><a href=\"#{}\">Message timeline \
+         <span class=\"count\">{attention}</span></a>{extensions}<a href=\"#{}\">Message timeline \
          <span class=\"count\">{}</span></a><a href=\"#{}\">Accounting</a></nav>",
         scope.id("findings"),
         scope.id("timeline"),
