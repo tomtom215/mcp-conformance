@@ -398,6 +398,8 @@ below is stated again in its entry, with the reasoning.
   suite's `2026-07-28` scenarios now pass 42 of 42 against the server serving
   `2025-11-25` too: rmcp 3.5.1 adds the cache hints `2026-07-28` peers need.
   The development toolchain pin is Rust 1.99.0; the MSRV stays 1.88.
+- **Lockfile refresh within the declared ranges:** `schemars` 1.2.3 and `syn`
+  3.0.9.
 
 ## [0.6.0] - 2026-10-04
 
