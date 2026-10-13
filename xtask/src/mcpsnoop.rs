@@ -226,13 +226,17 @@ impl Quotes {
             let registry = set
                 .registry(*revision)
                 .ok_or_else(|| format!("the registry set does not project to {revision}"))?;
-            for requirement in registry.requirements() {
+            let every = registry
+                .requirements()
+                .iter()
+                .chain(registry.extension_requirements());
+            for requirement in every {
                 clauses.insert(
                     (revision.to_string(), requirement.id.as_str().to_owned()),
                     Clause {
                         level: requirement.level.keyword().to_owned(),
                         quote: requirement.source.quote.clone(),
-                        url: requirement.source.url(*revision),
+                        url: requirement.url(*revision),
                     },
                 );
             }

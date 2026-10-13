@@ -100,7 +100,8 @@ against the everything server, committed under `conformance/mcpsnoop/native/` �
 mcpsnoop findings from the converted trace as from mcpsnoop's capture once that capture's frames share \
 one connection, the single field the conversion fixes rather than carries. {}\n\n\
 **What is compared.** mcpsnoop's conformance signals — `invalid`, `warn` and `mismatch`, the three its \
-own rule descriptions call protocol violations — against our `fail` and `warn` rows and the wire schema. \
+own rule descriptions call protocol violations — against our `fail` and `warn` rows, an extension's \
+among them although they never decide our verdict, and the wire schema. \
 Its other signals (a call that ended in an error, one still pending when the capture ended, a deprecated \
 feature) are counted per trace but say nothing about conformance. Each mcpsnoop rule is mapped to the \
 registry clauses its condition violates, read from both texts (`conformance/mcpsnoop/rules.json`, \

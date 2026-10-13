@@ -2385,6 +2385,24 @@
       }
     },
     {
+      "trace": "draft/good/skills-session",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 21,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
       "trace": "draft/good/stateless-session",
       "revision": "2026-07-28",
       "transport": "stdio",
@@ -2534,6 +2552,41 @@
         "exit": 0,
         "findings": [],
         "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/tasks-http",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/tasks-session",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 33,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 2,
+          "error": 3
+        }
       }
     },
     {
@@ -4547,6 +4600,583 @@
       }
     },
     {
+      "trace": "draft/violations/skill-003-directory-read-not-implemented",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-004-directory-read-undeclared",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-004"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-005-skills-without-resources",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-005"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-007-entry-uri-not-skill-md",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-007"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-008-skill-md-without-frontmatter",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-008"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-011-skill-under-other-scheme",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-012-path-not-ending-in-name",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-012",
+          "SKILL-027"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-013-name-breaks-naming-rules",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-013"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-014-authority-not-reg-name",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-014"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-015-prefix-segment-invalid",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-015"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-018-skill-md-not-markdown",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-018"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-019-resource-name-not-skill-name",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-020-resource-description-differs",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-020"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-026-entry-frontmatter-differs",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-026"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-029-listing-names-collide",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-029"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-034-entry-without-resources",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-034"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-035-manifest-without-skill-md",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-035"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-036-manifest-file-outside-skill",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-036"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-037-manifest-entry-without-size",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-037"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-042-skill-beyond-limits",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-042"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-044-list-not-implemented",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-002",
+          "SKILL-044"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-045-list-result-type-not-complete",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-045"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-047-list-without-cache-fields",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-047"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-048-get-not-implemented",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-002",
+          "SKILL-048"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-049-get-result-type-not-complete",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-049"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-050-get-names-a-directory",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-050"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-051-unknown-skill-wrong-error",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-051",
+          "SKILL-071"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-053-get-without-cache-fields",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-053"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-065-directory-result-type-not-complete",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-065"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-066-directory-read-of-a-file-answered",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-066",
+          "SKILL-071"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-067-skill-directory-refused",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-067"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
       "trace": "draft/violations/subs-001-cancelled-for-another-request",
       "revision": "2026-07-28",
       "transport": "stdio",
@@ -4661,6 +5291,384 @@
         "flagged": [
           "SUBS-005",
           "SUBS-006"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/task-001-task-for-undeclaring-client",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-001"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "a task handle uses the io.modelcontextprotocol/tasks extension, which the client never advertised, and 2026-07-28 requires the supporting side to fall back to core behaviour or reject the request"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-006-task-without-result-type",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TASK-006",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/task-007-task-result-type-without-task",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-007"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/task-015-get-result-not-a-task",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-015"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-015-input-required-without-requests",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-015"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-017-get-result-type-not-complete",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-017",
+          "TASK-028",
+          "TASK-032"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-022-input-request-key-reused",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-022",
+          "TASK-023"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-024-update-ack-not-empty",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-024",
+          "TASK-030"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-026-input-answered-twice",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-026"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-029-task-cancelled-by-notification",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-029"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-033-task-listen-without-declaration",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-033",
+          "TASK-038"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-034-progress-on-task-stream",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LOG-007",
+          "LOG-008",
+          "LOG-009",
+          "SUBS-001",
+          "TASK-034"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-035-mcp-name-missing",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-035"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-039-get-without-declaration",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-039"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-041-failed-without-status-message",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-041"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-042-failed-without-error",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-015",
+          "TASK-042",
+          "TASK-045"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-043-tool-error-reported-failed",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-008",
+          "TASK-043",
+          "TASK-044"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-046-completed-without-result",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-015",
+          "TASK-044",
+          "TASK-046"
         ]
       },
       "mcpsnoop": {
