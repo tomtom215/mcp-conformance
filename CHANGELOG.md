@@ -489,8 +489,9 @@ below is stated again in its entry, with the reasoning.
 - **Every offline gate is shown able to fail, in CI.** `cargo xtask falsify-gates`
   runs each gate `cargo xtask gates` runs, and the golden corpus, on the clean tree,
   makes one edit of the kind it exists to catch, and requires it to go red naming
-  that edit, then green again once the file is restored. A gate added without a
-  falsifier fails a unit test. The `doc` job runs it after the gates.
+  that edit; it restores each file and fails unless the tree is clean at the end.
+  A gate added without a falsifier fails a unit test. The `doc` job runs it after
+  the gates.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.

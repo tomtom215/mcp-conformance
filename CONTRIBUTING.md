@@ -79,8 +79,9 @@ toolchain and the checked-out tree, CI's `doc` job runs that one command, and
 runs cannot drift apart. They used to be written out in the workflow, and two of
 them were left out of it. `cargo xtask falsify-gates` (also run by the `doc` job)
 then breaks each of them, and the golden corpus, with one edit apiece on a clean
-tree, and fails unless every one goes red for the reason it names and green again
-once the file is restored; a new gate without a falsifier fails its unit test.
+tree, and fails unless every one passes before its edit and goes red on it for the
+reason it names, and unless the tree is clean again afterwards; a new gate without
+a falsifier fails its unit test.
 
 Additionally enforced in CI: `cargo package --workspace --exclude xtask --locked`
 (publishability, with a CycloneDX SBOM dry run, `cargo xtask sbom`), the Rust API

@@ -374,8 +374,8 @@ pub(crate) fn run() -> bool {
         return false;
     }
     eprintln!(
-        "xtask: falsify-gates — every one of {} gate(s) went red on its edit and green again \
-         once restored",
+        "xtask: falsify-gates — every one of {} gate(s) passed on the clean tree and went red \
+         on its edit, and the tree is clean again",
         FALSIFIERS.len()
     );
     true
