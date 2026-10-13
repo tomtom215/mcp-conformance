@@ -187,7 +187,8 @@ audience in [docs/design/trace-validation.md](docs/design/trace-validation.md).
 **Calibration.** On every CI run the official suite (pinned `0.1.16`, `2025-11-25`)
 drives the everything server and the reference host, the tapped sessions replay
 through the validator, and any MUST-level disagreement not triaged in a committed
-ledger fails the build. The `2026-07-28` surface is measured weekly against the
+ledger fails the build; so does any message the validator's wire-schema check and the
+suite's `wire-schema-valid` disagree about, wherever the suite reports that check. The `2026-07-28` surface is measured weekly against the
 suite's pinned pre-release (`0.2.0-alpha.12`) as a ratchet, not yet as a blocking
 agreement check: the suite has no stable `2026-07-28` release to calibrate against.
 

@@ -132,6 +132,38 @@ as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/
 2026-06-11) and one
 informational SHOULD warning on the suite's version-compat probe.
 
+**The wire schema is reconciled the same way (2026-10-13; review item 2.4,
+[ADR-0020](decisions/0020-wire-schema-validation.md)).** From `0.2.0-alpha.11` the
+runner appends a `wire-schema-valid` check to each scenario's `checks.json`, listing
+every message the implementation under test sent that fails the negotiated revision's
+JSON Schema — the message itself, not a session — and a `wire-schema-harness-error`
+check of the same shape for messages the runner sent. The agreement step joins those
+messages to the tapped sessions by sender and canonical JSON and compares them with
+the validator's report `wire_schema` member (`xtask/src/agreement/schema.rs`): a
+message one side flags and the other does not, or a flagged message no tapped session
+carries, is a divergence. Each is explained in
+`conformance/wire-schema-divergences.json` — leg, kind, a required `message_contains`
+filter, a triage class, an upstream link and a reason — or fails the run, and an entry
+that explains nothing in a compared run is stale and fails it too. The ledger admits a
+fourth class, `schema-pin-skew`, because the runner bundles its own copy of each
+revision's schema and this validator vendors `wire_schema::UPSTREAM_COMMIT` with its
+own errata, so two correct readings can differ. The pinned `0.1.16` predates the
+check: on the pinned run the runner's green verdict is its whole side, and any message
+the validator flags is a divergence, exactly as a failing requirement row is. The
+message-level comparison proper runs wherever the runner reports the check — the
+scheduled alpha-tracking job (`MCP_SUITE_VERSION`), and both legs of
+`cargo xtask draft-readiness`, whose sessions are judged at `2026-07-28` because that
+is the revision the runner validates against whatever the server serves. The
+reconciliation is the `wire_schema` member of `agreement.json` (for the draft legs,
+`target/draft-readiness/<revision>/wire-schema-agreement.json`). Known sources of
+divergence that no run has yet exercised: the runner asserts JSON Schema `format`
+(through `ajv-formats`) and this validator does not; the runner applies none of this
+validator's errata (`ElicitResult.content`, `JSONValue`), only its own `NumberSchema`
+one, which our vendored copy already carries upstream; and its bundled `2026-07-28`
+copy predates ours, naming `SubscriptionsListenResultMeta` where ours (equal to
+upstream `main`) names `SubscriptionsListenResultMetaObject` and adds
+`SubscriptionsListenResultResponse` — a rename that validates the same messages.
+
 ## Official-suite version policy
 
 - **Pin** the stable line (`0.1.16` as of 2026-06-11 — [register 2.4](01-ecosystem-context.md))

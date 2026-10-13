@@ -165,6 +165,13 @@ host's captured sessions the same way. The point is structural: a validator
 whose verdicts are diffed against the recognized authority on every commit is
 calibrated, not merely asserted to be correct.
 
+The wire schema is calibrated at a finer grain than the requirement rows. The
+official runner's `wire-schema-valid` check reports the invalid messages
+themselves, so the agreement step joins them to the recorded sessions by sender
+and canonical JSON and compares message by message with the validator's
+`wire_schema` member; a message flagged on one side only is a divergence with its
+own committed ledger, under the same two-directional gate.
+
 ## 7. Falsifiability: every check has a killer trace
 
 Every check is killed by at least one committed injected-violation trace in the

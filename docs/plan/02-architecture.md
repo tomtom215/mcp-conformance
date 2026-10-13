@@ -239,6 +239,9 @@ Design commitments:
    official-suite bug (filed upstream), or a spec ambiguity (filed upstream). The gate
    holds in both directions: a baseline entry that explains nothing in the current run
    is stale and fails CI too ([03-conformance-strategy.md](03-conformance-strategy.md)).
+   The wire schema is diffed message by message against the runner's
+   `wire-schema-valid` check wherever the runner reports one, against its own ledger
+   (`conformance/wire-schema-divergences.json`).
 
 The agreement check is the toolkit's credibility mechanism: the validator is continuously
 calibrated against the authority rather than asking anyone to trust it.
