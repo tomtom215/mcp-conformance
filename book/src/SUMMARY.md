@@ -12,6 +12,7 @@
 - [Recording an SDK's server](sdk-servers.md)
 - [Testing a server or client](testing.md)
 - [Reading a report](reading-a-report.md)
+- [The workbench](workbench.md)
 - [Using it in CI](ci.md)
 - [Upgrading](upgrading.md)
 - [Troubleshooting](troubleshooting.md)

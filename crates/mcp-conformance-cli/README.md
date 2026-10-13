@@ -10,7 +10,7 @@ the same traffic: the suite's checks, and
 report of every session the suite drove — with whether the two agree.
 
 > **Not yet released.** This crate is on `main` only
-> ([ADR-0021](../../docs/plan/decisions/0021-a-workbench-people-keep-open.md), phase W1);
+> ([ADR-0021](../../docs/plan/decisions/0021-a-workbench-people-keep-open.md), phases W1 and W5);
 > build it from the repository: `cargo install --path crates/mcp-conformance-cli`.
 
 ## What it needs
@@ -84,11 +84,43 @@ run. The stdio bridge answers only requests whose `Host` is its own loopback add
 whose `Origin`, if any, is loopback. Recordings hold message bodies in full: read a
 trace before you share it ([the security model](../../docs/plan/05-security-model.md)).
 
+## The workbench
+
+```text
+mcp-conformance serve --library ./recordings [--open]
+```
+
+A local web page over a directory of recordings (traces, each with an optional
+`<id>.meta.json` sidecar of tags, provenance and a cached verdict): search with a small
+query language (`method:tools/call req:BASE-003 code:-32602 timeout`), each session as a
+timeline with its findings at their events and an inspector, two sessions compared, a
+trace that is still being written followed live, dashboards of verdicts over time, clause
+coverage and findings, and administration — import (traces, `mcpsnoop` captures, MCP
+Inspector exports, each with what its source does not record), tags, retention, delete,
+export, and redacted copies. It listens on `127.0.0.1` and prints a link with a single-use
+token; it sends nothing anywhere. [The workbench](../../book/src/workbench.md) chapter has
+the details.
+
+The same library from the command line, for scripts:
+
+```text
+mcp-conformance library --library ./recordings stats --format json   # what the dashboards read
+mcp-conformance library --library ./recordings import capture.jsonl --from mcpsnoop
+mcp-conformance library --library ./recordings redact ID --meta --pointer /params/arguments/apiKey
+mcp-conformance library --library ./recordings prune --retain-days 30 --apply
+```
+
+`serve` and `library` exit `0` when they did what was asked and `2` when they could not
+(a bad address, an unreadable library, an unknown entry, a rule that cannot apply). The
+page and its JSON API are not a stable interface; `library stats --format json` is the
+way to read the numbers from a script.
+
 ## The library
 
 The crate's library is the small part `mcp-conformance test` shares with this
 repository's own gate, `cargo xtask conformance`: the suite pin (`suite`) and the
-agreement policy (`agreement`). With `default-features = false` it depends on the
+agreement policy (`agreement`), plus the importers the workbench uses (`import`), which
+`cargo xtask mcpsnoop`'s tests also exercise. With `default-features = false` it depends on the
 validator and the serde family only.
 
 ```rust

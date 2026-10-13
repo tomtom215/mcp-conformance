@@ -3,7 +3,7 @@
 
 [package]
 name = "mcp-conformance-cli"
-description = "Run the official Model Context Protocol conformance suite against a server or client through a recording tap, and report the suite's checks beside a clause-by-clause verdict of the same traffic"
+description = "Run the official Model Context Protocol conformance suite through a recording tap and judge the same traffic clause by clause; and a local workbench over a library of recordings"
 readme = "README.md"
 documentation = "https://docs.rs/mcp-conformance-cli"
 keywords = ["mcp", "conformance", "testing", "protocol", "validator"]
