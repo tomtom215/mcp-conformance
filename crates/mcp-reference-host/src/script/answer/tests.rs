@@ -99,18 +99,19 @@ fn the_judge_is_live() {
 }
 
 #[test]
-fn the_servers_probe_form_is_filled_by_type_and_format() {
-    // The everything server's `test_elicitation` form, as captured.
+fn the_servers_probe_form_is_filled_by_type() {
+    // The everything server's `test_elicitation` form, as captured: both
+    // fields plain strings (`email` names no `format`), both required.
     let content = accepted_and_valid(&json!({
         "type": "object",
         "properties": {
             "username": { "type": "string", "description": "User's response" },
-            "email": { "type": "string", "format": "email", "description": "User's email address" }
+            "email": { "type": "string", "description": "User's email address" }
         },
         "required": ["username", "email"]
     }));
     assert_eq!(content["username"], "scripted");
-    assert_eq!(content["email"], "user@example.com");
+    assert_eq!(content["email"], "scripted");
 }
 
 #[test]
@@ -162,12 +163,14 @@ fn every_format_has_its_own_placeholder() {
     let content = accepted_and_valid(&json!({
         "type": "object",
         "properties": {
+            "e": { "type": "string", "format": "email" },
             "u": { "type": "string", "format": "uri" },
             "d": { "type": "string", "format": "date" },
             "t": { "type": "string", "format": "date-time" }
         },
-        "required": ["u", "d", "t"]
+        "required": ["e", "u", "d", "t"]
     }));
+    assert_eq!(content["e"], "user@example.com");
     assert_eq!(content["u"], "https://example.com/");
     assert_eq!(content["d"], "1970-01-01");
     assert_eq!(content["t"], "1970-01-01T00:00:00Z");
