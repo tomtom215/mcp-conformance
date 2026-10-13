@@ -3,7 +3,8 @@
 
 # Screenshot suite
 
-What people see of `mcp-trace-validator validate --format html`, verified the way
+What people see of `mcp-trace-validator validate --format html` and of the workbench
+(`mcp-conformance serve`), verified the way
 [ADR-0021](../docs/plan/decisions/0021-a-workbench-people-keep-open.md) ("Verification of
 what people see") asks: a headless Chromium (Playwright, pinned) renders committed pages
 and compares them with committed screenshots, in CI.
@@ -25,6 +26,36 @@ suite needs no Rust toolchain.
 - that a finding and its event link to each other, that the "only events with findings"
   switch works with no script on the page, and that the accounting opens.
 
+## The workbench
+
+[`tests/workbench-views.spec.js`](tests/workbench-views.spec.js) and
+[`tests/workbench-interactions.spec.js`](tests/workbench-interactions.spec.js) do the same
+for `mcp-conformance serve` ([ADR-0021](../docs/plan/decisions/0021-a-workbench-people-keep-open.md),
+phase W5). [`tests/workbench/serve.js`](tests/workbench/serve.js) starts the binary over a
+fresh copy of the committed fixture library, [`fixtures/library/`](fixtures/library) — eleven
+small recordings from the corpus plus two written for the workbench: `hostile-markup` (markup,
+an escape character and a bidirectional override in method names, ids, names and payloads) and
+`leaky-session` (a trace another recorder made, carrying an `Authorization` header, a cookie, a
+tool argument and a `_meta` value that must not survive redaction; the values are obviously
+fake). It exchanges the single-use launch link for the session cookie, as a browser does, and
+gives each test's browser context that cookie.
+
+- Views: the library, a session opened at a finding's event, the hostile session, two sessions
+  compared, and the dashboards, each at 1280 px and 360 px in light and dark, compared with
+  `__screenshots__/workbench-*.png`. Every request that is not to the workbench's own origin
+  fails the test (and is aborted), as does any console error or warning (a CSP violation is
+  one) and any horizontal scrolling.
+- The hostile session renders as text: every payload opened, no `img`, `script`, `iframe` or
+  `svg` on the page, no dialog, and the escape and bidi characters shown as `\u{…}`.
+- Interactions, each against its own server: search (field terms, negation, prefixes, a query
+  in the address, a malformed query), finding → event → finding, the diff of two servers,
+  redaction (the copy and its sidecar hold none of the four secrets, the original is
+  unchanged), delete, an mcpsnoop import, export, retention, following a trace as lines are
+  appended to it, and the launch link refusing a second use.
+
+The binary is `$MCP_CONFORMANCE_BIN`, else `target/debug/mcp-conformance` at the repository
+root; CI builds it in the `visual` job.
+
 ## Running it
 
 ```sh
@@ -32,6 +63,7 @@ cargo test -p mcp-trace-validator --test golden_html   # the pages are current
 cd visual
 npm ci
 npx playwright install --with-deps chromium             # once; CI does this every run
+cargo build -p mcp-conformance-cli                       # the workbench the specs serve
 npm test
 ```
 

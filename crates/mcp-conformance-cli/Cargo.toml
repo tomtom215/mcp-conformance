@@ -3,7 +3,7 @@
 
 [package]
 name = "mcp-conformance-cli"
-description = "Run the official Model Context Protocol conformance suite against a server or client through a recording tap, and report the suite's checks beside a clause-by-clause verdict of the same traffic"
+description = "Run the official Model Context Protocol conformance suite through a recording tap and judge the same traffic clause by clause; and a local workbench over a library of recordings"
 readme = "README.md"
 documentation = "https://docs.rs/mcp-conformance-cli"
 keywords = ["mcp", "conformance", "testing", "protocol", "validator"]
@@ -57,10 +57,12 @@ axum = { workspace = true, optional = true }
 # The bridge's event streams (`Body::from_stream`). Already a direct
 # dependency of the recorder.
 futures = { version = ">=0.3.30, <0.4", optional = true }
-# `watch --otlp`'s trace and span ids: `ring::rand::SystemRandom`, the OS CSPRNG.
-# Already in the tree, at this version, as the recorder's TLS provider
-# (rustls's `ring` backend under mcp-trace-capture's `tls`, which this crate
-# enables), so no new crate; no default features (the OS generator needs none).
+# `watch --otlp`'s trace and span ids and the workbench's per-launch secrets come
+# from the OS CSPRNG (`ring::rand::SystemRandom`); the workbench also keys its
+# verdict cache by each trace's SHA-256 from `ring`. Already in the tree, at this
+# version, as the recorder's TLS provider (rustls's `ring` backend under
+# mcp-trace-capture's `tls`, which this crate enables), so no new crate; no
+# default features.
 ring = { version = ">=0.17.14, <0.18", default-features = false, optional = true }
 
 [dev-dependencies]

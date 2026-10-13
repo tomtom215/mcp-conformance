@@ -49,6 +49,17 @@ use escape::Text;
 /// the page's Content Security Policy admits.
 const STYLE: &str = include_str!("html/style.css");
 
+/// The report's stylesheet, as every page carries it inline.
+///
+/// Public so a view built from the same classes — the `mcp-conformance serve`
+/// workbench draws its timeline with them — can serve it as a file and look
+/// like the report without a second copy of it.
+///
+/// ```
+/// assert!(mcp_trace_validator::html::STYLESHEET.contains(".timeline"));
+/// ```
+pub const STYLESHEET: &str = STYLE;
+
 /// One trace as the page shows it.
 #[derive(Debug, Clone, Copy)]
 pub struct Trace<'a> {

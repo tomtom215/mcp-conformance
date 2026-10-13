@@ -1,7 +1,7 @@
 {
   "name": "mcp-conformance-visual",
   "private": true,
-  "description": "Screenshot baselines and no-network checks for mcp-trace-validator's HTML report (ADR-0021)",
+  "description": "Screenshot baselines, no-network checks and end-to-end tests for the HTML report and the mcp-conformance workbench (ADR-0021)",
   "license": "MIT",
   "type": "module",
   "scripts": {

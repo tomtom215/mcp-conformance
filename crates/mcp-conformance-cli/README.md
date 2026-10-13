@@ -12,8 +12,8 @@ while you work: `watch` records a session as it happens and prints each finding 
 exchange that shows it completes.
 
 > **Not yet released.** This crate is on `main` only
-> ([ADR-0021](../../docs/plan/decisions/0021-a-workbench-people-keep-open.md), phases W1
-> and W4);
+> ([ADR-0021](../../docs/plan/decisions/0021-a-workbench-people-keep-open.md), phases W1,
+> W4 and W5);
 > build it from the repository: `cargo install --path crates/mcp-conformance-cli`.
 
 ## What it needs
@@ -165,13 +165,46 @@ fields — method, tool and prompt names, resource URIs, request and session IDs
 codes and messages, findings — never a payload; an `http://` collector that is not this
 machine is warned about, since those fields would cross the network unencrypted.
 
+## The workbench
+
+```text
+mcp-conformance serve --library ./recordings --open
+```
+
+A local web page over a directory of recordings (traces, each with an optional
+`<id>.meta.json` sidecar of tags, provenance and a cached verdict): search with a small
+query language (`method:tools/call req:BASE-003 code:-32602 timeout`), each session as a
+timeline with its findings at their events and an inspector, two sessions compared, a
+trace that is still being written followed live, dashboards of verdicts over time, clause
+coverage and findings, and administration — import (traces, `mcpsnoop` captures, MCP
+Inspector exports, each with what its source does not record), tags, retention, delete,
+export, and redacted copies. It listens on `127.0.0.1` and prints a link with a single-use
+token; it sends nothing anywhere. [The workbench](../../book/src/workbench.md) chapter has
+the details.
+
+The same library from the command line, for scripts (`stats --format json` prints
+exactly what the dashboards read):
+
+```text
+mcp-conformance library --library ./recordings stats --format json
+mcp-conformance library --library ./recordings import capture.jsonl --from mcpsnoop
+mcp-conformance library --library ./recordings redact ID --meta --pointer /params/arguments/apiKey
+mcp-conformance library --library ./recordings prune --retain-days 30 --apply
+```
+
+`serve` and `library` exit `0` when they did what was asked and `2` when they could not
+(a bad address, an unreadable library, an unknown entry, a rule that cannot apply). The
+page and its JSON API are not a stable interface; `library stats --format json` is the
+way to read the numbers from a script.
+
 ## The library
 
 The crate's library is the small part `mcp-conformance test` shares with this
 repository's own gate, `cargo xtask conformance`: the suite pin (`suite`) and the
-agreement policy (`agreement`); and `watch`'s live judge (`live`) and span encoding
-(`otlp`). With `default-features = false` it depends on the validator and the serde
-family only.
+agreement policy (`agreement`); `watch`'s live judge (`live`) and span encoding
+(`otlp`); and the importers the workbench uses (`import`), which `cargo xtask
+mcpsnoop`'s tests also exercise. With `default-features = false` it depends on the
+validator and the serde family only.
 
 ```rust
 use mcp_conformance_cli::agreement::{Baseline, ValidatorFailure, reconcile};

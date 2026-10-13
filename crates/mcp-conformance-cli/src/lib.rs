@@ -23,7 +23,11 @@
 //! - [`live`] — the incremental judge: a trace taken line by line, exchanges
 //!   paired, and only new findings reported;
 //! - [`otlp`] — exchanges and findings as OTLP/HTTP JSON spans under the
-//!   OpenTelemetry semantic conventions for MCP.
+//!   OpenTelemetry semantic conventions for MCP;
+//! - [`import`] — recordings made by other tools (`mcpsnoop` captures, MCP
+//!   Inspector exports) as traces, with what each source does not record,
+//!   which the workbench's importer and `cargo xtask mcpsnoop`'s conversion
+//!   check share.
 //!
 //! With `default-features = false` it depends on the validator and the serde
 //! family only.
@@ -37,6 +41,7 @@
 pub struct ReadmeDoctests;
 
 pub mod agreement;
+pub mod import;
 pub mod live;
 pub mod otlp;
 pub mod suite;

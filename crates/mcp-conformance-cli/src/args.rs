@@ -3,8 +3,10 @@
 
 //! The command line.
 //!
-//! `test` and `watch`; the workbench's later subcommands (ADR-0021) join them
-//! as siblings in [`Command`], sharing the report options in [`ReportArgs`].
+//! `test` runs the official suite; `watch` records a session and judges it
+//! live; `serve` is the workbench over a library of recordings and `library`
+//! the same library from the command line (ADR-0021). Report options are
+//! shared in [`ReportArgs`].
 //!
 //! `--url` is taken as text and checked in `run`, not by clap: clap's error
 //! repeats the value, and a server URL can carry a key in its query.
@@ -52,6 +54,18 @@ pub(crate) enum Command {
     /// OpenTelemetry span per exchange.
     #[command(after_help = WATCH_EXIT_CODES)]
     Watch(Box<WatchArgs>),
+    /// Open the workbench: a local web page over a library of recordings —
+    /// search, the session timeline and inspector, two-session diff, live
+    /// tail, dashboards, and administration (import, tags, retention,
+    /// delete, export, redaction).
+    ///
+    /// Listens on 127.0.0.1 and prints a link carrying a single-use token;
+    /// every request must come from the browser that opened it. Sends
+    /// nothing anywhere.
+    Serve(Box<ServeArgs>),
+    /// The library from the command line: the dashboards' numbers, import,
+    /// redaction, retention, tags, delete and export.
+    Library(Box<LibraryArgs>),
     /// Carries a client under test to the suite's server through the recorder;
     /// `test --client-command` runs it as the client command it gives the
     /// suite. Not for direct use.
@@ -217,4 +231,129 @@ pub(crate) enum Format {
     Junit,
     /// SARIF 2.1.0: the clause report, for code scanning.
     Sarif,
+}
+
+/// Where a library is.
+#[derive(Debug, Clone, Args)]
+pub(crate) struct LibraryDir {
+    /// The library: a directory of `.jsonl` traces, each with an optional
+    /// `<name>.meta.json` sidecar. Created when it does not exist.
+    #[arg(long, value_name = "DIR", default_value = "mcp-library")]
+    pub(crate) library: PathBuf,
+}
+
+/// What `serve` serves, and where.
+#[derive(Debug, Args)]
+pub(crate) struct ServeArgs {
+    #[command(flatten)]
+    pub(crate) dir: LibraryDir,
+    /// The address to listen on; port 0 lets the system choose.
+    #[arg(long, value_name = "ADDR", default_value = "127.0.0.1:0")]
+    pub(crate) listen: SocketAddr,
+    /// Allow an address that is not loopback. Anyone who can reach it and
+    /// holds the link can read the library, which may hold credentials.
+    #[arg(long)]
+    pub(crate) dangerously_listen_non_loopback: bool,
+    /// Open the link in the system's browser.
+    #[arg(long)]
+    pub(crate) open: bool,
+}
+
+/// `library` and its subcommands.
+#[derive(Debug, Args)]
+pub(crate) struct LibraryArgs {
+    #[command(flatten)]
+    pub(crate) dir: LibraryDir,
+    #[command(subcommand)]
+    pub(crate) command: LibraryCommand,
+}
+
+/// What `library` does.
+#[derive(Debug, Subcommand)]
+pub(crate) enum LibraryCommand {
+    /// Print the numbers the dashboards draw: verdicts over time, clause
+    /// coverage per revision, findings by area and by server.
+    Stats {
+        /// `json` is byte for byte what the workbench's dashboards read.
+        #[arg(long, value_enum, default_value_t = StatsFormat::Human)]
+        format: StatsFormat,
+    },
+    /// List the recordings, one per line: id, verdict, day, server.
+    List,
+    /// Copy a recording into the library, converted to a trace.
+    Import {
+        /// The file: a trace, an mcpsnoop capture or an MCP Inspector
+        /// protocol export.
+        file: PathBuf,
+        /// Its format (`trace`, `mcpsnoop`, `inspector`); detected from the
+        /// file by default.
+        #[arg(long = "from", value_name = "FORMAT", default_value = "auto")]
+        from: String,
+        /// The session's transport, for a format that does not record it (an
+        /// Inspector export): `stdio` or `streamable-http`.
+        #[arg(long, value_name = "TRANSPORT")]
+        transport: Option<String>,
+    },
+    /// Add a redacted copy of a recording as a new entry; the original is
+    /// not changed.
+    Redact {
+        /// The entry's id.
+        id: String,
+        /// A header to redact, by name; repeatable. Without one,
+        /// Authorization, Cookie, Set-Cookie and Proxy-Authorization.
+        #[arg(long = "header", value_name = "NAME")]
+        headers: Vec<String>,
+        /// A JSON pointer into each message payload; repeatable. A `*`
+        /// segment matches every member or element.
+        #[arg(long = "pointer", value_name = "POINTER")]
+        pointers: Vec<String>,
+        /// Redact the value of every `_meta` member.
+        #[arg(long)]
+        meta: bool,
+        /// A literal string to redact wherever it occurs; repeatable.
+        #[arg(long = "string", value_name = "TEXT")]
+        strings: Vec<String>,
+    },
+    /// List — or with `--apply`, delete — recordings made more than
+    /// `--retain-days` days ago. A recording with no date is kept.
+    Prune {
+        /// Keep this many days.
+        #[arg(long, value_name = "DAYS")]
+        retain_days: u32,
+        /// Delete them; without it, only list them.
+        #[arg(long)]
+        apply: bool,
+    },
+    /// Replace a recording's tags.
+    Tag {
+        /// The entry's id.
+        id: String,
+        /// A tag; repeatable. None clears the tags.
+        #[arg(long = "tag", value_name = "TAG")]
+        tags: Vec<String>,
+    },
+    /// Delete recordings: each trace and its sidecar.
+    Delete {
+        /// The entries' ids.
+        #[arg(required = true)]
+        ids: Vec<String>,
+    },
+    /// Write recordings and their sidecars to a tar archive.
+    Export {
+        /// The entries' ids.
+        #[arg(required = true)]
+        ids: Vec<String>,
+        /// The archive to write.
+        #[arg(short, long, value_name = "FILE")]
+        output: PathBuf,
+    },
+}
+
+/// `library stats` formats.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum StatsFormat {
+    /// Terminal-oriented text.
+    Human,
+    /// The JSON the dashboards read.
+    Json,
 }

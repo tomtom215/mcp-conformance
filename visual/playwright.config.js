@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-// Screenshot suite for mcp-trace-validator's HTML report (ADR-0021, "Verification of
-// what people see"). The pages under test are the committed golden pages,
-// corpus/golden/html/*.html, which the Rust golden test pins byte for byte, so the
-// chain from renderer to pixels has no unpinned link.
+// Screenshot suite for mcp-trace-validator's HTML report and the mcp-conformance
+// workbench (ADR-0021, "Verification of what people see"). The report pages under test
+// are the committed golden pages, corpus/golden/html/*.html, which the Rust golden test
+// pins byte for byte; the workbench is the binary serving visual/fixtures/library.
 
 import { defineConfig } from '@playwright/test';
 

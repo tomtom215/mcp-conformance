@@ -13,6 +13,7 @@
 - [Testing a server or client](testing.md)
 - [Watching a session live](watching.md)
 - [Reading a report](reading-a-report.md)
+- [The workbench](workbench.md)
 - [Using it in CI](ci.md)
 - [Upgrading](upgrading.md)
 - [Troubleshooting](troubleshooting.md)

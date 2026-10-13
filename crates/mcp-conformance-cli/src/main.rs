@@ -27,12 +27,14 @@ use clap::Parser as _;
 mod args;
 mod bridge;
 mod judging;
+mod library_cmd;
 mod node;
 mod proxy;
 mod relay;
 mod render;
 mod run;
 mod watch;
+mod workbench;
 
 const EXIT_OK: u8 = 0;
 const EXIT_FINDINGS: u8 = 1;
@@ -56,6 +58,15 @@ fn main() -> ExitCode {
         args::Command::ClientRelay { command } => {
             ExitCode::from(runtime.block_on(relay::run(command)))
         }
+        args::Command::Serve(serve) => ExitCode::from(runtime.block_on(workbench::server::run(
+            workbench::server::Settings {
+                library: &serve.dir.library,
+                listen: serve.listen,
+                non_loopback: serve.dangerously_listen_non_loopback,
+                open: serve.open,
+            },
+        ))),
+        args::Command::Library(library) => ExitCode::from(library_cmd::run(*library)),
     };
     // A client blocked on this process's stdin would otherwise hold the
     // runtime open (`watch stdio`).

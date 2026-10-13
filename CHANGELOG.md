@@ -661,6 +661,23 @@ below is stated again in its entry, with the reasoning.
   record is `TRAN-081`'s rewording ("for JavaScript" → "for integers represented using
   IEEE754 double-precision floating point numbers"); the bound and the verdict are
   unchanged.
+- **`mcp-conformance serve`**, a local workbench in the browser over a library of
+  recordings: search (`method:` `tool:` `resource:` `prompt:` `session:` `code:`
+  `req:` `server:` `tag:` `verdict:` and free text), a session timeline and inspector
+  styled by the HTML report with findings and events linked both ways, a two-session
+  diff, a live view of a trace still being written, SVG dashboards (verdicts over time,
+  clause coverage, findings by area and server), and administration: import, tags,
+  retention, delete, export and redacted copies. It binds loopback, admits only the
+  browser that opened its single-use link, checks `Host` and `Origin`, serves a strict
+  Content Security Policy, renders trace content only as text, and sends nothing
+  anywhere.
+- **`mcp-conformance library`** (`stats`, `list`, `import`, `redact`, `prune`, `tag`,
+  `delete`, `export`): the same library from the command line; `stats --format json`
+  is exactly what the dashboards read.
+- **Importers** (`mcp_conformance_cli::import`): `mcpsnoop` captures and MCP Inspector
+  protocol exports as traces, each listing what its source does not record.
+- **`mcp_trace_validator::timeline`** (`shape`, `pair`, `preview`) and
+  `mcp_trace_validator::html::STYLESHEET` are public.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.
