@@ -23,8 +23,12 @@ use crate::recorder::{NotRecorded, Recorder};
 use crate::traces::Route;
 
 /// Records `request`, forwards it upstream, and records and relays the
-/// response.
-pub(super) async fn forward(proxy: Arc<Proxy>, request: Request) -> Response {
+/// response; `local` is the proxy's address the client's connection reached.
+pub(super) async fn forward(
+    proxy: Arc<Proxy>,
+    local: Option<std::net::SocketAddr>,
+    request: Request,
+) -> Response {
     let (parts, body) = request.into_parts();
     if has_dot_segment(parts.uri.path()) {
         return proxy.refuse_path();
@@ -52,14 +56,13 @@ pub(super) async fn forward(proxy: Arc<Proxy>, request: Request) -> Response {
     };
     *upstream_request.headers_mut() = headers::forwardable(&parts.headers, dropped);
     let uri = upstream_request.uri().clone();
-    let host = parts
-        .headers
-        .get(header::HOST)
-        .and_then(|host| host.to_str().ok());
+    // Not the client's `Host`: any client can send any name there, and a
+    // redirect would then send the next client to it.
+    let host = local.map(|local| local.to_string());
     match proxy.client.request(upstream_request).await {
         Ok(upstream) => {
             proxy
-                .relay_response(upstream, route, host, standalone)
+                .relay_response(upstream, route, host.as_deref(), standalone)
                 .await
         }
         Err(error) => proxy.upstream_failed(route.recorder(), &uri, &error),
@@ -135,7 +138,7 @@ impl Proxy {
     /// A session id the response assigns is noted before the response is
     /// returned, so the client's next request — which names it — is routed to
     /// this session's trace. A redirect into the upstream is pointed back at
-    /// the proxy, by the `host` the client addressed it by.
+    /// the proxy, at `host`: the address the client's connection reached.
     async fn relay_response(
         self: &Arc<Self>,
         upstream: axum::http::Response<hyper::body::Incoming>,

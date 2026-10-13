@@ -273,6 +273,37 @@ async fn dot_segments_are_refused_not_forwarded() {
     .await;
 }
 
+/// A redirect into the upstream is pointed back at the proxy by the address
+/// the client's connection reached — not by the `Host` header the client sent,
+/// which any client can set to anything.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_redirect_points_at_the_proxys_own_address_not_the_clients_host() {
+    bounded(async {
+        let (upstream, _requests) = upstream_with(|upstream| {
+            format!(
+                "HTTP/1.1 307 Temporary Redirect\r\nlocation: http://{upstream}/mcp/x\r\n\
+                 content-length: 0\r\nconnection: close\r\n\r\n"
+            )
+            .into_bytes()
+        })
+        .await;
+        let (address, _, stop) = proxy(format!("http://{upstream}/mcp"), 1024).await;
+        let response = exchange(
+            address,
+            b"GET / HTTP/1.1\r\nhost: evil.example\r\nconnection: close\r\n\r\n",
+        )
+        .await;
+        assert!(response.starts_with("http/1.1 307"), "{response}");
+        assert!(
+            response.contains(&format!("location: http://{address}/x\r\n")),
+            "{response}"
+        );
+        assert!(!response.contains("evil.example"), "{response}");
+        stop().await.unwrap().unwrap();
+    })
+    .await;
+}
+
 /// A client that goes away mid-body leaves its request recorded without a
 /// body; the trace must say the exchange was cut off, as it does for an
 /// upstream that fails.

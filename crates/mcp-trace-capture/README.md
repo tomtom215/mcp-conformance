@@ -222,8 +222,9 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   `100-continue` itself), `Host` (names the
   upstream — `--preserve-host` keeps the client's instead), `Accept-Encoding`
   (removed, so the server answers uncompressed and the body can be recorded), and a
-  redirect's `Location` that points into the upstream (pointed back at the proxy, by
-  the `Host` the client used, so the client does not leave the recording; one the
+  redirect's `Location` that points into the upstream (pointed back at the proxy, at
+  the address the client's connection reached — not at the client's `Host` header,
+  which can name anything — so the client does not leave the recording; one the
   proxy cannot reach is relayed as sent, and `Location` is not recorded). A body's
   bytes are forwarded unchanged, but its transfer framing is hop-by-hop and can
   change: a body sent with `Content-Length` keeps it, and one sent chunked (or, in a

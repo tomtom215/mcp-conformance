@@ -45,8 +45,9 @@ pub(super) fn target(upstream: &Uri, path_and_query: Option<&PathAndQuery>) -> U
 /// server, past the proxy and out of the trace. Rewritten: a URL on the
 /// upstream's own scheme and authority, or a path (`/mcp`) on the same server,
 /// whose path the proxy can reach — the inverse of [`target`]. An absolute one
-/// becomes `http://` plus the `Host` the client addressed the proxy by
-/// (`proxy_host`). Anything else — another server, a relative reference, a path
+/// becomes `http://` plus `proxy_host`, the proxy's own address the client
+/// reached (never the client's `Host` header, which names whatever the client
+/// likes). Anything else — another server, a relative reference, a path
 /// outside the upstream's, a query that does not carry the upstream's own — is
 /// left alone.
 pub(super) fn location(upstream: &Uri, value: &str, proxy_host: Option<&str>) -> Option<String> {

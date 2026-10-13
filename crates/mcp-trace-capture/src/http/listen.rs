@@ -8,7 +8,9 @@
 //! bound on how long a client may take to send a request's head
 //! ([`Options::header_read_timeout`](super::Options::header_read_timeout)). A
 //! client that opened connections and trickled header bytes into them
-//! (slowloris) held each one, and its task, open for as long as it liked.
+//! (slowloris) held each one, and its task, open for as long as it liked. It
+//! also knows the local address each connection reached, which a redirect into
+//! the upstream is pointed back at.
 
 use std::convert::Infallible;
 use std::future::Future;
@@ -53,10 +55,13 @@ pub(super) async fn serve(
             () = &mut shutdown => break,
         };
         let proxy = Arc::clone(&proxy);
+        let local = stream.local_addr().ok();
         let service = hyper::service::service_fn(move |request: hyper::Request<_>| {
             let proxy = Arc::clone(&proxy);
             async move {
-                Ok::<_, Infallible>(super::relay::forward(proxy, request.map(Body::new)).await)
+                Ok::<_, Infallible>(
+                    super::relay::forward(proxy, local, request.map(Body::new)).await,
+                )
             }
         });
         let mut builder = http1::Builder::new();
