@@ -122,7 +122,8 @@ pub(crate) fn note_sessions(prefix: &str, sessions: usize) {
             "note: {prefix}this trace records {sessions} sessions and is judged as one; findings \
              that span them (a request id reused across sessions, a session id that \
              changed) come from recording them together. Record one session per trace: \
-             one client connection per mcp-trace-capture run."
+             put {{session}} in mcp-trace-capture's -o (-o 'traces/{{session}}.jsonl') \
+             for a numbered trace per session, or record one client per capture run."
         );
     }
 }

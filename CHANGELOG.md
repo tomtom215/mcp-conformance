@@ -403,6 +403,9 @@ below is stated again in its entry, with the reasoning.
 - **Table-row quotes have a documented form.** `SourceRef::quote` now states how a
   clause that only reads as one with its table row is quoted: the row from its first
   cell to the clause's cell, cells joined with ` | `.
+- **The validator's note about a trace holding several sessions names the fix**:
+  `{session}` in `mcp-trace-capture`'s `-o`, which writes a numbered trace per
+  session, before the old advice to record one client per run.
 
 ### Dependencies
 
