@@ -14,7 +14,11 @@
 //! - [`suite`] — the suite's pinned version (the one place it is written), and
 //!   reading its per-scenario results back;
 //! - [`agreement`] — the policy that reconciles the validator's failures with
-//!   the suite's verdict against a baseline of explained divergences.
+//!   the suite's verdict against a baseline of explained divergences;
+//! - [`import`] — recordings made by other tools (`mcpsnoop` captures, MCP
+//!   Inspector exports) as traces, with what each source does not record,
+//!   which the workbench's importer and `cargo xtask mcpsnoop`'s conversion
+//!   check share.
 //!
 //! With `default-features = false` it depends on the validator and the serde
 //! family only.
@@ -28,4 +32,5 @@
 pub struct ReadmeDoctests;
 
 pub mod agreement;
+pub mod import;
 pub mod suite;

@@ -305,3 +305,55 @@ fn conversion_matches_mcpsnoop_own_recordings() {
     }
     assert_eq!(pairs, 3);
 }
+
+/// The two directions agree: every committed corpus trace converted to a
+/// capture and imported back (`mcp_conformance_cli::import::mcpsnoop`, the
+/// workbench's importer) carries the same messages, in the same order.
+#[test]
+fn conversion_and_import_round_trip_every_corpus_message() {
+    use mcp_conformance_cli::import::mcpsnoop;
+    use mcp_conformance_core::trace::{Direction, TraceEvent};
+
+    let messages = |events: &[TraceEvent]| -> Vec<(bool, Value)> {
+        events
+            .iter()
+            .filter_map(|event| {
+                event.message_payload().map(|payload| {
+                    (
+                        event.direction == Direction::ClientToServer,
+                        payload.clone(),
+                    )
+                })
+            })
+            .collect()
+    };
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let mut traces = 0;
+    for directory in [
+        "corpus/good",
+        "corpus/violations",
+        "corpus/captured",
+        "corpus/draft/good",
+    ] {
+        for file in std::fs::read_dir(root.join(directory)).unwrap() {
+            let path = file.unwrap().path();
+            if path.extension().is_none_or(|ext| ext != "jsonl") {
+                continue;
+            }
+            let text = std::fs::read_to_string(&path).unwrap();
+            let Ok(events) = reader::parse_trace(&text, &reader::Limits::default()) else {
+                continue; // a malformed-trace fixture: nothing to convert
+            };
+            let mut document = String::new();
+            for line in &convert("round-trip", &events).lines {
+                document.push_str(&line.to_string());
+                document.push('\n');
+            }
+            let imported = mcpsnoop::import(&document).unwrap();
+            let back = reader::parse_trace(&imported.trace, &reader::Limits::default()).unwrap();
+            assert_eq!(messages(&back), messages(&events), "{}", path.display());
+            traces += 1;
+        }
+    }
+    assert!(traces > 50, "only {traces} traces round-tripped");
+}
