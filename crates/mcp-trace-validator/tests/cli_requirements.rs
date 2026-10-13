@@ -131,8 +131,23 @@ fn filters_narrow_the_listing_and_partition_it() {
         "2025-11-25",
         "--excluded",
     ]));
-    assert_eq!(text.lines().count(), 1 + excluded.len(), "{text}");
+    // `--excluded` promises the reason: each row is followed by its own.
+    assert_eq!(text.lines().count(), 1 + 2 * excluded.len(), "{text}");
     assert!(!text.contains("checks:"), "{text}");
+    for requirement in &excluded {
+        assert!(
+            text.contains(&format!(
+                "(excluded) — {}\n      why: {}\n",
+                requirement["source"]["quote"].as_str().unwrap(),
+                requirement["exclusion"].as_str().unwrap()
+            )),
+            "{text}"
+        );
+    }
+    // Without `--excluded`, the listing stays one line per requirement.
+    let unfiltered = stdout(&run(&["requirements", "--revision", "2025-11-25"]));
+    assert_eq!(unfiltered.lines().count(), 1 + all.len(), "{unfiltered}");
+    assert!(!unfiltered.contains("      why: "), "{unfiltered}");
 
     let both = run(&["requirements", "--checked", "--excluded"]);
     assert_eq!(both.status.code(), Some(2), "{both:?}");

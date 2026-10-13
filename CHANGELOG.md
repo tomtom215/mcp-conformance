@@ -210,6 +210,10 @@ below is stated again in its entry, with the reasoning.
   rather than failing every trace as malformed.
 - **`requirements --help` offers only `human` and `json`**: it listed `junit` and
   `sarif`, then rejected them.
+- **`requirements --excluded` prints why.** Its help promised the requirements
+  "with why", but the human listing showed only `(excluded)`; each row is now
+  followed by a `why:` line with the registry's reason. The JSON form, which
+  always carried `exclusion`, and the listing without `--excluded` are unchanged.
 - **Library text no longer names CLI flags.** `Report::render_human` told library
   callers to "re-run with `--revision …`"; it now words the advice without a flag,
   and the CLI asks for its own wording (`HumanOptions::cli`).
