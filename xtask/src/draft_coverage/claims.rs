@@ -86,6 +86,7 @@ pub(super) const CLAIM_FILES: &[&str] = &[
     "book/src/sdk-servers.md",
     "book/src/testing.md",
     "book/src/reading-a-report.md",
+    "book/src/workbench.md",
     "book/src/upgrading.md",
     "book/src/ci.md",
     "book/src/troubleshooting.md",
