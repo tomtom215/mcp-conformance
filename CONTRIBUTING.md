@@ -100,7 +100,8 @@ diff-scoped mutation testing
 (`cargo mutants --in-diff`) on PRs. Coverage is measured and reported in the job
 summary, and the job fails below 95% of lines. The standard is **zero surviving mutants in every shipped crate**
 (xtask is excluded via `.cargo/mutants.toml`). Run it locally with
-`cargo xtask mutants`, which issues exactly the invocation CI does;
+`cargo xtask mutants`, which issues the invocation CI does, unsharded (CI splits the
+same deterministic mutant list across eight `--shard k/8` jobs);
 `--jobs N` is the only argument it accepts, and raising it spends the timeout
 headroom `.cargo/mutants.toml` reserves — a mutant merely slowed by
 contention is reported as a timeout, not as caught.
