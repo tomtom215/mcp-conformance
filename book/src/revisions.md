@@ -54,7 +54,8 @@ Judged against both revisions at once:
 $ mcp-trace-validator validate --revision 2025-11-25 --revision 2026-07-28 --all handshake.jsonl
 ```
 
-(`--all` lists every clause; without it the report lists only the failing ones.)
+(`--all` lists every clause; without it the report lists only the failing, warning
+and unsupported ones.)
 Four rows out of the report say the whole thing:
 
 ```text

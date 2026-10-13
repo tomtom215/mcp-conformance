@@ -69,8 +69,14 @@ with the id the `initialize` already used:
 Each finding names the clause (`BASE-003`) and its strength (`MUST NOT`), the event in
 the trace (`seq 3` — every event carries a `seq`, its position in the recording), what
 was wrong, the sentence of the specification it breaks, and a link to it. The exit
-status is the verdict: `0` pass, `1` a clause failed, `2` the run could not judge (a
-bad invocation, or a trace with nothing in it), `3` the trace is malformed.
+status is the verdict: `0` pass (warnings included, unless `--strict`), `1` a clause
+failed (or warned, under `--strict`), `2` the run could not judge or report — a bad
+invocation (an unknown flag, a trace file that cannot be read), nothing judgeable (a
+trace with nothing in it, or one declaring only revisions this build does not know),
+or output not written — and `3` the trace is malformed.
+[STABILITY.md](https://github.com/tomtom215/mcp-conformance/blob/main/STABILITY.md)
+keeps these meanings fixed. [Reading a report](reading-a-report.md) goes further:
+triaging a finding, raising coverage, and disputing a verdict.
 
 ## Reading a report
 

@@ -24,7 +24,9 @@ shown to fail on at least one committed violation trace.
 **Clause** (or **requirement**). One normative sentence of the specification —
 a MUST, MUST NOT, SHOULD or SHOULD NOT — entered in the registry under a stable ID
 such as `BASE-003`. The book's [reference pages](reference/requirements-2026-07-28.md)
-list every one.
+list every one. A MAY permits rather than binds, so no trace can break one and the
+built-in registries enter none: `requirements --level may` is accepted, for a custom
+`--registry` that has some, and lists nothing otherwise.
 
 **Corpus.** The committed traces the validator is tested against: conforming
 sessions, one violating trace per check, and recordings of real sessions, each
@@ -77,4 +79,6 @@ closing. The validator judges each trace as one session.
 
 **Verdict.** A report's conclusion: *pass*, *pass with warnings*, *fail*, or
 *unsupported* (the build cannot judge a clause its registry names — a mismatched
-installation). The exit status carries it.
+installation). A run over several traces that could not judge one of them —
+unreadable, malformed, of a revision this build does not know, or judging nothing —
+reads *incomplete*, whatever the others say. The exit status carries it.

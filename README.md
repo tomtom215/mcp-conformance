@@ -215,7 +215,7 @@ A trace is JSON Lines: one event per line, each carrying a capture-assigned `seq
 (the only ordering authority), a `direction`, a `transport`, and a `kind` —
 `message` events hold the JSON-RPC payload; `http` events record
 conformance-relevant headers, a response's status, and a client request's
-`method`; `lifecycle` events mark transport open/close. The format is published as
+`method`; `lifecycle` events mark transport open, close and abort. The format is published as
 a JSON Schema, [`trace-event.schema.json`](crates/mcp-conformance-core/schema/trace-event.schema.json)
 (also `mcp_conformance_core::trace::EVENT_JSON_SCHEMA`), so a recorder written in
 any language can check its output without this toolkit; a test holds the schema
