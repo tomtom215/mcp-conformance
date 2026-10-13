@@ -287,3 +287,65 @@ fn sessions_are_counted_from_initialize_requests_and_session_ids() {
     assert_eq!(sessions.session_ids.len(), 2);
     assert_eq!(sessions.count(), 2);
 }
+
+/// Keeps every line it is shown, with its trace number.
+#[derive(Debug, Default)]
+struct Seen(Mutex<Vec<(u64, Vec<u8>)>>);
+
+impl Observer for Seen {
+    fn observe(&self, trace: u64, line: &[u8]) {
+        self.0.lock().unwrap().push((trace, line.to_vec()));
+    }
+}
+
+#[test]
+fn an_observer_sees_each_written_line_in_seq_order_and_nothing_else() {
+    let sink = Shared::default();
+    let seen = Arc::new(Seen::default());
+    let recorder = Recorder::with_max_line(sink.clone(), 200)
+        .observed(Arc::clone(&seen) as Arc<dyn Observer>, 7);
+    recorder
+        .record(Direction::ClientToServer, TransportKind::Stdio, open())
+        .unwrap();
+    let long = EventBody::Message {
+        payload: serde_json::json!("x".repeat(300)),
+    };
+    assert_eq!(
+        recorder.record(Direction::ClientToServer, TransportKind::Stdio, long),
+        Err(NotRecorded::TooLong)
+    );
+    recorder
+        .close(
+            Direction::ClientToServer,
+            TransportKind::Stdio,
+            LifecycleEvent::TransportClose,
+        )
+        .unwrap();
+    assert_eq!(
+        recorder.record(Direction::ClientToServer, TransportKind::Stdio, open()),
+        Err(NotRecorded::Closed)
+    );
+    let seen = seen.0.lock().unwrap();
+    let written = sink.0.lock().unwrap();
+    let lines: Vec<&[u8]> = written
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .collect();
+    assert_eq!(seen.len(), 2, "the refused events are not shown");
+    assert_eq!(lines.len(), 2);
+    for ((trace, line), written) in seen.iter().zip(lines) {
+        assert_eq!(*trace, 7);
+        assert_eq!(line.as_slice(), written, "the line as written, no newline");
+    }
+}
+
+#[test]
+fn a_failed_write_is_not_shown_to_the_observer() {
+    let seen = Arc::new(Seen::default());
+    let recorder = Recorder::new(Failing { budget: 0 }).observed(Arc::clone(&seen) as _, 1);
+    assert_eq!(
+        recorder.record(Direction::ClientToServer, TransportKind::Stdio, open()),
+        Err(NotRecorded::SinkFailed)
+    );
+    assert!(seen.0.lock().unwrap().is_empty());
+}

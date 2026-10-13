@@ -69,12 +69,13 @@ fn boxed(error: impl Into<BoxError>) -> BoxError {
     error.into()
 }
 
-/// [`Connector`] with a bound on how long connecting may take, TLS handshake
-/// included. Without one, an upstream that never completes the handshake (a
+/// The upstream connector, with a bound on how long connecting may take.
+///
+/// The bound includes the TLS handshake. Without one, an upstream that never completes the handshake (a
 /// full accept queue, a firewall that drops packets) held each request until
 /// the operating system gave up, minutes later.
 #[derive(Debug, Clone)]
-pub(super) struct Timed {
+pub struct Timed {
     pub(super) inner: Connector,
     pub(super) timeout: Duration,
 }

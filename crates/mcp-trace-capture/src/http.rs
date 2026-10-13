@@ -34,7 +34,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::body::Body;
 use axum::http::uri::Uri;
-use hyper_util::client::legacy::Client;
+
 use hyper_util::rt::TokioExecutor;
 
 use mcp_conformance_core::trace::LifecycleEvent;
@@ -48,6 +48,33 @@ mod connect;
 mod listen;
 mod relay;
 mod target;
+
+pub use connect::Timed;
+
+/// An HTTP client that connects as the proxy connects upstream: [`client`]'s.
+pub type Client = hyper_util::client::legacy::Client<Timed, Body>;
+
+/// A client for an `http(s)` endpoint of the caller's own, connecting exactly
+/// as the proxy connects upstream.
+///
+/// It is `mcp-conformance watch --otlp`'s, for its collector: HTTP/1, the `ring` TLS provider with the platform's roots for an
+/// `https` endpoint (none trusted for an `http` one), and no connection
+/// attempt longer than `connect_timeout`.
+///
+/// # Errors
+///
+/// As [`Options::new`] refuses an upstream: not an absolute `http(s)` URL,
+/// `https` without the `tls` feature, credentials in the URL, or no root
+/// certificates for an `https` one. The URL is never repeated.
+pub fn client(endpoint: &Uri, connect_timeout: std::time::Duration) -> Result<Client, String> {
+    let options = Options::new(endpoint.clone(), 0)?;
+    Ok(
+        hyper_util::client::legacy::Client::builder(TokioExecutor::new()).build(Timed {
+            inner: options.connector,
+            timeout: connect_timeout,
+        }),
+    )
+}
 
 /// [`Options::header_read_timeout`]'s default: hyper's own default for it,
 /// which takes effect only once a server sets a timer.
@@ -225,7 +252,7 @@ impl Counters {
 #[derive(Debug)]
 struct Proxy {
     traces: Arc<Traces>,
-    client: Client<connect::Timed, Body>,
+    client: Client,
     options: Options,
     counters: Counters,
     /// The buffer budget ([`Options::buffer_budget`]), in bytes.
@@ -278,7 +305,7 @@ pub async fn serve_traces(
         .min(tokio::sync::Semaphore::MAX_PERMITS);
     let proxy = Arc::new(Proxy {
         traces,
-        client: Client::builder(TokioExecutor::new()).build(connect::Timed {
+        client: hyper_util::client::legacy::Client::builder(TokioExecutor::new()).build(Timed {
             inner: options.connector.clone(),
             timeout: options.connect_timeout,
         }),

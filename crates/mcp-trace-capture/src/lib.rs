@@ -23,12 +23,14 @@ pub mod framing;
 pub mod headers;
 pub mod http;
 pub mod numbered;
+pub mod output;
 pub mod recorder;
+pub mod run;
 pub mod signals;
 pub mod stdio;
 pub mod traces;
 
-pub use recorder::{NotRecorded, Recorder, Summary};
+pub use recorder::{NotRecorded, Observer, Recorder, Summary};
 pub use signals::{SERVER_STOP_GRACE, STOP_GRACE, Signals, Stop, StopRequests};
 
 /// A future that resolves at the first request to stop: SIGINT, SIGTERM, SIGHUP
