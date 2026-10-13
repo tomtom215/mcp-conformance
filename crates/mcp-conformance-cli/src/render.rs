@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use mcp_conformance::suite::{self, Scenario, Summary};
+use mcp_conformance_cli::suite::{self, Scenario, Summary};
 use mcp_trace_validator::report::{HumanOptions, Report, Verdict};
 use mcp_trace_validator::{junit, sarif};
 use serde_json::json;

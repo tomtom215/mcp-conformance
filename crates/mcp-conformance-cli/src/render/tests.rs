@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-use mcp_conformance::agreement::Baseline;
-use mcp_conformance::suite::Check;
+use mcp_conformance_cli::agreement::Baseline;
+use mcp_conformance_cli::suite::Check;
 
 use super::*;
 use crate::run::tests::{judged, outcome};

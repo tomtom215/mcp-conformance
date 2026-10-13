@@ -36,7 +36,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use mcp_conformance::suite;
+use mcp_conformance_cli::suite;
 
 use super::{EXPECTED_FAILURES, start_server};
 
@@ -76,7 +76,7 @@ pub(crate) fn run(root: &Path) -> ExitCode {
 fn legs(root: &Path) -> Result<(), String> {
     eprintln!("xtask: conformance — building mcp-conformance");
     let build = Command::new("cargo")
-        .args(["build", "-p", "mcp-conformance"])
+        .args(["build", "-p", "mcp-conformance-cli"])
         .current_dir(root)
         .status();
     if !matches!(build, Ok(status) if status.success()) {

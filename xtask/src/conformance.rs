@@ -37,17 +37,17 @@ use std::time::Duration;
 
 /// The npm package both suite pins name. One spelling, because
 /// `suite-currency` asks npm about this package and the two runner
-/// invocations fetch it. Defined beside the pin, in `mcp_conformance::suite`,
+/// invocations fetch it. Defined beside the pin, in `mcp_conformance_cli::suite`,
 /// which `mcp-conformance test` runs.
-pub(crate) const SUITE_PACKAGE: &str = mcp_conformance::suite::PACKAGE;
+pub(crate) const SUITE_PACKAGE: &str = mcp_conformance_cli::suite::PACKAGE;
 
-/// The pinned official suite version: `mcp_conformance::suite::VERSION`, the
+/// The pinned official suite version: `mcp_conformance_cli::suite::VERSION`, the
 /// one place it is written, shared with `mcp-conformance test`. Bumps are
 /// deliberate changes: review the upstream diff, refresh
 /// `conformance/expected-failures.yaml`, and update register row 2.4 in the
 /// same commit. `MCP_SUITE_VERSION` overrides it for the scheduled
 /// alpha-tracking job only — the PR gate always runs the pin.
-pub(crate) const SUITE_VERSION: &str = mcp_conformance::suite::VERSION;
+pub(crate) const SUITE_VERSION: &str = mcp_conformance_cli::suite::VERSION;
 
 /// The suite version this run uses: the pin, unless `MCP_SUITE_VERSION`
 /// overrides it (the scheduled alpha-line early-warning job).
@@ -57,7 +57,7 @@ fn suite_version() -> String {
 
 /// Spec revision under test — the registry's revision, and the suite's
 /// default for `mcp-conformance test`.
-pub(crate) const SPEC_VERSION: &str = mcp_conformance::suite::SPEC_VERSION;
+pub(crate) const SPEC_VERSION: &str = mcp_conformance_cli::suite::SPEC_VERSION;
 
 /// Committed baseline of expected scenario failures (suite-native YAML:
 /// `server:`/`client:` keys). Empty today; whole-scenario entries only —

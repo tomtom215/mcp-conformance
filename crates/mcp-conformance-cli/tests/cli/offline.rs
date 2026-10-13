@@ -109,7 +109,7 @@ fn run(setup: &Setup, status: &str, version: &str, extra: &[&str]) -> Output {
 #[test]
 fn a_passing_stdio_server_exits_0_with_both_verdicts_reported() {
     let setup = setup("pass");
-    let output = run(&setup, "SUCCESS", mcp_conformance::suite::VERSION, &[]);
+    let output = run(&setup, "SUCCESS", mcp_conformance_cli::suite::VERSION, &[]);
     let message = stderr(&output);
     assert_eq!(output.status.code(), Some(0), "{message}");
     let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
@@ -149,7 +149,7 @@ fn a_passing_stdio_server_exits_0_with_both_verdicts_reported() {
 #[test]
 fn a_failing_suite_check_exits_1_and_every_format_is_written() {
     let setup = setup("fail");
-    let output = run(&setup, "FAILURE", mcp_conformance::suite::VERSION, &[]);
+    let output = run(&setup, "FAILURE", mcp_conformance_cli::suite::VERSION, &[]);
     assert_eq!(output.status.code(), Some(1), "{}", stderr(&output));
     let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(report["verdict"], "fail");
@@ -174,7 +174,7 @@ fn a_failing_suite_check_exits_1_and_every_format_is_written() {
             .arg(setup.dir.join("work"))
             .env("PATH", &setup.path)
             .env("FAKE_STATUS", "SUCCESS")
-            .env("FAKE_SUITE_VERSION", mcp_conformance::suite::VERSION)
+            .env("FAKE_SUITE_VERSION", mcp_conformance_cli::suite::VERSION)
             .output()
             .unwrap();
         assert_eq!(
@@ -215,7 +215,7 @@ fn an_unexplained_divergence_or_a_stale_entry_exits_1() {
     let output = run(
         &setup,
         "SUCCESS",
-        mcp_conformance::suite::VERSION,
+        mcp_conformance_cli::suite::VERSION,
         &["--divergences", baseline.to_str().unwrap()],
     );
     assert_eq!(output.status.code(), Some(1), "{}", stderr(&output));
@@ -233,7 +233,7 @@ fn a_work_dir_in_use_or_a_bad_input_is_refused_before_anything_runs() {
     let setup = setup("refused");
     std::fs::create_dir_all(setup.dir.join("work")).unwrap();
     std::fs::write(setup.dir.join("work/kept"), "x").unwrap();
-    let output = run(&setup, "SUCCESS", mcp_conformance::suite::VERSION, &[]);
+    let output = run(&setup, "SUCCESS", mcp_conformance_cli::suite::VERSION, &[]);
     assert_eq!(output.status.code(), Some(2));
     assert!(
         stderr(&output).contains("is not empty"),
@@ -243,7 +243,7 @@ fn a_work_dir_in_use_or_a_bad_input_is_refused_before_anything_runs() {
     let output = run(
         &setup,
         "SUCCESS",
-        mcp_conformance::suite::VERSION,
+        mcp_conformance_cli::suite::VERSION,
         &["--expected-failures", "/nonexistent.yaml"],
     );
     assert!(
@@ -254,7 +254,7 @@ fn a_work_dir_in_use_or_a_bad_input_is_refused_before_anything_runs() {
     let output = run(
         &setup,
         "SUCCESS",
-        mcp_conformance::suite::VERSION,
+        mcp_conformance_cli::suite::VERSION,
         &["--divergences", "/nonexistent.json"],
     );
     assert!(

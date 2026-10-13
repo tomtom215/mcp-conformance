@@ -15,7 +15,7 @@
 use std::path::Path;
 use std::process::Stdio;
 
-use mcp_conformance::suite;
+use mcp_conformance_cli::suite;
 use tokio::io::AsyncBufReadExt as _;
 use tokio::process::Command;
 

@@ -35,7 +35,7 @@ use super::{EXPECTED_FAILURES, SPEC_VERSION};
 
 /// The four protocol scenarios the pinned suite defines for `2025-11-25`:
 /// the set `mcp-conformance test --client-command` runs by default too.
-const CLIENT_SCENARIOS: [&str; 4] = mcp_conformance::suite::CLIENT_SCENARIOS;
+const CLIENT_SCENARIOS: [&str; 4] = mcp_conformance_cli::suite::CLIENT_SCENARIOS;
 
 /// Committed client-side divergence baseline, relative to the workspace root.
 const CLIENT_DIVERGENCE_BASELINE: &str = "conformance/client-agreement-divergences.json";

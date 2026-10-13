@@ -8,7 +8,7 @@ use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use mcp_conformance::suite;
+use mcp_conformance_cli::suite;
 use serde::Deserialize;
 
 /// Which run of `test` is being compared.
@@ -282,7 +282,7 @@ pub(crate) fn pending_is_what_the_default_run_leaves_out(
         Ok(())
     } else {
         Err(format!(
-            "mcp_conformance::suite::PENDING_SERVER_SCENARIOS is stale: the suite lists \
+            "mcp_conformance_cli::suite::PENDING_SERVER_SCENARIOS is stale: the suite lists \
              {listed:?}, and its default run ran {ran:?}"
         ))
     }

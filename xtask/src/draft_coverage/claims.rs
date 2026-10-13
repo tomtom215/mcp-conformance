@@ -69,7 +69,7 @@ pub(super) const CLAIM_FILES: &[&str] = &[
     "crates/mcp-everything-server/README.md",
     "crates/mcp-reference-host/README.md",
     "crates/mcp-trace-capture/README.md",
-    "crates/mcp-conformance/README.md",
+    "crates/mcp-conformance-cli/README.md",
     "docs/plan/README.md",
     "docs/plan/00-charter.md",
     "docs/plan/01-ecosystem-context.md",

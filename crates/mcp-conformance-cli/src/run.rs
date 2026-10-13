@@ -13,8 +13,8 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use mcp_conformance::agreement::{self, Baseline, Reconciliation};
-use mcp_conformance::suite::{self, Scenario};
+use mcp_conformance_cli::agreement::{self, Baseline, Reconciliation};
+use mcp_conformance_cli::suite::{self, Scenario};
 use mcp_trace_capture::Signals;
 use mcp_trace_validator::report::Verdict;
 

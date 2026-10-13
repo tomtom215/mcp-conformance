@@ -288,7 +288,7 @@ jobs:
       # xtask .crate before release.yml learned this) — exclude it here for the same
       # reason, so this job validates exactly what a release would package.
       - name: Package all publishable crates
-        run: cargo package --workspace --exclude xtask --exclude mcp-conformance --locked
+        run: cargo package --workspace --exclude xtask --exclude mcp-conformance-cli --locked
       # The release's SBOM step, rehearsed: release.yml's `package` job runs
       # this command and attests each file against its .crate. Here nothing is
       # signed; the point is that generation, and the one-per-published-crate
@@ -436,7 +436,7 @@ jobs:
   # sequential so the sse-retry clock is never under parallel load), a
   # child-process stdio smoke between the two real binaries, and the
   # agreement replay on both sides (cargo xtask conformance documents the
-  # steps; the version pin is crates/mcp-conformance/src/suite.rs). Last, the
+  # steps; the version pin is crates/mcp-conformance-cli/src/suite.rs). Last, the
   # product leg (ADR-0021 W1): `mcp-conformance test` against the everything
   # server over HTTP and over stdio, and against the reference host as a
   # client, each report held to this job's own results for the same subject.

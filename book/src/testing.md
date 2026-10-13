@@ -12,7 +12,7 @@ whether the two agree — from one command.
 
 > `mcp-conformance` is on `main`, not yet released
 > ([ADR-0021](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0021-a-workbench-people-keep-open.md)).
-> Build it from a checkout with `cargo install --path crates/mcp-conformance`.
+> Build it from a checkout with `cargo install --path crates/mcp-conformance-cli`.
 
 ## Before you start
 
@@ -107,7 +107,7 @@ its reference host, and holds each report to `cargo xtask conformance`'s results
 same subject: the same scenarios with the same check statuses, every failing clause the
 gate's recordings show, and nothing beyond them that `conformance/wire-findings.json`
 does not list with why only the wire shows it. From a checkout, after
-`cargo build -p mcp-everything-server -p mcp-conformance` and
+`cargo build -p mcp-everything-server -p mcp-conformance-cli` and
 `cargo build -p mcp-reference-host --features cli`:
 
 ```text

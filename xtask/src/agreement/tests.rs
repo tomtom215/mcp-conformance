@@ -3,7 +3,7 @@
 
 //! The gate around the shared policy. The policy's own proofs (explaining by
 //! requirement and trace filter, staleness, rejected baselines) live with it,
-//! in `mcp_conformance::agreement`; these pin what this module adds: reading
+//! in `mcp_conformance_cli::agreement`; these pin what this module adds: reading
 //! the baseline from disk, and the artifact's shape.
 
 #![allow(clippy::unwrap_used)]

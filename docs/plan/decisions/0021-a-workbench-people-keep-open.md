@@ -82,17 +82,16 @@ paths for it. Each phase closes against its own definition of done
    carrying the same binary; plus the container image. Built and tested in CI on every
    change; published from the release job once the owner has configured the registries.
 
-### The crate's name (open, owner's decision)
+### The crate's name
 
 [ADR-0003](0003-crate-naming.md) §2 keeps the bare name `mcp-conformance` off
 crates.io: the official Rust SDK names its own internal, unpublished conformance
 package that, and publishing it from under them "would be hostile-adjacent". This ADR,
-as first written on 2026-10-13, chose the name without noticing that decision; the
-correction is recorded here rather than by editing the decision above. Until the owner
-decides, the crate is `publish = false` and the binary is installed from source. The
-options are a superseding ADR after asking upstream, or a different published crate
-name with `mcp-conformance` kept as the binary's name. The npm and PyPI names are not
-covered by ADR-0003.
+as first written, chose that name without noticing the decision. The owner decided
+(2026-10-13) to keep ADR-0003 and publish the crate as **`mcp-conformance-cli`**
+(available on crates.io that day), with the binary still named `mcp-conformance`. The
+npm and PyPI packages are not covered by ADR-0003. The crate stays `publish = false`
+until the first release that carries it does the one-time token bootstrap.
 
 ### Running the suite against a stdio server
 

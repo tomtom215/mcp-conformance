@@ -63,7 +63,7 @@ const PINS: &[Pin] = &[
     Pin {
         tag: "latest",
         pinned: SUITE_VERSION,
-        site: "VERSION in crates/mcp-conformance/src/suite.rs (xtask's SUITE_VERSION)",
+        site: "VERSION in crates/mcp-conformance-cli/src/suite.rs (xtask's SUITE_VERSION)",
         procedure: "bump it with a scenario diff review, refresh both expected-failures \
                     baselines and the agreement divergence ledger, and update register row 2.4",
     },

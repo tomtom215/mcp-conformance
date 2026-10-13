@@ -2,10 +2,10 @@
 # Copyright 2026 Tom F. (https://github.com/tomtom215)
 
 [package]
-name = "mcp-conformance"
+name = "mcp-conformance-cli"
 description = "Run the official Model Context Protocol conformance suite against a server or client through a recording tap, and report the suite's checks beside a clause-by-clause verdict of the same traffic"
 readme = "README.md"
-documentation = "https://docs.rs/mcp-conformance"
+documentation = "https://docs.rs/mcp-conformance-cli"
 keywords = ["mcp", "conformance", "testing", "protocol", "validator"]
 categories = ["development-tools::testing", "command-line-utilities"]
 edition.workspace = true
@@ -15,9 +15,9 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-# Not published yet: ADR-0003 keeps the bare name `mcp-conformance` off crates.io,
-# because the official Rust SDK names its own internal conformance package that,
-# until a superseding ADR decides otherwise (ADR-0021, "The crate's name").
+# Not published yet: the first release that carries it needs the one-time token
+# bootstrap RELEASING.md describes. The crate is `mcp-conformance-cli`, not the bare
+# `mcp-conformance`, which ADR-0003 leaves to rust-sdk (ADR-0021, "The crate's name").
 publish = false
 
 [features]

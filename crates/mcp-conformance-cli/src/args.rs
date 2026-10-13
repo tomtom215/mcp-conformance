@@ -65,7 +65,7 @@ pub(crate) struct TestArgs {
     #[arg(long = "scenario", value_name = "NAME")]
     pub(crate) scenarios: Vec<String>,
     /// The protocol revision the suite selects scenarios for.
-    #[arg(long, value_name = "YYYY-MM-DD", default_value = mcp_conformance::suite::SPEC_VERSION)]
+    #[arg(long, value_name = "YYYY-MM-DD", default_value = mcp_conformance_cli::suite::SPEC_VERSION)]
     pub(crate) spec_version: String,
     /// The suite's own baseline of scenarios expected to fail (its YAML
     /// format: `server:` and `client:` lists), passed to it unchanged.

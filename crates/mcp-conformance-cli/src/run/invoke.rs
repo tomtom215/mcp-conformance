@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use mcp_conformance::suite;
+use mcp_conformance_cli::suite;
 use mcp_trace_capture::Signals;
 use tokio::process::Command;
 

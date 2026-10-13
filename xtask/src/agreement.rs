@@ -9,7 +9,7 @@
 //! and enforces the policy in docs/plan/03-conformance-strategy.md
 //! §Calibration: **zero unexplained divergence**, and a baseline that stays
 //! live. The policy itself — what explains a failure, what makes an entry
-//! stale, what a baseline must carry — is `mcp_conformance::agreement`, which
+//! stale, what a baseline must carry — is `mcp_conformance_cli::agreement`, which
 //! `mcp-conformance test` reports with for any subject; this module is the
 //! repository's gate around it. Explanations live in
 //! `conformance/agreement-divergences.json`. The full reconciliation is
@@ -33,8 +33,8 @@
 
 use std::path::Path;
 
-use mcp_conformance::agreement::{self, Baseline, Reconciliation, Totals, ValidatorFailure};
-use mcp_conformance::suite::Summary;
+use mcp_conformance_cli::agreement::{self, Baseline, Reconciliation, Totals, ValidatorFailure};
+use mcp_conformance_cli::suite::Summary;
 use mcp_conformance_core::requirement::Registry;
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::report::Report;
@@ -202,7 +202,7 @@ fn validate_sessions(
     (totals, failures, reports)
 }
 
-/// Reads and checks the divergence baseline (`mcp_conformance::agreement`'s
+/// Reads and checks the divergence baseline (`mcp_conformance_cli::agreement`'s
 /// rules: a known triage class and an upstream link on every entry).
 fn load_baseline(path: &Path) -> Result<Baseline, String> {
     let text = std::fs::read_to_string(path)

@@ -38,9 +38,10 @@ Naming was decided against verified crates.io availability in
 [ADR-0003](decisions/0003-crate-naming.md). The bare name `mcp-conformance` is deliberately
 **not** published — the official Rust SDK uses it for an internal package
 ([register 3.3](01-ecosystem-context.md)). [ADR-0021](decisions/0021-a-workbench-people-keep-open.md)
-(2026-10-13) adds a crate of that name, `crates/mcp-conformance`, as a sixth published
-crate; it does not say it supersedes ADR-0003's second decision, so whether the name is
-published is open until the owner records it (RELEASING.md lists the bootstrap).
+(2026-10-13) adds the workbench as a sixth crate, `mcp-conformance-cli` (binary
+`mcp-conformance`), keeping ADR-0003's second decision: the owner chose a different
+crate name over publishing the bare one. It is `publish = false` until its first
+release's bootstrap.
 
 ## Crate responsibilities and dependency rules
 

@@ -17,7 +17,7 @@ homepage.workspace = true
 mcp-conformance-core.workspace = true
 # The suite pin and the agreement policy, shared with `mcp-conformance test`
 # (library only: no recorder, no CLI).
-mcp-conformance.workspace = true
+mcp-conformance-cli.workspace = true
 mcp-trace-validator.workspace = true
 serde.workspace = true
 serde_json.workspace = true

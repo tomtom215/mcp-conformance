@@ -7,7 +7,7 @@
 
 use std::path::Path;
 
-use mcp_conformance::suite::Summary;
+use mcp_conformance_cli::suite::Summary;
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::reader::{Limits, parse_trace};
 use serde::Serialize;
@@ -44,7 +44,7 @@ pub(crate) fn load_sessions(tap_dir: &Path) -> Result<Vec<(String, Vec<TraceEven
 /// Summarizes the runner's per-scenario `checks.json` artifacts, read by the
 /// same code `mcp-conformance test` reads them with.
 pub(crate) fn summarize_runner(results_dir: &Path) -> Result<Summary, String> {
-    let scenarios = mcp_conformance::suite::read_results(results_dir)?;
+    let scenarios = mcp_conformance_cli::suite::read_results(results_dir)?;
     if scenarios.is_empty() {
         return Err(format!(
             "no checks.json found under {} — did the runner write its results?",

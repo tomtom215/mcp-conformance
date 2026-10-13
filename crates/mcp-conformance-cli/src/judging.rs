@@ -12,7 +12,7 @@
 
 use std::path::{Path, PathBuf};
 
-use mcp_conformance::agreement::{self, Totals, ValidatorFailure};
+use mcp_conformance_cli::agreement::{self, Totals, ValidatorFailure};
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::judge;
 use mcp_trace_validator::report::{Report, Unjudged, Verdict};

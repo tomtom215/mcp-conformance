@@ -11,7 +11,7 @@ report of every session the suite drove — with whether the two agree.
 
 > **Not yet released.** This crate is on `main` only
 > ([ADR-0021](../../docs/plan/decisions/0021-a-workbench-people-keep-open.md), phase W1);
-> build it from the repository: `cargo install --path crates/mcp-conformance`.
+> build it from the repository: `cargo install --path crates/mcp-conformance-cli`.
 
 ## What it needs
 
@@ -92,12 +92,12 @@ agreement policy (`agreement`). With `default-features = false` it depends on th
 validator and the serde family only.
 
 ```rust
-use mcp_conformance::agreement::{Baseline, ValidatorFailure, reconcile};
+use mcp_conformance_cli::agreement::{Baseline, ValidatorFailure, reconcile};
 
 let failures = [ValidatorFailure::new("001.jsonl", "BASE-003", "a request id reused")];
 let reconciliation = reconcile(&Baseline::default(), &failures);
 assert!(!reconciliation.holds(), "an unexplained failure is a divergence");
-assert_eq!(mcp_conformance::suite::VERSION, "0.1.16");
+assert_eq!(mcp_conformance_cli::suite::VERSION, "0.1.16");
 ```
 
 ## License

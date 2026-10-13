@@ -18,7 +18,7 @@
 //! `mcp-conformance test` reports it for any subject, with the same code.
 //!
 //! ```
-//! use mcp_conformance::agreement::{Baseline, ValidatorFailure, reconcile};
+//! use mcp_conformance_cli::agreement::{Baseline, ValidatorFailure, reconcile};
 //!
 //! let baseline = Baseline::parse(
 //!     r#"{"policy": "…", "divergences": [{"requirement": "LIFE-003",

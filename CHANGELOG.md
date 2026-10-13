@@ -577,7 +577,7 @@ below is stated again in its entry, with the reasoning.
   No conforming corpus trace's verdict changes; the TypeScript SDK's conformance
   server now reads *pass-with-warnings* at `2025-11-25`, because two of its tools
   declare draft-07 input schemas.
-- **`mcp-conformance test`** (new crate, binary `mcp-conformance`; not yet published to
+- **`mcp-conformance test`** (new crate `mcp-conformance-cli`, binary `mcp-conformance`; not yet published to
   crates.io): runs the pinned official suite against a server (`--url`, or `--command`
   for a stdio server through a loopback bridge) or a client (`--client-command`)
   through `mcp-trace-capture`, and reports the suite's checks, the clause report of
