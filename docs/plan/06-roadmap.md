@@ -430,7 +430,7 @@ D1, D3, D4, D6, 0.1, 0.3–0.7, 1.1–1.3, 1.5, 2.1, 4.4, M6, M8, M10.
 
 | Item | Status | What remains |
 |------|--------|--------------|
-| D2 / 2.4 / H2 — wire-schema validation | **Done** ([ADR-0020](decisions/0020-wire-schema-validation.md)) | Agreement with the suite's `wire-schema-valid` on the tapped sessions is not yet compared mechanically |
+| D2 / 2.4 / H2 — wire-schema validation | **Done** ([ADR-0020](decisions/0020-wire-schema-validation.md)) | — The suite's `wire-schema-valid` is compared message by message with every tapped session's `wire_schema` where the runner reports it (the alpha-tracking run, both draft-readiness legs), against `conformance/wire-schema-divergences.json`: 0 divergences on 2026-10-13, on data where neither side flagged a message. The stable pin `0.1.16` predates the check, so the pinned run compares against its green verdict only |
 | D5 — prose-claim gates | Decided: kept (owner, 2026-10-13) | — |
 | 0.2 / H4 — scheduled workflow green | Partial | Every cause fixed in the tree; issue #50 closes on the next green scheduled run |
 | 1.4 — distribution | Partial | No container image; the Action validates but does not wrap capture |

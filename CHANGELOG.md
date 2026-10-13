@@ -495,6 +495,18 @@ below is stated again in its entry, with the reasoning.
 - **A runnable library example**, `cargo run -p mcp-trace-validator --example
   judge_file -- <trace.jsonl>`: judges a trace, prints its findings, and exits 1
   unless the session passed (2 when the file cannot be read or judged).
+- **The official suite's schema check is reconciled with the validator's, message by
+  message.** The suite reports the invalid messages themselves, not sessions, so
+  `cargo xtask conformance` and `cargo xtask draft-readiness` match them to the
+  tapped sessions by sender and canonical JSON and compare each with the report's
+  `wire_schema` member. A message flagged by one side only fails the run unless
+  `conformance/wire-schema-divergences.json` explains it (with a triage class, an
+  upstream link and a reason), and an entry that explains nothing fails it too. The
+  pinned suite `0.1.16` predates the check, so there any validator schema finding
+  counts as a divergence from the suite's green run. On `0.2.0-alpha.12`, 28 server
+  scenarios, the client leg and both draft-readiness legs agree with no divergences;
+  neither side flagged a message, so the comparison is so far proven by its unit
+  tests rather than by a real disagreement.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.
