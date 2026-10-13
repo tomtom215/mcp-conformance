@@ -6,7 +6,7 @@
 
 # A second opinion: mcpsnoop
 
-[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 208 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
+[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 221 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
 
 ## How the comparison is made
 
@@ -26,28 +26,28 @@ The binary inside, `package/bin/mcpsnoop`, has SHA-256 `81c3636fa5a371833ab4558d
 | Corpus directory | Traces |
 |---|---:|
 | `corpus/good/` | 4 |
-| `corpus/violations/` | 61 |
+| `corpus/violations/` | 64 |
 | `corpus/draft/good/` | 22 |
-| `corpus/draft/violations/` | 116 |
-| `corpus/draft/captured/` | 5 |
+| `corpus/draft/violations/` | 123 |
+| `corpus/draft/captured/` | 8 |
 
 Verdicts, ours against mcpsnoop's conformance signals:
 
 | | mcpsnoop flags the trace | mcpsnoop does not |
 |---|---:|---:|
-| our verdict `fail` | 76 | 85 |
-| our verdict `pass` or `pass-with-warnings` | 0 | 47 |
+| our verdict `fail` | 80 | 86 |
+| our verdict `pass` or `pass-with-warnings` | 0 | 55 |
 
 Traces by how the two readings relate:
 
 | Relation | Traces |
 |---|---:|
-| both clean | 29 |
-| agree | 71 |
-| beyond mcpsnoop | 99 |
+| both clean | 27 |
+| agree | 75 |
+| beyond mcpsnoop | 110 |
 | **divergent** | 9 |
 
-mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 130 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
+mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 141 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
 
 ## Divergences
 
@@ -263,7 +263,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `server-sent-request` | `server sent a JSON-RPC request *, which * replaced with the MRTR pattern` | — | BASE-084, MRTR-001, TRAN-066, TRAN-120 | body | 1 | A server-initiated JSON-RPC request at `2026-07-28`, which replaced them with multi round-trip requests. |
 | `request-meta-missing` | `request _meta is missing required io.modelcontextprotocol/` | — | BASE-030, MRTR-002, TOOL-016 | body | 6 | A request without one of the `_meta` fields `2026-07-28` requires on every request. |
 | `protocol-version-header-missing` | `required routing header MCP-Protocol-Version is missing` | LIFE-018, TRAN-017 | TRAN-071 | http | 1 | A POST without the `MCP-Protocol-Version` header where the negotiated revision requires it. |
-| `method-name-header-missing` | `required routing header Mcp-Method is missing`<br>`required routing header Mcp-Name is missing` | — | TRAN-058 | http | 1 | A POST without its `Mcp-Method` or `Mcp-Name` request metadata header. |
+| `method-name-header-missing` | `required routing header Mcp-Method is missing`<br>`required routing header Mcp-Name is missing` | — | TRAN-058 | http | 2 | A POST without its `Mcp-Method` or `Mcp-Name` request metadata header. |
 | `param-header-missing` | `required routing header Mcp-Param-* is missing for body parameter` | — | TRAN-079, TRAN-130 | http | 3 | A `tools/call` carrying a parameter its tool marks with `x-mcp-header`, sent without the mirrored `Mcp-Param-*` header. |
 | `protocol-version-header-disagrees` | `MCP-Protocol-Version header * disagrees with _meta protocolVersion` | — | TRAN-072 | http | 7 | An `MCP-Protocol-Version` header that differs from the body's `_meta` protocol version. |
 | `method-header-disagrees` | `routing header Mcp-Method * disagrees with body method` | — | TRAN-058 | http | 0 | An `Mcp-Method` header that is not the body's method. Template read from the binary; no corpus trace exercises it. |
@@ -280,7 +280,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `input-required-empty` | `InputRequiredResult carries neither inputRequests nor requestState` | — | MRTR-011 | body | 1 | An `InputRequiredResult` with neither `inputRequests` nor `requestState`. |
 | `input-required-on-method` | `InputRequiredResult on *, which * allows only on` | — | MRTR-004 | body | 1 | An `InputRequiredResult` answering a method that may not return one. |
 | `input-request-method` | `inputRequests names *, and * allows only` | — | MRTR-006 | body | 1 | An `inputRequests` entry that is not an elicitation, sampling or roots request. |
-| `input-request-undeclared` | `inputRequests asks for * while the request declared no` | — | *BASE-034*, *MRTR-012*, *MRTR-013* | body | 1 | An `inputRequests` entry for a capability the request did not declare at all. A declared capability whose mode or sub-capability is missing (URL-mode elicitation, `sampling.tools`) is not compared. |
+| `input-request-undeclared` | `inputRequests asks for * while the request declared no` | — | *BASE-034*, *MRTR-012*, *MRTR-013* | body | 2 | An `inputRequests` entry for a capability the request did not declare at all. A declared capability whose mode or sub-capability is missing (URL-mode elicitation, `sampling.tools`) is not compared. |
 | `request-state-changed` | `MRTR retry changed requestState` | — | MRTR-016, MRTR-003, MRTR-017 | body | 2 | A retry echoing a `requestState` other than the one the server sent. |
 | `request-state-missing` | `MRTR retry is missing requestState` | — | MRTR-016 | body | 0 | A retry leaving out the `requestState` the server sent. Template read from the binary; no corpus trace exercises it. |
 | `request-state-invented` | `MRTR retry invented requestState` | — | MRTR-018 | body | 1 | A retry carrying a `requestState` the server never sent. |
@@ -291,7 +291,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `progress-after-completion` | `progress notification for token * arrived after its request completed` | — | PROG-008 | body | 1 | A progress notification after its request was answered. |
 | `server-cancellation` | `server cancelled *, and * lets a server cancel only a subscriptions/listen request` | — | CANC-003, CANC-011 | body | 2 | A server-sent `notifications/cancelled` naming anything but a `subscriptions/listen` request. |
 | `input-schema-not-object` | `advertises an inputSchema that is not a JSON object` | TOOL-003 | TOOL-025 | body | 1 | A tool whose `inputSchema` is not a JSON Schema object. |
-| `x-mcp-header-chain` | `declares an x-mcp-header under *, which * does not allow in the chain` | — | TRAN-082, TRAN-137, TOOL-045 | body | 3 | An `x-mcp-header` on a property not reachable through `properties` alone. |
+| `x-mcp-header-chain` | `declares an x-mcp-header under *, which * does not allow in the chain` | — | TRAN-082, TRAN-137, TOOL-045 | body | 5 | An `x-mcp-header` on a property not reachable through `properties` alone. |
 | `x-mcp-header-repeated` | `declares x-mcp-header * on more than one property` | — | *TRAN-080*, *TOOL-033* | body | 1 | One `x-mcp-header` name on two properties of a tool: one of the constraints TRAN-080 lists. |
 
 ## Every trace
@@ -315,6 +315,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/base-010-response-without-result` | 2025-11-25 | fail | `BASE-008`, `BASE-010`, `TRAN-004`, `wire-schema` | flags | `response-without-result-or-error` | — | agree |
 | `violations/base-017-input-schema-invalid` | 2025-11-25 | fail | `BASE-017` | silent | — | — | beyond mcpsnoop |
 | `violations/base-019-meta-key-bad-prefix` | 2025-11-25 | fail | `BASE-019`, `BASE-020` | silent | — | — | beyond mcpsnoop |
+| `violations/base-086-input-schema-draft-07` | 2025-11-25 | pass-with-warnings | `BASE-086` | silent | — | — | beyond mcpsnoop |
 | `violations/comp-001-capability-undeclared` | 2025-11-25 | fail | `COMP-001`, `LIFE-009` | silent | — | — | beyond mcpsnoop |
 | `violations/life-001-first-message-not-initialize` | 2025-11-25 | fail | `LIFE-001`, `LIFE-004` | silent | — | — | beyond mcpsnoop |
 | `violations/life-002-initialize-missing-protocolversion` | 2025-11-25 | fail | `LIFE-002`, `LIFE-007`, `wire-schema` | silent | — | — | beyond mcpsnoop |
@@ -350,7 +351,9 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/tran-011-session-id-invisible-ascii` | 2025-11-25 | fail | `TRAN-011` | silent | — | — | beyond mcpsnoop |
 | `violations/tran-013-session-id-not-echoed` | 2025-11-25 | fail | `TRAN-013` | silent | — | — | beyond mcpsnoop |
 | `violations/tran-017-protocol-version-header-missing` | 2025-11-25 | fail | `LIFE-018`, `TRAN-017` | silent | — | — | **divergent** |
+| `violations/tran-018-declined-version-header-refused-400` | 2025-11-25 | pass-with-warnings | `TRAN-018` | silent | — | — | beyond mcpsnoop |
 | `violations/tran-018-protocol-version-mismatched` | 2025-11-25 | pass-with-warnings | `TRAN-018` | silent | — | — | beyond mcpsnoop |
+| `violations/tran-020-declined-version-header-accepted` | 2025-11-25 | fail | `TRAN-018`, `TRAN-020` | silent | — | — | beyond mcpsnoop |
 | `violations/tran-025-accept-header-json-missing` | 2025-11-25 | fail | `TRAN-025` | silent | — | — | beyond mcpsnoop |
 | `violations/tran-025-accept-header-missing` | 2025-11-25 | fail | `TRAN-025` | silent | — | — | beyond mcpsnoop |
 | `violations/tran-026-http-post-batch` | 2025-11-25 | fail | `BASE-008`, `TRAN-026`, `wire-schema` | silent | — | — | beyond mcpsnoop |
@@ -392,10 +395,12 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/base-031-malformed-meta-answered-with-result` | 2026-07-28 | fail | `BASE-030`, `BASE-031`, `CACH-001`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | silent | — | — | **divergent** |
 | `draft/violations/base-031-reused-id-malformed-answered` | 2026-07-28 | fail | `BASE-030`, `BASE-031`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `request-meta-missing` | — | agree |
 | `draft/violations/base-032-invalid-params-not-http-400` | 2026-07-28 | fail | `BASE-030`, `BASE-032`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | silent | — | — | **divergent** |
+| `draft/violations/base-033-request-without-client-info` | 2026-07-28 | pass-with-warnings | `BASE-033` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-034-input-request-for-undeclared-capability` | 2026-07-28 | fail | `BASE-034`, `MRTR-012`, `MRTR-013`, `wire-schema` | flags | `input-request-undeclared` | — | agree |
 | `draft/violations/base-034-input-request-for-undeclared-mode` | 2026-07-28 | fail | `BASE-034`, `MRTR-012`, `MRTR-013` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-035-missing-capability-error-without-capabilities` | 2026-07-28 | fail | `BASE-035`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-036-missing-capability-not-http-400` | 2026-07-28 | fail | `BASE-035`, `BASE-036`, `TRAN-063`, `wire-schema` | flags | `response-content-type` | `method-name-header-missing`, `protocol-version-header-missing` | agree |
+| `draft/violations/base-037-result-without-server-info` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-039-subscription-notification-mistagged` | 2026-07-28 | fail | `BASE-039` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-039-subscription-notification-untagged` | 2026-07-28 | fail | `BASE-039`, `wire-schema` | flags | `subscription-untagged` | — | agree |
 | `draft/violations/base-040-malformed-traceparent` | 2026-07-28 | fail | `BASE-040`, `CACH-001`, `wire-schema` | flags | `cacheable-without-ttl` | — | agree |
@@ -408,6 +413,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/base-060-app-code-in-reserved-range` | 2026-07-28 | pass-with-warnings | `BASE-060` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-073-input-schema-invalid` | 2026-07-28 | fail | `BASE-073` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-083-legacy-error-code` | 2026-07-28 | pass-with-warnings | `BASE-083` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/base-088-input-schema-draft-07` | 2026-07-28 | pass-with-warnings | `BASE-088` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/cach-001-cacheable-result-without-hints` | 2026-07-28 | fail | `CACH-001`, `wire-schema` | flags | `cacheable-without-ttl` | — | agree |
 | `draft/violations/cach-001-ttl-without-cache-scope` | 2026-07-28 | fail | `CACH-001`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/cach-008-negative-ttl` | 2026-07-28 | fail | `CACH-008`, `wire-schema` | flags | `negative-ttl` | — | agree |
@@ -416,6 +422,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/comp-007-completions-undeclared` | 2026-07-28 | fail | `COMP-007` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/disc-001-server-discover-method-not-found` | 2026-07-28 | fail | `DISC-001`, `VERS-003` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/disc-002-dual-era-client-skips-probe` | 2026-07-28 | pass-with-warnings | `DISC-002`, `TRAN-128` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/disc-003-discover-result-without-server-info` | 2026-07-28 | pass-with-warnings | `BASE-037`, `DISC-003` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/log-007-logging-undeclared` | 2026-07-28 | fail | `LOG-007`, `TOOL-019`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/log-008-log-for-request-without-level` | 2026-07-28 | fail | `LOG-008` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/log-008-log-without-requested-level` | 2026-07-28 | fail | `LOG-008`, `wire-schema` | silent | — | — | beyond mcpsnoop |
@@ -453,8 +460,8 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/tool-038-embedded-resource-undeclared` | 2026-07-28 | pass-with-warnings | `TOOL-038` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tool-040-structured-content-not-conforming` | 2026-07-28 | fail | `TOOL-040` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tool-045-x-mcp-header-in-defs` | 2026-07-28 | fail | `TOOL-045`, `TRAN-082`, `TRAN-137` | flags | `x-mcp-header-chain` | `method-name-header-missing`, `protocol-version-header-missing` | agree |
-| `draft/violations/tran-058-mcp-name-mismatch-refused-without-id` | 2026-07-28 | fail | `BASE-052`, `TRAN-058`, `wire-schema` | flags | `name-header-disagrees`, `response-unmatched` | — | agree |
-| `draft/violations/tran-058-request-metadata-headers-missing` | 2026-07-28 | fail | `TRAN-058` | flags | `method-name-header-missing` | — | agree |
+| `draft/violations/tran-058-mcp-name-mismatch-refused-without-id` | 2026-07-28 | fail | `BASE-052`, `TRAN-058`, `TRAN-141`, `wire-schema` | flags | `name-header-disagrees`, `response-unmatched` | — | agree |
+| `draft/violations/tran-058-request-metadata-headers-missing` | 2026-07-28 | fail | `TRAN-058`, `TRAN-141` | flags | `method-name-header-missing` | — | agree |
 | `draft/violations/tran-060-client-posts-a-response` | 2026-07-28 | fail | `BASE-046`, `CACH-001`, `TRAN-060`, `TRAN-119`, `wire-schema` | flags | `cacheable-without-ttl`, `client-sent-response`, `response-unmatched` | — | agree |
 | `draft/violations/tran-061-notification-answered-200` | 2026-07-28 | fail | `TRAN-061` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-063-error-without-content-type` | 2026-07-28 | fail | `TRAN-063` | flags | `response-content-type` | — | agree |
@@ -479,13 +486,15 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/tran-079-param-header-value-not-mirrored` | 2026-07-28 | fail | `TRAN-079` | flags | `param-header-disagrees`, `server-rejected-header-mismatch` | — | agree |
 | `draft/violations/tran-079-x-mcp-header-not-mirrored` | 2026-07-28 | fail | `TRAN-079`, `TRAN-130`, `TRAN-136` | flags | `param-header-missing` | — | agree |
 | `draft/violations/tran-080-x-mcp-header-name-invalid` | 2026-07-28 | fail | `TOOL-033`, `TRAN-080` | flags | `x-mcp-header-repeated` | — | agree |
+| `draft/violations/tran-082-invalid-tool-excluded-valid-called` | 2026-07-28 | fail | `TOOL-045`, `TRAN-082`, `TRAN-137` | flags | `x-mcp-header-chain` | — | agree |
 | `draft/violations/tran-082-x-mcp-header-under-any-of` | 2026-07-28 | fail | `TOOL-045`, `TRAN-082`, `TRAN-137` | flags | `x-mcp-header-chain` | `method-name-header-missing`, `protocol-version-header-missing` | agree |
+| `draft/violations/tran-083-invalid-tool-called` | 2026-07-28 | fail | `TOOL-035`, `TOOL-045`, `TOOL-046`, `TRAN-082`, `TRAN-083`, `TRAN-084`, `TRAN-137` | flags | `x-mcp-header-chain` | — | agree |
 | `draft/violations/tran-089-sentinel-markers-miscased` | 2026-07-28 | fail | `TRAN-089` | flags | `param-header-disagrees`, `server-rejected-header-mismatch` | — | agree |
 | `draft/violations/tran-092-sentinel-pattern-unencoded` | 2026-07-28 | fail | `CACH-001`, `TRAN-092`, `wire-schema` | flags | `cacheable-without-ttl`, `name-header-disagrees` | — | agree |
 | `draft/violations/tran-096-invalid-param-header-accepted` | 2026-07-28 | fail | `TRAN-077`, `TRAN-086`, `TRAN-087`, `TRAN-096` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-097-header-body-mismatch-accepted` | 2026-07-28 | fail | `TRAN-079`, `TRAN-097`, `TRAN-100`, `TRAN-131` | flags | `param-header-disagrees` | — | agree |
 | `draft/violations/tran-097-integer-header-different-number` | 2026-07-28 | fail | `TRAN-079`, `TRAN-097`, `TRAN-100`, `TRAN-131` | flags | `param-header-disagrees` | — | agree |
-| `draft/violations/tran-097-mismatch-after-concurrent-posts` | 2026-07-28 | fail | `TRAN-058`, `TRAN-097`, `TRAN-100`, `TRAN-131` | flags | `name-header-disagrees` | `method-name-header-missing`, `protocol-version-header-missing` | agree |
+| `draft/violations/tran-097-mismatch-after-concurrent-posts` | 2026-07-28 | fail | `TRAN-058`, `TRAN-097`, `TRAN-100`, `TRAN-131`, `TRAN-141` | flags | `name-header-disagrees` | `method-name-header-missing`, `protocol-version-header-missing` | agree |
 | `draft/violations/tran-098-header-mismatch-without-400` | 2026-07-28 | fail | `TRAN-098`, `TRAN-102` | flags | `server-rejected-header-mismatch` | — | **divergent** |
 | `draft/violations/tran-123-cancellation-without-request-id` | 2026-07-28 | fail | `CANC-005`, `TRAN-123`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-124-message-after-cancel-notification` | 2026-07-28 | fail | `TRAN-124` | silent | — | — | beyond mcpsnoop |
@@ -495,14 +504,18 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/tran-135-omitted-absent-header-rejected` | 2026-07-28 | fail | `TRAN-135` | flags | `server-rejected-header-mismatch` | — | **divergent** |
 | `draft/violations/tran-136-missing-param-header-accepted` | 2026-07-28 | fail | `TRAN-079`, `TRAN-130`, `TRAN-136` | flags | `param-header-missing` | — | agree |
 | `draft/violations/tran-137-x-mcp-header-under-items` | 2026-07-28 | fail | `TOOL-045`, `TRAN-082`, `TRAN-137` | flags | `x-mcp-header-chain` | `method-name-header-missing`, `protocol-version-header-missing` | agree |
+| `draft/violations/tran-141-mcp-name-header-missing` | 2026-07-28 | fail | `TRAN-058`, `TRAN-141` | flags | `method-name-header-missing` | — | agree |
 | `draft/violations/vers-002-retry-with-unsupported-version` | 2026-07-28 | pass-with-warnings | `VERS-002` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/vers-004-extension-identifier-without-prefix` | 2026-07-28 | fail | `VERS-004` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/vers-008-initialize-error-without-versions` | 2026-07-28 | fail | `BASE-030`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `VERS-008` | silent | — | — | **divergent** |
 | `draft/violations/wire-schema-cache-scope-not-in-enum` | 2026-07-28 | fail | `wire-schema` | flags | `cache-scope-value` | — | agree |
 | `draft/violations/wire-schema-content-block-unknown-type` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/wire-schema-resource-missing-uri` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
-| `draft/captured/official-suite-2026-07-28-scenarios` | 2026-07-28 | fail | `CACH-001`, `wire-schema` | flags | `cacheable-without-ttl` | — | agree |
-| `draft/captured/official-suite-2026-07-28-stateless` | 2026-07-28 | pass | — | silent | — | — | both clean |
-| `draft/captured/probe-2026-07-28-http` | 2026-07-28 | fail | `BASE-030`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `TRAN-071`, `TRAN-072`, `wire-schema` | flags | `protocol-version-header-disagrees`, `request-meta-missing`, `server-rejected-header-mismatch` | — | agree |
-| `draft/captured/reference-host-2026-07-28-http` | 2026-07-28 | pass | — | silent | — | — | both clean |
-| `draft/captured/reference-host-2026-07-28-stdio` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/captured/official-suite-2026-07-28-scenarios` | 2026-07-28 | fail | `BASE-037`, `CACH-001`, `wire-schema` | flags | `cacheable-without-ttl` | — | agree |
+| `draft/captured/official-suite-2026-07-28-stateless` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
+| `draft/captured/probe-2026-07-28-http` | 2026-07-28 | fail | `BASE-030`, `BASE-033`, `BASE-037`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `TRAN-071`, `TRAN-072`, `wire-schema` | flags | `protocol-version-header-disagrees`, `request-meta-missing`, `server-rejected-header-mismatch` | — | agree |
+| `draft/captured/reference-host-2026-07-28-http` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
+| `draft/captured/reference-host-2026-07-28-stdio` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
+| `draft/captured/sdk-go-2026-07-28` | 2026-07-28 | fail | `BASE-034`, `MRTR-012`, `MRTR-013`, `TRAN-068` | flags | `input-request-undeclared` | — | agree |
+| `draft/captured/sdk-python-2026-07-28` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/captured/sdk-rust-2026-07-28` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
