@@ -195,7 +195,7 @@ jobs:
         # Built from source under --locked rather than via a third-party setup
         # action: one fewer supply-chain dependency, the same discipline as the
         # plain-rustup toolchain installs. rust-cache restores the prior build.
-        run: cargo install mdbook --locked --version 0.5.3
+        run: cargo install mdbook --locked --version 0.5.4
       - name: Build the versioned site (a missing include file or anchor fails here)
         # The same command pages.yml deploys from: main's book plus every
         # release's, so a change that breaks an older book's build, the
@@ -203,7 +203,7 @@ jobs:
         run: cargo xtask book-site --out site
       - name: Upload the rendered site
         # The bytes a deploy would serve; pages.yml builds them again on main.
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: book
           path: site
@@ -243,7 +243,7 @@ jobs:
           done
       - name: Upload crash inputs
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fuzz-smoke-artifacts
           path: fuzz/artifacts/
@@ -363,7 +363,7 @@ jobs:
         run: cargo xtask conformance
       - name: Upload scenario verdicts
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: conformance-verdicts
           path: target/conformance/
@@ -402,7 +402,7 @@ jobs:
         run: PYTHON="$PWD/.venv/bin/python" ./run.sh ../target/debug
       - name: Upload traces and reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: interop-traces
           path: interop/out/

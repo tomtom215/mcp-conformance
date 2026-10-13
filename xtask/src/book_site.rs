@@ -299,7 +299,7 @@ fn mdbook(book: &Path, dest: &Path) -> Result<(), String> {
         .status()
         .map_err(|e| {
             format!(
-                "cannot run mdbook (install it: cargo install mdbook --locked --version 0.5.3): {e}"
+                "cannot run mdbook (install it: cargo install mdbook --locked --version 0.5.4): {e}"
             )
         })?;
     if status.success() {

@@ -113,7 +113,7 @@ jobs:
         # Missed, caught and timeout lists per shard: the evidence a red shard
         # is read from, and on a green run the record that it ran at all.
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mutants-shard-${{ matrix.shard }}-${{ github.run_id }}
           path: mutants.out/
@@ -227,7 +227,7 @@ jobs:
       # it to a committed regression seed stays a deliberate PR.
       - name: Upload crash inputs
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fuzz-artifacts-${{ github.run_id }}
           path: fuzz/artifacts/
@@ -369,7 +369,7 @@ jobs:
       - name: Run benchmarks
         run: cargo bench --workspace
       - name: Upload criterion estimates
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bench-history-${{ github.run_id }}
           path: target/criterion/
