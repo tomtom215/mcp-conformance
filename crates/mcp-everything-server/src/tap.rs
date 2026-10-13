@@ -192,9 +192,12 @@ impl Tap {
             return Arc::clone(file);
         }
         let ordinal = self.created.fetch_add(1, Ordering::Relaxed) + 1;
-        // The ordinal keeps directory listings in session-creation order; the
-        // id makes the session ↔ trace correspondence self-describing.
-        let path = self.dir.join(format!("{ordinal:03}-{session_id}.jsonl"));
+        // The ordinal keeps directory listings in session-creation order and
+        // the name unique; the id, made safe for a file name, makes the
+        // session ↔ trace correspondence self-describing.
+        let path = self
+            .dir
+            .join(format!("{ordinal:03}-{}.jsonl", file_label(session_id)));
         let file = Arc::new(SessionFile { path });
         sessions.insert(session_id.to_owned(), Arc::clone(&file));
         file
@@ -216,6 +219,28 @@ impl Tap {
             eprintln!("mcp-everything-server: tap writer gone; event dropped");
         }
     }
+}
+
+/// `session_id` as part of a file name: ASCII letters, digits, `-`, `_` and
+/// `.` kept, anything else `_`, at most 64 characters.
+///
+/// The id comes from a header, and a client can name any session: written
+/// verbatim, `../x` would leave the trace directory and `a:b` would open an
+/// NTFS alternate data stream. The ordinal before it keeps names unique, so
+/// two ids that sanitize alike still get two files, and a name that is never
+/// `.` or `..`.
+fn file_label(session_id: &str) -> String {
+    session_id
+        .chars()
+        .take(64)
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.') {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect()
 }
 
 /// Per-file writer state: the open handle and the next sequence number.

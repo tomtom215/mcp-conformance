@@ -205,3 +205,14 @@ async fn a_request_and_its_message_are_one_record() {
     );
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// A session id is a client-supplied header: it names a file, never a path.
+#[test]
+fn a_session_id_cannot_leave_the_trace_directory_or_open_a_stream() {
+    use super::file_label;
+    assert_eq!(file_label("mcp-session-7f3a_b.c"), "mcp-session-7f3a_b.c");
+    assert_eq!(file_label("../../etc/passwd"), ".._.._etc_passwd");
+    assert_eq!(file_label("a:b\\c\u{0}d"), "a_b_c_d");
+    assert_eq!(file_label(&"x".repeat(200)).len(), 64);
+    assert_eq!(file_label("é"), "_");
+}

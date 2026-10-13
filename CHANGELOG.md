@@ -60,6 +60,12 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **The everything server's tap named trace files after the raw session id.**
+  `--tap-dir` wrote `NNN-<Mcp-Session-Id>.jsonl` with the header's value as
+  sent, so an id carrying `/` named a path outside the file and one carrying
+  `:` an NTFS alternate data stream on Windows. The id is now reduced to
+  letters, digits, `-`, `_` and `.`, at most 64 characters; the ordinal before
+  it keeps every name unique.
 - **A crafted trace could make `validate` take minutes.** Three passes scanned
   forward from every request for its answer — era detection before
   `initialize`, request/response pairing, and the handshake count — so a trace

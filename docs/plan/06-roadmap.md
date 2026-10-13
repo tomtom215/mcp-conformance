@@ -434,7 +434,7 @@ D1, D3, D4, D6, 0.1, 0.3–0.7, 1.1–1.3, 1.5, 2.1, 4.4, M6, M8, M10.
 | D5 — prose-claim gates | Decided: kept (owner, 2026-10-13) | — |
 | 0.2 / H4 — scheduled workflow green | Partial | Every cause fixed in the tree; issue #50 closes on the next green scheduled run |
 | 1.4 — distribution | Partial | No container image; the Action validates but does not wrap capture |
-| 1.6 / M7 — everything-server tap | Partial | `seq` assigned after the response; session state never released; tap file names from the raw session id |
+| 1.6 / M7 — everything-server tap | Partial | `seq` assigned after the response; a request naming a session the server never assigned still opens a file of its own. Per-session state is kept for the run by design (releasing it on `DELETE` would split a session whose stream records after it) |
 | 1.7 / 3.2 — other SDKs | Partial | TypeScript and Python run through capture in CI (`interop/`); no committed corpus from them, no Go or Rust, no matrix page |
 | 2.2 / M2 — census | Partial | The census counts MUST-family keywords only; no SHOULD or `REQUIRED` census |
 | 2.3 / M1 — disputed exclusions | Partial | TRAN-027/061/081/082 now judged; TRAN-020, TRAN-083/084, TOOL-035, BASE-033/037, DISC-003 still excluded without a corpus pair settling them |
