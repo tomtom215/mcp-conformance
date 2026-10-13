@@ -199,6 +199,36 @@ mod tests {
     }
 
     #[test]
+    fn a_task_handle_and_a_read_are_named_too() {
+        // This server materializes no tasks, but the arm is a result a client
+        // would receive, so it is named like the others.
+        let task = rmcp::model::Task::new(
+            "t-1",
+            rmcp::model::TaskStatus::Working,
+            "1970-01-01T00:00:00Z",
+            "1970-01-01T00:00:00Z",
+        );
+        let named = applied(
+            ServedRevision::V2026_07_28,
+            &server(),
+            CallToolResponse::Task(rmcp::model::CreateTaskResult::new(task)),
+        );
+        let CallToolResponse::Task(named) = named else {
+            panic!("the arm changed")
+        };
+        assert!(named_in(named.meta.as_ref()).is_some());
+        let read = applied(
+            ServedRevision::V2026_07_28,
+            &server(),
+            ReadResourceResponse::from(ReadResourceResult::new(Vec::new())),
+        );
+        let ReadResourceResponse::Complete(read) = read else {
+            panic!("the arm changed")
+        };
+        assert!(named_in(read.meta.as_ref()).is_some());
+    }
+
+    #[test]
     fn a_value_the_handler_set_is_kept_and_other_keys_survive() {
         let mut meta = MetaObject::new();
         meta.0.insert(SERVER_INFO.to_owned(), Value::from("own"));

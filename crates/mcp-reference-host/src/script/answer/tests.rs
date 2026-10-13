@@ -217,6 +217,49 @@ fn enums_take_their_first_values() {
 }
 
 #[test]
+fn bounds_that_meet_are_satisfiable() {
+    // The edge of each "bounds exclude each other" refusal: equal bounds
+    // admit exactly one value, and the answer is that value.
+    let content = accepted_and_valid(&json!({
+        "type": "object",
+        "properties": {
+            "i": { "type": "integer", "minimum": 4, "maximum": 4 },
+            "n": { "type": "number", "minimum": 2.5, "maximum": 2.5 },
+            "s": { "type": "string", "minLength": 3, "maxLength": 3 },
+            "m": { "type": "array", "minItems": 1, "maxItems": 1,
+                   "items": { "type": "string", "enum": ["a", "b"] } }
+        },
+        "required": ["i", "n", "s", "m"]
+    }));
+    assert_eq!(content["i"], 4);
+    assert_eq!(content["n"], 2.5);
+    assert_eq!(content["s"], "scr");
+    assert_eq!(content["m"], json!(["a"]));
+}
+
+#[test]
+fn a_legacy_enum_takes_its_default_then_its_first_value() {
+    // The `enumNames` form, which only the legacy variant admits.
+    for (default, expected) in [(Some("opt2"), "opt2"), (None, "opt1")] {
+        let mut property = json!({
+            "type": "string", "enum": ["opt1", "opt2"], "enumNames": ["One", "Two"]
+        });
+        if let Some(default) = default {
+            property["default"] = json!(default);
+        }
+        let requested = json!({
+            "type": "object", "properties": { "l": property }, "required": ["l"]
+        });
+        assert!(matches!(
+            schema(&requested).properties["l"],
+            PrimitiveSchemaDefinition::Enum(EnumSchema::Legacy(_))
+        ));
+        let content = accepted_content(&schema(&requested)).unwrap();
+        assert_eq!(content["l"], expected, "{requested}");
+    }
+}
+
+#[test]
 fn an_unsatisfiable_required_property_declines() {
     for requested in [
         // An enum with no values to choose from.
@@ -229,6 +272,10 @@ fn an_unsatisfiable_required_property_declines() {
                 "properties": { "i": { "type": "integer", "minimum": 3, "maximum": 1 } } }),
         json!({ "type": "object", "required": ["n"],
                 "properties": { "n": { "type": "number", "minimum": 3.5, "maximum": 1 } } }),
+        // Selection bounds that exclude each other.
+        json!({ "type": "object", "required": ["m"],
+                "properties": { "m": { "type": "array", "minItems": 2, "maxItems": 1,
+                                       "items": { "type": "string", "enum": ["a", "b", "c"] } } } }),
         // More selections demanded than there are choices.
         json!({ "type": "object", "required": ["m"],
                 "properties": { "m": { "type": "array", "minItems": 3,
