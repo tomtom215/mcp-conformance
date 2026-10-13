@@ -6515,7 +6515,6 @@
         "flagged": [
           "BASE-030",
           "BASE-033",
-          "BASE-037",
           "COMP-006",
           "MRTR-002",
           "PAGE-006",
@@ -6589,11 +6588,8 @@
       "frames": 104,
       "unframed": 11,
       "ours": {
-        "verdict": "pass-with-warnings",
-        "flagged": [
-          "BASE-037",
-          "ELIC-095"
-        ]
+        "verdict": "pass",
+        "flagged": []
       },
       "mcpsnoop": {
         "exit": 1,
@@ -6613,11 +6609,8 @@
       "frames": 105,
       "unframed": 0,
       "ours": {
-        "verdict": "pass-with-warnings",
-        "flagged": [
-          "BASE-037",
-          "ELIC-095"
-        ]
+        "verdict": "pass",
+        "flagged": []
       },
       "mcpsnoop": {
         "exit": 1,

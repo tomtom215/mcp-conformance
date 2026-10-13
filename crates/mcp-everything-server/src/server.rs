@@ -14,7 +14,8 @@
 //! once, when the server is built: `2025-11-25` by default, `2026-07-28` when
 //! asked. Everything the newer revision changes about what this handler
 //! *answers* — the version it negotiates, the version list it advertises, the
-//! SEP-2549 caching hints on cacheable results — reads that one value, so the
+//! SEP-2549 caching hints on cacheable results, `serverInfo` in every result's
+//! `_meta` (the private `identity` module) — reads that one value, so the
 //! default surface has no new branch to take and is unchanged byte for byte.
 //! What the newer revision changes about how requests are *routed* (no
 //! sessions, per-request `_meta` required) is the transport's business and
@@ -39,23 +40,26 @@ use std::sync::{Arc, Mutex};
 
 use rmcp::handler::server::router::prompt::PromptRouter;
 use rmcp::handler::server::router::tool::ToolRouter;
+use rmcp::handler::server::tool::ToolCallContext;
 use rmcp::model::{
-    CompleteRequestParams, CompleteResult, CompletionInfo, DiscoverResult, ErrorData as McpError,
-    GetPromptRequestParams, GetPromptResponse, Implementation, InitializeRequestParams,
-    InitializeResult, ListPromptsResult, ListResourceTemplatesResult, ListResourcesResult,
-    ListToolsResult, PaginatedRequestParams, ProtocolVersion, ReadResourceRequestParams,
-    ReadResourceResponse, Reference, ResourceUpdatedNotificationParam, ServerCapabilities,
-    ServerConfig, SubscribeRequestParams, UnsubscribeRequestParams,
+    CallToolRequestParams, CallToolResponse, CompleteRequestParams, CompleteResult, CompletionInfo,
+    DiscoverResult, ErrorData as McpError, GetPromptRequestParams, GetPromptResponse,
+    Implementation, InitializeRequestParams, InitializeResult, ListPromptsResult,
+    ListResourceTemplatesResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams,
+    ProtocolVersion, ReadResourceRequestParams, ReadResourceResponse, Reference,
+    ResourceUpdatedNotificationParam, ServerCapabilities, ServerConfig, SubscribeRequestParams,
+    UnsubscribeRequestParams,
 };
 // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
 #[allow(deprecated)]
-use rmcp::model::{LoggingLevel, SetLevelRequestParams};
+use rmcp::model::{LoggingLevel, SetLevelRequestMethod, SetLevelRequestParams};
 use rmcp::service::RequestContext;
 use rmcp::{RoleServer, ServerHandler, tool_handler};
 
 use crate::{fixtures, logging, resources};
 
 mod caching;
+mod identity;
 mod listing;
 mod revision;
 pub mod stateless;
@@ -117,6 +121,12 @@ impl EverythingServer {
     /// them.
     fn cached<T: caching::Cacheable>(&self, result: T) -> T {
         caching::applied(self.revision, result)
+    }
+
+    /// `result`, naming this server in its `_meta` when the served revision
+    /// asks that of every result (BASE-037).
+    fn identified<T: identity::Identified>(&self, result: T) -> T {
+        identity::applied(self.revision, &self.get_info().server_info, result)
     }
 
     /// Whether a message at `candidate` level may be emitted while answering
@@ -302,12 +312,27 @@ impl ServerHandler for EverythingServer {
         )))
     }
 
+    async fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResponse, McpError> {
+        // `#[tool_handler]`'s own body, which it generates only when this
+        // method is absent — written out so the result passes `identified`.
+        let call = ToolCallContext::new(self, request, context);
+        self.tool_router
+            .call(call)
+            .await
+            .map(|response| self.identified(response))
+    }
+
     async fn list_tools(
         &self,
         request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, McpError> {
         self.tools_page(request.as_ref())
+            .map(|result| self.identified(result))
     }
 
     async fn list_prompts(
@@ -316,6 +341,7 @@ impl ServerHandler for EverythingServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<ListPromptsResult, McpError> {
         self.prompts_page(request.as_ref())
+            .map(|result| self.identified(result))
     }
 
     async fn get_prompt(
@@ -323,7 +349,9 @@ impl ServerHandler for EverythingServer {
         request: GetPromptRequestParams,
         context: RequestContext<RoleServer>,
     ) -> Result<GetPromptResponse, McpError> {
-        self.prompt(request, context).await
+        self.prompt(request, context)
+            .await
+            .map(|response| self.identified(response))
     }
 
     async fn list_resources(
@@ -339,6 +367,7 @@ impl ServerHandler for EverythingServer {
         // `2025-11-25` wire shape is unchanged while the type stays correct for
         // the newer revision. Setting the fields by hand would defeat that.
         self.resources_page(request.as_ref())
+            .map(|result| self.identified(result))
     }
 
     async fn list_resource_templates(
@@ -347,6 +376,7 @@ impl ServerHandler for EverythingServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourceTemplatesResult, McpError> {
         self.templates_page(request.as_ref())
+            .map(|result| self.identified(result))
     }
 
     async fn read_resource(
@@ -361,7 +391,7 @@ impl ServerHandler for EverythingServer {
         // guarantees it: `From<ReadResourceResult>` constructs `Complete` and
         // nothing else. See `call_tool` for the same seam on the tools side.
         resources::read(&request.uri)
-            .map(|result| self.cached(result).into())
+            .map(|result| self.identified(self.cached(result)).into())
             // Revision-aware: `2026-07-28` withdrew -32002 and named -32602 as
             // its replacement, so the code cannot be a constant here.
             .ok_or_else(|| self.revision.resource_not_found(&request.uri))
@@ -411,6 +441,12 @@ impl ServerHandler for EverythingServer {
         request: SetLevelRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<(), McpError> {
+        // `2026-07-28` removed the method, but rmcp still dispatches it; refuse
+        // it as rmcp refuses `ping` there, rather than answer `{}` (no
+        // `resultType`, no `serverInfo`).
+        if self.revision.is_stateless() {
+            return Err(McpError::method_not_found::<SetLevelRequestMethod>());
+        }
         if let Ok(mut level) = self.log_level.lock() {
             *level = request.level;
         }
@@ -450,7 +486,7 @@ impl ServerHandler for EverythingServer {
                 Some(serde_json::json!({ "message": message })),
             )
         })?;
-        Ok(CompleteResult::new(completion))
+        Ok(self.identified(CompleteResult::new(completion)))
     }
 }
 

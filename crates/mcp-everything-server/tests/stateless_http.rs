@@ -364,3 +364,85 @@ async fn designated_parameters_are_checked_against_their_headers() {
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
     assert_eq!(body.pointer("/error/code"), Some(&Value::from(-32020)));
 }
+
+/// The server's name as a result's `_meta` carries it, if it does.
+fn named_server(result: &Value) -> Option<&str> {
+    result
+        .pointer("/_meta/io.modelcontextprotocol~1serverInfo/name")
+        .and_then(Value::as_str)
+}
+
+#[tokio::test]
+async fn every_result_names_the_server_over_the_wire() {
+    // BASE-037 on the transport the tap records: the field is put on in the
+    // handler, and this is where a framing layer that rebuilt the result
+    // would be caught dropping it. The MRTR arm and `subscriptions/listen`
+    // are walked over stdio (`tests/stateless_stdio.rs`), which needs no
+    // stream reader for the long-lived request.
+    for (method, extra, name) in [
+        ("server/discover", "", None),
+        ("tools/list", "", None),
+        (
+            "tools/call",
+            r#","name":"echo","arguments":{"message":"hi"}"#,
+            Some("echo"),
+        ),
+        ("prompts/list", "", None),
+        (
+            "prompts/get",
+            r#","name":"test_simple_prompt""#,
+            Some("test_simple_prompt"),
+        ),
+        ("resources/list", "", None),
+        ("resources/templates/list", "", None),
+        (
+            "resources/read",
+            r#","uri":"test://static-text""#,
+            Some("test://static-text"),
+        ),
+        (
+            "completion/complete",
+            r#","ref":{"type":"ref/prompt","name":"test_prompt_with_arguments"},"argument":{"name":"arg1","value":"pa"}"#,
+            None,
+        ),
+    ] {
+        let result = result_of(method, extra, name).await;
+        assert_eq!(
+            named_server(&result),
+            Some("mcp-everything-server"),
+            "{method}: {result}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn the_older_revision_still_names_itself_only_where_rmcp_does() {
+    // `2025-11-25` defines no `serverInfo` in a result's `_meta`, and the
+    // legacy server answering a `2026-07-28` request — what `draft-readiness`
+    // drives every run — is that server held to a revision it does not
+    // implement. Its answer is unchanged: the field stays off `tools/list`.
+    let legacy = mcp_everything_server::http::router(
+        HttpSecurityPolicy::default(),
+        ServedRevision::V2025_11_25,
+    );
+    let response = legacy
+        .oneshot(post(
+            request(1, "tools/list", ""),
+            Some("2026-07-28"),
+            &[("mcp-method", "tools/list")],
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let text = String::from_utf8_lossy(&body).into_owned();
+    let payload = text
+        .lines()
+        .find_map(|line| line.strip_prefix("data: "))
+        .unwrap_or(&text);
+    let answer: Value = serde_json::from_str(payload).unwrap();
+    let result = answer.get("result").unwrap_or_else(|| panic!("{answer}"));
+    assert_eq!(named_server(result), None, "{result}");
+}

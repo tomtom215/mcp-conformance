@@ -63,6 +63,24 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **The everything server names itself on every `2026-07-28` result** (`BASE-037`):
+  `io.modelcontextprotocol/serverInfo` is in the `_meta` of every result, not only
+  `server/discover` and `subscriptions/listen`, from one seam each handler returns
+  through, with the value `server/discover` reports. `2025-11-25` is unchanged.
+- **The everything server refuses `logging/setLevel` at `2026-07-28`** with `-32601`.
+  That revision removed the method; rmcp still dispatches it, and the server answered
+  `{}`, a result without the `resultType` that revision requires. No recording sends it.
+- **The reference host answers a form with content its schema admits** (`ELIC-095`).
+  `AcceptWithDefaults` fills each SEP-1034 default, then gives each required property
+  still missing a deterministic value of its type and format (`"scripted"` padded or
+  cut to the length bounds, `user@example.com` for `email`, `0` moved into range,
+  `false`, the first enum value or the first `minItems` values); a form whose required
+  properties cannot be satisfied is declined. The new public
+  `mcp_reference_host::script::accepted_content` states the rule.
+- **`reference-host-2026-07-28-{stdio,http}` and `probe-2026-07-28-http` are
+  re-recorded** with both fixes: the reference-host captures pass with no warning, the
+  probe baseline's `BASE-037` entry is retired, and the GitHub Action CI job again
+  requires both recorded legs to judge with no finding at all.
 - **A request a protected server refused with 401 (or 403 with a challenge), resent by
   the client with the same id,** no longer fails `BASE-003`/`BASE-045` or counts as a
   second session: the refused request was not delivered, the retry is. The refusal's
@@ -644,8 +662,10 @@ below is stated again in its entry, with the reasoning.
   `400`); `TRAN-083`/`TRAN-084` with `TOOL-046`/`TOOL-035` (a Streamable HTTP client
   must not call a tool whose `x-mcp-header` annotations it had to reject); and
   `BASE-033`, `BASE-037` and `DISC-003` (`clientInfo` on requests, `serverInfo` on
-  results, as warnings). Every rmcp-served capture now warns on `BASE-037`; the Go and
-  Python SDK servers pass it.
+  results, as warnings). rmcp names the server on two result kinds only, so the Rust
+  SDK capture and the official-suite pair (recorded 2026-10-04 and kept as recorded)
+  warn on `BASE-037`; the Go and Python SDK servers pass it, and the everything server
+  does since it names itself on every result (see Fixed).
 - **`mcp-conformance watch stdio|http`** records a session exactly as
   `mcp-trace-capture` does and judges it while it runs: each new fail or warn finding
   prints on stderr as the exchange that shows it completes (clause ID, level, `seq`,
@@ -697,8 +717,9 @@ below is stated again in its entry, with the reasoning.
   `2025-11-25` also the `elicitationId` and `-32042` bookkeeping and the client error
   codes. The rest carry exclusions saying why a recording cannot show them. No
   verdict changed: the Go SDK at `2026-07-28` fails `ELIC-059` on the elicitation
-  `BASE-034` already reports, and this project's reference host warns `ELIC-095` (it
-  accepts a form with empty content where the schema requires fields).
+  `BASE-034` already reports. This project's reference host warned `ELIC-095` (it
+  accepted a form with empty content where the schema requires fields) until it was
+  fixed (see Fixed).
 - **The authorization pages enter the registry at both revisions** (review item 2.8,
   [ADR-0022](docs/plan/decisions/0022-judge-the-challenge-not-the-flow.md)). Every MUST-
   and SHOULD-family keyword is entered: 85 entries at `2025-11-25`, 109 at `2026-07-28`

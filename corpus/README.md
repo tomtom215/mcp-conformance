@@ -268,8 +268,12 @@ results, only the `server/discover` one carries
 `DiscoverResult` and `SubscriptionsListenResult` and nowhere else; the Go and
 Python SDK servers set it on every result (`sdk-go-2026-07-28`,
 `sdk-python-2026-07-28`). It is a SHOULD that exempts a server "specifically
-configured not to", so it is reported as a warning and never fails a run. The
-same warning stands on every capture of an rmcp server below.
+configured not to", so it is reported as a warning and never fails a run. It
+stands on every capture of an rmcp server that does not add the field itself
+(`sdk-rust-2026-07-28`); the everything server has added it on every result
+at `2026-07-28` since 2026-10-13, so the reference-host and probe captures
+below, recorded after that, no longer carry it. This pair predates the fix and
+stays as recorded (see below), warning included.
 
 **Two findings that used to be here were ours, not the implementations'.** An
 earlier version of this pair reported TRAN-058 (client POSTs missing
@@ -345,7 +349,7 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-10-13 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, an 18-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all five prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every listing is followed to its last page: the server serves each in two, the suite's catalogue first and the rest — icons, annotations, a `resource_link` result, an audio prompt, `x-mcp-header` designations — behind a `nextCursor`. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **107 pass, 0 fail, 2 warn**, 72 not observed, 320 excluded |
+| Our verdict | **109 pass, 0 fail, 0 warn**, 72 not observed, 320 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -396,12 +400,18 @@ nothing it sends exercises the tool-use clauses (`SAMP-026`, `SAMP-030`…`SAMP-
 `SAMP-042`) or the deprecated `includeContext` permission (`SAMP-029`); it asks
 for no roots (`ROOT-013`, `ROOT-014`, `ROOT-018`), and none of its elicitations
 is in URL mode (`ELIC-064`, `ELIC-065`). The three form elicitations and the
-sampling round are judged, and one of them warns: **`ELIC-095` ("Clients SHOULD
-validate all responses against the provided schema") on the host**, whose
-`AcceptWithDefaults` policy answers the `probe` form — `username` and `email`
-required, neither with a default — with `accept` and empty `content`. That is a
-finding against this project's own client, on both legs, not a reading the text
-leaves open: the content its answer submits is not what the schema asks for.
+sampling round are judged. When they were first judged one of them warned:
+**`ELIC-095` ("Clients SHOULD validate all responses against the provided
+schema") on the host**, whose `AcceptWithDefaults` policy answered the `probe`
+form — `username` and `email` required, neither with a default — with `accept`
+and empty `content`. That was a finding against this project's own client, on
+both legs, not a reading the text leaves open, and it was fixed the same day:
+the policy now fills each required field without a default with a
+deterministic value of its type (`"scripted"` for both of these plain strings),
+and declines a form whose required fields no value can satisfy rather than
+accepting it with content the schema rejects
+(`mcp_reference_host::script::accepted_content` states the rule). Both legs
+were re-recorded with the fix and pass it.
 
 **Five used to be on that list for want of server surface; four have left
 it.** `CACH-015`/`CACH-016` needed a catalogue served in pages and `PROM-017`
@@ -419,7 +429,7 @@ the transport keeps it unobserved here.
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-10-13 |
 | Contents | 195 events — the session's 103 messages plus 92 `http` events carrying status and headers, the `Mcp-Param-Region`/`Mcp-Param-Limit` pair rmcp mirrors for the designated tool among them |
-| Our verdict | **123 pass, 0 fail, 2 warn**, 56 not observed, 320 excluded |
+| Our verdict | **125 pass, 0 fail, 0 warn**, 56 not observed, 320 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -485,7 +495,9 @@ server-side findings — the server served a request naming log level
 `"chatty"`, and honoured a cursor it never issued — which went into the ledger
 as open defects. When they were fixed, the gate refused the change until their
 entries were retired, which is the half of a ratchet that is easy to leave
-out. Every rejection clause the probe reaches now passes; fourteen clauses pass
+out. A third went the same way on 2026-10-13: BASE-037 entered the ledger as
+an open server-side warning the day the clause became judged, and its entry
+was retired in the change that put `serverInfo` on every result. Every rejection clause the probe reaches now passes; fourteen clauses pass
 on this capture and on no other (`BASE-031`, `BASE-032`, `BASE-035`,
 `BASE-036`, `LOG-010`, `TRAN-073`, `TRAN-074`, `TRAN-075`, `TRAN-098`,
 `TRAN-102`, `TRAN-136`, `VERS-001`, `VERS-002`, `VERS-008`). The fabricated cursor is still
@@ -510,13 +522,17 @@ a session where both ends are ours is a defect here rather than news about
 somebody else's code. Regenerate with `BLESS=1 cargo xtask draft-capture`
 (which rewrites this file) followed by `cargo xtask bless`.
 
-**That gate is red since 2026-10-13, on one warning.** BASE-037 became
-judged that day, and this server — rmcp's result types — names itself in
-`_meta.io.modelcontextprotocol/serverInfo` only on its `server/discover` and
-`subscriptions/listen` results. Both reference-host captures carry the warning,
-and the probe's baseline lists it as an open server-side entry. It is left red
-rather than loosened: it closes when the everything server (or rmcp) puts
-`serverInfo` on every result.
+**That gate was red for part of 2026-10-13, on two warnings, and is clean
+again.** BASE-037 became judged that day, and this server — rmcp's result
+types — named itself in `_meta.io.modelcontextprotocol/serverInfo` only on its
+`server/discover` and `subscriptions/listen` results; the client-feature pages
+added ELIC-095 against the host (above). The gate was left red rather than
+loosened until both were fixed here: the everything server now puts
+`serverInfo` on every result it builds at `2026-07-28` (`mcp_everything_server`'s
+private `server::identity` module, applied at each handler's return beside the
+caching hints), and the host's form answers satisfy their schema. Both
+reference-host captures and the probe were re-recorded with the fixes, and the
+probe baseline's server-side BASE-037 entry was retired in the same change.
 
 **What it caught.** The first recording of this session reported six failures
 the HTTP captures could not: TRAN-060/066/119/120 and MRTR-001, because the
@@ -544,9 +560,9 @@ read as a specimen instead.
 |---------|-------:|-----:|-----:|-----:|-------------:|
 | `official-suite-2026-07-28-scenarios` | 71 | 69 | 1 | 1 | 110 |
 | `official-suite-2026-07-28-stateless` | 71 | 70 | 0 | 1 | 110 |
-| `probe-2026-07-28-http` | 85 | 72 | 11 | 2 | 96 |
-| `reference-host-2026-07-28-http` | 125 | 123 | 0 | 2 | 56 |
-| `reference-host-2026-07-28-stdio` | 109 | 107 | 0 | 2 | 72 |
+| `probe-2026-07-28-http` | 85 | 73 | 11 | 1 | 96 |
+| `reference-host-2026-07-28-http` | 125 | 125 | 0 | 0 | 56 |
+| `reference-host-2026-07-28-stdio` | 109 | 109 | 0 | 0 | 72 |
 | `sdk-go-2026-07-28` | 83 | 78 | 4 | 1 | 98 |
 | `sdk-python-2026-07-28` | 65 | 65 | 0 | 0 | 116 |
 | `sdk-rust-2026-07-28` | 74 | 73 | 0 | 1 | 107 |
@@ -878,7 +894,7 @@ outcome moved.
 | `elic-062-form-without-schema.jsonl` | ELIC-062: form mode with no `requestedSchema`; the wire schema too |
 | `elic-064-url-mode-without-url.jsonl` | ELIC-064: URL mode with no `url`; the wire schema too |
 | `elic-065-url-not-a-valid-url.jsonl` | ELIC-065: a `url` whose query carries an unencoded space (`account=Jane Doe`), which RFC 3986 admits only as `%20`. The wire schema passes it: `format` is not asserted (ADR-0020) |
-| `elic-095-accepted-content-violates-schema.jsonl` | ELIC-095, a warning: `accept` with empty `content` against a schema requiring `city` — the shape the reference host's captures show (below) |
+| `elic-095-accepted-content-violates-schema.jsonl` | ELIC-095, a warning: `accept` with empty `content` against a schema requiring `city` — the shape the reference host's captures showed until it was fixed on 2026-10-13 (below) |
 | `samp-026-tools-without-sampling-tools.jsonl` | SAMP-026: `tools` asked of a request declaring plain `sampling`. BASE-034, MRTR-012 and MRTR-013 make the same observation |
 | `samp-027-answered-without-capability.jsonl` | SAMP-027: a retry declaring only `elicitation` answers the sampling request its call drew |
 | `samp-028-include-context-deprecated.jsonl` | SAMP-028, a warning: `includeContext` `thisServer` with `sampling.context` declared — SAMP-029's pass path |
