@@ -80,26 +80,22 @@ pub fn never_answered(events: &[TraceEvent]) -> Option<NeverAnswered> {
     (found.client_messages > 0 && (found.aborts > 0 || found.initialize)).then_some(found)
 }
 
+/// Client `initialize` requests the server answered with a result. The
+/// response index is built once: scanning forward from every `initialize`
+/// made this quadratic in a trace of unanswered handshakes.
 fn handshakes(events: &[TraceEvent]) -> usize {
+    let responses = crate::declared::Responses::of(events);
     events
         .iter()
         .enumerate()
         .filter(|(_, event)| event.direction == Direction::ClientToServer)
-        .filter_map(|(index, event)| {
-            let payload = event.message_payload()?;
-            if payload.get("method").and_then(Value::as_str) != Some("initialize") {
-                return None;
-            }
-            Some((index, payload.get("id")?))
+        .filter(|(_, event)| {
+            event.message_payload().is_some_and(|payload| {
+                payload.get("method").and_then(Value::as_str) == Some("initialize")
+                    && payload.get("id").is_some()
+            })
         })
-        .filter(|(index, id)| {
-            events[index + 1..]
-                .iter()
-                .filter(|later| later.direction == Direction::ServerToClient)
-                .filter_map(TraceEvent::message_payload)
-                .find(|later| later.get("method").is_none() && later.get("id") == Some(*id))
-                .is_some_and(|response| response.get("result").is_some())
-        })
+        .filter(|(index, _)| responses.answered_by_result(events, *index))
         .count()
 }
 

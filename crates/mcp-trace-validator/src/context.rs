@@ -56,6 +56,9 @@ pub struct TraceContext<'a> {
     pairs: Vec<Option<usize>>,
     init: InitializeExchange<'a>,
     final_phase: Phase,
+    /// The Streamable HTTP framing, derived once: every HTTP check reads it,
+    /// and rebuilding it per check multiplied a full pass by their number.
+    framing: framing::Framing<'a>,
 }
 
 impl<'a> TraceContext<'a> {
@@ -94,11 +97,8 @@ impl<'a> TraceContext<'a> {
             }
         }
 
-        let pairs = pairing::pair_responses(
-            events,
-            &kinds,
-            framing::Framing::of(events).unidentified_answers(),
-        );
+        let framing = framing::Framing::of(events);
+        let pairs = pairing::pair_responses(events, &kinds, framing.unidentified_answers());
 
         Self {
             events,
@@ -107,6 +107,7 @@ impl<'a> TraceContext<'a> {
             pairs,
             init: tracker.init,
             final_phase: tracker.phase,
+            framing,
         }
     }
 

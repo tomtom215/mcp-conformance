@@ -218,13 +218,14 @@ impl HumanOptions {
     ) {
         let shown = self.max_findings.unwrap_or(usize::MAX);
         for finding in findings.iter().take(shown) {
+            let detail = printable(&finding.detail);
             let _ = match (revision, finding.seq) {
                 (Some(revision), Some(seq)) => {
-                    writeln!(out, "        {revision} seq {seq}: {}", finding.detail)
+                    writeln!(out, "        {revision} seq {seq}: {detail}")
                 }
-                (Some(revision), None) => writeln!(out, "        {revision}: {}", finding.detail),
-                (None, Some(seq)) => writeln!(out, "        seq {seq}: {}", finding.detail),
-                (None, None) => writeln!(out, "        {}", finding.detail),
+                (Some(revision), None) => writeln!(out, "        {revision}: {detail}"),
+                (None, Some(seq)) => writeln!(out, "        seq {seq}: {detail}"),
+                (None, None) => writeln!(out, "        {detail}"),
             };
         }
         let rest = findings.len().saturating_sub(shown);
@@ -238,6 +239,29 @@ impl HumanOptions {
             let _ = writeln!(out, "        {label}… and {rest} more{how}");
         }
     }
+}
+
+/// `text` with every control character escaped as `\u{..}`.
+///
+/// A finding quotes the trace — a method name, an id, a header — and a
+/// recording is untrusted input: an `ESC` sequence in a method name reached
+/// the terminal or the CI log raw, where it can rewrite what the reader sees.
+/// Machine formats are unaffected; JSON escapes these itself.
+fn printable(text: &str) -> std::borrow::Cow<'_, str> {
+    if !text.chars().any(char::is_control) {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    std::borrow::Cow::Owned(
+        text.chars()
+            .map(|character| {
+                if character.is_control() {
+                    character.escape_unicode().to_string()
+                } else {
+                    character.to_string()
+                }
+            })
+            .collect(),
+    )
 }
 
 impl super::ClauseSource {

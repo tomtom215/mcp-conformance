@@ -354,3 +354,28 @@ fn the_revision_mismatch_note_names_a_flag_only_on_the_command_line() {
             .contains("BASE-001")
     );
 }
+
+/// A finding quoting the trace cannot drive the terminal: control characters,
+/// `ESC` among them, are escaped in the human form and left to JSON's own
+/// escaping in the machine forms.
+#[test]
+fn control_characters_in_a_finding_are_escaped_for_the_terminal() {
+    let mut report = sample();
+    report.requirements[1].findings[0].detail =
+        "method \u{1b}]0;pwned\u{7}\u{1b}[2J x\u{85}".to_owned();
+    let human = report.render_human();
+    assert!(
+        !human.chars().any(|c| c.is_control() && c != '\n'),
+        "{human:?}"
+    );
+    assert!(
+        human.contains(r"method \u{1b}]0;pwned\u{7}\u{1b}[2J x\u{85}"),
+        "{human}"
+    );
+    let json = serde_json::to_string(&report).unwrap();
+    let back: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        back["requirements"][1]["findings"][0]["detail"],
+        "method \u{1b}]0;pwned\u{7}\u{1b}[2J x\u{85}"
+    );
+}

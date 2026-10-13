@@ -28,7 +28,7 @@ fn with_framing(lines: &[String], test: impl FnOnce(&Framing<'_>)) {
     let document = trace(lines);
     let events = super::testkit::events(&document);
     let context = TraceContext::new(&events);
-    test(&Framing::new(&context));
+    test(Framing::new(&context));
 }
 
 #[test]

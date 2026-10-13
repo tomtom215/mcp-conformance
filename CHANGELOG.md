@@ -60,6 +60,30 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **A crafted trace could make `validate` take minutes.** Three passes scanned
+  forward from every request for its answer — era detection before
+  `initialize`, request/response pairing, and the handshake count — so a trace
+  of many unanswered requests was quadratic, and the HTTP framing was rebuilt by
+  every HTTP check. Each lookup is now indexed once (keyed by canonical id and
+  confirmed by value equality, so pairing is unchanged), and the framing is
+  built once per trace. Measured on one 4-vCPU Xeon at 2.10 GHz, release
+  builds: 80,000 pre-`initialize` requests over Streamable HTTP took 35.8 s
+  before and 6.0 s after; 20,000 unanswered requests followed by 20,000
+  unmatched responses, 4.25–4.36 s before and 0.46–0.64 s after (three runs
+  each). Instruction counts now grow linearly with the trace.
+- **`validate` read the whole input before any limit applied.** A 1 GiB file
+  reached 1 GiB of memory before `--max-line-bytes` refused its first line, and
+  `validate /dev/zero` never ended. Lines are now read one at a time: reading
+  stops after the line `--max-events` refuses, and at a line over
+  `--max-line-bytes`, whose length is counted without being kept (up to sixteen
+  times the limit; beyond that the error gives a lower bound). The same 1 GiB
+  file now peaks at 70 MiB, `/dev/zero` exits `3` in half a second, and an
+  earlier line's error is still reported first.
+- **A finding could write terminal escape sequences.** Findings quote the
+  trace — a method name, an id — and the human report printed them raw, so an
+  `ESC` sequence in a recorded method could rewrite the terminal or a CI log.
+  Control characters are now shown escaped (`\u{1b}`) in human output; JSON,
+  JUnit and SARIF already escaped them.
 - **`TOOL-011`/`TOOL-040` passed structured results that broke the tool's own
   `outputSchema`.** The clause is "Servers MUST provide structured results that
   conform to this schema", but the check judged only that `structuredContent` was

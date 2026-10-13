@@ -10,10 +10,12 @@
 //! earliest unanswered request, the only reading that lets later checks point at both
 //! events), and a response nobody asked for simply pairs with nothing.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
+
+use mcp_conformance_core::canonical::to_canonical_string;
 
 use mcp_conformance_core::message::MessageKind;
-use mcp_conformance_core::trace::TraceEvent;
+use mcp_conformance_core::trace::{Direction, TraceEvent};
 use serde_json::Value;
 
 use super::TraceContext;
@@ -55,18 +57,39 @@ pub(super) fn pair_responses(
     let framed: BTreeMap<usize, usize> = framed
         .filter_map(|(response, request)| Some((index_of(response)?, index_of(request)?)))
         .collect();
-    let mut open: Vec<usize> = Vec::new();
+    // Open requests, bucketed by (sent by the client, canonical id) in send
+    // order, so a response finds the earliest open request it can answer
+    // without scanning every open one: the scan made pairing quadratic in the
+    // requests left unanswered. Canonical form is coarser than value equality,
+    // so a candidate is still confirmed with `==`; a bucket entry no longer in
+    // `open` was answered and is skipped.
+    let mut open: BTreeSet<usize> = BTreeSet::new();
+    let mut buckets: BTreeMap<(bool, String), VecDeque<usize>> = BTreeMap::new();
     let mut pairs = vec![None; events.len()];
     for (index, (event, kind)) in events.iter().zip(kinds).enumerate() {
         match kind {
-            Some(MessageKind::Request { .. }) => open.push(index),
+            Some(MessageKind::Request { id, .. }) => {
+                open.insert(index);
+                buckets
+                    .entry((
+                        event.direction == Direction::ClientToServer,
+                        to_canonical_string(id),
+                    ))
+                    .or_default()
+                    .push_back(index);
+            }
             Some(MessageKind::Result { id } | MessageKind::Error { id, .. }) => {
                 let by_id = id.and_then(|id| {
-                    open.iter().position(|&request_index| {
-                        let request = &events[request_index];
-                        request.direction != event.direction
+                    let requester_is_client = event.direction != Direction::ClientToServer;
+                    let bucket =
+                        buckets.get_mut(&(requester_is_client, to_canonical_string(id)))?;
+                    while bucket.front().is_some_and(|front| !open.contains(front)) {
+                        bucket.pop_front();
+                    }
+                    bucket.iter().copied().find(|request_index| {
+                        open.contains(request_index)
                             && matches!(
-                                &kinds[request_index],
+                                &kinds[*request_index],
                                 Some(MessageKind::Request { id: request_id, .. })
                                     if *request_id == id
                             )
@@ -77,10 +100,11 @@ pub(super) fn pair_responses(
                 // answered by id is never answered twice.
                 let answered = by_id.or_else(|| {
                     let request = framed.get(&index)?;
-                    open.iter().position(|open| open == request)
+                    open.contains(request).then_some(*request)
                 });
-                if let Some(position) = answered {
-                    pairs[index] = Some(open.remove(position));
+                if let Some(request) = answered {
+                    open.remove(&request);
+                    pairs[index] = Some(request);
                 }
             }
             _ => {}

@@ -9,7 +9,7 @@
 #![allow(clippy::redundant_pub_crate)]
 
 use std::fs;
-use std::io::Read as _;
+use std::io::{BufRead as _, Read as _};
 use std::path::Path;
 
 use mcp_conformance_core::trace::TraceEvent;
@@ -62,7 +62,7 @@ pub(crate) fn read_events(
     limits: &Limits,
     prefix: &str,
 ) -> Result<Vec<TraceEvent>, Refusal> {
-    let bytes = read_document(source)?;
+    let (bytes, overlong) = read_document(source, limits)?;
     // JSON Lines is UTF-8; bytes that are not are a malformed trace (exit 3),
     // located like every other malformation, not an unreadable file (exit 2).
     let document = String::from_utf8(bytes).map_err(|error| {
@@ -85,11 +85,133 @@ pub(crate) fn read_events(
             code: EXIT_MALFORMED_TRACE,
         }
     })?;
-    reader::parse_trace(&document, limits).map_err(|error| Refusal {
+    let events = reader::parse_trace(&document, limits).map_err(|error| Refusal {
         error: format!("{prefix}malformed trace: {error}"),
         hints: parse_hint(&error, &document).into_iter().collect(),
         code: EXIT_MALFORMED_TRACE,
-    })
+    })?;
+    // Every line before the over-long one parsed, so it is the first problem.
+    match overlong {
+        None => Ok(events),
+        Some(Overlong {
+            line,
+            length,
+            complete,
+        }) => {
+            let limit = limits.max_line_bytes;
+            let (size, at_least) = if complete {
+                ("", "")
+            } else {
+                ("over ", " or more")
+            };
+            Err(Refusal {
+                error: format!(
+                    "{prefix}malformed trace: line {line}: record is {size}{length} bytes, \
+                     exceeding the {limit}-byte limit"
+                ),
+                hints: vec![format!(
+                    "if the recording is sound, re-run with --max-line-bytes {length}{at_least}"
+                )],
+                code: EXIT_MALFORMED_TRACE,
+            })
+        }
+    }
+}
+
+/// A line longer than `--max-line-bytes`, found while reading.
+struct Overlong {
+    /// 1-based line number.
+    line: usize,
+    /// Its length in bytes, or a lower bound when not `complete`.
+    length: usize,
+    /// Whether the line ended before [`MEASURE_CEILING`] times the limit.
+    complete: bool,
+}
+
+/// How far past the limit an over-long line is measured, as a multiple of the
+/// limit: far enough to give the exact length any real recording needs, near
+/// enough that endless input (`/dev/zero`) ends in bounded time.
+const MEASURE_CEILING: usize = 16;
+
+/// Reads a trace no further than its limits can use, in memory bounded by them.
+///
+/// Reading the whole document first let a 1 GiB file occupy 1 GiB before the
+/// line limit refused its first line, and `/dev/zero` grow without end. Lines
+/// are read one at a time: the read stops after the line the event limit
+/// refuses, and at a line over the length limit, which is measured — its
+/// bytes counted, not kept — and returned beside the lines before it, so that
+/// an earlier line's error still comes first.
+fn read_bounded(
+    mut input: impl std::io::BufRead,
+    limits: &Limits,
+) -> std::io::Result<(Vec<u8>, Option<Overlong>)> {
+    let limit = limits.max_line_bytes;
+    // The content limit plus a `\r\n` terminator.
+    let per_line = u64::try_from(limit.saturating_add(2)).unwrap_or(u64::MAX);
+    let mut bytes = Vec::new();
+    let mut lines = 0usize;
+    loop {
+        let start = bytes.len();
+        let read = std::io::Read::by_ref(&mut input)
+            .take(per_line)
+            .read_until(b'\n', &mut bytes)?;
+        if read == 0 {
+            return Ok((bytes, None));
+        }
+        lines += 1;
+        if bytes.last() != Some(&b'\n') {
+            if read < limit.saturating_add(2) {
+                return Ok((bytes, None)); // The last line, unterminated.
+            }
+            bytes.truncate(start);
+            let (length, complete) = measure(&mut input, read, limit)?;
+            let overlong = Overlong {
+                line: lines,
+                length,
+                complete,
+            };
+            return Ok((bytes, Some(overlong)));
+        }
+        if lines > limits.max_events {
+            return Ok((bytes, None)); // The parser refuses this line, or one before it.
+        }
+    }
+}
+
+/// The length of a line already `read` bytes long, counted to its end or to
+/// [`MEASURE_CEILING`] times `limit`, without keeping it; and whether it ended.
+fn measure(
+    input: &mut impl std::io::BufRead,
+    read: usize,
+    limit: usize,
+) -> std::io::Result<(usize, bool)> {
+    let ceiling = limit.saturating_mul(MEASURE_CEILING);
+    let mut length = read;
+    let mut carriage_return = false;
+    while length < ceiling {
+        let chunk = input.fill_buf()?;
+        if chunk.is_empty() {
+            return Ok((length, true));
+        }
+        if let Some(end) = chunk.iter().position(|byte| *byte == b'\n') {
+            let before_newline = end
+                .checked_sub(1)
+                .map(|at| chunk[at])
+                .or_else(|| carriage_return.then_some(b'\r'));
+            length += end;
+            input.consume(end + 1);
+            // `str::lines`, which the parser uses, does not count a `\r` ending the line.
+            if before_newline == Some(b'\r') {
+                length -= 1;
+            }
+            return Ok((length, true));
+        }
+        carriage_return = chunk.last() == Some(&b'\r');
+        length += chunk.len();
+        let consumed = chunk.len();
+        input.consume(consumed);
+    }
+    Ok((length, false))
 }
 
 /// What the error alone does not say: that a limit is the reader's to lift
@@ -137,29 +259,32 @@ fn is_bare_message(document: &str, line: usize) -> bool {
         .is_some_and(|value| value.get("jsonrpc").is_some() && value.get("kind").is_none())
 }
 
-fn read_document(source: &str) -> Result<Vec<u8>, Refusal> {
+fn read_document(source: &str, limits: &Limits) -> Result<(Vec<u8>, Option<Overlong>), Refusal> {
     if source == "-" {
-        let mut bytes = Vec::new();
-        std::io::stdin()
-            .read_to_end(&mut bytes)
-            .map_err(|error| unreadable(format!("cannot read stdin: {error}"), None))?;
-        return Ok(bytes);
+        return read_bounded(std::io::stdin().lock(), limits)
+            .map_err(|error| unreadable(format!("cannot read stdin: {error}"), None));
     }
-    fs::read(source).map_err(|error| {
-        let path = Path::new(source);
-        // The two ways a shell hands over a name that is not a trace file.
-        let hint = if path.is_dir() {
-            Some(format!(
-                "{source} is a directory; pass the traces in it, e.g. `{}`",
-                path.join("*.jsonl").display()
-            ))
-        } else if error.kind() == std::io::ErrorKind::NotFound && source.contains(['*', '?', '[']) {
-            Some("no file matched this pattern, so the shell passed it on unexpanded".to_owned())
-        } else {
-            None
-        };
-        unreadable(format!("cannot read {source}: {error}"), hint)
-    })
+    fs::File::open(source)
+        .and_then(|file| read_bounded(std::io::BufReader::new(file), limits))
+        .map_err(|error| {
+            let path = Path::new(source);
+            // The two ways a shell hands over a name that is not a trace file.
+            let hint = if path.is_dir() {
+                Some(format!(
+                    "{source} is a directory; pass the traces in it, e.g. `{}`",
+                    path.join("*.jsonl").display()
+                ))
+            } else if error.kind() == std::io::ErrorKind::NotFound
+                && source.contains(['*', '?', '['])
+            {
+                Some(
+                    "no file matched this pattern, so the shell passed it on unexpanded".to_owned(),
+                )
+            } else {
+                None
+            };
+            unreadable(format!("cannot read {source}: {error}"), hint)
+        })
 }
 
 fn unreadable(error: String, hint: Option<String>) -> Refusal {
@@ -172,3 +297,6 @@ fn unreadable(error: String, hint: Option<String>) -> Refusal {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod bounded_tests;
