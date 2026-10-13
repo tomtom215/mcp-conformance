@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! The timeline's reading of messages: their shape, their pairing, and how
+//! The reading of messages: their shape, their pairing, and how
 //! much of a payload is shown.
 
 #![allow(clippy::unwrap_used)]

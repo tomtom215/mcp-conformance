@@ -5,7 +5,7 @@
 //! request a response answers, and the findings that point at it.
 
 use core::fmt::Write as _;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TraceEvent};
 use serde_json::Value;
@@ -14,112 +14,7 @@ use super::Scope;
 use super::clauses::{WIRE_SCHEMA, open_section, token};
 use super::escape::Text;
 use crate::report::{Finding, Outcome};
-
-/// The most of a payload shown, in bytes of its pretty-printed JSON. A
-/// recording can carry a 64 MiB tool result; the page shows the start of it
-/// and says how much more the trace line holds, rather than becoming the size
-/// of the recording several times over.
-pub(super) const PAYLOAD_PREVIEW_BYTES: usize = 16 * 1024;
-
-/// What a message is, read from its members.
-#[derive(Debug, PartialEq, Eq)]
-pub(super) enum Shape {
-    /// A method and an id.
-    Request { method: String, id: String },
-    /// A method and no id.
-    Notification { method: String },
-    /// An id and a result.
-    Result { id: String },
-    /// An id and an error.
-    Error { id: String, error: String },
-    /// A JSON array of messages.
-    Batch(usize),
-    /// None of the above: a malformed message.
-    Other,
-}
-
-/// `value` as one line of JSON, for ids and error codes.
-fn compact(value: &Value) -> String {
-    serde_json::to_string(value).unwrap_or_default()
-}
-
-/// A method name as text: the string itself, or the JSON of whatever else a
-/// malformed message put there.
-fn method_text(value: &Value) -> String {
-    value
-        .as_str()
-        .map_or_else(|| compact(value), ToOwned::to_owned)
-}
-
-pub(super) fn shape(payload: &Value) -> Shape {
-    let Some(message) = payload.as_object() else {
-        return payload
-            .as_array()
-            .map_or(Shape::Other, |batch| Shape::Batch(batch.len()));
-    };
-    let id = message.get("id").map(compact);
-    match (message.get("method"), id) {
-        (Some(method), Some(id)) => Shape::Request {
-            method: method_text(method),
-            id,
-        },
-        (Some(method), None) => Shape::Notification {
-            method: method_text(method),
-        },
-        (None, Some(id)) => match message.get("error") {
-            Some(error) => Shape::Error {
-                id,
-                error: error.get("code").map_or_else(
-                    || "error".to_owned(),
-                    |code| format!("error {}", compact(code)),
-                ),
-            },
-            None if message.contains_key("result") => Shape::Result { id },
-            None => Shape::Other,
-        },
-        (None, None) => Shape::Other,
-    }
-}
-
-/// Requests paired with the responses that answer them.
-#[derive(Debug, Default)]
-pub(super) struct Pairs {
-    /// A request's `seq` → the `seq` of its response.
-    pub(super) answered_by: BTreeMap<u64, u64>,
-    /// A response's `seq` → its request's `seq` and method.
-    pub(super) answers: BTreeMap<u64, (u64, String)>,
-}
-
-/// Pairs each response with the request it answers: the latest unanswered
-/// request with its id, sent the other way. A response to an id nobody asked
-/// for, or a second answer to one, pairs with nothing — the validator's
-/// findings say what is wrong with it; the timeline only draws what is there.
-pub(super) fn pair(events: &[TraceEvent]) -> Pairs {
-    let mut open: HashMap<(Direction, String), (u64, String)> = HashMap::new();
-    let mut pairs = Pairs::default();
-    for event in events {
-        let Some(payload) = event.message_payload() else {
-            continue;
-        };
-        match shape(payload) {
-            Shape::Request { method, id } => {
-                open.insert((event.direction, id), (event.seq, method));
-            }
-            Shape::Result { id } | Shape::Error { id, .. } => {
-                let asker = match event.direction {
-                    Direction::ClientToServer => Direction::ServerToClient,
-                    Direction::ServerToClient => Direction::ClientToServer,
-                };
-                if let Some((request, method)) = open.remove(&(asker, id)) {
-                    pairs.answered_by.insert(request, event.seq);
-                    pairs.answers.insert(event.seq, (request, method));
-                }
-            }
-            Shape::Notification { .. } | Shape::Batch(_) | Shape::Other => {}
-        }
-    }
-    pairs
-}
+use crate::timeline::{Pairs, Shape, pair, preview, shape};
 
 /// A finding as its event shows it.
 struct Mark<'a> {
@@ -385,18 +280,3 @@ fn body(out: &mut String, event: &TraceEvent, open: bool) {
         _ => {}
     }
 }
-
-/// The start of `text` the page shows, and how many bytes it leaves out.
-pub(super) fn preview(text: &str) -> (&str, usize) {
-    if text.len() <= PAYLOAD_PREVIEW_BYTES {
-        return (text, 0);
-    }
-    let mut end = PAYLOAD_PREVIEW_BYTES;
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    (&text[..end], text.len() - end)
-}
-
-#[cfg(test)]
-mod tests;
