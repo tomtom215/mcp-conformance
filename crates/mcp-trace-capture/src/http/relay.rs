@@ -36,13 +36,20 @@ pub(super) async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -
     let mut upstream_request = axum::http::Request::new(upstream_body);
     *upstream_request.method_mut() = parts.method;
     *upstream_request.uri_mut() = target(&proxy.options.upstream, parts.uri.path_and_query());
+    // `Expect: 100-continue` was the proxy's to answer, and it has: hyper sent
+    // the `100 Continue` when the body was read.
     let dropped: &[header::HeaderName] = if proxy.options.preserve_host {
-        &[header::CONTENT_LENGTH, header::ACCEPT_ENCODING]
+        &[
+            header::CONTENT_LENGTH,
+            header::ACCEPT_ENCODING,
+            header::EXPECT,
+        ]
     } else {
         &[
             header::HOST,
             header::CONTENT_LENGTH,
             header::ACCEPT_ENCODING,
+            header::EXPECT,
         ]
     };
     *upstream_request.headers_mut() = headers::forwardable(&parts.headers, dropped);

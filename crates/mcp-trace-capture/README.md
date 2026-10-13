@@ -209,7 +209,9 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 ## What it guarantees
 
 - **Transparent.** Bytes are forwarded unchanged. Over HTTP, the only changes are the
-  ones a proxy must make: hop-by-hop headers (RFC 9110 §7.6.1), `Host` (names the
+  ones a proxy must make: hop-by-hop headers (RFC 9110 §7.6.1, and the
+  non-standard `Proxy-Connection`), a request's `Expect` (the proxy answers
+  `100-continue` itself), `Host` (names the
   upstream — `--preserve-host` keeps the client's instead), `Accept-Encoding`
   (removed, so the server answers uncompressed and the body can be recorded), and a
   redirect's `Location` that points into the upstream (pointed back at the proxy, by

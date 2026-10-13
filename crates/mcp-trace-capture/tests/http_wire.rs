@@ -130,6 +130,45 @@ async fn proxy(
     })
 }
 
+/// Sends `request` (which should say `Connection: close`) to `address` and
+/// returns everything that comes back, lowercased.
+async fn exchange(address: SocketAddr, request: &[u8]) -> String {
+    let mut stream = tokio::net::TcpStream::connect(address).await.unwrap();
+    stream.write_all(request).await.unwrap();
+    let mut response = Vec::new();
+    stream.read_to_end(&mut response).await.ok();
+    String::from_utf8_lossy(&response).to_ascii_lowercase()
+}
+
+/// `Proxy-Connection` is a hop-by-hop field in all but name, and the proxy
+/// already answered `Expect: 100-continue` itself when it read the body: the
+/// upstream gets neither.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn proxy_connection_and_expect_are_not_forwarded() {
+    bounded(async {
+        let (upstream, mut requests) = upstream(
+            b"HTTP/1.1 202 Accepted\r\ncontent-length: 0\r\nconnection: close\r\n\r\n".to_vec(),
+        )
+        .await;
+        let (address, _, stop) = proxy(format!("http://{upstream}"), 1024).await;
+        let body = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
+        let request = format!(
+            "POST /mcp HTTP/1.1\r\nhost: proxy\r\nproxy-connection: keep-alive\r\n\
+             expect: 100-continue\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\
+             connection: close\r\n\r\n{body}",
+            body.len()
+        );
+        let response = exchange(address, request.as_bytes()).await;
+        assert!(response.contains("202 accepted"), "{response}");
+        let forwarded = requests.recv().await.unwrap().to_ascii_lowercase();
+        assert!(!forwarded.contains("proxy-connection"), "{forwarded}");
+        assert!(!forwarded.contains("expect:"), "{forwarded}");
+        assert!(forwarded.ends_with(body), "{forwarded}");
+        stop().await.unwrap().unwrap();
+    })
+    .await;
+}
+
 /// A client that goes away mid-body leaves its request recorded without a
 /// body; the trace must say the exchange was cut off, as it does for an
 /// upstream that fails.
