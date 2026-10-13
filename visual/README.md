@@ -35,8 +35,14 @@ npx playwright install --with-deps chromium             # once; CI does this eve
 npm test
 ```
 
-After a deliberate visual change: `cargo xtask bless` (the golden pages), then
-`npm run bless` (the screenshots), and review both diffs — the screenshots as images.
+After a deliberate visual change: `cargo xtask bless` (the golden pages), then new
+screenshots, and review both diffs — the screenshots as images. The committed
+screenshots are the CI runner's rendering, not a local one: the same Chromium build on
+another machine still rasterises text differently (on 2026-10-13 a sandbox's
+rendering of identical pages differed from the runner's in 2.4% of pixels, all of it
+glyph anti-aliasing). So take new baselines from the `visual` job's `visual-diffs`
+artifact: each failed comparison uploads its `*-actual.png`, which is the runner's
+rendering of the new page. `npm run bless` is for looking locally, not for committing.
 
 ## Determinism
 

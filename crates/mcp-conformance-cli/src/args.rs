@@ -41,7 +41,7 @@ pub(crate) enum Command {
     /// Needs Node.js 18 or newer with `npx` on PATH: the suite is a Node
     /// package, fetched by npx at exactly the version this build pins.
     #[command(after_help = EXIT_CODES)]
-    Test(TestArgs),
+    Test(Box<TestArgs>),
     /// Carries a client under test to the suite's server through the recorder;
     /// `test --client-command` runs it as the client command it gives the
     /// suite. Not for direct use.

@@ -47,7 +47,7 @@ fn main() -> ExitCode {
         }
     };
     let code = match cli.command {
-        args::Command::Test(args) => runtime.block_on(run::test(args)),
+        args::Command::Test(args) => runtime.block_on(run::test(*args)),
         args::Command::ClientRelay { command } => runtime.block_on(relay::run(command)),
     };
     runtime.shutdown_background();
