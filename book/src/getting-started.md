@@ -18,6 +18,24 @@ instead of compiling (Linux x86_64 and aarch64, macOS, Windows x86_64). To build
 the unreleased source, which may be ahead of the release:
 `cargo install --locked --git https://github.com/tomtom215/mcp-conformance mcp-trace-capture mcp-trace-validator`.
 
+**From npm or PyPI (not yet released).** From the first release after `0.6.0`,
+the same prebuilt binaries install without Rust:
+
+```text
+npx mcp-conformance --version          # one-off, or: npm install -g mcp-conformance
+pip install mcp-conformance            # into the active environment
+```
+
+Both put `mcp-trace-capture`, `mcp-trace-validator` and `mcp-conformance` on your
+`PATH`, as the release's own binaries, byte for byte: npm installs the one
+`@mcp-conformance/<os>-<cpu>` package that fits your machine as an optional
+dependency of `mcp-conformance` (no install script, nothing downloaded beyond the
+packages), and pip installs the wheel for your platform. Packages exist for the
+five targets above; elsewhere, install from source. With npm, keep optional
+dependencies enabled (`--omit=optional` removes the binaries). If a Python
+environment's scripts directory is not on `PATH`, `python -m mcp_conformance`
+runs the workbench. Until that release, neither registry has the packages.
+
 ## Record a session
 
 `mcp-trace-capture` sits between a client and a server, forwards every byte unchanged,
