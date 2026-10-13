@@ -412,7 +412,11 @@ below is stated again in its entry, with the reasoning.
   `2025-11-25` too: rmcp 3.5.1 adds the cache hints `2026-07-28` peers need.
   The development toolchain pin is Rust 1.99.0; the MSRV stays 1.88.
 
-## [0.6.0] - 2026-10-04
+## [0.6.0] - 2026-10-06
+
+*Erratum (2026-10-13): this heading read 2026-10-04, the day the release commit
+was prepared. The `v0.6.0` tag was pushed on 2026-10-05, and the GitHub release and
+the crates.io versions were published on 2026-10-06, the date given now.*
 
 **This is a minor release with breaking behaviour changes and one Rust API
 break, in `mcp-reference-host`'s run types**, which pre-1.0 SemVer permits and
