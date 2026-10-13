@@ -131,10 +131,8 @@ async fn discovery_advertises_only_the_revision_this_mode_serves() {
 
 #[tokio::test]
 async fn every_cacheable_operation_carries_its_hints() {
-    // CACH-001's six operations, all of them. `tools/list` and `prompts/list`
-    // get their hints from rmcp's handler macros and the rest from this
-    // crate's handlers; the requirement does not care which, so neither does
-    // this test.
+    // CACH-001's six operations, all of them, each built by this crate's
+    // handlers (the list operations a page at a time).
     for (method, extra, name) in [
         ("server/discover", "", None),
         ("tools/list", "", None),
@@ -264,4 +262,105 @@ async fn tool_calls_work_without_a_handshake() {
     .await;
     let text = result.pointer("/content/0/text").and_then(Value::as_str);
     assert_eq!(text, Some("Echo: hi"), "{result}");
+}
+
+#[tokio::test]
+async fn every_listing_paginates_over_the_wire_under_one_cache_scope() {
+    // The cursor flow end to end: the first page names a `nextCursor`, the
+    // request presenting it is admitted by the envelope layer and answered
+    // with the last page, and both pages carry the same `cacheScope`
+    // (CACH-015: "Servers MUST apply the same `cacheScope` to all response
+    // pages for a given list request").
+    for (method, second) in [
+        ("tools/list", "test_parameter_headers"),
+        ("prompts/list", "test_prompt_with_audio"),
+        ("resources/list", "test://annotated-text"),
+        ("resources/templates/list", "test://annotated/{id}"),
+    ] {
+        let first = result_of(method, "", None).await;
+        let cursor = first
+            .get("nextCursor")
+            .and_then(Value::as_str)
+            .unwrap_or_else(|| panic!("{method}'s first page names no next page: {first}"));
+        let last = result_of(method, &format!(r#","cursor":"{cursor}""#), None).await;
+        assert!(last.get("nextCursor").is_none(), "{method}: {last}");
+        assert_eq!(first.get("cacheScope"), last.get("cacheScope"), "{method}");
+        assert!(
+            last.to_string().contains(second),
+            "{method}'s second page carries {second}: {last}"
+        );
+        assert!(
+            !first.to_string().contains(second),
+            "{method}'s first page stays the suite's catalogue: {first}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn an_unissued_cursor_is_invalid_params() {
+    // PAGE-011's SHOULD: "Invalid cursors SHOULD result in an error with code
+    // -32602 (Invalid params)."
+    let (status, body) = exchange(post(
+        request(1, "resources/list", r#","cursor":"resources/list#page-9""#),
+        Some("2026-07-28"),
+        &[("mcp-method", "resources/list")],
+    ))
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body.pointer("/error/code"), Some(&Value::from(-32602)));
+}
+
+/// A call of `test_parameter_headers` with `arguments`, carrying `headers`
+/// beside the ones every `tools/call` mirrors.
+async fn call_with_headers(arguments: &str, headers: &[(&str, &str)]) -> (StatusCode, Value) {
+    let mut all = vec![
+        ("mcp-method", "tools/call"),
+        ("mcp-name", "test_parameter_headers"),
+    ];
+    all.extend_from_slice(headers);
+    exchange(post(
+        request(
+            1,
+            "tools/call",
+            &format!(r#","name":"test_parameter_headers","arguments":{arguments}"#),
+        ),
+        Some("2026-07-28"),
+        &all,
+    ))
+    .await
+}
+
+#[tokio::test]
+async fn designated_parameters_are_checked_against_their_headers() {
+    // The `x-mcp-header` table, from the server's side. A value provided and
+    // mirrored is served; an argument left out needs no header (TRAN-135:
+    // "Server MUST NOT expect the header").
+    let (status, body) = call_with_headers(
+        r#"{"region":"us-west1","limit":7}"#,
+        &[("mcp-param-region", "us-west1"), ("mcp-param-limit", "7")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(
+        body.pointer("/result/content/0/text"),
+        Some(&Value::from("region=us-west1 limit=7 zone=(not supplied)"))
+    );
+    // A designated value sent without its header is a non-conforming client,
+    // and TRAN-136 says the server "MUST reject the request": rmcp's
+    // transport does, with HeaderMismatch under HTTP 400.
+    let (status, body) = call_with_headers(
+        r#"{"region":"us-west1","limit":7}"#,
+        &[("mcp-param-limit", "7")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body.pointer("/error/code"), Some(&Value::from(-32020)));
+    // So is a header that disagrees with the body.
+    let (status, body) = call_with_headers(
+        r#"{"region":"us-west1","limit":7}"#,
+        &[("mcp-param-region", "us-east1"), ("mcp-param-limit", "7")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body.pointer("/error/code"), Some(&Value::from(-32020)));
 }

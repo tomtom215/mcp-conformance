@@ -76,6 +76,24 @@ async fn a_fabricated_cursor_is_refused_on_the_stateless_revision() {
 }
 
 #[tokio::test]
+async fn a_cursor_the_server_issued_passes_the_layer() {
+    // The other half of the rule: the layer refuses what the server never
+    // issued, so it must admit what it did, or pagination would be offered by
+    // the handler and refused by the transport in front of it.
+    let issued = mcp_everything_server::pagination::Listing::Tools
+        .cursor(1)
+        .unwrap();
+    assert_eq!(
+        status_of(
+            ServedRevision::V2026_07_28,
+            post(listing_with_cursor(&issued))
+        )
+        .await,
+        StatusCode::OK
+    );
+}
+
+#[tokio::test]
 async fn the_layer_is_inert_on_the_revision_that_has_no_envelope() {
     // `2025-11-25` has no `_meta` envelope and its own pagination story, so a
     // request carrying a cursor there is not this layer's business. Answering

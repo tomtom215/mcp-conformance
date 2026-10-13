@@ -10,6 +10,10 @@
 //! `get-structured-content` (register 2.10 parity; the suite exercises none
 //! of the three). Divergence from either source is a reviewable decision,
 //! never an accident.
+//!
+//! Those are `tools/list`'s first page. A third source, [`second_page`], is
+//! this server's own: surface neither of the others puts on the wire, listed
+//! after a cursor so a client reading one page sees exactly the first two.
 
 use std::sync::Arc;
 
@@ -20,6 +24,9 @@ use rmcp::{ErrorData, tool, tool_router};
 
 use crate::fixtures::{TINY_PNG_BASE64, TINY_WAV_BASE64};
 use crate::server::{EverythingServer, ServedRevision};
+
+pub mod second_page;
+pub use second_page::page_of;
 
 /// Name of the JSON Schema 2020-12 keyword-preservation tool (SEP-1613); the
 /// `json-schema-2020-12` scenario looks it up by exactly this name.
@@ -293,7 +300,8 @@ pub(crate) fn json_schema_2020_12_route() -> ToolRoute<EverythingServer> {
 pub(crate) fn all_tools(revision: ServedRevision) -> ToolRouter<EverythingServer> {
     let routed = EverythingServer::tool_router_basic()
         + EverythingServer::tool_router_notifying()
-        + EverythingServer::tool_router_interactive();
+        + EverythingServer::tool_router_interactive()
+        + EverythingServer::tool_router_second_page();
     let mut routed = routed.with_route(json_schema_2020_12_route());
     for tool in RETIRED_AT_2026_07_28 {
         if revision.is_stateless() {

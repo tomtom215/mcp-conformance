@@ -164,7 +164,7 @@ usually are.
   session of deliberately malformed requests, the official runner's two, and
   three of the official SDKs' own conformance servers
   ([the cross-SDK matrix](sdk-matrix.md)) — evidence
-  **127 of the 147 judgeable clauses** between them. What no capture
+  **137 of the 147 judgeable clauses** between them. What no capture
   reaches is named, one clause at a time, in [the corpus chapter](corpus.md).
 - The project's CI re-runs that measurement weekly and **ratchets** it against a
   committed baseline: any change in either direction fails the build, so a

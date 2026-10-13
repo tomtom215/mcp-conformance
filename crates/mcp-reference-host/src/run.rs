@@ -287,6 +287,11 @@ fn judge_outcome(
 
 /// Materializes the call list; `None` when discovery itself failed (the
 /// failure is already recorded on the report).
+///
+/// Discovery follows `nextCursor` to the last page (rmcp's `list_all_tools`):
+/// a tool listed on a later page is as much the server's surface as one on
+/// the first, and a client that stopped at one page would record a sweep of
+/// whatever happened to fit there.
 async fn resolve_calls(
     peer: &Peer<RoleClient>,
     policy: &CallPolicy,
@@ -294,10 +299,9 @@ async fn resolve_calls(
 ) -> Option<Vec<PlannedCall>> {
     match policy {
         CallPolicy::Scripted(calls) => Some(calls.clone()),
-        CallPolicy::EachDiscoveredToolOnce => match peer.list_tools(None).await {
-            Ok(listing) => Some(
-                listing
-                    .tools
+        CallPolicy::EachDiscoveredToolOnce => match peer.list_all_tools().await {
+            Ok(tools) => Some(
+                tools
                     .iter()
                     .map(|tool| PlannedCall {
                         tool: tool.name.to_string(),

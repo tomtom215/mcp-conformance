@@ -599,6 +599,21 @@ below is stated again in its entry, with the reasoning.
 - **A screenshot suite** (`visual/`, Playwright 1.56.1) and its CI job: a passing, a
   failing and a two-revision page at 1280 and 360 px in light and dark, compared with
   committed baselines and opened with no network request allowed.
+- **The everything server serves the surface the suite does not name, behind a
+  cursor.** Every listing (`tools/list`, `prompts/list`, `resources/list`,
+  `resources/templates/list`) is paginated; the first page is exactly the suite's
+  catalogue. The second carries `test_resource_link` (a `resource_link` result with
+  annotated text, tool annotations and icons), `test_parameter_headers` (three
+  `x-mcp-header` designations), an audio prompt, and a resource and a template with
+  titles, icons and annotations; the server names itself with an icon. Cursors are
+  stateless, and one the server never issued gets `-32602` at both revisions.
+- **`mcp-reference-host` follows `nextCursor`** in its tool loop and sweep, and
+  `--probe` adds one request: a call with a designated argument's `Mcp-Param-*` header
+  left out (`TRAN-136`).
+- **The `2026-07-28` captures evidence 137 of the 147 judgeable clauses**, up from 127:
+  `CACH-015`/`CACH-016`, `PROM-017`, `TOOL-034`, `TRAN-079`, `TRAN-081`, `TRAN-130`,
+  `TRAN-134`, `TRAN-135` and `TRAN-136`. The ten that remain are listed in
+  `corpus/README.md`, each with its reason.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.

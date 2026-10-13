@@ -425,6 +425,27 @@
       }
     },
     {
+      "trace": "violations/base-086-input-schema-draft-07",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-086"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1,
+          "schema": 1
+        }
+      }
+    },
+    {
       "trace": "violations/comp-001-capability-undeclared",
       "revision": "2025-11-25",
       "transport": "stdio",
@@ -2411,6 +2432,27 @@
       }
     },
     {
+      "trace": "draft/violations/base-088-input-schema-draft-07",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-088"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1,
+          "schema": 1
+        }
+      }
+    },
+    {
       "trace": "draft/violations/cach-001-cacheable-result-without-hints",
       "revision": "2026-07-28",
       "transport": "stdio",
@@ -3476,6 +3518,7 @@
         "flagged": [
           "BASE-052",
           "TRAN-058",
+          "TRAN-141",
           "wire-schema"
         ]
       },
@@ -3521,7 +3564,8 @@
       "ours": {
         "verdict": "fail",
         "flagged": [
-          "TRAN-058"
+          "TRAN-058",
+          "TRAN-141"
         ]
       },
       "mcpsnoop": {
@@ -4502,7 +4546,8 @@
           "TRAN-058",
           "TRAN-097",
           "TRAN-100",
-          "TRAN-131"
+          "TRAN-131",
+          "TRAN-141"
         ]
       },
       "mcpsnoop": {
@@ -4819,6 +4864,38 @@
       }
     },
     {
+      "trace": "draft/violations/tran-141-mcp-name-header-missing",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-058",
+          "TRAN-141"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header mismatch: required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "required routing header Mcp-Name is missing"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
       "trace": "draft/violations/vers-002-retry-with-unsupported-version",
       "revision": "2026-07-28",
       "transport": "stdio",
@@ -5019,7 +5096,7 @@
       "trace": "draft/captured/probe-2026-07-28-http",
       "revision": "2026-07-28",
       "transport": "http",
-      "frames": 19,
+      "frames": 25,
       "unframed": 0,
       "ours": {
         "verdict": "fail",
@@ -5033,6 +5110,8 @@
           "TOOL-016",
           "TRAN-071",
           "TRAN-072",
+          "TRAN-079",
+          "TRAN-130",
           "wire-schema"
         ]
       },
@@ -5052,6 +5131,18 @@
             "message": "a routing header disagrees with the body"
           },
           {
+            "signal": "mismatch",
+            "seq": 45,
+            "framed": true,
+            "message": "routing header mismatch: required routing header Mcp-Param-Limit is missing for body parameter \"limit\""
+          },
+          {
+            "signal": "mismatch",
+            "seq": 47,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          },
+          {
             "signal": "warn",
             "seq": 1,
             "framed": true,
@@ -5062,11 +5153,17 @@
             "seq": 13,
             "framed": true,
             "message": "MCP-Protocol-Version header 2025-11-25 disagrees with _meta protocolVersion 2026-07-28"
+          },
+          {
+            "signal": "warn",
+            "seq": 45,
+            "framed": true,
+            "message": "required routing header Mcp-Param-Limit is missing for body parameter \"limit\""
           }
         ],
         "other": {
-          "annotations": 16,
-          "error": 8,
+          "annotations": 17,
+          "error": 9,
           "schema": 3
         }
       }
@@ -5075,7 +5172,7 @@
       "trace": "draft/captured/reference-host-2026-07-28-http",
       "revision": "2026-07-28",
       "transport": "http",
-      "frames": 86,
+      "frames": 104,
       "unframed": 11,
       "ours": {
         "verdict": "pass",
@@ -5085,7 +5182,7 @@
         "exit": 1,
         "findings": [],
         "other": {
-          "annotations": 16,
+          "annotations": 17,
           "deprecated": 4,
           "error": 4,
           "schema": 3
@@ -5096,7 +5193,7 @@
       "trace": "draft/captured/reference-host-2026-07-28-stdio",
       "revision": "2026-07-28",
       "transport": "stdio",
-      "frames": 87,
+      "frames": 105,
       "unframed": 0,
       "ours": {
         "verdict": "pass",
@@ -5106,10 +5203,83 @@
         "exit": 1,
         "findings": [],
         "other": {
-          "annotations": 16,
+          "annotations": 17,
           "deprecated": 4,
           "error": 4,
           "schema": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/captured/sdk-go-2026-07-28",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-034",
+          "MRTR-012",
+          "MRTR-013",
+          "TRAN-068"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 27,
+            "framed": true,
+            "message": "inputRequests asks for \"elicitation/create\" while the request declared no elicitation capability"
+          }
+        ],
+        "other": {
+          "annotations": 28,
+          "error": 1,
+          "pending": 1,
+          "schema": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/captured/sdk-python-2026-07-28",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 28,
+          "error": 1,
+          "schema": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/captured/sdk-rust-2026-07-28",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 35,
+          "error": 1,
+          "schema": 4
         }
       }
     }

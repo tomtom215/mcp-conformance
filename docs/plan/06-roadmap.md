@@ -440,7 +440,7 @@ D1, D3, D4, D6, 0.1, 0.3–0.7, 1.1–1.3, 1.5, 2.1, 4.4, M6, M8, M10.
 | 2.3 / M1 — disputed exclusions | Partial | TRAN-027/061/081/082 now judged; TRAN-020, TRAN-083/084, TOOL-035, BASE-033/037, DISC-003 still excluded without a corpus pair settling them |
 | 2.5 / M3 — server MUSTs on client-feature pages | Partial | URL-mode `url` validity and `sampling.tools` not entered |
 | 2.6 / M4 — extensions (tasks, skills) | Not started | — |
-| 2.7 — everything-server surface | Not started | No pagination, icons, `resource_link` or tasks |
+| 2.7 — everything-server surface | **Done** | — Pagination (all four listings, stateless cursors, `-32602` for one never issued), icons, `resource_link`, annotations, an audio prompt and `x-mcp-header` designations, served on second pages so the suite's catalogue is untouched; the captures evidence 137 of the 147 judgeable `2026-07-28` clauses (was 127). The ten not observed are listed by clause in `corpus/README.md`. Tasks are left to 2.6 (an extension at `2026-07-28`) |
 | 2.8 — authorization, observable subset | Not started | Deferral row `auth-client-scenarios` |
 | 2.9 — draft tracking | Not started | No `draft` registry skeleton; `spec-drift` does not read `draft/` |
 | 3.1 / M5 — calibration at `2026-07-28` | Blocked | Needs a stable official suite `0.2.0` (deferral row `suite-0-2-0-stable-pin-bump`) |

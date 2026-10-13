@@ -46,6 +46,16 @@
       "requirement": "TRAN-072",
       "fault": "probe",
       "why": "One probe deliberately disagrees between its `MCP-Protocol-Version` header and its body's `_meta` version. That disagreement is the antecedent of TRAN-073 and TRAN-098 — a server must reject it with `HeaderMismatch` under HTTP 400 — and both pass on this recording."
+    },
+    {
+      "requirement": "TRAN-079",
+      "fault": "probe",
+      "why": "The designated-header probe calls a tool whose `inputSchema` designates `limit` for `Mcp-Param-Limit` and sends `limit` without that header. The omission is the fixture: it is the antecedent of TRAN-136 — the behaviour table's \"Client omits header but value is in body | Non-conforming client | Server MUST reject the request\" — which no conforming client can exercise, and which passes on this recording."
+    },
+    {
+      "requirement": "TRAN-130",
+      "fault": "probe",
+      "why": "The same omitted header; TRAN-130 is the behaviour table's \"Parameter value provided | Client MUST include the header\", sharing `transport.x-mcp-header-mirrored` with TRAN-079."
     }
   ]
 }

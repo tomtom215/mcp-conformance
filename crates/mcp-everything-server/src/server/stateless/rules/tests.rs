@@ -54,16 +54,35 @@ fn a_cursor_is_refused_on_the_operations_that_paginate() {
         "resources/list",
         "resources/templates/list",
     ] {
-        let payload = request(method, &json!({"cursor": "fabricated"}));
-        let fault = fault(&payload).unwrap_or_else(|| panic!("{method} must reject a cursor"));
-        assert_eq!(fault.code, rmcp::model::ErrorCode::INVALID_PARAMS);
-        assert!(
-            fault.message.contains("paginates nothing"),
-            "{}",
-            fault.message
-        );
-        // Without one, the same request is fine — the first page is every page.
+        for cursor in [json!("fabricated"), json!(2), json!(null)] {
+            let payload = request(method, &json!({ "cursor": cursor }));
+            let fault = fault(&payload).unwrap_or_else(|| panic!("{method} must reject {cursor}"));
+            assert_eq!(fault.code, rmcp::model::ErrorCode::INVALID_PARAMS);
+            assert!(
+                fault.message.contains("not issued") || fault.message.contains("never issued"),
+                "{}",
+                fault.message
+            );
+        }
+        // Without one, the same request is fine: it asks for the first page.
         assert!(fault_of(method, &json!({})).is_none());
+    }
+}
+
+#[test]
+fn a_cursor_this_server_issued_is_admitted() {
+    // Every listing has a second page, and its cursor must pass the envelope —
+    // otherwise the transport would refuse the very pagination the handler
+    // offers.
+    for listing in Listing::ALL {
+        let cursor = listing.cursor(1).unwrap();
+        assert!(fault_of(listing.method(), &json!({ "cursor": cursor })).is_none());
+        // And it is valid only where it was issued.
+        let elsewhere = Listing::ALL
+            .into_iter()
+            .find(|other| *other != listing)
+            .unwrap();
+        assert!(fault_of(elsewhere.method(), &json!({ "cursor": cursor })).is_some());
     }
 }
 
