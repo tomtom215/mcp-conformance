@@ -106,7 +106,7 @@ CI runs `test` against this repository's everything server, over both transports
 its reference host, and holds each report to `cargo xtask conformance`'s results for the
 same subject: the same scenarios with the same check statuses, every failing clause the
 gate's recordings show, and nothing beyond them that `conformance/wire-findings.json`
-does not list with why only the wire shows it. From a checkout, after
+does not list with its triage class and why only the wire shows it. From a checkout, after
 `cargo build -p mcp-everything-server -p mcp-conformance-cli` and
 `cargo build -p mcp-reference-host --features cli`:
 

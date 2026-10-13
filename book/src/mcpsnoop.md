@@ -6,7 +6,7 @@
 
 # A second opinion: mcpsnoop
 
-[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 221 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
+[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 223 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
 
 ## How the comparison is made
 
@@ -25,9 +25,9 @@ The binary inside, `package/bin/mcpsnoop`, has SHA-256 `81c3636fa5a371833ab4558d
 
 | Corpus directory | Traces |
 |---|---:|
-| `corpus/good/` | 4 |
+| `corpus/good/` | 5 |
 | `corpus/violations/` | 64 |
-| `corpus/draft/good/` | 22 |
+| `corpus/draft/good/` | 23 |
 | `corpus/draft/violations/` | 123 |
 | `corpus/draft/captured/` | 8 |
 
@@ -36,7 +36,7 @@ Verdicts, ours against mcpsnoop's conformance signals:
 | | mcpsnoop flags the trace | mcpsnoop does not |
 |---|---:|---:|
 | our verdict `fail` | 80 | 86 |
-| our verdict `pass` or `pass-with-warnings` | 0 | 55 |
+| our verdict `pass` or `pass-with-warnings` | 2 | 55 |
 
 Traces by how the two readings relate:
 
@@ -45,7 +45,7 @@ Traces by how the two readings relate:
 | both clean | 27 |
 | agree | 75 |
 | beyond mcpsnoop | 110 |
-| **divergent** | 9 |
+| **divergent** | 11 |
 
 mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 141 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
 
@@ -66,6 +66,7 @@ Every divergence the run shows, and its triage (`conformance/mcpsnoop/triage.jso
 | 9 | ours-only | `TOOL-016` | `draft/violations/vers-008-initialize-error-without-versions` | spec-ambiguity | undecided | open: the same decision as BASE-030 on this trace |
 | 10 | ours-only | `LIFE-018` | `violations/tran-017-protocol-version-header-missing` | mcpsnoop-defect | ours | upstream: mcpsnoop-version-header-2025-11-25 |
 | 11 | ours-only | `TRAN-017` | `violations/tran-017-protocol-version-header-missing` | mcpsnoop-defect | ours | upstream: mcpsnoop-version-header-2025-11-25 |
+| 12 | mcpsnoop-only | `response-unmatched` | `good/http-origin-refused-without-id`, `draft/good/http-origin-refused-without-id` | mcpsnoop-defect | ours | upstream: mcpsnoop-origin-refusal-unmatched |
 
 ### 1. `invalid-frame` (mcpsnoop-only)
 
@@ -167,6 +168,16 @@ The transport page's statement of LIFE-018's rule; the same missing header and t
 
 Resolution: upstream: mcpsnoop-version-header-2025-11-25
 
+### 12. `response-unmatched` (mcpsnoop-only)
+
+A POST carrying `Host` and `Origin` `evil.example.com` is refused with HTTP 403 and a JSON-RPC error that has no `id`; the session then proceeds from `localhost`. The transport's security warning, at both revisions, describes exactly that answer: "If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`." The refusal happens before the request is read, so there is no id to echo, and BASE-009/BASE-052's id rule does not reach a body the transport clause permits to have none. mcpsnoop reports the id-less error as matching no request. We did the same, as BASE-009, until 2026-10-13 — on the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`) — and these two traces are the regression pair for that fix.
+
+> **BASE-009** (MUST): Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request). — [source](https://modelcontextprotocol.io/specification/2025-11-25/basic#error-responses)
+
+> **BASE-052** (MUST): Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request). — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic#error-responses)
+
+Resolution: upstream: mcpsnoop-origin-refusal-unmatched
+
 ## Found on live recordings
 
 Divergences that only a session recorded by mcpsnoop itself shows, because they turn on something our trace format does not record.
@@ -243,6 +254,16 @@ Written for mcpsnoop's tracker and **not filed**: filing is the owner's call.
 
 **Suggested fix.** At `2025-11-25` (and `2025-06-18`), require the header on every POST after the `initialize` exchange.
 
+### `mcpsnoop-origin-refusal-unmatched`: check: the id-less error body of a 403 Origin refusal is reported as a response with no matching request
+
+**Version:** mcpsnoop 0.26.1.
+
+**What happens.** Streamable HTTP, `2025-11-25` or `2026-07-28`. A POST arrives with `Origin: http://evil.example.com`; the server refuses it with `403 Forbidden` and the body `{"jsonrpc":"2.0","error":{"code":-32600,"message":"Forbidden: Origin not allowed"}}`. `check` reports `response id has no matching request` on that error.
+
+**Expected.** No finding. The transport's security warning reads: "If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`." The server refuses before it reads the request, so it has no id to echo, and the specification permits the body that results.
+
+**Suggested fix.** When an id-less error is the body of a `403` answering a request that carried an `Origin` header, treat it as that exchange's refusal rather than as an unmatched response.
+
 ## The rule map
 
 Each mcpsnoop rule, the message template that identifies it (`*` is any run), and the clauses it corresponds to; *italic* ids are partial. Fired counts traces where the rule fired and was not set aside. A rule no trace fires was read from the binary's strings and is untested here.
@@ -254,7 +275,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `request-id-type` | `request id has type * MCP requires a string or integer id` | BASE-001 | BASE-043 | body | 1 | A request id that is neither a string nor an integer. |
 | `request-id-null` | `request id is null; MCP requires a string or integer id` | BASE-001, BASE-002 | BASE-043, BASE-044 | body | 1 | A request id that is `null`. The message itself names both clauses: `null` is not a string or integer id, and MCP forbids it outright. |
 | `request-id-in-flight` | `request reuses an id already in flight` | *BASE-003* | BASE-045 | pairing | 2 | A request reusing the id of one of its sender's requests that has not been answered. At `2025-11-25` the clause is wider — no reuse within the session at all — and in-flight reuse is the part mcpsnoop checks. |
-| `response-unmatched` | `response id has no matching request` | BASE-004, BASE-009 | BASE-046, BASE-052 | pairing | 8 | A response whose id names no outstanding request: the clauses requiring a response to carry the id of the request it answers. |
+| `response-unmatched` | `response id has no matching request` | BASE-004, BASE-009 | BASE-046, BASE-052 | pairing | 10 | A response whose id names no outstanding request: the clauses requiring a response to carry the id of the request it answers. |
 | `response-duplicate` | `duplicate response for the same id` | BASE-004, BASE-009 | BASE-046, BASE-052 | pairing | 1 | A second response for an id already answered, which corresponds to no outstanding request. |
 | `response-without-result-or-error` | `response has neither result nor error` | BASE-010 | BASE-047 | body | 1 | A response carrying neither `result` nor `error`. |
 | `response-with-result-and-error` | `response has both result and error` | *BASE-008* | *BASE-042* | body | 0 | A response carrying both `result` and `error`, which JSON-RPC 2.0 forbids. Template read from the binary; no corpus trace exercises it. |
@@ -298,6 +319,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 
 | Trace | Revision | Ours | We flag | mcpsnoop | Rules fired | Set aside | Relation |
 |---|---|---|---|---|---|---|---|
+| `good/http-origin-refused-without-id` | 2025-11-25 | pass | — | flags | `response-unmatched` | — | **divergent** |
 | `good/http-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-feature-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-full-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
@@ -370,6 +392,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/good/http-close-after-another-response` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-concurrent-posts` | 2026-07-28 | pass | — | silent | — | `method-name-header-missing`, `protocol-version-header-missing` | both clean |
 | `draft/good/http-dual-era-modern-request-first` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/good/http-origin-refused-without-id` | 2026-07-28 | pass | — | flags | `response-unmatched` | — | **divergent** |
 | `draft/good/http-stream-closed-by-client` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-upstream-abort` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-x-mcp-header-omitted` | 2026-07-28 | pass | — | silent | — | — | both clean |

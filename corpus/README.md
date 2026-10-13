@@ -49,9 +49,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 72 | 153 |
+| Goldens | 73 | 154 |
 | Excluded rows the ledger holds | 94 | 160 |
-| Distinct not-observed sets across them | 41 | 114 |
+| Distinct not-observed sets across them | 42 | 115 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -124,6 +124,7 @@ below: the implementations on both ends, the tool that recorded them, and when.
 | `stdio-feature-session.jsonl` | Every feature area conformant in one session: tools (incl. outputSchema + structuredContent, and a call returning an embedded resource against a declared `resources` capability — TOOL-009's pass path), resources (read/blob/subscribe/updated), prompts (text/image/audio/embedded), logging, completion, pagination cursor flow, and a well-formed `params._meta` key (BASE-019/020's pass path) |
 | `stdio-full-session.jsonl` | Handshake plus ping, tools/list, tools/call over stdio |
 | `stdio-minimal-init.jsonl` | Smallest conformant session: the three-message handshake |
+| `http-origin-refused-without-id.jsonl` | A Streamable HTTP `initialize` carrying `Host`/`Origin` `evil.example.com`, refused `403` with a JSON-RPC error that has no `id`, then the same handshake from `localhost` completing. The transport's security warning permits exactly that body ("If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`"), so BASE-009 passes. Until 2026-10-13 the framing tied the error to the refused request, whose id was readable, and BASE-009 failed it — the shape of the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`). Added 2026-10-13 |
 
 ### `violations/`
 
@@ -645,6 +646,7 @@ for. The three traces named for those clauses are the only ones left without.
 | `http-close-after-another-response.jsonl` | A `subscriptions/listen` stream left open while a `tools/call` beside it is answered; a `transport-close` is recorded straight after that answer, and the subscription is later closed gracefully. The final response "SHOULD terminate the stream", so the close is the call's stream ending, not the subscription being cancelled. Until 2026-10-12 TRAN-070 pinned the close on the one request still open and failed the graceful closure. |
 | `stdio-discover-preferred-version-unsupported.jsonl` | A stdio `server/discover` probe naming `2027-03-01`, answered with a `DiscoverResult` listing only `2026-07-28`, then a `tools/list` at that version. `basic/versioning`'s compatibility matrix names the outcome: "The stdio probe returns a `DiscoverResult` (or `UnsupportedProtocolVersionError`)". Until 2026-10-12 TRAN-074 and VERS-001 failed the result for not being `-32022`; VERS-001 now passes it, and TRAN-074, an HTTP clause, is *not observed* on stdio. |
 | `http-dual-era-modern-request-first.jsonl` | A dual-era client over Streamable HTTP opening with a modern `tools/list`, refused `400` with `-32600`, then falling back to `initialize` (carrying a full `_meta` envelope and left unanswered, as in `disc-002-…`, so nothing else fires). HTTP's own rule lets it "detect which era the server implements by attempting a modern request first"; the probe-first clause is stdio's. Until 2026-10-12 DISC-002 and TRAN-128 warned here. |
+| `http-origin-refused-without-id.jsonl` | The `2026-07-28` counterpart: a `tools/list` from `evil.example.com` refused `403` with an id-less error, then served from `localhost`. The same sentence permits the body at this revision, and BASE-052 — BASE-009's restatement, sharing its check — passes it. Added 2026-10-13 |
 | `stdio-cancellation-race.jsonl` | A `tools/call` cancelled by notification whose progress and result were already on their way: both land after the cancellation in the recording, then a later `tools/list` is answered. basic/patterns/cancellation names this race ("this notification MAY arrive after the request has already finished"; "Both parties MUST handle these race conditions gracefully"), and nothing shows the server had read the cancellation when it wrote them. Until 2026-10-04 TRAN-124 convicted every message recorded after a cancellation. |
 | `stdio-cancelled-id-reused.jsonl` | A `tools/call` id 5 cancelled by notification and answered in the race the cancellation page names; a later `tools/call` id 6 shows the server has read the cancellation; the client then reuses id 5 — legal once answered (BASE-045) — for a new call, which is answered (TRAN-124's pass path). Until 2026-10-12 the stdio check never cleared a cancellation when its id was reused, as the HTTP twin does, and failed the answer to the new request. |
 | `stdio-progress.jsonl` | Progress done right over **stdio**: rising values (`0.25`, `0.5`, `1`) for one token, ending before the result; the token reused by a later request once the first was answered, its sequence starting again below where the last one ended; and an integer token running concurrently with it. The pass path of PROG-001/002/003/005/008. |

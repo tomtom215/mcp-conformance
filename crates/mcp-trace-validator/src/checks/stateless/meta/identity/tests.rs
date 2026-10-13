@@ -102,3 +102,30 @@ fn a_discover_result_without_server_info_breaks_both_clauses() {
     assert_eq!(findings_for(DISCOVER, &named), Vec::<String>::new());
     assert_eq!(findings_for(RESULTS, &named), Vec::<String>::new());
 }
+
+#[test]
+fn notifications_and_other_parties_results_are_outside_the_clauses() {
+    // A notification carrying the whole envelope is still not a request.
+    let meta = &META[..META.len() - 1];
+    let notification = trace(&[client(
+        0,
+        &format!(
+            r#"{{"jsonrpc":"2.0","method":"notifications/cancelled","params":{{"requestId":1,{meta}}}}}}}"#
+        ),
+    )]);
+    assert_eq!(findings_for(CLIENT, &notification), Vec::<String>::new());
+
+    // A legacy `initialize` answered without `serverInfo` in `_meta`, even one
+    // carrying the envelope, and a client's result to a server's request, are
+    // not the server's results under this revision.
+    let others = trace(&[
+        request(0, 1, "initialize", ""),
+        result(1, 1, r#","protocolVersion":"2025-11-25","capabilities":{}"#),
+        server(
+            2,
+            &format!(r#"{{"jsonrpc":"2.0","id":7,"method":"ping","params":{{{META}}}}}"#),
+        ),
+        client(3, r#"{"jsonrpc":"2.0","id":7,"result":{}}"#),
+    ]);
+    assert_eq!(findings_for(RESULTS, &others), Vec::<String>::new());
+}

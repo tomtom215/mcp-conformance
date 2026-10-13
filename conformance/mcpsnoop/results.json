@@ -33,6 +33,31 @@
   ],
   "traces": [
     {
+      "trace": "good/http-origin-refused-without-id",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
       "trace": "good/http-session",
       "revision": "2025-11-25",
       "transport": "http",
@@ -1523,6 +1548,31 @@
         "other": {
           "error": 1,
           "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/http-origin-refused-without-id",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1
         }
       }
     },

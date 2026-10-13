@@ -1,34 +1,29 @@
 {
-  "policy": "Failing clauses `mcp-conformance test` reports on the wire that the agreement gate's own recordings cannot show, for the same subjects (the product leg of cargo xtask conformance; xtask/src/conformance/product.rs). The gate's server tap sits behind the everything server's Host/Origin check, and the reference host captures at rmcp's message seam, above HTTP; the recording proxy and the stdio wrapper see every exchange. Each entry names the leg (http | stdio | client), the requirement, optionally a substring of the trace's name, and why only the wire shows it. The leg fails on a finding not listed here and on an entry that no longer occurs. These are findings awaiting triage, not explanations: an entry leaves when its triage resolves it (a fix, a validator change, or an explained divergence filed upstream).",
+  "policy": "Failing clauses `mcp-conformance test` reports on the wire that the agreement gate's own recordings cannot show, for the same subjects (the product leg of cargo xtask conformance; xtask/src/conformance/product.rs). The gate's server tap sits behind the everything server's Host/Origin check, and the reference host captures at rmcp's message seam, above HTTP; the recording proxy and the stdio wrapper see every exchange. Each entry names the leg (http | stdio | client), the requirement, optionally a substring of the trace's name, and why only the wire shows it. The leg fails on a finding not listed here and on an entry that no longer occurs. Every entry is triaged: its `why` opens with the class — `our-bug`, `suite-bug` or `spec-ambiguity`, the three the agreement ledgers use — and then says what the bytes show, which clause they meet, and what would close it. An entry leaves when that happens (a fix, a validator change, or a pin bump past an upstream fix); the leg fails on an entry that no longer occurs, so it cannot outlive its cause. Triaged 2026-10-13: the fifth entry, BASE-009 on the dns-rebinding-protection scenario's 403, was a validator false positive and left with its fix — the transport's security warning permits an Origin refusal's body to be a JSON-RPC error that has no id (`base.error-id-matches`, regression traces `corpus/good/http-origin-refused-without-id.jsonl` and its `2026-07-28` counterpart). The same recording showed the refusal body carrying `\"id\": null`, which the schema's `JSONRPCErrorResponse` does not admit; the everything server now leaves the member out.",
   "findings": [
-    {
-      "leg": "http",
-      "requirement": "BASE-009",
-      "why": "The dns-rebinding-protection scenario's refused initialize: the everything server answers its 403 with a JSON-RPC error whose id is null, though the request's id (1) was readable. The tap never records a request the Host/Origin policy refuses. Triage open: the refusal is transport-level (the server rejects before reading the body), and whether BASE-009 binds a 403 body is a reading of the spec the registry does not yet record."
-    },
     {
       "leg": "client",
       "requirement": "BASE-004",
       "trace_contains": "initialize/",
-      "why": "The suite's own initialize test server answers the client's notifications/initialized POST with HTTP 200 and a JSON-RPC result that has no id. A finding about the suite's test server, not the host; the host's message-seam capture never sees the unsolicited body."
+      "why": "Class: suite-bug. The pinned suite 0.1.16's `initialize` client scenario serves the client from a test server that answers every message other than `initialize` and `tools/list` with HTTP 200 and `{\"jsonrpc\":\"2.0\",\"id\":<the message's id>,\"result\":{}}` — so the host's `notifications/initialized`, which has no id, draws `{\"jsonrpc\":\"2.0\",\"result\":{}}` (recorded: seq 6-7 of the scenario's trace). A result with no id corresponds to no request; BASE-004: \"Result responses MUST include the same ID as the request they correspond to.\" The validator is right and the host is not involved: it sent a conforming notification. Fixed upstream in the 0.2.0-alpha line — the test server bundled with 0.2.0-alpha.12 answers `notifications/initialized` with 202 and no body (read in its dist/index.js) — so this leaves when the stable pin moves to a release carrying that fix. The host's message-seam capture never sees the unsolicited body, which is why only the wire shows it."
     },
     {
       "leg": "client",
       "requirement": "TRAN-027",
       "trace_contains": "initialize/",
-      "why": "The same exchange: the suite's initialize test server accepts a notification with 200 rather than 202. HTTP status codes are invisible at the host's message seam."
+      "why": "Class: suite-bug. The same exchange: the suite 0.1.16 test server accepts the POSTed `notifications/initialized` with HTTP 200 and a body. TRAN-027: \"If the server accepts the input, the server MUST return HTTP status code 202 Accepted with no body.\" The validator is right; fixed in the 0.2.0-alpha.12 test server as above, and it leaves with the same pin bump. HTTP status codes are invisible at the host's message seam."
     },
     {
       "leg": "client",
       "requirement": "LIFE-018",
       "trace_contains": "sse-retry/",
-      "why": "The suite's sse-retry test server negotiates protocol version 2025-03-26, which has no MCP-Protocol-Version header, and the host's later requests carry none; the validator judges the session at 2025-11-25, the revision the client's initialize declared (ADR-0018). Headers are invisible at the host's message seam. Triage open: judging a session at a revision its server did not agree to."
+      "why": "Class: our-bug (revision attribution), open. The suite's sse-retry test server answers the host's `initialize` (protocolVersion 2025-11-25) with protocolVersion 2025-03-26, and the host proceeds under it: its later POSTs carry `Mcp-Session-Id` and no `MCP-Protocol-Version` (recorded). Version negotiation makes the server's answer the session's revision, and 2025-03-26 defines no such header; 2025-11-25 itself expects headerless traffic from such sessions (\"if the server does not receive an MCP-Protocol-Version header, and has no other way to identify the version ... the server SHOULD assume protocol version 2025-03-26\"). The finding exists because the validator judges the session at 2025-11-25 — the client's declaration, ADR-0018's rule for a session that proposes one revision and negotiates another — and the build has no 2025-03-26 registry. Not fixed here: the fix is to that rule (judge the negotiated revision, and decline when no registry describes it), not to this check, and it would change which sessions every leg judges. Headers are invisible at the host's message seam, so only the wire shows it."
     },
     {
       "leg": "client",
       "requirement": "TRAN-017",
       "trace_contains": "sse-retry/",
-      "why": "The transport-side clause of the same missing MCP-Protocol-Version header, for the same reason."
+      "why": "Class: our-bug (revision attribution), open. The transport-side statement of LIFE-018's clause, on the same headerless POSTs of the same 2025-03-26 session; the same reasoning and the same open fix apply."
     }
   ]
 }

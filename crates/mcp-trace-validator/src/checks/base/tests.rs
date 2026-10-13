@@ -228,3 +228,33 @@ fn a_null_id_error_the_framing_ties_is_judged_against_its_request() {
     );
     assert_eq!(run_check("base.result-id-matches", &twice).len(), 1);
 }
+
+#[test]
+fn an_origin_refusal_may_answer_with_a_null_id() {
+    // The transport's security warning: "If the `Origin` header is present and
+    // invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response
+    // body MAY comprise a JSON-RPC _error response_ that has no `id`." The
+    // refusal precedes reading the request, so its readable id is no finding.
+    let refusal = |headers: &str| {
+        [
+            format!(
+                r#"{{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{headers}}}"#
+            ),
+            r#"{"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}"#.to_owned(),
+            r#"{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":403,"headers":{"content-type":"application/json"}}"#.to_owned(),
+            r#"{"seq":3,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"Forbidden"}}}"#.to_owned(),
+        ]
+        .join("\n")
+    };
+    let with_origin = refusal(r#"{"host":"evil.example.com","origin":"http://evil.example.com"}"#);
+    assert_eq!(
+        run_check("base.error-id-matches", &with_origin),
+        Vec::<Finding>::new()
+    );
+    // A 403 to a request with no `Origin` is not the case the clause permits.
+    let host_only = refusal(r#"{"host":"evil.example.com"}"#);
+    assert_eq!(run_check("base.error-id-matches", &host_only).len(), 1);
+    // Nor is another status, with or without an `Origin`.
+    let bad_request = with_origin.replace(r#""status":403"#, r#""status":400"#);
+    assert_eq!(run_check("base.error-id-matches", &bad_request).len(), 1);
+}

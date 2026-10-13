@@ -11,7 +11,7 @@
 //! walk below is that bookkeeping, and it is long enough to deserve reading on
 //! its own.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use mcp_conformance_core::canonical::to_canonical_string;
 use mcp_conformance_core::message::MessageKind;
@@ -20,6 +20,7 @@ use serde_json::Value;
 
 use super::super::FindingSink;
 use crate::context::TraceContext;
+use crate::context::framing::Framing;
 
 /// Walks responses and reports those of the wanted flavor that match no outstanding
 /// request from the opposite party. Shared by `BASE-004` (results) and `BASE-009`
@@ -40,6 +41,7 @@ fn responses_match_requests(
     // Outstanding request ids per requesting party, canonical id -> request seq.
     let mut outstanding: HashMap<(Direction, String), u64> = HashMap::new();
     let framed = framed_answers(context);
+    let refusals = origin_refusals(context);
     for (event, kind, _) in context.messages() {
         // A null-id answer the HTTP framing ties to its request still answers
         // it: that request is no longer outstanding, whichever pass this is.
@@ -110,7 +112,7 @@ fn responses_match_requests(
                         "error",
                     );
                 } else if let Some(request) = framed.get(&event.seq) {
-                    check_unread_id(event.seq, request, sink);
+                    check_unread_id(event.seq, request, refusals.contains(&event.seq), sink);
                 }
             }
             _ => {}
@@ -118,10 +120,14 @@ fn responses_match_requests(
     }
 }
 
-/// Judges a null-id error the framing ties to `request`: excused only when the
-/// request's own id could not be read.
-fn check_unread_id(seq: u64, request: &TraceEvent, sink: &mut FindingSink) {
+/// Judges a null-id error the framing ties to `request`: excused when the
+/// request's own id could not be read, or when the error is the body of an
+/// `Origin` refusal (`origin_refusal`).
+fn check_unread_id(seq: u64, request: &TraceEvent, origin_refusal: bool, sink: &mut FindingSink) {
     sink.examined();
+    if origin_refusal {
+        return;
+    }
     if let Some(readable) = readable_id(request) {
         sink.push(
             Some(seq),
@@ -133,6 +139,51 @@ fn check_unread_id(seq: u64, request: &TraceEvent, sink: &mut FindingSink) {
             ),
         );
     }
+}
+
+/// The `seq` of every response message that is the body of an HTTP `403`
+/// answering a request that carried an `Origin` header.
+///
+/// The Streamable HTTP transport's security warning, at both revisions: "If
+/// the `Origin` header is present and invalid, servers MUST respond with HTTP
+/// 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error
+/// response_ that has no `id`." Such a refusal happens before the request is
+/// read, so its id was never available to echo, and the transport clause
+/// permits exactly the id-less error the message clause would otherwise
+/// forbid. Until 2026-10-13 that error drew BASE-009 on every recording of the
+/// official suite's `dns-rebinding-protection` scenario taken in front of the
+/// server's `Origin` check (`conformance/wire-findings.json`).
+///
+/// Whether the `Origin` was *invalid* is the server's policy, which the trace
+/// does not hold; a `403` to a request that carried one is read as that
+/// refusal. A `403` to a request with no `Origin` is not the case the clause
+/// describes, and stays judged.
+fn origin_refusals(context: &TraceContext<'_>) -> HashSet<u64> {
+    const FORBIDDEN: u16 = 403;
+    let framing = Framing::new(context);
+    let refused: HashSet<u64> = framing
+        .exchanges()
+        .iter()
+        .filter(|exchange| exchange.status == FORBIDDEN)
+        .filter(|exchange| {
+            exchange
+                .request
+                .is_some_and(|(_, _, headers)| headers.contains_key("origin"))
+        })
+        .map(|exchange| exchange.status_seq)
+        .collect();
+    if refused.is_empty() {
+        return HashSet::new();
+    }
+    context
+        .messages()
+        .filter(|(event, _, _)| {
+            framing
+                .status_for(event.seq)
+                .is_some_and(|(status_seq, _)| refused.contains(&status_seq))
+        })
+        .map(|(event, _, _)| event.seq)
+        .collect()
 }
 
 /// The null- or absent-`id` responses the context pairs with a request: response
