@@ -898,7 +898,7 @@ Judged by `transport.header-value-encoding`.
 
 [`basic/transports/streamable-http#custom-headers-from-tool-parameters`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#custom-headers-from-tool-parameters)
 
-Judged by `transport.x-mcp-header-mirrored`.
+Judged by `transport.x-mcp-header-mirrored`, `transport.x-mcp-header-value-mirrored`.
 
 ### TRAN-080
 

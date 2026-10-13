@@ -39,7 +39,7 @@ mod tests;
 pub(in crate::checks) use headers::{
     header_value_encoding, protocol_version_header_matches_body, protocol_version_header_present,
     request_metadata_headers, sentinel_marker_case, sentinel_pattern_encoded,
-    x_mcp_header_mirrored, x_mcp_header_name_valid,
+    x_mcp_header_mirrored, x_mcp_header_name_valid, x_mcp_header_value_mirrored,
 };
 pub(in crate::checks) use omission::{
     absent_param_header_not_expected, missing_param_header_rejected,

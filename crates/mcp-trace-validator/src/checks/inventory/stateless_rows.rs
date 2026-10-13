@@ -151,6 +151,10 @@ pub(super) const ROWS: &[Check] = &[
         stateless::transport::x_mcp_header_mirrored
     ),
     check!(
+        "transport.x-mcp-header-value-mirrored",
+        stateless::transport::x_mcp_header_value_mirrored
+    ),
+    check!(
         "transport.x-mcp-header-name-valid",
         stateless::transport::x_mcp_header_name_valid
     ),

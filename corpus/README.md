@@ -44,9 +44,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 64 | 141 |
+| Goldens | 65 | 143 |
 | Excluded rows the ledger holds | 85 | 165 |
-| Distinct not-observed sets across them | 34 | 109 |
+| Distinct not-observed sets across them | 35 | 108 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -183,6 +183,7 @@ example).
 | `tran-026-http-post-batch.jsonl` | TRAN-026 (a batch array POSTed after a clean handshake) |
 | `tran-027-notification-answered-200.jsonl` | TRAN-027 (the `notifications/initialized` POST answered `200` instead of `202 Accepted`) |
 | `tran-029-content-type-unexpected.jsonl` | TRAN-029 (an `initialize` request answered `200` with `Content-Type: text/html`) |
+| `tran-029-error-without-content-type.jsonl` | TRAN-029 (a `tools/list` request answered `500` with a JSON-RPC error and no `Content-Type`). The clause names no status; until 2026-10-13 only success statuses were judged, and the calibration against mcpsnoop (`book/src/mcpsnoop.md`) found the gap. Added 2026-10-13 |
 | `tran-040-get-answered-json.jsonl` | TRAN-040 (a standalone-stream GET answered `200` with `application/json` rather than `text/event-stream` or `405`) |
 | `base-017-input-schema-invalid.jsonl` | BASE-017 (a tool `inputSchema` whose property declares `"type": "text"`, not a JSON Schema type — invalid in 2020-12, the default dialect) |
 | `tool-011-structured-content-not-conforming.jsonl` | TOOL-011 (`structuredContent` of the right shape, an object, whose `temperature` is the string `"warm"` where the tool's `outputSchema` says `number` — passed until the check could apply the schema) |
@@ -532,7 +533,7 @@ it is named for.
 | `base-034-input-request-for-undeclared-capability.jsonl` | Server returns `input_required` asking for `elicitation/create` the request never declared (BASE-034) |
 | `base-034-input-request-for-undeclared-mode.jsonl` | The request declares `elicitation: {"form": {}}` and a plain `sampling: {}`; the server asks for a URL-mode `elicitation/create` and a `sampling/createMessage` carrying `tools` (BASE-034; MRTR-012 and MRTR-013 share the check). `client/elicitation`: "Servers MUST NOT send elicitation requests with modes that are not supported by the client"; `client/sampling`: "Servers MUST NOT send tool-enabled sampling requests to Clients that have not declared support for tool use via the `sampling.tools` capability." Only top-level capability names were compared until 2026-10-12, so this passed. |
 | `base-035-missing-capability-error-without-capabilities.jsonl` | `-32021` carries no `data.requiredCapabilities` (BASE-035) |
-| `base-036-missing-capability-not-http-400.jsonl` | `-32021` returned with HTTP 500 rather than 400 (BASE-036) |
+| `base-036-missing-capability-not-http-400.jsonl` | `-32021` returned with HTTP 500 rather than 400 (BASE-036). The `500` also carries no `Content-Type`, which since 2026-10-13 fails TRAN-063 too |
 | `base-039-subscription-notification-untagged.jsonl` | Notification on a `subscriptions/listen` stream with no `io.modelcontextprotocol/subscriptionId` (BASE-039) |
 | `base-039-subscription-notification-mistagged.jsonl` | A `subscriptions/listen` with the numeric id `1`, acknowledged under tag `1`, then a change notification tagged with the *string* `"1"` (BASE-039). The schema: "The value is the JSON-RPC ID of the `subscriptions/listen` request that opened the stream" — and JSON-RPC ids are compared as values, so `"1"` names no subscription. Only the tag's presence was checked until 2026-10-12. |
 | `base-040-malformed-traceparent.jsonl` | `traceparent` that is not W3C Trace Context shaped (BASE-040) |
@@ -575,6 +576,7 @@ it is named for.
 | `tran-074-unsupported-version-without-supported-list.jsonl` | `-32022` without the `data.supported` list the clause requires (TRAN-074) |
 | `tran-074-unsupported-version-accepted.jsonl` | A request naming a version the server's own `server/discover` result omits, answered with a result (TRAN-074) |
 | `tran-075-method-not-found-not-404.jsonl` | `-32601` returned with HTTP 200 rather than 404 (TRAN-075) |
+| `tran-063-error-without-content-type.jsonl` | The same unknown method refused correctly — `404` and `-32601` — but with no `Content-Type` on the answer (TRAN-063). Added 2026-10-13 with the check's extension to error statuses that carry a JSON-RPC response, which the calibration against mcpsnoop found (`book/src/mcpsnoop.md`) |
 | `tran-077-mcp-name-unencoded.jsonl` | Non-ASCII `Mcp-Name` carried unencoded (TRAN-077, TRAN-086, TRAN-087 — one rule stated in three sections, one shared `transport.header-value-encoding` check) |
 | `tran-079-x-mcp-header-not-mirrored.jsonl` | `tools/call` supplies a designated argument without its `Mcp-Param-*` header (TRAN-079; TRAN-130, the behaviour table's "Client MUST include the header", shares the check) — and the server serves it, which since 2026-10-12 also fails TRAN-136 ("Server MUST reject the request"): the client's omission is that clause's antecedent |
 | `tran-080-x-mcp-header-name-invalid.jsonl` | One `inputSchema` with three annotation faults: a non-token name, a case-insensitive duplicate, and an annotation on a `number` property (TRAN-080) |
@@ -582,8 +584,8 @@ it is named for.
 | `tran-092-sentinel-pattern-unencoded.jsonl` | A plain value that matches the sentinel pattern, carried verbatim rather than encoded (TRAN-092) |
 | `tran-096-invalid-param-header-accepted.jsonl` | A recognized `Mcp-Param-Region` whose value has leading whitespace, answered with a result (TRAN-096). Also falsifies TRAN-077/086/087 — the unencodable value the server had to reject is itself the client's encoding fault. |
 | `tran-077-param-header-value-rejected.jsonl` | The same unencodable `Mcp-Param-Region`, rejected with `-32020` and HTTP 400 as the rule requires (TRAN-077, TRAN-086, TRAN-087 — the client's encoding fault, which is all that is left to fail). TRAN-096's *pass* path: the value a server must reject is itself a client fault, so the conforming half of that clause cannot live in `good/` and is carried here instead. |
-| `tran-097-header-body-mismatch-accepted.jsonl` | `Mcp-Param-Region: us-east1` against `arguments.region = "us-west1"`, answered with a result (TRAN-097, TRAN-100 — one rule stated in two sections) |
-| `tran-097-integer-header-different-number.jsonl` | `Mcp-Param-Limit: 41` against an integer `arguments.limit = 42`, served (TRAN-097, TRAN-100; TRAN-058 is not involved — the client's own mirroring defect has no separate clause here). Pins that the numeric comparison TRAN-101 recommends, which since 2026-10-04 lets `42.0` match `42`, still rejects a different number. |
+| `tran-097-header-body-mismatch-accepted.jsonl` | `Mcp-Param-Region: us-east1` against `arguments.region = "us-west1"`, answered with a result (TRAN-097, TRAN-100 — one rule stated in two sections). Since 2026-10-13 it also fails the client's TRAN-079: a header naming another value does not mirror it |
+| `tran-097-integer-header-different-number.jsonl` | `Mcp-Param-Limit: 41` against an integer `arguments.limit = 42`, served (TRAN-097, TRAN-100; TRAN-058 is not involved). The client's own mirroring defect was recorded here until 2026-10-13 as having "no separate clause"; it has one, TRAN-079 ("MUST mirror the designated parameter values"), which the calibration against mcpsnoop surfaced and this trace now also fails. Pins that the numeric comparison TRAN-101 recommends, which since 2026-10-04 lets `42.0` match `42`, still rejects a different number. |
 | `tran-097-mismatch-after-concurrent-posts.jsonl` | The same session as `good/http-concurrent-posts.jsonl`, except the final, serial POST carries `Mcp-Name: beta` against `params.name = "alpha"` and is served (TRAN-097, TRAN-100; TRAN-058 for the client's header — the antecedent of a failure to reject). Pins that the ambiguity rule withholds judgement only on the overlapping POSTs: once they drain, pairing — and conviction — resume. |
 | `tran-098-header-mismatch-without-400.jsonl` | `HeaderMismatch` returned with HTTP 500 rather than 400 (TRAN-098, TRAN-102 — one rule stated in two sections) |
 | `tran-132-null-parameter-header-sent.jsonl` | A designated `region` passed as `null` (the schema allows it) yet mirrored as `Mcp-Param-Region: null`, which the behaviour table's `null` row forbids ("Client MUST omit the header", TRAN-132). The server serves it, which is not a fault: with no value in the body there is nothing for the header to mismatch. |
@@ -591,6 +593,7 @@ it is named for.
 | `tran-134-absent-parameter-header-sent.jsonl` | The table's other valueless row: `region` left out of the arguments, yet `Mcp-Param-Region: us-west1` sent — a header for a value the body does not carry (TRAN-134). |
 | `tran-135-omitted-absent-header-rejected.jsonl` | `region` left out of the arguments and its header correctly omitted, refused with `400` and `-32020` (TRAN-135). The `null` row and this one are judged by separate checks, so neither finding is reported against the other's scenario. |
 | `tran-136-missing-param-header-accepted.jsonl` | A designated `region: "us-west1"` sent without `Mcp-Param-Region` and served with a result instead of rejected (TRAN-136; TRAN-079 and TRAN-130 for the client's omission, the antecedent). The shape of the session that showed the gap on 2026-10-12: `header_body_match_validated` compares only headers that are present, so a missing one was judged by nothing on the server's side. |
+| `tran-079-param-header-value-not-mirrored.jsonl` | `Mcp-Param-Region: us-east1` against `arguments.region = "us-west1"`, refused with `400` and `-32020` as the server must — so the one defect is the client's: the header does not mirror the value (TRAN-079, `transport.x-mcp-header-value-mirrored`). Until 2026-10-13 such a client was judged conformant, the mismatch reported only as a server's failure to reject it; the calibration against mcpsnoop (`book/src/mcpsnoop.md`) found it. Added 2026-10-13 |
 | `tran-079-missing-param-header-rejected.jsonl` | The same omission refused with `400` and `-32020` (TRAN-079 and TRAN-130 for the client). The golden pins TRAN-136 *passing* — its pass path can only exist beside a client fault, the way `tran-072-mismatch-rejected-without-id.jsonl` carries TRAN-073's. |
 | `tran-074-unsupported-version-without-400.jsonl` | `-32022` returned with HTTP 200 rather than 400 (TRAN-074). The status half of that clause had no trace of its own until `transport.unsupported-version-status` was split out; it had been riding the kills of the sibling rules it was bundled with. |
 | `tool-019-tools-undeclared.jsonl` | `tools/call` answered though discovery declared no `tools` capability (TOOL-019) |

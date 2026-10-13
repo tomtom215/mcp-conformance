@@ -3,12 +3,12 @@
   "verdict": "fail",
   "totals": {
     "pass": 29,
-    "fail": 2,
+    "fail": 3,
     "warn": 0,
     "excluded": 165,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 114
+    "not_observed": 113
   },
   "requirements": [
     {
@@ -208,7 +208,19 @@
     {
       "id": "TRAN-063",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.success-content-type",
+          "seq": 1,
+          "detail": "HTTP 500 answering a JSON-RPC request carries no Content-Type; a request must be answered with application/json or text/event-stream"
+        }
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "If the body is a JSON-RPC request, the server MUST return either `Content-Type: application/json` (a single JSON object) or `Content-Type: text/event-stream` (an SSE response stream).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#sending-messages"
+      }
     },
     {
       "id": "TRAN-066",

@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 34,
+    "pass": 35,
     "fail": 2,
     "warn": 0,
     "excluded": 165,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 109
+    "not_observed": 108
   },
   "requirements": [
     {
@@ -184,7 +184,7 @@
     {
       "id": "TRAN-063",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "TRAN-066",

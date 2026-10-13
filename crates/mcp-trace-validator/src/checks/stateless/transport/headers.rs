@@ -260,6 +260,59 @@ pub(in crate::checks) fn x_mcp_header_mirrored(context: &TraceContext<'_>, sink:
     }
 }
 
+/// `TRAN-079`: a mirrored `Mcp-Param-*` header carries the designated value.
+///
+/// The value half of the clause [`x_mcp_header_mirrored`] judges for presence,
+/// and kept apart from it because TRAN-130 shares that check and states only
+/// presence ("Client MUST include the header"). To *mirror* a value is to carry
+/// it, so a header naming something else is not the mirror — the reading
+/// [`request_metadata_headers`] applies to `Mcp-Method` and `Mcp-Name`. Until
+/// 2026-10-13 a disagreeing `Mcp-Param-*` header was reported only as the
+/// server's failure to reject it (TRAN-097/TRAN-100), so a client sending one
+/// to a server that correctly refused it was judged conformant; the
+/// calibration against mcpsnoop (`book/src/mcpsnoop.md`) found it. The
+/// comparison is the one servers are told to make: after decoding the
+/// sentinel, and numerically for integers (TRAN-101). A miscased sentinel is
+/// TRAN-089's finding and is left to it.
+pub(in crate::checks) fn x_mcp_header_value_mirrored(
+    context: &TraceContext<'_>,
+    sink: &mut FindingSink,
+) {
+    let designated = designations_by_tool(context);
+    if designated.is_empty() {
+        return;
+    }
+    for post in posts(context) {
+        if !post.is_request() {
+            continue;
+        }
+        for mirror in mirrors(&post, &designated) {
+            if !mirror.header.starts_with("mcp-param-") {
+                continue; // The standard headers are TRAN-058's.
+            }
+            let Some(sent) = post.headers.get(&mirror.header) else {
+                continue; // Absence is the presence check's finding.
+            };
+            if is_miscased_sentinel(sent) {
+                continue;
+            }
+            sink.examined();
+            if compare(sent, &mirror.value) == Match::Mismatch
+                && !super::validation::numerically_equal(&mirror, sent)
+            {
+                sink.push(
+                    Some(post.seq),
+                    format!(
+                        "`{}` carries {sent:?}, but `{}` is {:?}; a mirrored header must carry \
+                         the designated value",
+                        mirror.label, mirror.source, mirror.value
+                    ),
+                );
+            }
+        }
+    }
+}
+
 /// `TRAN-080`: an `x-mcp-header` annotation is usable as a header name.
 ///
 /// All five constraints the clause states are judgeable from a tool definition
