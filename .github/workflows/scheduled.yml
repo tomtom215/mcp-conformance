@@ -6,8 +6,9 @@
 # over the engine crates, a cross-architecture (s390x/powerpc/i686) byte-identity
 # check, a minimal-versions dependency-floor check, benchmarks, the cross-SDK
 # matrix (each official SDK's conformance server re-recorded and compared), an
-# informational mcpsnoop calibration run, and the claims-expiry gates. Manually
-# dispatchable for on-demand runs.
+# informational mcpsnoop calibration run, an informational report of what the
+# specification's draft/ has changed since the newest release, and the
+# claims-expiry gates. Manually dispatchable for on-demand runs.
 
 name: Scheduled
 
@@ -263,6 +264,32 @@ jobs:
         run: |
           cargo xtask mcpsnoop
           git diff --exit-code -- conformance/mcpsnoop book/src/mcpsnoop.md
+
+  # The next revision, read before it ships (roadmap 2.9). `claims-expire`
+  # below holds each *released* revision to its own text, and a released
+  # revision does not move; upstream's draft/ does. This compares it with the
+  # committed skeleton (crates/mcp-conformance-core/registry/draft/) and looks
+  # for every `2026-07-28` quote on its draft page, so a clause the next
+  # revision rewords or drops is listed weeks before it ships. Informational
+  # twice over: the task exits 0 on any finding (only an unreadable draft
+  # fails it), and the job cannot fail the run. The report lands in the job
+  # summary. Read-only: the workflow default `contents: read`, no write scope.
+  draft-drift:
+    name: Draft tracking (spec draft/ against 2026-07-28, informational)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Draft page set, census and released quotes (report in the job summary)
+        run: cargo xtask spec-drift --draft
 
   fuzz:
     name: Fuzz (every declared target)

@@ -180,6 +180,19 @@ the `2025-11-25` server for returning cacheable results without the cache hints
 and found the same clause, independently, from the other side. The server's SDK
 then fixed it: since rmcp 3.5.1 both legs score 42 passing / 0 failing.
 
+## The next revision
+
+The specification's unreleased next revision (`draft`) is watched, never judged. No
+build can validate against it — `--revision draft` is refused like any revision the
+build does not ship — but the project reads it weekly and records what it has changed
+against `2026-07-28`: pages added or dropped, keyword counts that moved, and each
+`2026-07-28` clause whose sentence the draft rewords or removes. So far that is one
+wording edit: the draft bounds a header-mirrored integer "for integers represented
+using IEEE754 double-precision floating point numbers" where the released transport
+page says "for JavaScript". The interval is the same, so the `2026-07-28` verdict is
+the same. When the draft ships as a dated revision, its registry starts from that
+record rather than from scratch.
+
 Full detail is in [the corpus chapter](corpus.md), the
 [ecosystem register](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/01-ecosystem-context.md)
 and the
