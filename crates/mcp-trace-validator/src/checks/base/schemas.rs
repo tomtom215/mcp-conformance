@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! `BASE-017` (`2025-11-25`) and `BASE-073` (`2026-07-28`): "Schemas MUST be
-//! valid according to their declared or default dialect".
+//! The schemas a session carries: `BASE-017` (`2025-11-25`) and `BASE-073`
+//! (`2026-07-28`), "Schemas MUST be valid according to their declared or
+//! default dialect", and `BASE-086`/`BASE-088`, the recommendation to use JSON
+//! Schema 2020-12.
 
 use mcp_conformance_core::trace::Direction;
 use serde_json::Value;
@@ -86,6 +88,56 @@ pub(in crate::checks) fn schemas_valid_for_dialect(
             );
         }
     }
+}
+
+/// The JSON Schema 2020-12 metaschema URI, as `$schema` names the dialect.
+const DIALECT_2020_12: &str = "https://json-schema.org/draft/2020-12/schema";
+
+/// `BASE-086` (`2025-11-25`) and `BASE-088` (`2026-07-28`): "Implementors are
+/// RECOMMENDED to use JSON Schema 2020-12."
+///
+/// The schema's own `$schema` says which dialect its author used. A schema
+/// without one *is* 2020-12 — the default dialect — so only an explicit
+/// declaration of another dialect deviates: `draft-07` is the specification's
+/// own example of one, and permitted (implementations may support more), which
+/// is why this is the recommendation's check and not the validity check's.
+/// Every schema the session carries is a subject, examined or not by
+/// [`schemas_valid_for_dialect`]: a dialect the engine cannot read is still a
+/// dialect that is not 2020-12.
+pub(in crate::checks) fn schemas_use_2020_12(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    for (event, _, _) in context.messages() {
+        let Some(payload) = event.message_payload() else {
+            continue;
+        };
+        for (what, schema) in schemas(payload) {
+            sink.examined();
+            let Some(declared) = schema.get("$schema") else {
+                continue;
+            };
+            if is_2020_12(declared) {
+                continue;
+            }
+            let sender = match event.direction {
+                Direction::ClientToServer => "client",
+                Direction::ServerToClient => "server",
+            };
+            sink.push(
+                Some(event.seq),
+                format!(
+                    "the {sender} sent {what} declaring `$schema` {declared}; JSON Schema \
+                     2020-12 ({DIALECT_2020_12}) is the recommended dialect"
+                ),
+            );
+        }
+    }
+}
+
+/// Whether a `$schema` value names 2020-12: its URI, with or without the empty
+/// fragment some authors append.
+fn is_2020_12(declared: &Value) -> bool {
+    declared
+        .as_str()
+        .is_some_and(|uri| uri.strip_suffix('#').unwrap_or(uri) == DIALECT_2020_12)
 }
 
 #[cfg(test)]

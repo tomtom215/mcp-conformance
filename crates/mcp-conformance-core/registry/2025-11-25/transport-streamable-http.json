@@ -352,6 +352,45 @@
       "checks": [
         "transport.client-messages-use-post"
       ]
+    },
+    {
+      "id": "TRAN-138",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports#sending-messages-to-the-server",
+        "quote": "The client SHOULD then \"poll\" the SSE stream by attempting to reconnect."
+      },
+      "exclusion": "The obligation arises when the server closes the connection without terminating the SSE stream, and that is connection- and SSE-frame-level conduct the capture consumes (TRAN-032's reason), so no trace shows when it arose. A later reconnecting `GET` is equally consistent with any other reason to open one, as for TRAN-046."
+    },
+    {
+      "id": "TRAN-139",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports#listening-for-messages-from-the-server",
+        "quote": "If the server closes the connection without terminating the stream, it SHOULD follow the same polling behavior as described for POST requests: sending a `retry` field and allowing the client to reconnect."
+      },
+      "exclusion": "SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace. TRAN-032 is the same rule for streams a POST opened."
+    },
+    {
+      "id": "TRAN-140",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports#custom-transports",
+        "quote": "Custom transports SHOULD document their specific connection establishment and message exchange patterns to aid interoperability."
+      },
+      "exclusion": "Binds a transport's documentation, not its messages: the artefact the clause asks for is a document, and no session can be evidence about whether one exists. Custom transports are outside the capture universe besides (TRAN-023)."
     }
   ]
 }

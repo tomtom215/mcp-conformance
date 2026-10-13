@@ -4,7 +4,7 @@
 
 # Requirements — `2025-11-25`
 
-Every normative clause of the `2025-11-25` specification that the validator's registry carries — 142 in all, 57 judged from a recorded trace and 85 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
+Every normative clause of the `2025-11-25` specification that the validator's registry carries — 153 in all, 58 judged from a recorded trace and 95 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -258,6 +258,36 @@ Judged by `base.meta-key-format`.
 
 **Excluded.** Restates BASE-013's dialect floor and BASE-016's documentation SHOULD as the section's third numbered rule, unconditionally where BASE-013 scopes itself to schemas without an explicit `$schema` (the same restatement shape as TRAN-049 to TRAN-024). Excluded for BASE-013's reason: dialect support is validation behavior inside each implementation, and a trace shows the schemas exchanged, not how the receiver processed them.
 
+### BASE-085
+
+**SHOULD NOT** · binds the client and server
+
+> Implementations using an HTTP-based transport SHOULD conform to this specification, whereas implementations using STDIO transport SHOULD NOT follow this specification, and instead retrieve credentials from the environment.
+
+[`basic#auth`](https://modelcontextprotocol.io/specification/2025-11-25/basic#auth)
+
+**Excluded.** Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, which `sources.json` records as out of scope and TRAN-009 records as the boundary. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28.
+
+### BASE-086
+
+**SHOULD** · binds the client and server
+
+> Implementors are RECOMMENDED to use JSON Schema 2020-12.
+
+[`basic#schema-dialect`](https://modelcontextprotocol.io/specification/2025-11-25/basic#schema-dialect)
+
+Judged by `base.schemas-use-2020-12`.
+
+### BASE-087
+
+**SHOULD** · binds the client
+
+> `image/png` - PNG images (safe, universal compatibility) `image/jpeg` (and `image/jpg`) - JPEG images (safe, universal compatibility) Clients that support rendering icons SHOULD also support:
+
+[`basic#icons`](https://modelcontextprotocol.io/specification/2025-11-25/basic#icons)
+
+**Excluded.** Extends BASE-022's client-internal rendering-support premise: neither the support nor its absence reaches the wire, and the premise itself (that the client renders icons) is equally invisible.
+
 ## LIFE
 
 ### LIFE-001
@@ -439,6 +469,26 @@ Judged by `lifecycle.initialize-result-shape`.
 [`basic/lifecycle#version-negotiation`](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation)
 
 Judged by `transport.protocol-version-header`.
+
+### LIFE-019
+
+**SHOULD** · binds the client and server
+
+> SDKs and other middleware SHOULD allow these timeouts to be configured on a per-request basis.
+
+[`basic/lifecycle#timeouts`](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#timeouts)
+
+**Excluded.** Binds an SDK's programming interface — what its callers can configure — which has no protocol representation at all.
+
+### LIFE-020
+
+**SHOULD** · binds the client and server
+
+> Implementations SHOULD be prepared to handle these error cases: Protocol version mismatch; Failure to negotiate required capabilities; Request timeouts
+
+[`basic/lifecycle#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#error-handling)
+
+**Excluded.** Preparedness is a property of the implementation, not of any session it took part in: a trace that happens to contain a version mismatch shows one case handled, and a trace without one evidences nothing. Where the handling has a wire form it is judged under the clause that states it, such as the version negotiation rules.
 
 ## TRAN
 
@@ -932,6 +982,36 @@ Judged by `transport.get-content-type`.
 
 Judged by `transport.client-messages-use-post`.
 
+### TRAN-138
+
+**SHOULD** · binds the client
+
+> The client SHOULD then "poll" the SSE stream by attempting to reconnect.
+
+[`basic/transports#sending-messages-to-the-server`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#sending-messages-to-the-server)
+
+**Excluded.** The obligation arises when the server closes the connection without terminating the SSE stream, and that is connection- and SSE-frame-level conduct the capture consumes (TRAN-032's reason), so no trace shows when it arose. A later reconnecting `GET` is equally consistent with any other reason to open one, as for TRAN-046.
+
+### TRAN-139
+
+**SHOULD** · binds the server
+
+> If the server closes the connection without terminating the stream, it SHOULD follow the same polling behavior as described for POST requests: sending a `retry` field and allowing the client to reconnect.
+
+[`basic/transports#listening-for-messages-from-the-server`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#listening-for-messages-from-the-server)
+
+**Excluded.** SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace. TRAN-032 is the same rule for streams a POST opened.
+
+### TRAN-140
+
+**SHOULD** · binds the client and server
+
+> Custom transports SHOULD document their specific connection establishment and message exchange patterns to aid interoperability.
+
+[`basic/transports#custom-transports`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#custom-transports)
+
+**Excluded.** Binds a transport's documentation, not its messages: the artefact the clause asks for is a document, and no session can be evidence about whether one exists. Custom transports are outside the capture universe besides (TRAN-023).
+
 ## TOOL
 
 ### TOOL-001
@@ -1083,6 +1163,36 @@ Judged by `tools.output-schema-structured-result`.
 [`server/tools#user-interaction-model`](https://modelcontextprotocol.io/specification/2025-11-25/server/tools#user-interaction-model)
 
 **Excluded.** A host application's approval UX is outside the protocol session; a trace shows invocations that happened, not the approvals that gated them.
+
+### TOOL-047
+
+**SHOULD** · binds the client
+
+> Applications SHOULD: Provide UI that makes clear which tools are being exposed to the AI model; Insert clear visual indicators when tools are invoked; Present confirmation prompts to the user for operations, to ensure a human is in the loop
+
+[`server/tools#user-interaction-model`](https://modelcontextprotocol.io/specification/2025-11-25/server/tools#user-interaction-model)
+
+**Excluded.** Binds the application's user interface — what it shows, when it asks, whether a person is there. None of it is a message, and MCP deliberately does not mandate an interaction model.
+
+### TOOL-048
+
+**SHOULD** · binds the client
+
+> Clients SHOULD provide tool execution errors to language models to enable self-correction.
+
+[`server/tools#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/server/tools#error-handling)
+
+**Excluded.** Binds what the client hands to a language model, which is downstream of the session entirely.
+
+### TOOL-049
+
+**SHOULD** · binds the client
+
+> Clients SHOULD: Prompt for user confirmation on sensitive operations; Show tool inputs to the user before calling the server, to avoid malicious or accidental data exfiltration; Validate tool results before passing to LLM; Implement timeouts for tool calls; Log tool usage for audit purposes
+
+[`server/tools#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/server/tools#security-considerations)
+
+**Excluded.** Five client-side practices — confirmation prompts, showing inputs, validating results, timeouts, audit logs. Each happens inside the client or in its UI; none is a message.
 
 ## RES
 

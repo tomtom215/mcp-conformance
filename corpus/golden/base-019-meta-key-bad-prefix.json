@@ -5,10 +5,10 @@
     "pass": 17,
     "fail": 2,
     "warn": 0,
-    "excluded": 85,
+    "excluded": 95,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 24
+    "not_observed": 25
   },
   "requirements": [
     {
@@ -99,6 +99,11 @@
         "quote": "Unless empty, MUST begin and end with an alphanumeric character (`[a-z0-9A-Z]`); MAY contain hyphens (`-`), underscores (`_`), dots (`.`), and alphanumerics in between",
         "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#_meta"
       }
+    },
+    {
+      "id": "BASE-086",
+      "level": "SHOULD",
+      "outcome": "not-observed"
     },
     {
       "id": "LIFE-001",

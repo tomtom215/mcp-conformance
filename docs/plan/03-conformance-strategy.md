@@ -45,15 +45,26 @@ instances are normative):
 
 1. **Every MUST / MUST NOT** on an in-scope page enters — with checks when a recorded
    trace can judge it, with a documented exclusion naming where it *is* enforced when
-   it cannot. No exceptions: that is the SEP-2484 floor. Gated since 2026-08-20 by the
-   `must_census` in each revision's `sources.json`: `cargo xtask spec-drift` recounts
-   every page's MUST-family keyword instances against the published text, so a clause
-   the registry never had can no longer arrive unnoticed. Before that gate existed the
-   rule was hand-verified, and two clauses had been missed — BASE-082 and LIFE-018,
-   both restating an obligation the registry already held under another page's id.
-2. **SHOULD / SHOULD NOT / MAY** enter when the clause constrains observable wire
-   behavior (messages, headers, capability declarations). Guidance about UI, internal
-   policy, or model interaction stays out of the registry.
+   it cannot. No exceptions: that is the SEP-2484 floor. MUST-family means every
+   RFC 2119 spelling of it — MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT — including
+   keywords in table rows. Gated since 2026-08-20 by the `must_census` in each
+   revision's `sources.json`: `cargo xtask spec-drift` recounts every page's
+   MUST-family keyword instances against the published text, so a clause the registry
+   never had can no longer arrive unnoticed. Before that gate existed the rule was
+   hand-verified, and two clauses had been missed — BASE-082 and LIFE-018, both
+   restating an obligation the registry already held under another page's id. Since
+   2026-10-13 the gate also requires every instance to sit inside the quote of an
+   entry citing its page: a count matched while `REQUIRED` went uncounted and
+   unentered (TRAN-141).
+2. **SHOULD / SHOULD NOT / RECOMMENDED / NOT RECOMMENDED** enter too, every instance:
+   judged when the clause constrains observable wire behavior (messages, headers,
+   capability declarations), and otherwise entered with an exclusion saying why —
+   guidance about UI, internal policy, or model interaction is recorded as decided
+   rather than left unread. Gated the same way since 2026-10-13 (`should_census`, and
+   the same every-instance-entered rule). **MAY / OPTIONAL** grant latitude, so a
+   trace has nothing in them to violate: they are counted (`may_census`, so an edit
+   still asks for a re-read) but enter only where a clause pairs the permission with
+   something checkable.
 3. Constraints stated only in schema field documentation without RFC 2119 keywords
    (e.g. completion's 100-value cap) are not registry entries; the agreement check
    (M2) covers any divergence that matters in practice.

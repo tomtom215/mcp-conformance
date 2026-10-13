@@ -3,12 +3,12 @@
   "verdict": "fail",
   "totals": {
     "pass": 30,
-    "fail": 1,
+    "fail": 2,
     "warn": 0,
-    "excluded": 165,
+    "excluded": 167,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 114
+    "not_observed": 115
   },
   "requirements": [
     {
@@ -89,6 +89,11 @@
     {
       "id": "BASE-073",
       "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-088",
+      "level": "SHOULD",
       "outcome": "not-observed"
     },
     {
@@ -292,6 +297,28 @@
       "id": "TRAN-137",
       "level": "MUST",
       "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-141",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.request-metadata-headers",
+          "seq": 0,
+          "detail": "POST for `tools/call` lacks the required `Mcp-Method` header"
+        },
+        {
+          "check": "transport.request-metadata-headers",
+          "seq": 0,
+          "detail": "POST for `tools/call` lacks the required `Mcp-Name` header"
+        }
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#standard-request-headers",
+        "quote": "These headers are REQUIRED for compliance.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#standard-request-headers"
+      }
     },
     {
       "id": "TRAN-096",

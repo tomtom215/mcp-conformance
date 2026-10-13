@@ -61,6 +61,7 @@ const SHIPPED: &[Check] = &[
         "base.schemas-valid-for-dialect",
         base::schemas_valid_for_dialect
     ),
+    check!("base.schemas-use-2020-12", base::schemas_use_2020_12),
     check!(
         "lifecycle.initialize-protocol-version",
         lifecycle::initialize_protocol_version

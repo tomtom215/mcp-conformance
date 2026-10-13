@@ -209,6 +209,19 @@
         "quote": "The fallback MUST NOT be keyed to one specific error code: legacy servers respond to unknown pre-`initialize` requests with implementation-defined errors (commonly `-32601` or `-32602`) or not at all."
       },
       "exclusion": "Binds the client's decision function, not any message it sends. A session exhibits one probe answered by one error code and one decision taken; whether the client would have fallen back on a *different* code is a property of code paths that session never exercised, and no number of traces settles it."
+    },
+    {
+      "id": "TRAN-142",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/stdio#backward-compatibility",
+        "quote": "A client that only supports modern versions does not need to probe, but probing is still RECOMMENDED: some legacy servers do not validate that a request arrives after `initialize` and would process an era-ambiguous method (such as `tools/call`) under legacy semantics."
+      },
+      "exclusion": "Asks a modern-only client to open with a `server/discover` probe, and a recording can show neither half. Not the antecedent: a modern-only client and a dual-era client whose server never forced a fallback send the same messages. Not the order: a modern stdio session has no handshake marking where it began, so a recording that opens on `tools/call` is equally one that started after the probe. The dual-era statement, TRAN-128, is judged by `discover.dual-era-probe-first`, which reports only where a session witnesses both eras; this clause offers no such witness."
     }
   ]
 }

@@ -4,7 +4,7 @@
 
 # Requirements — `2026-07-28`
 
-Every normative clause of the `2026-07-28` specification that the validator's registry carries — 310 in all, 145 judged from a recorded trace and 165 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
+Every normative clause of the `2026-07-28` specification that the validator's registry carries — 314 in all, 147 judged from a recorded trace and 167 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -387,6 +387,16 @@ Judged by `base.schemas-valid-for-dialect`.
 [`basic/index#composition-keyword-resource-use`](https://modelcontextprotocol.io/specification/2026-07-28/basic#composition-keyword-resource-use)
 
 **Excluded.** Depth caps, subschema counts and time budgets are validator-internal resource policy, invisible in the messages exchanged.
+
+### BASE-088
+
+**SHOULD** · binds the client and server
+
+> Implementors are RECOMMENDED to use JSON Schema 2020-12.
+
+[`basic/index#schema-dialect`](https://modelcontextprotocol.io/specification/2026-07-28/basic#schema-dialect)
+
+Judged by `base.schemas-use-2020-12`.
 
 ### BASE-025
 
@@ -1060,6 +1070,16 @@ Judged by `transport.sentinel-pattern-encoded`.
 
 Judged by `transport.x-mcp-header-statically-reachable`.
 
+### TRAN-141
+
+**MUST** · binds the client
+
+> These headers are REQUIRED for compliance.
+
+[`basic/transports/streamable-http#standard-request-headers`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#standard-request-headers)
+
+Judged by `transport.request-metadata-headers`.
+
 ### TRAN-095
 
 **MUST** · binds the server
@@ -1404,6 +1424,16 @@ Judged by `versioning.extension-identifier-format`.
 
 Judged by `versioning.initialize-error-names-versions`.
 
+### VERS-009
+
+**SHOULD** · binds the client
+
+> Modern | Legacy | Fails. The server may reject the request with an implementation-defined error, stay silent, or even process an era-ambiguous method under legacy semantics. On stdio, clients SHOULD send `server/discover` first to fail deterministically; the client then surfaces an actionable error to the user.
+
+[`basic/versioning#compatibility-matrix`](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#compatibility-matrix)
+
+**Excluded.** The compatibility matrix's modern-client, legacy-server row. Its antecedent is the server being legacy, which is exactly what an unprobed exchange fails to reveal — the row itself says such a server may reject the request, stay silent, or process it under legacy semantics — and, as for TRAN-142, a recording cannot show that its first request was the client's first. The dual-era form of the same advice is TRAN-128, judged where a session witnesses both eras.
+
 ## TRAN
 
 ### TRAN-110
@@ -1605,6 +1635,16 @@ Judged by `discover.dual-era-probe-first`.
 [`basic/transports/stdio#backward-compatibility`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility)
 
 **Excluded.** Binds the client's decision function, not any message it sends. A session exhibits one probe answered by one error code and one decision taken; whether the client would have fallen back on a *different* code is a property of code paths that session never exercised, and no number of traces settles it.
+
+### TRAN-142
+
+**SHOULD** · binds the client
+
+> A client that only supports modern versions does not need to probe, but probing is still RECOMMENDED: some legacy servers do not validate that a request arrives after `initialize` and would process an era-ambiguous method (such as `tools/call`) under legacy semantics.
+
+[`basic/transports/stdio#backward-compatibility`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility)
+
+**Excluded.** Asks a modern-only client to open with a `server/discover` probe, and a recording can show neither half. Not the antecedent: a modern-only client and a dual-era client whose server never forced a fallback send the same messages. Not the order: a modern stdio session has no handshake marking where it began, so a recording that opens on `tools/call` is equally one that started after the probe. The dual-era statement, TRAN-128, is judged by `discover.dual-era-probe-first`, which reports only where a session witnesses both eras; this clause offers no such witness.
 
 ## MRTR
 

@@ -2,10 +2,10 @@
   "revision": "2025-11-25",
   "verdict": "pass",
   "totals": {
-    "pass": 41,
+    "pass": 42,
     "fail": 0,
     "warn": 0,
-    "excluded": 85,
+    "excluded": 95,
     "unsupported": 0,
     "not_applicable": 0,
     "not_observed": 16
@@ -74,6 +74,11 @@
     {
       "id": "BASE-020",
       "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-086",
+      "level": "SHOULD",
       "outcome": "pass"
     },
     {

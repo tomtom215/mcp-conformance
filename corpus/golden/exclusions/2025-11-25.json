@@ -62,6 +62,16 @@
       "exclusion": "Restates BASE-013's dialect floor and BASE-016's documentation SHOULD as the section's third numbered rule, unconditionally where BASE-013 scopes itself to schemas without an explicit `$schema` (the same restatement shape as TRAN-049 to TRAN-024). Excluded for BASE-013's reason: dialect support is validation behavior inside each implementation, and a trace shows the schemas exchanged, not how the receiver processed them."
     },
     {
+      "id": "BASE-085",
+      "level": "SHOULD NOT",
+      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, which `sources.json` records as out of scope and TRAN-009 records as the boundary. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28."
+    },
+    {
+      "id": "BASE-087",
+      "level": "SHOULD",
+      "exclusion": "Extends BASE-022's client-internal rendering-support premise: neither the support nor its absence reaches the wire, and the premise itself (that the client renders icons) is equally invisible."
+    },
+    {
       "id": "LIFE-008",
       "level": "MUST",
       "exclusion": "After negotiation, neither stdio nor HTTP message payloads carry a per-message protocol version, so respect is not observable in message traffic. The one wire artifact — the HTTP `MCP-Protocol-Version` header — is judged under TRAN-017 and TRAN-018."
@@ -100,6 +110,16 @@
       "id": "LIFE-017",
       "level": "SHOULD",
       "exclusion": "Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged."
+    },
+    {
+      "id": "LIFE-019",
+      "level": "SHOULD",
+      "exclusion": "Binds an SDK's programming interface — what its callers can configure — which has no protocol representation at all."
+    },
+    {
+      "id": "LIFE-020",
+      "level": "SHOULD",
+      "exclusion": "Preparedness is a property of the implementation, not of any session it took part in: a trace that happens to contain a version mismatch shows one case handled, and a trace without one evidences nothing. Where the handling has a wire form it is judged under the clause that states it, such as the version negotiation rules."
     },
     {
       "id": "TRAN-001",
@@ -282,6 +302,21 @@
       "exclusion": "Conditional on client intent (no longer needing the session). A teardown DELETE is recorded when it happens — `corpus/good/http-session.jsonl` carries one — but a session that ends without one may simply not have finished with it, so absence is not a violation."
     },
     {
+      "id": "TRAN-138",
+      "level": "SHOULD",
+      "exclusion": "The obligation arises when the server closes the connection without terminating the SSE stream, and that is connection- and SSE-frame-level conduct the capture consumes (TRAN-032's reason), so no trace shows when it arose. A later reconnecting `GET` is equally consistent with any other reason to open one, as for TRAN-046."
+    },
+    {
+      "id": "TRAN-139",
+      "level": "SHOULD",
+      "exclusion": "SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace. TRAN-032 is the same rule for streams a POST opened."
+    },
+    {
+      "id": "TRAN-140",
+      "level": "SHOULD",
+      "exclusion": "Binds a transport's documentation, not its messages: the artefact the clause asks for is a document, and no session can be evidence about whether one exists. Custom transports are outside the capture universe besides (TRAN-023)."
+    },
+    {
       "id": "TOOL-002",
       "level": "SHOULD",
       "exclusion": "The trigger condition — the tool list actually changing — is server-internal state a recorded trace cannot evidence, so absence of the notification is never proof of violation."
@@ -310,6 +345,21 @@
       "id": "TOOL-015",
       "level": "SHOULD",
       "exclusion": "A host application's approval UX is outside the protocol session; a trace shows invocations that happened, not the approvals that gated them."
+    },
+    {
+      "id": "TOOL-047",
+      "level": "SHOULD",
+      "exclusion": "Binds the application's user interface — what it shows, when it asks, whether a person is there. None of it is a message, and MCP deliberately does not mandate an interaction model."
+    },
+    {
+      "id": "TOOL-048",
+      "level": "SHOULD",
+      "exclusion": "Binds what the client hands to a language model, which is downstream of the session entirely."
+    },
+    {
+      "id": "TOOL-049",
+      "level": "SHOULD",
+      "exclusion": "Five client-side practices — confirmation prompts, showing inputs, validating results, timeouts, audit logs. Each happens inside the client or in its UI; none is a message."
     },
     {
       "id": "RES-002",
