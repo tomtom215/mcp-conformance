@@ -151,7 +151,7 @@ MCP trace validation — revision 2026-07-28 (declared by the trace)
         seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
         spec: "Note that the JSON-RPC `id` MUST be different between the initial request and the retry."
         see:  https://modelcontextprotocol.io/specification/2026-07-28/server/tools#input-required-tool-results
-totals: 42 pass, 2 fail, 0 warn, 160 excluded, 0 unsupported, 0 not applicable, 110 not observed
+totals: 46 pass, 2 fail, 0 warn, 218 excluded, 0 unsupported, 0 not applicable, 126 not observed
 wire schema: pass (3 messages valid)
 verdict: fail
 ```
@@ -318,7 +318,7 @@ event:
         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
-totals: 17 pass, 1 fail, 0 warn, 94 excluded, 0 unsupported, 6 not applicable, 35 not observed
+totals: 17 pass, 1 fail, 0 warn, 152 excluded, 0 unsupported, 6 not applicable, 60 not observed
 wire schema: pass (4 messages valid)
 verdict: fail
 ```
