@@ -25,6 +25,7 @@ below is stated again in its entry, with the reasoning.
 | `validate` flags | `--max-events 0` and `--max-line-bytes 0` exit `2` (bad invocation), not `3` | Pass a limit of at least 1 |
 | `validate` human output | At most 20 findings under a clause, then a count of the rest | `--all`, or a machine format, for every finding |
 | Rust API | `context::draft` removed (deprecated in 0.6.0) | `context::stateless` holds the same items |
+| Rust API, `mcp-trace-capture` | `traces::Traces::respond` takes a third argument, `succeeded`; `http::Options` is no longer `UnwindSafe` or `RefUnwindSafe` | Pass whether the response was a 2xx; wrap `Options` in `AssertUnwindSafe` to move it into `catch_unwind` |
 | `2026-07-28` verdict, new rows | `CANC-003`/`CANC-011`: a server `notifications/cancelled` naming anything but a `subscriptions/listen` request fails | Servers end only subscriptions this way |
 | `2026-07-28` verdict, new rows | `PROG-001`/`002`/`003`, and on stdio `PROG-005`/`008`: a progress token that is not a string or integer, one shared by two unanswered requests, a `progress` value that does not increase, progress after the answer | Fix the sender |
 | `2026-07-28` verdict, new rows | Over Streamable HTTP, `TRAN-132`–`TRAN-136`: an `Mcp-Param-*` header for a `null` or absent parameter, a `HeaderMismatch` for a POST that omitted one correctly, a result for a POST missing the header its body requires | Clients omit the header when there is no value; servers reject a missing header and accept an omitted one |
