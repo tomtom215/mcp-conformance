@@ -8,6 +8,8 @@
 # Using the toolkit
 
 - [Getting started](getting-started.md)
+- [Capturing from your client](clients.md)
+- [Reading a report](reading-a-report.md)
 - [Using it in CI](ci.md)
 - [Troubleshooting](troubleshooting.md)
 

@@ -60,8 +60,16 @@ numbered trace each run — the usual choice in a client's configuration, which
 relaunches servers — or use `--force` to overwrite.
 
 **The server works directly but not through the HTTP proxy, with `403`.** The server
-checks the `Host` header, which the proxy rewrites to name the upstream. Add
-`--preserve-host`.
+checks the `Host` header against the names it accepts, and the proxy sends it the
+`--upstream` URL's own name. Name the upstream the way the server expects to be
+called: if it accepts `localhost`, use `--upstream http://localhost:3000`, not
+`http://127.0.0.1:3000`. `--preserve-host` passes the client's `Host` through
+instead, which helps only when the client reaches the proxy under a name the server
+accepts — a client at `http://localhost:8080/mcp` in front of a server that allows
+`localhost` — and is wrong in front of a virtually hosted remote server, which needs
+its own name. [`mcp-trace-capture`'s README](https://github.com/tomtom215/mcp-conformance/blob/main/crates/mcp-trace-capture/README.md#host-and-dns-rebinding)
+explains the trade-off, including what the default rewrite does to a server's
+DNS-rebinding check.
 
 **`TRAN-004` (or `TRAN-117`) fails on a line like `"Server starting..."`.** The server
 writes something other than protocol messages to stdout — log lines, a banner. The

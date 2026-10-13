@@ -586,17 +586,31 @@ jobs:
           traces: corpus/violations/base-003-request-id-reuse.jsonl
           sarif-file: fail.sarif
           junit-file: fail.xml
+      # A pattern matching nothing must still leave valid reports behind, or
+      # the `if: always()` upload step after it fails on a missing file.
+      - name: A pattern matching no trace
+        id: none
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          traces: corpus/no-such-directory/*.jsonl
+          sarif-file: none.sarif
+          junit-file: none.xml
+          fail-on-findings: "false"
       - name: The action reported what each run decided
         shell: bash
         env:
           PASS_CODE: ${{ steps.pass.outputs.exit-code }}
           FAIL_CODE: ${{ steps.fail.outputs.exit-code }}
           FAIL_OUTCOME: ${{ steps.fail.outcome }}
+          NONE_CODE: ${{ steps.none.outputs.exit-code }}
         run: |
           set -euo pipefail
           [[ "$PASS_CODE" == 0 ]] || { echo "::error::passing traces exited ${PASS_CODE}"; exit 1; }
           [[ "$FAIL_CODE" == 1 ]] || { echo "::error::violating trace exited ${FAIL_CODE}, expected 1"; exit 1; }
           [[ "$FAIL_OUTCOME" == failure ]] || { echo "::error::the failing run's step did not fail"; exit 1; }
+          [[ "$NONE_CODE" == 2 ]] || { echo "::error::an unmatched pattern exited ${NONE_CODE}, expected 2"; exit 1; }
+          jq -e '.runs[0].invocations[0].executionSuccessful == false' none.sarif
+          grep -q '<error message="no trace matches' none.xml
           jq -e '.runs[0].results | length == 0' pass.sarif
           jq -e '.runs[0].results[0].ruleId == "BASE-003"' fail.sarif
           grep -q '<failure' fail.xml

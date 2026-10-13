@@ -116,7 +116,7 @@ pub(crate) fn run(args: &Args) -> u8 {
                 return EXIT_USAGE;
             }
         },
-        Format::Human if args.ids.is_empty() => emit(&list(&selected)),
+        Format::Human if args.ids.is_empty() => emit(&list(&selected, args.excluded)),
         Format::Human => emit(&details(&selected)),
     };
     if written { EXIT_OK } else { EXIT_USAGE }
@@ -184,8 +184,10 @@ fn select<'a>(registry: &'a Registry, args: &Args) -> Result<Selected<'a>, Strin
     })
 }
 
-/// One line per requirement, as `requirements` has always printed them.
-fn list(selected: &Selected<'_>) -> String {
+/// One line per requirement, as `requirements` has always printed them —
+/// and, with `reasons` (`--excluded`, which promises "with why"), each
+/// exclusion's reason on the line after it.
+fn list(selected: &Selected<'_>, reasons: bool) -> String {
     let mut out = format!("requirement registry — revision {}\n", selected.revision);
     for requirement in &selected.requirements {
         let verification = match &requirement.verification {
@@ -202,6 +204,9 @@ fn list(selected: &Selected<'_>) -> String {
             verification,
             requirement.source.quote
         );
+        if reasons && let Verification::Excluded { exclusion } = &requirement.verification {
+            let _ = writeln!(out, "      why: {exclusion}");
+        }
     }
     out
 }

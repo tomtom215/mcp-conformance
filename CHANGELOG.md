@@ -51,6 +51,15 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **The GitHub Action writes its reports when the validator cannot start.** A
+  `traces` pattern matching nothing exited before any report was written, and a
+  lone unreadable or malformed trace left both files empty, so the
+  `upload-sarif` step the README pairs with it (`if: always()`) failed on a
+  missing or empty file and hid the real error. Each configured report is now a
+  SARIF run marked `executionSuccessful: false`, or a JUnit `<error>`, naming
+  the problem; the `exit-code` output is unchanged. `action.yml` now says that
+  exit `2` also covers output not written, and that `fail-on-findings: false`
+  stops exit `2` and `3` from failing the step too.
 - **`SUBS-001`/`SUBS-002` told a reused subscription id from the subscription
   that first carried it.** Both checks keyed subscriptions by id alone, so a
   `subscriptions/listen` reusing the id of a closed subscription replaced it:
@@ -211,6 +220,10 @@ below is stated again in its entry, with the reasoning.
   rather than failing every trace as malformed.
 - **`requirements --help` offers only `human` and `json`**: it listed `junit` and
   `sarif`, then rejected them.
+- **`requirements --excluded` prints why.** Its help promised the requirements
+  "with why", but the human listing showed only `(excluded)`; each row is now
+  followed by a `why:` line with the registry's reason. The JSON form, which
+  always carried `exclusion`, and the listing without `--excluded` are unchanged.
 - **Library text no longer names CLI flags.** `Report::render_human` told library
   callers to "re-run with `--revision …`"; it now words the advice without a flag,
   and the CLI asks for its own wording (`HumanOptions::cli`).
@@ -397,6 +410,9 @@ below is stated again in its entry, with the reasoning.
 - **Table-row quotes have a documented form.** `SourceRef::quote` now states how a
   clause that only reads as one with its table row is quoted: the row from its first
   cell to the clause's cell, cells joined with ` | `.
+- **The validator's note about a trace holding several sessions names the fix**:
+  `{session}` in `mcp-trace-capture`'s `-o`, which writes a numbered trace per
+  session, before the old advice to record one client per run.
 
 ### Dependencies
 
@@ -408,7 +424,11 @@ below is stated again in its entry, with the reasoning.
 - **Lockfile refresh within the declared ranges:** `schemars` 1.2.3 and `syn`
   3.0.9.
 
-## [0.6.0] - 2026-10-04
+## [0.6.0] - 2026-10-06
+
+*Erratum (2026-10-13): this heading read 2026-10-04, the day the release commit
+was prepared. The `v0.6.0` tag was pushed on 2026-10-05, and the GitHub release and
+the crates.io versions were published on 2026-10-06, the date given now.*
 
 **This is a minor release with breaking behaviour changes and one Rust API
 break, in `mcp-reference-host`'s run types**, which pre-1.0 SemVer permits and

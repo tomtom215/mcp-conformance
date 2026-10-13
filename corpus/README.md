@@ -9,7 +9,7 @@ Fixtures for the golden-corpus tests (`crates/mcp-trace-validator/tests/golden.r
 - **`violations/`** — single-issue sessions, each falsifying at least one check;
   named after the requirement whose check they exist to kill.
 - **`draft/{good,violations}/`** — the same two kinds for revision `2026-07-28`,
-  judged against that revision's registry behind the `draft-2026-07-28` feature.
+  judged against that revision's registry.
 - **`draft/captured/`** — sessions recorded off the wire from implementations
   this repository did not write. No verdict is asserted for them; their whole
   report is byte-pinned instead. See *Captured versus authored* below.
@@ -19,15 +19,17 @@ Fixtures for the golden-corpus tests (`crates/mcp-trace-validator/tests/golden.r
 - **`golden/exclusions/`** — one ledger per revision, holding the clauses that
   revision's registry declines to judge from a trace, and why.
 
-The revisions keep separate golden directories because both name traces after
-requirement IDs drawn from their *own* registry: `base-045-…` is one clause at
-`2025-11-25` and a different one at `2026-07-28`, so a shared directory would
-let one revision's golden answer for the other's trace.
+The revisions keep separate golden directories so that where a golden lives
+says which revision's registry produced it. Trace names would not collide
+without the split: a requirement ID names one clause in one revision and is
+never reused ([STABILITY.md](https://github.com/tomtom215/mcp-conformance/blob/main/STABILITY.md)), so `base-045-…` can only
+be a `2026-07-28` trace — `BASE-045` is not a `2025-11-25` requirement. A
+sentence both revisions carry has an ID in each.
 
 ## What a golden pins
 
 A report states two kinds of fact, and they are pinned separately
-([ADR-0013](../docs/plan/decisions/0013-golden-report-format.md)).
+([ADR-0013](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0013-golden-report-format.md)).
 
 `golden/<stem>.json` holds what the **trace** decided: the revision, the whole
 `totals`, and every `pass` / `fail` / `warn` / `not-observed` /
@@ -363,7 +365,7 @@ server's own `ttlMs`, so a second listing never reaches the wire).
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | The server's tap, during `cargo xtask draft-capture`, 2026-08-18 |
 | Contents | A `_meta` envelope missing a required field; an unimplemented protocol version and the retry after it; a header/body version mismatch; an unknown method; a log level outside RFC 5424's eight; a fabricated cursor; a tool needing a capability the request never declared; and the removed `initialize` handshake |
-| Our verdict | Judged against [`conformance/probe-baseline.json`](../conformance/probe-baseline.json), not for cleanliness |
+| Our verdict | Judged against [`conformance/probe-baseline.json`](https://github.com/tomtom215/mcp-conformance/blob/main/conformance/probe-baseline.json), not for cleanliness |
 
 **A conforming client cannot exercise a rejection rule.** The clauses of
 this revision that say what a server owes a request it must *not* serve all
@@ -483,11 +485,13 @@ judge about a session that had carried dozens of them.
 
 ### `2026-07-28` authored (`corpus/draft/`)
 
-Fixtures for the in-progress revision, judged by the `2026-07-28` registry
-behind the `draft-2026-07-28` feature. Hand-authored rather than captured: no
-SDK yet serves the stateless surface end to end, so these are minimal traces
-written to exercise one clause each, which is also what keeps a violation
-attributable to the check it kills.
+Fixtures for revision `2026-07-28`, judged by its registry. Hand-authored
+rather than captured, so each is a minimal trace written to exercise one
+clause, which is what keeps a violation attributable to the check it kills.
+Recorded `2026-07-28` sessions are in `draft/captured/` (above), and the
+interop job records the official Python SDK's client and server at that
+revision and requires them to judge clean
+([`interop/README.md`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/README.md)).
 
 Where a trace falsifies more than one requirement, the row says so and why.
 There are only three reasons, and none is sloppy authorship: several clauses

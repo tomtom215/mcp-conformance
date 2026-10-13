@@ -11,6 +11,18 @@ conformance suite against it — **40/40 checks** on the `2025-11-25` server
 scenarios at the pinned suite 0.1.16 — and compares the suite's verdicts with the
 validator's. It is also a known-good peer for testing an MCP **client**.
 
+> **This README is `main`'s.** `cargo install` gets the latest release, `0.6.0`,
+> whose own README is the one on crates.io. Documentation for the release is at
+> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
+>
+> **Not yet released** (on `main` since `0.6.0`):
+>
+> - `--revision` (an alias of `--protocol-version`) and `--listen` (an alias of
+>   `--bind`), which the examples below use;
+> - the endpoint URL the HTTP server prints after its readiness line.
+>
+> With `0.6.0`, spell them `--protocol-version` and `--bind`.
+
 ## Quick start
 
 ```text
@@ -82,7 +94,10 @@ is almost certainly the client's.
   via `--allowed-host` / `--dangerously-allow-any-host`;
   `--revision`/`--protocol-version` for the revision).
 - A session trace tap (feature `tap`, `--tap-dir`): records each admitted HTTP
-  exchange as a validator-ready JSON Lines trace, session or not. Only the
+  exchange as a validator-ready JSON Lines trace, session or not. The feature is
+  off by default, so a plain `cargo install mcp-everything-server` has no
+  `--tap-dir`; install with `cargo install mcp-everything-server --features tap`,
+  or record with `mcp-trace-capture` in front of the server instead. Only the
   headers in the public `RECORDED_HEADERS` allowlist (and the
   `RECORDED_HEADER_PREFIXES` arm, for SEP-2243's tool-designated
   `Mcp-Param-*`) are ever captured — credential-bearing headers never reach a

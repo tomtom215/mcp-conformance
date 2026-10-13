@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! The [`Registry`] container: loading, invariants, and the embedded seed data.
+//! The [`Registry`] container: loading, invariants, and the embedded data.
 //!
 //! The embedded `2025-11-25` registry lives as one JSON document per requirement area
 //! (`registry/2025-11-25/*.json`, each under the file-size cap and reviewable in
@@ -104,7 +104,7 @@ impl core::error::Error for RegistryError {
 }
 
 impl Registry {
-    /// Loads the embedded seed registry for protocol revision `2025-11-25`.
+    /// Loads the embedded registry for protocol revision `2025-11-25`.
     ///
     /// # Errors
     ///

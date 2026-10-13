@@ -147,3 +147,18 @@ fn a_release_book_links_to_its_own_tag() {
     assert!(pinned.contains("other/repo/blob/main/x"), "{pinned}");
     assert!(!pinned.contains("mcp-conformance/tree/main/"), "{pinned}");
 }
+
+#[test]
+fn a_release_book_no_longer_says_it_tracks_main() {
+    // As mdBook 0.5 renders v0.6.0's introduction.
+    let html = "releases, and the changelog says so explicitly when they do. This book tracks\n\
+                <code>main</code>.</p>";
+    let corrected = correct_release_text(html);
+    assert!(!corrected.contains("tracks"), "{corrected}");
+    assert!(
+        corrected.contains("documents the release the version selector names"),
+        "{corrected}"
+    );
+    // Text that does not match is left alone.
+    assert_eq!(correct_release_text("<p>main</p>"), "<p>main</p>");
+}

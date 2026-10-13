@@ -48,6 +48,17 @@ const DEV: &str = "dev";
 /// The repository the book links into, as its pages spell it.
 const REPOSITORY: &str = "github.com/tomtom215/mcp-conformance";
 
+/// Sentences released books say that stopped being true once the site became
+/// versioned, each with what replaces it in their pages. Books through v0.6.0
+/// told their reader "This book tracks `main`", which was true when the site was
+/// `main`'s book alone; a release's book is now that release's, and the tagged
+/// text cannot be changed. Matched as mdBook renders them.
+const RELEASE_CORRECTIONS: &[(&str, &str)] = &[(
+    "This book tracks\n<code>main</code>.",
+    "This book documents the release the version selector names; the unreleased \
+     <code>main</code> branch has its own book at <code>/dev/</code>.",
+)];
+
 /// A release tag with a book: `vMAJOR.MINOR.PATCH`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Release {
@@ -189,7 +200,8 @@ fn versions_json(releases: &[Release]) -> String {
     text
 }
 
-/// Points every HTML page under `dir` at `tag`'s files rather than `main`'s.
+/// Points every HTML page under `dir` at `tag`'s files rather than `main`'s,
+/// and corrects what [`RELEASE_CORRECTIONS`] lists.
 fn pin_pages(dir: &Path, tag: &str) -> io::Result<()> {
     for entry in fs::read_dir(dir)? {
         let path = entry?.path();
@@ -197,7 +209,7 @@ fn pin_pages(dir: &Path, tag: &str) -> io::Result<()> {
             pin_pages(&path, tag)?;
         } else if path.extension().is_some_and(|ext| ext == "html") {
             let html = fs::read_to_string(&path)?;
-            let pinned = pin_links(&html, tag);
+            let pinned = correct_release_text(&pin_links(&html, tag));
             if pinned != html {
                 fs::write(&path, pinned)?;
             }
@@ -219,6 +231,15 @@ fn pin_links(html: &str, tag: &str) -> String {
         );
     }
     pinned
+}
+
+/// `html` with each of [`RELEASE_CORRECTIONS`] applied.
+fn correct_release_text(html: &str) -> String {
+    RELEASE_CORRECTIONS
+        .iter()
+        .fold(html.to_owned(), |text, (stale, current)| {
+            text.replace(stale, current)
+        })
 }
 
 /// Adds the switcher (and, outside the root, `noindex`) to every HTML page
