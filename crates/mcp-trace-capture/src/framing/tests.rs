@@ -247,3 +247,28 @@ fn a_message_is_json_json_the_trace_would_alter_or_not_json() {
     assert_eq!(parse_message(b"not json"), Parsed::NotJson);
     assert_eq!(parse_message(b" "), Parsed::NotJson);
 }
+
+/// What the parser holds is what the proxy's buffer budget pays for; an event
+/// the budget cannot cover is dropped, mid-line or between lines, and the
+/// parser picks up cleanly at the next event.
+#[test]
+fn a_dropped_event_is_skipped_to_its_end_and_the_next_is_kept() {
+    let mut parser = SseParser::new(1024);
+    assert_eq!(parser.push(b"data: {\"a\":"), Vec::<Vec<u8>>::new());
+    assert_eq!(parser.buffered(), 11);
+    parser.drop_event();
+    assert_eq!(parser.buffered(), 0);
+    assert_eq!(
+        parser.push(b"1}\ndata: more\n\ndata: {\"b\":2}\n\n"),
+        [b"{\"b\":2}".to_vec()]
+    );
+    // Dropped between two lines of its data.
+    assert_eq!(parser.push(b"data: x\n"), Vec::<Vec<u8>>::new());
+    assert_eq!(parser.buffered(), 1);
+    parser.drop_event();
+    assert_eq!(
+        parser.push(b"data: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\n\ndata: z\n\n"),
+        [b"z".to_vec()]
+    );
+    assert_eq!((parser.oversized(), parser.other_types()), (0, 0));
+}

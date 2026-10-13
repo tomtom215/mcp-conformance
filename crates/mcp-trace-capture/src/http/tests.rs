@@ -3,12 +3,17 @@
 
 #![allow(clippy::unwrap_used)]
 
-use super::relay::{End, read_prefix};
+use super::body::{End, read_prefix};
 use super::target::{has_dot_segment, is_event_stream, location, target};
 use super::*;
 use axum::body::Bytes;
 use axum::http::uri::PathAndQuery;
 use axum::http::{HeaderMap, header};
+
+/// A buffer budget no test here reaches.
+fn unlimited() -> Arc<tokio::sync::Semaphore> {
+    Arc::new(tokio::sync::Semaphore::new(1 << 30))
+}
 
 /// `read_prefix` over `chunks` with a limit of 1024.
 fn prefix_of(chunks: &[usize]) -> (usize, bool) {
@@ -17,7 +22,7 @@ fn prefix_of(chunks: &[usize]) -> (usize, bool) {
         .map(|&len| Ok(Bytes::from(vec![b'x'; len])))
         .collect();
     let mut stream = futures::stream::iter(chunks);
-    let prefix = futures::executor::block_on(read_prefix(&mut stream, 1024));
+    let prefix = futures::executor::block_on(read_prefix(&mut stream, 1024, &unlimited()));
     (prefix.bytes.len(), matches!(prefix.end, End::Complete))
 }
 
@@ -29,9 +34,10 @@ fn a_body_that_fails_keeps_what_was_read() {
         Ok(Bytes::new()),
     ];
     let mut stream = futures::stream::iter(chunks);
-    let prefix = futures::executor::block_on(read_prefix(&mut stream, 1024));
+    let prefix = futures::executor::block_on(read_prefix(&mut stream, 1024, &unlimited()));
     assert_eq!(prefix.bytes, b"{\"a\":");
     assert!(matches!(prefix.end, End::Failed("cut")));
+    drop(prefix);
 }
 
 #[test]
@@ -215,4 +221,47 @@ fn dot_segments_are_found_however_they_are_spelled() {
     ] {
         assert!(!has_dot_segment(path), "{path}");
     }
+}
+
+/// A body that would take more of the buffer budget than is left stops being
+/// read there — streamed on, not waited for — and what it took is given back
+/// when its prefix is dropped.
+#[test]
+fn a_body_past_the_budget_stops_there_and_gives_the_budget_back() {
+    let budget = Arc::new(tokio::sync::Semaphore::new(1000));
+    let chunks = || {
+        futures::stream::iter(
+            [600, 600, 600]
+                .map(|len| Ok::<_, ()>(Bytes::from(vec![b'x'; len])))
+                .to_vec(),
+        )
+    };
+    let mut first = chunks();
+    let held = futures::executor::block_on(read_prefix(&mut first, 1 << 20, &budget));
+    assert!(matches!(held.end, End::OverBudget));
+    assert_eq!(
+        held.bytes.len(),
+        1200,
+        "the chunk that did not fit is kept, not lost"
+    );
+    assert_eq!(budget.available_permits(), 400);
+    // While the first holds its 600, a second body cannot have 600 more.
+    let mut second = chunks();
+    let refused = futures::executor::block_on(read_prefix(&mut second, 1 << 20, &budget));
+    assert!(matches!(refused.end, End::OverBudget));
+    assert_eq!(refused.bytes.len(), 600);
+    drop((held, refused));
+    assert_eq!(budget.available_permits(), 1000);
+    // With the budget back, a body within it is read whole.
+    let mut third = futures::stream::iter(vec![Ok::<_, ()>(Bytes::from(vec![b'x'; 900]))]);
+    let whole = futures::executor::block_on(read_prefix(&mut third, 1 << 20, &budget));
+    assert!(matches!(whole.end, End::Complete));
+    assert_eq!(whole.held.bytes(), 900);
+    assert_eq!(
+        whole.bytes.capacity(),
+        900,
+        "what is held is what is allocated"
+    );
+    drop(whole);
+    assert_eq!(budget.available_permits(), 1000);
 }

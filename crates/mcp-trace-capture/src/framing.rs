@@ -156,6 +156,11 @@ pub fn parse_message(bytes: &[u8]) -> Parsed {
 /// exceeds `max_event` bytes is dropped and counted ([`SseParser::oversized`])
 /// rather than buffered without bound.
 #[derive(Debug)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent parts of the parse state: where a line ends, whether the \
+              stream has started, the event's type, and whether a line is skipped"
+)]
 pub struct SseParser {
     pending: Vec<u8>,
     event: EventData,
@@ -166,6 +171,9 @@ pub struct SseParser {
     /// The event being assembled has an `event` type other than `message`.
     other_type: bool,
     other_types: u64,
+    /// The rest of the current line belongs to an event [`SseParser::drop_event`]
+    /// dropped: skipped up to its end.
+    skip_line: bool,
 }
 
 /// Room a line needs beyond its data: the field name and `": "` of the longest
@@ -182,6 +190,8 @@ enum EventData {
     Data(Vec<u8>),
     /// Over the limit; discarded until the event ends.
     Oversized,
+    /// Dropped by [`SseParser::drop_event`]; discarded until the event ends.
+    Dropped,
 }
 
 impl SseParser {
@@ -197,6 +207,7 @@ impl SseParser {
             oversized: 0,
             other_type: false,
             other_types: 0,
+            skip_line: false,
         }
     }
 
@@ -213,15 +224,37 @@ impl SseParser {
                     self.end_line(&mut events);
                 }
                 b'\n' => self.end_line(&mut events),
+                _ if self.skip_line => {}
                 _ if self.pending.len() < self.max_event.saturating_add(LINE_OVERHEAD) => {
                     self.pending.push(byte);
                 }
                 // A line longer than any event may be: the event it belongs to is
                 // oversized, and the line stops growing.
+                _ if matches!(self.event, EventData::Dropped) => {}
                 _ => self.event = EventData::Oversized,
             }
         }
         events
+    }
+
+    /// How many bytes the parser holds: the event being assembled, and the
+    /// line being read.
+    #[must_use]
+    pub const fn buffered(&self) -> usize {
+        let data = match &self.event {
+            EventData::Data(data) => data.len(),
+            EventData::Empty | EventData::Oversized | EventData::Dropped => 0,
+        };
+        data + self.pending.len()
+    }
+
+    /// Drops the event being assembled, and the rest of the line being read:
+    /// the caller could not afford to hold them. The event is not reported,
+    /// and not counted here; its bytes were the caller's to relay.
+    pub fn drop_event(&mut self) {
+        self.skip_line = !self.pending.is_empty();
+        self.pending = Vec::new();
+        self.event = EventData::Dropped;
     }
 
     /// Events dropped for exceeding the limit.
@@ -237,6 +270,9 @@ impl SseParser {
     }
 
     fn end_line(&mut self, events: &mut Vec<Vec<u8>>) {
+        if std::mem::take(&mut self.skip_line) {
+            return;
+        }
         let mut line = std::mem::take(&mut self.pending);
         if !std::mem::replace(&mut self.started, true) && line.starts_with(&[0xEF, 0xBB, 0xBF]) {
             line.drain(..3);
@@ -265,6 +301,7 @@ impl SseParser {
         }
         let limit = self.max_event;
         self.event = match std::mem::replace(&mut self.event, EventData::Empty) {
+            EventData::Dropped => EventData::Dropped,
             EventData::Empty if value.len() <= limit => EventData::Data(value.to_vec()),
             EventData::Data(mut data) if data.len() + 1 + value.len() <= limit => {
                 data.push(b'\n');
@@ -281,7 +318,7 @@ impl SseParser {
             EventData::Oversized => self.oversized += 1,
             EventData::Data(data) if !data.is_empty() && other_type => self.other_types += 1,
             EventData::Data(data) if !data.is_empty() => events.push(data),
-            EventData::Data(_) | EventData::Empty => {}
+            EventData::Data(_) | EventData::Empty | EventData::Dropped => {}
         }
     }
 }

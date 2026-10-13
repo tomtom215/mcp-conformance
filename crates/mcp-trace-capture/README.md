@@ -247,8 +247,10 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   (default 64 MiB) is forwarded intact, left out of the trace, and counted in the
   summary printed at exit. So is the rare message within the limit whose recorded
   line would not be (below), and, over HTTP, a body or SSE event that is not JSON or
-  is JSON the trace cannot hold as sent (below), and an SSE event whose `event` type
-  is not `message` — MCP clients, both official SDKs' among them, act on no other.
+  is JSON the trace cannot hold as sent (below), an SSE event whose `event` type
+  is not `message` — MCP clients, both official SDKs' among them, act on no other —
+  and a body or SSE event that arrives while the proxy's buffer budget is spent
+  (below).
 - **Nothing on a stdio stream goes unjudged.** A stdio line that is not JSON — a log
   line on the server's stdout, a blank line, a truncated message — is forwarded
   intact and recorded as a message whose payload is the line as a JSON string
@@ -299,9 +301,17 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   with its headers when exchanges overlap, and how the message is recorded before the
   bytes that complete it. So such a response reaches the client only once it has
   ended or passed the limit (the rest then streams): a body sent slowly arrives all
-  at once at the end, one that never ends (an endless ndjson stream) starts only past
-  the limit, and each response in flight can hold up to `--max-message-bytes` in
-  memory. Event streams are relayed event by event.
+  at once at the end, and one that never ends (an endless ndjson stream) starts only
+  past the limit. Event streams are relayed event by event.
+- **A buffer budget, shared.** What the proxy holds to record — request bodies and
+  non-SSE responses read whole, SSE events being assembled — comes out of one budget
+  of 4 × `--max-message-bytes` (256 MiB at the default) across every exchange in
+  flight, not `--max-message-bytes` for each of them. A body or event that arrives
+  while the budget is spent is not held up: it is streamed on as one over the limit
+  is, left out of the trace, and counted in the summary. Ordinary MCP traffic, whose
+  messages are small, never comes near it. (Writing a message to the trace takes
+  about twice its size again for a moment, for its parsed value and its line; that
+  is outside the budget.)
 - **An SSE event's data, and nothing else.** Only the `data` of events of type
   `message` is recorded; `id` and `retry` fields are forwarded but not recorded, so a
   trace does not show which event a client could resume from (the `Last-Event-ID`

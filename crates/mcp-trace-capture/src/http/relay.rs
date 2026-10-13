@@ -12,10 +12,11 @@ use axum::extract::Request;
 use axum::http::uri::{Authority, Uri};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse as _, Response};
-use futures::{Stream, StreamExt as _, TryStreamExt as _};
+use futures::{Stream, TryStreamExt as _};
 use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TransportKind};
 
 use super::Proxy;
+use super::body::{self, End, Held, cut_at_stop, read_prefix, then_rest};
 use super::target::{has_dot_segment, is_event_stream, location, target};
 use crate::framing::{Parsed, SseParser, parse_message};
 use crate::headers;
@@ -92,7 +93,7 @@ impl Proxy {
             headers: headers::recorded(&parts.headers),
         };
         let mut stream = body.into_data_stream();
-        let prefix = read_prefix(&mut stream, self.options.max_message).await;
+        let prefix = read_prefix(&mut stream, self.options.max_message, &self.budget).await;
         let session_id = parts
             .headers
             .get("mcp-session-id")
@@ -102,11 +103,11 @@ impl Proxy {
         let (message, forward) = match prefix.end {
             End::Complete => (
                 self.message_of(&prefix.bytes),
-                Some(Body::from(prefix.bytes)),
+                Some(body::whole(prefix.bytes, prefix.held)),
             ),
-            End::Over => {
-                self.counters.oversized.fetch_add(1, Ordering::Relaxed);
-                (None, Some(then_rest(prefix.bytes, stream)))
+            End::Over | End::OverBudget => {
+                self.count_unread(&prefix.end);
+                (None, Some(then_rest(prefix.bytes, prefix.held, stream)))
             }
             End::Failed(_) => (None, None),
         };
@@ -172,17 +173,17 @@ impl Proxy {
                 Body::from_stream(events)
             }
         } else {
-            let prefix = read_prefix(&mut stream, self.options.max_message).await;
+            let prefix = read_prefix(&mut stream, self.options.max_message, &self.budget).await;
             match prefix.end {
                 End::Complete => {
                     let message = self.message_of(&prefix.bytes);
                     self.record_together(recorder, Direction::ServerToClient, http, message);
-                    Body::from(prefix.bytes)
+                    body::whole(prefix.bytes, prefix.held)
                 }
-                End::Over => {
-                    self.counters.oversized.fetch_add(1, Ordering::Relaxed);
+                End::Over | End::OverBudget => {
+                    self.count_unread(&prefix.end);
                     self.record_together(recorder, Direction::ServerToClient, http, None);
-                    then_rest(prefix.bytes, stream)
+                    then_rest(prefix.bytes, prefix.held, stream)
                 }
                 // The status and headers are the upstream's and are relayed as
                 // they came; the body ends where the upstream's did, with an
@@ -195,6 +196,7 @@ impl Proxy {
                     // are flushed to the client before the error aborts it.
                     then_rest(
                         prefix.bytes,
+                        prefix.held,
                         futures::stream::once(async move {
                             tokio::task::yield_now().await;
                             Err(error)
@@ -271,6 +273,17 @@ impl Proxy {
         None
     }
 
+    /// Counts a body streamed on unrecorded: over the message limit, or past
+    /// what was left of the buffer budget.
+    fn count_unread<E>(&self, end: &End<E>) {
+        let count = if matches!(end, End::OverBudget) {
+            &self.counters.over_budget
+        } else {
+            &self.counters.oversized
+        };
+        count.fetch_add(1, Ordering::Relaxed);
+    }
+
     /// Counts a message the recorder refused for its length — one whose bytes fit
     /// the message limit but whose line, as written, would not.
     fn count_refused(&self, recorded: Result<u64, NotRecorded>) {
@@ -291,6 +304,10 @@ impl Proxy {
     {
         let mut parser = SseParser::new(self.options.max_message);
         let (mut oversized_seen, mut other_seen) = (0, 0);
+        // What the parser holds of the event it is assembling is held in the
+        // buffer budget too; an event that would take more than is left is
+        // dropped (relayed, not recorded) and counted.
+        let mut held = Held::default();
         // The upstream failing mid-stream reaches the client as the same
         // truncation, and the trace as an aborted transport.
         let on_error = Arc::clone(&self);
@@ -306,6 +323,11 @@ impl Proxy {
                             message,
                         ));
                     }
+                }
+                if !held.resize(&self.budget, parser.buffered()) {
+                    parser.drop_event();
+                    self.counters.over_budget.fetch_add(1, Ordering::Relaxed);
+                    held.resize(&self.budget, parser.buffered());
                 }
                 // The parser's counts only grow; add what this chunk contributed.
                 let (oversized, other) = (parser.oversized(), parser.other_types());
@@ -398,85 +420,4 @@ fn causes(error: &dyn std::error::Error) -> String {
         source = cause.source();
     }
     text
-}
-
-/// `stream` until `stop` resolves, between two chunks, then an error: hyper
-/// aborts a response whose body fails rather than ending it, so the client sees
-/// a stream that was cut — not one the server finished — and a proxy that is
-/// stopping is not held open by it.
-fn cut_at_stop<S, F>(stream: S, stop: F) -> impl Stream<Item = Result<Bytes, axum::Error>>
-where
-    S: Stream<Item = Result<Bytes, axum::Error>>,
-    F: std::future::Future<Output = ()>,
-{
-    use futures::FutureExt as _;
-    let mut stream = Box::pin(stream);
-    // Fused: once it has fired, polling it again is harmless.
-    let mut stop = Box::pin(stop.fuse());
-    futures::stream::poll_fn(move |context| {
-        if stop.as_mut().poll(context).is_ready() {
-            return std::task::Poll::Ready(Some(Err(axum::Error::new(std::io::Error::other(
-                "the proxy is stopping",
-            )))));
-        }
-        stream.as_mut().poll_next(context)
-    })
-}
-
-/// A body of `prefix` followed by whatever `rest` yields.
-fn then_rest<S>(prefix: Vec<u8>, rest: S) -> Body
-where
-    S: Stream<Item = Result<Bytes, axum::Error>> + Send + 'static,
-{
-    Body::from_stream(
-        futures::stream::once(async move { Ok::<_, axum::Error>(Bytes::from(prefix)) }).chain(rest),
-    )
-}
-
-/// How a body read by [`read_prefix`] stopped.
-#[derive(Debug)]
-pub(super) enum End<E> {
-    /// The body ended within the limit: the prefix is all of it.
-    Complete,
-    /// The body passed the limit; the rest is still in the stream.
-    Over,
-    /// The body failed before either.
-    Failed(E),
-}
-
-/// The start of a body, and how reading it stopped.
-#[derive(Debug)]
-pub(super) struct Prefix<E> {
-    pub(super) bytes: Vec<u8>,
-    pub(super) end: End<E>,
-}
-
-/// Reads until the body ends, fails, or passes `max` bytes — keeping what was
-/// read in every case.
-pub(super) async fn read_prefix<S, E>(stream: &mut S, max: usize) -> Prefix<E>
-where
-    S: Stream<Item = Result<Bytes, E>> + Unpin,
-{
-    let mut bytes = Vec::new();
-    while let Some(chunk) = stream.next().await {
-        match chunk {
-            Ok(chunk) => bytes.extend_from_slice(&chunk),
-            Err(error) => {
-                return Prefix {
-                    bytes,
-                    end: End::Failed(error),
-                };
-            }
-        }
-        if bytes.len() > max {
-            return Prefix {
-                bytes,
-                end: End::Over,
-            };
-        }
-    }
-    Prefix {
-        bytes,
-        end: End::Complete,
-    }
 }

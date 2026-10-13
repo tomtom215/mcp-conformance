@@ -282,6 +282,14 @@ fn http_summary(
                     unrecorded.altered
                 );
             }
+            if unrecorded.over_budget > 0 {
+                eprintln!(
+                    "mcp-trace-capture: {} session message(s) arrived while the proxy already \
+                     held its buffer budget (4 x --max-message-bytes) of other messages and are \
+                     not in the trace (forwarded unchanged)",
+                    unrecorded.over_budget
+                );
+            }
             if unrecorded.other_events > 0 {
                 eprintln!(
                     "mcp-trace-capture: {} SSE event(s) had a type other than `message`, which \

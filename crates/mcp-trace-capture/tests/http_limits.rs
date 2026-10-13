@@ -161,3 +161,55 @@ async fn an_upstream_that_never_accepts_the_connection_is_a_502() {
     })
     .await;
 }
+
+/// Every exchange in flight could hold a body of up to the message limit, so
+/// memory grew with their number: eight concurrent 60 MB POSTs held 488 MB.
+/// What the proxy holds is now bounded by its buffer budget; a body that
+/// arrives while it is spent is forwarded intact without being recorded.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn bodies_past_the_buffer_budget_are_streamed_not_held() {
+    bounded(async {
+        let upstream = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let upstream_address = upstream.local_addr().unwrap();
+        let app = axum::Router::new().fallback(|body: axum::body::Bytes| async move {
+            format!("{{\"length\":{}}}", body.len())
+        });
+        tokio::spawn(async move { axum::serve(upstream, app).await.unwrap() });
+        let (address, sink, stop) = proxy(format!("http://{upstream_address}"), |options| {
+            options.buffer_budget = 1500;
+        })
+        .await;
+        let body = |fill: char| format!("{{\"pad\":\"{}\"}}", fill.to_string().repeat(1000 - 10));
+        let (first, second) = (body('a'), body('b'));
+        // The first body arrives in part, and the proxy holds that part…
+        let mut slow = tokio::net::TcpStream::connect(address).await.unwrap();
+        let request_head = "POST /mcp HTTP/1.1\r\nhost: proxy\r\ncontent-type: application/json\r\n\
+                    content-length: 1000\r\nconnection: close\r\n\r\n";
+        slow.write_all(request_head.as_bytes()).await.unwrap();
+        slow.write_all(&first.as_bytes()[..900]).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        // …so a second, which would need 1000 of the 600 left, is streamed.
+        let answer = reqwest::Client::new()
+            .post(format!("http://{address}/mcp"))
+            .header("content-type", "application/json")
+            .body(second.clone())
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        assert_eq!(answer, "{\"length\":1000}", "forwarded intact");
+        slow.write_all(&first.as_bytes()[900..]).await.unwrap();
+        let mut answer = Vec::new();
+        slow.read_to_end(&mut answer).await.unwrap();
+        assert!(String::from_utf8_lossy(&answer).ends_with("{\"length\":1000}"));
+        let unrecorded = stop().await.unwrap().unwrap();
+        assert_eq!(unrecorded.over_budget, 1);
+        assert_eq!(unrecorded.oversized, 0);
+        let trace = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+        assert!(trace.contains(&"a".repeat(990)), "the first is recorded");
+        assert!(!trace.contains(&"b".repeat(990)), "the second is not");
+    })
+    .await;
+}

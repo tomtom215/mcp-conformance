@@ -23,8 +23,9 @@
 //!
 //! **Limits.** A body or SSE event larger than the message limit is forwarded intact
 //! and counted, not recorded: the proxy never alters traffic to fit its trace. So
-//! is one that is not JSON, or is JSON the trace cannot hold as sent, and an SSE
-//! event of a type other than `message`.
+//! is one that is not JSON, or is JSON the trace cannot hold as sent, an SSE
+//! event of a type other than `message`, and one that arrives while the proxy
+//! already holds its [`Options::buffer_budget`] of other messages.
 
 use std::future::Future;
 use std::io;
@@ -42,6 +43,7 @@ use tokio::sync::watch;
 use crate::recorder::Recorder;
 use crate::traces::Traces;
 
+mod body;
 mod connect;
 mod listen;
 mod relay;
@@ -50,6 +52,10 @@ mod target;
 /// [`Options::header_read_timeout`]'s default: hyper's own default for it,
 /// which takes effect only once a server sets a timer.
 pub const HEADER_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// [`Options::buffer_budget`]'s default, in messages of the largest size
+/// recorded.
+pub const BUFFER_BUDGET_MESSAGES: usize = 4;
 
 /// [`Options::connect_timeout`]'s default.
 pub const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
@@ -69,6 +75,13 @@ pub struct Options {
     pub upstream: Uri,
     /// The largest body or SSE event recorded; larger ones are forwarded unrecorded.
     pub max_message: usize,
+    /// The most bytes of bodies and SSE events the proxy holds at once, across
+    /// every exchange in flight, to record them. A body or event that arrives
+    /// when this is spent is forwarded unrecorded — streamed, as one over
+    /// `max_message` is — and counted ([`Unrecorded::over_budget`]), rather
+    /// than waiting or failing. [`Options::new`] makes it four times
+    /// `max_message`; change one, and set the other to match.
+    pub buffer_budget: usize,
     /// Forward the client's `Host` header instead of naming the upstream, so a
     /// server's own `Host` validation judges what the client sent rather than what
     /// the proxy sent. Wrong for a virtually hosted remote server, which routes on
@@ -138,6 +151,7 @@ impl Options {
         Ok(Self {
             upstream,
             max_message,
+            buffer_budget: max_message.saturating_mul(BUFFER_BUDGET_MESSAGES),
             preserve_host: false,
             grace: crate::STOP_GRACE,
             header_read_timeout: HEADER_READ_TIMEOUT,
@@ -160,6 +174,9 @@ pub struct Unrecorded {
     pub other_events: u64,
     /// Bodies or SSE events over the message limit.
     pub oversized: u64,
+    /// Bodies or SSE events that arrived when the buffer budget was spent
+    /// ([`Options::buffer_budget`]): streamed on, not recorded.
+    pub over_budget: u64,
     /// Requests the upstream could not be reached for (answered 502 by the proxy).
     pub upstream_failures: u64,
     /// Responses the upstream cut off after its status and headers (relayed to
@@ -180,6 +197,7 @@ struct Counters {
     altered: AtomicU64,
     other_events: AtomicU64,
     oversized: AtomicU64,
+    over_budget: AtomicU64,
     upstream_failures: AtomicU64,
     upstream_cut: AtomicU64,
     not_2xx: AtomicU64,
@@ -194,6 +212,7 @@ impl Counters {
             altered: self.altered.load(Ordering::Relaxed),
             other_events: self.other_events.load(Ordering::Relaxed),
             oversized: self.oversized.load(Ordering::Relaxed),
+            over_budget: self.over_budget.load(Ordering::Relaxed),
             upstream_failures: self.upstream_failures.load(Ordering::Relaxed),
             upstream_cut: self.upstream_cut.load(Ordering::Relaxed),
             not_2xx: self.not_2xx.load(Ordering::Relaxed),
@@ -209,6 +228,8 @@ struct Proxy {
     client: Client<connect::Timed, Body>,
     options: Options,
     counters: Counters,
+    /// The buffer budget ([`Options::buffer_budget`]), in bytes.
+    budget: Arc<tokio::sync::Semaphore>,
     /// Becomes `true` when the proxy is shutting down.
     stopping: watch::Receiver<bool>,
 }
@@ -252,6 +273,9 @@ pub async fn serve_traces(
 ) -> io::Result<Unrecorded> {
     let (stop, stopping) = watch::channel(false);
     let grace = options.grace;
+    let budget = options
+        .buffer_budget
+        .min(tokio::sync::Semaphore::MAX_PERMITS);
     let proxy = Arc::new(Proxy {
         traces,
         client: Client::builder(TokioExecutor::new()).build(connect::Timed {
@@ -260,6 +284,7 @@ pub async fn serve_traces(
         }),
         options,
         counters: Counters::default(),
+        budget: Arc::new(tokio::sync::Semaphore::new(budget)),
         stopping: stopping.clone(),
     });
     let server = listen::serve(listener, Arc::clone(&proxy), async move {
