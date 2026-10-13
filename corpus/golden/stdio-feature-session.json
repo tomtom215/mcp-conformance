@@ -5,10 +5,10 @@
     "pass": 42,
     "fail": 0,
     "warn": 0,
-    "excluded": 94,
+    "excluded": 152,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 17
+    "not_observed": 42
   },
   "requirements": [
     {
@@ -303,6 +303,131 @@
     },
     {
       "id": "PAGE-003",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-004",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-006",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-007",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-009",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-011",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-012",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-014",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-018",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-019",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-021",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-049",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-004",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-005",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-006",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-007",
+      "level": "SHOULD NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-008",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-009",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-010",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-011",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-012",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-019",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-003",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-004",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-009",
       "level": "SHOULD",
       "outcome": "not-observed"
     }

@@ -1,0 +1,423 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "ELIC-022",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#statefulness",
+        "quote": "Servers implementing elicitation MUST securely associate this state with individual users following the guidelines in the security best practices document. Specifically: State MUST NOT be associated with session IDs alone; State storage MUST be protected against unauthorized access; For remote MCP servers, user identification MUST be derived from credentials acquired via MCP authorization when possible (e.g. `sub` claim)"
+      },
+      "exclusion": "Server-internal state handling. How a server stores per-user state, protects it and binds it to an identity happens behind its own storage and authorization, and the identity it binds to is established outside the session's messages, by MCP authorization (whose pages this registry keeps out of scope, `sources.json`). Verified, where verified at all, by the server's own security review and tests; at `2026-07-28` the state a client carries is `requestState`, opaque by construction (MRTR-008)."
+    },
+    {
+      "id": "ELIC-023",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#url-mode-elicitation-for-oauth-flows",
+        "quote": "MCP servers MUST NOT rely on URL mode elicitation to authorize users for themselves."
+      },
+      "exclusion": "Concerns what the server treats as authorization of its own users — an internal decision. A URL mode elicitation used to sign a user in to the server looks on the wire exactly like one used for a third-party grant; the difference is what the server does with the outcome."
+    },
+    {
+      "id": "ELIC-024",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#understanding-the-distinction",
+        "quote": "The third-party credentials MUST NOT transit through the MCP client"
+      },
+      "exclusion": "Third-party credentials are opaque strings whose provenance no message declares: a check cannot tell one in a result from any other string, and by design they never enter the session at all. The obligation is the server's — credentials could only transit the client if the server sent them — and it is kept by the flow the server builds, outside the recording."
+    },
+    {
+      "id": "ELIC-025",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#understanding-the-distinction",
+        "quote": "The MCP server MUST NOT use the client's credentials for the third-party service"
+      },
+      "exclusion": "Token passthrough happens between the server and the third-party service, outside the MCP session; the recording holds only the client–server exchange, in which the client's credentials appear (as HTTP authorization) whether or not the server reuses them elsewhere."
+    },
+    {
+      "id": "ELIC-026",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#understanding-the-distinction",
+        "quote": "The user MUST authorize the MCP server directly"
+      },
+      "exclusion": "By the clause's own words the interaction \"happens outside the MCP protocol, without involving the MCP client\": it is between the user's browser and the server or a third-party authorization server, so a recording of the MCP session cannot contain it."
+    },
+    {
+      "id": "ELIC-027",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#understanding-the-distinction",
+        "quote": "The MCP server MUST NOT transmit credentials obtained through URL mode elicitation to the MCP client."
+      },
+      "exclusion": "The same barrier as the transit clause: a credential obtained through URL mode elicitation is an opaque string whose provenance no message declares, so a check cannot tell one in a result from any other value the server returns."
+    },
+    {
+      "id": "ELIC-028",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#security-considerations",
+        "quote": "Servers MUST bind elicitation requests to the client and user identity"
+      },
+      "exclusion": "Binding is server-internal state, and the identity it binds to is established by authorization outside the session's messages, so no message shows whether an elicitation was bound to it."
+    },
+    {
+      "id": "ELIC-029",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#security-considerations",
+        "quote": "Clients MUST provide clear indication of which server is requesting information"
+      },
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-030",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#security-considerations",
+        "quote": "Clients SHOULD implement user approval controls"
+      },
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-031",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#security-considerations",
+        "quote": "Clients SHOULD allow users to decline elicitation requests at any time"
+      },
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-032",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#security-considerations",
+        "quote": "Clients SHOULD implement rate limiting"
+      },
+      "exclusion": "A request schedule: rate limiting is measured in elapsed time, which checks may not consult (LIFE-015, the time boundary in `02-architecture.md`), and its threshold is the client's own policy."
+    },
+    {
+      "id": "ELIC-033",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#security-considerations",
+        "quote": "Clients SHOULD present elicitation requests in a way that makes it clear what information is being requested and why"
+      },
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-034",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "MCP servers requesting elicitation: MUST NOT include sensitive information about the end-user, including credentials, personal identifiable information, etc., in the URL sent to the client in a URL elicitation request."
+      },
+      "exclusion": "Whether a URL's path or query carries \"sensitive information about the end-user\" is a semantic judgement about opaque values — an identifier in a query may be a random nonce or an email address — so a check would convict on a guess. The page's own examples put an `elicitationId` in the query, which is exactly the kind of value a pattern would misread."
+    },
+    {
+      "id": "ELIC-035",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "MCP servers requesting elicitation: MUST NOT provide a URL which is pre-authenticated to access a protected resource, as the URL could be used to impersonate the user by a malicious client."
+      },
+      "exclusion": "Whether a URL grants access without further authentication is a property of the server it points to, observable only by dereferencing it — which a validator must not do (the client rules on the same page forbid even pre-fetching it), and which a recording does not contain."
+    },
+    {
+      "id": "ELIC-036",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "MCP servers requesting elicitation: SHOULD NOT include URLs intended to be clickable in any field of a form mode elicitation request."
+      },
+      "exclusion": "Intent: the clause forbids URLs \"intended to be clickable\", and a form's `message` or a field's description may mention a URL for reference. A check for URL-shaped text would convict a server for mentioning a link, and the intent itself is not on the wire."
+    },
+    {
+      "id": "ELIC-037",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "MCP servers requesting elicitation: SHOULD use HTTPS URLs for non-development environments."
+      },
+      "exclusion": "Its antecedent — that this is a non-development environment — is not in the trace. A loopback host suggests development without proving it, and a staging or internal host proves nothing either way, so an `http` URL is not by itself evidence of a violation. The scheme is recorded; the environment is not."
+    },
+    {
+      "id": "ELIC-038",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "Clients implementing URL mode elicitation MUST handle URLs carefully to prevent users from unknowingly clicking malicious links."
+      },
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-039",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "When handling URL mode elicitation requests, MCP clients: MUST NOT automatically pre-fetch the URL or any of its metadata."
+      },
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-040",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "When handling URL mode elicitation requests, MCP clients: MUST NOT open the URL without explicit consent from the user."
+      },
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-041",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "When handling URL mode elicitation requests, MCP clients: MUST show the full URL to the user for examination before consent."
+      },
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-042",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "When handling URL mode elicitation requests, MCP clients: MUST open the URL provided by the server in a secure manner that does not enable the client or LLM to inspect the content or user inputs."
+      },
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-043",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "When handling URL mode elicitation requests, MCP clients: SHOULD highlight the domain of the URL to mitigate subdomain spoofing."
+      },
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-044",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "When handling URL mode elicitation requests, MCP clients: SHOULD have warnings for ambiguous/suspicious URIs (i.e., containing Punycode)."
+      },
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-045",
+      "level": "SHOULD NOT",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#safe-url-handling",
+        "quote": "When handling URL mode elicitation requests, MCP clients: SHOULD NOT render URLs as clickable in any field of an elicitation request, except for the `url` field in a URL elicitation request (with the restrictions detailed above)."
+      },
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-046",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#identifying-the-user",
+        "quote": "Servers MUST NOT rely on client-provided user identification without server verification, as this can be forged."
+      },
+      "exclusion": "Server-internal: whether the server verified an identity before trusting it is a decision made with information — its authorization context — that the session's messages do not carry."
+    },
+    {
+      "id": "ELIC-047",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#identifying-the-user",
+        "quote": "Instead, servers SHOULD follow security best practices."
+      },
+      "exclusion": "Points to a separate document whose practices are server-internal; nothing in the session's messages shows which were followed."
+    },
+    {
+      "id": "ELIC-048",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#form-mode-security",
+        "quote": "Servers MUST NOT request sensitive information (passwords, API keys, etc.) via form mode"
+      },
+      "exclusion": "Whether a requested field is \"sensitive information\" — the page's own definition is \"secrets and credentials that grant access or authorize transactions\" — is a judgement about meaning, not syntax: a schema property named `token` may be a display preference and one named `answer` may collect a password. A check would have to guess from field names, and a guess convicts conforming servers. The server's author decides it; nothing in the message settles it."
+    },
+    {
+      "id": "ELIC-049",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#form-mode-security",
+        "quote": "Clients SHOULD validate all responses against the provided schema"
+      },
+      "checks": [
+        "elicitation.response-matches-schema"
+      ]
+    },
+    {
+      "id": "ELIC-050",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#form-mode-security",
+        "quote": "Servers SHOULD validate received data matches the requested schema"
+      },
+      "exclusion": "Binds an act of validation, as MRTR-021 does: the server's outcome — accepting the data, re-asking, or failing — is the only thing that reaches the wire, and each is consistent with a server that validated and with one that did not."
+    },
+    {
+      "id": "ELIC-051",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#phishing",
+        "quote": "The MCP Server MUST verify the identity of the user who opens the URL before accepting information."
+      },
+      "exclusion": "Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it."
+    },
+    {
+      "id": "ELIC-052",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#phishing",
+        "quote": "To prevent this attack, the server MUST ensure that the user who started the elicitation request (the end-user who is accessing the server via the MCP client) is the same user who completes the authorization flow."
+      },
+      "exclusion": "Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it."
+    },
+    {
+      "id": "ELIC-053",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#phishing",
+        "quote": "In all implementations, the server MUST ensure that the mechanism to determine the user's identity is resilient to attacks where an attacker can modify the elicitation URL."
+      },
+      "exclusion": "Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it."
+    }
+  ]
+}

@@ -5,10 +5,10 @@
     "pass": 21,
     "fail": 8,
     "warn": 0,
-    "excluded": 160,
+    "excluded": 218,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 125
+    "not_observed": 145
   },
   "requirements": [
     {
@@ -909,6 +909,106 @@
     },
     {
       "id": "PROM-020",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-057",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-059",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-060",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-062",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-064",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-065",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-095",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-026",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-027",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-028",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-029",
+      "level": "SHOULD NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-030",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-031",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-032",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-033",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-034",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-042",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-013",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-014",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-018",
       "level": "SHOULD",
       "outcome": "not-observed"
     }

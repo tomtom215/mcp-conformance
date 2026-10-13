@@ -1,0 +1,298 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "ELIC-001",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#user-interaction-model",
+        "quote": "Servers MUST NOT use form mode elicitation to request sensitive information such as passwords, API keys, access tokens, or payment credentials"
+      },
+      "exclusion": "Whether a requested field is \"sensitive information\" — the page's own definition is \"secrets and credentials that grant access or authorize transactions\" — is a judgement about meaning, not syntax: a schema property named `token` may be a display preference and one named `answer` may collect a password. A check would have to guess from field names, and a guess convicts conforming servers. The server's author decides it; nothing in the message settles it."
+    },
+    {
+      "id": "ELIC-002",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#user-interaction-model",
+        "quote": "Servers MUST use URL mode for interactions involving such sensitive information"
+      },
+      "exclusion": "The counterpart of the form mode prohibition, and blocked by the same judgement: that an interaction \"involves such sensitive information\" is a fact about what the user will be asked for, which no message states, so a form mode request cannot be shown to have needed URL mode."
+    },
+    {
+      "id": "ELIC-003",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#user-interaction-model",
+        "quote": "MCP clients MUST: Provide UI that makes it clear which server is requesting information; Respect user privacy and provide clear decline and cancel options; For form mode, allow users to review and modify their responses before sending; For URL mode, clearly display the target domain/host and gather user consent before navigation to the target URL"
+      },
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-004",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#capabilities",
+        "quote": "Clients that support elicitation MUST declare the `elicitation` capability during initialization:"
+      },
+      "checks": [
+        "elicitation.client-declares-capability"
+      ]
+    },
+    {
+      "id": "ELIC-005",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#capabilities",
+        "quote": "Clients declaring the `elicitation` capability MUST support at least one mode (`form` or `url`)."
+      },
+      "exclusion": "No declaration can violate it on the wire. The page makes an `elicitation` object naming neither mode \"equivalent to declaring support for `form` mode only\", so every declared `elicitation` capability names at least one mode. What remains is whether the client can actually handle the mode it declared, which is internal: a client that cannot still returns a well-formed `decline` or `cancel`."
+    },
+    {
+      "id": "ELIC-006",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#capabilities",
+        "quote": "Servers MUST NOT send elicitation requests with modes that are not supported by the client."
+      },
+      "checks": [
+        "elicitation.mode-supported"
+      ]
+    },
+    {
+      "id": "ELIC-007",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#elicitation-requests",
+        "quote": "All elicitation requests MUST include the following parameters:"
+      },
+      "checks": [
+        "elicitation.request-parameters"
+      ]
+    },
+    {
+      "id": "ELIC-008",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#elicitation-requests",
+        "quote": "Clients MUST treat requests without a `mode` field as form mode."
+      },
+      "exclusion": "A reading, not an act, like MRTR-007: a client's answers to a form mode request and to one without `mode` are the same messages (`accept` with `content`, `decline`, `cancel`), and `content` is optional in the result, so no answer shows which reading the client took. The server half — that such a request is form mode — is what `elicitation.mode-supported` and `elicitation.form-schema-present` apply."
+    },
+    {
+      "id": "ELIC-009",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#form-mode-elicitation-requests",
+        "quote": "Form mode elicitation requests MUST either specify `mode: \"form\"` or omit the `mode` field, and include these additional parameters:"
+      },
+      "checks": [
+        "elicitation.form-schema-present"
+      ]
+    },
+    {
+      "id": "ELIC-010",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#requested-schema",
+        "quote": "Clients that support defaults SHOULD pre-populate form fields with these values."
+      },
+      "exclusion": "UI behaviour: pre-populating a form is what the user sees before submitting. The submitted `content` cannot show it — the user may change or clear every default — so no message carries the clause."
+    },
+    {
+      "id": "ELIC-011",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#url-mode-elicitation-requests",
+        "quote": "URL mode elicitation requests MUST specify `mode: \"url\"`, a `message`, and include these additional parameters:"
+      },
+      "checks": [
+        "elicitation.url-parameters-with-id"
+      ]
+    },
+    {
+      "id": "ELIC-012",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#url-mode-elicitation-requests",
+        "quote": "The `url` parameter MUST contain a valid URL."
+      },
+      "checks": [
+        "elicitation.url-valid"
+      ]
+    },
+    {
+      "id": "ELIC-013",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#completion-notifications-for-url-mode-elicitation",
+        "quote": "Servers sending notifications: MUST only send the notification to the client that initiated the elicitation request."
+      },
+      "exclusion": "Which client initiated an elicitation is a fact across connections, and a recording holds one session. A completion sent to the wrong client appears in that client's recording as a notification for an id its session never established — the observation `elicitation.complete-notification-id` judges under the clause that names the id, because the one recording cannot say which of the two rules was broken."
+    },
+    {
+      "id": "ELIC-014",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#completion-notifications-for-url-mode-elicitation",
+        "quote": "Servers sending notifications: MUST include the `elicitationId` established in the original `elicitation/create` request."
+      },
+      "checks": [
+        "elicitation.complete-notification-id"
+      ]
+    },
+    {
+      "id": "ELIC-015",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#completion-notifications-for-url-mode-elicitation",
+        "quote": "Clients: MUST ignore notifications referencing unknown or already-completed IDs."
+      },
+      "exclusion": "Ignoring leaves no trace: a client that ignored a notification for an unknown or completed id and one that acted on it internally send the same messages afterwards."
+    },
+    {
+      "id": "ELIC-016",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#completion-notifications-for-url-mode-elicitation",
+        "quote": "Clients: SHOULD still provide manual controls that let the user retry or cancel the original request (or otherwise resume interacting with the client) if the notification never arrives."
+      },
+      "exclusion": "UI behaviour: the controls the client offers its user. The wire shows only whether a retry or cancellation was eventually sent, which a user may decline to do whatever controls exist."
+    },
+    {
+      "id": "ELIC-017",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#url-elicitation-required-error",
+        "quote": "The server MUST NOT return this error except when URL mode elicitation is required."
+      },
+      "exclusion": "Its condition — that URL mode elicitation is required before the request can proceed — is the server's own determination, which no message states; a `-32042` cannot be shown to be unwarranted."
+    },
+    {
+      "id": "ELIC-018",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#url-elicitation-required-error",
+        "quote": "The error MUST include a list of elicitations that are required to complete before the original can be retried."
+      },
+      "checks": [
+        "elicitation.url-required-error-lists"
+      ]
+    },
+    {
+      "id": "ELIC-019",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#url-elicitation-required-error",
+        "quote": "Any elicitations returned in the error MUST be URL mode elicitations and have an `elicitationId` property."
+      },
+      "checks": [
+        "elicitation.url-required-error-url-mode"
+      ]
+    },
+    {
+      "id": "ELIC-020",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#error-handling",
+        "quote": "Servers MUST return standard JSON-RPC errors for common failure cases: When a request cannot be processed until an elicitation is completed: `-32042` (`URLElicitationRequiredError`)"
+      },
+      "exclusion": "Its antecedent — that a request cannot be processed until an elicitation completes — is the server's determination, and the page lets it ask by other means (it \"MAY return\" the error, or may send the elicitation while the request is pending). A server that chose another way sends no error, and nothing in the trace says it should have."
+    },
+    {
+      "id": "ELIC-021",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/elicitation#error-handling",
+        "quote": "Clients MUST return standard JSON-RPC errors for common failure cases: Server sends an `elicitation/create` request with a mode not declared in client capabilities: `-32602` (Invalid params)"
+      },
+      "checks": [
+        "elicitation.undeclared-mode-rejected"
+      ]
+    }
+  ]
+}

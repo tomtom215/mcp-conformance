@@ -4,7 +4,7 @@
 
 # Requirements — `2025-11-25`
 
-Every normative clause of the `2025-11-25` specification that the validator's registry carries — 153 in all, 59 judged from a recorded trace and 94 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
+Every normative clause of the `2025-11-25` specification that the validator's registry carries — 236 in all, 84 judged from a recorded trace and 152 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -1553,4 +1553,840 @@ Judged by `pagination.invalid-cursor-rejected`.
 [`server/utilities/pagination#implementation-guidelines`](https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/pagination#implementation-guidelines)
 
 **Excluded.** How a client interprets a missing cursor, and what flows it supports, is client-internal; the wire-visible cursor discipline is PAGE-002's check.
+
+## ELIC
+
+### ELIC-001
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT use form mode elicitation to request sensitive information such as passwords, API keys, access tokens, or payment credentials
+
+[`client/elicitation#user-interaction-model`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#user-interaction-model)
+
+**Excluded.** Whether a requested field is "sensitive information" — the page's own definition is "secrets and credentials that grant access or authorize transactions" — is a judgement about meaning, not syntax: a schema property named `token` may be a display preference and one named `answer` may collect a password. A check would have to guess from field names, and a guess convicts conforming servers. The server's author decides it; nothing in the message settles it.
+
+### ELIC-002
+
+**MUST** · binds the server
+
+> Servers MUST use URL mode for interactions involving such sensitive information
+
+[`client/elicitation#user-interaction-model`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#user-interaction-model)
+
+**Excluded.** The counterpart of the form mode prohibition, and blocked by the same judgement: that an interaction "involves such sensitive information" is a fact about what the user will be asked for, which no message states, so a form mode request cannot be shown to have needed URL mode.
+
+### ELIC-003
+
+**MUST** · binds the client
+
+> MCP clients MUST: Provide UI that makes it clear which server is requesting information; Respect user privacy and provide clear decline and cancel options; For form mode, allow users to review and modify their responses before sending; For URL mode, clearly display the target domain/host and gather user consent before navigation to the target URL
+
+[`client/elicitation#user-interaction-model`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#user-interaction-model)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-004
+
+**MUST** · binds the client
+
+> Clients that support elicitation MUST declare the `elicitation` capability during initialization:
+
+[`client/elicitation#capabilities`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#capabilities)
+
+Judged by `elicitation.client-declares-capability`.
+
+### ELIC-005
+
+**MUST** · binds the client
+
+> Clients declaring the `elicitation` capability MUST support at least one mode (`form` or `url`).
+
+[`client/elicitation#capabilities`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#capabilities)
+
+**Excluded.** No declaration can violate it on the wire. The page makes an `elicitation` object naming neither mode "equivalent to declaring support for `form` mode only", so every declared `elicitation` capability names at least one mode. What remains is whether the client can actually handle the mode it declared, which is internal: a client that cannot still returns a well-formed `decline` or `cancel`.
+
+### ELIC-006
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT send elicitation requests with modes that are not supported by the client.
+
+[`client/elicitation#capabilities`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#capabilities)
+
+Judged by `elicitation.mode-supported`.
+
+### ELIC-007
+
+**MUST** · binds the server
+
+> All elicitation requests MUST include the following parameters:
+
+[`client/elicitation#elicitation-requests`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#elicitation-requests)
+
+Judged by `elicitation.request-parameters`.
+
+### ELIC-008
+
+**MUST** · binds the client
+
+> Clients MUST treat requests without a `mode` field as form mode.
+
+[`client/elicitation#elicitation-requests`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#elicitation-requests)
+
+**Excluded.** A reading, not an act, like MRTR-007: a client's answers to a form mode request and to one without `mode` are the same messages (`accept` with `content`, `decline`, `cancel`), and `content` is optional in the result, so no answer shows which reading the client took. The server half — that such a request is form mode — is what `elicitation.mode-supported` and `elicitation.form-schema-present` apply.
+
+### ELIC-009
+
+**MUST** · binds the server
+
+> Form mode elicitation requests MUST either specify `mode: "form"` or omit the `mode` field, and include these additional parameters:
+
+[`client/elicitation#form-mode-elicitation-requests`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#form-mode-elicitation-requests)
+
+Judged by `elicitation.form-schema-present`.
+
+### ELIC-010
+
+**SHOULD** · binds the client
+
+> Clients that support defaults SHOULD pre-populate form fields with these values.
+
+[`client/elicitation#requested-schema`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#requested-schema)
+
+**Excluded.** UI behaviour: pre-populating a form is what the user sees before submitting. The submitted `content` cannot show it — the user may change or clear every default — so no message carries the clause.
+
+### ELIC-011
+
+**MUST** · binds the server
+
+> URL mode elicitation requests MUST specify `mode: "url"`, a `message`, and include these additional parameters:
+
+[`client/elicitation#url-mode-elicitation-requests`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#url-mode-elicitation-requests)
+
+Judged by `elicitation.url-parameters-with-id`.
+
+### ELIC-012
+
+**MUST** · binds the server
+
+> The `url` parameter MUST contain a valid URL.
+
+[`client/elicitation#url-mode-elicitation-requests`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#url-mode-elicitation-requests)
+
+Judged by `elicitation.url-valid`.
+
+### ELIC-013
+
+**MUST** · binds the server
+
+> Servers sending notifications: MUST only send the notification to the client that initiated the elicitation request.
+
+[`client/elicitation#completion-notifications-for-url-mode-elicitation`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#completion-notifications-for-url-mode-elicitation)
+
+**Excluded.** Which client initiated an elicitation is a fact across connections, and a recording holds one session. A completion sent to the wrong client appears in that client's recording as a notification for an id its session never established — the observation `elicitation.complete-notification-id` judges under the clause that names the id, because the one recording cannot say which of the two rules was broken.
+
+### ELIC-014
+
+**MUST** · binds the server
+
+> Servers sending notifications: MUST include the `elicitationId` established in the original `elicitation/create` request.
+
+[`client/elicitation#completion-notifications-for-url-mode-elicitation`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#completion-notifications-for-url-mode-elicitation)
+
+Judged by `elicitation.complete-notification-id`.
+
+### ELIC-015
+
+**MUST** · binds the client
+
+> Clients: MUST ignore notifications referencing unknown or already-completed IDs.
+
+[`client/elicitation#completion-notifications-for-url-mode-elicitation`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#completion-notifications-for-url-mode-elicitation)
+
+**Excluded.** Ignoring leaves no trace: a client that ignored a notification for an unknown or completed id and one that acted on it internally send the same messages afterwards.
+
+### ELIC-016
+
+**SHOULD** · binds the client
+
+> Clients: SHOULD still provide manual controls that let the user retry or cancel the original request (or otherwise resume interacting with the client) if the notification never arrives.
+
+[`client/elicitation#completion-notifications-for-url-mode-elicitation`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#completion-notifications-for-url-mode-elicitation)
+
+**Excluded.** UI behaviour: the controls the client offers its user. The wire shows only whether a retry or cancellation was eventually sent, which a user may decline to do whatever controls exist.
+
+### ELIC-017
+
+**MUST NOT** · binds the server
+
+> The server MUST NOT return this error except when URL mode elicitation is required.
+
+[`client/elicitation#url-elicitation-required-error`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#url-elicitation-required-error)
+
+**Excluded.** Its condition — that URL mode elicitation is required before the request can proceed — is the server's own determination, which no message states; a `-32042` cannot be shown to be unwarranted.
+
+### ELIC-018
+
+**MUST** · binds the server
+
+> The error MUST include a list of elicitations that are required to complete before the original can be retried.
+
+[`client/elicitation#url-elicitation-required-error`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#url-elicitation-required-error)
+
+Judged by `elicitation.url-required-error-lists`.
+
+### ELIC-019
+
+**MUST** · binds the server
+
+> Any elicitations returned in the error MUST be URL mode elicitations and have an `elicitationId` property.
+
+[`client/elicitation#url-elicitation-required-error`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#url-elicitation-required-error)
+
+Judged by `elicitation.url-required-error-url-mode`.
+
+### ELIC-020
+
+**MUST** · binds the server
+
+> Servers MUST return standard JSON-RPC errors for common failure cases: When a request cannot be processed until an elicitation is completed: `-32042` (`URLElicitationRequiredError`)
+
+[`client/elicitation#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#error-handling)
+
+**Excluded.** Its antecedent — that a request cannot be processed until an elicitation completes — is the server's determination, and the page lets it ask by other means (it "MAY return" the error, or may send the elicitation while the request is pending). A server that chose another way sends no error, and nothing in the trace says it should have.
+
+### ELIC-021
+
+**MUST** · binds the client
+
+> Clients MUST return standard JSON-RPC errors for common failure cases: Server sends an `elicitation/create` request with a mode not declared in client capabilities: `-32602` (Invalid params)
+
+[`client/elicitation#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#error-handling)
+
+Judged by `elicitation.undeclared-mode-rejected`.
+
+### ELIC-022
+
+**MUST** · binds the server
+
+> Servers implementing elicitation MUST securely associate this state with individual users following the guidelines in the security best practices document. Specifically: State MUST NOT be associated with session IDs alone; State storage MUST be protected against unauthorized access; For remote MCP servers, user identification MUST be derived from credentials acquired via MCP authorization when possible (e.g. `sub` claim)
+
+[`client/elicitation#statefulness`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#statefulness)
+
+**Excluded.** Server-internal state handling. How a server stores per-user state, protects it and binds it to an identity happens behind its own storage and authorization, and the identity it binds to is established outside the session's messages, by MCP authorization (whose pages this registry keeps out of scope, `sources.json`). Verified, where verified at all, by the server's own security review and tests; at `2026-07-28` the state a client carries is `requestState`, opaque by construction (MRTR-008).
+
+### ELIC-023
+
+**MUST NOT** · binds the server
+
+> MCP servers MUST NOT rely on URL mode elicitation to authorize users for themselves.
+
+[`client/elicitation#url-mode-elicitation-for-oauth-flows`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#url-mode-elicitation-for-oauth-flows)
+
+**Excluded.** Concerns what the server treats as authorization of its own users — an internal decision. A URL mode elicitation used to sign a user in to the server looks on the wire exactly like one used for a third-party grant; the difference is what the server does with the outcome.
+
+### ELIC-024
+
+**MUST NOT** · binds the server
+
+> The third-party credentials MUST NOT transit through the MCP client
+
+[`client/elicitation#understanding-the-distinction`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#understanding-the-distinction)
+
+**Excluded.** Third-party credentials are opaque strings whose provenance no message declares: a check cannot tell one in a result from any other string, and by design they never enter the session at all. The obligation is the server's — credentials could only transit the client if the server sent them — and it is kept by the flow the server builds, outside the recording.
+
+### ELIC-025
+
+**MUST NOT** · binds the server
+
+> The MCP server MUST NOT use the client's credentials for the third-party service
+
+[`client/elicitation#understanding-the-distinction`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#understanding-the-distinction)
+
+**Excluded.** Token passthrough happens between the server and the third-party service, outside the MCP session; the recording holds only the client–server exchange, in which the client's credentials appear (as HTTP authorization) whether or not the server reuses them elsewhere.
+
+### ELIC-026
+
+**MUST** · binds the server
+
+> The user MUST authorize the MCP server directly
+
+[`client/elicitation#understanding-the-distinction`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#understanding-the-distinction)
+
+**Excluded.** By the clause's own words the interaction "happens outside the MCP protocol, without involving the MCP client": it is between the user's browser and the server or a third-party authorization server, so a recording of the MCP session cannot contain it.
+
+### ELIC-027
+
+**MUST NOT** · binds the server
+
+> The MCP server MUST NOT transmit credentials obtained through URL mode elicitation to the MCP client.
+
+[`client/elicitation#understanding-the-distinction`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#understanding-the-distinction)
+
+**Excluded.** The same barrier as the transit clause: a credential obtained through URL mode elicitation is an opaque string whose provenance no message declares, so a check cannot tell one in a result from any other value the server returns.
+
+### ELIC-028
+
+**MUST** · binds the server
+
+> Servers MUST bind elicitation requests to the client and user identity
+
+[`client/elicitation#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#security-considerations)
+
+**Excluded.** Binding is server-internal state, and the identity it binds to is established by authorization outside the session's messages, so no message shows whether an elicitation was bound to it.
+
+### ELIC-029
+
+**MUST** · binds the client
+
+> Clients MUST provide clear indication of which server is requesting information
+
+[`client/elicitation#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#security-considerations)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-030
+
+**SHOULD** · binds the client
+
+> Clients SHOULD implement user approval controls
+
+[`client/elicitation#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#security-considerations)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-031
+
+**SHOULD** · binds the client
+
+> Clients SHOULD allow users to decline elicitation requests at any time
+
+[`client/elicitation#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#security-considerations)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-032
+
+**SHOULD** · binds the client
+
+> Clients SHOULD implement rate limiting
+
+[`client/elicitation#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#security-considerations)
+
+**Excluded.** A request schedule: rate limiting is measured in elapsed time, which checks may not consult (LIFE-015, the time boundary in `02-architecture.md`), and its threshold is the client's own policy.
+
+### ELIC-033
+
+**SHOULD** · binds the client
+
+> Clients SHOULD present elicitation requests in a way that makes it clear what information is being requested and why
+
+[`client/elicitation#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#security-considerations)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-034
+
+**MUST NOT** · binds the server
+
+> MCP servers requesting elicitation: MUST NOT include sensitive information about the end-user, including credentials, personal identifiable information, etc., in the URL sent to the client in a URL elicitation request.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Whether a URL's path or query carries "sensitive information about the end-user" is a semantic judgement about opaque values — an identifier in a query may be a random nonce or an email address — so a check would convict on a guess. The page's own examples put an `elicitationId` in the query, which is exactly the kind of value a pattern would misread.
+
+### ELIC-035
+
+**MUST NOT** · binds the server
+
+> MCP servers requesting elicitation: MUST NOT provide a URL which is pre-authenticated to access a protected resource, as the URL could be used to impersonate the user by a malicious client.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Whether a URL grants access without further authentication is a property of the server it points to, observable only by dereferencing it — which a validator must not do (the client rules on the same page forbid even pre-fetching it), and which a recording does not contain.
+
+### ELIC-036
+
+**SHOULD NOT** · binds the server
+
+> MCP servers requesting elicitation: SHOULD NOT include URLs intended to be clickable in any field of a form mode elicitation request.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Intent: the clause forbids URLs "intended to be clickable", and a form's `message` or a field's description may mention a URL for reference. A check for URL-shaped text would convict a server for mentioning a link, and the intent itself is not on the wire.
+
+### ELIC-037
+
+**SHOULD** · binds the server
+
+> MCP servers requesting elicitation: SHOULD use HTTPS URLs for non-development environments.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Its antecedent — that this is a non-development environment — is not in the trace. A loopback host suggests development without proving it, and a staging or internal host proves nothing either way, so an `http` URL is not by itself evidence of a violation. The scheme is recorded; the environment is not.
+
+### ELIC-038
+
+**MUST** · binds the client
+
+> Clients implementing URL mode elicitation MUST handle URLs carefully to prevent users from unknowingly clicking malicious links.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`).
+
+### ELIC-039
+
+**MUST NOT** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: MUST NOT automatically pre-fetch the URL or any of its metadata.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`).
+
+### ELIC-040
+
+**MUST NOT** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: MUST NOT open the URL without explicit consent from the user.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`).
+
+### ELIC-041
+
+**MUST** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: MUST show the full URL to the user for examination before consent.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-042
+
+**MUST** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: MUST open the URL provided by the server in a secure manner that does not enable the client or LLM to inspect the content or user inputs.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`).
+
+### ELIC-043
+
+**SHOULD** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: SHOULD highlight the domain of the URL to mitigate subdomain spoofing.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-044
+
+**SHOULD** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: SHOULD have warnings for ambiguous/suspicious URIs (i.e., containing Punycode).
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-045
+
+**SHOULD NOT** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: SHOULD NOT render URLs as clickable in any field of an elicitation request, except for the `url` field in a URL elicitation request (with the restrictions detailed above).
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-046
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT rely on client-provided user identification without server verification, as this can be forged.
+
+[`client/elicitation#identifying-the-user`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#identifying-the-user)
+
+**Excluded.** Server-internal: whether the server verified an identity before trusting it is a decision made with information — its authorization context — that the session's messages do not carry.
+
+### ELIC-047
+
+**SHOULD** · binds the server
+
+> Instead, servers SHOULD follow security best practices.
+
+[`client/elicitation#identifying-the-user`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#identifying-the-user)
+
+**Excluded.** Points to a separate document whose practices are server-internal; nothing in the session's messages shows which were followed.
+
+### ELIC-048
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT request sensitive information (passwords, API keys, etc.) via form mode
+
+[`client/elicitation#form-mode-security`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#form-mode-security)
+
+**Excluded.** Whether a requested field is "sensitive information" — the page's own definition is "secrets and credentials that grant access or authorize transactions" — is a judgement about meaning, not syntax: a schema property named `token` may be a display preference and one named `answer` may collect a password. A check would have to guess from field names, and a guess convicts conforming servers. The server's author decides it; nothing in the message settles it.
+
+### ELIC-049
+
+**SHOULD** · binds the client
+
+> Clients SHOULD validate all responses against the provided schema
+
+[`client/elicitation#form-mode-security`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#form-mode-security)
+
+Judged by `elicitation.response-matches-schema`.
+
+### ELIC-050
+
+**SHOULD** · binds the server
+
+> Servers SHOULD validate received data matches the requested schema
+
+[`client/elicitation#form-mode-security`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#form-mode-security)
+
+**Excluded.** Binds an act of validation, as MRTR-021 does: the server's outcome — accepting the data, re-asking, or failing — is the only thing that reaches the wire, and each is consistent with a server that validated and with one that did not.
+
+### ELIC-051
+
+**MUST** · binds the server
+
+> The MCP Server MUST verify the identity of the user who opens the URL before accepting information.
+
+[`client/elicitation#phishing`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#phishing)
+
+**Excluded.** Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it.
+
+### ELIC-052
+
+**MUST** · binds the server
+
+> To prevent this attack, the server MUST ensure that the user who started the elicitation request (the end-user who is accessing the server via the MCP client) is the same user who completes the authorization flow.
+
+[`client/elicitation#phishing`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#phishing)
+
+**Excluded.** Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it.
+
+### ELIC-053
+
+**MUST** · binds the server
+
+> In all implementations, the server MUST ensure that the mechanism to determine the user's identity is resilient to attacks where an attacker can modify the elicitation URL.
+
+[`client/elicitation#phishing`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#phishing)
+
+**Excluded.** Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it.
+
+## SAMP
+
+### SAMP-001
+
+**SHOULD** · binds the client
+
+> For trust & safety and security, there SHOULD always be a human in the loop with the ability to deny sampling requests.
+
+[`client/sampling#user-interaction-model`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#user-interaction-model)
+
+**Excluded.** Policy and UI: whether a human reviews sampling requests, and whether they can deny one, is the client application's design. A request answered with a result may have been approved by a person or by policy; nothing in the answer says which.
+
+### SAMP-002
+
+**SHOULD** · binds the client
+
+> Applications SHOULD: Provide UI that makes it easy and intuitive to review sampling requests; Allow users to view and edit prompts before sending; Present generated responses for review before delivery
+
+[`client/sampling#user-interaction-model`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#user-interaction-model)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### SAMP-003
+
+**MUST** · binds the client
+
+> Clients MUST declare support for tool use via the `sampling.tools` capability to receive tool-enabled sampling requests.
+
+[`client/sampling#tools-in-sampling`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#tools-in-sampling)
+
+**Excluded.** The precondition half of the sentence. A client that has not declared `sampling.tools` does nothing wrong by receiving a tool-enabled request — the server does, and the sentence's other half (`sampling.tools-declared`) judges it. Nothing the client sends can break this half: the declaration is either made or not, and its absence becomes a violation only when such a request arrives, which is the server's act.
+
+### SAMP-004
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT send tool-enabled sampling requests to Clients that have not declared support for tool use via the `sampling.tools` capability.
+
+[`client/sampling#tools-in-sampling`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#tools-in-sampling)
+
+Judged by `sampling.tools-declared`.
+
+### SAMP-005
+
+**MUST** · binds the client
+
+> Clients that support sampling MUST declare the `sampling` capability during initialization:
+
+[`client/sampling#capabilities`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#capabilities)
+
+Judged by `sampling.client-declares-capability`.
+
+### SAMP-006
+
+**SHOULD** · binds the server
+
+> Servers SHOULD avoid using these values (e.g. can just omit `includeContext` since it defaults to `"none"`)
+
+[`client/sampling#capabilities`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#capabilities)
+
+Judged by `sampling.include-context-avoided`.
+
+### SAMP-007
+
+**SHOULD NOT** · binds the server
+
+> and SHOULD NOT use them unless the client declares `sampling.context` capability.
+
+[`client/sampling#capabilities`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#capabilities)
+
+Judged by `sampling.include-context-declared`.
+
+### SAMP-008
+
+**MUST** · binds the server
+
+> When a user message contains tool results (type: "tool_result"), it MUST contain ONLY tool results.
+
+[`client/sampling#tool-result-messages`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#tool-result-messages)
+
+Judged by `sampling.tool-results-only`.
+
+### SAMP-009
+
+**MUST** · binds the server
+
+> When using tool use in sampling, every assistant message containing `ToolUseContent` blocks MUST be followed by a user message that consists entirely of `ToolResultContent` blocks, with each tool use (e.g. with `id: $id`) matched by a corresponding tool result (with `toolUseId: $id`), before any other message.
+
+[`client/sampling#tool-use-and-result-balance`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#tool-use-and-result-balance)
+
+Judged by `sampling.tool-use-answered`.
+
+### SAMP-010
+
+**MUST** · binds the client
+
+> `{mode: "required"}`: Model MUST use at least one tool before completing
+
+[`client/sampling#tool-choice-modes`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#tool-choice-modes)
+
+Judged by `sampling.tool-choice-required-honoured`.
+
+### SAMP-011
+
+**MUST NOT** · binds the client
+
+> `{mode: "none"}`: Model MUST NOT use any tools
+
+[`client/sampling#tool-choice-modes`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#tool-choice-modes)
+
+Judged by `sampling.tool-choice-none-honoured`.
+
+### SAMP-012
+
+**SHOULD** · binds the client
+
+> Clients SHOULD return errors for common failure cases: Tool result missing in request: `-32602` (Invalid params); Tool results mixed with other content: `-32602` (Invalid params)
+
+[`client/sampling#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#error-handling)
+
+Judged by `sampling.malformed-tool-messages-rejected`.
+
+### SAMP-013
+
+**SHOULD** · binds the client
+
+> Clients SHOULD return errors for common failure cases: User rejected sampling request: `-1`
+
+[`client/sampling#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#error-handling)
+
+**Excluded.** Its antecedent — that the user rejected the request — happens in the client's interface. An error with another code may be some other failure, and a result may follow the user's approval, so no answer is wrong without knowing what the user did.
+
+### SAMP-014
+
+**SHOULD** · binds the client
+
+> Clients SHOULD implement user approval controls
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#security-considerations)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### SAMP-015
+
+**SHOULD** · binds the client and server
+
+> Both parties SHOULD validate message content
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#security-considerations)
+
+**Excluded.** Validation is internal; its outcome is whatever each party sends next, and the shape of what they send is judged directly by the clauses that constrain it (tool-message balance, message roles).
+
+### SAMP-016
+
+**SHOULD** · binds the client
+
+> Clients SHOULD respect model preference hints
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#security-considerations)
+
+**Excluded.** Hints are advisory and mapping them is the client's choice (the page: clients "MAY map hints to equivalent models from different providers"); the result's `model` names what was used, but no rule says which model a hint selects, so no answer contradicts one.
+
+### SAMP-017
+
+**SHOULD** · binds the client
+
+> Clients SHOULD implement rate limiting
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#security-considerations)
+
+**Excluded.** A request schedule: rate limiting is measured in elapsed time, which checks may not consult (LIFE-015, the time boundary in `02-architecture.md`), and its threshold is the client's own policy.
+
+### SAMP-018
+
+**MUST** · binds the client and server
+
+> Both parties MUST handle sensitive data appropriately
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#security-considerations)
+
+**Excluded.** "Appropriately" names no observable criterion, and which data is sensitive is a semantic judgement about content (see the elicitation pages' sensitive-information clauses): no message can be shown to have mishandled it.
+
+### SAMP-019
+
+**MUST** · binds the server
+
+> Servers MUST ensure that when replying to a `stopReason: "toolUse"`, each `ToolUseContent` item is responded to with a `ToolResultContent` item with a matching `toolUseId`, and that the user message contains only tool results (no other content types)
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#security-considerations)
+
+Judged by `sampling.tool-use-answered`, `sampling.tool-results-only`.
+
+### SAMP-020
+
+**SHOULD** · binds the client and server
+
+> Both parties SHOULD implement iteration limits for tool loops
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#security-considerations)
+
+**Excluded.** A limit on a loop's length is a policy whose threshold the page does not set: any finite loop in a recording is consistent with some limit, and an unbounded one cannot be recorded.
+
+## ROOT
+
+### ROOT-001
+
+**MUST** · binds the client
+
+> Clients that support roots MUST declare the `roots` capability during initialization:
+
+[`client/roots#capabilities`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#capabilities)
+
+Judged by `roots.client-declares-capability`.
+
+### ROOT-002
+
+**MUST** · binds the client
+
+> When roots change, clients that support `listChanged` MUST send a notification:
+
+[`client/roots#root-list-changes`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#root-list-changes)
+
+**Excluded.** The antecedent — that the client's roots changed — happens inside the client. A recording sees only the notification, so a session without one cannot be told from one whose roots never changed.
+
+### ROOT-003
+
+**MUST** · binds the client
+
+> `uri`: Unique identifier for the root. This MUST be a `file://` URI in the current specification.
+
+[`client/roots#root`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#root)
+
+Judged by `roots.uri-file-scheme`.
+
+### ROOT-004
+
+**SHOULD** · binds the client
+
+> Clients SHOULD return standard JSON-RPC errors for common failure cases: Client does not support roots: `-32601` (Method not found)
+
+[`client/roots#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#error-handling)
+
+Judged by `roots.unsupported-rejected`.
+
+### ROOT-005
+
+**SHOULD** · binds the client
+
+> Clients SHOULD return standard JSON-RPC errors for common failure cases: Internal errors: `-32603`
+
+[`client/roots#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#error-handling)
+
+**Excluded.** Its antecedent — an internal error — is the client's own determination; another error code may be some other failure, so no answer is wrong on its face.
+
+### ROOT-006
+
+**MUST** · binds the client
+
+> Clients MUST: Only expose roots with appropriate permissions; Validate all root URIs to prevent path traversal; Implement proper access controls; Monitor root accessibility
+
+[`client/roots#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#security-considerations)
+
+**Excluded.** Client-internal policy: which directories the user permitted, how paths are validated and accessed, and whether they remain reachable are facts about the client's host system, not its messages. The one part a message carries — the URI's form — is judged by `roots.uri-file-scheme`; a `file://` URI with `..` segments is still well formed, and whether it escapes a permitted directory depends on the filesystem.
+
+### ROOT-007
+
+**SHOULD** · binds the server
+
+> Servers SHOULD: Handle cases where roots become unavailable; Respect root boundaries during operations; Validate all paths against provided roots
+
+[`client/roots#security-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#security-considerations)
+
+**Excluded.** Server-internal: what the server does with roots — keeping within their boundaries, validating paths against them, coping when they vanish or change, caching them — happens in its own operations on its host, which the MCP session does not record.
+
+### ROOT-008
+
+**SHOULD** · binds the client
+
+> Clients SHOULD: Prompt users for consent before exposing roots to servers; Provide clear user interfaces for root management; Validate root accessibility before exposing; Monitor for root changes
+
+[`client/roots#implementation-guidelines`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#implementation-guidelines)
+
+**Excluded.** UI and internal monitoring: consent prompts and root-management screens are the client's interface, and checking or watching roots' accessibility happens on its filesystem. A recording carries only the roots it finally reported.
+
+### ROOT-009
+
+**SHOULD** · binds the server
+
+> Servers SHOULD: Check for roots capability before usage
+
+[`client/roots#implementation-guidelines`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#implementation-guidelines)
+
+Judged by `roots.capability-checked`.
+
+### ROOT-010
+
+**SHOULD** · binds the server
+
+> Servers SHOULD: Handle root list changes gracefully; Respect root boundaries in operations; Cache root information appropriately
+
+[`client/roots#implementation-guidelines`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#implementation-guidelines)
+
+**Excluded.** Server-internal: what the server does with roots — keeping within their boundaries, validating paths against them, coping when they vanish or change, caching them — happens in its own operations on its host, which the MCP session does not record.
 

@@ -49,9 +49,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 73 | 154 |
-| Excluded rows the ledger holds | 94 | 160 |
-| Distinct not-observed sets across them | 42 | 115 |
+| Goldens | 98 | 174 |
+| Excluded rows the ledger holds | 152 | 218 |
+| Distinct not-observed sets across them | 63 | 131 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -122,6 +122,7 @@ below: the implementations on both ends, the tool that recorded them, and when.
 |-------|-----------|
 | `http-session.jsonl` | Streamable HTTP session: session-ID assignment and echo, `MCP-Protocol-Version` headers, `Accept`/`Content-Type` discipline, ping (TRAN-011/013/017/018/025/029/039/040 pass paths). It carries all three client request forms, which is what lets the two `Accept` clauses be told apart: POSTs offering both media types (TRAN-025), a standalone-stream `GET` offering `text/event-stream` (TRAN-039), and a session-terminating `DELETE` carrying `Accept: */*`. That last exchange is a regression guard — the clause defining session termination places no `Accept` obligation on it, but until 2026-08-20 both clauses were applied to every client request whatever its method, so this exact teardown drew two MUST-level failures from a client that had violated nothing. |
 | `stdio-feature-session.jsonl` | Every feature area conformant in one session: tools (incl. outputSchema + structuredContent, and a call returning an embedded resource against a declared `resources` capability — TOOL-009's pass path), resources (read/blob/subscribe/updated), prompts (text/image/audio/embedded), logging, completion, pagination cursor flow, and a well-formed `params._meta` key (BASE-019/020's pass path) |
+| `stdio-client-features.jsonl` | Every client-feature page conformant in one session (added 2026-10-13, review item 2.5): a client declaring `elicitation` in both modes, `sampling.tools` and `roots`; a form elicitation accepted with `content` its `requestedSchema` admits; a URL mode elicitation carrying an `elicitationId` and an RFC 3986 URL, accepted, then completed by `notifications/elicitation/complete` naming that id; a two-round sampling tool loop — `toolChoice` `required` answered with a tool use, then the tool result sent back under `toolChoice` `none` and answered with text; `roots/list` answered with a `file://` root; and a `-32042` listing one URL mode elicitation, completed the same way |
 | `stdio-full-session.jsonl` | Handshake plus ping, tools/list, tools/call over stdio |
 | `stdio-minimal-init.jsonl` | Smallest conformant session: the three-message handshake |
 | `http-origin-refused-without-id.jsonl` | A Streamable HTTP `initialize` carrying `Host`/`Origin` `evil.example.com`, refused `403` with a JSON-RPC error that has no `id`, then the same handshake from `localhost` completing. The transport's security warning permits exactly that body ("If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`"), so BASE-009 passes. Until 2026-10-13 the framing tied the error to the refused request, whose id was readable, and BASE-009 failed it — the shape of the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`). Added 2026-10-13 |
@@ -199,6 +200,30 @@ example).
 | `wire-schema-resource-missing-uri.jsonl` | Wire schema: a `resources/list` result whose resource has no `uri`, which `Resource` requires |
 | `wire-schema-log-level-not-in-enum.jsonl` | Wire schema: a `notifications/message` at level `chatty`, outside `LoggingLevel` |
 | `wire-schema-content-block-unknown-type.jsonl` | Wire schema: a `tools/call` result whose content block has `type: "txt"`, matching no `ContentBlock` member |
+| `elic-004-answered-without-capability.jsonl` | ELIC-004: a client declaring only `sampling` answers a form elicitation with a result. Also LIFE-009 and ELIC-006 for the server's request — a client can only show support it never declared by answering something it should not have been sent |
+| `elic-006-url-mode-undeclared.jsonl` | ELIC-006: a URL mode elicitation sent to a client declaring `elicitation: {}`, which is form mode only (LIFE-009 reads the same sub-capability). The client refuses with `-32602` — ELIC-021's pass path |
+| `elic-007-request-without-message.jsonl` | ELIC-007: a form elicitation with no `message`. The wire schema rejects the same request |
+| `elic-009-form-without-schema.jsonl` | ELIC-009: a form elicitation with no `requestedSchema`; the wire schema too |
+| `elic-011-url-without-elicitation-id.jsonl` | ELIC-011: a URL mode elicitation with no `elicitationId`, which this revision's table requires; the wire schema too |
+| `elic-012-url-without-scheme.jsonl` | ELIC-012: a URL mode `url` of `mcp.example.com/connect?…`, with no scheme. The schema marks `url` `format: uri`, which ADR-0020 leaves unasserted, so the clause is the only thing that catches it |
+| `elic-014-complete-names-unknown-id.jsonl` | ELIC-014: a completion notification naming `e-99` after the session's only URL elicitation established `e-42` |
+| `elic-018-url-required-error-without-list.jsonl` | ELIC-018: a `-32042` whose `data` lists no elicitations; the wire schema too |
+| `elic-019-url-required-error-form-mode.jsonl` | ELIC-019: a `-32042` listing a form mode elicitation; the wire schema too |
+| `elic-021-undeclared-mode-accepted.jsonl` | ELIC-021: a client declaring form mode only accepts a URL mode request instead of refusing it with `-32602`. ELIC-006 and LIFE-009 for the server's request, the clause's antecedent |
+| `elic-049-accepted-content-violates-schema.jsonl` | ELIC-049, a warning: `accept` with `{"city": 75001}` against a schema typing `city` as a string |
+| `samp-004-tools-without-sampling-tools.jsonl` | SAMP-004: `tools` sent to a client declaring plain `sampling` (LIFE-009 reads the same sub-capability) |
+| `samp-005-answered-without-capability.jsonl` | SAMP-005: a client declaring only `elicitation` answers a sampling request with a result. LIFE-009 for the server's request, the antecedent |
+| `samp-006-include-context-deprecated.jsonl` | SAMP-006, a warning: `includeContext` `thisServer` to a client that declares `sampling.context` — SAMP-007's pass path, since the declaration permits what SAMP-006 still asks the server to avoid |
+| `samp-007-include-context-undeclared.jsonl` | SAMP-007, a warning: `includeContext` `allServers` without `sampling.context`. SAMP-006 warns too: any use of the value is one it should have avoided |
+| `samp-008-tool-results-mixed.jsonl` | SAMP-008: a user message mixing text with a tool result. Also SAMP-009 — the message after the tool use is not one of tool results only — and SAMP-019, which restates both. The client refuses with `-32602`, SAMP-012's pass path |
+| `samp-009-tool-use-unanswered.jsonl` | SAMP-009: a tool use followed by a plain text message (SAMP-019 restates it); the client refuses with `-32602` |
+| `samp-010-required-tool-choice-ignored.jsonl` | SAMP-010: `toolChoice` `required` answered with text and no tool use |
+| `samp-011-none-tool-choice-ignored.jsonl` | SAMP-011: `toolChoice` `none` answered with a tool use |
+| `samp-012-malformed-tool-messages-answered.jsonl` | SAMP-012, a warning: the client answers, with a result, a request whose last message is an unanswered tool use. SAMP-009 and SAMP-019 for the request, the antecedent |
+| `root-001-answered-without-capability.jsonl` | ROOT-001: a client declaring only `sampling` answers `roots/list` with a root. LIFE-009 and ROOT-009 for the server's request (the antecedent), and ROOT-004 warns: having declared no roots, the client should have refused with `-32601` |
+| `root-003-root-not-file-uri.jsonl` | ROOT-003: a root listed as `https://example.com/repos/trips` |
+| `root-004-unsupported-answered-internal-error.jsonl` | ROOT-004, a warning: a client without `roots` refuses `roots/list` with `-32603` rather than `-32601`. LIFE-009 and ROOT-009 for the request, the antecedent |
+| `root-009-asked-without-capability.jsonl` | ROOT-009, a warning: `roots/list` sent to a client that did not declare `roots` (LIFE-009 states the MUST behind it). The client refuses with `-32601` — ROOT-004's pass path |
 
 ### `2026-07-28` captured (`corpus/draft/captured/`)
 
@@ -214,7 +239,7 @@ two reports is attributable to that one change.
 | Server | `mcp-everything-server` on rmcp 3.4.1, serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode, same build |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-04 | same run, second leg |
 | Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
-| Our verdict | 69 pass, **1 fail**, 1 warn, 83 not observed, 160 excluded | **70 pass, 0 fail**, 1 warn, 83 not observed, 160 excluded |
+| Our verdict | 69 pass, **1 fail**, 1 warn, 103 not observed, 218 excluded | **70 pass, 0 fail**, 1 warn, 103 not observed, 218 excluded |
 | The official runner's verdict, that run | `38 passing / 4 failing` | `42 passing / 0 failing` |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
@@ -314,7 +339,7 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-10-13 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, an 18-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all five prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every listing is followed to its last page: the server serves each in two, the suite's catalogue first and the rest — icons, annotations, a `resource_link` result, an audio prompt, `x-mcp-header` designations — behind a `nextCursor`. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **100 pass, 0 fail, 1 warn**, 53 not observed, 160 excluded |
+| Our verdict | **107 pass, 0 fail, 2 warn**, 65 not observed, 218 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -359,6 +384,19 @@ close (the official suite's runner does not cache, and judges it on both of
 its captures). The remaining four are not driven by this host: `TRAN-128` and
 `DISC-002`'s dual-era probe, `MRTR-024`, and `VERS-004`.
 
+**The client-feature pages added twelve more on 2026-10-13, on both legs**
+(review item 2.5). The session's one sampling round carries no `tools`, so
+nothing it sends exercises the tool-use clauses (`SAMP-026`, `SAMP-030`…`SAMP-033`,
+`SAMP-042`) or the deprecated `includeContext` permission (`SAMP-029`); it asks
+for no roots (`ROOT-013`, `ROOT-014`, `ROOT-018`), and none of its elicitations
+is in URL mode (`ELIC-064`, `ELIC-065`). The three form elicitations and the
+sampling round are judged, and one of them warns: **`ELIC-095` ("Clients SHOULD
+validate all responses against the provided schema") on the host**, whose
+`AcceptWithDefaults` policy answers the `probe` form — `username` and `email`
+required, neither with a default — with `accept` and empty `content`. That is a
+finding against this project's own client, on both legs, not a reading the text
+leaves open: the content its answer submits is not what the schema asks for.
+
 **Five used to be on that list for want of server surface; four have left
 it.** `CACH-015`/`CACH-016` needed a catalogue served in pages and `PROM-017`
 a prompt carrying audio, and both are on the listings' second pages now;
@@ -375,7 +413,7 @@ the transport keeps it unobserved here.
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-10-13 |
 | Contents | 195 events — the session's 103 messages plus 92 `http` events carrying status and headers, the `Mcp-Param-Region`/`Mcp-Param-Limit` pair rmcp mirrors for the designated tool among them |
-| Our verdict | **116 pass, 0 fail, 1 warn**, 37 not observed, 160 excluded |
+| Our verdict | **123 pass, 0 fail, 2 warn**, 49 not observed, 218 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -388,7 +426,7 @@ in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 117 of the 154 judgeable clauses it is the best-covered capture here, and
+At 125 of the 174 judgeable clauses it is the best-covered capture here, and
 the fourteen it gained on 2026-10-13 are the server's own doing: the second
 pages carry the pagination clauses (`CACH-015`/`CACH-016`), the audio prompt
 (`PROM-017`), and a tool designating three arguments for `Mcp-Param-*`
@@ -498,19 +536,19 @@ read as a specimen instead.
 <!-- draft-coverage:begin (generated by `cargo xtask draft-coverage`; do not edit by hand) -->
 | Capture | Judged | pass | fail | warn | Not observed |
 |---------|-------:|-----:|-----:|-----:|-------------:|
-| `official-suite-2026-07-28-scenarios` | 71 | 69 | 1 | 1 | 83 |
-| `official-suite-2026-07-28-stateless` | 71 | 70 | 0 | 1 | 83 |
-| `probe-2026-07-28-http` | 85 | 72 | 11 | 2 | 69 |
-| `reference-host-2026-07-28-http` | 117 | 116 | 0 | 1 | 37 |
-| `reference-host-2026-07-28-stdio` | 101 | 100 | 0 | 1 | 53 |
-| `sdk-go-2026-07-28` | 80 | 76 | 3 | 1 | 74 |
-| `sdk-python-2026-07-28` | 65 | 65 | 0 | 0 | 89 |
-| `sdk-rust-2026-07-28` | 74 | 73 | 0 | 1 | 80 |
-| **Union** | **140** | | | | **14** |
+| `official-suite-2026-07-28-scenarios` | 71 | 69 | 1 | 1 | 103 |
+| `official-suite-2026-07-28-stateless` | 71 | 70 | 0 | 1 | 103 |
+| `probe-2026-07-28-http` | 85 | 72 | 11 | 2 | 89 |
+| `reference-host-2026-07-28-http` | 125 | 123 | 0 | 2 | 49 |
+| `reference-host-2026-07-28-stdio` | 109 | 107 | 0 | 2 | 65 |
+| `sdk-go-2026-07-28` | 83 | 78 | 4 | 1 | 91 |
+| `sdk-python-2026-07-28` | 65 | 65 | 0 | 0 | 109 |
+| `sdk-rust-2026-07-28` | 74 | 73 | 0 | 1 | 100 |
+| **Union** | **148** | | | | **26** |
 
-Across all 8 captures, **140 of the 154 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 8 captures, **148 of the 174 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
-The 14 clauses no capture reaches: `CANC-003`, `CANC-011`, `DISC-002`, `MRTR-024`, `TOOL-035`, `TOOL-046`, `TRAN-061`, `TRAN-070`, `TRAN-083`, `TRAN-084`, `TRAN-096`, `TRAN-128`, `TRAN-132`, `TRAN-133`.
+The 26 clauses no capture reaches: `CANC-003`, `CANC-011`, `DISC-002`, `ELIC-064`, `ELIC-065`, `MRTR-024`, `ROOT-013`, `ROOT-014`, `ROOT-018`, `SAMP-026`, `SAMP-029`, `SAMP-030`, `SAMP-031`, `SAMP-032`, `SAMP-033`, `SAMP-042`, `TOOL-035`, `TOOL-046`, `TRAN-061`, `TRAN-070`, `TRAN-083`, `TRAN-084`, `TRAN-096`, `TRAN-128`, `TRAN-132`, `TRAN-133`.
 <!-- draft-coverage:end -->
 
 The probe session closed the largest group — the rejection rules — and the
@@ -667,11 +705,23 @@ else in any trace changed, and no other row's outcome moved; without the edit
 every authored trace would carry a warning unrelated to the clause it exists
 for. The three traces named for those clauses are the only ones left without.
 
+**Every form elicitation carries its schema (2026-10-13).** When the
+client-feature pages entered the registry (review item 2.5), seven authored traces
+were found asking for form mode elicitation without the `requestedSchema` the
+page requires, or with no parameters at all — fixtures written for MRTR clauses
+that never needed one: `mrtr-004`, `mrtr-015`, `mrtr-016-request-state-not-echoed`,
+`mrtr-018`, `mrtr-024`, `tran-066` and `base-034-input-request-for-undeclared-capability`.
+Each gained the same `message` and `requestedSchema`; nothing else changed. The
+wire schema had been failing all but the last of them for the omission, unrelated
+to the clause each exists for; it now passes them, and no existing requirement's
+outcome moved.
+
 | Trace | Exercises |
 |-------|-----------|
 | `stateless-session.jsonl` | Conformant `2026-07-28` stateless session over **stdio**: every request carries its own `_meta` envelope (protocolVersion + clientCapabilities), every result carries `resultType`, request ids are reused only after their response. It closes with two calls in flight, a `notifications/cancelled` for one of them, and the server answering only the other — TRAN-124's pass path, which a recording can only carry by showing a *permitted* message where the forbidden one would be. It also carries a complete conforming MRTR round — `input_required` with an `elicitation/create` request and a `requestState`, then a retry under a new id echoing the state and supplying `inputResponses` — so the MRTR checks pass on real content. The Streamable HTTP clauses report *not observed* here: there is no HTTP framing for them to read, which is why `streamable-http-session.jsonl` exists. |
 | `mrtr-parallel-rounds.jsonl` | Two `tools/call` rounds in flight at once — the shape the official Python SDK produces for concurrent calls: both requests, both `input_required` results, then the retries in the *opposite* order, each echoing its own `requestState` and answering its own `inputRequests`. Until retries were paired by the state they echo, the second retry was judged against the most recent round — the other call's — and this conforming exchange failed MRTR-003/015/016/017. |
 | `mrtr-retry-round-before-recording.jsonl` | A fresh stdio process receives a `tools/call` retry carrying `inputResponses` and a `requestState` minted by an earlier server process, and completes it; the `input_required` round predates the recording. `requestState` exists so a retry can reach an instance that never saw the round, so MRTR-015/016/018 have no round to judge it against. Until 2026-10-12 MRTR-018 read the missing round as one that issued no state and failed it. |
+| `client-features-mrtr.jsonl` | The client-feature traffic of `good/stdio-client-features.jsonl` under MRTR, over stdio (added 2026-10-13, review item 2.5): one `tools/call` whose `input_required` asks four inputs at once — form and URL mode elicitation (no `elicitationId` at this revision), a tool-enabled sampling request under `toolChoice` `required`, and `roots/list` — retried with all four answers; a second round continuing the tool loop under `toolChoice` `none`; then the result. Every request declares `elicitation` (both modes), `sampling.tools` and `roots` in its own `clientCapabilities` |
 | `subscription-server-teardown.jsonl` | A stdio subscription the *server* ends: acknowledgment, one requested change notification, then `notifications/cancelled` with `requestId` naming the `subscriptions/listen` request — the teardown basic/patterns/cancellation makes mandatory ("A server MUST send `notifications/cancelled` referencing a `subscriptions/listen` request ID when it tears down that subscription stream"). It carries no `subscriptionId` tag, since `requestId` already names the subscription; until 2026-10-04 BASE-039 failed it for the missing tag, and SUBS-001 failed the tagged form as an unrequested notification type, so the mandated message could not pass either way. |
 | `subscription-id-reused-after-close.jsonl` | A stdio subscription closed by its graceful-closure response, then a second `subscriptions/listen` reusing id 1 with a different filter (`promptsListChanged` only): each opening acknowledged first, each notification one its own filter requested (SUBS-001/002 pass paths). Until 2026-10-12 both checks keyed subscriptions by id alone, so the second filter judged the first stream's `tools/list_changed` and SUBS-001 failed. |
 | `caching-ttl-written-as-float.jsonl` | A `tools/list` result carrying `"ttlMs": 60000.0`. The schema types `ttlMs` as JSON Schema `integer`, which admits any number with a zero fractional part, so this is 60000 milliseconds (CACH-001/008 pass paths) — the spelling a serializer that holds every JSON number as a double may produce. Until 2026-10-12 CACH-008 accepted only values that parsed as `i64` and failed it. |
@@ -815,3 +865,22 @@ for. The three traces named for those clauses are the only ones left without.
 | `wire-schema-cache-scope-not-in-enum.jsonl` | Wire schema: `cacheScope: "shared"`, which is neither `public` nor `private` |
 | `wire-schema-content-block-unknown-type.jsonl` | Wire schema: a `tools/call` result whose content block has `type: "txt"`, matching no `ContentBlock` member |
 | `vers-008-initialize-error-without-versions.jsonl` | A modern-only server refuses a legacy `initialize` with a bare `Method not found`, naming none of the versions it does speak (VERS-008). Necessarily also falsifies BASE-030: a legacy handshake carries no `_meta` envelope — that is what makes it legacy — so the antecedent of this clause is a client that cannot satisfy BASE-030. BASE-031 is *not* also reported, and this trace is why the check was narrowed: `basic/versioning`'s compatibility matrix makes the rejection code implementation-defined for exactly this exchange. |
+| `elic-057-answered-without-capability.jsonl` | ELIC-057: the call declares `elicitation`, but its retry — the request carrying the accepted form — declares only `sampling`; the page asks for the declaration "on each request" |
+| `elic-059-url-mode-undeclared.jsonl` | ELIC-059: URL mode asked of a request declaring form mode only. BASE-034, MRTR-012 and MRTR-013 make the same observation through `meta.no-undeclared-capability-reliance` |
+| `elic-060-request-without-message.jsonl` | ELIC-060: an elicitation with no `message`; the wire schema too |
+| `elic-062-form-without-schema.jsonl` | ELIC-062: form mode with no `requestedSchema`; the wire schema too |
+| `elic-064-url-mode-without-url.jsonl` | ELIC-064: URL mode with no `url`; the wire schema too |
+| `elic-065-url-not-a-valid-url.jsonl` | ELIC-065: a `url` whose query carries an unencoded space (`account=Jane Doe`), which RFC 3986 admits only as `%20`. The wire schema passes it: `format` is not asserted (ADR-0020) |
+| `elic-095-accepted-content-violates-schema.jsonl` | ELIC-095, a warning: `accept` with empty `content` against a schema requiring `city` — the shape the reference host's captures show (below) |
+| `samp-026-tools-without-sampling-tools.jsonl` | SAMP-026: `tools` asked of a request declaring plain `sampling`. BASE-034, MRTR-012 and MRTR-013 make the same observation |
+| `samp-027-answered-without-capability.jsonl` | SAMP-027: a retry declaring only `elicitation` answers the sampling request its call drew |
+| `samp-028-include-context-deprecated.jsonl` | SAMP-028, a warning: `includeContext` `thisServer` with `sampling.context` declared — SAMP-029's pass path |
+| `samp-029-include-context-undeclared.jsonl` | SAMP-029, a warning: `includeContext` `allServers` without `sampling.context`; SAMP-028 warns too |
+| `samp-030-tool-results-mixed.jsonl` | SAMP-030: a user message mixing text with a tool result; SAMP-031 and SAMP-042 as for `samp-008` at `2025-11-25` |
+| `samp-031-tool-use-unanswered.jsonl` | SAMP-031: a tool use followed by a plain text message; SAMP-042 restates it |
+| `samp-032-required-tool-choice-ignored.jsonl` | SAMP-032: `toolChoice` `required` answered with text |
+| `samp-033-none-tool-choice-ignored.jsonl` | SAMP-033: `toolChoice` `none` answered with a tool use |
+| `samp-034-message-without-role.jsonl` | SAMP-034: a sampling message with no `role`; the wire schema too |
+| `root-013-answered-without-capability.jsonl` | ROOT-013: a retry declaring only `sampling` answers `roots/list` |
+| `root-014-root-not-file-uri.jsonl` | ROOT-014: a root listed as `https://example.com/repos/trips` |
+| `root-018-asked-without-capability.jsonl` | ROOT-018, a warning: `roots/list` asked of a request that did not declare `roots`. BASE-034, MRTR-012 and MRTR-013 state the MUST behind it and fail |

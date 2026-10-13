@@ -32,7 +32,7 @@ use serde_json::{Map, Value};
 use super::super::FindingSink;
 use crate::context::TraceContext;
 
-mod pairing;
+pub(in crate::checks) mod pairing;
 #[cfg(test)]
 mod tests;
 

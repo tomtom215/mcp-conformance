@@ -38,7 +38,7 @@ const INPUT_REQUIRED: &str = "input_required";
 
 /// An `InputRequiredResult` and the request it answered.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct Round<'a> {
+pub(in crate::checks) struct Round<'a> {
     /// The `seq` of the result.
     pub seq: u64,
     /// The originating request's `seq`, `id` text and `method`.
@@ -53,7 +53,7 @@ pub(super) struct Round<'a> {
 
 /// A client request that identifies itself as a retry.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct Retry<'a> {
+pub(in crate::checks) struct Retry<'a> {
     pub seq: u64,
     pub id: &'a Value,
     pub method: &'a str,
@@ -64,7 +64,7 @@ pub(super) struct Retry<'a> {
 
 /// What a retry was paired with.
 #[derive(Debug, Clone, Copy)]
-pub(super) enum Pairing<'a> {
+pub(in crate::checks) enum Pairing<'a> {
     /// The round the retry answers.
     Round(Round<'a>),
     /// More than one round could be the one, and they would be judged differently.
@@ -75,7 +75,7 @@ pub(super) enum Pairing<'a> {
 
 impl<'a> Pairing<'a> {
     /// The paired round, when the pairing is certain.
-    pub(super) const fn round(self) -> Option<Round<'a>> {
+    pub(in crate::checks) const fn round(self) -> Option<Round<'a>> {
         match self {
             Self::Round(round) => Some(round),
             Self::Ambiguous | Self::Unseen => None,
@@ -98,7 +98,7 @@ fn target<'a>(method: &str, params: Option<&'a Value>) -> Option<&'a Value> {
 /// Driven from exchanges, so a result whose request is not in the recording is
 /// skipped: without the request there is no method to judge against and no id to
 /// compare a retry's against.
-pub(super) fn rounds<'a>(context: &'a TraceContext<'_>) -> Vec<Round<'a>> {
+pub(in crate::checks) fn rounds<'a>(context: &'a TraceContext<'_>) -> Vec<Round<'a>> {
     context
         .exchanges()
         .filter_map(|exchange| {
@@ -119,7 +119,7 @@ pub(super) fn rounds<'a>(context: &'a TraceContext<'_>) -> Vec<Round<'a>> {
 }
 
 /// Every client request carrying a retry's marker fields, in trace order.
-pub(super) fn retries<'a>(context: &'a TraceContext<'_>) -> Vec<Retry<'a>> {
+pub(in crate::checks) fn retries<'a>(context: &'a TraceContext<'_>) -> Vec<Retry<'a>> {
     context
         .messages()
         .filter_map(|(event, _, _)| {
@@ -157,7 +157,7 @@ fn interchangeable(retry: &Retry<'_>, a: &Round<'_>, b: &Round<'_>) -> bool {
 }
 
 /// Each retry paired with the round it answers, in trace order.
-pub(super) fn retries_with_rounds<'a>(
+pub(in crate::checks) fn retries_with_rounds<'a>(
     context: &'a TraceContext<'_>,
 ) -> Vec<(Retry<'a>, Pairing<'a>)> {
     let mut pending: Vec<Round<'a>> = rounds(context);
