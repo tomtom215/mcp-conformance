@@ -63,760 +63,742 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+**Checks that missed failures**
+
+- **`TOOL-011`/`TOOL-040`** ("Servers MUST provide structured results that conform
+  to this schema") judged only that `structuredContent` was present and, for an
+  object schema, an object, so `{"temperature": "warm"}` passed a schema typing it
+  `number`. It is now validated against the `outputSchema` in its declared dialect;
+  a schema the engine cannot apply (an unknown dialect, or a `$ref` to a document
+  outside it, which is never fetched) is still held only to its root type.
+- **`TRAN-079`** judged only that a mirrored `Mcp-Param-*` header was present, not
+  its value (`transport.x-mcp-header-value-mirrored`); **`TRAN-029`/`TRAN-063`**
+  judged only success statuses, so a `4xx`/`5xx` JSON-RPC error with no
+  `Content-Type` passed. Both found by the `mcpsnoop` comparison.
+- **`BASE-039`** checked only a `subscriptionId`'s presence; its value must be "the
+  JSON-RPC ID of the `subscriptions/listen` request". A tag matching no listen
+  request in the trace now fails, including `null` and `"1"` for a request whose id
+  is `1` (ids compare as values).
+- **`BASE-034`, `MRTR-012` and `MRTR-013`** compared only top-level capability
+  names: a URL-mode `elicitation/create` to a client declaring only
+  `elicitation.form`, or a `sampling/createMessage` with `tools` or `toolChoice` to
+  one without `sampling.tools`, now fails (no `mode` counts as form mode, and an
+  empty `elicitation: {}` as form-only declared, as `client/elicitation`
+  specifies). They also looked capabilities up by id across the whole trace, so
+  after a client reused an answered id — which `2026-07-28` permits — an
+  `input_required` result was judged against a *later* request (failing a server's
+  elicitation because a later request with that id had not declared
+  `elicitation`); each is now judged against the request it answers.
+- **`LOG-009`** judged only logs tagged with a subscription id. A
+  `notifications/message` must ride the response stream of the request that set
+  the level, so it now also fails an untagged log sent while nothing but a
+  `subscriptions/listen` is in flight, unless a later response answers a request
+  sent before the recording began.
+- **`SUBS-001`/`SUBS-002`** keyed subscriptions by id alone, so a
+  `subscriptions/listen` reusing a closed subscription's id replaced it: the old
+  stream's notifications were judged by the new filter (a false `SUBS-001` failure)
+  and never examined (a missed `SUBS-002` acknowledgment). A subscription is now
+  open from its request until its response or a cancellation naming it, each
+  opening owes its own acknowledgment, and a tagged message is judged against the
+  subscription open when it was sent.
+- **`TOOL-034`** read arguments as 64-bit signed integers, which serde_json cannot
+  hold for 2^63 and up, so the largest out-of-range values went unjudged. Any
+  number with no fractional part is now an integer (as for `CACH-008`):
+  `9223372036854775808` and `9007199254740992.0` fail, `1.0` passes.
+- **`BASE-040`** read every `traceparent` as version `00`, so it failed a higher
+  version with fields after the flags, which W3C Trace Context allows (future
+  versions are "additive"), and passed `ff`, which it forbids. `00` is still
+  exactly four fields, a higher version is judged on the four it shares with `00`,
+  and `ff` fails.
+- **`TRAN-068`** recognized only a lowercase `text/event-stream`; media types are
+  case-insensitive (RFC 9110 §8.3.1), so a `Text/Event-Stream` response without
+  `X-Accel-Buffering: no` now warns too.
+
+**Checks that failed conforming sessions**
+
+- **A null-id answer on Streamable HTTP now closes its request for every check**,
+  not only `TRAN-073`/`TRAN-096`, when its status ties it to one POST. Left open, a
+  retry with the same id failed `BASE-045` and its result was held against the
+  first request (`BASE-031` after a `-32602` for a malformed `_meta`,
+  `TRAN-097`/`TRAN-100` after a header mismatch). So `BASE-052` (and `BASE-009` at
+  `2025-11-25`, sharing its check) judges such an answer instead of *not observed*:
+  `null` for a request whose id could be read fails, as the clause excuses only
+  "error cases where the ID could not be read". Two `2026-07-28` corpus goldens
+  record that new failure.
+- **`BASE-009`/`BASE-052` accept the id-less error a server may return in the body
+  of a `403` Origin refusal**, which both revisions' transport pages permit (the
+  official suite's DNS-rebinding scenario drew it). The everything server's
+  refusal body now omits `id` rather than sending `null`, which the schema does not
+  admit.
+- **A request a protected server refused with 401 (or 403 with a challenge), resent
+  by the client with the same id,** no longer fails `BASE-003`/`BASE-045` or counts
+  as a second session: the refused request was not delivered. The refusal's OAuth
+  error body (`{"error":"invalid_token"}`) is no longer judged as a JSON-RPC message
+  (it failed `BASE-006`/`008`/`009` and the wire schema).
+- **A request that earns more than one rejection may draw any of them.** A POST
+  whose `MCP-Protocol-Version` header disagrees with a body `_meta` naming a version
+  the server does not implement may get `-32020` (`HeaderMismatch`) or `-32022`
+  (`UnsupportedProtocolVersionError`), which the specification defines without
+  ordering, yet `TRAN-073` failed the first and `TRAN-074`/`VERS-001` the second;
+  likewise `-32022` against the `-32602` a missing required `_meta` field draws.
+  `TRAN-073`, `TRAN-074`, `VERS-001` and `TRAN-096` now accept the code of any
+  rejection the request also earned; a result, or any other code, still fails. A
+  `server/discover` probe answered with the `DiscoverResult` listing the versions
+  the server does implement no longer fails `TRAN-074`/`VERS-001`: it is the
+  outcome `basic/versioning`'s compatibility matrix names.
+- **`LIFE-001`/`LIFE-004` at `2025-11-25` failed a dual-era client's modern first
+  attempt over Streamable HTTP**, which `2026-07-28` permits ("detect which era the
+  server implements by attempting a modern request first", then fall back to
+  `initialize`). Such an attempt — a request carrying the per-request `_meta`
+  revision, sent before the first `initialize`, that no result answered — is now
+  set aside, as a failed stdio `server/discover` probe already was. A legacy
+  request with no `_meta` before `initialize` still fails.
+- **`MRTR-018`** failed a retry carrying `requestState` with no recorded
+  `input_required` before it, but `requestState` is designed to reach a server
+  instance that never saw the round, and a capture can start mid-flow. Like
+  `MRTR-015`/`MRTR-016`, it now judges only retries of a recorded round.
+- **`TRAN-124` on stdio** failed any later response with the id of a request
+  cancelled by notification,
+  including the answer to a new request reusing that id after the first was
+  answered. A new request now clears the cancellation, progress token and send time
+  recorded under its id, as the Streamable HTTP check (`TRAN-070`) already did.
+- **`TRAN-070`** read a `transport-close` recorded straight after a response as
+  cancelling the one other request still open, failing a subscription answered
+  after a `tools/call` beside it completed; it is that response's stream ending
+  ("The final JSON-RPC response SHOULD terminate the stream").
+- **`CACH-008`** accepted only a `ttlMs` that parses as a 64-bit signed integer, so
+  `"ttlMs": 60000.0` failed, though the schema's JSON Schema `integer` admits any
+  number with a zero fractional part. It now accepts any non-negative number with
+  no fractional part, and still fails a negative or fractional one.
+
+**Which clauses a check judges**
+
+- **`TRAN-074` is judged on Streamable HTTP only.** It is the transport page's
+  unsupported-version rule (under `#protocol-version-header`) but shared
+  `VERS-001`'s check, so a stdio session answering `-32022` correctly reported a
+  `TRAN-074` *pass*. Its own check, `transport.unsupported-version-error-http`,
+  reports *not observed* on stdio, where `VERS-001` judges the rule as before.
+  Three stdio goldens record the change; findings against `TRAN-074` name the new
+  check, so their SARIF fingerprints change and an open code-scanning alert for one
+  closes and reopens once.
+- **`DISC-002`/`TRAN-128` are judged on stdio only.** Both state the stdio probe
+  rule; over Streamable HTTP a dual-era client "MAY detect which era the server
+  implements by attempting a modern request first", and doing so drew a warning.
+  The committed HTTP probe capture loses its two warnings, and both clauses join
+  the list no capture reaches.
+- **`TOOL-034` and `TRAN-081` name one clause each.** Each quote joined list items
+  binding different parties: the safe-integer bound on a mirrored value (the
+  client's, judged by `tools.x-mcp-header-integer-range`), static reachability (the
+  server's schema) and, in `TOOL-034`, the client's duty to reject an invalid
+  definition. So the rows disagreed about whom the integer sentence binds:
+  `TRAN-081` was excluded because "the safe-integer bound … require[s] walking the
+  tool's JSON Schema", while `TOOL-034` judged it. Both now quote only the bound,
+  bind the client and share the check. Reachability is `TOOL-045` and `TRAN-137`,
+  the rejection duty `TOOL-046` (twin of `TRAN-083`); these and `TRAN-082`, first
+  left excluded for want of telling subschemas from instance data, are now all
+  judged (see Added).
+- **The `2026-07-28` page set's reason for excluding `deprecated` was wrong**: it
+  said the page had no keyword instances, but it carries a SHOULD NOT and a SHOULD.
+  The page stays out of scope for the reason that holds: those keywords bind an
+  implementer's adoption plans, which no trace carries.
+
+**`validate`, `requirements` and the GitHub Action**
+
+- **A multi-trace `validate` run that could not judge a trace no longer reads as
+  passing.** With a malformed trace among good ones it exited 3 yet reported
+  `overall verdict: pass` (`"verdict": "pass"` in JSON), no JUnit suite for the
+  trace, and `executionSuccessful: true` in SARIF. The overall verdict is now
+  `incomplete`, and each format names each such trace with its error: a
+  `not judged:` section (human), `unjudged_traces` (JSON), a suite with an
+  `<error>` test case and an `errors` count on `<testsuites>` (JUnit), an error
+  notification located at the trace with `executionSuccessful: false` (SARIF).
+  **This can break a consumer**; the JSON `verdict` is also no longer `null` when
+  no trace was judged. A run that judged every trace renders byte-for-byte as
+  before; `report.schema.json` documents the new members.
+- **Errors about a trace's content name the trace** when several are judged
+  (`error: traces/b.jsonl: malformed trace: line 4: …`); a single trace reads as
+  before. Hints now cover a glob the
+  shell passed through unmatched, a directory, a trailing blank line at the end of
+  the file, and a bare JSON-RPC message with no event around it. A record's parse
+  error no longer repeats serde's `line 1`, which contradicted the line it named;
+  the column stays.
+- **The human report lists at most 20 findings under a clause**, then counts the
+  rest and says how to see them: a trace repeating one defect 250,000 times printed
+  four million lines. `--all` lists every clause *and* every finding; JSON, JUnit
+  and SARIF carry every finding, and a report with 20 or fewer per clause is
+  unchanged.
+- **Flags.** `--strict` over several traces notes once, naming the traces it
+  failed, not once per trace with nothing to tell them apart. A repeated
+  `--revision` is judged once, not as two identical columns. `--max-events 0` and
+  `--max-line-bytes 0` are refused as bad flags (exit 2) rather than failing every
+  trace as malformed.
+- **`requirements`.** `requirements --help` offers only `human` and `json` (it
+  listed `junit` and `sarif`, then rejected them). `requirements --excluded` prints
+  why, as its help promised ("with why"): a `why:` line with the registry's reason
+  follows each row, which showed only `(excluded)`; the JSON form, which always
+  carried `exclusion`, and the listing without `--excluded` are unchanged. An ID of
+  the other revision says which has it (`requirements BASE-003` at the default
+  `2026-07-28`: "it is a 2025-11-25 requirement: pass --revision 2025-11-25").
+- **Library text no longer names CLI flags.** `Report::render_human` told library
+  callers to "re-run with `--revision …`"; it now words the advice without a flag,
+  and the CLI asks for its own wording (`HumanOptions::cli`).
+- **A crafted trace could make `validate` take minutes.** Era detection before
+  `initialize`, request/response pairing and the handshake count each scanned
+  forward from every request for its answer, quadratic in unanswered requests, and
+  every HTTP check rebuilt the HTTP framing. Lookups are now indexed once (keyed by
+  canonical id, confirmed by value equality, so pairing is unchanged) and the
+  framing built once per trace; instruction counts grow linearly with the trace. On
+  one 4-vCPU Xeon at 2.10 GHz, release builds, three runs each: 80,000
+  pre-`initialize` requests over Streamable HTTP, 35.8 s before and 6.0 s after;
+  20,000 unanswered requests then 20,000 unmatched responses, 4.25–4.36 s before
+  and 0.46–0.64 s after.
+- **`validate` read the whole input before any limit applied**: a 1 GiB file
+  reached 1 GiB of memory before `--max-line-bytes` refused its first line, and
+  `validate /dev/zero` never ended. Lines are now read one at a time, stopping
+  after the line `--max-events` refuses or at a line over `--max-line-bytes`, whose
+  length is counted without being kept (up to sixteen times the limit; beyond that
+  the error gives a lower bound). The same file now peaks at 70 MiB, `/dev/zero`
+  exits `3` in half a second, and an earlier line's error is still reported first.
+- **Human output escapes control characters** (`\u{1b}`): findings quote the trace
+  (a method name, an id), so an `ESC` sequence in a recorded method could rewrite
+  the terminal or a CI log. JSON, JUnit and SARIF already escaped them.
+- **JUnit output replaces U+FFFE and U+FFFF with U+FFFD.** Like the C0 controls the
+  renderer already replaced, they are outside XML 1.0's `Char` production, so a
+  trace naming a method with either produced a report a strict CI parser rejects.
+- **The GitHub Action writes its reports when the validator cannot start.** A
+  `traces` pattern matching nothing wrote none, and a lone unreadable or malformed
+  trace left both files empty, so the README's paired `upload-sarif` step
+  (`if: always()`) failed and hid the real error. Each configured report is now a
+  SARIF run marked `executionSuccessful: false`, or a JUnit `<error>`, naming the
+  problem; the `exit-code` output is unchanged. `action.yml` now says exit `2` also
+  covers output not written, and `fail-on-findings: false` stops exit `2` and `3`
+  failing the step too.
+
+**`mcp-trace-capture http`**
+
+- **Memory no longer grows with concurrent exchanges.** Each request body and
+  non-SSE response was read whole, up to `--max-message-bytes`, with no limit on how
+  many at once: eight concurrent 60 MB POSTs held 488 MB. Bodies and SSE events now
+  share one budget of four times `--max-message-bytes` (256 MiB by default); one
+  arriving while it is spent is streamed on intact, left out of the trace, and
+  counted in the exit summary.
+- **Session ids the server has not accepted no longer open traces or take over the
+  current session.** With `{session}`, every unseen `Mcp-Session-Id` began a
+  numbered file and a never-removed map entry (a file per invented id), and became
+  the session later id-less requests joined even when answered 404. Such exchanges
+  now share one trace, apart from the current session's, until the server answers
+  one with a 2xx, making that trace the id's session and the current one; a refused
+  id is not remembered, and a `DELETE` the server accepts ends its session.
+- **Timeouts.** `axum::serve` set no timer, so hyper's header read timeout never
+  applied; the proxy now serves through hyper with a 30-second request-head
+  timeout, which also closes kept-alive connections idle that long. An upstream
+  that never completes the connection is a `502` after 10 seconds, not whenever
+  the operating system gives up; a connected one may still take as long as it likes
+  to answer.
+- **Paths and redirects.** A path with `.` or `..` segments (spelled out or
+  percent-encoded), which reached `/mcp/../../secret` for `/../../secret` with
+  `--upstream http://h/mcp`, is answered `400` by the proxy, not recorded, and
+  counted at exit. The proxy's root path reaches the `--upstream` URL itself; it
+  appended `/` (making `/mcp/`, which servers answer with a redirect), so no client
+  URL reached exactly `/mcp`. Other paths are still appended (`/x` reaches
+  `/mcp/x`). A `Location` pointing into the upstream is pointed back at the proxy,
+  so the client stays in the recording, via the local address the client's
+  connection reached, not its `Host` header (`Host: evil.example` had turned it
+  into `http://evil.example/…`).
+- **Headers.** `Content-Length` is forwarded as sent, both ways: a `HEAD` response
+  reached the client as `content-length: 0`, and a body over the message limit went
+  out chunked. `Proxy-Connection` (hop-by-hop in practice) and `Expect` (asking the
+  upstream to approve a body the proxy had already accepted and read) are no longer
+  forwarded upstream.
+- **A plain `http://` upstream works where the platform has no root certificates**
+  (a minimal container). They were loaded for every upstream, failing after the
+  trace file and the "listening on" line, leaving an empty trace that made the next
+  run refuse to start without `--force`; they are now loaded only for an `https://`
+  upstream, before the trace file is created.
+- **Stopping cuts only standalone event streams.** Every event stream was ended
+  cleanly at once, including SSE responses to POSTs, whose response then never
+  arrived. Only the GET stream a client holds for its session is cut, aborted
+  rather than ended so the client can tell it from one the server finished; a
+  POST's SSE response gets the same 3 seconds as any other request in flight.
+- **Aborted exchanges are recorded as such.** A forced stop (a second signal) cuts
+  off the requests in flight but recorded an orderly `transport-close`; it now ends
+  the trace with `transport-abort`. A client that disconnects mid-body is recorded
+  as `transport-abort` too, where its request's `http` event stood alone,
+  unanswered. Events refused because the trace was already closed are counted in
+  the summary, over HTTP and stdio alike.
+- **Only SSE events of type `message` are recorded.** One with another `event:`
+  type was recorded as a message, though MCP clients (both official SDKs') ignore
+  it; it is forwarded, left out, and counted.
+- **A refused `--upstream` is never repeated.** A value that would not parse
+  (`http://user:pa ss@host/`, `?key=SEC RET`) was echoed whole, credentials and
+  all, as was a scheme other than `http`/`https`; errors now say what is wrong
+  without the value.
+
+**`mcp-trace-capture stdio`**
+
+- **An official SDK stopping the wrapper no longer strands the server, and the
+  trace is always closed.** The Python and TypeScript stdio clients close stdin,
+  wait 2 seconds, send `SIGTERM`, wait 2 more, then `SIGKILL` the wrapper
+  (TypeScript) or its process group (Python), never the server's. The wrapper
+  relayed `SIGTERM` and waited 3 seconds, so it was killed mid-wait, leaving a
+  server ignoring `SIGTERM` running and the trace unclosed. A stop now writes the
+  closing `transport-close` first, then gives the server and anything still holding
+  its stdout 1 second (was 3) from the signal before the group is killed. Later
+  output is relayed and counted in the summary (`N event(s) came after the trace was
+  closed`), not recorded; a stop ending in a kill ends the trace with that
+  `transport-close`, not `transport-abort`.
+- **Signals.** `SIGQUIT` is now a stop request like `SIGINT`, `SIGTERM` and
+  `SIGHUP`; its default action ended the wrapper at once, orphaning the server in
+  its own process group with the trace unclosed. On Windows a Ctrl-C between two
+  waits is no longer lost to the default handler (ending the capture without its
+  closing event): the listener is created once, at start, not per wait.
+  Compile-checked only, not yet run on Windows.
+- **On Windows the wrapper exits with the server's whole exit code**, not its low
+  eight bits, which made a server exiting 256 exit 0. Unix behaviour is unchanged.
+- **A last line with no newline is recorded as a string, even when it is JSON.**
+  stdio framing never delivered it, and both official SDKs drop it; it is recorded
+  like other undelivered lines and counted in the summary.
+- **A client that has gone away is reported.** A failed write to it (a closed
+  pipe) silently ended the relay of the server's output; it is now reported once on
+  stderr.
+
+**`mcp-trace-capture`, both modes**
+
+- **No recorded value the message did not carry.** An integer past 64 bits (an id
+  of `12345678901234567890123`) was recorded as the nearest double, then convicted
+  as a non-integer id (`BASE-043`), and a member name repeated in one object kept
+  only its last value. No parsed payload can be faithful to such a message, so it is
+  treated as non-JSON — recorded as the line over stdio, left out over HTTP — and
+  counted in the summary. A spelling (`1E2` for `100`) is not a change of value and
+  is recorded as before.
+- **`{session}` numbers continue after the highest one present**, so files sort in
+  session order (the lowest free number filled a deleted trace's gap), and a stray
+  file numbered past the search bound is ignored (a hand-named `s-9999999.jsonl`
+  made every later session fail with "no free trace number").
+- **A trace with no exchange in it is not offered for validation.** For a server
+  that exited before any message (`stdio -- true`, `sh -c 'exit 7'`) the summary
+  said "recorded 2 event(s) … validate with …", and the validator refused the trace;
+  it now says the server exited, with its status, before any message was exchanged.
+  The suggested `mcp-trace-validator validate` command quotes a path with spaces or
+  shell metacharacters.
+- **`mcp-trace-capture`'s README states what it did not**: how the default `Host`
+  rewrite defeats a server's DNS-rebinding check and when `--preserve-host` keeps it
+  effective; what works on Windows (no signals or process groups: Ctrl-C only, no
+  grace period, a launcher's children are not ended); that a non-SSE response is
+  held until complete; that every `2026-07-28` session through one proxy lands in
+  one trace; and the exit codes it left out (`stdio` 1 when waiting for the server
+  fails, `http` 2 when serving fails).
+
+**The everything server and the reference host**
+
 - **The everything server names itself on every `2026-07-28` result** (`BASE-037`):
   `io.modelcontextprotocol/serverInfo` is in the `_meta` of every result, not only
   `server/discover` and `subscriptions/listen`, from one seam each handler returns
   through, with the value `server/discover` reports. `2025-11-25` is unchanged.
-- **The everything server refuses `logging/setLevel` at `2026-07-28`** with `-32601`.
-  That revision removed the method; rmcp still dispatches it, and the server answered
-  `{}`, a result without the `resultType` that revision requires. No recording sends it.
+- **The everything server refuses `logging/setLevel` at `2026-07-28`** with
+  `-32601`. That revision removed the method; rmcp still dispatches it, and the
+  server answered `{}`, without the `resultType` that revision requires. No
+  recording sends it.
+- **The everything server's tap writes events in the order it observes them.** It
+  sequenced a request after the service answered, so overlapping requests on a
+  session were
+  written in answer order and a notification could precede the request that caused
+  it; a request naming no session now reserves its place in the `stateless` trace
+  until its response says whether it opened one. A POST's request event and message
+  were queued separately, so a concurrent GET's event could land between them and
+  the validator (which pairs a message with the HTTP request before it) read the
+  message as riding the GET (`TRAN-049`), failing an official-suite session's
+  agreement check in CI. A request's event and message, a JSON response's status
+  and body, and a teardown's status and close are now adjacent lines.
+- **The tap's file names are safe.** `--tap-dir` wrote `NNN-<Mcp-Session-Id>.jsonl`
+  with the header as sent, so an id carrying `/` named a path outside the file and
+  one carrying `:` an NTFS alternate data stream on Windows. The id is reduced to
+  letters, digits, `-`, `_` and `.`, at most 64 characters; the ordinal before it
+  keeps every name unique. A request naming an `Mcp-Session-Id` the server never
+  assigned (answered 404) no longer opens a file named after it; every such exchange
+  goes to the run's one `unassigned` trace.
 - **The reference host answers a form with content its schema admits** (`ELIC-095`).
-  `AcceptWithDefaults` fills each SEP-1034 default, then gives each required property
-  still missing a deterministic value of its type and format (`"scripted"` padded or
-  cut to the length bounds, `user@example.com` for `email`, `0` moved into range,
-  `false`, the first enum value or the first `minItems` values); a form whose required
-  properties cannot be satisfied is declined. The new public
+  `AcceptWithDefaults` fills each SEP-1034 default, then gives each required
+  property still missing a deterministic value of its type and format (`"scripted"`
+  padded or cut to the length bounds, `user@example.com` for `email`, `0` moved into
+  range, `false`, the first enum value or the first `minItems` values); a form whose
+  required properties cannot be satisfied is declined. The new public
   `mcp_reference_host::script::accepted_content` states the rule.
+- **`mcp-reference-host` names `2025-11-25` in its `initialize` request.** rmcp
+  3.5.0 made `ProtocolVersion::LATEST` `2026-07-28`, a revision with no
+  `initialize`, and the host took its handshake version from it, failing the
+  official suite's client `initialize` scenario.
+- **`mcp-reference-host --sweep` drives only declared capabilities.** It sent
+  `completion/complete`, `resources/*` and `prompts/*` regardless, so recording a
+  server without completions failed `LIFE-009` against the host; a skipped group is
+  reported as skipped.
 - **`reference-host-2026-07-28-{stdio,http}` and `probe-2026-07-28-http` are
-  re-recorded** with both fixes: the reference-host captures pass with no warning, the
-  probe baseline's `BASE-037` entry is retired, and the GitHub Action CI job again
-  requires both recorded legs to judge with no finding at all.
-- **A request a protected server refused with 401 (or 403 with a challenge), resent by
-  the client with the same id,** no longer fails `BASE-003`/`BASE-045` or counts as a
-  second session: the refused request was not delivered, the retry is. The refusal's
-  OAuth error body (`{"error":"invalid_token"}`) is no longer judged as a JSON-RPC
-  message (it failed `BASE-006`/`008`/`009` and the wire schema).
-- **The `2026-07-28` page set's reason for excluding `deprecated` was wrong**: it said
-  the page had no keyword instances, and the published page carries a SHOULD NOT and a
-  SHOULD. The page stays out of scope, for the reason that holds: those keywords bind an
-  implementer's adoption plans, which no trace carries.
-- **`BASE-009`/`BASE-052` no longer fail the id-less error a server may return in the
-  body of a `403` Origin refusal**, which both revisions' transport pages permit; the
-  official suite's DNS-rebinding scenario drew it. The everything server's refusal body
-  now omits `id` rather than sending `null`, which the schema does not admit.
-- **`TRAN-079` is judged on the mirrored value, not only its presence**
-  (`transport.x-mcp-header-value-mirrored`): a client sending `Mcp-Param-*` with a value
-  other than the body's was judged conformant. Found by the `mcpsnoop` comparison.
-- **`TRAN-029`/`TRAN-063` judge error statuses that carry a JSON-RPC response**, so a
-  `4xx`/`5xx` JSON-RPC error with no `Content-Type` fails; only success statuses were
-  judged. Found by the `mcpsnoop` comparison.
+  re-recorded** with the `BASE-037` and `ELIC-095` fixes: the reference-host
+  captures pass with no warning, the probe baseline's `BASE-037` entry is retired,
+  and the GitHub Action CI job again requires both recorded legs to judge with no
+  finding at all.
 - **`interop/ts-client.mjs` waits for its standalone GET to be answered** before its
-  next request. A recording that interleaved the two left `TRAN-040` unattributable,
-  so it read *not observed* on some runs.
-- **The everything server's tap sequences each request when it observes it**, not
-  after the service answers. Two overlapping requests on a session were written in
-  the order of their answers, and a notification a request caused could precede the
-  request itself. A request naming no session reserves its place in the `stateless`
-  trace until its response says whether it opened a session.
-- **A request naming an `Mcp-Session-Id` the server never assigned** (answered 404)
-  no longer opens a trace file named after the client's header; every such exchange
-  is recorded in the run's one `unassigned` trace.
-- **The register-currency and deferral gates accepted dates no calendar has.**
-  They checked a day of 1–31 whatever the month, so a `Verified` or review-by date
-  of `2026-02-30` passed (found by `falsify-gates`), and a sign was read as a digit
-  (`2026-+8-15`). Both now require digits and a day the month has, leap years
-  included.
-- **`the_client_url_redirects_and_404s_are_spelled_out` failed whenever the test's
-  process id contained `404`**: it asserted no stderr line contained those digits,
-  and the trace path in the startup line carries the process id. It now asserts
-  the absence of the 404 remark itself. The informational coverage job failed on
-  it, and nothing else saw the failure.
-- **The HTTP proxy's memory no longer grows with the number of concurrent
-  exchanges.** Each request body and non-SSE response was read whole, up to
-  `--max-message-bytes`, with nothing limiting how many were held at once:
-  eight concurrent 60 MB POSTs held 488 MB. Bodies and SSE events now share one
-  budget of four times `--max-message-bytes` (256 MiB by default). A body or event
-  that arrives while the budget is spent is streamed on intact, left out of the
-  trace, and counted in the exit summary.
-- **A client inventing `Mcp-Session-Id` values no longer makes the proxy open a
-  trace file for each one.** In per-session mode every unseen id began a numbered
-  file and a map entry that was never removed. Exchanges naming an id the server
-  has not accepted now share one trace until the server answers one with a 2xx,
-  which makes that trace the id's session; a refused id is not remembered, and a
-  `DELETE` the server accepts ends its session.
-- **A client sending a request head slowly can no longer hold proxy connections
-  open indefinitely.** `axum::serve` set no timer, so hyper's header read timeout
-  never applied. The proxy now serves through hyper with a 30-second request-head
-  timeout, which also closes kept-alive connections idle for that long.
-- **An upstream that never completes the connection is a `502` after 10 seconds.**
-  There was no connect timeout, so the client waited until the operating system
-  gave up. A connected upstream may still take as long as it likes to answer.
-- **`HEAD` responses keep their `Content-Length`, and bodies over the message
-  limit keep their framing.** The proxy dropped `Content-Length` both ways, so a
-  `HEAD` response reached the client as `content-length: 0` and an oversized body
-  went out chunked. It is now forwarded as sent.
-- **Request paths with `.` or `..` segments are refused instead of forwarded.**
-  With `--upstream http://h/mcp`, `/../../secret` reached `/mcp/../../secret`
-  (spelled out or percent-encoded alike). The proxy now answers such a path `400`
-  itself, does not record it, and counts it at exit.
-- **A redirect the proxy rewrites points at the proxy's own address, not at the
-  client's `Host` header.** `Host: evil.example` turned the upstream's `Location`
-  into `http://evil.example/…`; the rewrite now uses the local address the
-  client's connection reached.
-- **`Proxy-Connection` and `Expect` are no longer forwarded upstream.** The first
-  is hop-by-hop in practice; the second asked the upstream to approve a body the
-  proxy had already accepted and read.
-- **A client that disconnects mid-body is recorded as `transport-abort`.** The
-  request's `http` event used to stand alone in the trace, unanswered.
-- **The stdio wrapper relays `SIGQUIT` instead of dying and orphaning the
-  server.** Its default action ended the wrapper at once, with the server in its
-  own process group and the trace unclosed; it is now a stop request like
-  `SIGINT`, `SIGTERM` and `SIGHUP`.
-- **A last stdio line with no newline is recorded as a string, even when it is
-  JSON.** stdio framing never delivered it, and both official SDKs drop it, yet it
-  was recorded as a complete message. It is now recorded like other undelivered
-  lines and counted in the summary.
-- **On Windows, a Ctrl-C between two waits is no longer lost.** Each wait created
-  a fresh listener, so a Ctrl-C arriving outside one fell to the default handler
-  and ended the capture without its closing event; the listener is now created
-  once, at start. Compile-checked only, not yet run on Windows.
-- **A stray `{session}` file numbered past the search bound no longer blocks
-  numbering.** A hand-named `s-9999999.jsonl` made every later session fail with
-  "no free trace number"; numbers past the bound are now ignored.
-- **The everything server's tap named trace files after the raw session id.**
-  `--tap-dir` wrote `NNN-<Mcp-Session-Id>.jsonl` with the header's value as
-  sent, so an id carrying `/` named a path outside the file and one carrying
-  `:` an NTFS alternate data stream on Windows. The id is now reduced to
-  letters, digits, `-`, `_` and `.`, at most 64 characters; the ordinal before
-  it keeps every name unique.
-- **A crafted trace could make `validate` take minutes.** Three passes scanned
-  forward from every request for its answer — era detection before
-  `initialize`, request/response pairing, and the handshake count — so a trace
-  of many unanswered requests was quadratic, and the HTTP framing was rebuilt by
-  every HTTP check. Each lookup is now indexed once (keyed by canonical id and
-  confirmed by value equality, so pairing is unchanged), and the framing is
-  built once per trace. Measured on one 4-vCPU Xeon at 2.10 GHz, release
-  builds: 80,000 pre-`initialize` requests over Streamable HTTP took 35.8 s
-  before and 6.0 s after; 20,000 unanswered requests followed by 20,000
-  unmatched responses, 4.25–4.36 s before and 0.46–0.64 s after (three runs
-  each). Instruction counts now grow linearly with the trace.
-- **`validate` read the whole input before any limit applied.** A 1 GiB file
-  reached 1 GiB of memory before `--max-line-bytes` refused its first line, and
-  `validate /dev/zero` never ended. Lines are now read one at a time: reading
-  stops after the line `--max-events` refuses, and at a line over
-  `--max-line-bytes`, whose length is counted without being kept (up to sixteen
-  times the limit; beyond that the error gives a lower bound). The same 1 GiB
-  file now peaks at 70 MiB, `/dev/zero` exits `3` in half a second, and an
-  earlier line's error is still reported first.
-- **A finding could write terminal escape sequences.** Findings quote the
-  trace — a method name, an id — and the human report printed them raw, so an
-  `ESC` sequence in a recorded method could rewrite the terminal or a CI log.
-  Control characters are now shown escaped (`\u{1b}`) in human output; JSON,
-  JUnit and SARIF already escaped them.
-- **`TOOL-011`/`TOOL-040` passed structured results that broke the tool's own
-  `outputSchema`.** The clause is "Servers MUST provide structured results that
-  conform to this schema", but the check judged only that `structuredContent` was
-  present and, for an object schema, an object: `{"temperature": "warm"}` passed a
-  schema typing it `number`. The content is now validated against the schema in
-  the dialect it declares; a schema the engine cannot apply — an unknown dialect,
-  or a `$ref` to a document outside it, which is never fetched — is still held
-  only to its root type.
-- **JUnit output could be ill-formed XML.** U+FFFE and U+FFFF are outside XML
-  1.0's `Char` production, like the C0 controls the renderer already replaced, but
-  passed through; a trace naming a method with either produced a report a strict CI
-  parser rejects. Both are now replaced with U+FFFD.
-- **The GitHub Action writes its reports when the validator cannot start.** A
-  `traces` pattern matching nothing exited before any report was written, and a
-  lone unreadable or malformed trace left both files empty, so the
-  `upload-sarif` step the README pairs with it (`if: always()`) failed on a
-  missing or empty file and hid the real error. Each configured report is now a
-  SARIF run marked `executionSuccessful: false`, or a JUnit `<error>`, naming
-  the problem; the `exit-code` output is unchanged. `action.yml` now says that
-  exit `2` also covers output not written, and that `fail-on-findings: false`
-  stops exit `2` and `3` from failing the step too.
-- **`SUBS-001`/`SUBS-002` told a reused subscription id from the subscription
-  that first carried it.** Both checks keyed subscriptions by id alone, so a
-  `subscriptions/listen` reusing the id of a closed subscription replaced it:
-  the new filter judged the old stream's notifications (a false `SUBS-001`
-  failure), and the old stream's notifications were never examined (a missed
-  `SUBS-002` acknowledgment). A subscription is now open from its request until
-  its response or a cancellation naming it, each opening owes its own
-  acknowledgment, and a tagged message is judged against the subscription open
-  when it was sent.
-- **`LOG-009` missed a log sent when no request was in flight.** A
-  `notifications/message` must travel on the response stream of the request
-  that set the log level, and once every request has been answered there is no
-  such stream left, but the check judged only logs tagged with a subscription
-  id. It now also fails an untagged log arriving while nothing but a
-  `subscriptions/listen` is in flight, unless a later response answers a
-  request sent before the recording began.
-- **`MRTR-018` failed a retry whose round predates the recording.** A retry
-  carrying `requestState` with no `input_required` before it in the trace was
-  reported as inventing one, but `requestState` is designed to reach a server
-  instance that never saw the round, and a capture can start mid-flow. Like
-  `MRTR-015`/`MRTR-016`, the check now judges only retries of a recorded round.
-- **`TRAN-124` on stdio failed the answer to a request reusing a cancelled
-  id.** Once a client cancelled a request by notification, any later response
-  with that id was reported, including the answer to a new request the client
-  sent with the same id after the first was answered. A new request now clears
-  the cancellation, progress token and send time recorded under its id, as the
-  Streamable HTTP check (`TRAN-070`) already did.
-- **`CACH-008` rejected `ttlMs` written as a float.** The schema types `ttlMs`
-  as JSON Schema `integer`, which admits any number with a zero fractional
-  part, but the check accepted only values that parse as a 64-bit signed
-  integer, so `"ttlMs": 60000.0` failed. It now accepts any non-negative
-  number with no fractional part, and still fails a negative or fractional one.
-- **`BASE-040` read every `traceparent` as version `00`.** It failed a higher
-  version carrying fields after the flags, which W3C Trace Context allows
-  (future versions are "additive"), and passed version `ff`, which it forbids.
-  Version `00` is still exactly four fields; a higher version is judged on the
-  four it shares with `00`; `ff` now fails.
-- **A request that earns more than one rejection may draw any of them.** A
-  POST whose `MCP-Protocol-Version` header disagrees with a body `_meta` naming
-  a version the server does not implement can be refused with `-32020`
-  (`HeaderMismatch`) or `-32022` (`UnsupportedProtocolVersionError`): the
-  specification defines both and orders neither, yet `TRAN-073` failed the
-  first answer and `TRAN-074`/`VERS-001` the second. The same held between
-  `-32022` and the `-32602` a request missing a required `_meta` field draws.
-  `TRAN-073`, `TRAN-074`, `VERS-001` and `TRAN-096` now accept the code of any
-  rejection the request also earned; a result, or any other code, still fails.
-- **A `server/discover` probe answered with its result no longer fails
-  `TRAN-074`/`VERS-001`.** A probe naming a version the server does not
-  implement may be answered with the `DiscoverResult` listing the ones it does —
-  the outcome `basic/versioning`'s compatibility matrix names.
-- **`TOOL-034` and `TRAN-081` name one clause each.** Each row's quote ran
-  several list items together, and they bound different parties: the
-  safe-integer bound on a mirrored value (the client's, judged by
-  `tools.x-mcp-header-integer-range`), static reachability (the server's schema)
-  and, in `TOOL-034`, the client's duty to reject an invalid definition. The two
-  rows disagreed about who the same integer sentence binds, and `TRAN-081` was
-  excluded because "the safe-integer bound … require[s] walking the tool's JSON
-  Schema" while `TOOL-034` judged that bound with a check. Both now quote only
-  the bound, bind the client and share the check; reachability is `TOOL-045`
-  and `TRAN-137`, the rejection duty `TOOL-046` (excluded, like its transport
-  twin `TRAN-083`), and the reasons for excluding reachability and `TRAN-082`
-  now say what is actually missing: telling subschemas from instance data.
-- **`TOOL-034` missed mirrored integers of 2^63 and beyond.** The check read
-  each argument as a 64-bit signed integer, which serde_json cannot hold for
-  2^63 and up, so the largest out-of-range values went unjudged. It now reads
-  any number with no fractional part as an integer (as `CACH-008` does), so
-  `9223372036854775808` and `9007199254740992.0` fail and `1.0` passes.
-- **`LIFE-001` and `LIFE-004` failed a dual-era client's modern first attempt
-  over Streamable HTTP.** `2026-07-28` lets such a client "detect which era the
-  server implements by attempting a modern request first" and fall back to
-  `initialize` when refused, but at `2025-11-25` the refused attempt was judged
-  as the session's first interaction. It is now set aside, as a failed stdio
-  `server/discover` probe already was: a request carrying the per-request
-  `_meta` revision, sent before the first `initialize`, that no result
-  answered. A legacy request with no `_meta` before `initialize` still fails.
-- **`TRAN-074` is judged on Streamable HTTP only.** It is the transport page's
-  statement of the unsupported-version rule, under `#protocol-version-header`,
-  but it shared `VERS-001`'s check, so a stdio session answering `-32022`
-  correctly reported a `TRAN-074` *pass*. It now has its own check,
-  `transport.unsupported-version-error-http`; on stdio it reports *not
-  observed*, and `VERS-001` judges the rule there as before. Three stdio goldens
-  record the change. Findings against `TRAN-074` name the new check, so their
-  SARIF fingerprints change and an open code-scanning alert for one closes and
-  reopens once.
-- **`DISC-002`/`TRAN-128` are judged on stdio only.** Both state the stdio
-  probe rule; over Streamable HTTP a dual-era client "MAY detect which era the
-  server implements by attempting a modern request first", and doing so drew a
-  warning. The committed HTTP probe capture loses its two warnings, and both
-  clauses join the list no capture reaches.
-- **`TRAN-070` no longer pins a stream close on an unrelated request.** A
-  `transport-close` recorded straight after a response is that response's
-  stream ending ("The final JSON-RPC response SHOULD terminate the stream"),
-  not a cancellation of the one other request still open — which failed a
-  subscription answered after a `tools/call` beside it completed.
-- **`TRAN-068` recognizes an SSE response in any case.** Media types are
-  case-insensitive (RFC 9110 §8.3.1), but only a lowercase `text/event-stream`
-  was judged; a `Text/Event-Stream` response without `X-Accel-Buffering: no`
-  now warns as the lowercase one does.
-- **`BASE-034`, `MRTR-012` and `MRTR-013` judged an `input_required` result
-  against the wrong request when an id was reused.** Capabilities were looked
-  up by id across the whole trace, so once a client reused an answered id —
-  which `2026-07-28` permits — a server's elicitation answering a request that
-  declared `elicitation` was failed because a *later* request with that id did
-  not. Each result is now judged against the request it answers.
-- **A null-id answer on Streamable HTTP now answers its request everywhere.**
-  When the status a `"id": null` error rides ties it to one POST, that request
-  is now closed for every check, not only for `TRAN-073`/`TRAN-096`. Before,
-  it stayed open, so a client retrying with the same id failed `BASE-045`, and
-  the retry's result was held against the first request: a server that had
-  rejected a malformed `_meta` with `-32602` failed `BASE-031`, and one that
-  had rejected a header mismatch failed `TRAN-097`/`TRAN-100`. The same link
-  means `BASE-052` (and `BASE-009` at `2025-11-25`, which shares its check)
-  now judges such an answer instead of reporting *not observed*: when the
-  request's id could be read, answering it with `null` fails, because the
-  clause excuses only "error cases where the ID could not be read". Two
-  `2026-07-28` corpus goldens record that new failure.
-- **`BASE-039` passed a `subscriptionId` naming no subscription.** Only the
-  tag's presence was checked; its value must be "the JSON-RPC ID of the
-  `subscriptions/listen` request". A tag matching no listen request in the
-  trace now fails, including `"1"` for a request whose id is `1`, because
-  JSON-RPC ids are compared as values, and `null`.
-- **`BASE-034`, `MRTR-012` and `MRTR-013` compared only top-level capability
-  names.** A URL-mode `elicitation/create` sent to a client declaring only
-  `elicitation.form`, or a `sampling/createMessage` with `tools` or
-  `toolChoice` sent to a client without `sampling.tools`, passed. Both now
-  fail. A request with no `mode` counts as form mode, and an empty
-  `elicitation: {}` counts as form-only declared, as `client/elicitation`
-  specifies.
-- **A multi-trace `validate` run no longer reads as passing when it could not judge
-  a trace.** With a malformed trace among good ones the run exited 3, but the report
-  ended `overall verdict: pass`, the JSON said `"verdict": "pass"`, the JUnit document
-  had no suite for the trace and the SARIF log said `executionSuccessful: true`. The
-  overall verdict is now `incomplete` whenever a trace could not be judged, and every
-  format names each such trace with its error: a `not judged:` section in human
-  output, `unjudged_traces` in JSON, a suite with an `<error>` test case in JUnit
-  (and an `errors` count on `<testsuites>`), and an error notification located at the
-  trace in SARIF, with `executionSuccessful: false`. **This can break a consumer:**
-  the JSON envelope's `verdict` gains the value `incomplete` (and is no longer `null`
-  when no trace was judged), JUnit gains `<error>` elements and an `errors`
-  attribute, and SARIF reports a failed invocation for such a run. A run that judged
-  every trace renders byte-for-byte as before; `report.schema.json` documents the new
-  members.
-- **Errors about a trace's content name the trace** when several are judged
-  (`error: traces/b.jsonl: malformed trace: line 4: …`); a single trace reads as
-  before. Hints now cover a glob the shell passed through unmatched, a directory, a
-  trailing blank line at the end of the file, and a bare JSON-RPC message with no
-  event around it. A record's parse error no longer repeats serde's `line 1`, which
-  contradicted the line it named; the column stays.
-- **The human report lists at most 20 findings under a clause** and counts the
-  rest, with how to see them: a trace repeating one defect 250,000 times printed four
-  million lines. `--all` now lists every clause *and* every finding; JSON, JUnit and
-  SARIF carry every finding as before, and a report with 20 or fewer findings under
-  each clause is unchanged.
-- **`--strict` over several traces notes once**, naming the traces it failed,
-  instead of once per trace with nothing to tell them apart.
-- **A repeated `--revision` is judged once**, not as two identical columns.
-- **`--max-events 0` and `--max-line-bytes 0` are refused** as bad flags (exit 2)
-  rather than failing every trace as malformed.
-- **`requirements --help` offers only `human` and `json`**: it listed `junit` and
-  `sarif`, then rejected them.
-- **`requirements --excluded` prints why.** Its help promised the requirements
-  "with why", but the human listing showed only `(excluded)`; each row is now
-  followed by a `why:` line with the registry's reason. The JSON form, which
-  always carried `exclusion`, and the listing without `--excluded` are unchanged.
-- **Library text no longer names CLI flags.** `Report::render_human` told library
-  callers to "re-run with `--revision …`"; it now words the advice without a flag,
-  and the CLI asks for its own wording (`HumanOptions::cli`).
+  next request; interleaving them left `TRAN-040` unattributable, *not observed* on
+  some runs.
 
-- **`mcp-everything-server`'s tap could record a POST's message after a
-  concurrent GET's request.** The request event and its message were queued
-  to the writer separately, so another exchange's event could land between
-  them, and the validator, which pairs a message with the HTTP request just
-  before it, read the message as riding the GET (`TRAN-049`): an
-  official-suite session failed the agreement check this way in CI. A
-  request's event and its message, a JSON response's status and body, and a
-  teardown's status and close are now written as adjacent lines.
-- **`mcp-reference-host` named `2026-07-28` in its `initialize` request.**
-  rmcp 3.5.0 made `ProtocolVersion::LATEST` `2026-07-28` — a revision with no
-  `initialize` — and the host took its handshake version from that default, so
-  the official suite's client `initialize` scenario failed. The host now names
-  `2025-11-25`.
-- **`mcp-reference-host --sweep` used capabilities the server never declared.**
-  It sent `completion/complete`, `resources/*` and `prompts/*` whatever the
-  server advertised, so a recording of a server without completions failed
-  `LIFE-009` against the host. Each group is now driven only when declared, and
-  a skipped one is reported as skipped.
-- **`requirements` with an ID of the other revision says which revision has
-  it** (`requirements BASE-003` at the default `2026-07-28`: "it is a 2025-11-25
-  requirement: pass --revision 2025-11-25").
-- **`mcp-trace-capture stdio` no longer strands a server when an official SDK stops
-  it, and its trace is always closed.** The Python and TypeScript stdio clients close
-  stdin, wait 2 seconds, send `SIGTERM`, wait 2 more, then `SIGKILL` — the wrapper
-  alone (TypeScript) or its process group (Python), never the server's. The wrapper
-  relayed `SIGTERM` and waited 3 seconds, so it was killed mid-wait: a server ignoring
-  `SIGTERM` kept running, and the trace never got its closing event. A stop now writes
-  the closing `transport-close` before anything else, and the server's processes get
-  1 second (was 3) from the signal, one deadline for the server and anything still
-  holding its stdout, before the group is killed. What the server sends after the
-  close is relayed and counted in the summary (`N event(s) came after the trace was
-  closed`), not recorded; a stop that ends in a kill now ends the trace with that
-  `transport-close` rather than `transport-abort`.
-- **`mcp-trace-capture http` works with a plain `http://` upstream where the platform
-  has no root certificates** (a minimal container): it loaded them for every upstream
-  and failed. They are now loaded only for an `https://` upstream, and before the
-  trace file is created — the failure came after the file and the "listening on"
-  line, leaving an empty trace that made the next run refuse to start without
-  `--force`.
-- **`mcp-trace-capture http`: the proxy's root path is the `--upstream` URL itself.**
-  A request for `/` was forwarded with `/` appended — `--upstream http://h/mcp` made
-  it `/mcp/`, which servers answer with a redirect — so no client URL reached exactly
-  `/mcp`. Other paths are still appended (`/x` reaches `/mcp/x`). A redirect whose
-  `Location` points into the upstream is now pointed back at the proxy, so the client
-  does not leave the recording.
-- **`mcp-trace-capture http`: stopping cuts only standalone event streams.** Every
-  event stream was ended at once, with a clean end of body — including SSE responses
-  to POSTs, whose response then never arrived. Only the GET stream a client holds for
-  its session is cut now, and it is aborted rather than ended, so the client can tell
-  it from a stream the server finished; a POST's SSE response gets the same 3 seconds
-  as any other request in flight.
-- **`mcp-trace-capture` no longer records a value the message did not carry.** An
-  integer past 64 bits (an id of `12345678901234567890123`) was recorded as the
-  nearest double, which the validator then convicted as a non-integer id
-  (`BASE-043`), and of a member name repeated in one object only the last value was
-  kept. The validator reads payloads as parsed JSON too, so no recorded payload could
-  be faithful; such a message is now treated as the transport treats non-JSON —
-  recorded as the line over stdio, left out over HTTP — and counted in the summary.
-  A spelling (`1E2` for `100`) is not a change of value and is recorded as before.
-- **`mcp-trace-capture http` records only SSE events of type `message`.** An event
-  with another `event:` type was recorded as a message, though MCP clients — both
-  official SDKs' — ignore it. It is forwarded, left out, and counted.
-- **`mcp-trace-capture http` never repeats an `--upstream` it refuses.** A value
-  that would not parse (`http://user:pa ss@host/`, `?key=SEC RET`) was echoed whole
-  in the argument error, credentials and all, and an upstream that was not
-  `http`/`https` was echoed by the proxy's own check. Errors now say what is wrong
-  without the value.
-- **`mcp-trace-capture http` with `{session}`: a request naming a stale or unknown
-  `Mcp-Session-Id` no longer takes over the current session.** It began a new trace
-  and made it the one every later request without an id went to, even when the
-  server answered it 404. It still gets a trace of its own, but becomes current only
-  once the server answers it with a 2xx.
-- **`mcp-trace-capture`: `{session}` numbers continue after the highest one present.**
-  The lowest free number was taken, so after an earlier trace was deleted the next
-  session filled its gap and the files no longer sorted in session order.
-- **`mcp-trace-capture stdio` says when the client has gone away.** A failed write to
-  the client (a closed pipe) ended the relay of the server's output without a word;
-  it is now reported once on stderr.
-- **`mcp-trace-capture http`: a forced stop ends the trace with `transport-abort`.** A
-  second signal cuts off the requests still in flight, but the trace recorded an
-  orderly `transport-close`. Events refused because the trace was already closed are
-  now counted in the summary, over HTTP and stdio alike.
-- **`mcp-trace-capture` no longer offers a trace with no exchange in it for
-  validation.** A server that exited before any message (`stdio -- true`,
-  `sh -c 'exit 7'`) got "recorded 2 event(s) … validate with …", and the validator
-  then refused the trace. The summary now says the server exited, with its status,
-  before any message was exchanged. The suggested `mcp-trace-validator validate`
-  command quotes a path with spaces or shell metacharacters.
-- **`mcp-trace-capture stdio` on Windows passes the server's whole exit code.** It
-  kept the low eight bits, as a Unix wait status does, so a server exiting 256 made
-  the wrapper exit 0. Unix behaviour is unchanged.
-- **`mcp-trace-capture`'s README states what it did not.** How the default `Host`
-  rewrite defeats a server's DNS-rebinding check and when `--preserve-host` keeps it
-  effective; what works on Windows and what does not (no signals or process groups:
-  Ctrl-C only, no grace period, a launcher's children are not ended); that a non-SSE
-  response is held until complete; that every `2026-07-28` session through one proxy
-  lands in one trace; and the exit codes it left out (`stdio` 1 when waiting for the
-  server fails, `http` 2 when serving fails).
+**Gates and tests**
+
+- **The register-currency and deferral gates accepted dates no calendar has**: a
+  day of 1–31 whatever the month, so a `Verified` or review-by date of `2026-02-30`
+  passed (found by `falsify-gates`), and a sign read as a digit (`2026-+8-15`). Both
+  now require digits and a day the month has, leap years included.
+- **`the_client_url_redirects_and_404s_are_spelled_out` failed whenever the test's
+  process id contained `404`**, by asserting no stderr line held those digits while
+  the startup line's trace path carries the process id; it now asserts the absence
+  of the 404 remark itself. Only the coverage job, then informational, saw it fail.
 
 ### Added
 
-- **An upgrade guide, a compiled library example, and README badges.** The book
-  gains "Upgrading": where each release states what it breaks, how to compare a
-  recording's verdicts across two versions by requirement ID, and how to pin the
-  version a CI gate runs. The validator README shows the library API judging a
-  trace, and is compiled and run as a doctest so the example cannot rot. The root
-  README carries CI, crates.io, docs.rs, MSRV and licence badges, the last three
-  read from crates.io rather than restated.
-- **Five clauses that waited on a JSON Schema engine are judged.** The
-  exclusions said a trace could not judge them without one; with ADR-0020's
-  engine in the validator, that stopped being true.
-  `base.schemas-valid-for-dialect` holds every schema a session carries — a
-  tool's `inputSchema` and `outputSchema`, an elicitation's `requestedSchema` —
-  to its declared dialect's metaschema (`BASE-017`, `BASE-073`); a dialect the
-  engine does not know is left unjudged. `transport.x-mcp-header-statically-reachable`
-  walks a tool's `inputSchema` by keyword, so data under `default`, `const`,
-  `enum` or `examples` is never mistaken for a schema, and fails every
-  `x-mcp-header` annotation that no chain of `properties` keys reaches —
-  under `items`, a composition or conditional keyword, or a `$defs` entry
+**Judging**
+
+- **Every message is checked against its revision's JSON Schema**, reported as
+  `wire_schema` beside the rows
+  ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)). The schema is
+  "the source of truth for all protocol messages and structures", but most of what
+  it constrains (required members, types, enumerations, content-block shapes) has no
+  RFC 2119 sentence to quote, so a resource without a `uri` or a log at level
+  `chatty` passed every check. Each message is held to the definition the official
+  suite's `wire-schema-valid` check picks (by `method`, error `code`, or the method
+  of the request a result answers) in the specification's `schema.json`, vendored in
+  `mcp-conformance-core` at a pinned commit. Two contradictions of `schema.ts` are
+  corrected on load, each recorded with its deciding declaration:
+  `ElicitResult.content` and `JSONValue` admit non-integer numbers (and `JSONValue`
+  `null`). Every conforming corpus trace and capture passes; the suite's
+  `2026-07-28` capture fails on the four results `CACH-001` already flags. Three
+  hand-written violation traces with an incidental schema defect were made
+  single-issue (`base-060`, `log-010`, `subs-006`); `log-010` rightly keeps one
+  finding, its client's `logLevel: "verbose"`, outside the schema's enumeration.
+- **Five clauses that waited on a JSON Schema engine are judged**, as ADR-0020's
+  engine removed the reason for their exclusion. `base.schemas-valid-for-dialect`
+  holds every schema a session carries (a tool's `inputSchema` and `outputSchema`,
+  an elicitation's `requestedSchema`) to its declared dialect's metaschema
+  (`BASE-017`, `BASE-073`), leaving a dialect the engine does not know unjudged.
+  `transport.x-mcp-header-statically-reachable` walks a tool's `inputSchema` by
+  keyword, never mistaking data under `default`, `const`, `enum` or `examples` for
+  a schema, and fails every `x-mcp-header` annotation no chain of `properties` keys
+  reaches — under `items`, a composition or conditional keyword, or a `$defs` entry
   reached by `$ref` (`TOOL-045`, `TRAN-137`, `TRAN-082`). Each has a violating
   corpus trace per revision it binds.
-- **Every message is checked against its revision's JSON Schema.** The
-  specification makes its schema "the source of truth for all protocol messages and
-  structures", yet most of what the schema constrains — required members, types,
-  enumerations, content-block shapes — has no RFC 2119 sentence a requirement row
-  could quote, so nothing judged it: a resource without a `uri` or a log at level
-  `chatty` passed every check. The validator now holds each message to the
-  definition the official suite's `wire-schema-valid` check uses (by `method`, by
-  error `code`, by the method of the request a result answers), against the
-  specification's own `schema.json` vendored in `mcp-conformance-core` at a pinned
-  commit, and reports it as `wire_schema` beside the rows
-  ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)). Two places where
-  the generated schema contradicts `schema.ts` are corrected when it loads, each
-  recorded with the declaration that decides it: `ElicitResult.content` and
-  `JSONValue` admit non-integer numbers (and `JSONValue` `null`). Every conforming
-  corpus trace and capture passes; the suite's `2026-07-28` capture fails on the four
-  results `CACH-001` already flags. Three hand-written violation traces carried an
-  incidental schema defect beside the one they exist to show and were made
-  single-issue (`base-060`, `log-010`, `subs-006`); `log-010` keeps one finding, as it
-  should — its client's `logLevel: "verbose"` is outside the schema's enumeration.
-- **A CycloneDX SBOM for every crate, attested.** Each release attaches
-  `<crate>-<version>.cdx.json` beside the `.crate` (checksummed in
-  `SHA256SUMS-sbom`), with a signed attestation binding the two; RELEASING.md's
-  "Verifying a release" gives the `gh attestation verify` commands.
-- **Every offline gate is shown able to fail, in CI.** `cargo xtask falsify-gates`
-  runs each gate `cargo xtask gates` runs, and the golden corpus, on the clean tree,
-  makes one edit of the kind it exists to catch, and requires it to go red naming
-  that edit; it restores each file and fails unless the tree is clean at the end.
-  A gate added without a falsifier fails a unit test. The `doc` job runs it after
-  the gates.
-- **A runnable library example**, `cargo run -p mcp-trace-validator --example
-  judge_file -- <trace.jsonl>`: judges a trace, prints its findings, and exits 1
-  unless the session passed (2 when the file cannot be read or judged).
-- **The official suite's schema check is reconciled with the validator's, message by
-  message.** The suite reports the invalid messages themselves, not sessions, so
-  `cargo xtask conformance` and `cargo xtask draft-readiness` match them to the
-  tapped sessions by sender and canonical JSON and compare each with the report's
-  `wire_schema` member. A message flagged by one side only fails the run unless
-  `conformance/wire-schema-divergences.json` explains it (with a triage class, an
-  upstream link and a reason), and an entry that explains nothing fails it too. The
-  pinned suite `0.1.16` predates the check, so there any validator schema finding
-  counts as a divergence from the suite's green run. On `0.2.0-alpha.12`, 28 server
-  scenarios, the client leg and both draft-readiness legs agree with no divergences;
-  neither side flagged a message, so the comparison is so far proven by its unit
-  tests rather than by a real disagreement.
-- **A container image**, `ghcr.io/tomtom215/mcp-conformance:<version>`, carrying
-  `mcp-trace-validator` and `mcp-trace-capture`: built from the locked workspace with
-  the pinned toolchain and `cargo auditable`, on distroless (non-root, no shell),
-  linux/amd64. `release.yml` publishes it on release tags with build provenance for
-  its digest (`gh attestation verify oci://ghcr.io/tomtom215/mcp-conformance:<version>
-  -R tomtom215/mcp-conformance`); CI builds and runs it on every push.
-- **The GitHub Action can record the sessions it judges.** `capture: stdio` runs
-  `server` under `mcp-trace-capture` for the `client` command, which launches
-  `$MCP_SERVER_COMMAND`; `capture: http` puts the recording proxy in front of
-  `upstream` and gives the client `$MCP_PROXY_URL`, optionally starting and stopping
-  `server`. Every recorded session is judged, with SARIF and JUnit as before; a
-  failing client fails the step after its sessions are reported (`client-exit-code`).
-  `traces` is now optional; existing inputs are unchanged.
-- **`cargo xtask toolchain-pin` also checks the `Dockerfile`** builds on the pinned
-  toolchain's `rust` image.
-- **The cross-SDK matrix.** Each Tier 1 SDK's own conformance server (TypeScript
-  1.32.0, Python 2.3.0, Go v1.8.0, rmcp 3.5.1) is recorded through
-  `mcp-trace-capture` while an official SDK client drives it, judged at each revision
-  it serves, and committed as corpus (`corpus/captured/`,
-  `corpus/draft/captured/sdk-*`). `cargo xtask sdk-matrix` publishes the results as a
-  book page, `sdk-matrix --check` (a new gate) holds the page, the pins and the guide
-  to them, and a weekly scheduled job re-records every session and fails if a result
-  moves. Findings are published, not hidden: at `2026-07-28` the Go SDK's server asks
-  a client for `elicitation/create` it never declared (`BASE-034`,
-  `MRTR-012`/`MRTR-013`) and omits `X-Accel-Buffering` (`TRAN-068`). The SDK
-  captures evidence six more `2026-07-28` clauses: 125 of the 145 judgeable, up from
-  119.
-- **"Recording an SDK's server"**, a book chapter of worked guides for the TypeScript
-  and Python SDKs, whose commands are included from `interop/matrix.sh`, the script
-  the scheduled job runs.
-- **A second calibration source: `mcpsnoop`.** `cargo xtask mcpsnoop` converts every
-  corpus trace into the capture format `mcpsnoop` writes and judges it with the pinned
-  `mcpsnoop check` 0.26.1; the conversion is held against `mcpsnoop`'s own recordings
-  of the same sessions on every measurement. Over 208 traces, `mcpsnoop` flagged none
-  this validator passed; 9 divergent traces are triaged in a book page
-  (`book/src/mcpsnoop.md`), gated offline by `mcpsnoop --check` in `cargo xtask
-  gates`, and re-measured by an informational scheduled job.
-- **The census covers every RFC 2119 keyword family.** `cargo xtask spec-drift` counts
-  MUST-family (now with `REQUIRED`), SHOULD-family (`SHOULD`, `SHOULD NOT`,
+- **Seven disputed exclusions are judged** (review finding M1): `TRAN-020` (a
+  version the server declined at `initialize`, sent again in
+  `MCP-Protocol-Version`, must draw `400`); `TRAN-083`/`TRAN-084` with
+  `TOOL-046`/`TOOL-035` (a Streamable HTTP client must not call a tool whose
+  `x-mcp-header` annotations it had to reject); and `BASE-033`, `BASE-037` and
+  `DISC-003` (`clientInfo` on requests, `serverInfo` on results, as warnings). rmcp
+  names the server on two result kinds only, so the Rust SDK capture and the
+  official-suite pair (recorded 2026-10-04 and kept as recorded) warn on
+  `BASE-037`; the Go and Python SDK servers pass it, and the everything server does
+  since it names itself on every result (see Fixed).
+
+**The registry**
+
+- **The census covers every RFC 2119 keyword family.** `cargo xtask spec-drift`
+  counts MUST-family (now with `REQUIRED`), SHOULD-family (`SHOULD`, `SHOULD NOT`,
   `RECOMMENDED`, `NOT RECOMMENDED`) and MAY-family keywords per in-scope page, table
   rows included, committed as `must_census`, `should_census` and `may_census`, and
-  fails unless every MUST- and SHOULD-family keyword sits inside the quote of an entry
-  citing its page. MAY-family keywords are counted but not required to be entered.
-- **15 requirements for the 16 keywords the census found unentered**: at `2025-11-25`
-  `BASE-085`–`BASE-087`, `LIFE-019`, `LIFE-020`, `TRAN-138`–`TRAN-140`,
+  fails unless every MUST- and SHOULD-family keyword sits inside the quote of an
+  entry citing its page; MAY-family keywords are counted only.
+- **15 requirements for the 16 keywords the census found unentered**: at
+  `2025-11-25` `BASE-085`–`BASE-087`, `LIFE-019`, `LIFE-020`, `TRAN-138`–`TRAN-140`,
   `TOOL-047`–`TOOL-049`; at `2026-07-28` `BASE-088`, `TRAN-141`, `TRAN-142`,
   `VERS-009`. Three are judged: `BASE-086`/`BASE-088` ("Implementors are RECOMMENDED
-  to use JSON Schema 2020-12") by the new SHOULD check `base.schemas-use-2020-12`, and
-  `TRAN-141` ("These headers are REQUIRED for compliance") by
-  `transport.request-metadata-headers`. The registries grow to 153 and 314 entries.
-  No conforming corpus trace's verdict changes; the TypeScript SDK's conformance
-  server now reads *pass-with-warnings* at `2025-11-25`, because two of its tools
-  declare draft-07 input schemas.
-- **`mcp-conformance test`** (new crate `mcp-conformance-cli`, binary `mcp-conformance`; not yet published to
-  crates.io): runs the pinned official suite against a server (`--url`, or `--command`
-  for a stdio server through a loopback bridge) or a client (`--client-command`)
-  through `mcp-trace-capture`, and reports the suite's checks, the clause report of
-  every recorded session (`--format human|json|junit|sarif`, `-o`) and whether the two
-  agree against a divergence baseline. Exit 0, 1 or 2. Needs Node.js 18+, installs
-  nothing, and refuses any suite version other than the pin. `cargo xtask conformance`
-  runs it against the everything server and the reference host and holds each report
-  to its own results.
-- **`mcp-trace-capture` library: `stdio::relay`**, the stdio wrapper with
-  caller-supplied client streams, and `Signals::requested` with `StopRequests`.
-- **`validate --format html`**, and `html::render` / `html::render_run`: one
-  self-contained page per run — the verdict and counts per revision, each failing or
-  warning clause with its quote, link and findings, the message timeline with
-  request/response pairing, HTTP exchanges and every finding at its event (linked both
-  ways), and the excluded / not-applicable / not-observed accounting with reasons. No
-  script, no font, no image; a Content Security Policy admits only the inline
-  stylesheet, by its SHA-256, and all trace text is escaped. Its layout is not a stable
-  surface (STABILITY.md).
-- **A screenshot suite** (`visual/`, Playwright 1.56.1) and its CI job: a passing, a
-  failing and a two-revision page at 1280 and 360 px in light and dark, compared with
-  committed baselines and opened with no network request allowed.
-- **The everything server serves the surface the suite does not name, behind a
-  cursor.** Every listing (`tools/list`, `prompts/list`, `resources/list`,
-  `resources/templates/list`) is paginated; the first page is exactly the suite's
-  catalogue. The second carries `test_resource_link` (a `resource_link` result with
-  annotated text, tool annotations and icons), `test_parameter_headers` (three
-  `x-mcp-header` designations), an audio prompt, and a resource and a template with
-  titles, icons and annotations; the server names itself with an icon. Cursors are
-  stateless, and one the server never issued gets `-32602` at both revisions.
-- **`mcp-reference-host` follows `nextCursor`** in its tool loop and sweep, and
-  `--probe` adds one request: a call with a designated argument's `Mcp-Param-*` header
-  left out (`TRAN-136`).
-- **The `2026-07-28` captures evidenced `140 of the 154 judgeable clauses`** when the new surface landed (`127` before it; later registry rows have since raised both counts):
-  `CACH-015`/`CACH-016`, `PROM-017`, `TOOL-034`, `TRAN-079`, `TRAN-081`, `TRAN-130`,
-  `TRAN-134`, `TRAN-135` and `TRAN-136`. The ten that remain are listed in
-  `corpus/README.md`, each with its reason.
-- **npm and PyPI packages** (not yet published). `npx mcp-conformance` /
-  `npm install -g mcp-conformance` and `pip install mcp-conformance` install
-  `mcp-conformance`, `mcp-trace-validator` and `mcp-trace-capture` as the release's own
-  binaries: on npm a main package plus one `@mcp-conformance/<os>-<cpu>` optional
-  dependency per target, with no install scripts; on PyPI one wheel per target, its tags
-  read from the binary's own headers. `cargo xtask packages` builds them from the
-  release archives, checked against `SHA256SUMS-binaries`; CI installs and runs them on
-  Linux, macOS and Windows, and `release.yml` publishes them by trusted publishing once
-  the owner has set up the registries (RELEASING.md).
-- **The release archives carry `mcp-conformance`** beside the validator and the recorder.
-- **Seven disputed exclusions are judged** (review finding M1): `TRAN-020` (a version
-  the server declined at `initialize`, sent again in `MCP-Protocol-Version`, must draw
-  `400`); `TRAN-083`/`TRAN-084` with `TOOL-046`/`TOOL-035` (a Streamable HTTP client
-  must not call a tool whose `x-mcp-header` annotations it had to reject); and
-  `BASE-033`, `BASE-037` and `DISC-003` (`clientInfo` on requests, `serverInfo` on
-  results, as warnings). rmcp names the server on two result kinds only, so the Rust
-  SDK capture and the official-suite pair (recorded 2026-10-04 and kept as recorded)
-  warn on `BASE-037`; the Go and Python SDK servers pass it, and the everything server
-  does since it names itself on every result (see Fixed).
-- **`mcp-conformance watch stdio|http`** records a session exactly as
-  `mcp-trace-capture` does and judges it while it runs: each new fail or warn finding
-  prints on stderr as the exchange that shows it completes (clause ID, level, `seq`,
-  detail, the quoted clause), with a running tally and the validator's report at the
-  end. Judging runs off the forwarding path and never delays traffic.
-- **`watch --otlp <url>`** exports one span per exchange over OTLP/HTTP JSON under the
-  OpenTelemetry MCP semantic conventions (Development stability), each finding a
-  `mcp_conformance.finding` span event, through a bounded queue: a collector that is
-  down is counted and does not affect the session. No new dependencies.
-- **`mcp-trace-capture` library:** `run::stdio`/`run::http`, `output`, `run::values`,
-  the `Observer` trait, `http::client` and a public `output::EXIT_INCOMPLETE`;
-  **`mcp-trace-validator`:** `report::printable` is public.
-- **`cargo xtask spec-drift --draft`**: an informational report of what the
-  specification's unreleased draft has changed since `2026-07-28` — page set and census
-  against a committed tracking skeleton, keywords no released quote covers, and whether
-  each `2026-07-28` quote is still on its draft page (present, changed, removed, page
-  removed). The weekly `draft-drift` job runs it, with the report in the job summary.
-- **`registry/draft/`**: the tracking skeleton and a post-release record, data only —
-  not embedded, not a `--revision` value, excluded from the published crate. Its first
-  record is `TRAN-081`'s rewording ("for JavaScript" → "for integers represented using
-  IEEE754 double-precision floating point numbers"); the bound and the verdict are
-  unchanged.
-- **`mcp-conformance serve`**, a local workbench in the browser over a library of
-  recordings: search (`method:` `tool:` `resource:` `prompt:` `session:` `code:`
-  `req:` `server:` `tag:` `verdict:` and free text), a session timeline and inspector
-  styled by the HTML report with findings and events linked both ways, a two-session
-  diff, a live view of a trace still being written, SVG dashboards (verdicts over time,
-  clause coverage, findings by area and server), and administration: import, tags,
-  retention, delete, export and redacted copies. It binds loopback, admits only the
-  browser that opened its single-use link, checks `Host` and `Origin`, serves a strict
-  Content Security Policy, renders trace content only as text, and sends nothing
-  anywhere.
-- **`mcp-conformance library`** (`stats`, `list`, `import`, `redact`, `prune`, `tag`,
-  `delete`, `export`): the same library from the command line; `stats --format json`
-  is exactly what the dashboards read.
-- **Importers** (`mcp_conformance_cli::import`): `mcpsnoop` captures and MCP Inspector
-  protocol exports as traces, each listing what its source does not record.
-- **`mcp_trace_validator::timeline`** (`shape`, `pair`, `preview`) and
-  `mcp_trace_validator::html::STYLESHEET` are public.
-- **The client-feature pages enter the registry at both revisions.**
-  `client/elicitation`, `client/sampling` and `client/roots` were excluded wholesale;
-  every MUST- and SHOULD-family keyword on them is now entered — 83 entries at
-  `2025-11-25`, 78 at `2026-07-28` (areas `ELIC`, `SAMP`, `ROOT`). 45 are judged by 26
-  new checks, each with a passing and a violating corpus trace: undeclared elicitation
-  modes, each mode's required parameters, an RFC 3986-valid `url`, tool-enabled
-  sampling without `sampling.tools`, the deprecated `includeContext` values,
+  to use JSON Schema 2020-12") by the new SHOULD check `base.schemas-use-2020-12`,
+  and `TRAN-141` ("These headers are REQUIRED for compliance") by
+  `transport.request-metadata-headers`. The registries grew to 153 and 314 entries
+  (before the client-feature and authorization pages below). No conforming corpus
+  trace's verdict changes; the TypeScript SDK's conformance server now reads
+  *pass-with-warnings* at `2025-11-25`, as two of its tools declare draft-07 input
+  schemas.
+- **The client-feature pages** (`client/elicitation`, `client/sampling`,
+  `client/roots`), excluded wholesale, **are entered at both revisions**: every
+  MUST- and SHOULD-family keyword, 83 entries at `2025-11-25` and 78 at
+  `2026-07-28` (areas `ELIC`, `SAMP`, `ROOT`). 45 are judged by 26 new checks, each
+  with a passing and a violating corpus trace — undeclared elicitation modes, each
+  mode's required parameters, an RFC 3986-valid `url`, tool-enabled sampling
+  without `sampling.tools`, the deprecated `includeContext` values,
   tool-use/tool-result balance, `toolChoice` honoured, `file://` roots, answering a
-  feature never declared, and accepted form content against its schema; at
-  `2025-11-25` also the `elicitationId` and `-32042` bookkeeping and the client error
-  codes. The rest carry exclusions saying why a recording cannot show them. No
+  feature never declared, accepted form content against its schema, and at
+  `2025-11-25` the `elicitationId` and `-32042` bookkeeping and the client error
+  codes; the rest carry exclusions saying why a recording cannot show them. No
   verdict changed: the Go SDK at `2026-07-28` fails `ELIC-059` on the elicitation
-  `BASE-034` already reports. This project's reference host warned `ELIC-095` (it
-  accepted a form with empty content where the schema requires fields) until it was
-  fixed (see Fixed).
-- **The authorization pages enter the registry at both revisions** (review item 2.8,
-  [ADR-0022](docs/plan/decisions/0022-judge-the-challenge-not-the-flow.md)). Every MUST-
-  and SHOULD-family keyword is entered: 85 entries at `2025-11-25`, 109 at `2026-07-28`
-  (area `AUTH`). 12 of them are judged by 7 checks that read a protected server's
-  `WWW-Authenticate` challenge: `scope` on a 401; the status for each declared error;
-  the 401 for `invalid_token`; the `insufficient_scope` response's 403, `scope` and
-  `resource_metadata`; and, at `2026-07-28`, no `offline_access` and no scope added on a
-  retried request's second challenge. The OAuth flow, the authorization server,
-  credential headers, query-string tokens and Protected Resource Metadata are excluded,
-  each with the reason a recording cannot show it. Every `AUTH` trace in the corpus is
-  authored: no committed capture is of a protected server. No committed verdict changed.
-- **`mcp-trace-capture` and the everything server's tap record `WWW-Authenticate`**
-  (`RECORDED_HEADERS` grows from 10 to 11 entries).
-- **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
-  on 2026-10-13, all features) and is no longer informational. As informational it
-  had hidden a failing test: see Fixed.
-- **`mcp-trace-capture http` names the client URL when it starts, and the statuses
-  when it stops**: how many responses were not 2xx, and, for 404s, whether the
-  endpoint path is right — with the upstream path ending in `/mcp`, a client also
-  asking for `/mcp` reaches `/mcp/mcp` and was answered 404 without a word.
-- **`mcp-trace-capture` explains near-miss arguments, and `--help` lists the exit
-  codes.** `--upstream localhost:3999` suggests `http://localhost:3999`; `--listen
-  18081` and `--listen localhost:18081` show the `IP:PORT` form that works (they said
-  only "invalid socket address syntax"); a `{…}` in `-o`'s file name that is not
-  `{session}` (`{sesion}`) is warned about instead of silently naming one literal
-  file.
-- **`2026-07-28` registry rows for three pages that were in neither page list:**
+  `BASE-034` already reports. The reference host warned `ELIC-095` (accepting a
+  form with empty content where the schema requires fields) until fixed (see
+  Fixed).
+- **The authorization pages are entered at both revisions** (review item 2.8,
+  [ADR-0022](docs/plan/decisions/0022-judge-the-challenge-not-the-flow.md)): every
+  MUST- and SHOULD-family keyword, 85 entries at `2025-11-25` and 109 at
+  `2026-07-28` (area `AUTH`). 12 are judged by 7 checks that read a protected
+  server's `WWW-Authenticate` challenge: `scope` on a 401; the status for each
+  declared error; the 401 for `invalid_token`; the `insufficient_scope` response's
+  403, `scope` and `resource_metadata`; and, at `2026-07-28`, no `offline_access`
+  and no scope added on a retried request's second challenge. The OAuth flow, the
+  authorization server, credential headers, query-string tokens and Protected
+  Resource Metadata are excluded, each with the reason a recording cannot show it.
+  Every `AUTH` trace in the corpus is authored: no committed capture is of a
+  protected server. No committed verdict changed. `mcp-trace-capture` and the
+  everything server's tap now record `WWW-Authenticate` (`RECORDED_HEADERS` grows
+  from 10 to 11 entries).
+- **`2026-07-28` rows for three pages that were in neither page list** —
   `basic/patterns/cancellation` (`CANC-001`–`CANC-017`), `basic/patterns/progress`
   (`PROG-001`–`PROG-008`) and `basic/patterns/index` (`BASE-084`, "Servers MUST NOT
-  initiate JSON-RPC requests"). Every MUST, SHOULD and their negations on those pages
-  is entered, with a check or a documented exclusion.
-- **Rows for the `x-mcp-header` behaviour table** on `basic/transports/streamable-http`
-  (`TRAN-130`–`TRAN-136`), and for the caching page's "Caches MUST NOT be shared
-  across authorization contexts" (`CACH-019`, excluded: a cache hit sends nothing).
-- **Ten checks** behind those rows: `cancellation.server-cancels-only-subscriptions`;
-  `progress.token-type`, `progress.token-unique-in-flight`, `progress.value-increases`
-  and `progress.no-progress-after-completion`; and
+  initiate JSON-RPC requests"), entering every MUST, SHOULD and their negations
+  there with a check or a documented exclusion — **and for the `x-mcp-header`
+  behaviour table** on `basic/transports/streamable-http` (`TRAN-130`–`TRAN-136`),
+  plus the caching page's "Caches MUST NOT be shared across authorization contexts"
+  (`CACH-019`, excluded: a cache hit sends nothing). **Ten checks** judge them:
+  `cancellation.server-cancels-only-subscriptions`; `progress.token-type`,
+  `progress.token-unique-in-flight`, `progress.value-increases` and
+  `progress.no-progress-after-completion`; and
   `transport.x-mcp-header-{null,absent}-omitted`,
   `transport.{null,absent}-param-header-not-expected` and
-  `transport.missing-param-header-rejected`. Each has unit tests and a passing and a
-  violating trace in `corpus/draft/`.
-- **The spec page set is a gate.** `cargo xtask spec-drift` now reads the site's
+  `transport.missing-param-header-rejected`, each with unit tests and a passing and
+  a violating trace in `corpus/draft/`.
+- **The spec page set is a gate.** `cargo xtask spec-drift` reads the site's
   navigation and fails when a published page is in neither `in_scope` nor
-  `out_of_scope` of its revision's `sources.json`, or a listed page is not published;
-  `cargo xtask gates` (new task `page-set`) checks offline that no page is in both
-  lists, every exclusion has a reason, and every in-scope page names its source file
-  and has a census entry.
-- **[STABILITY.md](STABILITY.md)**: what each release keeps stable (the Rust API,
-  verdicts, requirement IDs, exit codes, CLI flags, the JSON, JUnit and SARIF
-  reports, the trace format, the MSRV, Cargo features), what counts as breaking
-  each, and how a breaking change is made.
-- **Release binaries embed their dependency list** (built with `cargo auditable`),
-  so `cargo audit bin` checks a downloaded `mcp-trace-validator` or
-  `mcp-trace-capture` against RustSec without its lockfile.
-- **Versioned documentation.** <https://mcp-conformance.com> now documents the
-  newest release at its root, keeps every release's book at `/vX.Y.Z/` and
-  `main`'s at `/dev/`, and offers a version selector; a page for anything but the
-  newest release says so, and a release's links into the repository open that
-  release's files, not `main`'s. Built by `cargo xtask book-site`.
-- **A requirement reference in the book**: every clause of each revision under
-  its ID, with its level, the party it binds, the verbatim quote, a link to the
-  published text, and the checks that judge it or the reason none can.
-- **`--revision` on `mcp-everything-server` and `mcp-reference-host`** (an alias
-  of `--protocol-version`, the validator's spelling), and **`--listen`** on the
-  server (an alias of `--bind`, the capture proxy's). The HTTP server prints its
-  endpoint URL after its readiness line.
+  `out_of_scope` of its revision's `sources.json`, or a listed page is not
+  published; `cargo xtask gates` (new task `page-set`) checks offline that no page
+  is in both lists, every exclusion has a reason, and every in-scope page names its
+  source file and has a census entry.
+- **Tracking the unreleased draft.** `cargo xtask spec-drift --draft` reports,
+  informationally, what the specification's unreleased draft has changed since
+  `2026-07-28`: page set and census against a committed tracking skeleton, keywords
+  no released quote covers, and whether each `2026-07-28` quote is still on its
+  draft page (present, changed, removed, page removed). The weekly `draft-drift`
+  job runs it, with the report in the job summary. **`registry/draft/`** holds the
+  skeleton and a post-release record — data only: not embedded, not a `--revision`
+  value, excluded from the published crate. Its first record is `TRAN-081`'s
+  rewording ("for JavaScript" → "for integers represented using IEEE754
+  double-precision floating point numbers"); the bound and the verdict are
+  unchanged.
+
+**Calibration and captures**
+
+- **The cross-SDK matrix.** Each Tier 1 SDK's own conformance server (TypeScript
+  1.32.0, Python 2.3.0, Go v1.8.0, rmcp 3.5.1) is recorded through
+  `mcp-trace-capture` while an official SDK client drives it, judged at each
+  revision it serves, and committed as corpus (`corpus/captured/`,
+  `corpus/draft/captured/sdk-*`). `cargo xtask sdk-matrix` publishes the results as
+  a book page; `sdk-matrix --check` (a new gate) holds the page, the pins and their
+  guide; a weekly job re-records every session and fails if a result moves. At
+  `2026-07-28` the Go SDK's server asks a client for `elicitation/create` it never
+  declared (`BASE-034`, `MRTR-012`/`MRTR-013`) and omits `X-Accel-Buffering`
+  (`TRAN-068`), published as found. When they landed, the SDK captures evidenced
+  six more `2026-07-28` clauses: 125 of the 145 judgeable, up from 119. A book
+  chapter, **"Recording an SDK's server"**, gives worked guides for the TypeScript
+  and Python SDKs, its commands included from `interop/matrix.sh`, which the
+  scheduled job runs.
+- **The everything server serves the surface the suite does not name, behind a
+  cursor.** Every listing (`tools/list`, `prompts/list`, `resources/list`,
+  `resources/templates/list`) is paginated, its first page exactly the suite's
+  catalogue; the second carries `test_resource_link` (a `resource_link` result with
+  annotated text, tool annotations and icons), `test_parameter_headers` (three
+  `x-mcp-header` designations), an audio prompt, and a resource and a template with
+  titles, icons and annotations, and the server names itself with an icon. Cursors
+  are stateless; one never issued gets `-32602` at both revisions.
+  **`mcp-reference-host` follows `nextCursor`** in its tool loop and sweep, and
+  `--probe` adds a call leaving out a designated argument's `Mcp-Param-*` header
+  (`TRAN-136`). The `2026-07-28` captures evidenced `140 of the 154 judgeable clauses` when this surface landed (`127` before it; later registry rows have since raised both counts),
+  adding `CACH-015`/`CACH-016`, `PROM-017`, `TOOL-034`, `TRAN-079`, `TRAN-081`,
+  `TRAN-130`, `TRAN-134`, `TRAN-135` and `TRAN-136`; the ten that remained then
+  are listed in `corpus/README.md` with their reasons.
+- **A second calibration source: `mcpsnoop`.** `cargo xtask mcpsnoop` converts every
+  corpus trace into `mcpsnoop`'s capture format and judges it with the pinned
+  `mcpsnoop check` 0.26.1, the conversion held against `mcpsnoop`'s own recordings
+  of the same sessions on every measurement. Over 208 traces, `mcpsnoop` flagged
+  none this validator passed; 9 divergent traces are triaged in a book page
+  (`book/src/mcpsnoop.md`), gated offline by `mcpsnoop --check` in `cargo xtask
+  gates`, and re-measured by an informational scheduled job.
+- **The official suite's schema check is reconciled with the validator's, message
+  by message.** `cargo xtask conformance` and `cargo xtask draft-readiness` match
+  the invalid messages the suite reports to the tapped sessions by sender and
+  canonical JSON and compare each with the report's `wire_schema` member. A message
+  flagged by one side only fails the run unless
+  `conformance/wire-schema-divergences.json` explains it (triage class, upstream
+  link, reason); an entry that explains nothing fails it too. The pinned suite
+  `0.1.16` predates the check, so any validator schema finding there is a
+  divergence from its green run. On `0.2.0-alpha.12`, 28 server scenarios, the
+  client leg and both draft-readiness legs agree with no divergences, but neither
+  side flagged a message: so far only unit tests, not a real disagreement, prove
+  the comparison.
+
+**`mcp-conformance`** (new crate `mcp-conformance-cli`, binary `mcp-conformance`;
+not yet published to crates.io)
+
+- **`mcp-conformance test`** runs the pinned official suite against a server
+  (`--url`, or `--command` for a stdio server through a loopback bridge) or a
+  client (`--client-command`) through `mcp-trace-capture`, and reports the suite's
+  checks, the clause report of every recorded session
+  (`--format human|json|junit|sarif`, `-o`) and whether the two agree against a
+  divergence baseline. Exit 0, 1 or 2. Needs Node.js 18+, installs nothing, and
+  refuses any suite version other than the pin. `cargo xtask conformance` runs it
+  against the everything server and the reference host and holds each report to
+  its own results.
+- **`mcp-conformance watch stdio|http`** records a session exactly as
+  `mcp-trace-capture` does and judges it as it runs: each new fail or warn finding
+  prints on stderr as the exchange showing it completes (clause ID, level, `seq`,
+  detail, the quoted clause), with a running tally and the validator's report at
+  the end. Judging runs off the forwarding path and never delays traffic.
+  **`watch --otlp <url>`** exports one span per exchange over OTLP/HTTP JSON under
+  the OpenTelemetry MCP semantic conventions (Development stability), each finding
+  a `mcp_conformance.finding` span event, through a bounded queue: a collector that
+  is down is counted and does not affect the session. No new dependencies.
+- **`mcp-conformance serve`**, a local browser workbench over a library of
+  recordings: search (`method:` `tool:` `resource:` `prompt:` `session:` `code:`
+  `req:` `server:` `tag:` `verdict:`, free text), a session timeline and inspector
+  in the HTML report's style with findings and events linked both ways, a
+  two-session diff, a live view of a trace being written, SVG dashboards (verdicts
+  over time, clause coverage, findings by area and server), and import, tags,
+  retention, delete, export and redacted copies. It binds loopback, admits only the
+  browser that opened its single-use link, checks `Host` and `Origin`, serves a
+  strict Content Security Policy, renders trace content only as text, and sends
+  nothing anywhere. **`mcp-conformance library`** (`stats`, `list`, `import`,
+  `redact`, `prune`, `tag`, `delete`, `export`) does the same from the command
+  line; `stats --format json` is exactly what the dashboards read. **Importers**
+  (`mcp_conformance_cli::import`) read `mcpsnoop` captures and MCP Inspector
+  protocol exports, each listing what its source does not record.
+- **Distribution.** The release archives carry `mcp-conformance` beside the
+  validator and the recorder. **npm and PyPI packages** (not yet published):
+  `npx mcp-conformance` / `npm install -g mcp-conformance` and
+  `pip install mcp-conformance` install the release's own `mcp-conformance`,
+  `mcp-trace-validator` and `mcp-trace-capture` binaries — on npm a main package
+  plus one `@mcp-conformance/<os>-<cpu>` optional dependency per target, with no
+  install scripts; on PyPI one wheel per target, tagged from the binary's own
+  headers. `cargo xtask packages` builds them from the release archives, checked
+  against `SHA256SUMS-binaries`; CI installs and runs them on Linux, macOS and
+  Windows; `release.yml` publishes them by trusted publishing once the owner has
+  set up the registries (RELEASING.md).
+
+**`mcp-trace-validator`**
+
+- **`validate --format html`**, and `html::render` / `html::render_run`: one
+  self-contained page per run — the verdict and counts per revision, each failing
+  or warning clause with its quote, link and findings, the message timeline with
+  request/response pairing, HTTP exchanges and every finding at its event (linked
+  both ways), and the excluded / not-applicable / not-observed accounting with
+  reasons. No script, font or image; a Content Security Policy admits only the
+  inline stylesheet, by its SHA-256, and all trace text is escaped. Its layout is
+  not a stable surface (STABILITY.md). **A screenshot suite** (`visual/`,
+  Playwright 1.56.1) and its CI job compare a passing, a failing and a two-revision
+  page at 1280 and 360 px, light and dark, with committed baselines, opened with no
+  network request allowed.
 - **`requirements LIFE-001 …`** prints a requirement in full — level, the party it
   binds, the clause verbatim with its link, its capability gate, and its checks or
   the reason it is excluded — and `--area`, `--level`, `--checked` and `--excluded`
   filter the listing, in human or JSON form.
 - **`mcp-trace-validator completions <shell>`** prints a bash, zsh, fish,
-  PowerShell or elvish completion script, generated from the command-line
-  definition itself (new optional dependency `clap_complete`, under `cli`).
+  PowerShell or elvish completion script generated from the command-line
+  definition (new optional dependency `clap_complete`, under `cli`).
 - **`--version` names the protocol revisions the build judges** on a second line;
   the first line, and `-V`, are unchanged.
-- **`judge::judge_with(document, &Options)`** judges a document by the CLI's rules
-  under caller-chosen reader limits and revisions; `Judgment` gains the parsed
-  `events` a `sarif::Artifact` needs, and `JudgeError` gains `UnknownRevision`. The
-  crate-level example uses it, so copying it no longer judges a `2026-07-28`
-  recording by `2025-11-25` rules.
-- **Library rendering of multi-trace runs and human reports:** `report::Unjudged`,
-  `junit::render_run` and `sarif::render_run` take the traces a run could not judge;
-  `report::HumanOptions` with `Report::render_with` and `MultiReport::render_with`
-  choose the clause filter, the finding limit and the wording. `Verdict` gains
-  `Incomplete`. All additions; every enum and struct touched is `#[non_exhaustive]`.
+- **Library API.** `judge::judge_with(document, &Options)` judges a document by the
+  CLI's rules under caller-chosen reader limits and revisions; `Judgment` gains the
+  parsed `events` a `sarif::Artifact` needs, and `JudgeError` gains
+  `UnknownRevision`. The crate-level example uses it, so copying it no longer
+  judges a `2026-07-28` recording by `2025-11-25` rules. `report::Unjudged`,
+  `junit::render_run` and `sarif::render_run` take the traces a run could not
+  judge; `report::HumanOptions` with `Report::render_with` and
+  `MultiReport::render_with` choose the clause filter, the finding limit and the
+  wording; `Verdict` gains `Incomplete`. All additions; every enum and struct
+  touched is `#[non_exhaustive]`. `mcp_trace_validator::timeline` (`shape`,
+  `pair`, `preview`), `mcp_trace_validator::html::STYLESHEET` and
+  `report::printable` are public.
+- **Examples and an upgrade guide.** A runnable library example, `cargo run -p mcp-trace-validator --example
+  judge_file -- <trace.jsonl>`, judges a trace, prints its findings, and exits 1
+  unless the session passed (2 when the file cannot be read or judged). The
+  validator README's example of the library API judging a trace is compiled and run
+  as a doctest, so it cannot rot. The book gains "Upgrading": where each release states what it breaks, how
+  to compare a recording's verdicts across two versions by requirement ID, and how
+  to pin the version a CI gate runs. The root README carries CI, crates.io,
+  docs.rs, MSRV and licence badges, the last three read from crates.io rather than
+  restated.
+
+**`mcp-trace-capture`, the GitHub Action and the servers**
+
+- **The GitHub Action can record the sessions it judges.** `capture: stdio` runs
+  `server` under `mcp-trace-capture` for the `client` command, which launches
+  `$MCP_SERVER_COMMAND`; `capture: http` puts the recording proxy in front of
+  `upstream` and gives the client `$MCP_PROXY_URL`, optionally starting and
+  stopping `server`. Every recorded session is judged, with SARIF and JUnit as
+  before; a failing client fails the step after its sessions are reported
+  (`client-exit-code`). `traces` is now optional; existing inputs are unchanged.
+- **`mcp-trace-capture http` names the client URL when it starts, and the statuses
+  when it stops**: how many responses were not 2xx and, for 404s, whether the
+  endpoint path is right — with an upstream path ending in `/mcp`, a client also
+  asking for `/mcp` reaches `/mcp/mcp` and was answered 404 without a word.
+- **`mcp-trace-capture` explains near-miss arguments, and `--help` lists the exit
+  codes.**
+  `--upstream localhost:3999` suggests `http://localhost:3999`; `--listen
+  18081` and `--listen localhost:18081` show the `IP:PORT` form that works (they
+  said only "invalid socket address syntax"); a `{…}` in `-o`'s file name that is
+  not `{session}` (`{sesion}`) is warned about rather than silently naming one
+  literal file.
+- **`mcp-trace-capture` library:** `stdio::relay`, the stdio wrapper with caller-supplied client
+  streams; `Signals::requested` with `StopRequests`; `run::stdio`/`run::http`,
+  `output`, `run::values`, the `Observer` trait, `http::client` and a public
+  `output::EXIT_INCOMPLETE`.
+- **`--revision` on `mcp-everything-server` and `mcp-reference-host`** (an alias of
+  `--protocol-version`, the validator's spelling), and **`--listen`** on the server
+  (an alias of `--bind`, the capture proxy's). The HTTP server prints its endpoint
+  URL after its readiness line.
+
+**Releases, documentation and gates**
+
+- **[STABILITY.md](STABILITY.md)**: what each release keeps stable (the Rust API,
+  verdicts, requirement IDs, exit codes, CLI flags, the JSON, JUnit and SARIF
+  reports, the trace format, the MSRV, Cargo features, and the little the HTML
+  report and the workbench promise), what counts as breaking each, and how a
+  breaking change is made.
+- **A CycloneDX SBOM for every crate, attested.** Each release attaches
+  `<crate>-<version>.cdx.json` beside the `.crate` (checksummed in
+  `SHA256SUMS-sbom`) with a signed attestation binding the two; RELEASING.md's
+  "Verifying a release" gives the `gh attestation verify` commands.
+- **Release binaries embed their dependency list** (built with `cargo auditable`),
+  so `cargo audit bin` checks a downloaded `mcp-trace-validator` or
+  `mcp-trace-capture` (or `mcp-conformance`, built the same way) against RustSec
+  without its lockfile.
+- **A container image**, `ghcr.io/tomtom215/mcp-conformance:<version>`, carrying
+  `mcp-trace-validator` and `mcp-trace-capture`, built from the locked workspace
+  with the pinned toolchain and `cargo auditable` on distroless (non-root, no
+  shell), linux/amd64. `release.yml` publishes it on release tags with build
+  provenance for its digest
+  (`gh attestation verify oci://ghcr.io/tomtom215/mcp-conformance:<version>
+  -R tomtom215/mcp-conformance`); CI builds and runs it on every push.
+  **`cargo xtask toolchain-pin` also checks the `Dockerfile`** builds on the
+  pinned toolchain's `rust` image.
+- **Versioned documentation.** <https://mcp-conformance.com> documents the newest
+  release at its root, every release's book at `/vX.Y.Z/` and `main`'s at `/dev/`,
+  with a version selector; a page for anything but the newest release says so, and
+  a release's links into the repository open that release's files, not `main`'s.
+  Built by `cargo xtask book-site`. **A requirement reference in the book** gives
+  every clause of each revision under its ID, with its level, the party it binds,
+  the verbatim quote, a link to the published text, and the checks that judge it or
+  the reason none can.
+- **Every offline gate is shown able to fail, in CI.** `cargo xtask falsify-gates`
+  runs each gate `cargo xtask gates` runs, and the golden corpus, on the clean
+  tree, makes one edit of the kind it exists to catch, and requires it to go red
+  naming that edit; it restores each file and fails unless the tree is clean at the
+  end. A gate added without a falsifier fails a unit test. The `doc` job runs it
+  after the gates.
+- **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
+  on 2026-10-13, all features) and is no longer informational; as informational it
+  had hidden a failing test (see Fixed).
 
 ### Changed
 
-- **Deprecation allows are narrowed to what uses them.** `mcp-everything-server` and
-  `mcp-reference-host` allow rmcp's SEP-2577 deprecations (Roots, Sampling, Logging,
-  which `2025-11-25` still requires) only on the items and statements that use them,
-  instead of module-wide.
+- **Deprecation allows are narrowed to what uses them.** `mcp-everything-server`
+  and `mcp-reference-host` allow rmcp's SEP-2577 deprecations (Roots, Sampling,
+  Logging, which `2025-11-25` still requires) only on the items and statements that
+  use them, not module-wide.
 - **Each crate's crates.io page links its docs.rs documentation**
   (`documentation` in every manifest).
-- **Table-row quotes have a documented form.** `SourceRef::quote` now states how a
-  clause that only reads as one with its table row is quoted: the row from its first
-  cell to the clause's cell, cells joined with ` | `.
+- **Table-row quotes have a documented form.** `SourceRef::quote` states how a
+  clause that only reads as one with its table row is quoted: the row from its
+  first cell to the clause's cell, cells joined with ` | `.
 - **The validator's note about a trace holding several sessions names the fix**:
   `{session}` in `mcp-trace-capture`'s `-o`, which writes a numbered trace per
   session, before the old advice to record one client per run.
@@ -824,10 +806,10 @@ below is stated again in its entry, with the reasoning.
 ### Dependencies
 
 - **rmcp 3.5.1** (from 3.4.1) for `mcp-everything-server` and
-  `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official
-  suite's `2026-07-28` scenarios now pass 42 of 42 against the server serving
-  `2025-11-25` too: rmcp 3.5.1 adds the cache hints `2026-07-28` peers need.
-  The development toolchain pin is Rust 1.99.0; the MSRV stays 1.88.
+  `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official suite's
+  `2026-07-28` scenarios now pass 42 of 42 against the server serving `2025-11-25`
+  too: rmcp 3.5.1 adds the cache hints `2026-07-28` peers need. The development
+  toolchain pin is Rust 1.99.0; the MSRV stays 1.88.
 - **Lockfile refresh within the declared ranges:** `schemars` 1.2.3 and `syn`
   3.0.9.
 
