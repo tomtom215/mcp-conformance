@@ -32,9 +32,7 @@ use rmcp::model::{
 };
 use rmcp::service::{NotificationContext, RequestContext, RoleClient};
 
-use crate::script::{
-    ElicitationPolicy, InteractionScript, UrlElicitationPolicy, defaults_from_schema,
-};
+use crate::script::{ElicitationPolicy, InteractionScript, UrlElicitationPolicy, accepted_content};
 
 /// One observed server-initiated interaction, in arrival order.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -113,22 +111,27 @@ fn answer_elicitation(
         ElicitRequestParams::FormElicitationParams {
             requested_schema, ..
         } => {
-            let (action, content, label) = match &script.elicitation {
-                ElicitationPolicy::AcceptWithDefaults => (
-                    ElicitationAction::Accept,
-                    Some(serde_json::Value::Object(defaults_from_schema(
-                        requested_schema,
-                    ))),
-                    "accept",
-                ),
-                ElicitationPolicy::AcceptWith(content) => (
-                    ElicitationAction::Accept,
-                    Some(serde_json::Value::Object(content.clone())),
-                    "accept",
-                ),
-                ElicitationPolicy::Decline => (ElicitationAction::Decline, None, "decline"),
-                ElicitationPolicy::Cancel => (ElicitationAction::Cancel, None, "cancel"),
-            };
+            let (action, content, label) =
+                match &script.elicitation {
+                    // ELIC-095: an `accept` whose content the schema rejects is
+                    // worse than a `decline`, so a form that cannot be filled
+                    // validly is declined rather than half-answered.
+                    ElicitationPolicy::AcceptWithDefaults => accepted_content(requested_schema)
+                        .map_or((ElicitationAction::Decline, None, "decline"), |content| {
+                            (
+                                ElicitationAction::Accept,
+                                Some(serde_json::Value::Object(content)),
+                                "accept",
+                            )
+                        }),
+                    ElicitationPolicy::AcceptWith(content) => (
+                        ElicitationAction::Accept,
+                        Some(serde_json::Value::Object(content.clone())),
+                        "accept",
+                    ),
+                    ElicitationPolicy::Decline => (ElicitationAction::Decline, None, "decline"),
+                    ElicitationPolicy::Cancel => (ElicitationAction::Cancel, None, "cancel"),
+                };
             let mut result = ElicitResult::new(action);
             result.content = content;
             (result, HostEvent::FormElicitationAnswered(label), None)
@@ -329,6 +332,43 @@ mod tests {
         );
         assert_eq!(event, HostEvent::FormElicitationAnswered("accept"));
         assert_eq!(pending, None, "form mode never creates a pending id");
+    }
+
+    #[test]
+    fn form_accept_with_defaults_fills_required_fields_or_declines() {
+        // ELIC-095: the probe form's shape, both required, neither defaulted —
+        // accepted with a value for each rather than with `{}`.
+        let script = InteractionScript::default();
+        let (result, event, _) = answer_elicitation(
+            &script,
+            &form_params(&serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "username": { "type": "string" },
+                    "email": { "type": "string", "format": "email" }
+                },
+                "required": ["username", "email"]
+            })),
+        );
+        assert_eq!(result.action, ElicitationAction::Accept);
+        assert_eq!(
+            result.content,
+            Some(serde_json::json!({"username": "scripted", "email": "user@example.com"}))
+        );
+        assert_eq!(event, HostEvent::FormElicitationAnswered("accept"));
+        // And a required field no value satisfies is a decline, not an
+        // `accept` the schema would reject.
+        let (result, event, _) = answer_elicitation(
+            &script,
+            &form_params(&serde_json::json!({
+                "type": "object",
+                "properties": { "plan": { "type": "string", "enum": [] } },
+                "required": ["plan"]
+            })),
+        );
+        assert_eq!(result.action, ElicitationAction::Decline);
+        assert_eq!(result.content, None);
+        assert_eq!(event, HostEvent::FormElicitationAnswered("decline"));
     }
 
     #[test]

@@ -19,6 +19,9 @@ use rmcp::model::{
 use rmcp::model::Root;
 use serde_json::{Map, Value};
 
+mod answer;
+pub use answer::accepted_content;
+
 /// Deterministic answers for everything a server may ask of this host.
 #[derive(Debug, Clone)]
 pub struct InteractionScript {
@@ -38,8 +41,10 @@ pub struct InteractionScript {
 
 impl Default for InteractionScript {
     /// The conformance-run script: accept forms by applying SEP-1034 schema
-    /// defaults, consent to URL elicitations, answer sampling with a fixed
-    /// line, and expose one synthetic project root.
+    /// defaults and filling required fields the schema admits (declining a
+    /// form that cannot be filled validly), consent to URL elicitations,
+    /// answer sampling with a fixed line, and expose one synthetic project
+    /// root.
     // SEP-2577 deprecates Roots; `2025-11-25` still requires it.
     #[allow(deprecated)]
     fn default() -> Self {
@@ -56,8 +61,11 @@ impl Default for InteractionScript {
 /// Answer policy for form-mode elicitation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ElicitationPolicy {
-    /// Accept, filling every field that carries a schema default (SEP-1034)
-    /// and omitting the rest.
+    /// Accept with content the requested schema admits: every field that
+    /// carries a schema default gets it (SEP-1034), every *required* field
+    /// without one gets a deterministic value of its type, and the optional
+    /// rest are omitted. A required field no value can satisfy declines the
+    /// form instead — see [`accepted_content`] for the rule.
     AcceptWithDefaults,
     /// Accept with exactly this content object.
     AcceptWith(Map<String, Value>),
