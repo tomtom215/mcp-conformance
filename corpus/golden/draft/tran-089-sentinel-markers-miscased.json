@@ -2,10 +2,10 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 57,
+    "pass": 61,
     "fail": 1,
     "warn": 0,
-    "excluded": 169,
+    "excluded": 165,
     "unsupported": 0,
     "not_applicable": 0,
     "not_observed": 83
@@ -84,6 +84,11 @@
     {
       "id": "BASE-062",
       "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-073",
+      "level": "MUST",
       "outcome": "pass"
     },
     {
@@ -242,6 +247,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-082",
+      "level": "MUST NOT",
+      "outcome": "pass"
+    },
+    {
       "id": "TRAN-086",
       "level": "MUST",
       "outcome": "pass"
@@ -270,6 +280,11 @@
     },
     {
       "id": "TRAN-092",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-137",
       "level": "MUST",
       "outcome": "pass"
     },
@@ -662,6 +677,11 @@
       "id": "TOOL-040",
       "level": "MUST",
       "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-045",
+      "level": "MUST",
+      "outcome": "pass"
     },
     {
       "id": "RES-011",

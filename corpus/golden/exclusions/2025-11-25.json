@@ -32,11 +32,6 @@
       "exclusion": "Documentation lives outside the protocol session entirely."
     },
     {
-      "id": "BASE-017",
-      "level": "MUST",
-      "exclusion": "Full dialect validation requires a JSON Schema engine, a dependency mcp-conformance-core deliberately excludes (serde-family only, 02-architecture.md); tools.input-schema-object (TOOL-003) enforces the structural floor."
-    },
-    {
       "id": "BASE-018",
       "level": "MUST NOT",
       "exclusion": "What an implementation assumes is internal; only conduct that follows from an assumption could surface, and attributing it requires the assumption."

@@ -23,6 +23,8 @@ below is stated again in its entry, with the reasoning.
 | Surface | Change | Migration |
 |---------|--------|-----------|
 | Verdict, now failing | Every message is validated against its revision's JSON Schema (the report's new `wire_schema`, [ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)): a missing required member, a wrong type, a value outside an enumeration, an unknown content-block type fails the verdict, though no requirement row changes | Fix the sender; the finding names the schema definition and the member's path |
+| Verdict, now judged | With an engine to apply schemas: `BASE-017`/`BASE-073` (a schema invalid in its declared or default dialect) and `TOOL-045`/`TRAN-137`/`TRAN-082` (an `x-mcp-header` annotation on a property no chain of `properties` keys reaches) move from excluded to checked; `TOOL-011`/`TOOL-040` now hold `structuredContent` to the whole `outputSchema`, not only its presence and root type | Fix the schema, the annotation's placement, or the structured result |
+| Report totals | `excluded` falls by 1 at `2025-11-25` and by 4 at `2026-07-28`, the clauses above | Re-baseline any comparison of totals across versions |
 | JSON report | A report, and each summary of a multi-revision one, gains `wire_schema`; `report.schema.json` describes it | Accept the member (adding one is not breaking, STABILITY.md) |
 | JUnit report | Each suite gains a `wire schema` test case, so `tests` is one more than the requirement count | Do not equate the test count with the registry's size |
 | SARIF | A failed wire schema is the rule `wire-schema` (`wire-schema@<revision>` when two revisions judged it), one result per invalid message | None |
@@ -58,6 +60,14 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **`TOOL-011`/`TOOL-040` passed structured results that broke the tool's own
+  `outputSchema`.** The clause is "Servers MUST provide structured results that
+  conform to this schema", but the check judged only that `structuredContent` was
+  present and, for an object schema, an object: `{"temperature": "warm"}` passed a
+  schema typing it `number`. The content is now validated against the schema in
+  the dialect it declares; a schema the engine cannot apply — an unknown dialect,
+  or a `$ref` to a document outside it, which is never fetched — is still held
+  only to its root type.
 - **JUnit output could be ill-formed XML.** U+FFFE and U+FFFF are outside XML
   1.0's `Char` production, like the C0 controls the renderer already replaced, but
   passed through; a trace naming a method with either produced a report a strict CI
@@ -340,6 +350,19 @@ below is stated again in its entry, with the reasoning.
 
 ### Added
 
+- **Five clauses that waited on a JSON Schema engine are judged.** The
+  exclusions said a trace could not judge them without one; with ADR-0020's
+  engine in the validator, that stopped being true.
+  `base.schemas-valid-for-dialect` holds every schema a session carries — a
+  tool's `inputSchema` and `outputSchema`, an elicitation's `requestedSchema` —
+  to its declared dialect's metaschema (`BASE-017`, `BASE-073`); a dialect the
+  engine does not know is left unjudged. `transport.x-mcp-header-statically-reachable`
+  walks a tool's `inputSchema` by keyword, so data under `default`, `const`,
+  `enum` or `examples` is never mistaken for a schema, and fails every
+  `x-mcp-header` annotation that no chain of `properties` keys reaches —
+  under `items`, a composition or conditional keyword, or a `$defs` entry
+  reached by `$ref` (`TOOL-045`, `TRAN-137`, `TRAN-082`). Each has a violating
+  corpus trace per revision it binds.
 - **Every message is checked against its revision's JSON Schema.** The
   specification makes its schema "the source of truth for all protocol messages and
   structures", yet most of what the schema constrains — required members, types,

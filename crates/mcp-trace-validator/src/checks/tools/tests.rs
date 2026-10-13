@@ -208,4 +208,56 @@ fn structured_content_shape_follows_the_schema_root_type() {
     let findings = findings_for(check, &call(r#"{"type":"object"}"#, r#"["a"]"#));
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert!(findings[0].contains("not an object"), "{findings:?}");
+
+    // Past the root type, the content is held to the whole schema.
+    let schema =
+        r#"{"type":"object","properties":{"n":{"type":"integer","minimum":0}},"required":["n"]}"#;
+    assert_eq!(
+        findings_for(check, &call(schema, r#"{"n":3}"#)),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        findings_for(check, &call(schema, r#"{"n":-1}"#)),
+        [
+            r#"tool "w"'s structuredContent does not conform to its outputSchema: /n: -1 is less than the minimum of 0"#
+        ]
+    );
+    assert_eq!(
+        findings_for(check, &call(schema, "{}")),
+        [
+            r#"tool "w"'s structuredContent does not conform to its outputSchema: "n" is a required property"#
+        ]
+    );
+}
+
+/// A schema the engine cannot apply — a reference to a document outside it,
+/// which is never fetched, or a dialect it does not know — is judged only by
+/// its root type: an unappliable schema is not evidence of a nonconforming
+/// result.
+#[test]
+fn an_unappliable_output_schema_is_held_only_to_its_root_type() {
+    let call = |schema: &str| {
+        session(
+            r#"{"tools":{}}"#,
+            &[
+                r#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#,
+                &format!(
+                    r#"{{"jsonrpc":"2.0","id":2,"result":{{"tools":[{{"name":"w","inputSchema":{{"type":"object"}},"outputSchema":{schema}}}]}}}}"#
+                ),
+                r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"w","arguments":{}}}"#,
+                r#"{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"x"}],"structuredContent":{"n":"x"}}}"#,
+            ],
+        )
+    };
+    let check = "tools.output-schema-structured-result";
+    for schema in [
+        r#"{"type":"object","properties":{"n":{"$ref":"https://example.test/n.json"}}}"#,
+        r#"{"$schema":"https://example.test/custom-dialect","type":"object","properties":{"n":{"type":"integer"}}}"#,
+    ] {
+        assert_eq!(
+            findings_for(check, &call(schema)),
+            Vec::<String>::new(),
+            "{schema}"
+        );
+    }
 }

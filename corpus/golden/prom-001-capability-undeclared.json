@@ -5,10 +5,10 @@
     "pass": 17,
     "fail": 2,
     "warn": 0,
-    "excluded": 86,
+    "excluded": 85,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 23
+    "not_observed": 24
   },
   "requirements": [
     {
@@ -60,6 +60,11 @@
       "id": "BASE-010",
       "level": "MUST",
       "outcome": "pass"
+    },
+    {
+      "id": "BASE-017",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "BASE-019",

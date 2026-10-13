@@ -103,7 +103,7 @@ MCP trace validation — revision 2026-07-28 (declared by the trace)
         seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
         spec: "Note that the JSON-RPC `id` MUST be different between the initial request and the retry."
         see:  https://modelcontextprotocol.io/specification/2026-07-28/server/tools#input-required-tool-results
-totals: 38 pass, 2 fail, 0 warn, 169 excluded, 0 unsupported, 0 not applicable, 101 not observed
+totals: 39 pass, 2 fail, 0 warn, 165 excluded, 0 unsupported, 0 not applicable, 104 not observed
 wire schema: pass (3 messages valid)
 verdict: fail
 ```
@@ -173,7 +173,7 @@ audience in [docs/design/trace-validation.md](docs/design/trace-validation.md).
 | [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) | **The recorder.** A stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write a validator-ready trace, recording each message before the bytes that complete it are forwarded. CI runs reference-host sessions through it at both revisions and requires them to judge clean, and runs the official suite through the proxy. |
 | [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Findings with the clause ID and the offending event `seq`, as human text (what needs attention, or `--all`), JSON (with a published JSON Schema), JUnit, or SARIF, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The spec as data.** Requirement registries for `2025-11-25` and `2026-07-28` whose every entry carries a verbatim spec quote, an RFC 2119 level, an optional capability gate, and either a mechanical check or a documented exclusion (the SEP-2484 traceability shape); a weekly job re-verifies every quote against the published text. Plus the JSON Lines trace schema and RFC 8785 canonical JSON. Serde only. |
-| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk). It passes the pinned official suite's `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy. `--protocol-version 2026-07-28` serves the stateless revision; the suite's pre-release `2026-07-28` scenarios score **42 passing / 0 failing** against it, and five committed captures evidence **118 of the 141 judgeable clauses** between them. Its tap records each suite session for the calibration check. |
+| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk). It passes the pinned official suite's `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy. `--protocol-version 2026-07-28` serves the stateless revision; the suite's pre-release `2026-07-28` scenarios score **42 passing / 0 failing** against it, and five committed captures evidence **119 of the 145 judgeable clauses** between them. Its tap records each suite session for the calibration check. |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference client.** Passes all four of the official suite's `2025-11-25` client scenarios at the pinned version; bounded tool-use loops over stdio and streamable HTTP, scriptable sampling / elicitation / roots with no model-provider network use. |
 
 **Calibration.** On every CI run the official suite (pinned `0.1.16`, `2025-11-25`)
@@ -192,8 +192,8 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 
 | Area | Requirements | Checked | Excluded | Capability-gated |
 |------|-------------:|--------:|---------:|-----------------:|
-| BASE | 59 | 27 | 32 | 0 |
-| TRAN | 88 | 42 | 46 | 0 |
+| BASE | 59 | 28 | 31 | 0 |
+| TRAN | 88 | 44 | 44 | 0 |
 | DISC | 4 | 2 | 2 | 0 |
 | VERS | 8 | 5 | 3 | 0 |
 | MRTR | 25 | 15 | 10 | 0 |
@@ -204,18 +204,18 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | COMP | 6 | 2 | 4 | 0 |
 | PAGE | 6 | 1 | 5 | 0 |
 | LOG | 8 | 4 | 4 | 0 |
-| TOOL | 31 | 14 | 17 | 0 |
+| TOOL | 31 | 15 | 16 | 0 |
 | RES | 13 | 6 | 7 | 0 |
 | PROM | 11 | 7 | 4 | 0 |
-| **Total** | **310** | **141** | **169** | **0** |
+| **Total** | **310** | **145** | **165** | **0** |
 
-310 requirements: 141 judged by 110 distinct trace checks, 169 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+310 requirements: 145 judged by 112 distinct trace checks, 165 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 **`2025-11-25`**
 
 | Area | Requirements | Checked | Excluded | Capability-gated |
 |------|-------------:|--------:|---------:|-----------------:|
-| BASE | 25 | 12 | 13 | 0 |
+| BASE | 25 | 13 | 12 | 0 |
 | LIFE | 18 | 10 | 8 | 0 |
 | TRAN | 49 | 13 | 36 | 0 |
 | TOOL | 15 | 9 | 6 | 13 |
@@ -224,9 +224,9 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | LOG | 5 | 1 | 4 | 4 |
 | COMP | 5 | 1 | 4 | 3 |
 | PAGE | 5 | 2 | 3 | 0 |
-| **Total** | **142** | **56** | **86** | **33** |
+| **Total** | **142** | **57** | **85** | **33** |
 
-142 requirements: 56 judged by 53 distinct trace checks, 86 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+142 requirements: 57 judged by 54 distinct trace checks, 85 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 Every check is falsified by a committed violation trace and examines a real subject on at least one conforming one. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
 <!-- coverage:end -->
@@ -262,7 +262,7 @@ event:
         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
-totals: 17 pass, 1 fail, 0 warn, 86 excluded, 0 unsupported, 6 not applicable, 32 not observed
+totals: 17 pass, 1 fail, 0 warn, 85 excluded, 0 unsupported, 6 not applicable, 33 not observed
 wire schema: pass (4 messages valid)
 verdict: fail
 ```

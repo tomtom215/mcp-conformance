@@ -154,6 +154,10 @@ pub(super) const ROWS: &[Check] = &[
         "transport.x-mcp-header-name-valid",
         stateless::transport::x_mcp_header_name_valid
     ),
+    check!(
+        "transport.x-mcp-header-statically-reachable",
+        stateless::transport::x_mcp_header_statically_reachable
+    ),
     check!("discover.implemented", stateless::discovery::implemented),
     check!(
         "discover.dual-era-probe-first",

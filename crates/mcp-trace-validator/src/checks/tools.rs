@@ -256,28 +256,35 @@ pub(super) fn structured_content_text(context: &TraceContext<'_>, sink: &mut Fin
 }
 
 /// `TOOL-011`/`TOOL-040`: when a tool declared an `outputSchema` in `tools/list`,
-/// its successful, non-`isError` call results must provide `structuredContent`.
-/// Conformance of that content *to* the schema needs a JSON Schema engine and is
-/// exercised through the official-suite agreement check; what a trace judges is
-/// presence, and the one piece of shape the schema states at its root: a schema
-/// of `"type": "object"` (the only kind `2025-11-25` allows) needs an object.
-/// `2026-07-28` admits any JSON value, an array schema included.
+/// its successful, non-`isError` call results must provide `structuredContent`
+/// that conforms to it. The schema is applied in the dialect it declares
+/// (2020-12 without a `$schema`); one this engine cannot compile — an unknown
+/// dialect, a reference to a document outside it, or an invalid schema, which
+/// is `BASE-017`/`BASE-073`'s finding — is held only to its root `type`: a
+/// schema of `"type": "object"` (the only kind `2025-11-25` allows) needs an
+/// object. `2026-07-28` admits any JSON value, an array schema included.
 pub(super) fn output_schema_structured_result(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    let with_output_schema: std::collections::BTreeMap<&str, bool> = listed_tools(context)
-        .filter_map(|(_, tool)| {
-            let schema = tool
-                .get("outputSchema")
-                .filter(|schema| schema.is_object())?;
-            let wants_object = schema.get("type").and_then(Value::as_str) == Some("object");
-            Some((tool.get("name").and_then(Value::as_str)?, wants_object))
-        })
-        .collect();
+    let with_output_schema: std::collections::BTreeMap<&str, (bool, &Value)> =
+        listed_tools(context)
+            .filter_map(|(_, tool)| {
+                let schema = tool
+                    .get("outputSchema")
+                    .filter(|schema| schema.is_object())?;
+                let wants_object = schema.get("type").and_then(Value::as_str) == Some("object");
+                Some((
+                    tool.get("name").and_then(Value::as_str)?,
+                    (wants_object, schema),
+                ))
+            })
+            .collect();
+    let mut compiled: std::collections::BTreeMap<&str, Option<jsonschema::Validator>> =
+        std::collections::BTreeMap::new();
     if with_output_schema.is_empty() {
         return;
     }
     for (seq, name, result) in call_results(context) {
         let Some(name) = name else { continue };
-        let Some(&wants_object) = with_output_schema.get(name) else {
+        let Some(&(wants_object, schema)) = with_output_schema.get(name) else {
             continue;
         };
         if result.get("isError").and_then(Value::as_bool) == Some(true) {
@@ -297,7 +304,22 @@ pub(super) fn output_schema_structured_result(context: &TraceContext<'_>, sink: 
                     "tool {name:?} declares an object outputSchema but this result's structuredContent is not an object"
                 ),
             ),
-            Some(_) => {}
+            Some(structured) => {
+                let validator = compiled
+                    .entry(name)
+                    .or_insert_with(|| crate::wire_schema::compile_declared(schema));
+                let Some(validator) = validator else { continue };
+                let errors = crate::wire_schema::instance_errors(validator, structured, "");
+                if !errors.is_empty() {
+                    sink.push(
+                        Some(seq),
+                        format!(
+                            "tool {name:?}'s structuredContent does not conform to its outputSchema: {}",
+                            crate::wire_schema::summarize(&errors)
+                        ),
+                    );
+                }
+            }
         }
     }
 }

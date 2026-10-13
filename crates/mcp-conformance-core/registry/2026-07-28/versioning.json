@@ -72,7 +72,7 @@
         "section": "basic/versioning#extension-negotiation",
         "quote": "If one party supports an extension but the other does not, the supporting party MUST either revert to core protocol behavior or reject the request with an appropriate error."
       },
-      "exclusion": "Both permitted responses are defined by the extension, not by this specification: what \"core protocol behavior\" looks like for a given extension, and which error is \"appropriate\", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour — the same architectural boundary that leaves the JSON Schema clauses to BASE-073."
+      "exclusion": "Both permitted responses are defined by the extension, not by this specification: what \"core protocol behavior\" looks like for a given extension, and which error is \"appropriate\", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour."
     },
     {
       "id": "VERS-006",

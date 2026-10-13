@@ -92,11 +92,6 @@
       "exclusion": "Documentation is a property of the project, not of any session. Same reasoning as BASE-016 at 2025-11-25."
     },
     {
-      "id": "BASE-073",
-      "level": "MUST",
-      "exclusion": "Full dialect validation requires a JSON Schema engine, a dependency `mcp-conformance-core` deliberately excludes (serde-family only, 02-architecture.md). Same reasoning as BASE-017 at 2025-11-25."
-    },
-    {
       "id": "BASE-074",
       "level": "MUST NOT",
       "exclusion": "Whether an implementation dereferenced a `$ref` is an outbound fetch to a third party, not an MCP message; nothing in the recorded session distinguishes a resolved reference from an unresolved one."
@@ -227,11 +222,6 @@
       "exclusion": "Client support for `x-mcp-header` is internal capability. Its observable consequence — mirroring designated values into headers — is the next clause and is checked there."
     },
     {
-      "id": "TRAN-082",
-      "level": "MUST NOT",
-      "exclusion": "The forbidden keyword chain is judged where the annotation sits, which needs the JSON Schema vocabulary TRAN-137 explains core leaves out."
-    },
-    {
       "id": "TRAN-083",
       "level": "MUST",
       "exclusion": "Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it."
@@ -270,11 +260,6 @@
       "id": "TRAN-094",
       "level": "SHOULD",
       "exclusion": "Whether a client re-fetched `tools/list` after a `HeaderMismatch` is recovery conduct; a later `tools/list` in the same recording is equally consistent with any other reason for calling it."
-    },
-    {
-      "id": "TRAN-137",
-      "level": "MUST",
-      "exclusion": "Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws."
     },
     {
       "id": "TRAN-095",
@@ -339,7 +324,7 @@
     {
       "id": "VERS-005",
       "level": "MUST",
-      "exclusion": "Both permitted responses are defined by the extension, not by this specification: what \"core protocol behavior\" looks like for a given extension, and which error is \"appropriate\", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour — the same architectural boundary that leaves the JSON Schema clauses to BASE-073."
+      "exclusion": "Both permitted responses are defined by the extension, not by this specification: what \"core protocol behavior\" looks like for a given extension, and which error is \"appropriate\", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour."
     },
     {
       "id": "VERS-006",
@@ -694,7 +679,7 @@
     {
       "id": "LOG-011",
       "level": "SHOULD",
-      "exclusion": "Rate limiting is measured in elapsed time (LIFE-015); \"relevant context\", \"consistent\" logger names and \"sensitive\" information are judgements about the meaning of the payload, which this engine does not model — the same boundary BASE-073 draws for JSON Schema."
+      "exclusion": "Rate limiting is measured in elapsed time (LIFE-015); \"relevant context\", \"consistent\" logger names and \"sensitive\" information are judgements about the meaning of the payload, which this engine does not model."
     },
     {
       "id": "LOG-012",
@@ -764,7 +749,7 @@
     {
       "id": "TOOL-041",
       "level": "SHOULD",
-      "exclusion": "Validation performed inside the client, against a schema this engine has no JSON Schema evaluator for by deliberate architectural choice — the boundary BASE-073 draws. A client that validated and one that did not send the same messages."
+      "exclusion": "Validation performed inside the client. A client that validated a structured result and one that did not send the same messages, and the clause does not say what a client does with a result that fails; the server half of the rule, TOOL-040, is judged."
     },
     {
       "id": "TOOL-042",
@@ -780,11 +765,6 @@
       "id": "TOOL-044",
       "level": "SHOULD",
       "exclusion": "Six client-side practices — confirmation prompts, showing inputs, validating results, `$ref` resolution, timeouts, audit logs. Each happens inside the client or in its UI; none is a message."
-    },
-    {
-      "id": "TOOL-045",
-      "level": "MUST",
-      "exclusion": "Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws."
     },
     {
       "id": "TOOL-046",

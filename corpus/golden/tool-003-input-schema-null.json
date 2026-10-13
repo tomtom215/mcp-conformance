@@ -3,9 +3,9 @@
   "verdict": "fail",
   "totals": {
     "pass": 23,
-    "fail": 1,
+    "fail": 2,
     "warn": 0,
-    "excluded": 86,
+    "excluded": 85,
     "unsupported": 0,
     "not_applicable": 6,
     "not_observed": 26
@@ -60,6 +60,23 @@
       "id": "BASE-010",
       "level": "MUST",
       "outcome": "pass"
+    },
+    {
+      "id": "BASE-017",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "base.schemas-valid-for-dialect",
+          "seq": 4,
+          "detail": "the server sent tool \"echo\"'s inputSchema, which is not a valid schema in the default dialect, 2020-12: null is not of types \"boolean\", \"object\""
+        }
+      ],
+      "source": {
+        "section": "basic#schema-validation",
+        "quote": "Schemas MUST be valid according to their declared or default dialect",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#schema-validation"
+      }
     },
     {
       "id": "BASE-019",

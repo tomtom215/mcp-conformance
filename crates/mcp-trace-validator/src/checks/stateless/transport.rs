@@ -25,6 +25,7 @@ use crate::context::TraceContext;
 
 mod headers;
 mod omission;
+mod placement;
 mod stdio;
 mod stream;
 mod validation;
@@ -44,6 +45,7 @@ pub(in crate::checks) use omission::{
     absent_param_header_not_expected, missing_param_header_rejected,
     null_param_header_not_expected, x_mcp_header_absent_omitted, x_mcp_header_null_omitted,
 };
+pub(in crate::checks) use placement::x_mcp_header_statically_reachable;
 pub(in crate::checks) use stdio::{
     cancel_notification_references_request, no_messages_after_cancel_notification,
 };

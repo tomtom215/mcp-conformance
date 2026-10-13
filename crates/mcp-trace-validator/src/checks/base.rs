@@ -22,9 +22,11 @@ use crate::context::TraceContext;
 
 mod correlation;
 mod meta;
+mod schemas;
 
 pub(super) use correlation::{error_id_matches, result_id_matches};
 pub(super) use meta::meta_key_format;
+pub(super) use schemas::schemas_valid_for_dialect;
 // The `_meta` key grammar is unchanged at `2026-07-28`, where VERS-004 reuses it
 // for extension identifiers — the function, not `base.meta-key-format`, which
 // reads envelope keys and would inspect no identifier at all.

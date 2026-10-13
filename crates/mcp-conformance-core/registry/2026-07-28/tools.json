@@ -365,7 +365,7 @@
         "section": "server/tools#output-schema",
         "quote": "Clients SHOULD validate structured results against this schema."
       },
-      "exclusion": "Validation performed inside the client, against a schema this engine has no JSON Schema evaluator for by deliberate architectural choice \u2014 the boundary BASE-073 draws. A client that validated and one that did not send the same messages."
+      "exclusion": "Validation performed inside the client. A client that validated a structured result and one that did not send the same messages, and the clause does not say what a client does with a result that fails; the server half of the rule, TOOL-040, is judged."
     },
     {
       "id": "TOOL-042",
@@ -417,7 +417,9 @@
         "section": "server/tools#x-mcp-header",
         "quote": "Constraints on `x-mcp-header` values: MUST only be applied to properties that are statically reachable from the schema root, as defined in Custom Headers from Tool Parameters, which also defines how header values are extracted from call arguments"
       },
-      "exclusion": "Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws."
+      "checks": [
+        "transport.x-mcp-header-statically-reachable"
+      ]
     },
     {
       "id": "TOOL-046",

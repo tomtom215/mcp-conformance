@@ -4,7 +4,7 @@
 
 # Requirements — `2025-11-25`
 
-Every normative clause of the `2025-11-25` specification that the validator's registry carries — 142 in all, 56 judged from a recorded trace and 86 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
+Every normative clause of the `2025-11-25` specification that the validator's registry carries — 142 in all, 57 judged from a recorded trace and 85 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -176,7 +176,7 @@ Judged by `base.result-field`.
 
 [`basic#schema-validation`](https://modelcontextprotocol.io/specification/2025-11-25/basic#schema-validation)
 
-**Excluded.** Full dialect validation requires a JSON Schema engine, a dependency mcp-conformance-core deliberately excludes (serde-family only, 02-architecture.md); tools.input-schema-object (TOOL-003) enforces the structural floor.
+Judged by `base.schemas-valid-for-dialect`.
 
 ### BASE-018
 

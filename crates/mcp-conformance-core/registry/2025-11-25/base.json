@@ -240,7 +240,9 @@
         "section": "basic#schema-validation",
         "quote": "Schemas MUST be valid according to their declared or default dialect"
       },
-      "exclusion": "Full dialect validation requires a JSON Schema engine, a dependency mcp-conformance-core deliberately excludes (serde-family only, 02-architecture.md); tools.input-schema-object (TOOL-003) enforces the structural floor."
+      "checks": [
+        "base.schemas-valid-for-dialect"
+      ]
     },
     {
       "id": "BASE-018",

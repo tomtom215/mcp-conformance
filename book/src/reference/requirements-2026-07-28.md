@@ -4,7 +4,7 @@
 
 # Requirements — `2026-07-28`
 
-Every normative clause of the `2026-07-28` specification that the validator's registry carries — 310 in all, 141 judged from a recorded trace and 169 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
+Every normative clause of the `2026-07-28` specification that the validator's registry carries — 310 in all, 145 judged from a recorded trace and 165 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -346,7 +346,7 @@ Judged by `base.notification-no-id`.
 
 [`basic/index#schema-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic#schema-validation)
 
-**Excluded.** Full dialect validation requires a JSON Schema engine, a dependency `mcp-conformance-core` deliberately excludes (serde-family only, 02-architecture.md). Same reasoning as BASE-017 at 2025-11-25.
+Judged by `base.schemas-valid-for-dialect`.
 
 ### BASE-074
 
@@ -928,7 +928,7 @@ Judged by `tools.x-mcp-header-integer-range`.
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
-**Excluded.** The forbidden keyword chain is judged where the annotation sits, which needs the JSON Schema vocabulary TRAN-137 explains core leaves out.
+Judged by `transport.x-mcp-header-statically-reachable`.
 
 ### TRAN-083
 
@@ -1058,7 +1058,7 @@ Judged by `transport.sentinel-pattern-encoded`.
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
-**Excluded.** Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws.
+Judged by `transport.x-mcp-header-statically-reachable`.
 
 ### TRAN-095
 
@@ -1372,7 +1372,7 @@ Judged by `versioning.extension-identifier-format`.
 
 [`basic/versioning#extension-negotiation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#extension-negotiation)
 
-**Excluded.** Both permitted responses are defined by the extension, not by this specification: what "core protocol behavior" looks like for a given extension, and which error is "appropriate", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour — the same architectural boundary that leaves the JSON Schema clauses to BASE-073.
+**Excluded.** Both permitted responses are defined by the extension, not by this specification: what "core protocol behavior" looks like for a given extension, and which error is "appropriate", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour.
 
 ### VERS-006
 
@@ -2560,7 +2560,7 @@ Judged by `logging.invalid-level-rejected`.
 
 [`server/utilities/logging#implementation-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/logging#implementation-considerations)
 
-**Excluded.** Rate limiting is measured in elapsed time (LIFE-015); "relevant context", "consistent" logger names and "sensitive" information are judgements about the meaning of the payload, which this engine does not model — the same boundary BASE-073 draws for JSON Schema.
+**Excluded.** Rate limiting is measured in elapsed time (LIFE-015); "relevant context", "consistent" logger names and "sensitive" information are judgements about the meaning of the payload, which this engine does not model.
 
 ### LOG-012
 
@@ -2842,7 +2842,7 @@ Judged by `tools.output-schema-structured-result`.
 
 [`server/tools#output-schema`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#output-schema)
 
-**Excluded.** Validation performed inside the client, against a schema this engine has no JSON Schema evaluator for by deliberate architectural choice — the boundary BASE-073 draws. A client that validated and one that did not send the same messages.
+**Excluded.** Validation performed inside the client. A client that validated a structured result and one that did not send the same messages, and the clause does not say what a client does with a result that fails; the server half of the rule, TOOL-040, is judged.
 
 ### TOOL-042
 
@@ -2882,7 +2882,7 @@ Judged by `tools.output-schema-structured-result`.
 
 [`server/tools#x-mcp-header`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header)
 
-**Excluded.** Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws.
+Judged by `transport.x-mcp-header-statically-reachable`.
 
 ### TOOL-046
 

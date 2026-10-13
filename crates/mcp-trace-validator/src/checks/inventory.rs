@@ -58,6 +58,10 @@ const SHIPPED: &[Check] = &[
     check!("base.meta-key-format", base::meta_key_format),
     check!("base.result-field", base::result_field),
     check!(
+        "base.schemas-valid-for-dialect",
+        base::schemas_valid_for_dialect
+    ),
+    check!(
         "lifecycle.initialize-protocol-version",
         lifecycle::initialize_protocol_version
     ),

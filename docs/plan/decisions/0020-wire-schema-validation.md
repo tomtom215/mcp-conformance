@@ -73,6 +73,12 @@ the engine's absence rather than on anything about the wire.
   the first corpus run found nothing new in the conforming traces and confirmed
   `CACH-001` on the suite's capture independently.
 - The engine removes the reason, not merely the symptom, for the exclusions in decision 6.
+  Re-decided on what a trace carries: `BASE-017`/`BASE-073` (schema validity in the
+  declared dialect) and `TOOL-045`/`TRAN-137`/`TRAN-082` (`x-mcp-header` placement,
+  found by a keyword-aware walk that never mistakes instance data for a schema) are
+  judged; `TOOL-011`/`TOOL-040` judge conformance, not only presence; `TOOL-041` stays
+  excluded for a reason that never needed the engine — a client's validation leaves no
+  message behind.
 
 ### Negative
 

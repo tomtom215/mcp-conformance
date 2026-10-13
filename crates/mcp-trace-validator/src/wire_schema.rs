@@ -26,7 +26,7 @@ use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 use jsonschema::error::ValidationErrorKind;
-use jsonschema::{Draft, ValidationError, ValidatorMap};
+use jsonschema::{Draft, ValidationError, Validator, ValidatorMap};
 use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::Direction;
 use mcp_conformance_core::wire_schema::{self, WIRE_SCHEMAS, WireSchema};
@@ -96,14 +96,40 @@ impl Compiled {
         let Some(validator) = self.validators.get(&format!("#/$defs/{definition}")) else {
             return Vec::new();
         };
-        let mut errors: Vec<String> = validator
-            .iter_errors(instance)
-            .flat_map(|error| explain(&error, prefix))
-            .collect();
-        errors.sort();
-        errors.dedup();
-        errors
+        instance_errors(validator, instance, prefix)
     }
+}
+
+/// The errors `instance` raises against `validator`, as report lines: each
+/// [`explain`]ed, then sorted and de-duplicated so the order cannot depend on
+/// the engine's traversal. `prefix` is prepended to every instance path.
+pub(crate) fn instance_errors(
+    validator: &Validator,
+    instance: &Value,
+    prefix: &str,
+) -> Vec<String> {
+    let mut errors: Vec<String> = validator
+        .iter_errors(instance)
+        .flat_map(|error| explain(&error, prefix))
+        .collect();
+    errors.sort();
+    errors.dedup();
+    errors
+}
+
+/// `errors` for a finding's detail: the first [`MAX_ERRORS`], then a count
+/// of the rest.
+pub(crate) fn summarize(errors: &[String]) -> String {
+    let mut summary = errors
+        .iter()
+        .take(MAX_ERRORS)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join("; ");
+    if errors.len() > MAX_ERRORS {
+        let _ = write!(summary, "; and {} more", errors.len() - MAX_ERRORS);
+    }
+    summary
 }
 
 /// One engine error as report lines.
@@ -293,20 +319,10 @@ pub(crate) fn check(
             Direction::ClientToServer => "client",
             Direction::ServerToClient => "server",
         };
-        let mut detail = format!(
-            "the {party}'s message is not a valid {definition} under the {revision} schema: "
+        let detail = format!(
+            "the {party}'s message is not a valid {definition} under the {revision} schema: {}",
+            summarize(&errors)
         );
-        detail.push_str(
-            &errors
-                .iter()
-                .take(MAX_ERRORS)
-                .cloned()
-                .collect::<Vec<_>>()
-                .join("; "),
-        );
-        if errors.len() > MAX_ERRORS {
-            let _ = write!(detail, "; and {} more", errors.len() - MAX_ERRORS);
-        }
         findings.push(Finding {
             check: CHECK.to_owned(),
             seq: Some(event.seq),
@@ -409,6 +425,10 @@ fn result_definition(
 pub fn covers(revision: ProtocolRevision) -> bool {
     wire_schema::for_revision(revision).is_some()
 }
+
+mod dialect;
+
+pub(crate) use dialect::{compile_declared, schema_errors};
 
 #[cfg(test)]
 mod tests;

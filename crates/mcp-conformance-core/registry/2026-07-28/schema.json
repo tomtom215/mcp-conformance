@@ -64,7 +64,9 @@
         "section": "basic/index#schema-validation",
         "quote": "Schemas MUST be valid according to their declared or default dialect"
       },
-      "exclusion": "Full dialect validation requires a JSON Schema engine, a dependency `mcp-conformance-core` deliberately excludes (serde-family only, 02-architecture.md). Same reasoning as BASE-017 at 2025-11-25."
+      "checks": [
+        "base.schemas-valid-for-dialect"
+      ]
     },
     {
       "id": "BASE-074",

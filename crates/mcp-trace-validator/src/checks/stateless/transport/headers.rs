@@ -266,9 +266,8 @@ pub(in crate::checks) fn x_mcp_header_mirrored(context: &TraceContext<'_>, sink:
 /// alone, and all five are checked: non-empty, field-name token syntax, no
 /// control characters (which token syntax excludes outright), case-insensitive
 /// uniqueness within one `inputSchema`, and primitive-typed properties only.
-/// The neighbouring bullets about static reachability belong to TRAN-081 and
-/// TRAN-082, which the registry excludes — judging those needs a schema engine,
-/// not a session.
+/// The neighbouring bullets about static reachability are TRAN-137 and
+/// TRAN-082's, judged by `transport.x-mcp-header-statically-reachable`.
 pub(in crate::checks) fn x_mcp_header_name_valid(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
