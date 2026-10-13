@@ -5,7 +5,8 @@
 #
 # Jobs: format, clippy (stable + MSRV × 3 OS × 3 feature modes), test (same matrix),
 #       docs (-D warnings), cargo-deny, package validation (with an SBOM dry run),
-#       semver (vs crates.io), coverage (95% line floor), nightly (informational).
+#       semver (vs crates.io), coverage (95% line floor), nightly (informational),
+#       visual (the HTML report's screenshot baselines, no network on open).
 #
 # Toolchains are installed with plain `rustup` rather than a third-party action:
 # one fewer supply-chain dependency. Remaining actions are pinned by commit SHA.
@@ -471,6 +472,51 @@ jobs:
         with:
           name: conformance-verdicts
           path: target/conformance/
+          if-no-files-found: warn
+          retention-days: 30
+
+  # The HTML report as people see it (ADR-0021, "Verification of what people
+  # see"): the committed golden pages (corpus/golden/html, pinned to the
+  # renderer by the golden_html test in the test job) rendered by the Chromium
+  # that the exact @playwright/test in visual/package-lock.json pins, compared
+  # pixel for pixel with visual/tests/__screenshots__, and opened with every
+  # request recorded and aborted (there must be none). No Rust here.
+  #
+  # ubuntu-24.04, not -latest: the baselines depend on the image's fontconfig
+  # and on DejaVu, which the report's font stacks put first; a runner image
+  # moving underneath them would turn a pinned comparison into a moving one.
+  visual:
+    name: Visual (HTML report screenshots, no network)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Pin the font the baselines were taken with
+        # fonts-dejavu-core is in the image already; naming the version makes
+        # a change to it fail here, loudly, rather than as a pixel diff.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-dejavu-core=2.37-8
+          fc-match "DejaVu Sans" && fc-match "DejaVu Sans Mono"
+      - name: Install the pinned Playwright and its Chromium (Node is preinstalled on the runner image)
+        working-directory: visual
+        run: |
+          node --version
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Screenshots, links and no-network checks
+        working-directory: visual
+        run: npx playwright test
+      - name: Upload the actual, expected and diff images
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: visual-diffs
+          path: |
+            visual/test-results/
+            visual/playwright-report/
           if-no-files-found: warn
           retention-days: 30
 

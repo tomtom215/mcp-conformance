@@ -168,7 +168,9 @@ pub(crate) fn msrv_clippy_gate() -> bool {
 /// enforced over non-test source (crate and xtask `src/` trees) and the
 /// embedded registry documents (whose loader promises per-file
 /// reviewability). Integration tests and benches live outside `src/` and
-/// are exempt by construction.
+/// are exempt by construction. Stylesheets and scripts a crate embeds with
+/// `include_str!` (the HTML report's `style.css`) are source like any other
+/// and are capped with it.
 pub(crate) fn file_size_gate() -> bool {
     const CAP: usize = 500;
     let root = crate::workspace_root();
@@ -189,10 +191,11 @@ pub(crate) fn file_size_gate() -> bool {
             let path = entry.path();
             if path.is_dir() {
                 roots.push(path);
-            } else if path
-                .extension()
-                .is_some_and(|ext| ext == "rs" || ext == "json")
-                && let Ok(text) = std::fs::read_to_string(&path)
+            } else if path.extension().is_some_and(|ext| {
+                ["rs", "json", "css", "js"]
+                    .iter()
+                    .any(|capped| ext == *capped)
+            }) && let Ok(text) = std::fs::read_to_string(&path)
             {
                 scanned += 1;
                 let lines = text.lines().count();
@@ -243,7 +246,11 @@ const UNCOMMENTABLE: [&str; 2] = ["json", "jsonl"];
 /// `interop/requirements.in` (which carries the header), and Dependabot's
 /// recompile rewrites it from the first line. `LICENSE` *is* the licence the
 /// identifier refers to. The fuzz corpus holds opaque byte inputs whose whole
-/// value is being byte-exact — a header would change the input.
+/// value is being byte-exact — a header would change the input. The golden
+/// HTML pages under `corpus/golden/html/` are the same kind of file: each is
+/// byte for byte what the validator writes for a trace, and a header would
+/// make it a page the validator never wrote (the stylesheet they embed does
+/// carry the licence comment, as part of what is rendered).
 fn header_exempt(path: &str) -> bool {
     // The root licence, and the copies each published crate carries (which
     // `license-files` holds byte-identical to it).
@@ -252,6 +259,7 @@ fn header_exempt(path: &str) -> bool {
         || path.ends_with("Cargo.lock")
         || path == "interop/requirements.txt"
         || path.starts_with("fuzz/corpus/")
+        || path.starts_with("corpus/golden/html/")
         || std::path::Path::new(path)
             .extension()
             .is_some_and(|ext| UNCOMMENTABLE.iter().any(|skip| ext == *skip))
@@ -378,6 +386,7 @@ mod tests {
             "fuzz/corpus/trace_parse/seed-full-session",
             "corpus/golden/http-session.json",
             "corpus/good/http-session.jsonl",
+            "corpus/golden/html/http-session.html",
         ] {
             assert!(header_exempt(exempt), "{exempt} should be exempt");
         }
@@ -393,6 +402,10 @@ mod tests {
             "rust-toolchain.toml",
             // The lock's *input* is hand-written and keeps its header.
             "interop/requirements.in",
+            // The stylesheet the golden pages embed, and the screenshot suite.
+            "crates/mcp-trace-validator/src/html/style.css",
+            "visual/playwright.config.js",
+            "visual/tests/report.spec.js",
         ] {
             assert!(!header_exempt(judged), "{judged} should be judged");
         }

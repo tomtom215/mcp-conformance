@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-Kwn5A66KFOxH43Bja1aCxrqsDFwx75bwCOlLyVv83o4='; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="generator" content="mcp-trace-validator (version)">
+<title>Fail — corpus/violations/base-001-request-id-boolean.jsonl — MCP trace validation</title>
+<style>/* SPDX-License-Identifier: MIT */
+/* Copyright 2026 Tom F. (https://github.com/tomtom215) */
+/* The HTML report's stylesheet (mcp-trace-validator, src/html/style.css). Inline in every
+   report and admitted by its Content Security Policy by digest.
+   Fonts: DejaVu first. Linux desktops alias the platform UI names (system-ui, Segoe UI,
+   Helvetica Neue, even sans-serif) to whatever font the machine prefers, so a stack led by
+   them renders differently on every Linux box; DejaVu (fonts-dejavu-core, installed wherever
+   fontconfig is) is the same everywhere, which is what the screenshot baselines rely on.
+   macOS and Windows rarely carry DejaVu and fall through to their own faces. */
+
+:root {
+  color-scheme: light dark;
+  --sans: "DejaVu Sans", "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: "DejaVu Sans Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --radius: 10px;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f4;
+  --text: #1c2128;
+  --muted: #555f6b;
+  --border: #d4dae1;
+  --accent: #0a58b8;
+  --target: #fff3c4;
+  --pass: #16692c;
+  --pass-bg: #e3f3e7;
+  --fail: #b81d29;
+  --fail-bg: #fde9ea;
+  --warn: #805200;
+  --warn-bg: #fff2cc;
+  --unsup: #6a32cc;
+  --unsup-bg: #efe8fd;
+  --neutral: #555f6b;
+  --neutral-bg: #eef1f4;
+  --c2s: #0a58b8;
+  --s2c: #0b6b5d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1f2630;
+    --text: #e6edf3;
+    --muted: #9ba6b2;
+    --border: #313944;
+    --accent: #6cb0ff;
+    --target: #3a3212;
+    --pass: #4ac264;
+    --pass-bg: #11291a;
+    --fail: #ff8079;
+    --fail-bg: #331517;
+    --warn: #e6b84b;
+    --warn-bg: #2e2510;
+    --unsup: #c39dff;
+    --unsup-bg: #261b3a;
+    --neutral: #9ba6b2;
+    --neutral-bg: #222932;
+    --c2s: #6cb0ff;
+    --s2c: #4cc9b0;
+  }
+}
+
+/* Tones: a verdict or outcome class sets --tone, and what it styles reads it. */
+.v-pass, .o-pass, .g-pass { --tone: var(--pass); --tone-bg: var(--pass-bg); }
+.v-warn, .o-warn { --tone: var(--warn); --tone-bg: var(--warn-bg); }
+.v-fail, .o-fail { --tone: var(--fail); --tone-bg: var(--fail-bg); }
+.v-unsupported, .v-incomplete, .o-unsupported { --tone: var(--unsup); --tone-bg: var(--unsup-bg); }
+.o-excluded, .o-not-applicable, .o-not-observed, .g-excluded, .g-not-applicable, .g-not-observed {
+  --tone: var(--neutral); --tone-bg: var(--neutral-bg);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14.5px/1.55 var(--sans);
+}
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+code, pre { font-family: var(--mono); font-size: 0.875em; }
+h1, h2, h3, h4, h5 { line-height: 1.3; }
+
+.wrap { max-width: 74rem; margin: 0 auto; padding-left: 1rem; padding-right: 1rem; }
+main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
+@media (min-width: 48rem) {
+  .wrap { padding-left: 2rem; padding-right: 2rem; }
+  main.wrap { padding-top: 1.75rem; }
+}
+
+/* The header: what was judged. */
+.masthead { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1.25rem 0 1.1rem; }
+.eyebrow {
+  margin: 0 0 0.3rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.masthead h1 { margin: 0; font-size: 1.5rem; overflow-wrap: anywhere; }
+.trace-name { font-family: var(--mono); font-weight: 700; }
+.masthead h1.trace-name { font-size: 1.3rem; }
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1.25rem;
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.meta strong { color: var(--text); font-family: var(--mono); font-weight: 600; }
+
+/* The verdict. */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem 1.1rem;
+  margin: 0 0 1rem;
+}
+.verdict { border-top: 5px solid var(--tone); }
+.verdict-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; margin: 0 0 0.9rem; }
+.verdict-why { color: var(--muted); }
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.75rem;
+  border-radius: 999px;
+  background: var(--tone-bg);
+  color: var(--tone);
+  font-size: 1.05rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.tally {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+  gap: 0.45rem;
+  margin: 0;
+}
+.tally div {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.45rem 0.7rem 0.4rem;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.tally dt { color: var(--muted); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+.tally dd { margin: 0; font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+@media (min-width: 48rem) { .verdict > .tally { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+.t-pass dd { color: var(--pass); }
+.t-fail dd { color: var(--fail); }
+.t-warn dd { color: var(--warn); }
+.t-unsupported dd { color: var(--unsup); }
+.tally .zero dd { color: var(--muted); font-weight: 400; }
+.schema-line { margin: 0.8rem 0 0; font-size: 0.9rem; color: var(--muted); }
+.schema-line.s-fail { color: var(--fail); font-weight: 600; }
+.revisions { display: grid; gap: 0.9rem; }
+@media (min-width: 62rem) { .revisions { grid-template-columns: 1fr 1fr; } }
+.revision {
+  min-width: 0;
+  padding: 0.8rem 0.9rem 0.9rem;
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--tone);
+  border-radius: 8px;
+}
+.revision-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0 0 0.2rem; }
+.revision-name { font-family: var(--mono); font-size: 1.05rem; font-weight: 700; }
+.revision .badge { font-size: 0.85rem; }
+.revision .verdict-why { margin: 0 0 0.7rem; font-size: 0.9rem; }
+.note {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warn);
+  border-radius: 8px;
+  background: var(--warn-bg);
+}
+.note code { font-weight: 600; }
+
+/* Section links. */
+.contents {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 -0.25rem 0.5rem;
+  padding: 0.5rem 0.25rem;
+  background: var(--bg);
+}
+.contents a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+.contents a:hover { border-color: var(--accent); }
+.count {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 0.45em;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.8em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* Sections. */
+.section { margin: 1.75rem 0 2.25rem; }
+.section > :is(h2, h3) { margin: 0 0 0.6rem; font-size: 1.25rem; }
+.revision-heading { margin: 1.5rem 0 0.6rem; color: var(--muted); font-size: 1.05rem; }
+.lede { margin: 0 0 0.9rem; color: var(--muted); }
+.empty {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+/* A clause to act on. */
+.clause {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1.1rem 0.6rem;
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--tone);
+  border-radius: var(--radius);
+  background: var(--surface);
+  scroll-margin-top: 3.5rem;
+}
+.clause-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.45rem; margin: 0 0 0.7rem; }
+.clause-id { margin: 0 0.3rem 0 0; font-family: var(--mono); font-size: 1.1rem; }
+.clause-id a { color: inherit; text-decoration: none; }
+.clause-id a:hover { text-decoration: underline; }
+.pill {
+  display: inline-block;
+  padding: 0.05rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.pill:is(.o-pass, .o-fail, .o-warn, .o-unsupported) { border-color: transparent; background: var(--tone-bg); color: var(--tone); }
+.pill.level, .pill.rev { font-family: var(--mono); }
+.quote {
+  margin: 0 0 0.45rem;
+  padding: 0.7rem 0.95rem;
+  border-left: 3px solid var(--tone);
+  border-radius: 0 8px 8px 0;
+  background: var(--surface-2);
+}
+.quote p { margin: 0; overflow-wrap: anywhere; }
+.source { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.15rem 0.9rem; margin: 0 0 0.6rem; font-size: 0.85rem; }
+.section-path, .spec-url { color: var(--muted); font-family: var(--mono); overflow-wrap: anywhere; }
+.spec-link::after { content: " \2197"; }
+.missing, .schema { margin: 0 0 0.6rem; font-size: 0.9rem; overflow-wrap: anywhere; }
+.findings { margin: 0; padding: 0; list-style: none; }
+.findings li {
+  display: grid;
+  grid-template-columns: 4.75rem minmax(0, 1fr);
+  gap: 0.1rem 0.75rem;
+  padding: 0.55rem 0.4rem;
+  border-top: 1px solid var(--border);
+  border-radius: 4px;
+  scroll-margin-top: 3.5rem;
+}
+.findings .seq { font-family: var(--mono); font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+.findings .seq.none { color: var(--muted); font-weight: 400; white-space: normal; }
+.findings .detail { overflow-wrap: anywhere; }
+.findings .check { grid-column: 2; color: var(--muted); font-family: var(--mono); font-size: 0.75rem; overflow-wrap: anywhere; }
+@media (max-width: 30rem) {
+  .findings li { grid-template-columns: minmax(0, 1fr); }
+  .findings .check { grid-column: 1; }
+}
+
+/* The timeline. */
+.only-flagged { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+}
+.switch::before {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--muted);
+  border-radius: 4px;
+  background: var(--surface);
+}
+.only-flagged:checked + .switch::before { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 2px var(--surface); }
+.only-flagged:focus-visible + .switch { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.only-flagged:checked ~ .timeline > .ev:not(.flagged) { display: none; }
+.timeline { margin: 0; padding: 0; list-style: none; }
+.ev {
+  --lane: var(--c2s);
+  margin: 0 0 0.45rem;
+  padding: 0.45rem 0.75rem 0.5rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--lane);
+  border-radius: 8px;
+  background: var(--surface);
+  scroll-margin-top: 3.5rem;
+}
+.ev.s2c { --lane: var(--s2c); }
+@media (min-width: 62rem) {
+  .ev.c2s { margin-right: 10%; }
+  .ev.s2c { margin-left: 10%; }
+}
+.ev-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.6rem; }
+.ev-seq { display: inline-block; min-width: 4.5ch; color: var(--muted); font-family: var(--mono); font-weight: 700; text-decoration: none; }
+.ev-seq::before { content: "#"; opacity: 0.6; }
+.ev-dir { color: var(--lane); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.kind {
+  padding: 0 0.45rem;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.kind.k-error { background: var(--fail-bg); color: var(--fail); }
+.method { font-weight: 600; overflow-wrap: anywhere; }
+.id, .pair { color: var(--muted); font-size: 0.85rem; }
+.id code { color: var(--text); }
+.pair.none { font-style: italic; }
+.ev-ts { margin-left: auto; color: var(--muted); font-family: var(--mono); font-size: 0.75rem; }
+.marks { display: grid; gap: 0.3rem; margin: 0.45rem 0 0; padding: 0; list-style: none; }
+.marks li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.55rem;
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid var(--tone);
+  border-radius: 0 6px 6px 0;
+  background: var(--tone-bg);
+  font-size: 0.9rem;
+}
+.marks a { color: var(--tone); font-family: var(--mono); font-weight: 700; }
+.marks .detail { flex: 1 1 18rem; min-width: 0; overflow-wrap: anywhere; }
+.payload { margin-top: 0.35rem; }
+.payload > summary { width: max-content; color: var(--muted); font-size: 0.8rem; cursor: pointer; }
+.payload pre {
+  max-height: 28rem;
+  margin: 0.35rem 0 0;
+  padding: 0.65rem 0.8rem;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.payload pre code { font-size: inherit; }
+.truncated { margin: 0.3rem 0 0; color: var(--muted); font-size: 0.8rem; }
+.headers {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.1rem 0.9rem;
+  margin: 0.35rem 0 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+.headers dt { color: var(--muted); }
+.headers dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 30rem) {
+  .panel { padding: 0.85rem 0.8rem 0.9rem; }
+  .revision { padding: 0.7rem 0.7rem 0.8rem; }
+  .tally { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.35rem; }
+  .tally div { flex-direction: row; align-items: baseline; gap: 0.4rem; padding: 0.3rem 0.55rem; }
+  .tally dt { font-size: 0.75rem; letter-spacing: 0; text-transform: none; }
+  .tally dd { font-size: 1.1rem; }
+  .headers { grid-template-columns: minmax(0, 1fr); }
+  .headers dd { margin-bottom: 0.3rem; }
+  .ev-ts { margin-left: 0; }
+}
+:is(.clause, .ev, .findings li, .rows li):target { background: var(--target); }
+:is(.clause, .ev):target { box-shadow: 0 0 0 2px var(--accent); }
+
+/* The accounting. */
+.group { margin: 0 0 0.5rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.group > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+.group > summary::-webkit-details-marker { display: none; }
+.group > summary::before { content: "\25B8"; width: 0.8rem; color: var(--muted); }
+.group[open] > summary::before { content: "\25BE"; }
+.group-name { flex: 1; }
+.group .count { background: var(--tone-bg); color: var(--tone); }
+.meaning { margin: 0; padding: 0 1rem 0.6rem; color: var(--muted); font-size: 0.9rem; }
+.rows { display: grid; margin: 0; padding: 0 1rem 0.8rem; list-style: none; }
+.rows li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.6rem;
+  padding: 0.35rem 0.3rem;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: 3.5rem;
+}
+.g-pass .rows, .g-not-observed .rows { grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); column-gap: 1rem; }
+.rid { font-weight: 600; }
+.reason { flex-basis: 100%; color: var(--muted); font-size: 0.875rem; overflow-wrap: anywhere; }
+
+/* A run over several traces. */
+.runlist { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+.runlist li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.runlist a, .unjudged-name { min-width: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+.runlist .badge { font-size: 0.8rem; }
+.unjudged-why { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 0.875rem; overflow-wrap: anywhere; }
+.trace { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 2px solid var(--border); }
+.trace > .trace-name { margin: 0; font-size: 1.25rem; overflow-wrap: anywhere; }
+.trace > .meta { margin-bottom: 1rem; }
+
+.foot { padding-bottom: 2.5rem; color: var(--muted); font-size: 0.8rem; }
+.foot::before { content: ""; display: block; margin-bottom: 1.1rem; border-top: 1px solid var(--border); }
+.foot p { max-width: 62rem; margin: 0 0 0.35rem; }
+
+@media print {
+  :root {
+    --bg: #fff; --surface: #fff; --surface-2: #f2f2f2; --text: #000; --muted: #444; --border: #bbb;
+    --accent: #000; --pass: #0b5d22; --fail: #a3121d; --warn: #6b4400; --unsup: #57279e; --neutral: #444;
+  }
+  body { font-size: 10.5pt; }
+  .contents, .switch, .only-flagged { display: none; }
+  .panel, .clause, .ev, .group, .findings li { break-inside: avoid; }
+  details::details-content { content-visibility: visible; display: block; }
+  .payload pre { max-height: none; overflow: visible; }
+  .spec-link::after { content: " (" attr(href) ")"; font-size: 0.8em; overflow-wrap: anywhere; }
+  .ev.c2s, .ev.s2c { margin-left: 0; margin-right: 0; }
+}
+</style>
+</head>
+<body>
+<header class="masthead"><div class="wrap">
+<p class="eyebrow">MCP trace validation report</p>
+<h1 class="trace-name">corpus/violations/base-001-request-id-boolean.jsonl</h1>
+<p class="meta"><span>revision <strong>2025-11-25</strong> (declared by the trace)</span><span>4 events</span><span>stdio</span></p>
+</div></header>
+<main id="main" class="wrap">
+<section class="panel verdict v-fail" aria-label="Verdict">
+<p class="verdict-line"><span class="badge v-fail">Fail</span><span class="verdict-why">1 clause failed and 1 of 4 messages invalid against the schema</span></p>
+<dl class="tally">
+<div class="t-pass"><dt>pass</dt><dd>16</dd></div>
+<div class="t-fail"><dt>fail</dt><dd>1</dd></div>
+<div class="t-warn zero"><dt>warn</dt><dd>0</dd></div>
+<div class="t-excluded"><dt>excluded</dt><dd>85</dd></div>
+<div class="t-unsupported zero"><dt>unsupported</dt><dd>0</dd></div>
+<div class="t-not-applicable"><dt>not applicable</dt><dd>14</dd></div>
+<div class="t-not-observed"><dt>not observed</dt><dd>26</dd></div>
+</dl>
+<p class="schema-line s-fail">Wire schema: fail (1 of 4 messages invalid)</p>
+</section>
+<nav class="contents" aria-label="Sections"><a href="#findings">Clauses to act on <span class="count">2</span></a><a href="#timeline">Message timeline <span class="count">4</span></a><a href="#accounting">Accounting</a></nav>
+<section class="section" id="findings" aria-labelledby="findings-h">
+<h2 id="findings-h">Clauses to act on</h2>
+<article class="clause o-fail" id="BASE-001">
+<header class="clause-head"><h3 class="clause-id"><a href="#BASE-001">BASE-001</a></h3><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<blockquote class="quote"><p>Requests MUST include a string or integer ID.</p></blockquote>
+<p class="source"><span class="section-path">basic#requests</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2025-11-25/basic#requests" rel="noreferrer">Read it in the specification</a></p>
+<ol class="findings">
+<li id="BASE-001-1"><a class="seq" href="#e3">seq 3</a><span class="detail">request &quot;ping&quot; carries a boolean as its id; the ID must be a string or an integer</span><span class="check">base.request-id-type</span></li>
+</ol>
+</article>
+<article class="clause o-fail" id="wire-schema">
+<header class="clause-head"><h3 class="clause-id"><a href="#wire-schema">Wire schema</a></h3><span class="pill o-fail">fail</span><span class="pill level">normative</span></header>
+<blockquote class="quote"><p>This is the source of truth for all protocol messages and structures.</p></blockquote>
+<p class="source"><span class="section-path">basic#schema</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2025-11-25/basic#schema" rel="noreferrer">Read it in the specification</a></p>
+<p class="schema">1 of 4 messages are invalid against the revision's vendored schema: <a href="https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json" rel="noreferrer"><code>https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json</code></a></p>
+<ol class="findings">
+<li id="wire-schema-1"><a class="seq" href="#e3">seq 3</a><span class="detail">the client&#39;s message is not a valid PingRequest under the 2025-11-25 schema: /id: true is not of types &quot;integer&quot;, &quot;string&quot;</span><span class="check">wire-schema</span></li>
+</ol>
+</article>
+</section>
+<section class="section" id="timeline" aria-labelledby="timeline-h">
+<h2 id="timeline-h">Message timeline</h2>
+<p class="lede">4 events in capture order; 1 carries findings, each linked to its clause.</p>
+<input type="checkbox" class="only-flagged" id="only-flagged"><label class="switch" for="only-flagged">Only events with findings</label>
+<ol class="timeline">
+<li class="ev c2s" id="e0"><div class="ev-line"><a class="ev-seq" href="#e0" aria-label="event 0">0</a><span class="ev-dir">client → server</span><span class="kind k-request">request</span><code class="method">initialize</code><span class="id">id <code>1</code></span><span class="pair">answered at <a href="#e1">seq 1</a></span></div>
+<details class="payload"><summary>Payload</summary><pre><code>{
+  &quot;id&quot;: 1,
+  &quot;jsonrpc&quot;: &quot;2.0&quot;,
+  &quot;method&quot;: &quot;initialize&quot;,
+  &quot;params&quot;: {
+    &quot;capabilities&quot;: {},
+    &quot;clientInfo&quot;: {
+      &quot;name&quot;: &quot;corpus-client&quot;,
+      &quot;version&quot;: &quot;0.1.0&quot;
+    },
+    &quot;protocolVersion&quot;: &quot;2025-11-25&quot;
+  }
+}</code></pre></details>
+</li>
+<li class="ev s2c" id="e1"><div class="ev-line"><a class="ev-seq" href="#e1" aria-label="event 1">1</a><span class="ev-dir">server → client</span><span class="kind k-result">result</span><code class="method">initialize</code><span class="id">id <code>1</code></span><span class="pair">answers <a href="#e0">seq 0</a></span></div>
+<details class="payload"><summary>Payload</summary><pre><code>{
+  &quot;id&quot;: 1,
+  &quot;jsonrpc&quot;: &quot;2.0&quot;,
+  &quot;result&quot;: {
+    &quot;capabilities&quot;: {},
+    &quot;protocolVersion&quot;: &quot;2025-11-25&quot;,
+    &quot;serverInfo&quot;: {
+      &quot;name&quot;: &quot;corpus-server&quot;,
+      &quot;version&quot;: &quot;0.1.0&quot;
+    }
+  }
+}</code></pre></details>
+</li>
+<li class="ev c2s" id="e2"><div class="ev-line"><a class="ev-seq" href="#e2" aria-label="event 2">2</a><span class="ev-dir">client → server</span><span class="kind k-note">notification</span><code class="method">notifications/initialized</code></div>
+<details class="payload"><summary>Payload</summary><pre><code>{
+  &quot;jsonrpc&quot;: &quot;2.0&quot;,
+  &quot;method&quot;: &quot;notifications/initialized&quot;
+}</code></pre></details>
+</li>
+<li class="ev c2s flagged" id="e3"><div class="ev-line"><a class="ev-seq" href="#e3" aria-label="event 3">3</a><span class="ev-dir">client → server</span><span class="kind k-request">request</span><code class="method">ping</code><span class="id">id <code>true</code></span><span class="pair none">no answer recorded</span></div>
+<ul class="marks">
+<li class="o-fail"><a href="#BASE-001-1">BASE-001</a><span class="detail">request &quot;ping&quot; carries a boolean as its id; the ID must be a string or an integer</span></li>
+<li class="o-fail"><a href="#wire-schema-1">wire schema</a><span class="detail">the client&#39;s message is not a valid PingRequest under the 2025-11-25 schema: /id: true is not of types &quot;integer&quot;, &quot;string&quot;</span></li>
+</ul>
+<details class="payload" open><summary>Payload</summary><pre><code>{
+  &quot;id&quot;: true,
+  &quot;jsonrpc&quot;: &quot;2.0&quot;,
+  &quot;method&quot;: &quot;ping&quot;
+}</code></pre></details>
+</li>
+</ol>
+</section>
+<section class="section" id="accounting" aria-labelledby="accounting-h">
+<h2 id="accounting-h">Accounting</h2>
+<p class="lede">Every clause of the revision is counted above. These are the ones with nothing to act on, and why.</p>
+<details class="group g-pass"><summary><span class="group-name">Passed</span><span class="count">16</span></summary>
+<p class="meaning">Every covering check ran over traffic the clause binds to and found nothing wrong.</p>
+<ul class="rows">
+<li id="BASE-002"><code class="rid">BASE-002</code><span class="pill level">MUST NOT</span></li>
+<li id="BASE-003"><code class="rid">BASE-003</code><span class="pill level">MUST NOT</span></li>
+<li id="BASE-004"><code class="rid">BASE-004</code><span class="pill level">MUST</span></li>
+<li id="BASE-005"><code class="rid">BASE-005</code><span class="pill level">MUST NOT</span></li>
+<li id="BASE-008"><code class="rid">BASE-008</code><span class="pill level">MUST</span></li>
+<li id="BASE-010"><code class="rid">BASE-010</code><span class="pill level">MUST</span></li>
+<li id="LIFE-001"><code class="rid">LIFE-001</code><span class="pill level">MUST</span></li>
+<li id="LIFE-002"><code class="rid">LIFE-002</code><span class="pill level">MUST</span></li>
+<li id="LIFE-003"><code class="rid">LIFE-003</code><span class="pill level">MUST</span></li>
+<li id="LIFE-004"><code class="rid">LIFE-004</code><span class="pill level">SHOULD NOT</span></li>
+<li id="LIFE-005"><code class="rid">LIFE-005</code><span class="pill level">SHOULD NOT</span></li>
+<li id="LIFE-006"><code class="rid">LIFE-006</code><span class="pill level">MUST</span></li>
+<li id="LIFE-007"><code class="rid">LIFE-007</code><span class="pill level">MUST</span></li>
+<li id="LIFE-010"><code class="rid">LIFE-010</code><span class="pill level">MUST</span></li>
+<li id="TRAN-004"><code class="rid">TRAN-004</code><span class="pill level">MUST NOT</span></li>
+<li id="TRAN-005"><code class="rid">TRAN-005</code><span class="pill level">MUST NOT</span></li>
+</ul>
+</details>
+<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">26</span></summary>
+<p class="meaning">Every covering check ran and found nothing to judge: the session carried none of the traffic these clauses bind to. A session that exercises them may pass or fail them.</p>
+<ul class="rows">
+<li id="BASE-006"><code class="rid">BASE-006</code><span class="pill level">MUST</span></li>
+<li id="BASE-007"><code class="rid">BASE-007</code><span class="pill level">MUST</span></li>
+<li id="BASE-009"><code class="rid">BASE-009</code><span class="pill level">MUST</span></li>
+<li id="BASE-017"><code class="rid">BASE-017</code><span class="pill level">MUST</span></li>
+<li id="BASE-019"><code class="rid">BASE-019</code><span class="pill level">MUST</span></li>
+<li id="BASE-020"><code class="rid">BASE-020</code><span class="pill level">MUST</span></li>
+<li id="LIFE-009"><code class="rid">LIFE-009</code><span class="pill level">MUST</span></li>
+<li id="LIFE-018"><code class="rid">LIFE-018</code><span class="pill level">MUST</span></li>
+<li id="TRAN-011"><code class="rid">TRAN-011</code><span class="pill level">MUST</span></li>
+<li id="TRAN-013"><code class="rid">TRAN-013</code><span class="pill level">MUST</span></li>
+<li id="TRAN-017"><code class="rid">TRAN-017</code><span class="pill level">MUST</span></li>
+<li id="TRAN-018"><code class="rid">TRAN-018</code><span class="pill level">SHOULD</span></li>
+<li id="TRAN-025"><code class="rid">TRAN-025</code><span class="pill level">MUST</span></li>
+<li id="TRAN-026"><code class="rid">TRAN-026</code><span class="pill level">MUST</span></li>
+<li id="TRAN-027"><code class="rid">TRAN-027</code><span class="pill level">MUST</span></li>
+<li id="TRAN-029"><code class="rid">TRAN-029</code><span class="pill level">MUST</span></li>
+<li id="TRAN-039"><code class="rid">TRAN-039</code><span class="pill level">MUST</span></li>
+<li id="TRAN-040"><code class="rid">TRAN-040</code><span class="pill level">MUST</span></li>
+<li id="TRAN-049"><code class="rid">TRAN-049</code><span class="pill level">MUST</span></li>
+<li id="TOOL-001"><code class="rid">TOOL-001</code><span class="pill level">MUST</span></li>
+<li id="RES-001"><code class="rid">RES-001</code><span class="pill level">MUST</span></li>
+<li id="PROM-001"><code class="rid">PROM-001</code><span class="pill level">MUST</span></li>
+<li id="LOG-001"><code class="rid">LOG-001</code><span class="pill level">MUST</span></li>
+<li id="COMP-001"><code class="rid">COMP-001</code><span class="pill level">MUST</span></li>
+<li id="PAGE-002"><code class="rid">PAGE-002</code><span class="pill level">MUST</span></li>
+<li id="PAGE-003"><code class="rid">PAGE-003</code><span class="pill level">SHOULD</span></li>
+</ul>
+</details>
+<details class="group g-not-applicable"><summary><span class="group-name">Not applicable</span><span class="count">14</span></summary>
+<p class="meaning">Gated on a capability this session never declared, so their checks did not run.</p>
+<ul class="rows">
+<li id="TOOL-003"><code class="rid">TOOL-003</code><span class="pill level">MUST</span><span class="reason">capability <code>server.tools</code> was not declared</span></li>
+<li id="TOOL-005"><code class="rid">TOOL-005</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.tools</code> was not declared</span></li>
+<li id="TOOL-006"><code class="rid">TOOL-006</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.tools</code> was not declared</span></li>
+<li id="TOOL-007"><code class="rid">TOOL-007</code><span class="pill level">SHOULD NOT</span><span class="reason">capability <code>server.tools</code> was not declared</span></li>
+<li id="TOOL-008"><code class="rid">TOOL-008</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.tools</code> was not declared</span></li>
+<li id="TOOL-009"><code class="rid">TOOL-009</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.tools</code> was not declared</span></li>
+<li id="TOOL-010"><code class="rid">TOOL-010</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.tools</code> was not declared</span></li>
+<li id="TOOL-011"><code class="rid">TOOL-011</code><span class="pill level">MUST</span><span class="reason">capability <code>server.tools</code> was not declared</span></li>
+<li id="RES-004"><code class="rid">RES-004</code><span class="pill level">MUST</span><span class="reason">capability <code>server.resources</code> was not declared</span></li>
+<li id="RES-006"><code class="rid">RES-006</code><span class="pill level">MUST</span><span class="reason">capability <code>server.resources</code> was not declared</span></li>
+<li id="PROM-003"><code class="rid">PROM-003</code><span class="pill level">MUST</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
+<li id="PROM-004"><code class="rid">PROM-004</code><span class="pill level">MUST</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
+<li id="PROM-005"><code class="rid">PROM-005</code><span class="pill level">MUST</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
+<li id="PROM-008"><code class="rid">PROM-008</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
+</ul>
+</details>
+<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">85</span></summary>
+<p class="meaning">The registry does not judge these from a recording; each row says why.</p>
+<ul class="rows">
+<li id="BASE-011"><code class="rid">BASE-011</code><span class="pill level">MUST NOT</span><span class="reason">A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009.</span></li>
+<li id="BASE-012"><code class="rid">BASE-012</code><span class="pill level">MUST</span><span class="reason">The umbrella clause the BASE and LIFE areas mechanize requirement-by-requirement; it has no observable beyond its constituents.</span></li>
+<li id="BASE-013"><code class="rid">BASE-013</code><span class="pill level">MUST</span><span class="reason">Dialect support is validation behavior inside each implementation; a trace shows schemas exchanged, not how the receiver processed them.</span></li>
+<li id="BASE-014"><code class="rid">BASE-014</code><span class="pill level">MUST</span><span class="reason">Whether validation happened, and against which dialect, is implementation-internal; validation outcomes need ground truth about inputs that a trace does not carry.</span></li>
+<li id="BASE-015"><code class="rid">BASE-015</code><span class="pill level">MUST</span><span class="reason">Judging graceful handling requires knowing the receiver&#39;s supported-dialect set, which is not in the trace.</span></li>
+<li id="BASE-016"><code class="rid">BASE-016</code><span class="pill level">SHOULD</span><span class="reason">Documentation lives outside the protocol session entirely.</span></li>
+<li id="BASE-018"><code class="rid">BASE-018</code><span class="pill level">MUST NOT</span><span class="reason">What an implementation assumes is internal; only conduct that follows from an assumption could surface, and attributing it requires the assumption.</span></li>
+<li id="BASE-021"><code class="rid">BASE-021</code><span class="pill level">SHOULD</span><span class="reason">Whether a syntactically valid prefix is reverse-DNS for its author cannot be decided without knowing the author&#39;s domain.</span></li>
+<li id="BASE-022"><code class="rid">BASE-022</code><span class="pill level">MUST</span><span class="reason">Icon rendering support is client-internal capability with no wire footprint; the conditional premise (that the client renders icons) is equally invisible.</span></li>
+<li id="BASE-023"><code class="rid">BASE-023</code><span class="pill level">MUST</span><span class="reason">The umbrella for consumer-side icon hygiene (fetch policy, size limits, origin checks) — all consumer-internal conduct after the recorded session ends.</span></li>
+<li id="BASE-024"><code class="rid">BASE-024</code><span class="pill level">MUST</span><span class="reason">Rejection is client-side handling after receipt; the trace records the icon metadata served, not what the client did with it.</span></li>
+<li id="BASE-082"><code class="rid">BASE-082</code><span class="pill level">MUST</span><span class="reason">Restates BASE-013&#39;s dialect floor and BASE-016&#39;s documentation SHOULD as the section&#39;s third numbered rule, unconditionally where BASE-013 scopes itself to schemas without an explicit `$schema` (the same restatement shape as TRAN-049 to TRAN-024). Excluded for BASE-013&#39;s reason: dialect support is validation behavior inside each implementation, and a trace shows the schemas exchanged, not how the receiver processed them.</span></li>
+<li id="LIFE-008"><code class="rid">LIFE-008</code><span class="pill level">MUST</span><span class="reason">After negotiation, neither stdio nor HTTP message payloads carry a per-message protocol version, so respect is not observable in message traffic. The one wire artifact — the HTTP `MCP-Protocol-Version` header — is judged under TRAN-017 and TRAN-018.</span></li>
+<li id="LIFE-011"><code class="rid">LIFE-011</code><span class="pill level">SHOULD</span><span class="reason">The client&#39;s supported-version set is internal state with no wire footprint; the trace shows the version sent, not the versions available.</span></li>
+<li id="LIFE-012"><code class="rid">LIFE-012</code><span class="pill level">SHOULD</span><span class="reason">The server&#39;s supported-version set is internal state with no wire footprint; the trace shows the version answered, not the versions available.</span></li>
+<li id="LIFE-013"><code class="rid">LIFE-013</code><span class="pill level">SHOULD</span><span class="reason">Whether the client supports the answered version is client-internal; a continued session is only evidence of support if the premise is known. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header).</span></li>
+<li id="LIFE-014"><code class="rid">LIFE-014</code><span class="pill level">SHOULD</span><span class="reason">Stdin closure, signals, and process exit are host-OS actions outside the trace event vocabulary (transport-open/close/abort record that a transport ended, not who ended it or how).</span></li>
+<li id="LIFE-015"><code class="rid">LIFE-015</code><span class="pill level">SHOULD</span><span class="reason">Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged.</span></li>
+<li id="LIFE-016"><code class="rid">LIFE-016</code><span class="pill level">SHOULD</span><span class="reason">Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged.</span></li>
+<li id="LIFE-017"><code class="rid">LIFE-017</code><span class="pill level">SHOULD</span><span class="reason">Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged.</span></li>
+<li id="TRAN-001"><code class="rid">TRAN-001</code><span class="pill level">MUST NOT</span><span class="reason">Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings.</span></li>
+<li id="TRAN-002"><code class="rid">TRAN-002</code><span class="pill level">MUST</span><span class="reason">Judging Origin validation requires the server&#39;s configured allowlist, which recorded traces do not carry. Enforced instead as default-on policy in mcp-everything-server and exercised by its transport integration tests (roadmap M2).</span></li>
+<li id="TRAN-003"><code class="rid">TRAN-003</code><span class="pill level">MUST</span><span class="reason">A violation cannot be judged from a trace: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded among what was recorded — and absence is not evidence, because capture tooling may drop undecodable bytes (mcp-everything-server&#39;s tap skips non-UTF-8 SSE chunks and unparseable POST bodies). No offline check is sound.</span></li>
+<li id="TRAN-006"><code class="rid">TRAN-006</code><span class="pill level">MUST</span><span class="reason">Recorded HTTP events carry status and conformance-relevant headers, not request lines, so endpoint topology is invisible in a trace. Enforced by mcp-everything-server&#39;s transport integration tests (roadmap M2).</span></li>
+<li id="TRAN-007"><code class="rid">TRAN-007</code><span class="pill level">MUST</span><span class="reason">Judging whether an Origin value is invalid requires the server&#39;s configured allowlist, which recorded traces do not carry (the TRAN-002 rationale). Enforced as default-on policy in mcp-everything-server with 403 tests (roadmap M2).</span></li>
+<li id="TRAN-008"><code class="rid">TRAN-008</code><span class="pill level">SHOULD</span><span class="reason">Socket binding is deployment state with no trace footprint. mcp-everything-server defaults to a loopback bind (the --bind clap default in src/main.rs), asserted by default_bind_is_loopback in tests/cli.rs.</span></li>
+<li id="TRAN-009"><code class="rid">TRAN-009</code><span class="pill level">SHOULD</span><span class="reason">Whether authentication is properly implemented is not decidable from one session&#39;s headers; authorization flows are their own scenario area (corpus/auth, post-M1) mirroring the official suite&#39;s `auth` suite.</span></li>
+<li id="TRAN-010"><code class="rid">TRAN-010</code><span class="pill level">SHOULD</span><span class="reason">Global uniqueness and entropy of an identifier cannot be established from the single sample a trace contains. mcp-everything-server&#39;s ids are pinned to the v4-UUID shape (OS RNG) and distinctness by session_ids_are_version_4_uuids_and_distinct in tests/http_policy.rs.</span></li>
+<li id="TRAN-012"><code class="rid">TRAN-012</code><span class="pill level">MUST</span><span class="reason">Secure handling (storage, exposure, logging discipline) is client-internal behavior with no wire footprint beyond the echo requirement judged under TRAN-013.</span></li>
+<li id="TRAN-014"><code class="rid">TRAN-014</code><span class="pill level">SHOULD</span><span class="reason">Whether a server requires a session ID is server configuration a trace does not carry; without it, a non-400 answer to a session-less request is not evidence either way.</span></li>
+<li id="TRAN-015"><code class="rid">TRAN-015</code><span class="pill level">MUST</span><span class="reason">Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden).</span></li>
+<li id="TRAN-016"><code class="rid">TRAN-016</code><span class="pill level">MUST</span><span class="reason">A 404 is attributed to the request it answered when the recording&#39;s order is unambiguous, but not to the moment the client read it: a recorder logs the status as it passes, and the client may already have sent further requests on the old session. Requests after the 404 therefore do not show the client ignored it, and a client that stops instead of reconnecting sends nothing to judge.</span></li>
+<li id="TRAN-019"><code class="rid">TRAN-019</code><span class="pill level">SHOULD</span><span class="reason">Which version a server assumed is internal state; subsequent traffic does not reveal it.</span></li>
+<li id="TRAN-020"><code class="rid">TRAN-020</code><span class="pill level">MUST</span><span class="reason">The server&#39;s supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. mcp-everything-server answers an in-session request bearing an unsupported MCP-Protocol-Version with 400 (rmcp&#39;s streamable HTTP tower layer; the initialize exchange itself negotiates in-band and does not consult the header), asserted by unsupported_protocol_version_is_rejected_with_400 in tests/http_policy.rs.</span></li>
+<li id="TRAN-021"><code class="rid">TRAN-021</code><span class="pill level">SHOULD NOT</span><span class="reason">How a client interprets stderr is internal, and stderr bytes are not part of the protocol trace (the trace records MCP messages and transport lifecycle, not diagnostics channels).</span></li>
+<li id="TRAN-022"><code class="rid">TRAN-022</code><span class="pill level">SHOULD</span><span class="reason">A client&#39;s supported-transport surface is a property of the implementation, not of any one session; a streamable-HTTP trace says nothing about whether stdio was available.</span></li>
+<li id="TRAN-023"><code class="rid">TRAN-023</code><span class="pill level">MUST</span><span class="reason">The trace vocabulary covers stdio and streamable HTTP; custom transports are outside the capture universe by construction (TransportKind is closed per revision).</span></li>
+<li id="TRAN-024"><code class="rid">TRAN-024</code><span class="pill level">MUST</span><span class="reason">Adds to TRAN-049&#39;s verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a batch array — TRAN-026 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded.</span></li>
+<li id="TRAN-028"><code class="rid">TRAN-028</code><span class="pill level">MUST</span><span class="reason">Whether input was acceptable is server-internal judgment, and the trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it.</span></li>
+<li id="TRAN-030"><code class="rid">TRAN-030</code><span class="pill level">MUST</span><span class="reason">What a client could have handled is client-internal capability; a trace shows the case that occurred, not the cases supported.</span></li>
+<li id="TRAN-031"><code class="rid">TRAN-031</code><span class="pill level">SHOULD</span><span class="reason">SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace.</span></li>
+<li id="TRAN-032"><code class="rid">TRAN-032</code><span class="pill level">SHOULD</span><span class="reason">SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace.</span></li>
+<li id="TRAN-033"><code class="rid">TRAN-033</code><span class="pill level">MUST</span><span class="reason">Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged.</span></li>
+<li id="TRAN-034"><code class="rid">TRAN-034</code><span class="pill level">SHOULD</span><span class="reason">Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace.</span></li>
+<li id="TRAN-035"><code class="rid">TRAN-035</code><span class="pill level">SHOULD</span><span class="reason">Relatedness is a semantic judgment over message content, and which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace.</span></li>
+<li id="TRAN-036"><code class="rid">TRAN-036</code><span class="pill level">SHOULD</span><span class="reason">Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace.</span></li>
+<li id="TRAN-037"><code class="rid">TRAN-037</code><span class="pill level">SHOULD NOT</span><span class="reason">How the server interpreted a disconnect is internal state; only conduct that follows from a misinterpretation could surface, and attributing it requires the interpretation.</span></li>
+<li id="TRAN-038"><code class="rid">TRAN-038</code><span class="pill level">SHOULD</span><span class="reason">A wish to cancel is client intent with no observable of its own; a session without a cancellation is not evidence one was wanted.</span></li>
+<li id="TRAN-041"><code class="rid">TRAN-041</code><span class="pill level">SHOULD</span><span class="reason">Unrelatedness is a semantic judgment over message content, and which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace.</span></li>
+<li id="TRAN-042"><code class="rid">TRAN-042</code><span class="pill level">MUST NOT</span><span class="reason">Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace.</span></li>
+<li id="TRAN-043"><code class="rid">TRAN-043</code><span class="pill level">MUST</span><span class="reason">Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace. A duplicated message in the capture order is also indistinguishable from a legitimately repeated notification.</span></li>
+<li id="TRAN-044"><code class="rid">TRAN-044</code><span class="pill level">MUST</span><span class="reason">SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace.</span></li>
+<li id="TRAN-045"><code class="rid">TRAN-045</code><span class="pill level">SHOULD</span><span class="reason">SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace.</span></li>
+<li id="TRAN-046"><code class="rid">TRAN-046</code><span class="pill level">SHOULD</span><span class="reason">Conditional on client intent (the wish to resume): a session that never disconnects owes nothing, and a recording cannot show a client wishing. When a resumption does occur its method and `last-event-id` header are both recorded, but absence proves nothing.</span></li>
+<li id="TRAN-047"><code class="rid">TRAN-047</code><span class="pill level">MUST NOT</span><span class="reason">Which HTTP stream delivered a message is not part of the trace vocabulary — events form a single capture-ordered sequence — so per-stream conduct cannot be judged from a recorded trace.</span></li>
+<li id="TRAN-048"><code class="rid">TRAN-048</code><span class="pill level">SHOULD</span><span class="reason">Conditional on client intent (no longer needing the session). A teardown DELETE is recorded when it happens — `corpus/good/http-session.jsonl` carries one — but a session that ends without one may simply not have finished with it, so absence is not a violation.</span></li>
+<li id="TOOL-002"><code class="rid">TOOL-002</code><span class="pill level">SHOULD</span><span class="reason">The trigger condition — the tool list actually changing — is server-internal state a recorded trace cannot evidence, so absence of the notification is never proof of violation.</span></li>
+<li id="TOOL-004"><code class="rid">TOOL-004</code><span class="pill level">MUST</span><span class="reason">How a client weighs annotations is internal trust policy with no wire footprint.</span></li>
+<li id="TOOL-012"><code class="rid">TOOL-012</code><span class="pill level">MUST</span><span class="reason">Input validation, access control, rate limiting, and output sanitization are server-internal enforcement without a deterministic wire signature. Of the four duties, mcp-everything-server implements and tests input validation (tests/roundtrip.rs: tool_call_with_missing_required_argument_is_a_protocol_error and neighbors); access control beyond the transport-layer Host/Origin gate, rate limiting, and output sanitization are not in its scope — it serves fixed synthetic fixtures to a loopback-only harness.</span></li>
+<li id="TOOL-013"><code class="rid">TOOL-013</code><span class="pill level">SHOULD</span><span class="reason">Name-comparison semantics are consumer-internal; tools.name-unique (TOOL-008) applies case-sensitive comparison in accordance with this clause.</span></li>
+<li id="TOOL-014"><code class="rid">TOOL-014</code><span class="pill level">SHOULD</span><span class="reason">Client-side validation has no wire footprint; the server-side half of the contract is TOOL-011&#39;s check.</span></li>
+<li id="TOOL-015"><code class="rid">TOOL-015</code><span class="pill level">SHOULD</span><span class="reason">A host application&#39;s approval UX is outside the protocol session; a trace shows invocations that happened, not the approvals that gated them.</span></li>
+<li id="RES-002"><code class="rid">RES-002</code><span class="pill level">SHOULD</span><span class="reason">The trigger condition — the resource list actually changing — is server-internal state a recorded trace cannot evidence.</span></li>
+<li id="RES-003"><code class="rid">RES-003</code><span class="pill level">SHOULD</span><span class="reason">Whether the client can fetch a URI on its own is a property of the client&#39;s environment, not of the recorded session.</span></li>
+<li id="RES-005"><code class="rid">RES-005</code><span class="pill level">MUST</span><span class="reason">URI validation is server-internal enforcement; a trace shows the URIs exchanged, not whether the server vetted them. mcp-everything-server&#39;s read path is fail-closed — unknown or malformed URIs resolve to None — asserted by template_rejects_malformed_instantiations (src/resources.rs) and the unknown-URI protocol-error assertion in resources_surface_matches_the_scenarios (tests/roundtrip.rs).</span></li>
+<li id="RES-007"><code class="rid">RES-007</code><span class="pill level">SHOULD</span><span class="reason">The premise — whether the client could fetch the URI directly — is a property of the client&#39;s environment, not of the session (the RES-003 argument).</span></li>
+<li id="RES-008"><code class="rid">RES-008</code><span class="pill level">SHOULD</span><span class="reason">Whether a failure case actually occurred (the resource was absent, an internal fault happened) is server-side ground truth a trace does not carry.</span></li>
+<li id="RES-009"><code class="rid">RES-009</code><span class="pill level">SHOULD</span><span class="reason">Which resources are sensitive and what controls guard them is deployment policy with no per-session observable.</span></li>
+<li id="RES-010"><code class="rid">RES-010</code><span class="pill level">SHOULD</span><span class="reason">Permission checks are server-internal enforcement; a trace shows the operations served, not the checks that admitted them.</span></li>
+<li id="PROM-002"><code class="rid">PROM-002</code><span class="pill level">SHOULD</span><span class="reason">The trigger condition — the prompt list actually changing — is server-internal state a recorded trace cannot evidence.</span></li>
+<li id="PROM-006"><code class="rid">PROM-006</code><span class="pill level">MUST</span><span class="reason">Validation thoroughness is implementation-internal; a trace shows the prompt traffic, not the vetting applied to it.</span></li>
+<li id="PROM-007"><code class="rid">PROM-007</code><span class="pill level">SHOULD</span><span class="reason">Whether a failure case actually occurred (the name was invalid, an argument was missing) is server-side ground truth a trace does not carry.</span></li>
+<li id="PROM-009"><code class="rid">PROM-009</code><span class="pill level">SHOULD</span><span class="reason">Client-side pagination handling is internal; a session whose lists fit one page exercises nothing.</span></li>
+<li id="PROM-010"><code class="rid">PROM-010</code><span class="pill level">SHOULD</span><span class="reason">Mechanized at the protocol level by LIFE-009&#39;s negotiated-capabilities-only check; this restatement adds no separately observable conduct.</span></li>
+<li id="LOG-002"><code class="rid">LOG-002</code><span class="pill level">MUST NOT</span><span class="reason">Deciding whether free-form log data contains secrets or PII is semantic content analysis, not structural validation; offline heuristics would produce unsound, unfalsifiable verdicts — a fixed pattern list is deterministic but proves nothing about what it misses.</span></li>
+<li id="LOG-003"><code class="rid">LOG-003</code><span class="pill level">SHOULD</span><span class="reason">Whether a failure case actually occurred (the level was invalid for this server, configuration failed) is server-side ground truth a trace does not carry.</span></li>
+<li id="LOG-004"><code class="rid">LOG-004</code><span class="pill level">SHOULD</span><span class="reason">Rate policy, context relevance, naming consistency, and redaction are semantic internals (the LOG-002 argument).</span></li>
+<li id="LOG-005"><code class="rid">LOG-005</code><span class="pill level">SHOULD</span><span class="reason">Rate limiting, validation, access control, and monitoring are implementation-internal enforcement without trace-level observables.</span></li>
+<li id="COMP-002"><code class="rid">COMP-002</code><span class="pill level">MUST</span><span class="reason">Input validation, rate limiting, and access control are implementation-internal enforcement without a deterministic wire signature.</span></li>
+<li id="COMP-003"><code class="rid">COMP-003</code><span class="pill level">SHOULD</span><span class="reason">Whether a failure case actually occurred is server-side ground truth a trace does not carry.</span></li>
+<li id="COMP-004"><code class="rid">COMP-004</code><span class="pill level">SHOULD</span><span class="reason">Relevance ordering, fuzziness, rate policy, and input vetting are semantic internals without trace-level observables.</span></li>
+<li id="COMP-005"><code class="rid">COMP-005</code><span class="pill level">SHOULD</span><span class="reason">Debouncing and caching are client-internal and timing-shaped; checks may not consult time (determinism rule).</span></li>
+<li id="PAGE-001"><code class="rid">PAGE-001</code><span class="pill level">MUST NOT</span><span class="reason">What a client assumes is internal state; the assumption has no wire footprint (MCP pagination requests carry no size parameter to inspect).</span></li>
+<li id="PAGE-004"><code class="rid">PAGE-004</code><span class="pill level">SHOULD</span><span class="reason">Cursor stability is cross-request server behavior over hidden state; gracefulness on invalid cursors requires knowing a cursor was invalid (the PAGE-003 argument).</span></li>
+<li id="PAGE-005"><code class="rid">PAGE-005</code><span class="pill level">SHOULD</span><span class="reason">How a client interprets a missing cursor, and what flows it supports, is client-internal; the wire-visible cursor discipline is PAGE-002&#39;s check.</span></li>
+</ul>
+</details>
+</section>
+</main>
+<footer class="wrap foot">
+<p>Generated by mcp-trace-validator (version).</p>
+<p>The same trace gives this page byte for byte: nothing on it came from a clock, the network or the machine that rendered it. It loads nothing — no script, font or image — and its links to the specification open only when followed.</p>
+</footer>
+</body>
+</html>

@@ -95,3 +95,16 @@ updates:
     groups:
       interop-python:
         patterns: ["*"]
+  # The screenshot suite's pinned Playwright (visual/, ci.yml `visual`). A bump
+  # moves the Chromium build, which can move pixels: such a PR fails `visual`
+  # until its baselines are re-taken and reviewed, by design.
+  - package-ecosystem: npm
+    directory: /visual
+    schedule:
+      interval: weekly
+    # Cooldown: as for the workspace cargo entry.
+    cooldown:
+      default-days: 7
+    groups:
+      visual-npm:
+        patterns: ["*"]

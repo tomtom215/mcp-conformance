@@ -24,7 +24,7 @@ use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::declared::{self, RevisionSource};
 use mcp_trace_validator::multi::{self, MultiReport};
 use mcp_trace_validator::report::{HumanOptions, Report, Unjudged, Verdict};
-use mcp_trace_validator::{engine, junit, reader, sarif, sessions};
+use mcp_trace_validator::{engine, html, junit, reader, sarif, sessions};
 
 use crate::emit::emit;
 use crate::input::Refusal;
@@ -262,6 +262,11 @@ fn judge_in_set(
         report.revision_source = Some(source);
         return Ok((reports, None));
     }
+    // Each revision's report records the choice too: the HTML page shows the
+    // reports themselves, and the multi-revision JSON is unchanged by it.
+    for report in &mut reports {
+        report.revision_source = Some(source);
+    }
     let mut multi = multi::validate_revisions(set, &chosen, events).map_err(|error| Refusal {
         error: format!("{prefix}{error}"),
         hints: Vec::new(),
@@ -294,6 +299,10 @@ fn render_one(one: &Judged, output: Output) -> Option<u8> {
             &one.reports,
             artifact(&one.trace, &one.events),
             &sarif::Options::default().strict(output.strict),
+        )),
+        Format::Html => emit(&html::render(
+            &one.reports,
+            page_trace(&one.trace, &one.events),
         )),
     };
     written.then(|| {
@@ -355,6 +364,14 @@ fn junit_options(trace: &str, strict: bool) -> junit::Options {
 fn artifact<'a>(trace: &'a str, events: &'a [TraceEvent]) -> sarif::Artifact<'a> {
     sarif::Artifact {
         uri: (trace != "-").then_some(trace),
+        events,
+    }
+}
+
+/// What the HTML page names the trace: as given, unless it was stdin.
+fn page_trace<'a>(trace: &'a str, events: &'a [TraceEvent]) -> html::Trace<'a> {
+    html::Trace {
+        name: (trace != "-").then_some(trace),
         events,
     }
 }
