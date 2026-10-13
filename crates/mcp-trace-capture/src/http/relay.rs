@@ -64,7 +64,7 @@ pub(super) async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -
 impl Proxy {
     /// Records a request's `http` event and body in its session's trace, and
     /// returns that trace's route and the body to send upstream — `None` when the
-    /// client's body could not be read.
+    /// client's body could not be read, which is recorded as `transport-abort`.
     ///
     /// The body is read (up to the message limit) before anything is recorded,
     /// and the `http` event and the message are then written together: the
@@ -103,6 +103,18 @@ impl Proxy {
             End::Failed(_) => (None, None),
         };
         self.record_together(route.recorder(), Direction::ClientToServer, http, message);
+        if forward.is_none() {
+            // The client's body failed (it went away mid-body): the request is
+            // recorded but never sent, and the trace says the exchange was cut
+            // off, as it does when the upstream's side fails.
+            let _ = route.recorder().record(
+                Direction::ClientToServer,
+                TransportKind::StreamableHttp,
+                EventBody::Lifecycle {
+                    event: LifecycleEvent::TransportAbort,
+                },
+            );
+        }
         (route, forward)
     }
 
