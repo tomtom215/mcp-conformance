@@ -387,6 +387,8 @@ below is stated again in its entry, with the reasoning.
 
 ### Changed
 
+- **Each crate's crates.io page links its docs.rs documentation**
+  (`documentation` in every manifest).
 - **Table-row quotes have a documented form.** `SourceRef::quote` now states how a
   clause that only reads as one with its table row is quoted: the row from its first
   cell to the clause's cell, cells joined with ` | `.

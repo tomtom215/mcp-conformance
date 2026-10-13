@@ -5,6 +5,7 @@
 name = "mcp-reference-host"
 description = "Reference MCP host: scriptable client handlers, a bounded deterministic agent loop, real transports, trace capture, and the official suite's client scenarios as SUT"
 readme = "README.md"
+documentation = "https://docs.rs/mcp-reference-host"
 keywords = ["mcp", "conformance", "host", "client", "testing"]
 categories = ["development-tools::testing"]
 edition.workspace = true

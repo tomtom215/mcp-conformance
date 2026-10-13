@@ -5,6 +5,7 @@
 name = "mcp-trace-capture"
 description = "Record any Model Context Protocol session as a validator-ready trace: a transparent stdio wrapper and HTTP reverse proxy that forward bytes unchanged"
 readme = "README.md"
+documentation = "https://docs.rs/mcp-trace-capture"
 keywords = ["mcp", "conformance", "trace", "proxy", "testing"]
 categories = ["development-tools::testing", "command-line-utilities"]
 edition.workspace = true

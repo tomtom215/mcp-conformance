@@ -5,6 +5,7 @@
 name = "mcp-trace-validator"
 description = "Deterministic offline validator for recorded Model Context Protocol traces: requirement-level findings, machine-readable reports"
 readme = "README.md"
+documentation = "https://docs.rs/mcp-trace-validator"
 keywords = ["mcp", "conformance", "validator", "testing", "protocol"]
 categories = ["development-tools::testing", "command-line-utilities"]
 edition.workspace = true

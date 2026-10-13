@@ -5,6 +5,7 @@
 name = "mcp-conformance-core"
 description = "Model Context Protocol conformance model: requirement registry, trace schema, message classification, and canonical JSON"
 readme = "README.md"
+documentation = "https://docs.rs/mcp-conformance-core"
 keywords = ["mcp", "conformance", "protocol", "specification", "testing"]
 categories = ["development-tools::testing", "data-structures"]
 edition.workspace = true

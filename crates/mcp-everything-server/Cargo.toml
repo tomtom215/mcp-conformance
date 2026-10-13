@@ -5,6 +5,7 @@
 name = "mcp-everything-server"
 description = "Reference MCP server on rmcp exercising the protocol's capabilities at 2025-11-25 and 2026-07-28, behind a default-secure HTTP transport policy, with a session trace tap"
 readme = "README.md"
+documentation = "https://docs.rs/mcp-everything-server"
 keywords = ["mcp", "conformance", "server", "reference", "testing"]
 categories = ["development-tools::testing"]
 edition.workspace = true
