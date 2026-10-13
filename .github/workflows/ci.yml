@@ -4,7 +4,8 @@
 # Continuous integration — every quality gate from docs/plan/04-engineering-standards.md.
 #
 # Jobs: format, clippy (stable + MSRV × 3 OS × 3 feature modes), test (same matrix),
-#       docs (-D warnings), cargo-deny, package validation, nightly (informational).
+#       docs (-D warnings), cargo-deny, package validation, semver (vs crates.io),
+#       nightly (informational).
 #
 # Toolchains are installed with plain `rustup` rather than a third-party action:
 # one fewer supply-chain dependency. Remaining actions are pinned by commit SHA.
@@ -283,6 +284,43 @@ jobs:
       # reason, so this job validates exactly what a release would package.
       - name: Package all publishable crates
         run: cargo package --workspace --exclude xtask --locked
+
+  # The published crates' Rust API against their crates.io baseline, on every
+  # PR rather than only before a release, where an undeclared break is found
+  # by whoever prepares it (v0.5.0's three were). One invocation,
+  # `cargo xtask semver`, serves release.yml's `verify` job and this one;
+  # the flag picks which release the tree is judged as:
+  #   - release.yml runs it bare: the type follows the version bump, which on
+  #     a release commit is the declaration being checked;
+  #   - here `--unreleased`: between releases the version still equals the
+  #     published one, which the tool reads as a patch, so a derived type would
+  #     fail every PR after main's first deliberate pre-1.0 break. The tree is
+  #     judged as the release CHANGELOG.md's [Unreleased] declares instead. A
+  #     breaking-changes table (a `Migration` column) declares the next pre-1.0
+  #     minor, a breaking release to Cargo and so `--release-type major` to the
+  #     tool (its `minor` still refuses a removal at 0.x). That admits any
+  #     break, so the job first prints every break, without failing, for the
+  #     reviewer to hold against the table. No table promises no break: the
+  #     gate runs at `minor`, and an API break fails the PR until declared.
+  # Network: the baselines and the crates.io index (whether each crate has a
+  # published version) are fetched, as in release.yml's verify job.
+  semver:
+    name: Semver (cargo-semver-checks vs crates.io)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-semver-checks
+        # The version release.yml installs, so a PR and its release are judged
+        # by the same tool.
+        run: cargo install cargo-semver-checks --version 0.51.0 --locked
+      - name: API compatibility, judged as the release [Unreleased] declares
+        run: cargo xtask semver --unreleased
 
   nightly:
     name: Nightly (informational)

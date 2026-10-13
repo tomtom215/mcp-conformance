@@ -157,8 +157,10 @@ jobs:
         # baseline), which a release verify job already is. Compiled from source
         # with --locked, like cargo-deny above.
         run: |
-          # Pinned for the same reason. 0.51.0 declares rust-version 1.93,
-          # under the pinned toolchain.
+          # Pinned for the same reason, and to the version ci.yml's `semver`
+          # job installs: that job runs `cargo xtask semver --unreleased` on
+          # every PR, this one the version-derived check on the release commit.
+          # 0.51.0 declares rust-version 1.93, under the pinned toolchain.
           cargo install cargo-semver-checks --version 0.51.0 --locked
           cargo xtask semver
       - name: Publish order respects every internal dependency edge (dev included)

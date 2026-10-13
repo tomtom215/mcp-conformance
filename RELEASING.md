@@ -275,6 +275,12 @@ the release PR, not in this file.
      `0.x → 0.(x+1)` licenses any break and passes no matter what the changelog
      says. Nothing mechanical checks that the breaks are declared. Reading this
      output against `[Unreleased]` is the whole control.
+     It should hold no surprises: CI's `semver` job runs
+     `cargo xtask semver --unreleased` on every PR, judging the tree as the
+     release `[Unreleased]` declares. With a breaking-changes table there, it
+     prints every API break against the baseline without failing, for the
+     reviewer to hold against the table; without one, an API break fails the PR
+     until it is declared.
    - State the **version class** at the top of the new `[X.Y.Z]` section, and
      tabulate every breaking change with its migration — the pattern v0.3.0 set
      and v0.5.0 restored. Pre-1.0 minors may break APIs; this file's Principles
