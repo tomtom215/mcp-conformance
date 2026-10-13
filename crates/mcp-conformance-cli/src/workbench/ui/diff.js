@@ -21,9 +21,10 @@ function side(label, summary) {
       h('span', {}, h('strong', {}, String(summary.findings)), ' findings')));
 }
 
-function message(id, m) {
-  if (!m) return h('div', { class: 'cell empty-cell' }, '—');
-  return h('div', { class: `cell ${m.direction}` },
+function message(id, m, label) {
+  const tag = h('span', { class: 'side-tag' }, label);
+  if (!m) return h('div', { class: 'cell empty-cell' }, tag, '—');
+  return h('div', { class: `cell ${m.direction}` }, tag,
     h('a', { class: 'ev-seq', href: `#/s/${enc(id)}/e${m.seq}` }, String(m.seq)),
     h('span', { class: 'ev-dir' }, m.direction === 'c2s' ? 'c → s' : 's → c'),
     h('span', { class: `kind k-${m.kind === 'error' ? 'error' : m.kind}` }, m.kind),
@@ -50,9 +51,9 @@ export async function render(main, { a, b }) {
   const counts = { same: 0, changed: 0, 'only-a': 0, 'only-b': 0 };
   for (const row of diff.rows) counts[row.status] += 1;
   const rows = h('ol', { class: 'diff-rows' }, diff.rows.map((row) => h('li', { class: `drow d-${row.status}` },
-    message(a, row.a),
+    message(a, row.a, 'A'),
     h('span', { class: 'dmark', title: STATUS[row.status] }, STATUS[row.status]),
-    message(b, row.b),
+    message(b, row.b, 'B'),
     row.payloads ? h('details', { class: 'dpayloads' }, h('summary', {}, 'Payloads'),
       h('div', { class: 'pair-pre' }, h('pre', {}, h('code', {}, row.payloads[0])), h('pre', {}, h('code', {}, row.payloads[1])))) : null)));
   const only = h('input', { type: 'checkbox', id: 'only-diff' });

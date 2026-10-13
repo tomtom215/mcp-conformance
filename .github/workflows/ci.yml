@@ -487,15 +487,18 @@ jobs:
   # renderer by the golden_html test in the test job) rendered by the Chromium
   # that the exact @playwright/test in visual/package-lock.json pins, compared
   # pixel for pixel with visual/tests/__screenshots__, and opened with every
-  # request recorded and aborted (there must be none). No Rust here.
+  # request recorded and aborted (there must be none). The workbench's views
+  # (`mcp-conformance serve` over visual/fixtures/library) are compared the
+  # same way, with every request not to the workbench's own origin a failure,
+  # and its interactions run end to end; that half builds the binary.
   #
   # ubuntu-24.04, not -latest: the baselines depend on the image's fontconfig
   # and on DejaVu, which the report's font stacks put first; a runner image
   # moving underneath them would turn a pinned comparison into a moving one.
   visual:
-    name: Visual (HTML report screenshots, no network)
+    name: Visual (HTML report and workbench screenshots, no network)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -507,6 +510,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends fonts-dejavu-core=2.37-8
           fc-match "DejaVu Sans" && fc-match "DejaVu Sans Mono"
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build the workbench the specs serve
+        run: cargo build --locked -p mcp-conformance-cli
       - name: Install the pinned Playwright and its Chromium (Node is preinstalled on the runner image)
         working-directory: visual
         run: |
@@ -515,6 +523,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Screenshots, links and no-network checks
         working-directory: visual
+        env:
+          MCP_CONFORMANCE_BIN: ${{ github.workspace }}/target/debug/mcp-conformance
         run: npx playwright test
       - name: Upload the actual, expected and diff images
         if: failure()

@@ -52,7 +52,7 @@ export function stackedColumns({ label, categories, series, value, width = 640 }
 export function bars({ label, items, parts, total, width = 640 }) {
   // Narrow: each label sits above its bar rather than beside it.
   const narrow = width < 480;
-  const labelWidth = narrow ? 0 : Math.min(180, width * 0.28);
+  const labelWidth = narrow ? 0 : Math.min(250, width * 0.3);
   const valueWidth = 76;
   const plot = width - labelWidth - valueWidth;
   const row = narrow ? ROW + 16 : ROW;
