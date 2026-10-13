@@ -140,6 +140,61 @@ async fn exchange(address: SocketAddr, request: &[u8]) -> String {
     String::from_utf8_lossy(&response).to_ascii_lowercase()
 }
 
+/// A `HEAD` response's `Content-Length` is the length the `GET` would have
+/// had, and there is no body to compute it from: the proxy dropped the
+/// upstream's and sent `content-length: 0`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_head_response_keeps_its_content_length() {
+    bounded(async {
+        let (upstream, _requests) = upstream(
+            b"HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 42\r\n\
+              connection: close\r\n\r\n"
+                .to_vec(),
+        )
+        .await;
+        let (address, _, stop) = proxy(format!("http://{upstream}"), 1024).await;
+        let response = exchange(
+            address,
+            b"HEAD /mcp HTTP/1.1\r\nhost: proxy\r\nconnection: close\r\n\r\n",
+        )
+        .await;
+        assert!(response.starts_with("http/1.1 200"), "{response}");
+        assert!(response.contains("content-length: 42\r\n"), "{response}");
+        stop().await.unwrap().unwrap();
+    })
+    .await;
+}
+
+/// A body past the message limit is streamed, not read whole — but the
+/// `Content-Length` its sender gave still frames it: it went out chunked.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_body_over_the_limit_keeps_its_content_length() {
+    bounded(async {
+        let body = "x".repeat(100);
+        let response = format!(
+            "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 100\r\n\
+             connection: close\r\n\r\n{body}"
+        );
+        let (upstream, mut requests) = upstream(response.into_bytes()).await;
+        let (address, _, stop) = proxy(format!("http://{upstream}"), 16).await;
+        let request = format!(
+            "POST /mcp HTTP/1.1\r\nhost: proxy\r\ncontent-type: application/json\r\n\
+             content-length: 100\r\nconnection: close\r\n\r\n{body}"
+        );
+        let response = exchange(address, request.as_bytes()).await;
+        let forwarded = requests.recv().await.unwrap().to_ascii_lowercase();
+        assert!(forwarded.contains("content-length: 100\r\n"), "{forwarded}");
+        assert!(!forwarded.contains("transfer-encoding"), "{forwarded}");
+        assert!(forwarded.ends_with(&body), "{forwarded}");
+        assert!(response.contains("content-length: 100\r\n"), "{response}");
+        assert!(!response.contains("transfer-encoding"), "{response}");
+        assert!(response.ends_with(&body), "{response}");
+        let unrecorded = stop().await.unwrap().unwrap();
+        assert_eq!(unrecorded.oversized, 2);
+    })
+    .await;
+}
+
 /// `Proxy-Connection` is a hop-by-hop field in all but name, and the proxy
 /// already answered `Expect: 100-continue` itself when it read the body: the
 /// upstream gets neither.

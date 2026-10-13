@@ -216,7 +216,12 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   (removed, so the server answers uncompressed and the body can be recorded), and a
   redirect's `Location` that points into the upstream (pointed back at the proxy, by
   the `Host` the client used, so the client does not leave the recording; one the
-  proxy cannot reach is relayed as sent, and `Location` is not recorded). The
+  proxy cannot reach is relayed as sent, and `Location` is not recorded). A body's
+  bytes are forwarded unchanged, but its transfer framing is hop-by-hop and can
+  change: a body sent with `Content-Length` keeps it, and one sent chunked (or, in a
+  response, delimited by closing the connection) goes on with a `Content-Length` if
+  the proxy read it whole — a body within `--max-message-bytes` that is not an
+  event stream — and chunked if it streamed it. The
   official conformance suite scores the same through the proxy as without it; this
   repository's CI checks that on every run.
 - **Upstream failures as they happened.** An upstream that fails mid-response reaches

@@ -37,20 +37,13 @@ pub(super) async fn forward(State(proxy): State<Arc<Proxy>>, request: Request) -
     *upstream_request.method_mut() = parts.method;
     *upstream_request.uri_mut() = target(&proxy.options.upstream, parts.uri.path_and_query());
     // `Expect: 100-continue` was the proxy's to answer, and it has: hyper sent
-    // the `100 Continue` when the body was read.
+    // the `100 Continue` when the body was read. `Content-Length` stays: it
+    // frames a body read whole (which has exactly that length) and one
+    // streamed past the message limit alike.
     let dropped: &[header::HeaderName] = if proxy.options.preserve_host {
-        &[
-            header::CONTENT_LENGTH,
-            header::ACCEPT_ENCODING,
-            header::EXPECT,
-        ]
+        &[header::ACCEPT_ENCODING, header::EXPECT]
     } else {
-        &[
-            header::HOST,
-            header::CONTENT_LENGTH,
-            header::ACCEPT_ENCODING,
-            header::EXPECT,
-        ]
+        &[header::HOST, header::ACCEPT_ENCODING, header::EXPECT]
     };
     *upstream_request.headers_mut() = headers::forwardable(&parts.headers, dropped);
     let uri = upstream_request.uri().clone();
@@ -210,8 +203,10 @@ impl Proxy {
 
     /// The headers relayed with a response: the upstream's, less hop-by-hop
     /// fields, with a `Location` into the upstream pointed back at the proxy.
+    /// `Content-Length` is kept — for a `HEAD` response it is the only length
+    /// there is, and for a body streamed past the limit it keeps its framing.
     fn response_headers(&self, sent: &header::HeaderMap, host: Option<&str>) -> header::HeaderMap {
-        let mut relayed = headers::forwardable(sent, &[header::CONTENT_LENGTH]);
+        let mut relayed = headers::forwardable(sent, &[]);
         let back = sent
             .get(header::LOCATION)
             .and_then(|value| value.to_str().ok())
