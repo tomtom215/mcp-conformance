@@ -80,8 +80,14 @@ runs cannot drift apart. They used to be written out in the workflow, and two of
 them were left out of it.
 
 Additionally enforced in CI: `cargo package --workspace --exclude xtask --locked`
-(publishability) and diff-scoped mutation testing (`cargo mutants --in-diff`)
-on PRs. The standard is **zero surviving mutants in every shipped crate**
+(publishability, with a CycloneDX SBOM dry run, `cargo xtask sbom`), the Rust API
+against crates.io as the changelog's `[Unreleased]` section declares it
+(`cargo xtask semver --unreleased`: while `[Unreleased]` declares no breaking
+change, any API break fails the PR; once it carries a breaking-changes table,
+every break is listed for the reviewer to hold against the table), and
+diff-scoped mutation testing
+(`cargo mutants --in-diff`) on PRs. Coverage is measured and reported in the job
+summary, not gated. The standard is **zero surviving mutants in every shipped crate**
 (xtask is excluded via `.cargo/mutants.toml`). Run it locally with
 `cargo xtask mutants`, which issues exactly the invocation CI does;
 `--jobs N` is the only argument it accepts, and raising it spends the timeout

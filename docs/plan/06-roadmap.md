@@ -421,6 +421,35 @@ Backlog opens at M0; the milestone closes only on merged outcomes.
 | Claims expiry | Weekly scheduled CI (ADR-0010) | `cargo xtask deferrals --check` fails once a [deferral-ledger](deferrals.json) row passes its review-by date; `cargo xtask spec-drift` re-verifies every registry quote against the published spec text |
 | Upstream presence | Continuous | Issue triage participation and small fixes in rust-sdk/conformance — the relationship M4 depends on is built before it is needed |
 
+## The 2026-09-24 review's plan
+
+[The review](../reports/project-review-2026-09-24.md) is a dated report and stays as
+written; this is where its plan's status lives. Audited item by item on 2026-10-13
+against the tree, git history and CI. Items not listed are done: C1, C2, H1, H3, H5,
+D1, D3, D4, D6, 0.1, 0.3–0.7, 1.1–1.3, 1.5, 2.1, 4.4, M6, M8, M10.
+
+| Item | Status | What remains |
+|------|--------|--------------|
+| D2 / 2.4 / H2 — wire-schema validation | **Done** ([ADR-0020](decisions/0020-wire-schema-validation.md)) | Agreement with the suite's `wire-schema-valid` on the tapped sessions is not yet compared mechanically |
+| D5 — prose-claim gates | Decided: kept (owner, 2026-10-13) | — |
+| 0.2 / H4 — scheduled workflow green | Partial | Every cause fixed in the tree; issue #50 closes on the next green scheduled run |
+| 1.4 — distribution | Partial | No container image; the Action validates but does not wrap capture |
+| 1.6 / M7 — everything-server tap | Partial | `seq` assigned after the response; session state never released; tap file names from the raw session id |
+| 1.7 / 3.2 — other SDKs | Partial | TypeScript and Python run through capture in CI (`interop/`); no committed corpus from them, no Go or Rust, no matrix page |
+| 2.2 / M2 — census | Partial | The census counts MUST-family keywords only; no SHOULD or `REQUIRED` census |
+| 2.3 / M1 — disputed exclusions | Partial | TRAN-027/061/081/082 now judged; TRAN-020, TRAN-083/084, TOOL-035, BASE-033/037, DISC-003 still excluded without a corpus pair settling them |
+| 2.5 / M3 — server MUSTs on client-feature pages | Partial | URL-mode `url` validity and `sampling.tools` not entered |
+| 2.6 / M4 — extensions (tasks, skills) | Not started | — |
+| 2.7 — everything-server surface | Not started | No pagination, icons, `resource_link` or tasks |
+| 2.8 — authorization, observable subset | Not started | Deferral row `auth-client-scenarios` |
+| 2.9 — draft tracking | Not started | No `draft` registry skeleton; `spec-drift` does not read `draft/` |
+| 3.1 / M5 — calibration at `2026-07-28` | Blocked | Needs a stable official suite `0.2.0` (deferral row `suite-0-2-0-stable-pin-bump`) |
+| 3.3 — second calibration source | Not started | No `mcpsnoop` divergence table |
+| 3.4 — a2a-rust ports | Partial | Per-PR semver checks, per-crate SBOMs, PR fuzzing, generated requirement pages and coverage measurement done; coverage is not gated, and no gate-falsification script |
+| 4.1–4.3 — upstream | Owner | Close #9; file the clause-level-rows proposal and the two small upstream PRs |
+| Phase 5 — proportionality | Partial | Roadmap condensed; CHANGELOG still carries audit narrative; merged branches not deleted |
+| Low — `#[allow]` attributes | Open | Module-wide `#![allow(deprecated)]` in the server and host, for rmcp's deprecated `2025-11-25` surface |
+
 ## Sequencing rules
 
 1. M0 strictly precedes everything; no feature code on an unscaffolded repo.

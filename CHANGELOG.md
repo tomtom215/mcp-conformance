@@ -374,6 +374,13 @@ below is stated again in its entry, with the reasoning.
 
 ### Added
 
+- **An upgrade guide, a compiled library example, and README badges.** The book
+  gains "Upgrading": where each release states what it breaks, how to compare a
+  recording's verdicts across two versions by requirement ID, and how to pin the
+  version a CI gate runs. The validator README shows the library API judging a
+  trace, and is compiled and run as a doctest so the example cannot rot. The root
+  README carries CI, crates.io, docs.rs, MSRV and licence badges, the last three
+  read from crates.io rather than restated.
 - **Five clauses that waited on a JSON Schema engine are judged.** The
   exclusions said a trace could not judge them without one; with ADR-0020's
   engine in the validator, that stopped being true.

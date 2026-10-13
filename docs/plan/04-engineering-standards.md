@@ -103,7 +103,12 @@ Package registries are reachable only at dependency-install time, under lockfile
    in the weekly scheduled job
 7. `cargo package --workspace --exclude xtask --locked` validation (publishability
    of every release crate; xtask is `publish = false` yet `--workspace` would
-   package it)
+   package it), with the release's CycloneDX SBOM generated for every crate as a
+   dry run (`cargo xtask sbom`); `cargo xtask semver --unreleased` checks the Rust
+   API against crates.io as the changelog's `[Unreleased]` section declares it — an
+   API break fails the PR while that section declares none, and is listed for the
+   reviewer once it carries a breaking-changes table; line and
+   region coverage is measured (`cargo llvm-cov`) and reported, not gated
 8. Mutation gate (diff-scoped), golden-corpus run, agreement check, fuzz smoke
    (every target, 60 s); the weekly scheduled job fuzzes five minutes per target
 9. Nightly toolchain (per-push, informational) + official-suite `0.2.0-alpha`

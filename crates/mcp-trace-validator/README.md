@@ -20,7 +20,11 @@ JSON, JUnit XML, or SARIF.
 > - `--version`'s second line, naming the revisions the build judges;
 > - the cap of 20 findings per clause in the human report;
 > - the `incomplete` verdict, and unjudged traces listed in every format;
-> - `judge::judge_with`.
+> - `judge::judge_with`;
+> - the wire schema: every message validated against its revision's JSON Schema
+>   (the report's `wire_schema`), and five clauses that needed a schema engine
+>   to judge — `BASE-017`/`BASE-073`, `TOOL-045`/`TRAN-137`/`TRAN-082` — plus
+>   `TOOL-011`/`TOOL-040` judging conformance to the `outputSchema`, not presence.
 
 `cargo install mcp-trace-validator` (or `cargo binstall mcp-trace-validator` for a
 prebuilt binary), then:
@@ -81,7 +85,30 @@ from the same definition that parses the command line. For zsh, write the script
 
 The library engine (`default-features = false`) has no CLI dependencies and performs no
 I/O. `judge::judge_with` judges a document in one call, by the rules the CLI applies,
-under the limits and at the revisions you choose. Part of
+under the limits and at the revisions you choose:
+
+```rust
+use mcp_trace_validator::judge::{self, Options};
+use mcp_trace_validator::report::{Outcome, Verdict};
+
+let trace = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"1"}}}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"1"}}}}
+{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}"#;
+
+let judgment = judge::judge_with(trace, &Options::default())?;
+assert_eq!(judgment.verdict(), Verdict::Fail);
+let report = &judgment.reports[0];
+// `BASE-003`: the request id 1 was used before, by the same party.
+let row = report.requirements.iter().find(|row| row.id == "BASE-003").unwrap();
+assert_eq!(row.outcome, Outcome::Fail);
+assert_eq!(row.findings[0].seq, Some(2));
+// Every message is also valid against the revision's JSON Schema.
+assert_eq!(report.wire_schema.as_ref().unwrap().outcome, Outcome::Pass);
+println!("{}", report.render_findings());
+# Ok::<(), Box<dyn core::error::Error>>(())
+```
+
+Part of
 [mcp-conformance](https://github.com/tomtom215/mcp-conformance); [the
 book](https://mcp-conformance.com) covers recording a session, the trace format,
 both revisions and every requirement.

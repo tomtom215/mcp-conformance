@@ -11,6 +11,7 @@
 - [Capturing from your client](clients.md)
 - [Reading a report](reading-a-report.md)
 - [Using it in CI](ci.md)
+- [Upgrading](upgrading.md)
 - [Troubleshooting](troubleshooting.md)
 
 # How it works

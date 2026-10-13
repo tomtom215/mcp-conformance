@@ -3,6 +3,12 @@
 
 # mcp-conformance
 
+[![CI](https://github.com/tomtom215/mcp-conformance/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tomtom215/mcp-conformance/actions/workflows/ci.yml?query=branch%3Amain)
+[![crates.io](https://img.shields.io/crates/v/mcp-trace-validator.svg)](https://crates.io/crates/mcp-trace-validator)
+[![docs.rs](https://img.shields.io/docsrs/mcp-trace-validator)](https://docs.rs/mcp-trace-validator)
+[![MSRV](https://img.shields.io/crates/msrv/mcp-trace-validator)](STABILITY.md)
+[![License](https://img.shields.io/crates/l/mcp-trace-validator)](LICENSE)
+
 **Clause-by-clause conformance checking for the [Model Context Protocol](https://modelcontextprotocol.io).**
 Record any MCP session — any language, any SDK, stdio or streamable HTTP — and find
 out which of the specification's requirements it met, which it broke, where, and
@@ -25,7 +31,9 @@ Pre-1.0: the API and the verdicts may change between minor releases, and the
 > - the `requirements <ID>` view, its `--area`/`--level`/`--checked`/`--excluded`
 >   filters, and the `completions` subcommand;
 > - the `2026-07-28` registry rows added since, so the example totals and the
->   coverage table below are `main`'s, not `0.6.0`'s.
+>   coverage table below are `main`'s, not `0.6.0`'s;
+> - the wire schema — every message validated against its revision's JSON Schema —
+>   and the five clauses it made judgeable.
 
 ## Quickstart
 

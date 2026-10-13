@@ -68,6 +68,8 @@ To use the tools:
 - **[Reading a report](reading-a-report.md)** — what to do about each outcome,
   triaging a finding, raising coverage, and disputing a verdict.
 - **[Using it in CI](ci.md)** — exit codes, JUnit and SARIF, and the GitHub Action.
+- **[Upgrading](upgrading.md)** — what a release may change, and how to compare
+  verdicts across versions before you move a gate.
 - **[Troubleshooting](troubleshooting.md)** — what the common failures mean.
 
 How it works:
