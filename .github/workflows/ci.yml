@@ -6,7 +6,8 @@
 # Jobs: format, clippy (stable + MSRV × 3 OS × 3 feature modes), test (same matrix),
 #       docs (-D warnings), cargo-deny, package validation (with an SBOM dry run),
 #       semver (vs crates.io), coverage (95% line floor), nightly (informational),
-#       visual (the HTML report's screenshot baselines, no network on open).
+#       visual (the HTML report's screenshot baselines, no network on open),
+#       otlp (`watch --otlp` spans through a pinned OpenTelemetry Collector).
 #
 # Toolchains are installed with plain `rustup` rather than a third-party action:
 # one fewer supply-chain dependency. Remaining actions are pinned by commit SHA.
@@ -564,6 +565,66 @@ jobs:
           path: interop/out/
           if-no-files-found: warn
           retention-days: 30
+
+  # `mcp-conformance watch --otlp` into a real OpenTelemetry Collector (ADR-0021
+  # W4): the pinned core distribution with an OTLP/HTTP receiver and a file
+  # exporter (conformance/otlp/collector.yaml). A corpus violation is replayed
+  # through `watch stdio` by the ignored integration test that needs this
+  # collector — every request must be accepted (2xx) — and then what the
+  # collector wrote back out is read for the MCP semantic conventions' span
+  # names and attributes, the CLIENT kind and the finding events
+  # (conformance/otlp/check.py). Network: the image pull from Docker Hub, by
+  # digest; the spans themselves travel only over loopback.
+  otlp:
+    name: OTLP export (watch --otlp into an OpenTelemetry Collector)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # otel/opentelemetry-collector:0.162.0 (the core distribution, which
+      # carries the otlp receiver and the file exporter), by its multi-arch
+      # index digest, read 2026-10-13 with `docker buildx imagetools inspect`.
+      COLLECTOR_IMAGE: otel/opentelemetry-collector@sha256:310a800ad69ee430e7c541796852a242c9c7db97aaad4daa5ccf843c525fbdb2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build the replay test first, so the collector waits for nothing
+        run: cargo test --locked -p mcp-conformance-cli --test cli --no-run
+      - name: Start the pinned collector
+        run: |
+          set -euo pipefail
+          mkdir -m 0777 "$RUNNER_TEMP/otel"
+          docker run --detach --name otel --publish 127.0.0.1:4318:4318 \
+            --volume "$PWD/conformance/otlp/collector.yaml:/etc/otelcol/config.yaml:ro" \
+            --volume "$RUNNER_TEMP/otel:/out" \
+            "$COLLECTOR_IMAGE" --config=/etc/otelcol/config.yaml
+          for _ in $(seq 30); do
+            if curl -sf -o /dev/null -X POST -H 'content-type: application/json' \
+                --data '{"resourceSpans":[]}' http://127.0.0.1:4318/v1/traces; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs otel
+          exit 1
+      - name: Replay a corpus violation through watch --otlp
+        env:
+          MCP_CONFORMANCE_OTLP_ENDPOINT: http://127.0.0.1:4318
+        run: >-
+          cargo test --locked -p mcp-conformance-cli --test cli --
+          --ignored --exact watch::spans_are_accepted_by_a_real_collector
+      - name: Read back what the collector exported
+        run: |
+          set -euo pipefail
+          # A graceful stop flushes the file exporter.
+          docker stop otel
+          python3 -I conformance/otlp/check.py "$RUNNER_TEMP/otel/spans.jsonl"
+      - name: Collector log
+        if: always()
+        run: docker logs otel || true
 
   # The workflows themselves, linted: actionlint (expression and type checks,
   # shellcheck over every `run:` script) and zizmor (GitHub Actions security
