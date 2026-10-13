@@ -16,7 +16,9 @@
 //!    baseline;
 //! 4. fail unless the runner exits green;
 //! 5. reconcile the runner's verdicts with our validator's over the tapped
-//!    sessions and check the coverage manifest (`agreement.rs`) — the
+//!    sessions — requirement rows, and the wire schema message by message
+//!    where the runner reports `wire-schema-valid` — and check the coverage
+//!    manifest (`agreement.rs`) — the
 //!    agreement check from docs/plan/03-conformance-strategy.md §Calibration.
 //!
 //! Results land in `target/conformance/` (one JSON per scenario, the tapped
@@ -136,7 +138,7 @@ mod client;
 /// scheduler stall between flushes. Hitting the cap is loud, not silent —
 /// the agreement check that follows would otherwise read a file the writer
 /// is still appending to.
-fn await_tap_quiescence(tap_dir: &Path) {
+pub(crate) fn await_tap_quiescence(tap_dir: &Path) {
     let total = || -> u64 {
         std::fs::read_dir(tap_dir).map_or(0, |entries| {
             entries

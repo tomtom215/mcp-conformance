@@ -17,6 +17,12 @@
 //! in the same change that resolves them (e.g. a suite pin bump). The full
 //! reconciliation is written to `target/conformance/agreement.json`.
 //!
+//! The same reconciliation runs for the wire schema (`schema.rs`,
+//! `schema_ledger.rs`): the runner's `wire-schema-valid` verdict on every
+//! message against the validator's report `wire_schema` member, with
+//! divergences explained in `conformance/wire-schema-divergences.json` or
+//! failing the gate. It is the `wire_schema` member of `agreement.json`.
+//!
 //! The same captured sessions also prove the server's exercised surface: the
 //! coverage manifest (`conformance/coverage-manifest.json`, `manifest.rs`)
 //! records the capabilities the server declared and the methods the suite
@@ -36,6 +42,11 @@ use serde::{Deserialize, Serialize};
 
 mod artifacts;
 mod manifest;
+pub(crate) mod schema;
+mod schema_ledger;
+
+pub(crate) use schema_ledger::run_wire_schema_only;
+use schema_ledger::session_views;
 
 use artifacts::RunnerSide;
 
@@ -119,6 +130,7 @@ struct AgreementArtifact {
     runner: RunnerSide,
     validator: ValidatorSide,
     divergences: DivergenceReport,
+    wire_schema: schema_ledger::SchemaAgreement,
     agreement: bool,
 }
 
@@ -170,6 +182,7 @@ pub(crate) fn run(
         suite_version,
         DIVERGENCE_BASELINE,
         true,
+        &schema::SERVER_LEG,
     )
 }
 
@@ -177,7 +190,8 @@ pub(crate) fn run(
 /// named divergence baseline. The coverage manifest is server-party
 /// bookkeeping (declared server capabilities vs registry gates), so the
 /// client leg runs with `check_coverage_manifest` off — host-side capability
-/// honesty is pinned by the host's own tests instead.
+/// honesty is pinned by the host's own tests instead. `leg` names the run
+/// for the wire-schema reconciliation and says which party is under test.
 ///
 /// # Errors
 ///
@@ -189,6 +203,7 @@ pub(crate) fn run_with(
     suite_version: &str,
     baseline_rel: &str,
     check_coverage_manifest: bool,
+    leg: &schema::Leg,
 ) -> Result<(), String> {
     let registry = Registry::builtin_2025_11_25()
         .map_err(|error| format!("embedded registry failed to load: {error}"))?;
@@ -204,7 +219,17 @@ pub(crate) fn run_with(
 
     let (totals, failures, reports) = validate_sessions(&registry, &sessions);
     let reconciliation = reconcile(&baseline, &failures);
-    let gate = gate_error(&reconciliation, baseline_rel);
+    let wire_schema = schema_ledger::check(
+        workspace_root,
+        leg,
+        results_dir,
+        &session_views(&sessions, &reports),
+    )?;
+    let gate = join_gates(
+        gate_error(&reconciliation, baseline_rel),
+        wire_schema.gate_error(),
+    );
+    eprintln!("xtask: agreement — {}", wire_schema.summary());
 
     let runner = artifacts::summarize_runner(results_dir)?;
     let artifact = AgreementArtifact {
@@ -222,6 +247,7 @@ pub(crate) fn run_with(
             explained: reconciliation.explained,
             stale_baseline_entries: reconciliation.stale,
         },
+        wire_schema,
     };
     artifacts::write_artifact(results_dir, &artifact)?;
 
@@ -233,12 +259,20 @@ pub(crate) fn run_with(
         return Err(error);
     }
     eprintln!(
-        "xtask: agreement — {} session(s) validated; zero unexplained divergence; \
-         baseline live; artifact at {}",
+        "xtask: agreement — {} session(s) validated; zero unexplained divergence \
+         (requirement rows and wire schema); baselines live; artifact at {}",
         sessions.len(),
         results_dir.join("agreement.json").display()
     );
     Ok(())
+}
+
+/// Both gates' messages, when either demands one.
+fn join_gates(rows: Option<String>, wire_schema: Option<String>) -> Option<String> {
+    match (rows, wire_schema) {
+        (Some(rows), Some(wire_schema)) => Some(format!("{rows}\n{wire_schema}")),
+        (rows, wire_schema) => rows.or(wire_schema),
+    }
 }
 
 /// Splits observed failures into explained/unexplained against the baseline,

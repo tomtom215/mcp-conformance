@@ -93,6 +93,7 @@ pub(crate) fn run(root: &Path, suite: &str) -> ExitCode {
         suite,
         CLIENT_DIVERGENCE_BASELINE,
         false,
+        &crate::agreement::schema::CLIENT_LEG,
     ) {
         Ok(()) => {
             eprintln!(

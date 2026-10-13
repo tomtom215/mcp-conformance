@@ -19,6 +19,13 @@ scenarios) and `mcp-reference-host` (client scenarios), and replays the captured
 sessions through the validator for the agreement check. A regression fails the
 build. The live status is whatever the latest `main` run reports.
 
+The agreement check covers the wire schema too: where the suite reports its
+`wire-schema-valid` check (from `0.2.0-alpha.11`, so the alpha-tracking job and
+the `2026-07-28` readiness run, not yet the stable pin), every message it flags is
+matched against the messages the validator flags in the recorded sessions, and a
+message flagged by only one side fails the run unless the committed
+`conformance/wire-schema-divergences.json` explains it.
+
 ## rmcp tier-gap report
 
 The published measurement of the official Rust SDK

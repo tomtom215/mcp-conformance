@@ -93,6 +93,17 @@ the engine's absence rather than on anything about the wire.
   0.80–1.00 s after, five runs each, release builds, one 4-vCPU Xeon at 2.10 GHz; peak RSS
   140 MiB before and 160 MiB after (one run each). The schema compiles once per process.
 
+### Follow-up (2026-10-13): agreement with the suite's check
+
+The agreement step now compares this member with the suite's `wire-schema-valid`
+message by message over the tapped sessions, with a ledger of its own
+(`conformance/wire-schema-divergences.json`, see
+[03-conformance-strategy.md](../03-conformance-strategy.md) §Calibration). The suite's
+bundled schema copies are not this decision's vendored files: it applies its own
+`NumberSchema` correction and none of the errata above, asserts `format`, and its
+`2026-07-28` copy predates the pinned commit. A divergence from those differences is
+recorded as class `schema-pin-skew`.
+
 ### Neutral
 
 - The schema is an independent second reading of the same session; where it and a clause
