@@ -12,6 +12,25 @@ clause against the specification.
 cargo install mcp-trace-capture mcp-trace-validator
 ```
 
+> **This README is `main`'s.** `cargo install` gets the latest release, `0.6.0`,
+> whose own README is the one on crates.io. Documentation for the release is at
+> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
+>
+> **Not yet released** (on `main` since `0.6.0`):
+>
+> - a stop giving the stdio server 1 second before its process group is killed (`0.6.0`:
+>   3 seconds);
+> - `{session}` numbers continuing after the highest present (`0.6.0`: the lowest free
+>   one);
+> - the proxy's `/` being the `--upstream` URL itself, and redirects into the upstream
+>   pointed back at the proxy (`0.6.0` appended `/` to the upstream path);
+> - the client URL printed at start, the non-2xx and 404 summary at exit, hints for
+>   near-miss arguments, and the exit codes in `--help`;
+> - a forced HTTP stop ending the trace with `transport-abort`; SSE events of a type
+>   other than `message` left out; unfaithful JSON recorded as its raw line (stdio) or
+>   left out (HTTP);
+> - on Windows, the server's whole exit code.
+
 ## stdio servers
 
 Configure your MCP client to launch the wrapper instead of the server:
@@ -20,8 +39,9 @@ Configure your MCP client to launch the wrapper instead of the server:
 mcp-trace-capture -o session.jsonl stdio -- python my_server.py --its-flags
 ```
 
-The client and the server see each other's bytes unchanged; the server's stderr is
-passed through untouched. When the session ends, the server's exit code is the
+`-o` names the trace (without it, `mcp-trace.jsonl` in the working directory) and
+may come before or after the mode. The client and the server see each other's bytes
+unchanged; the server's stderr is passed through untouched. When the session ends, the server's exit code is the
 wrapper's exit code. Then:
 
 ```text
@@ -38,7 +58,7 @@ get 1 second from the signal to exit on their own terms, then the group is kille
 the close is still relayed to the client, and counted in the exit summary instead of
 recorded. The wrapper then exits with the server's status.
 
-The second is deliberately shorter than the 2 seconds the official SDKs' stdio
+That 1-second grace is deliberately shorter than the 2 seconds the official SDKs' stdio
 clients wait between `SIGTERM` and `SIGKILL`. They send both to the wrapper alone
 (TypeScript) or to the wrapper's process group (Python) — never to the server's — so
 the wrapper must have killed the server before their `SIGKILL` arrives; the server has
@@ -58,7 +78,7 @@ highest one present (`my-server-001.jsonl`, `my-server-002.jsonl`, …), so ever
 session is kept and the files sort in session order. Without
 it, a second launch refuses to start unless `--force` lets it overwrite the first.
 
-The `mcpServers` shape most desktop clients use:
+The `mcpServers` shape Claude Desktop and Cursor use:
 
 ```json
 {
@@ -70,6 +90,23 @@ The `mcpServers` shape most desktop clients use:
   }
 }
 ```
+
+VS Code's `.vscode/mcp.json` names the same fields under `servers`, with a `type`:
+
+```json
+{
+  "servers": {
+    "my-server": {
+      "type": "stdio",
+      "command": "mcp-trace-capture",
+      "args": ["-o", "/tmp/my-server-{session}.jsonl", "stdio", "--", "python", "/path/to/my_server.py"]
+    }
+  }
+}
+```
+
+The book's [client chapter](https://mcp-conformance.com/dev/clients.html) has each
+client's file location and its HTTP form.
 
 From a test suite, through the official SDKs' stdio clients (Python's
 `StdioServerParameters`, TypeScript's `StdioClientTransport`) — the server's command
@@ -253,12 +290,12 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 
 | Code | Meaning |
 |------|---------|
-| server's | `stdio`: the wrapped server's exit code — on Unix 128 + signal if a signal ended it (137 for a server killed at the end of the grace period); on Windows the whole code |
-| 1 | `stdio`: waiting for the server failed (an operating-system error); the trace keeps what it recorded, without a closing event unless a stop wrote one |
 | 0 | `http`: stopped with a complete trace |
-| 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests; the trace ends with `transport-abort` |
+| 1 | `stdio`: waiting for the server failed (an operating-system error); the trace keeps what it recorded, without a closing event unless a stop wrote one |
 | 2 | A run that could not start: bad arguments (`-o -` among them: the trace needs a path; an `--upstream` that is not an absolute `http`/`https` URL, carries credentials, or whose root certificates cannot be loaded), an existing output file (`--force` overwrites), `{session}` outside the file name or more than once, a `{session}` path whose directory does not exist, a server that would not start, an address that would not bind. No trace file is created: the file is made only once the session can start. Also `http`, after it started: serving failed (the error is printed; the trace keeps what it recorded, without a closing event) |
 | 3 | The session ran but a trace is incomplete (a write failed), when the code would otherwise be 0 |
+| 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests; the trace ends with `transport-abort` |
+| server's | `stdio`: the wrapped server's exit code — on Unix 128 + signal if a signal ended it (137 for a server killed at the end of the grace period); on Windows the whole code |
 
 ## License
 

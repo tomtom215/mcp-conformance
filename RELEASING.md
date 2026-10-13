@@ -285,7 +285,13 @@ the release PR, not in this file.
      `CITATION.cff`'s `date-released`; return `README.md`'s **Status:** line to
      "on crates.io" wording and its Quickstart to
      `cargo install mcp-trace-capture mcp-trace-validator` (from the `--git`
-     install used while unpublished).
+     install used while unpublished). Remove the **Not yet released** callouts
+     from `README.md` and each crate's README: they list what `main` has beyond
+     the previous release, and a crate's README is published as its crates.io
+     page, where the release ships those items.
+   - Date the release by the day it is published (the tag push, crates.io), not
+     the day the release commit is written: 0.6.0's heading and `CITATION.cff`
+     said 2026-10-04 for a release published 2026-10-06, and needed an erratum.
 2. **Merge** via PR (CI must be green; no exceptions for release PRs).
 3. **Tag**: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` on `main`; push the tag.
 4. **Automation** (`release.yml`): validates tag ↔ version ↔ changelog agreement

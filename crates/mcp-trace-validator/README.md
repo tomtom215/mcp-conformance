@@ -8,6 +8,20 @@ trace against the requirement registry and get requirement-level findings — th
 verbatim with its link, the offending event `seq`, actionable detail — as human text,
 JSON, JUnit XML, or SARIF.
 
+> **This README is `main`'s.** `cargo install` gets the latest release, `0.6.0`,
+> whose own README is the one on crates.io. Documentation for the release is at
+> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
+>
+> **Not yet released** (on `main` since `0.6.0`):
+>
+> - `requirements <ID>…` (one requirement in full) and the `--area`, `--level`,
+>   `--checked` and `--excluded` filters;
+> - the `completions` subcommand;
+> - `--version`'s second line, naming the revisions the build judges;
+> - the cap of 20 findings per clause in the human report;
+> - the `incomplete` verdict, and unjudged traces listed in every format;
+> - `judge::judge_with`.
+
 `cargo install mcp-trace-validator` (or `cargo binstall mcp-trace-validator` for a
 prebuilt binary), then:
 
@@ -52,6 +66,13 @@ at seq 0`.
 Exit codes: `0` pass (warnings allowed unless `--strict`), `1` a clause failed, `2`
 bad invocation or nothing judgeable or output not written, `3` malformed trace.
 `--version` prints the protocol revisions the build judges.
+
+The built-in registries are the default. To judge against your own requirement
+data — a registry you are drafting, or a subset of the clauses — `validate
+--registry <file>` takes a single-revision registry document (the shape
+`requirements --format json` prints), and `validate --registry-set <file>` a
+multi-revision set; the two exclude each other, and `--registry` excludes
+`--revision`. `requirements --registry <file>` prints such a document.
 
 Shell completions come from `completions <bash|zsh|fish|powershell|elvish>`, generated
 from the same definition that parses the command line. For zsh, write the script as

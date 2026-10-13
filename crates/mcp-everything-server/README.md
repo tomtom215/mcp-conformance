@@ -11,6 +11,18 @@ conformance suite against it — **40/40 checks** on the `2025-11-25` server
 scenarios at the pinned suite 0.1.16 — and compares the suite's verdicts with the
 validator's. It is also a known-good peer for testing an MCP **client**.
 
+> **This README is `main`'s.** `cargo install` gets the latest release, `0.6.0`,
+> whose own README is the one on crates.io. Documentation for the release is at
+> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
+>
+> **Not yet released** (on `main` since `0.6.0`):
+>
+> - `--revision` (an alias of `--protocol-version`) and `--listen` (an alias of
+>   `--bind`), which the examples below use;
+> - the endpoint URL the HTTP server prints after its readiness line.
+>
+> With `0.6.0`, spell them `--protocol-version` and `--bind`.
+
 ## Quick start
 
 ```text

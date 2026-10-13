@@ -12,6 +12,21 @@ which it never exercised.
 Pre-1.0: the API and the verdicts may change between minor releases, and the
 [changelog](CHANGELOG.md) says so when they do.
 
+> **This README describes `main`**, which is ahead of the latest release:
+> `cargo install` gets `0.6.0`. Documentation for the release is at
+> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
+>
+> **Not yet released** (on `main` since `0.6.0`; the
+> [changelog's `Unreleased` section](CHANGELOG.md#unreleased) has the full list):
+>
+> - the `incomplete` verdict for a run that could not judge one of its traces;
+> - the cap of 20 findings per clause in the human report;
+> - release binaries built with `cargo auditable`, for `cargo audit bin`;
+> - the `requirements <ID>` view, its `--area`/`--level`/`--checked`/`--excluded`
+>   filters, and the `completions` subcommand;
+> - the `2026-07-28` registry rows added since, so the example totals and the
+>   coverage table below are `main`'s, not `0.6.0`'s.
+
 ## Quickstart
 
 ```text
@@ -255,8 +270,10 @@ sessions for every area.
 ## Documentation
 
 - **[The book](https://mcp-conformance.com)** — architecture, the trace format, the
-  two revisions, the corpus, and conformance results ([`book/`](book), built on every
-  push).
+  two revisions, the corpus, and conformance results, for the latest release;
+  [`/dev/`](https://mcp-conformance.com/dev/) is the same book for `main`
+  ([`book/`](book), built on every push), and the version selector switches
+  between them and every earlier release.
 - **API docs** for every crate on [docs.rs](https://docs.rs/mcp-trace-validator).
 - **[STABILITY.md](STABILITY.md)** — what each release keeps stable: verdicts,
   requirement IDs, exit codes, report and trace formats, the MSRV.
