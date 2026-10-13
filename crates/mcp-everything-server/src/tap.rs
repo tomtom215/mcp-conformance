@@ -20,7 +20,9 @@
 //!   security-policy layer, so policy rejections (403s) never reach it. What
 //!   does reach it is recorded whether or not it names a session: `2026-07-28`
 //!   removes sessions outright, and an exchange with no `Mcp-Session-Id` goes
-//!   to the run's `stateless` trace file rather than being dropped.
+//!   to the run's `stateless` trace file rather than being dropped. One naming
+//!   a session the server never assigned goes to the run's `unassigned` trace
+//!   ([`UNASSIGNED_TRACE`]).
 //! - **Write-behind, in order.** Records flow over a bounded channel to one
 //!   writer task that appends each record's events as adjacent lines and
 //!   flushes before taking the next; a request and its message are one record
@@ -30,16 +32,27 @@
 //!   mid-append can leave one torn final line (consumers treat an
 //!   unparseable final line as in-progress, not corruption — pinned by
 //!   `tap_survives_sigkill_with_a_parseable_prefix` in tests/cli.rs). The
-//!   writer assigns `seq` per file in arrival order, making the schema's
-//!   strictly-increasing-seq rule hold by construction even when a session's
-//!   POST exchanges and SSE streams record concurrently; `xtask conformance`
-//!   waits for tap quiescence before stopping the server, so gate runs read
-//!   complete traces.
+//!   writer assigns `seq` per file in the order records reach it, making the
+//!   schema's strictly-increasing-seq rule hold by construction even when a
+//!   session's POST exchanges and SSE streams record concurrently; `xtask
+//!   conformance` waits for tap quiescence before stopping the server, so gate
+//!   runs read complete traces.
+//! - **`seq` is observation order.** A request is sent to the writer when the
+//!   tap has read it, before the service sees it — not once the service has
+//!   answered, which put two overlapping requests in the order of their
+//!   answers, and a notification the request caused ahead of the request. A
+//!   request naming no session cannot know its file yet (its response may
+//!   assign a session), so it reserves its place in the `stateless` trace
+//!   and settles it once the response says; records behind an open place wait
+//!   for it in the writer's memory, not on disk.
 //! - **Sessions are trusted to be distinct.** Files are keyed by the
 //!   server-assigned `Mcp-Session-Id` where there is one; a client that
 //!   fabricates another session's ID would interleave into that session's file,
 //!   and sessionless exchanges share one file per run because the wire offers
-//!   no finer identity once sessions are gone. The tap is diagnostics for runs
+//!   no finer identity once sessions are gone. A session's state is kept for
+//!   the run, `DELETE` included: releasing it there would split a session
+//!   whose stream records after it, and send a request after teardown to the
+//!   `unassigned` trace. The tap is diagnostics for runs
 //!   this repository drives (the official runner over loopback), not a forensic
 //!   recorder against adversarial clients — the security boundary lives in the
 //!   policy layer in front of it.
@@ -107,6 +120,18 @@ const SESSION_ID_HEADER: &str = "mcp-session-id";
 /// real and in capture order) and the reader is told so in `corpus/README.md`.
 const STATELESS_TRACE: &str = "stateless";
 
+/// The trace identity for exchanges naming a session the server never
+/// assigned.
+///
+/// The service answers those 404 (`2025-11-25` basic/transports §session
+/// management), and the exchange is evidence of that, so it is recorded — but
+/// not under the name the client sent: until 2026-10-13 each made-up id opened a file
+/// of its own, so a client could open files at will, and the agreement replay
+/// judged each as a session that never initialized. One trace per run holds
+/// them all; as with [`STATELESS_TRACE`], the run is the only grouping the
+/// wire offers for them.
+const UNASSIGNED_TRACE: &str = "unassigned";
+
 /// Largest request/response body the tap will buffer for recording. The
 /// suite's payloads are kilobytes; anything larger is passed through intact —
 /// what was buffered, then the rest as it streams — unrecorded, with a stderr
@@ -129,32 +154,29 @@ const CHANNEL_CAPACITY: usize = 1024;
 /// was then judged to have ridden the GET (`TRAN-049`), as an official-suite
 /// session in CI showed on 2026-10-12.
 struct Record {
-    /// Tap-assigned session file key.
+    /// The trace file the events belong to.
     file: Arc<SessionFile>,
     /// Each event and the party that emitted it, in order.
     events: Vec<(Direction, EventBody)>,
-}
-
-/// Identity of one session's trace file.
-struct SessionFile {
-    /// Final path of the JSON Lines trace.
-    path: PathBuf,
 }
 
 /// Shared tap state installed into the middleware.
 ///
 /// Concurrency posture, re-decided 2026-06-13 (third audit): no `loom`
 /// modeling. The shared state is a `Mutex<HashMap>` and one `AtomicU64`
-/// ordinal — no hand-rolled lock-free structure for loom to catch out, and
-/// `Relaxed` suffices for the ordinal because only its *uniqueness* is
-/// load-bearing (`fetch_add` is atomic under any ordering; file naming takes
-/// the session lock anyway). The interleaving evidence is the 16-session
-/// real-parallelism stress test plus the SIGKILL durability test; loom
-/// would re-prove std's Mutex, not this code.
+/// counter — no hand-rolled lock-free structure for loom to catch out, and
+/// `Relaxed` suffices for the counter because only its *uniqueness* is
+/// load-bearing (`fetch_add` is atomic under any ordering). File names and
+/// `seq` are the single writer task's. The interleaving evidence is the
+/// 16-session real-parallelism stress test plus the SIGKILL durability test;
+/// loom would re-prove std's Mutex, not this code.
 pub struct Tap {
     dir: PathBuf,
-    sender: tokio::sync::mpsc::Sender<Record>,
-    sessions: Mutex<HashMap<String, Arc<SessionFile>>>,
+    sender: tokio::sync::mpsc::Sender<Command>,
+    /// Every trace seen this run. Sessions enter only when the server assigns
+    /// them, on the response that carries the new `Mcp-Session-Id`.
+    files: Mutex<HashMap<TraceKey, Arc<SessionFile>>>,
+    /// Source of file identities and reserved-place numbers.
     created: AtomicU64,
 }
 
@@ -176,78 +198,90 @@ impl Tap {
     pub fn new(dir: PathBuf) -> std::io::Result<Arc<Self>> {
         std::fs::create_dir_all(&dir)?;
         let (sender, receiver) = tokio::sync::mpsc::channel(CHANNEL_CAPACITY);
-        tokio::spawn(write_loop(receiver));
+        tokio::spawn(write_loop(dir.clone(), receiver));
         Ok(Arc::new(Self {
             dir,
             sender,
-            sessions: Mutex::new(HashMap::new()),
+            files: Mutex::new(HashMap::new()),
             created: AtomicU64::new(0),
         }))
     }
 
-    /// The trace file for `session_id`, creating its identity on first sight.
-    fn session(&self, session_id: &str) -> Arc<SessionFile> {
-        let mut sessions = self.sessions.lock().unwrap_or_else(PoisonError::into_inner);
-        if let Some(file) = sessions.get(session_id) {
-            return Arc::clone(file);
-        }
-        let ordinal = self.created.fetch_add(1, Ordering::Relaxed) + 1;
-        // The ordinal keeps directory listings in session-creation order and
-        // the name unique; the id, made safe for a file name, makes the
-        // session ↔ trace correspondence self-describing.
-        let path = self
-            .dir
-            .join(format!("{ordinal:03}-{}.jsonl", file_label(session_id)));
-        let file = Arc::new(SessionFile { path });
-        sessions.insert(session_id.to_owned(), Arc::clone(&file));
+    /// The trace for `key`, creating its identity on first sight.
+    fn file(&self, key: TraceKey) -> Arc<SessionFile> {
+        let mut files = self.files.lock().unwrap_or_else(PoisonError::into_inner);
+        let file = files.entry(key).or_insert_with_key(|key| {
+            Arc::new(SessionFile {
+                id: self.created.fetch_add(1, Ordering::Relaxed),
+                label: key.label(),
+            })
+        });
+        let file = Arc::clone(file);
+        drop(files);
         file
     }
 
-    /// Enqueues one event for `session_id`; the writer task sequences it.
-    /// On channel pressure this awaits (the exchange slows; the trace stays
-    /// whole).
-    async fn record(&self, session_id: &str, direction: Direction, body: EventBody) {
-        self.record_together(session_id, vec![(direction, body)])
-            .await;
+    /// The trace a request naming `session_id` belongs to: the session's own
+    /// when the server assigned it this run, the `unassigned` trace otherwise.
+    fn named(&self, session_id: &str) -> Arc<SessionFile> {
+        let assigned = self
+            .files
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(&TraceKey::Session(session_id.to_owned()))
+            .map(Arc::clone);
+        assigned.unwrap_or_else(|| self.file(TraceKey::Unassigned))
     }
 
-    /// Enqueues `events` for `session_id` as one unit, written as adjacent
-    /// lines in order (see [`Record`]).
-    async fn record_together(&self, session_id: &str, events: Vec<(Direction, EventBody)>) {
-        let file = self.session(session_id);
-        if self.sender.send(Record { file, events }).await.is_err() {
+    /// Reserves the next place in the `stateless` trace for a request naming
+    /// no session (see [`Reservation`]).
+    async fn reserve(&self) -> Reservation {
+        let file = self.file(TraceKey::Stateless);
+        let place = self.created.fetch_add(1, Ordering::Relaxed);
+        let reserve = Command::Reserve {
+            file: Arc::clone(&file),
+            place,
+        };
+        // A reservation the writer never received is settled already: there
+        // is nothing for its release to give up.
+        let settled = self.sender.send(reserve).await.is_err();
+        Reservation {
+            sender: self.sender.clone(),
+            file,
+            place,
+            settled,
+        }
+    }
+
+    /// Enqueues one event for `file`; the writer task sequences it.
+    /// On channel pressure this awaits (the exchange slows; the trace stays
+    /// whole).
+    async fn record(&self, file: &Arc<SessionFile>, direction: Direction, body: EventBody) {
+        self.record_together(file, vec![(direction, body)]).await;
+    }
+
+    /// Enqueues `events` for `file` as one unit, written as adjacent lines in
+    /// order (see [`Record`]).
+    async fn record_together(&self, file: &Arc<SessionFile>, events: Vec<(Direction, EventBody)>) {
+        let record = Record {
+            file: Arc::clone(file),
+            events,
+        };
+        if self.sender.send(Command::Write(record)).await.is_err() {
             eprintln!("mcp-everything-server: tap writer gone; event dropped");
         }
     }
 }
 
-/// `session_id` as part of a file name: ASCII letters, digits, `-`, `_` and
-/// `.` kept, anything else `_`, at most 64 characters.
-///
-/// The id comes from a header, and a client can name any session: written
-/// verbatim, `../x` would leave the trace directory and `a:b` would open an
-/// NTFS alternate data stream. The ordinal before it keeps names unique, so
-/// two ids that sanitize alike still get two files, and a name that is never
-/// `.` or `..`.
-fn file_label(session_id: &str) -> String {
-    session_id
-        .chars()
-        .take(64)
-        .map(|character| {
-            if character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.') {
-                character
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
-/// Per-file writer state: the open handle and the next sequence number.
+mod files;
+/// The writer task: per-file sequencing, reserved places, and naming.
 mod writer;
 
+#[cfg(test)]
+use files::file_label;
+use files::{Reservation, SessionFile, TraceKey};
 use headers::{header_value, recorded_headers};
-use writer::write_loop;
+use writer::{Command, write_loop};
 
 /// The middleware: records the request exchange and, for SSE responses,
 /// every streamed frame, attributing everything to the exchange's session.
@@ -274,32 +308,63 @@ pub async fn tap_layer(
         }
     };
     let request_payload: Option<serde_json::Value> = serde_json::from_slice(&bytes).ok();
-    let response = next
-        .run(Request::from_parts(parts, Body::from(bytes.clone())))
-        .await;
-
-    // The session this exchange belongs to: the response names it on
-    // initialize; every later exchange names it on the request. Exchanges that
-    // name none are recorded too, under STATELESS_TRACE.
-    let response_session = header_value(response.headers(), SESSION_ID_HEADER);
-    let session_id = response_session
-        .or(request_session)
-        .unwrap_or_else(|| STATELESS_TRACE.to_owned());
-
     if request_payload.is_none() && !bytes.is_empty() {
         // GET and DELETE bodies are legitimately empty; a non-empty body that
         // is not JSON cannot be recorded as a message. Say so rather than
-        // leaving a silent hole a trace reader would misread as "no body" —
-        // and say it only past the session gate, so the note never claims a
-        // recording that did not happen. tests/cli.rs counts these notes
-        // against the real binary's stderr: exactly one for one bad body,
-        // none for clean traffic.
+        // leaving a silent hole a trace reader would misread as "no body".
+        // tests/cli.rs counts these notes against the real binary's stderr:
+        // exactly one for one bad body, none for clean traffic.
         eprintln!(
             "mcp-everything-server: tap recorded an exchange without its request \
              message (body is not JSON)"
         );
     }
+    let request_events = request_events(&method, request_headers, request_payload);
 
+    // Recorded now, as observed (see "`seq` is observation order"). A request
+    // naming a session belongs to it, or to the `unassigned` trace when the
+    // server never assigned it; one naming none waits for its response.
+    let observed = match request_session {
+        Some(session_id) => {
+            let file = tap.named(&session_id);
+            tap.record_together(&file, request_events).await;
+            Ok(file)
+        }
+        None => Err((tap.reserve().await, request_events)),
+    };
+    let response = next
+        .run(Request::from_parts(parts, Body::from(bytes)))
+        .await;
+
+    let file = match observed {
+        Ok(file) => file,
+        // The response names the session it assigned (on `initialize`); the
+        // request is that session's first event, so nothing is out of order
+        // when it moves there. Otherwise it fills its place in `stateless`.
+        Err((reservation, request_events)) => {
+            if let Some(assigned) = header_value(response.headers(), SESSION_ID_HEADER) {
+                reservation.settle(Vec::new()).await;
+                let file = tap.file(TraceKey::Session(assigned));
+                tap.record_together(&file, request_events).await;
+                file
+            } else {
+                let file = Arc::clone(&reservation.file);
+                reservation.settle(request_events).await;
+                file
+            }
+        }
+    };
+
+    record_response(&tap, &file, method, response).await
+}
+
+/// The client side of one exchange: its HTTP event and, when the body was
+/// JSON, the message it carried.
+fn request_events(
+    method: &Method,
+    headers: std::collections::BTreeMap<String, String>,
+    payload: Option<serde_json::Value>,
+) -> Vec<(Direction, EventBody)> {
     let mut request_events = vec![(
         Direction::ClientToServer,
         EventBody::Http {
@@ -310,15 +375,13 @@ pub async fn tap_layer(
             // teardown DELETE with the POST clause's Accept requirement.
             method: Some(method.as_str().to_owned()),
             status: None,
-            headers: request_headers,
+            headers,
         },
     )];
-    if let Some(payload) = request_payload {
+    if let Some(payload) = payload {
         request_events.push((Direction::ClientToServer, EventBody::Message { payload }));
     }
-    tap.record_together(&session_id, request_events).await;
-
-    record_response(&tap, &session_id, method, response).await
+    request_events
 }
 
 /// Records the response side of one exchange: the HTTP observation, the
@@ -326,7 +389,7 @@ pub async fn tap_layer(
 /// streamed frame-by-frame for SSE, buffered for JSON.
 async fn record_response(
     tap: &Arc<Tap>,
-    session_id: &str,
+    file: &Arc<SessionFile>,
     method: Method,
     response: Response,
 ) -> Response {
@@ -352,8 +415,7 @@ async fn record_response(
                 event: LifecycleEvent::TransportClose,
             },
         );
-        tap.record_together(session_id, vec![status_event, close])
-            .await;
+        tap.record_together(file, vec![status_event, close]).await;
         return response;
     }
 
@@ -363,36 +425,36 @@ async fn record_response(
     {
         // A stream's frames arrive after its status by nature; each frame is
         // a message of its own, written as it flows.
-        tap.record_together(session_id, vec![status_event]).await;
-        return record_sse(tap, session_id, response);
+        tap.record_together(file, vec![status_event]).await;
+        return record_sse(tap, file, response);
     }
     if content_type
         .as_deref()
         .is_some_and(|v| v.starts_with("application/json"))
     {
-        return record_json(tap, session_id, status_event, response).await;
+        return record_json(tap, file, status_event, response).await;
     }
-    tap.record_together(session_id, vec![status_event]).await;
+    tap.record_together(file, vec![status_event]).await;
     response
 }
 
 /// Re-bodies an SSE response with a recording pass-through: frames are
 /// recorded as they flow, bytes are forwarded untouched.
-fn record_sse(tap: &Arc<Tap>, session_id: &str, response: Response) -> Response {
+fn record_sse(tap: &Arc<Tap>, file: &Arc<SessionFile>, response: Response) -> Response {
     let (parts, body) = response.into_parts();
     let tap = Arc::clone(tap);
-    let session = session_id.to_owned();
+    let file = Arc::clone(file);
     let mut splitter = SseSplitter::default();
     let stream = body.into_data_stream().then(move |chunk| {
         let tap = Arc::clone(&tap);
-        let session = session.clone();
+        let file = Arc::clone(&file);
         let payloads = chunk
             .as_ref()
             .map_or_else(|_| Vec::new(), |bytes| splitter.push(bytes));
         async move {
             for payload in payloads {
                 tap.record(
-                    &session,
+                    &file,
                     Direction::ServerToClient,
                     EventBody::Message { payload },
                 )
@@ -408,7 +470,7 @@ fn record_sse(tap: &Arc<Tap>, session_id: &str, response: Response) -> Response 
 /// and its message as adjacent lines.
 async fn record_json(
     tap: &Arc<Tap>,
-    session_id: &str,
+    file: &Arc<SessionFile>,
     status_event: (Direction, EventBody),
     response: Response,
 ) -> Response {
@@ -419,11 +481,11 @@ async fn record_json(
             if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&bytes) {
                 events.push((Direction::ServerToClient, EventBody::Message { payload }));
             }
-            tap.record_together(session_id, events).await;
+            tap.record_together(file, events).await;
             Response::from_parts(parts, Body::from(bytes))
         }
         Buffered::Passed(body) => {
-            tap.record_together(session_id, vec![status_event]).await;
+            tap.record_together(file, vec![status_event]).await;
             eprintln!(
                 "mcp-everything-server: tap passed an oversized response body through unrecorded"
             );
