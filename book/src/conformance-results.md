@@ -58,6 +58,15 @@ the SDK's public API (its harness is committed beside the report) and states tha
 caveat plainly. Each failing scenario is traced to a specific limitation of the
 SDK's Streamable HTTP surface, both on the wire and in the SDK's source.
 
+## A second reader of recordings
+
+The official suite runs live scenarios. The one other tool that judges a
+*recorded* session, `mcpsnoop`, is run over the whole trace corpus too, and every
+place its verdict differs from this project's is triaged — which tool is right, by
+which clause, and what was fixed or drafted for upstream:
+
+> 📄 **[A second opinion: mcpsnoop](mcpsnoop.md)**
+
 ## The `2026-07-28` surface
 
 The official suite has no stable release for `2026-07-28` yet, so this project

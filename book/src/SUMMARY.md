@@ -23,6 +23,7 @@
 - [The trace corpus](corpus.md)
 - [Conformance results](conformance-results.md)
 - [The cross-SDK matrix](sdk-matrix.md)
+- [A second opinion: mcpsnoop](mcpsnoop.md)
 
 # Reference
 

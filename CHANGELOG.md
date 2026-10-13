@@ -61,6 +61,12 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **`TRAN-079` is judged on the mirrored value, not only its presence**
+  (`transport.x-mcp-header-value-mirrored`): a client sending `Mcp-Param-*` with a value
+  other than the body's was judged conformant. Found by the `mcpsnoop` comparison.
+- **`TRAN-029`/`TRAN-063` judge error statuses that carry a JSON-RPC response**, so a
+  `4xx`/`5xx` JSON-RPC error with no `Content-Type` fails; only success statuses were
+  judged. Found by the `mcpsnoop` comparison.
 - **`interop/ts-client.mjs` waits for its standalone GET to be answered** before its
   next request. A recording that interleaved the two left `TRAN-040` unattributable,
   so it read *not observed* on some runs.
@@ -548,6 +554,13 @@ below is stated again in its entry, with the reasoning.
 - **"Recording an SDK's server"**, a book chapter of worked guides for the TypeScript
   and Python SDKs, whose commands are included from `interop/matrix.sh`, the script
   the scheduled job runs.
+- **A second calibration source: `mcpsnoop`.** `cargo xtask mcpsnoop` converts every
+  corpus trace into the capture format `mcpsnoop` writes and judges it with the pinned
+  `mcpsnoop check` 0.26.1; the conversion is held against `mcpsnoop`'s own recordings
+  of the same sessions on every measurement. Over 208 traces, `mcpsnoop` flagged none
+  this validator passed; 9 divergent traces are triaged in a book page
+  (`book/src/mcpsnoop.md`), gated offline by `mcpsnoop --check` in `cargo xtask
+  gates`, and re-measured by an informational scheduled job.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.

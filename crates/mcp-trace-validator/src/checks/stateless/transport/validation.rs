@@ -234,7 +234,7 @@ pub(in crate::checks) fn header_body_match_validated(
 /// `42.0` and `42` are considered equal)." A server that does so and serves
 /// `Mcp-Param-N: 42.0` against `n: 42` followed the specification's own advice,
 /// so the pair is not a mismatch it failed to reject.
-fn numerically_equal(mirror: &super::Mirror, sent: &str) -> bool {
+pub(super) fn numerically_equal(mirror: &super::Mirror, sent: &str) -> bool {
     mirror.integer && canonical_integer(sent).is_some_and(|sent| sent == mirror.value)
 }
 

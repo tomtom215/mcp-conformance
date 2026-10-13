@@ -24,16 +24,26 @@ use crate::context::TraceContext;
 const JSON: &str = "application/json";
 const EVENT_STREAM: &str = "text/event-stream";
 
-/// `TRAN-029` / `TRAN-063`: a request POST answered with a success status must
-/// carry `application/json` or `text/event-stream` — so a `202`, which has no
-/// body, does not answer a request. Error statuses are other clauses' subject.
+/// `TRAN-029` / `TRAN-063`: a request POST is answered with `application/json`
+/// or `text/event-stream` — so a `202`, which has no body, does not answer a
+/// request.
+///
+/// The clause names no status, and it binds an error status too once the
+/// answer *is* JSON-RPC: a `400` carrying `-32602` is still the request's one
+/// JSON object. Until 2026-10-13 only success statuses were judged, so a `500`
+/// framing a JSON-RPC error with no `Content-Type` passed; the calibration
+/// against mcpsnoop (`book/src/mcpsnoop.md`) found it. An error status with no
+/// JSON-RPC response after it — a bare `405`, a proxy's HTML page — is still
+/// left alone: what it refused may never have been read as a request, and the
+/// status clauses are its subject.
 pub(in crate::checks) fn request_success_content_type(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
     let framing = Framing::new(context);
     for exchange in framing.exchanges() {
-        if !is_success(exchange) || !exchange.carried_request() {
+        let answered = is_success(exchange) || exchange.framed_response;
+        if !answered || !exchange.carried_request() {
             continue;
         }
         sink.examined();

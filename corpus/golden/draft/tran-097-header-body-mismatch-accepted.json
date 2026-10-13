@@ -2,8 +2,8 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 50,
-    "fail": 3,
+    "pass": 49,
+    "fail": 4,
     "warn": 0,
     "excluded": 165,
     "unsupported": 0,
@@ -234,7 +234,19 @@
     {
       "id": "TRAN-079",
       "level": "MUST",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.x-mcp-header-value-mirrored",
+          "seq": 4,
+          "detail": "`Mcp-Param-Region` carries \"us-east1\", but `params.arguments.region` is \"us-west1\"; a mirrored header must carry the designated value"
+        }
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#custom-headers-from-tool-parameters",
+        "quote": "When a server's tool definition includes `x-mcp-header` annotations, conforming clients MUST mirror the designated parameter values into HTTP headers.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#custom-headers-from-tool-parameters"
+      }
     },
     {
       "id": "TRAN-080",

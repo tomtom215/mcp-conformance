@@ -41,7 +41,8 @@
         "quote": "When a server's tool definition includes `x-mcp-header` annotations, conforming clients MUST mirror the designated parameter values into HTTP headers."
       },
       "checks": [
-        "transport.x-mcp-header-mirrored"
+        "transport.x-mcp-header-mirrored",
+        "transport.x-mcp-header-value-mirrored"
       ]
     },
     {

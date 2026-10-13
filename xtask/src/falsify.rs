@@ -173,6 +173,15 @@ const FALSIFIERS: &[Falsifier] = &[
         ),
         expect: "sdk-matrix.md has drifted",
     },
+    // The generated divergence table, hand-edited: a verdict changed on the
+    // page without the triage that would render it.
+    Falsifier {
+        gate: "mcpsnoop --check",
+        runner: Runner::Xtask,
+        file: "book/src/mcpsnoop.md",
+        edit: Edit::Replace("| granularity | both |", "| granularity | ours |"),
+        expect: "book/src/mcpsnoop.md",
+    },
     // Last of the gates: the registry is compiled into xtask, so this one
     // rebuilds it, and restoring the file rebuilds it again on the next run.
     Falsifier {

@@ -5,7 +5,7 @@
 //! encoding rules reach, and which defect each of the three encoding checks
 //! claims.
 
-use crate::checks::stateless::testkit::{META, client, findings_for, post, trace};
+use crate::checks::stateless::testkit::{META, client, findings_for, post, server, trace};
 
 /// A `resources/read` POST carrying `headers`, whose `params.uri` is `uri`.
 fn read(headers: &str, uri: &str) -> String {
@@ -118,4 +118,68 @@ fn notification_posts_are_outside_every_header_clause() {
     ] {
         assert!(findings_for(check, &document).is_empty(), "{check}");
     }
+}
+
+/// A `tools/list` designating `region` (string) and `limit` (integer), then a
+/// `tools/call` carrying `headers` against `arguments`.
+fn call(headers: &str, arguments: &str) -> String {
+    trace(&[
+        client(
+            0,
+            &format!(r#"{{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{{{META}}}}}"#),
+        ),
+        server(
+            1,
+            r#"{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete","tools":[{"name":"q","inputSchema":{"type":"object","properties":{"region":{"type":"string","x-mcp-header":"Region"},"limit":{"type":"integer","x-mcp-header":"Limit"}}}}]}}"#,
+        ),
+        post(2, headers),
+        client(
+            3,
+            &format!(
+                r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"q","arguments":{arguments},{META}}}}}"#
+            ),
+        ),
+    ])
+}
+
+#[test]
+fn a_mirrored_header_must_carry_the_designated_value() {
+    let check = "transport.x-mcp-header-value-mirrored";
+    let base = r#""mcp-method":"tools/call","mcp-name":"q""#;
+    let judge = |headers: &str, arguments: &str| {
+        findings_for(check, &call(&format!("{{{base},{headers}}}"), arguments)).len()
+    };
+    // The value carried, plainly, Base64-encoded, or as the same integer.
+    assert_eq!(judge(r#""mcp-param-region":"eu""#, r#"{"region":"eu"}"#), 0);
+    assert_eq!(
+        judge(
+            r#""mcp-param-region":"=?base64?ZXU=?=""#,
+            r#"{"region":"eu"}"#
+        ),
+        0
+    );
+    assert_eq!(judge(r#""mcp-param-limit":"42.0""#, r#"{"limit":42}"#), 0);
+    // Another value, or another number: not a mirror.
+    assert_eq!(judge(r#""mcp-param-region":"us""#, r#"{"region":"eu"}"#), 1);
+    assert_eq!(judge(r#""mcp-param-limit":"41""#, r#"{"limit":42}"#), 1);
+    // Absence is the presence check's finding, and miscased markers TRAN-089's.
+    assert_eq!(judge(r#""x-other":"1""#, r#"{"region":"eu"}"#), 0);
+    assert_eq!(
+        judge(
+            r#""mcp-param-region":"=?BASE64?ZXU=?=""#,
+            r#"{"region":"eu"}"#
+        ),
+        0
+    );
+    // Without the tool list there is no designation to hold the header to.
+    let undesignated = trace(&[
+        post(0, &format!(r#"{{{base},"mcp-param-region":"us"}}"#)),
+        client(
+            1,
+            &format!(
+                r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"q","arguments":{{"region":"eu"}},{META}}}}}"#
+            ),
+        ),
+    ]);
+    assert_eq!(findings_for(check, &undesignated), Vec::<String>::new());
 }

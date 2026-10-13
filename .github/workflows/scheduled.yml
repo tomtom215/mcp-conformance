@@ -5,8 +5,9 @@
 # runs (mutants.yml) deliberately skip, fuzzing, a cargo-careful UB/overflow run
 # over the engine crates, a cross-architecture (s390x/powerpc/i686) byte-identity
 # check, a minimal-versions dependency-floor check, benchmarks, the cross-SDK
-# matrix (each official SDK's conformance server re-recorded and compared), and the
-# claims-expiry gates. Manually dispatchable for on-demand runs.
+# matrix (each official SDK's conformance server re-recorded and compared), an
+# informational mcpsnoop calibration run, and the claims-expiry gates. Manually
+# dispatchable for on-demand runs.
 
 name: Scheduled
 
@@ -213,6 +214,55 @@ jobs:
           path: interop/out-matrix/
           if-no-files-found: warn
           retention-days: 30
+
+  # The second calibration source (book/src/mcpsnoop.md, roadmap item 3.3):
+  # re-measure the whole corpus with the pinned mcpsnoop and compare with the
+  # committed results. Informational by design — an external binary never
+  # gates this project's builds; the committed table is gated offline by
+  # `cargo xtask mcpsnoop --check` in `cargo xtask gates`. The binary comes
+  # from the npm registry tarball (no install script exists to run, and none
+  # is run: `npm pack` only downloads), verified against the registry's
+  # integrity and the binary's own SHA-256 before it executes. Bumping the pin
+  # means changing VERSION, both digests and `PINNED` in xtask/src/mcpsnoop.rs
+  # together, then re-measuring and re-triaging.
+  mcpsnoop:
+    name: mcpsnoop calibration (informational)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Fetch mcpsnoop 0.26.1 (linux-x64) and verify it
+        env:
+          VERSION: "0.26.1"
+          INTEGRITY: "sha512-mNsXyDgs4vznFP6BQz9oxAJYLEo+I2YC2F9vDICd5Z4FSUPTjHWT/A6HW+i6/FvyUu0Ymf3HnMc2zM9X2xZQ2Q=="
+          BINARY_SHA256: "81c3636fa5a371833ab4558d6ac417d9d94a86f99949e0cff32bb09ccf69c2a9"
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/mcpsnoop"
+          mkdir -p "$dir"
+          cd "$dir"
+          npm pack "@mcpsnoop/linux-x64@${VERSION}" --json > pack.json
+          file="$(jq -r '.[0].filename' pack.json)"
+          actual="sha512-$(openssl dgst -sha512 -binary "$file" | base64 -w0)"
+          if [ "$actual" != "$INTEGRITY" ]; then
+            echo "::error::$file has integrity $actual, expected $INTEGRITY"
+            exit 1
+          fi
+          tar -xzf "$file"
+          echo "${BINARY_SHA256}  package/bin/mcpsnoop" | sha256sum -c -
+          echo "MCPSNOOP=$dir/package/bin/mcpsnoop" >> "$GITHUB_ENV"
+      - name: Re-measure the corpus against the committed results
+        run: |
+          cargo xtask mcpsnoop
+          git diff --exit-code -- conformance/mcpsnoop book/src/mcpsnoop.md
 
   fuzz:
     name: Fuzz (every declared target)
