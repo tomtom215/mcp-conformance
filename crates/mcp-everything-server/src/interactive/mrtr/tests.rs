@@ -111,6 +111,8 @@ fn an_elicitation_ask_becomes_an_elicitation_input_request() {
 }
 
 #[test]
+// SEP-2577 deprecates Sampling; both revisions still define it.
+#[allow(deprecated)]
 fn a_sampling_ask_becomes_a_create_message_input_request() {
     let ask = Ask::Sample(CreateMessageRequestParams::new(
         vec![rmcp::model::SamplingMessage::user_text("hi")],

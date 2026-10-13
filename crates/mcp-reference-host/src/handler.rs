@@ -16,17 +16,19 @@
 // SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
 // functional and REQUIRED on the `2025-11-25` surface this crate implements
 // and the official suite exercises, so rmcp 3.x's deprecation attributes fire
-// on correct code — here, Sampling and Roots. Scoped to this module, never the crate:
-// a blanket allow would also hide a deprecation that genuinely matters. The
-// honest cost is that a *different* future deprecation in this module would
-// be silenced too. Retires when the `2025-11-25` surface does.
-#![allow(deprecated)]
+// on correct code. Each use is allowed on the item or statement that makes it,
+// never the module or the crate, so a *different* future deprecation still
+// warns everywhere else. They retire when the `2025-11-25` surface does.
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use rmcp::model::{
-    ClientCapabilities, ClientConfig, CreateMessageRequestParams, CreateMessageResult,
-    ElicitRequestParams, ElicitResult, ElicitationAction, ListRootsResult, SamplingMessage,
+    ClientCapabilities, ClientConfig, ElicitRequestParams, ElicitResult, ElicitationAction,
+};
+// SEP-2577 deprecates Sampling and Roots; `2025-11-25` still requires them.
+#[allow(deprecated)]
+use rmcp::model::{
+    CreateMessageRequestParams, CreateMessageResult, ListRootsResult, SamplingMessage,
 };
 use rmcp::service::{NotificationContext, RequestContext, RoleClient};
 
@@ -171,6 +173,8 @@ fn note_completion(pending: &mut BTreeSet<String>, elicitation_id: &str) -> Host
 }
 
 impl rmcp::ClientHandler for HostHandler {
+    // SEP-2577 deprecates Sampling and Roots; `2025-11-25` still requires them.
+    #[allow(deprecated)]
     fn get_info(&self) -> ClientConfig {
         let mut info = ClientConfig::default();
         // Named, not defaulted: since rmcp 3.5.0 the default is
@@ -197,6 +201,8 @@ impl rmcp::ClientHandler for HostHandler {
         info
     }
 
+    // SEP-2577 deprecates Sampling; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     async fn create_message(
         &self,
         _params: CreateMessageRequestParams,
@@ -225,6 +231,8 @@ impl rmcp::ClientHandler for HostHandler {
         Ok(result)
     }
 
+    // SEP-2577 deprecates Roots; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     async fn list_roots(
         &self,
         _context: RequestContext<RoleClient>,
