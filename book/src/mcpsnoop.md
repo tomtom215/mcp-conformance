@@ -6,7 +6,7 @@
 
 # A second opinion: mcpsnoop
 
-[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 223 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
+[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 268 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
 
 ## How the comparison is made
 
@@ -25,29 +25,29 @@ The binary inside, `package/bin/mcpsnoop`, has SHA-256 `81c3636fa5a371833ab4558d
 
 | Corpus directory | Traces |
 |---|---:|
-| `corpus/good/` | 5 |
-| `corpus/violations/` | 64 |
-| `corpus/draft/good/` | 23 |
-| `corpus/draft/violations/` | 123 |
+| `corpus/good/` | 6 |
+| `corpus/violations/` | 88 |
+| `corpus/draft/good/` | 24 |
+| `corpus/draft/violations/` | 142 |
 | `corpus/draft/captured/` | 8 |
 
 Verdicts, ours against mcpsnoop's conformance signals:
 
 | | mcpsnoop flags the trace | mcpsnoop does not |
 |---|---:|---:|
-| our verdict `fail` | 80 | 86 |
-| our verdict `pass` or `pass-with-warnings` | 2 | 55 |
+| our verdict `fail` | 81 | 122 |
+| our verdict `pass` or `pass-with-warnings` | 2 | 63 |
 
 Traces by how the two readings relate:
 
 | Relation | Traces |
 |---|---:|
-| both clean | 27 |
-| agree | 75 |
-| beyond mcpsnoop | 110 |
+| both clean | 29 |
+| agree | 76 |
+| beyond mcpsnoop | 152 |
 | **divergent** | 11 |
 
-mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 141 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
+mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 186 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
 
 ## Divergences
 
@@ -301,7 +301,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `input-required-empty` | `InputRequiredResult carries neither inputRequests nor requestState` | — | MRTR-011 | body | 1 | An `InputRequiredResult` with neither `inputRequests` nor `requestState`. |
 | `input-required-on-method` | `InputRequiredResult on *, which * allows only on` | — | MRTR-004 | body | 1 | An `InputRequiredResult` answering a method that may not return one. |
 | `input-request-method` | `inputRequests names *, and * allows only` | — | MRTR-006 | body | 1 | An `inputRequests` entry that is not an elicitation, sampling or roots request. |
-| `input-request-undeclared` | `inputRequests asks for * while the request declared no` | — | *BASE-034*, *MRTR-012*, *MRTR-013* | body | 2 | An `inputRequests` entry for a capability the request did not declare at all. A declared capability whose mode or sub-capability is missing (URL-mode elicitation, `sampling.tools`) is not compared. |
+| `input-request-undeclared` | `inputRequests asks for * while the request declared no` | — | *BASE-034*, *MRTR-012*, *MRTR-013* | body | 3 | An `inputRequests` entry for a capability the request did not declare at all. A declared capability whose mode or sub-capability is missing (URL-mode elicitation, `sampling.tools`) is not compared. |
 | `request-state-changed` | `MRTR retry changed requestState` | — | MRTR-016, MRTR-003, MRTR-017 | body | 2 | A retry echoing a `requestState` other than the one the server sent. |
 | `request-state-missing` | `MRTR retry is missing requestState` | — | MRTR-016 | body | 0 | A retry leaving out the `requestState` the server sent. Template read from the binary; no corpus trace exercises it. |
 | `request-state-invented` | `MRTR retry invented requestState` | — | MRTR-018 | body | 1 | A retry carrying a `requestState` the server never sent. |
@@ -321,6 +321,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 |---|---|---|---|---|---|---|---|
 | `good/http-origin-refused-without-id` | 2025-11-25 | pass | — | flags | `response-unmatched` | — | **divergent** |
 | `good/http-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
+| `good/stdio-client-features` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-feature-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-full-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-minimal-init` | 2025-11-25 | pass | — | silent | — | — | both clean |
@@ -339,6 +340,17 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/base-019-meta-key-bad-prefix` | 2025-11-25 | fail | `BASE-019`, `BASE-020` | silent | — | — | beyond mcpsnoop |
 | `violations/base-086-input-schema-draft-07` | 2025-11-25 | pass-with-warnings | `BASE-086` | silent | — | — | beyond mcpsnoop |
 | `violations/comp-001-capability-undeclared` | 2025-11-25 | fail | `COMP-001`, `LIFE-009` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-004-answered-without-capability` | 2025-11-25 | fail | `ELIC-004`, `ELIC-006`, `LIFE-009` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-006-url-mode-undeclared` | 2025-11-25 | fail | `ELIC-006`, `LIFE-009` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-007-request-without-message` | 2025-11-25 | fail | `ELIC-007`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-009-form-without-schema` | 2025-11-25 | fail | `ELIC-009`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-011-url-without-elicitation-id` | 2025-11-25 | fail | `ELIC-011`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-012-url-without-scheme` | 2025-11-25 | fail | `ELIC-012` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-014-complete-names-unknown-id` | 2025-11-25 | fail | `ELIC-014` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-018-url-required-error-without-list` | 2025-11-25 | fail | `ELIC-018`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-019-url-required-error-form-mode` | 2025-11-25 | fail | `ELIC-019`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-021-undeclared-mode-accepted` | 2025-11-25 | fail | `ELIC-006`, `ELIC-021`, `LIFE-009` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-049-accepted-content-violates-schema` | 2025-11-25 | pass-with-warnings | `ELIC-049` | silent | — | — | beyond mcpsnoop |
 | `violations/life-001-first-message-not-initialize` | 2025-11-25 | fail | `LIFE-001`, `LIFE-004` | silent | — | — | beyond mcpsnoop |
 | `violations/life-002-initialize-missing-protocolversion` | 2025-11-25 | fail | `LIFE-002`, `LIFE-007`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/life-003-missing-initialized` | 2025-11-25 | fail | `LIFE-003` | silent | — | — | beyond mcpsnoop |
@@ -359,6 +371,19 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/res-001-capability-undeclared` | 2025-11-25 | fail | `LIFE-009`, `RES-001` | silent | — | — | beyond mcpsnoop |
 | `violations/res-004-uri-bad-scheme` | 2025-11-25 | fail | `RES-004` | silent | — | — | beyond mcpsnoop |
 | `violations/res-006-blob-not-base64` | 2025-11-25 | fail | `RES-006` | silent | — | — | beyond mcpsnoop |
+| `violations/root-001-answered-without-capability` | 2025-11-25 | fail | `LIFE-009`, `ROOT-001`, `ROOT-004`, `ROOT-009` | silent | — | — | beyond mcpsnoop |
+| `violations/root-003-root-not-file-uri` | 2025-11-25 | fail | `ROOT-003` | silent | — | — | beyond mcpsnoop |
+| `violations/root-004-unsupported-answered-internal-error` | 2025-11-25 | fail | `LIFE-009`, `ROOT-004`, `ROOT-009` | silent | — | — | beyond mcpsnoop |
+| `violations/root-009-asked-without-capability` | 2025-11-25 | fail | `LIFE-009`, `ROOT-009` | silent | — | — | beyond mcpsnoop |
+| `violations/samp-004-tools-without-sampling-tools` | 2025-11-25 | fail | `LIFE-009`, `SAMP-004` | silent | — | — | beyond mcpsnoop |
+| `violations/samp-005-answered-without-capability` | 2025-11-25 | fail | `LIFE-009`, `SAMP-005` | silent | — | — | beyond mcpsnoop |
+| `violations/samp-006-include-context-deprecated` | 2025-11-25 | pass-with-warnings | `SAMP-006` | silent | — | — | beyond mcpsnoop |
+| `violations/samp-007-include-context-undeclared` | 2025-11-25 | pass-with-warnings | `SAMP-006`, `SAMP-007` | silent | — | — | beyond mcpsnoop |
+| `violations/samp-008-tool-results-mixed` | 2025-11-25 | fail | `SAMP-008`, `SAMP-009`, `SAMP-019` | silent | — | — | beyond mcpsnoop |
+| `violations/samp-009-tool-use-unanswered` | 2025-11-25 | fail | `SAMP-009`, `SAMP-019` | silent | — | — | beyond mcpsnoop |
+| `violations/samp-010-required-tool-choice-ignored` | 2025-11-25 | fail | `SAMP-010` | silent | — | — | beyond mcpsnoop |
+| `violations/samp-011-none-tool-choice-ignored` | 2025-11-25 | fail | `SAMP-011` | silent | — | — | beyond mcpsnoop |
+| `violations/samp-012-malformed-tool-messages-answered` | 2025-11-25 | fail | `SAMP-009`, `SAMP-012`, `SAMP-019` | silent | — | — | beyond mcpsnoop |
 | `violations/tool-001-capability-undeclared` | 2025-11-25 | fail | `LIFE-009`, `TOOL-001` | silent | — | — | beyond mcpsnoop |
 | `violations/tool-003-input-schema-null` | 2025-11-25 | fail | `BASE-017`, `TOOL-003`, `wire-schema` | flags | `input-schema-not-object` | — | agree |
 | `violations/tool-005-name-length` | 2025-11-25 | pass-with-warnings | `TOOL-005` | silent | — | — | beyond mcpsnoop |
@@ -389,6 +414,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/wire-schema-log-level-not-in-enum` | 2025-11-25 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/wire-schema-resource-missing-uri` | 2025-11-25 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/good/caching-ttl-written-as-float` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/good/client-features-mrtr` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-close-after-another-response` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-concurrent-posts` | 2026-07-28 | pass | — | silent | — | `method-name-header-missing`, `protocol-version-header-missing` | both clean |
 | `draft/good/http-dual-era-modern-request-first` | 2026-07-28 | pass | — | silent | — | — | both clean |
@@ -419,8 +445,8 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/base-031-reused-id-malformed-answered` | 2026-07-28 | fail | `BASE-030`, `BASE-031`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `request-meta-missing` | — | agree |
 | `draft/violations/base-032-invalid-params-not-http-400` | 2026-07-28 | fail | `BASE-030`, `BASE-032`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | silent | — | — | **divergent** |
 | `draft/violations/base-033-request-without-client-info` | 2026-07-28 | pass-with-warnings | `BASE-033` | silent | — | — | beyond mcpsnoop |
-| `draft/violations/base-034-input-request-for-undeclared-capability` | 2026-07-28 | fail | `BASE-034`, `MRTR-012`, `MRTR-013`, `wire-schema` | flags | `input-request-undeclared` | — | agree |
-| `draft/violations/base-034-input-request-for-undeclared-mode` | 2026-07-28 | fail | `BASE-034`, `MRTR-012`, `MRTR-013` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/base-034-input-request-for-undeclared-capability` | 2026-07-28 | fail | `BASE-034`, `ELIC-059`, `MRTR-012`, `MRTR-013`, `wire-schema` | flags | `input-request-undeclared` | — | agree |
+| `draft/violations/base-034-input-request-for-undeclared-mode` | 2026-07-28 | fail | `BASE-034`, `ELIC-059`, `MRTR-012`, `MRTR-013`, `SAMP-026` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-035-missing-capability-error-without-capabilities` | 2026-07-28 | fail | `BASE-035`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-036-missing-capability-not-http-400` | 2026-07-28 | fail | `BASE-035`, `BASE-036`, `TRAN-063`, `wire-schema` | flags | `response-content-type` | `method-name-header-missing`, `protocol-version-header-missing` | agree |
 | `draft/violations/base-037-result-without-server-info` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
@@ -446,22 +472,29 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/disc-001-server-discover-method-not-found` | 2026-07-28 | fail | `DISC-001`, `VERS-003` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/disc-002-dual-era-client-skips-probe` | 2026-07-28 | pass-with-warnings | `DISC-002`, `TRAN-128` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/disc-003-discover-result-without-server-info` | 2026-07-28 | pass-with-warnings | `BASE-037`, `DISC-003` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/elic-057-answered-without-capability` | 2026-07-28 | fail | `ELIC-057` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/elic-059-url-mode-undeclared` | 2026-07-28 | fail | `BASE-034`, `ELIC-059`, `MRTR-012`, `MRTR-013` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/elic-060-request-without-message` | 2026-07-28 | fail | `ELIC-060`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/elic-062-form-without-schema` | 2026-07-28 | fail | `ELIC-062`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/elic-064-url-mode-without-url` | 2026-07-28 | fail | `ELIC-064`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/elic-065-url-not-a-valid-url` | 2026-07-28 | fail | `ELIC-065` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/elic-095-accepted-content-violates-schema` | 2026-07-28 | pass-with-warnings | `ELIC-095` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/log-007-logging-undeclared` | 2026-07-28 | fail | `LOG-007`, `TOOL-019`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/log-008-log-for-request-without-level` | 2026-07-28 | fail | `LOG-008` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/log-008-log-without-requested-level` | 2026-07-28 | fail | `LOG-008`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/log-009-log-on-subscription-stream` | 2026-07-28 | fail | `LOG-009`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/log-009-log-with-no-request-in-flight` | 2026-07-28 | fail | `LOG-009` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/log-010-unrecognized-log-level-accepted` | 2026-07-28 | fail | `LOG-010`, `wire-schema` | silent | — | — | beyond mcpsnoop |
-| `draft/violations/mrtr-004-input-required-on-unsupported-method` | 2026-07-28 | fail | `MRTR-004`, `wire-schema` | flags | `input-required-on-method` | — | agree |
+| `draft/violations/mrtr-004-input-required-on-unsupported-method` | 2026-07-28 | fail | `MRTR-004` | flags | `input-required-on-method` | — | agree |
 | `draft/violations/mrtr-006-input-request-unknown-method` | 2026-07-28 | fail | `MRTR-006`, `wire-schema` | flags | `input-request-method` | — | agree |
 | `draft/violations/mrtr-011-input-required-empty` | 2026-07-28 | fail | `MRTR-011` | flags | `input-required-empty` | — | agree |
-| `draft/violations/mrtr-015-retry-without-input-responses` | 2026-07-28 | fail | `MRTR-015`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/mrtr-015-retry-without-input-responses` | 2026-07-28 | fail | `MRTR-015` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/mrtr-016-parallel-retry-alters-state` | 2026-07-28 | fail | `MRTR-003`, `MRTR-016`, `MRTR-017` | flags | `request-state-changed` | — | agree |
-| `draft/violations/mrtr-016-request-state-not-echoed` | 2026-07-28 | fail | `MRTR-003`, `MRTR-016`, `MRTR-017`, `wire-schema` | flags | `request-state-changed` | — | agree |
-| `draft/violations/mrtr-018-unsolicited-request-state` | 2026-07-28 | fail | `MRTR-018`, `wire-schema` | flags | `request-state-invented` | — | agree |
+| `draft/violations/mrtr-016-request-state-not-echoed` | 2026-07-28 | fail | `MRTR-003`, `MRTR-016`, `MRTR-017` | flags | `request-state-changed` | — | agree |
+| `draft/violations/mrtr-018-unsolicited-request-state` | 2026-07-28 | fail | `MRTR-018` | flags | `request-state-invented` | — | agree |
 | `draft/violations/mrtr-019-retry-reuses-id` | 2026-07-28 | fail | `MRTR-019`, `TOOL-023` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/mrtr-020-request-state-on-another-method` | 2026-07-28 | fail | `MRTR-020` | silent | — | — | beyond mcpsnoop |
-| `draft/violations/mrtr-024-shortfall-answered-with-error` | 2026-07-28 | fail | `MRTR-015`, `MRTR-024`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/mrtr-024-shortfall-answered-with-error` | 2026-07-28 | fail | `MRTR-015`, `MRTR-024` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/prog-001-progress-token-not-integer` | 2026-07-28 | fail | `PROG-001`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/prog-002-progress-token-reused-in-flight` | 2026-07-28 | fail | `PROG-002` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/prog-003-progress-value-decreases` | 2026-07-28 | fail | `PROG-003` | flags | `progress-not-increasing` | — | agree |
@@ -471,6 +504,18 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/res-012-resources-undeclared` | 2026-07-28 | fail | `RES-012` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/res-013-declared-resources-list-unimplemented` | 2026-07-28 | fail | `RES-013` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/res-022-read-empty-contents` | 2026-07-28 | fail | `RES-022` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/root-013-answered-without-capability` | 2026-07-28 | fail | `ROOT-013` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/root-014-root-not-file-uri` | 2026-07-28 | fail | `ROOT-014` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/root-018-asked-without-capability` | 2026-07-28 | fail | `BASE-034`, `MRTR-012`, `MRTR-013`, `ROOT-018` | flags | `input-request-undeclared` | — | agree |
+| `draft/violations/samp-026-tools-without-sampling-tools` | 2026-07-28 | fail | `BASE-034`, `MRTR-012`, `MRTR-013`, `SAMP-026` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/samp-027-answered-without-capability` | 2026-07-28 | fail | `SAMP-027` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/samp-028-include-context-deprecated` | 2026-07-28 | pass-with-warnings | `SAMP-028` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/samp-029-include-context-undeclared` | 2026-07-28 | pass-with-warnings | `SAMP-028`, `SAMP-029` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/samp-030-tool-results-mixed` | 2026-07-28 | fail | `SAMP-030`, `SAMP-031`, `SAMP-042` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/samp-031-tool-use-unanswered` | 2026-07-28 | fail | `SAMP-031`, `SAMP-042` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/samp-032-required-tool-choice-ignored` | 2026-07-28 | fail | `SAMP-032` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/samp-033-none-tool-choice-ignored` | 2026-07-28 | fail | `SAMP-033` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/samp-034-message-without-role` | 2026-07-28 | fail | `SAMP-034`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/subs-001-cancelled-for-another-request` | 2026-07-28 | fail | `CANC-003`, `CANC-011`, `SUBS-001` | flags | `server-cancellation` | — | agree |
 | `draft/violations/subs-001-unrequested-notification-type` | 2026-07-28 | fail | `SUBS-001`, `wire-schema` | flags | `subscription-unrequested` | — | agree |
 | `draft/violations/subs-002-notification-before-acknowledgment` | 2026-07-28 | fail | `SUBS-002`, `wire-schema` | flags | `subscription-before-ack` | — | agree |
@@ -488,7 +533,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/tran-060-client-posts-a-response` | 2026-07-28 | fail | `BASE-046`, `CACH-001`, `TRAN-060`, `TRAN-119`, `wire-schema` | flags | `cacheable-without-ttl`, `client-sent-response`, `response-unmatched` | — | agree |
 | `draft/violations/tran-061-notification-answered-200` | 2026-07-28 | fail | `TRAN-061` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-063-error-without-content-type` | 2026-07-28 | fail | `TRAN-063` | flags | `response-content-type` | — | agree |
-| `draft/violations/tran-066-independent-server-request` | 2026-07-28 | fail | `BASE-084`, `MRTR-001`, `TRAN-066`, `TRAN-120`, `wire-schema` | flags | `server-sent-request` | — | agree |
+| `draft/violations/tran-066-independent-server-request` | 2026-07-28 | fail | `BASE-084`, `MRTR-001`, `TRAN-066`, `TRAN-120` | flags | `server-sent-request` | — | agree |
 | `draft/violations/tran-068-sse-media-type-mixed-case` | 2026-07-28 | pass-with-warnings | `TRAN-068` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-068-sse-without-accel-buffering` | 2026-07-28 | pass-with-warnings | `TRAN-068` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-070-message-after-stream-close` | 2026-07-28 | fail | `TRAN-070` | silent | — | — | beyond mcpsnoop |
@@ -537,8 +582,8 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/captured/official-suite-2026-07-28-scenarios` | 2026-07-28 | fail | `BASE-037`, `CACH-001`, `wire-schema` | flags | `cacheable-without-ttl` | — | agree |
 | `draft/captured/official-suite-2026-07-28-stateless` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
 | `draft/captured/probe-2026-07-28-http` | 2026-07-28 | fail | `BASE-030`, `BASE-033`, `BASE-037`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `TRAN-071`, `TRAN-072`, `TRAN-079`, `TRAN-130`, `wire-schema` | flags | `param-header-missing`, `protocol-version-header-disagrees`, `request-meta-missing`, `server-rejected-header-mismatch` | — | agree |
-| `draft/captured/reference-host-2026-07-28-http` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
-| `draft/captured/reference-host-2026-07-28-stdio` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
-| `draft/captured/sdk-go-2026-07-28` | 2026-07-28 | fail | `BASE-034`, `MRTR-012`, `MRTR-013`, `TRAN-068` | flags | `input-request-undeclared` | — | agree |
+| `draft/captured/reference-host-2026-07-28-http` | 2026-07-28 | pass-with-warnings | `BASE-037`, `ELIC-095` | silent | — | — | beyond mcpsnoop |
+| `draft/captured/reference-host-2026-07-28-stdio` | 2026-07-28 | pass-with-warnings | `BASE-037`, `ELIC-095` | silent | — | — | beyond mcpsnoop |
+| `draft/captured/sdk-go-2026-07-28` | 2026-07-28 | fail | `BASE-034`, `ELIC-059`, `MRTR-012`, `MRTR-013`, `TRAN-068` | flags | `input-request-undeclared` | — | agree |
 | `draft/captured/sdk-python-2026-07-28` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/captured/sdk-rust-2026-07-28` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
