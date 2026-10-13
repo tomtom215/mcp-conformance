@@ -61,6 +61,14 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **The everything server's tap sequences each request when it observes it**, not
+  after the service answers. Two overlapping requests on a session were written in
+  the order of their answers, and a notification a request caused could precede the
+  request itself. A request naming no session reserves its place in the `stateless`
+  trace until its response says whether it opened a session.
+- **A request naming an `Mcp-Session-Id` the server never assigned** (answered 404)
+  no longer opens a trace file named after the client's header; every such exchange
+  is recorded in the run's one `unassigned` trace.
 - **The register-currency and deferral gates accepted dates no calendar has.**
   They checked a day of 1–31 whatever the month, so a `Verified` or review-by date
   of `2026-02-30` passed (found by `falsify-gates`), and a sign was read as a digit
@@ -597,6 +605,10 @@ below is stated again in its entry, with the reasoning.
 
 ### Changed
 
+- **Deprecation allows are narrowed to what uses them.** `mcp-everything-server` and
+  `mcp-reference-host` allow rmcp's SEP-2577 deprecations (Roots, Sampling, Logging,
+  which `2025-11-25` still requires) only on the items and statements that use them,
+  instead of module-wide.
 - **Each crate's crates.io page links its docs.rs documentation**
   (`documentation` in every manifest).
 - **Table-row quotes have a documented form.** `SourceRef::quote` now states how a

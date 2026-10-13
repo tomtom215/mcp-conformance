@@ -434,7 +434,7 @@ D1, D3, D4, D6, 0.1, 0.3–0.7, 1.1–1.3, 1.5, 2.1, 4.4, M6, M8, M10.
 | D5 — prose-claim gates | Decided: kept (owner, 2026-10-13) | — |
 | 0.2 / H4 — scheduled workflow green | Partial | Every cause fixed in the tree; issue #50 closes on the next green scheduled run |
 | 1.4 — distribution | Partial (publication pending) | Container image (Dockerfile; built and run in CI; pushed to GHCR with provenance by `release.yml` on the next tag; linux/amd64 only) and the Action's `capture` input (stdio and HTTP, exercised in CI). Not yet observed: a first GHCR publish and the package's visibility. The image job runs beside the crates.io publish, not after it, so a release that fails later can leave an image published |
-| 1.6 / M7 — everything-server tap | Partial | `seq` assigned after the response; a request naming a session the server never assigned still opens a file of its own. Per-session state is kept for the run by design (releasing it on `DELETE` would split a session whose stream records after it) |
+| 1.6 / M7 — everything-server tap | **Done** | — `seq` is observation order; requests naming a session the server never assigned share one `unassigned` trace per run; per-session state is kept for the run by design (releasing it on `DELETE` would split a session whose stream records after it) |
 | 1.7 / 3.2 — other SDKs | Partial | TypeScript and Python run through capture in CI (`interop/`); no committed corpus from them, no Go or Rust, no matrix page |
 | 2.2 / M2 — census | Partial | The census counts MUST-family keywords only; no SHOULD or `REQUIRED` census |
 | 2.3 / M1 — disputed exclusions | Partial | TRAN-027/061/081/082 now judged; TRAN-020, TRAN-083/084, TOOL-035, BASE-033/037, DISC-003 still excluded without a corpus pair settling them |
@@ -448,7 +448,7 @@ D1, D3, D4, D6, 0.1, 0.3–0.7, 1.1–1.3, 1.5, 2.1, 4.4, M6, M8, M10.
 | 3.4 — a2a-rust ports | **Done** | Per-PR semver checks, per-crate SBOMs, PR fuzzing, generated requirement pages, a coverage floor (95% of lines; 96.40% measured) and `cargo xtask falsify-gates` (every offline gate and the golden corpus) all run in CI |
 | 4.1–4.3 — upstream | Owner | Close #9; file the clause-level-rows proposal and the two small upstream PRs |
 | Phase 5 — proportionality | Partial | Roadmap condensed; CHANGELOG still carries audit narrative; merged branches not deleted |
-| Low — `#[allow]` attributes | Open | Module-wide `#![allow(deprecated)]` in the server and host, for rmcp's deprecated `2025-11-25` surface |
+| Low — `#[allow]` attributes | **Done** | — `#[allow(deprecated)]` sits on the item or statement using SEP-2577's Roots, Sampling or Logging; no module-wide allow remains |
 
 ## The workbench
 
