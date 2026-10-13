@@ -635,6 +635,18 @@ below is stated again in its entry, with the reasoning.
   `BASE-033`, `BASE-037` and `DISC-003` (`clientInfo` on requests, `serverInfo` on
   results, as warnings). Every rmcp-served capture now warns on `BASE-037`; the Go and
   Python SDK servers pass it.
+- **`mcp-conformance watch stdio|http`** records a session exactly as
+  `mcp-trace-capture` does and judges it while it runs: each new fail or warn finding
+  prints on stderr as the exchange that shows it completes (clause ID, level, `seq`,
+  detail, the quoted clause), with a running tally and the validator's report at the
+  end. Judging runs off the forwarding path and never delays traffic.
+- **`watch --otlp <url>`** exports one span per exchange over OTLP/HTTP JSON under the
+  OpenTelemetry MCP semantic conventions (Development stability), each finding a
+  `mcp_conformance.finding` span event, through a bounded queue: a collector that is
+  down is counted and does not affect the session. No new dependencies.
+- **`mcp-trace-capture` library:** `run::stdio`/`run::http`, `output`, `run::values`,
+  the `Observer` trait, `http::client` and a public `output::EXIT_INCOMPLETE`;
+  **`mcp-trace-validator`:** `report::printable` is public.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.

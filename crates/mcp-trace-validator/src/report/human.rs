@@ -247,7 +247,7 @@ impl HumanOptions {
 /// recording is untrusted input: an `ESC` sequence in a method name reached
 /// the terminal or the CI log raw, where it can rewrite what the reader sees.
 /// Machine formats are unaffected; JSON escapes these itself.
-fn printable(text: &str) -> std::borrow::Cow<'_, str> {
+pub fn printable(text: &str) -> std::borrow::Cow<'_, str> {
     if !text.chars().any(char::is_control) {
         return std::borrow::Cow::Borrowed(text);
     }

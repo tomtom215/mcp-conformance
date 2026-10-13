@@ -17,7 +17,7 @@
 
 use std::collections::BTreeSet;
 use std::io::{self, Write};
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use mcp_conformance_core::trace::{
     DEFAULT_MAX_LINE_BYTES, Direction, EventBody, LifecycleEvent, TraceEvent, TransportKind,
@@ -28,6 +28,23 @@ use mcp_conformance_core::trace::{
 pub struct Recorder {
     inner: Mutex<Inner>,
     max_line: usize,
+    observer: Option<(Arc<dyn Observer>, u64)>,
+}
+
+/// Sees every event a [`Recorder`] writes, as it writes it — how
+/// `mcp-conformance watch` judges a session while it runs.
+///
+/// [`Observer::observe`] is called with the recorder's lock held, after the
+/// event's line reached the sink and before the bytes the event completes are
+/// forwarded, so its calls arrive in `seq` order. The session waits for it:
+/// an implementation must return at once — copy the line onto a channel, never
+/// judge, write or block in it. The tap never waits on its observers
+/// (ADR-0019, ADR-0021).
+pub trait Observer: Send + Sync + std::fmt::Debug {
+    /// `line` is the event as written, without its newline; `trace` is the
+    /// number given to [`Recorder::observed`] (a session's number when each
+    /// session has its own trace).
+    fn observe(&self, trace: u64, line: &[u8]);
 }
 
 /// Why [`Recorder::record`] wrote nothing.
@@ -157,7 +174,16 @@ impl Recorder {
                 messages: 0,
             }),
             max_line,
+            observer: None,
         }
+    }
+
+    /// This recorder, showing each event it writes to `observer` as trace
+    /// number `trace`.
+    #[must_use]
+    pub fn observed(mut self, observer: Arc<dyn Observer>, trace: u64) -> Self {
+        self.observer = Some((observer, trace));
+        self
     }
 
     /// Records one event and returns its `seq`.
@@ -256,8 +282,11 @@ impl Recorder {
         if line.as_ref().is_ok_and(|line| line.len() > self.max_line) {
             return Err(NotRecorded::TooLong);
         }
-        match line.and_then(|line| write_line(&mut inner.sink, line)) {
-            Ok(()) => {
+        match line.and_then(|mut line| write_line(&mut inner.sink, &mut line).map(|()| line)) {
+            Ok(line) => {
+                if let Some((observer, trace)) = &self.observer {
+                    observer.observe(*trace, &line[..line.len() - 1]);
+                }
                 inner.next_seq += 1;
                 inner.messages += u64::from(message);
                 Ok(seq)
@@ -294,9 +323,10 @@ impl Recorder {
     }
 }
 
-fn write_line(sink: &mut Box<dyn Write + Send>, mut line: Vec<u8>) -> io::Result<()> {
+/// Writes `line` and its newline, which it appends.
+fn write_line(sink: &mut Box<dyn Write + Send>, line: &mut Vec<u8>) -> io::Result<()> {
     line.push(b'\n');
-    sink.write_all(&line)?;
+    sink.write_all(line)?;
     sink.flush()
 }
 

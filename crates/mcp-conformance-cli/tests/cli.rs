@@ -54,6 +54,62 @@ fn help_names_the_subcommand_and_the_exit_codes() {
     }
 }
 
+/// `watch` takes `mcp-trace-capture`'s flags, by the same names, and its exit
+/// codes are the recorder's.
+#[test]
+fn watch_help_names_the_recorders_modes_and_flags() {
+    let output = binary().args(["watch", "--help"]).output().unwrap();
+    assert!(output.status.success());
+    let help = String::from_utf8_lossy(&output.stdout);
+    for needle in [
+        "stdio",
+        "http",
+        "--output",
+        "--force",
+        "--max-message-bytes",
+        "--otlp",
+        "mcp-trace-capture's",
+    ] {
+        assert!(help.contains(needle), "{needle}: {help}");
+    }
+    let output = binary().args(["watch", "http", "--help"]).output().unwrap();
+    let help = String::from_utf8_lossy(&output.stdout);
+    for needle in [
+        "--upstream",
+        "--listen",
+        "--preserve-host",
+        "127.0.0.1:8080",
+    ] {
+        assert!(help.contains(needle), "{needle}: {help}");
+    }
+    let empty = scratch("watch-bad-otlp");
+    let bad = binary()
+        .args([
+            "watch",
+            "--otlp",
+            "http://u:s3cret@c/",
+            "stdio",
+            "--",
+            "true",
+        ])
+        .current_dir(&empty)
+        .output()
+        .unwrap();
+    assert_eq!(
+        std::fs::read_dir(&empty).unwrap().count(),
+        0,
+        "refused before any trace is created"
+    );
+    std::fs::remove_dir_all(&empty).ok();
+    assert_eq!(bad.status.code(), Some(2));
+    assert!(!stderr(&bad).contains("s3cret"), "{}", stderr(&bad));
+    assert!(
+        stderr(&bad).contains("--otlp: the URL carries credentials"),
+        "{}",
+        stderr(&bad)
+    );
+}
+
 #[test]
 fn version_is_the_crate_version() {
     let output = binary().arg("--version").output().unwrap();
@@ -125,6 +181,10 @@ fn the_relay_refuses_to_run_outside_test() {
 #[path = "cli/offline.rs"]
 mod offline;
 
+#[cfg(unix)]
+#[path = "cli/watch.rs"]
+mod watch;
+
 /// Splits a documented command line as a shell would for the simple cases the
 /// documentation uses: whitespace, and double or single quotes.
 pub(crate) fn words(line: &str) -> Vec<String> {
@@ -157,7 +217,9 @@ pub(crate) fn words(line: &str) -> Vec<String> {
     words
 }
 
-/// Every `mcp-conformance …` line in `text`'s fenced `text` blocks.
+/// Every `mcp-conformance …` line in `text`'s fenced `text` blocks but the
+/// `watch` ones, which start a session rather than ask for Node; the binary's
+/// own `every_documented_watch_command_parses` holds those to the parser.
 pub(crate) fn documented_commands(text: &str) -> Vec<String> {
     let mut commands = Vec::new();
     let mut in_block = false;
@@ -166,7 +228,10 @@ pub(crate) fn documented_commands(text: &str) -> Vec<String> {
             in_block = line == "```text" && !in_block;
             continue;
         }
-        if in_block && line.starts_with("mcp-conformance ") {
+        if in_block
+            && line.starts_with("mcp-conformance ")
+            && !line.starts_with("mcp-conformance watch")
+        {
             commands.push(line.to_owned());
         }
     }

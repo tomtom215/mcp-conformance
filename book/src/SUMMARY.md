@@ -11,6 +11,7 @@
 - [Capturing from your client](clients.md)
 - [Recording an SDK's server](sdk-servers.md)
 - [Testing a server or client](testing.md)
+- [Watching a session live](watching.md)
 - [Reading a report](reading-a-report.md)
 - [Using it in CI](ci.md)
 - [Upgrading](upgrading.md)

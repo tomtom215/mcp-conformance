@@ -7,14 +7,23 @@
 //! clause-by-clause report of every session the suite drove
 //! ([ADR-0021](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0021-a-workbench-people-keep-open.md)).
 //!
-//! The binary is the product (`mcp-conformance test`; the crate README has the
-//! commands). This library is the small part it shares with the repository's
-//! own gate, `cargo xtask conformance`, so the two cannot drift:
+//! It also watches a session live (`mcp-conformance watch`): recorded as
+//! `mcp-trace-capture` records it, judged after each exchange, optionally
+//! exported as OpenTelemetry spans.
+//!
+//! The binary is the product (`mcp-conformance test` and `watch`; the crate
+//! README has the commands). This library is the small part it shares with the
+//! repository's own gate, `cargo xtask conformance`, so the two cannot drift,
+//! and the pure parts of `watch`, so they are tested and measured on their own:
 //!
 //! - [`suite`] — the suite's pinned version (the one place it is written), and
 //!   reading its per-scenario results back;
 //! - [`agreement`] — the policy that reconciles the validator's failures with
-//!   the suite's verdict against a baseline of explained divergences.
+//!   the suite's verdict against a baseline of explained divergences;
+//! - [`live`] — the incremental judge: a trace taken line by line, exchanges
+//!   paired, and only new findings reported;
+//! - [`otlp`] — exchanges and findings as OTLP/HTTP JSON spans under the
+//!   OpenTelemetry semantic conventions for MCP.
 //!
 //! With `default-features = false` it depends on the validator and the serde
 //! family only.
@@ -28,4 +37,6 @@
 pub struct ReadmeDoctests;
 
 pub mod agreement;
+pub mod live;
+pub mod otlp;
 pub mod suite;

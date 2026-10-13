@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# The OpenTelemetry Collector CI's `otlp` job runs (.github/workflows/ci.yml):
+# an OTLP/HTTP receiver, as `mcp-conformance watch --otlp` sends to, and a file
+# exporter whose output conformance/otlp/check.py reads back. Nothing else: no
+# gRPC, no processors, no other exporter.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  file:
+    path: /out/spans.jsonl
+
+service:
+  telemetry:
+    metrics:
+      level: none
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [file]

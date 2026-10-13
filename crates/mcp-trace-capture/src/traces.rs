@@ -43,7 +43,7 @@ use mcp_conformance_core::trace::{Direction, LifecycleEvent, TransportKind};
 
 use crate::framing::parse_json;
 use crate::numbered::Numbered;
-use crate::recorder::{Recorder, Summary};
+use crate::recorder::{Observer, Recorder, Summary};
 
 /// Routes proxied exchanges to traces, one per session or one for all.
 #[derive(Debug)]
@@ -51,6 +51,7 @@ pub struct Traces {
     output: Output,
     max_line: usize,
     state: Mutex<State>,
+    observer: Option<Arc<dyn Observer>>,
 }
 
 #[derive(Debug)]
@@ -129,7 +130,17 @@ impl Traces {
                 next_number: 1,
                 ..State::default()
             }),
+            observer: None,
         }
+    }
+
+    /// These traces, each session's recorder showing what it writes to
+    /// `observer` under the session's number. [`Traces::one`]'s recorder is
+    /// the caller's, observed (or not) as the caller made it.
+    #[must_use]
+    pub fn observed(mut self, observer: Arc<dyn Observer>) -> Self {
+        self.observer = Some(observer);
+        self
     }
 
     /// The session of a request carrying `session_id` (its `Mcp-Session-Id`)
@@ -262,10 +273,12 @@ impl Traces {
                         path.display()
                     );
                     let sink = Appender(path.clone());
-                    (
-                        Arc::new(Recorder::with_max_line(sink, self.max_line)),
-                        Some(path),
-                    )
+                    let recorder = Recorder::with_max_line(sink, self.max_line);
+                    let recorder = match &self.observer {
+                        Some(observer) => recorder.observed(Arc::clone(observer), number),
+                        None => recorder,
+                    };
+                    (Arc::new(recorder), Some(path))
                 }
                 // The recorder reports the failure on the session's first event,
                 // and `finish` reports the trace as incomplete.

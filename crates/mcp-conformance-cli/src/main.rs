@@ -2,9 +2,12 @@
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
 //! `mcp-conformance` — the official suite through a recording tap, and both
-//! verdicts on the same traffic.
+//! verdicts on the same traffic (`test`); a session judged as it runs
+//! (`watch`).
 //!
-//! Exit codes (stable interface, consistent with `mcp-trace-validator`'s):
+//! `watch` exits as `mcp-trace-capture` does (a stdio client relies on the
+//! server's exit code passing through). `test`'s exit codes (stable interface,
+//! consistent with `mcp-trace-validator`'s):
 //!
 //! | Code | Meaning |
 //! |------|---------|
@@ -29,6 +32,7 @@ mod proxy;
 mod relay;
 mod render;
 mod run;
+mod watch;
 
 const EXIT_OK: u8 = 0;
 const EXIT_FINDINGS: u8 = 1;
@@ -47,9 +51,14 @@ fn main() -> ExitCode {
         }
     };
     let code = match cli.command {
-        args::Command::Test(args) => runtime.block_on(run::test(*args)),
-        args::Command::ClientRelay { command } => runtime.block_on(relay::run(command)),
+        args::Command::Test(args) => ExitCode::from(runtime.block_on(run::test(*args))),
+        args::Command::Watch(args) => watch::main(&runtime, &args),
+        args::Command::ClientRelay { command } => {
+            ExitCode::from(runtime.block_on(relay::run(command)))
+        }
     };
+    // A client blocked on this process's stdin would otherwise hold the
+    // runtime open (`watch stdio`).
     runtime.shutdown_background();
-    ExitCode::from(code)
+    code
 }

@@ -38,7 +38,15 @@ cargo install mcp-trace-capture mcp-trace-validator
 >   sharing one trace until the server accepts one.
 > - in the library, `stdio::relay` (the stdio wrapper with the client on streams the
 >   caller supplies) and `Signals::requested` (stops a program asks for, not the
->   operating system) — what `mcp-conformance test` runs a stdio server with.
+>   operating system) — what `mcp-conformance test` runs a stdio server with;
+> - in the library, the whole run behind both modes (`run::stdio`, `run::http`, with
+>   `output` and the `--upstream`/`--listen` parsing in `run::values`), and an
+>   `Observer` that is shown each event's line as it is written — what
+>   `mcp-conformance watch` records and judges a session with. An observer is called
+>   in `seq` order, with the trace's lock held, before the bytes the event completes are
+>   forwarded, so it must return at once: `watch`'s copies the line onto a channel.
+>   `http::client` connects to an endpoint of the caller's own exactly as the proxy
+>   connects upstream (`watch --otlp`'s collector).
 
 ## stdio servers
 
