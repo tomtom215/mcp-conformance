@@ -30,6 +30,10 @@ use crate::workspace_root;
 enum Edit {
     /// Replace the first occurrence of `from` (which must be present) with `to`.
     Replace(&'static str, &'static str),
+    /// Add one to the first number after the first occurrence of the anchor
+    /// (which must be present). For generated counts: the anchor names the
+    /// place, so the falsifier does not go stale when the count moves.
+    BumpNumberAfter(&'static str),
     /// Append this many comment lines.
     AppendLines(&'static str, usize),
     /// Create a file that must not exist yet; it is removed afterwards.
@@ -149,28 +153,22 @@ const FALSIFIERS: &[Falsifier] = &[
         gate: "coverage --check",
         runner: Runner::Xtask,
         file: "README.md",
-        edit: Edit::Replace("| BASE | 59 | 28 | 31 | 0 |", "| BASE | 59 | 29 | 30 | 0 |"),
+        edit: Edit::BumpNumberAfter("| BASE | "),
         expect: "README",
     },
     Falsifier {
         gate: "draft-coverage --check",
         runner: Runner::Xtask,
-        file: "book/src/revisions.md",
-        edit: Edit::Replace(
-            "**125 of the 145 judgeable clauses**",
-            "**124 of the 145 judgeable clauses**",
-        ),
-        expect: "124",
+        file: "corpus/README.md",
+        edit: Edit::BumpNumberAfter("captures, **"),
+        expect: "corpus/README.md",
     },
     // A matrix row that no longer says what its committed report says.
     Falsifier {
         gate: "sdk-matrix --check",
         runner: Runner::Xtask,
         file: "book/src/sdk-matrix.md",
-        edit: Edit::Replace(
-            "| `2025-11-25` | pass | 39 | 0 | 0 | 18 |",
-            "| `2025-11-25` | pass | 40 | 0 | 0 | 18 |",
-        ),
+        edit: Edit::BumpNumberAfter("| `2025-11-25` | "),
         expect: "sdk-matrix.md has drifted",
     },
     // The generated divergence table, hand-edited: a verdict changed on the
@@ -261,6 +259,12 @@ fn apply(path: &Path, edit: &Edit) -> Result<Restore, String> {
             }
             text.replacen(from, to, 1)
         }
+        Edit::BumpNumberAfter(anchor) => bump_number_after(&text, anchor).ok_or_else(|| {
+            format!(
+                "{} no longer contains {anchor:?} followed by a number; the falsifier is stale",
+                path.display()
+            )
+        })?,
         Edit::AppendLines(line, count) => {
             let mut edited = text;
             for _ in 0..*count {
@@ -277,6 +281,22 @@ fn apply(path: &Path, edit: &Edit) -> Result<Restore, String> {
     };
     std::fs::write(path, edited).map_err(|error| error.to_string())?;
     Ok(restore)
+}
+
+/// `text` with one added to the first run of ASCII digits after `anchor`.
+fn bump_number_after(text: &str, anchor: &str) -> Option<String> {
+    let after = text.find(anchor)? + anchor.len();
+    let start = after + text[after..].find(|c: char| c.is_ascii_digit())?;
+    let len = text[start..]
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(text.len() - start);
+    let number: u64 = text[start..start + len].parse().ok()?;
+    Some(format!(
+        "{}{}{}",
+        &text[..start],
+        number + 1,
+        &text[start + len..]
+    ))
 }
 
 /// Runs the gate; its success and everything it printed.
@@ -404,6 +424,21 @@ pub(crate) fn run() -> bool {
 #[cfg(test)]
 mod tests {
     use super::FALSIFIERS;
+
+    /// The count-agnostic edit: the first number after the anchor, plus one.
+    #[test]
+    fn bump_number_after_increments_the_first_number_past_the_anchor() {
+        assert_eq!(
+            super::bump_number_after("| BASE | 59 | 28 |", "| BASE | ").as_deref(),
+            Some("| BASE | 60 | 28 |")
+        );
+        assert_eq!(
+            super::bump_number_after("all 8 captures, **137 of", "captures, **").as_deref(),
+            Some("all 8 captures, **138 of")
+        );
+        assert_eq!(super::bump_number_after("no digits", "no"), None);
+        assert_eq!(super::bump_number_after("x 1", "absent"), None);
+    }
 
     /// A gate added to `gates()` without a falsifier fails here, so the set
     /// shown able to fail is the set that runs.
