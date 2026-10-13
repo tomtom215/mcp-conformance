@@ -15,7 +15,7 @@
 use std::path::{Path, PathBuf};
 
 use mcp_conformance_core::requirement::RegistrySet;
-use mcp_trace_validator::report::{Outcome, Report};
+use mcp_trace_validator::report::{ClauseSource, Finding, Outcome, Report};
 use mcp_trace_validator::{declared, engine, reader, sarif};
 use serde_json::Value;
 
@@ -69,6 +69,42 @@ fn render(path: &Path) -> (Value, Vec<Report>, String) {
     (serde_json::from_str(&log).unwrap(), reports, text)
 }
 
+/// The results a log must hold, in order: each report's failing rows, then its
+/// failed wire schema, which SARIF carries as the rule `wire-schema`
+/// (`@revision` when two revisions judged it).
+fn expected_results(reports: &[Report]) -> Vec<(&str, Outcome, &ClauseSource, &Finding)> {
+    reports
+        .iter()
+        .flat_map(|report| {
+            let rows = report
+                .requirements
+                .iter()
+                .filter(|row| matches!(row.outcome, Outcome::Fail | Outcome::Warn))
+                .flat_map(|row| {
+                    row.findings.iter().map(move |finding| {
+                        (
+                            row.id.as_str(),
+                            row.outcome,
+                            row.source.as_ref().unwrap(),
+                            finding,
+                        )
+                    })
+                });
+            let schema = report
+                .wire_schema
+                .iter()
+                .filter(|schema| schema.outcome == Outcome::Fail)
+                .flat_map(|schema| {
+                    schema
+                        .findings
+                        .iter()
+                        .map(move |finding| ("wire-schema", Outcome::Fail, &schema.source, finding))
+                });
+            rows.chain(schema)
+        })
+        .collect()
+}
+
 #[test]
 fn every_finding_is_one_result_at_its_events_line_under_its_clause() {
     for path in violation_traces() {
@@ -76,23 +112,25 @@ fn every_finding_is_one_result_at_its_events_line_under_its_clause() {
         let run = &log["runs"][0];
         let results = run["results"].as_array().unwrap();
         let rules = run["tool"]["driver"]["rules"].as_array().unwrap();
-        let findings: Vec<_> = reports
-            .iter()
-            .flat_map(|report| &report.requirements)
-            .filter(|row| matches!(row.outcome, Outcome::Fail | Outcome::Warn))
-            .flat_map(|row| row.findings.iter().map(move |finding| (row, finding)))
-            .collect();
+        let findings = expected_results(&reports);
         assert_eq!(results.len(), findings.len(), "{}", path.display());
         let lines: Vec<&str> = text.lines().collect();
-        for (result, (row, finding)) in results.iter().zip(&findings) {
+        for (result, (id, outcome, source, finding)) in results.iter().zip(&findings) {
             let context = format!("{}: {result}", path.display());
-            assert_eq!(result["ruleId"], row.id.as_str(), "{context}");
+            let rule_id = result["ruleId"].as_str().unwrap();
+            assert!(
+                rule_id == *id
+                    || rule_id
+                        .strip_prefix(*id)
+                        .is_some_and(|rest| rest.starts_with('@')),
+                "{context}"
+            );
             assert_eq!(
                 result["message"]["text"],
                 finding.detail.as_str(),
                 "{context}"
             );
-            let expected_level = if row.outcome == Outcome::Fail {
+            let expected_level = if *outcome == Outcome::Fail {
                 "error"
             } else {
                 "warning"
@@ -100,7 +138,6 @@ fn every_finding_is_one_result_at_its_events_line_under_its_clause() {
             assert_eq!(result["level"], expected_level, "{context}");
             let rule = &rules[usize::try_from(result["ruleIndex"].as_u64().unwrap()).unwrap()];
             assert_eq!(rule["id"], result["ruleId"], "{context}");
-            let source = row.source.as_ref().unwrap();
             assert_eq!(
                 rule["shortDescription"]["text"],
                 source.quote.as_str(),

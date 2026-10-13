@@ -4,7 +4,7 @@
 # Engineering Standards
 
 **Status:** Active
-**Last reviewed:** 2026-10-12
+**Last reviewed:** 2026-10-13
 
 ---
 
@@ -115,7 +115,9 @@ superseded pushes (never for `main`); least-privilege workflow permissions.
 ## Dependency policy
 
 - Every dependency is a liability; the burden of proof is on adding it.
-  `mcp-conformance-core` carries serde-family only ([02-architecture.md](02-architecture.md)).
+  `mcp-conformance-core` carries serde-family only ([02-architecture.md](02-architecture.md));
+  the protocol's JSON Schemas it ships are data, and the engine that reads them lives in
+  `mcp-trace-validator` ([ADR-0020](decisions/0020-wire-schema-validation.md)).
 - Workspace-level version ranges with upper bounds (`>=x.y, <next-major`), the a2a-rust
   convention; `deny.toml` enforces the license allowlist, denies wildcards, and denies a new
   duplicate version of any crate: each accepted duplicate is skipped by exact version with
@@ -132,6 +134,7 @@ dependencies are justified where they are declared):
 | Dependency | Crates | Why it clears the bar |
 |------------|--------|----------------------|
 | `serde`, `serde_json` | all | The protocol is JSON; `float_roundtrip` is correctness (canonical fixpoint) |
+| `jsonschema` | trace-validator | Wire-schema validation ([ADR-0020](decisions/0020-wire-schema-validation.md)): the 2020-12 engine that judges every message against the revision's vendored schema. No default features — no remote `$ref` resolution, so no network and no HTTP stack. Costs 4.8 MB of release binary (measured in the ADR); the alternative, a hand-written 2020-12 evaluator, is a correctness liability this project would have to prove |
 | `clap` | binaries, behind `cli` features | [ADR-0005](decisions/0005-cli-argument-parsing.md): library consumers never pay for it |
 | `clap_complete` | trace-validator, behind `cli` | Shell completions generated from the one clap definition, so they cannot drift from the flags; the clap project's own crate, released in lockstep with clap. Library consumers never pay for it (ADR-0005) |
 | `rmcp` | everything-server, reference-host | The point of M2: parity proven *on the official SDK*, not beside it. Feature-minimal (`server`, `macros`, `transport-io`, `transport-streamable-http-server`); MSRV consequence in [ADR-0008](decisions/0008-msrv-1.88.md) |

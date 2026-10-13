@@ -11,7 +11,9 @@ categories = ["development-tools::testing", "data-structures"]
 edition.workspace = true
 rust-version.workspace = true
 version.workspace = true
-license.workspace = true
+# MIT for this crate's own code; Apache-2.0 for the protocol's JSON Schemas
+# vendored from the specification in spec-schema/ (its README and LICENSE).
+license = "MIT AND Apache-2.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

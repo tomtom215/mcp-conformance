@@ -9,7 +9,7 @@
 
 use core::fmt::Write as _;
 
-use super::{Finding, Outcome, Report};
+use super::{Finding, Outcome, Report, WireSchemaReport};
 
 /// How the human renderers lay a report out: [`Report::render_with`] and
 /// [`MultiReport::render_with`](crate::multi::MultiReport::render_with).
@@ -115,10 +115,16 @@ impl Report {
             }
             write_row(&mut out, row, options);
         }
+        if let Some(wire_schema) = &self.wire_schema {
+            wire_schema.write_human(&mut out, options, None);
+        }
         // Every outcome is named, so the counts sum to the registry's size — a
         // reader can check the arithmetic, and `Totals`' own exhaustive
         // destructuring is what keeps that true as outcomes are added.
         let _ = writeln!(out, "totals: {}", self.totals);
+        if let Some(wire_schema) = &self.wire_schema {
+            let _ = writeln!(out, "wire schema: {}", wire_schema.summary());
+        }
         let _ = writeln!(out, "verdict: {}", self.verdict());
         self.write_revision_mismatch(&mut out, options);
         out
@@ -241,5 +247,47 @@ impl super::ClauseSource {
     pub(crate) fn write_human(&self, out: &mut String) {
         let _ = writeln!(out, "        spec: \"{}\"", self.quote);
         let _ = writeln!(out, "        see:  {}", self.url);
+    }
+}
+
+impl WireSchemaReport {
+    /// One line for under the totals: the outcome and the counts behind it.
+    #[must_use]
+    pub fn summary(&self) -> String {
+        match self.outcome {
+            Outcome::NotObserved => "not observed (the trace holds no message)".to_owned(),
+            Outcome::Fail => format!(
+                "fail ({} of {} messages invalid)",
+                self.findings.len(),
+                self.messages
+            ),
+            _ => format!("pass ({} messages valid)", self.messages),
+        }
+    }
+
+    /// The schema's row, shown when it failed or when every row is listed; its
+    /// findings carry the revision they were judged at under `revision` (the
+    /// multi-revision report).
+    pub(crate) fn write_human(
+        &self,
+        out: &mut String,
+        options: &HumanOptions,
+        revision: Option<&str>,
+    ) {
+        if !options.all && self.outcome != Outcome::Fail {
+            return;
+        }
+        let marker = match self.outcome {
+            Outcome::Fail => "FAIL",
+            Outcome::NotObserved => "NOBS",
+            _ => "PASS",
+        };
+        let label = revision.map_or_else(String::new, |revision| format!(" {revision}"));
+        let _ = writeln!(out, "  {marker:<5} wire schema{label} — {}", self.summary());
+        options.write_findings(out, &self.findings, revision);
+        if self.outcome == Outcome::Fail {
+            self.source.write_human(out);
+            let _ = writeln!(out, "        schema: {}", self.schema);
+        }
     }
 }

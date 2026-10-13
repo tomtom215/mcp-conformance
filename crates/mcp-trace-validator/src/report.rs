@@ -193,6 +193,31 @@ pub struct RequirementReport {
     pub source: Option<ClauseSource>,
 }
 
+/// Whether a session's messages are valid against the judged revision's own
+/// JSON Schema ([`crate::wire_schema`], ADR-0020).
+///
+/// Reported beside the requirement rows, not as one of them: the specification
+/// makes the schema normative ("the source of truth for all protocol messages
+/// and structures") without an RFC 2119 sentence a row could quote, so it has
+/// no requirement ID and does not count in [`Totals`]. A failure here fails the
+/// [`Verdict`] all the same.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct WireSchemaReport {
+    /// `pass`, `fail` (some message is invalid), or `not-observed` (the trace
+    /// held no message).
+    pub outcome: Outcome,
+    /// How many messages were validated.
+    pub messages: u32,
+    /// One finding per invalid message, in trace order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub findings: Vec<Finding>,
+    /// The vendored schema, at the upstream commit it was copied from.
+    pub schema: String,
+    /// The specification's statement that the schema is normative.
+    pub source: ClauseSource,
+}
+
 /// A complete validation report for one trace against one registry.
 ///
 /// Serialized with its [`verdict`](Self::verdict) between the revision fields
@@ -221,13 +246,30 @@ pub struct Report {
     pub totals: Totals,
     /// Per-requirement outcomes, in registry order.
     pub requirements: Vec<RequirementReport>,
+    /// The messages against the revision's JSON Schema; absent when this build
+    /// vendors no schema for [`Self::revision`] (an external registry's).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wire_schema: Option<WireSchemaReport>,
 }
 
 impl Report {
-    /// `true` when any requirement failed (errors, not warnings).
+    /// `true` when any requirement failed (errors, not warnings), or a message
+    /// is invalid against the revision's JSON Schema.
     #[must_use]
     pub const fn has_errors(&self) -> bool {
-        self.totals.fail > 0
+        self.totals.fail > 0 || self.wire_schema_failed()
+    }
+
+    /// `true` when [`Self::wire_schema`] found an invalid message.
+    #[must_use]
+    pub const fn wire_schema_failed(&self) -> bool {
+        matches!(
+            &self.wire_schema,
+            Some(WireSchemaReport {
+                outcome: Outcome::Fail,
+                ..
+            })
+        )
     }
 
     /// `true` when any SHOULD-level requirement produced findings.
@@ -247,7 +289,7 @@ impl Report {
     pub const fn verdict(&self) -> Verdict {
         if self.totals.unsupported > 0 {
             Verdict::Unsupported
-        } else if self.totals.fail > 0 {
+        } else if self.has_errors() {
             Verdict::Fail
         } else if self.totals.warn > 0 {
             Verdict::PassWithWarnings
@@ -266,7 +308,8 @@ pub enum Verdict {
     Pass,
     /// Only SHOULD-level findings.
     PassWithWarnings,
-    /// At least one MUST-level violation.
+    /// At least one MUST-level violation, or a message invalid against the
+    /// revision's JSON Schema.
     Fail,
     /// The registry and this build disagree about available checks.
     Unsupported,

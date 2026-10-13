@@ -14,7 +14,7 @@ use super::Report;
 
 impl Serialize for Report {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut report = serializer.serialize_struct("Report", 6)?;
+        let mut report = serializer.serialize_struct("Report", 7)?;
         report.serialize_field("revision", &self.revision)?;
         if let Some(mismatch) = &self.revision_mismatch {
             report.serialize_field("revision_mismatch", mismatch)?;
@@ -29,6 +29,11 @@ impl Serialize for Report {
         report.serialize_field("verdict", &self.verdict())?;
         report.serialize_field("totals", &self.totals)?;
         report.serialize_field("requirements", &self.requirements)?;
+        if let Some(wire_schema) = &self.wire_schema {
+            report.serialize_field("wire_schema", wire_schema)?;
+        } else {
+            report.skip_field("wire_schema")?;
+        }
         report.end()
     }
 }

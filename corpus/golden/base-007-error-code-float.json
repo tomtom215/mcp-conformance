@@ -317,5 +317,22 @@
       "level": "SHOULD",
       "outcome": "not-observed"
     }
-  ]
+  ],
+  "wire_schema": {
+    "outcome": "fail",
+    "messages": 2,
+    "findings": [
+      {
+        "check": "wire-schema",
+        "seq": 1,
+        "detail": "the server's message is not a valid JSONRPCErrorResponse under the 2025-11-25 schema: /error/code: -32602.5 is not of type \"integer\""
+      }
+    ],
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json",
+    "source": {
+      "section": "basic#schema",
+      "quote": "This is the source of truth for all protocol messages and structures.",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#schema"
+    }
+  }
 }

@@ -16,11 +16,18 @@ records, and removes one deprecated module**, as pre-1.0 SemVer permits in a min
 ([STABILITY.md](STABILITY.md) says what counts as breaking). A session that
 passed under 0.6.0 can fail now with nothing in it changed: the registry carries
 37 more `2026-07-28` clauses (16 judged, 21 excluded with a reason), judges one it
-used to exclude, and several checks now catch what they missed. Other checks stop failing conforming sessions. Every change
+used to exclude, every message is now held to its revision's own JSON Schema, and
+several checks now catch what they missed. Other checks stop failing conforming sessions. Every change
 below is stated again in its entry, with the reasoning.
 
 | Surface | Change | Migration |
 |---------|--------|-----------|
+| Verdict, now failing | Every message is validated against its revision's JSON Schema (the report's new `wire_schema`, [ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)): a missing required member, a wrong type, a value outside an enumeration, an unknown content-block type fails the verdict, though no requirement row changes | Fix the sender; the finding names the schema definition and the member's path |
+| JSON report | A report, and each summary of a multi-revision one, gains `wire_schema`; `report.schema.json` describes it | Accept the member (adding one is not breaking, STABILITY.md) |
+| JUnit report | Each suite gains a `wire schema` test case, so `tests` is one more than the requirement count | Do not equate the test count with the registry's size |
+| SARIF | A failed wire schema is the rule `wire-schema` (`wire-schema@<revision>` when two revisions judged it), one result per invalid message | None |
+| Rust API | `Report` gains `wire_schema` and `has_errors()` counts it; `RevisionSummary` gains `wire_schema`; new `mcp_trace_validator::wire_schema` and `mcp_conformance_core::wire_schema` modules | Both structs are `#[non_exhaustive]`; nothing to change unless you read `has_errors()` as "a row failed" |
+| Licence | `mcp-conformance-core` is `MIT AND Apache-2.0`: it ships the specification's JSON Schemas under the specification's licence (`spec-schema/LICENSE`) | Check the expression against your licence policy |
 | `validate`, several traces | When a trace cannot be judged, the overall verdict is `incomplete`: the JSON envelope's `verdict` gains that value (and is no longer `null` when nothing was judged) plus `unjudged_traces`; JUnit gains an `<error>` test case and an `errors` count; SARIF reports `executionSuccessful: false`. A run that judged every trace renders as before | Treat `incomplete` as not passing; the exit code (2 or 3) is unchanged |
 | `validate` flags | `--max-events 0` and `--max-line-bytes 0` exit `2` (bad invocation), not `3` | Pass a limit of at least 1 |
 | `validate` human output | At most 20 findings under a clause, then a count of the rest | `--all`, or a machine format, for every finding |
@@ -51,6 +58,10 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **JUnit output could be ill-formed XML.** U+FFFE and U+FFFF are outside XML
+  1.0's `Char` production, like the C0 controls the renderer already replaced, but
+  passed through; a trace naming a method with either produced a report a strict CI
+  parser rejects. Both are now replaced with U+FFFD.
 - **The GitHub Action writes its reports when the validator cannot start.** A
   `traces` pattern matching nothing exited before any report was written, and a
   lone unreadable or malformed trace left both files empty, so the
@@ -329,6 +340,25 @@ below is stated again in its entry, with the reasoning.
 
 ### Added
 
+- **Every message is checked against its revision's JSON Schema.** The
+  specification makes its schema "the source of truth for all protocol messages and
+  structures", yet most of what the schema constrains — required members, types,
+  enumerations, content-block shapes — has no RFC 2119 sentence a requirement row
+  could quote, so nothing judged it: a resource without a `uri` or a log at level
+  `chatty` passed every check. The validator now holds each message to the
+  definition the official suite's `wire-schema-valid` check uses (by `method`, by
+  error `code`, by the method of the request a result answers), against the
+  specification's own `schema.json` vendored in `mcp-conformance-core` at a pinned
+  commit, and reports it as `wire_schema` beside the rows
+  ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)). Two places where
+  the generated schema contradicts `schema.ts` are corrected when it loads, each
+  recorded with the declaration that decides it: `ElicitResult.content` and
+  `JSONValue` admit non-integer numbers (and `JSONValue` `null`). Every conforming
+  corpus trace and capture passes; the suite's `2026-07-28` capture fails on the four
+  results `CACH-001` already flags. Three hand-written violation traces carried an
+  incidental schema defect beside the one they exist to show and were made
+  single-issue (`base-060`, `log-010`, `subs-006`); `log-010` keeps one finding, as it
+  should — its client's `logLevel: "verbose"` is outside the schema's enumeration.
 - **A CycloneDX SBOM for every crate, attested.** Each release attaches
   `<crate>-<version>.cdx.json` beside the `.crate` (checksummed in
   `SHA256SUMS-sbom`), with a signed attestation binding the two; RELEASING.md's

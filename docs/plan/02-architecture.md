@@ -4,7 +4,7 @@
 # Architecture
 
 **Status:** Active
-**Last reviewed:** 2026-10-12
+**Last reviewed:** 2026-10-13
 
 ---
 
@@ -41,7 +41,7 @@ Naming was decided against verified crates.io availability in
 | Crate | May depend on | Must never depend on | I/O |
 |-------|---------------|----------------------|-----|
 | `mcp-conformance-core` | `serde`, `serde_json` (+ `schemars` if schemas are emitted) | rmcp, tokio, any transport or HTTP crate | None. Pure data + pure functions. |
-| `mcp-trace-validator` | `mcp-conformance-core` | rmcp | File/stdin reading in the CLI layer only; the engine is `&[TraceEvent] -> Report`, no I/O. |
+| `mcp-trace-validator` | `mcp-conformance-core`, `jsonschema` (no default features: no remote `$ref`, no network; [ADR-0020](decisions/0020-wire-schema-validation.md)) | rmcp | File/stdin reading in the CLI layer only; the engine is `&[TraceEvent] -> Report`, no I/O. |
 | `mcp-everything-server` | rmcp, tokio, `mcp-conformance-core` (for self-description) | `mcp-trace-validator` (except as a dev-dependency, for its own tap tests) | stdio + streamable HTTP server. |
 | `mcp-reference-host` | rmcp, tokio, reqwest | `mcp-trace-validator` (except as a dev-dependency) | stdio + streamable HTTP client. |
 | `mcp-trace-capture` | `mcp-conformance-core`, tokio, axum, hyper, `hyper-rustls` | rmcp, `mcp-trace-validator` (except as a dev-dependency), reqwest's TLS features | Child process stdio; an HTTP listener and upstream client. |
@@ -169,7 +169,11 @@ evaluates every active requirement. Design commitments:
 3. **Requirement-addressed findings.** Every finding carries a requirement ID, the
    offending event `seq`, and the expected-vs-actual detail; the registry maps the ID
    back to its verbatim spec quote (`requirements` subcommand). A report a maintainer
-   cannot act on is noise.
+   cannot act on is noise. The one finding without a requirement ID is a message invalid
+   against the revision's own JSON Schema, which the specification makes normative
+   without an RFC 2119 sentence a row could quote: it is reported beside the rows as the
+   report's `wire_schema`, with the authority quote and the pinned schema
+   ([ADR-0020](decisions/0020-wire-schema-validation.md)).
 4. **Reports as artifacts.** Output formats: human (terminal), JSON (machine, with a
    published JSON Schema), JUnit XML (CI), SARIF 2.1.0 (code scanning). Exit codes: `0` pass, `1` a clause failed (or warned, under
    `--strict`), `2` a bad invocation, nothing judgeable, or output not written, `3` a malformed

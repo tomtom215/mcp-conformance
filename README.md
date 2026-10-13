@@ -104,6 +104,7 @@ MCP trace validation — revision 2026-07-28 (declared by the trace)
         spec: "Note that the JSON-RPC `id` MUST be different between the initial request and the retry."
         see:  https://modelcontextprotocol.io/specification/2026-07-28/server/tools#input-required-tool-results
 totals: 38 pass, 2 fail, 0 warn, 169 excluded, 0 unsupported, 0 not applicable, 101 not observed
+wire schema: pass (3 messages valid)
 verdict: fail
 ```
 
@@ -122,6 +123,12 @@ verdict: fail
   one no trace can judge is *excluded*, with the reason. The not-observed rows above are clauses
   this short session never exercised — reporting them as passes would be a score, not
   a verdict.
+- **Every message is also held to the revision's own JSON Schema** — the
+  specification's `schema.json`, vendored at a pinned commit and re-verified weekly —
+  so a missing required member, a wrong type or a value outside an enumeration fails
+  the report even where no sentence of the prose names it. It is reported beside the
+  clause rows as the wire schema, not counted in their totals
+  ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)).
 - **An empty recording is a bad invocation**, not a pass: the shape a broken capture
   step produces should fail the build.
 
@@ -256,6 +263,7 @@ event:
         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
 totals: 17 pass, 1 fail, 0 warn, 86 excluded, 0 unsupported, 6 not applicable, 32 not observed
+wire schema: pass (4 messages valid)
 verdict: fail
 ```
 <!-- ANCHOR_END: trace-example -->

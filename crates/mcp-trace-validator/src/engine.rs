@@ -124,6 +124,7 @@ fn validate_ordered(registry: &Registry, events: &[TraceEvent]) -> Report {
         revision_source: None,
         totals,
         requirements: rows,
+        wire_schema: crate::wire_schema::check(registry.revision(), &context),
     }
 }
 

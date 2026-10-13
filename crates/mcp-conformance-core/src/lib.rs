@@ -26,6 +26,8 @@
 //!   notification / response) as MCP constrains them.
 //! - [`trace`] — the recorded-trace event schema (JSON Lines of [`trace::TraceEvent`])
 //!   that conformance traces are exchanged in.
+//! - [`wire_schema`] — the protocol's own JSON Schema for each revision, vendored
+//!   from the specification with the places it contradicts `schema.ts` recorded.
 //! - [`canonical`] — deterministic canonical JSON serialization used wherever payloads
 //!   are compared or hashed.
 //!
@@ -67,3 +69,4 @@ pub mod message;
 pub mod requirement;
 pub mod revision;
 pub mod trace;
+pub mod wire_schema;

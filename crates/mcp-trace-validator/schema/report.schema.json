@@ -176,6 +176,22 @@
         }
       ]
     },
+    "wireSchema": {
+      "description": "Every message held to the judged revision's own JSON Schema, vendored from the specification (the `schema` URL pins the upstream commit). Not a requirement row and not counted in `totals`, but a `fail` fails the verdict. Absent when the build vendors no schema for the revision.",
+      "type": "object",
+      "required": ["outcome", "messages", "schema", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "outcome": { "enum": ["pass", "fail", "not-observed"] },
+        "messages": { "description": "How many messages were validated.", "type": "integer", "minimum": 0 },
+        "findings": { "$ref": "#/$defs/findings" },
+        "schema": { "type": "string", "pattern": "^https://github\\.com/modelcontextprotocol/modelcontextprotocol/blob/[0-9a-f]{40}/schema/" },
+        "source": { "$ref": "#/$defs/source" }
+      },
+      "if": { "properties": { "outcome": { "const": "fail" } } },
+      "then": { "required": ["findings"] },
+      "else": { "not": { "required": ["findings"] } }
+    },
     "report": {
       "description": "One trace judged against one revision.",
       "type": "object",
@@ -187,7 +203,8 @@
         "revision_source": { "$ref": "#/$defs/revisionSource" },
         "verdict": { "$ref": "#/$defs/verdict" },
         "totals": { "$ref": "#/$defs/totals" },
-        "requirements": { "type": "array", "items": { "$ref": "#/$defs/row" } }
+        "requirements": { "type": "array", "items": { "$ref": "#/$defs/row" } },
+        "wire_schema": { "$ref": "#/$defs/wireSchema" }
       }
     },
     "multiRow": {
@@ -238,7 +255,8 @@
             "properties": {
               "revision": { "$ref": "#/$defs/revision" },
               "totals": { "$ref": "#/$defs/totals" },
-              "verdict": { "$ref": "#/$defs/verdict" }
+              "verdict": { "$ref": "#/$defs/verdict" },
+              "wire_schema": { "$ref": "#/$defs/wireSchema" }
             }
           }
         },

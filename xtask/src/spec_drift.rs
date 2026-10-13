@@ -53,6 +53,7 @@ use serde::Deserialize;
 mod anchors;
 mod census;
 pub(crate) mod pages;
+mod wire_schema;
 
 /// The revisions this gate verifies, each against its own published pages.
 ///
@@ -145,6 +146,10 @@ pub(crate) fn run() -> ExitCode {
         }
     }
 
+    match wire_schema::verify() {
+        Ok(schema_drift) => drifted += schema_drift,
+        Err(()) => return ExitCode::FAILURE,
+    }
     if !explain_failures(drifted, broken, unlisted) {
         return ExitCode::FAILURE;
     }

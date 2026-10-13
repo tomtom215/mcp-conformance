@@ -309,5 +309,22 @@
       "level": "SHOULD",
       "outcome": "not-observed"
     }
-  ]
+  ],
+  "wire_schema": {
+    "outcome": "fail",
+    "messages": 5,
+    "findings": [
+      {
+        "check": "wire-schema",
+        "seq": 4,
+        "detail": "the server's message is not a valid ListToolsResult under the 2025-11-25 schema: /result/tools/0/inputSchema: null is not of type \"object\""
+      }
+    ],
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json",
+    "source": {
+      "section": "basic#schema",
+      "quote": "This is the source of truth for all protocol messages and structures.",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#schema"
+    }
+  }
 }

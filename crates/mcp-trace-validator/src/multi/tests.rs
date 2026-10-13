@@ -336,8 +336,9 @@ fn each_revisions_findings_are_limited_on_their_own() {
         .collect();
     let events = parse_trace(&trace.join("\n"), &Limits::default()).unwrap();
     let report = validate_revisions(&set(), &revs(), &events).unwrap();
-    // BASE-001 under both revisions, and the clause each has alone.
-    assert_eq!(report.render_human().matches(" seq 2: ").count(), 4);
+    // BASE-001 under both revisions, the clause each has alone, and the wire
+    // schema under each (`jsonrpc` is the schema's constant too).
+    assert_eq!(report.render_human().matches(" seq 2: ").count(), 6);
 
     let limited = HumanOptions::default().all(false).max_findings(Some(2));
     let text = report.render_with(&limited);

@@ -752,5 +752,22 @@
       "level": "SHOULD",
       "outcome": "not-observed"
     }
-  ]
+  ],
+  "wire_schema": {
+    "outcome": "fail",
+    "messages": 2,
+    "findings": [
+      {
+        "check": "wire-schema",
+        "seq": 3,
+        "detail": "the server's message is not a valid JSONRPCErrorResponse under the 2026-07-28 schema: /id: null is not of types \"integer\", \"string\""
+      }
+    ],
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json",
+    "source": {
+      "section": "basic/index#schema",
+      "quote": "This is the source of truth for all protocol messages and structures.",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#schema"
+    }
+  }
 }

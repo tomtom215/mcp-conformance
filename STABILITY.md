@@ -31,13 +31,13 @@ of these is a breaking change:
 | Surface | Stable | Breaking |
 |---------|--------|----------|
 | Rust API | Every public item of the five crates; `cargo-semver-checks` runs against the crates.io baseline before each release | Removing or changing an item; adding a variant or field to a type that is not `#[non_exhaustive]` (protocol-facing types are) |
-| Verdicts | The outcome of every requirement for a given trace | A trace that passed now failing, or the reverse — a new check, a check fixed, a clause moving between checked and excluded |
+| Verdicts | The outcome of every requirement, and of the wire schema, for a given trace | A trace that passed now failing, or the reverse — a new check, a check fixed, a clause moving between checked and excluded, a refreshed vendored schema or a changed erratum ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)) |
 | Requirement IDs | `BASE-003` names one clause, forever; an ID is never reused for another | Never done. A row found to bundle several clauses is split: its ID stays with one of them, the others get new IDs, and the changelog names each (`BASE-055`/`BASE-083` in 0.6.0) |
 | Exit codes | `mcp-trace-validator`: `0` pass, `1` a clause failed (or warned, under `--strict`), `2` a bad invocation, nothing judgeable or output not written, `3` a malformed trace. `mcp-trace-capture`: its README's table | Any code changing meaning |
 | CLI | Subcommands, flags and their defaults; the first line of `--version` | Removing or renaming a flag, or changing a default. A retired flag is first kept, accepted and hidden (as `--quiet` has been since 0.6.0) |
 | JSON report | The shape [`report.schema.json`](crates/mcp-trace-validator/schema/report.schema.json) describes | Removing or retyping a member, or a new value of an enumerated member (as `incomplete` joined `verdict`). **Adding a member is not breaking: accept members you do not know** |
-| JUnit report | Suite and test-case naming; failures carry the finding in `message` | Changing either |
-| SARIF log | `ruleId` is the requirement ID; findings are keyed by `partialFingerprints["mcpConformanceFinding/v2"]` | Changing the rule key, or the fingerprint (its key's version suffix moves with it, so alerts reopen once rather than silently) |
+| JUnit report | Suite and test-case naming (a requirement's case is `ID (LEVEL)`; the schema's is `wire schema`); failures carry the finding in `message` | Changing either |
+| SARIF log | `ruleId` is the requirement ID, or `wire-schema` for a message invalid against the revision's JSON Schema; findings are keyed by `partialFingerprints["mcpConformanceFinding/v2"]` | Changing the rule key, or the fingerprint (its key's version suffix moves with it, so alerts reopen once rather than silently) |
 | Trace format | What [`trace-event.schema.json`](crates/mcp-conformance-core/schema/trace-event.schema.json) accepts: a trace that validates against a release's schema is read by that release's validator | Rejecting a trace an earlier release accepted |
 | MSRV | 1.88 ([ADR-0008](docs/plan/decisions/0008-msrv-1.88.md)) | Raising it — done only in a minor release, with a changelog entry |
 | Cargo features | Each feature's meaning; a retired feature stays as a no-op (`draft-2026-07-28` since 0.6.0) | Removing a feature or changing what a default feature enables |

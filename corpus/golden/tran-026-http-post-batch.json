@@ -329,5 +329,22 @@
       "level": "SHOULD",
       "outcome": "not-observed"
     }
-  ]
+  ],
+  "wire_schema": {
+    "outcome": "fail",
+    "messages": 4,
+    "findings": [
+      {
+        "check": "wire-schema",
+        "seq": 8,
+        "detail": "the client's message is not a valid JSONRPCMessage under the 2025-11-25 schema: /: matches none of 4 alternatives; closest: [{\"id\":2,\"jsonrpc\":\"2.0\",\"method\":\"ping\"},{\"id\":3,\"jsonrpc\":\"2.0\",\"method\":\"ping\"}] is not of type \"object\""
+      }
+    ],
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json",
+    "source": {
+      "section": "basic#schema",
+      "quote": "This is the source of truth for all protocol messages and structures.",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#schema"
+    }
+  }
 }

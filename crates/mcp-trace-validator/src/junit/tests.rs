@@ -22,9 +22,10 @@ fn renders_well_formed_suite_with_failure_and_skips() {
     let total = Registry::builtin_2025_11_25().unwrap().requirements().len();
     let xml = render(&report_for(VIOLATION));
     assert!(xml.starts_with("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
-    // One testcase per registry requirement; counts reconcile with the totals.
+    // One testcase per registry requirement, and one for the wire schema;
+    // counts reconcile with the totals.
     assert!(
-        xml.contains(&format!(r#"<testsuites tests="{total}""#)),
+        xml.contains(&format!(r#"<testsuites tests="{}""#, total + 1)),
         "{xml}"
     );
     assert!(xml.contains(r#"name="LIFE-001 (MUST)""#), "{xml}");
@@ -54,7 +55,7 @@ fn renders_well_formed_suite_with_failure_and_skips() {
     assert_eq!(xml.matches("</testsuites>").count(), 1);
     assert_eq!(xml.matches("<testsuite ").count(), 1);
     assert_eq!(xml.matches("</testsuite>").count(), 1);
-    assert_eq!(xml.matches("<testcase").count(), total);
+    assert_eq!(xml.matches("<testcase").count(), total + 1);
 }
 
 #[test]
@@ -85,6 +86,12 @@ fn escape_substitutes_xml_illegal_control_characters() {
     assert_eq!(escape("a\tb\nc\rd"), "a\tb\nc\rd");
     // The boundary: U+001F substitutes, U+0020 (space) passes.
     assert_eq!(escape("\u{001F}\u{0020}"), "\u{FFFD} ");
+    // The two non-characters XML 1.0's `Char` production also leaves out; the
+    // characters either side of them are legal and pass through.
+    assert_eq!(
+        escape("a\u{FFFE}b\u{FFFF}c\u{FFFD}\u{10000}"),
+        "a\u{FFFD}b\u{FFFD}c\u{FFFD}\u{10000}"
+    );
 }
 
 #[test]
@@ -153,6 +160,7 @@ fn every_skip_variant() -> Report {
             not_applicable,
             bare_row("AAAA-006", Outcome::NotObserved),
         ],
+        wire_schema: None,
     }
 }
 

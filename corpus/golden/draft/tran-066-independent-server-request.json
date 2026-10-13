@@ -764,5 +764,22 @@
       "level": "SHOULD",
       "outcome": "not-observed"
     }
-  ]
+  ],
+  "wire_schema": {
+    "outcome": "fail",
+    "messages": 3,
+    "findings": [
+      {
+        "check": "wire-schema",
+        "seq": 3,
+        "detail": "the server's message is not a valid ElicitRequest under the 2026-07-28 schema: /params: matches none of 2 alternatives; closest: /params: \"message\" is a required property and /params: \"requestedSchema\" is a required property"
+      }
+    ],
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json",
+    "source": {
+      "section": "basic/index#schema",
+      "quote": "This is the source of truth for all protocol messages and structures.",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#schema"
+    }
+  }
 }

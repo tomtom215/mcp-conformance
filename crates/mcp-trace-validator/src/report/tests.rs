@@ -56,6 +56,7 @@ fn sample() -> Report {
             not_applicable,
             row("PAGE-002", "MUST", Outcome::NotObserved),
         ],
+        wire_schema: None,
     }
 }
 

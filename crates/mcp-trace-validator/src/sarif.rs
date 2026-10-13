@@ -10,6 +10,7 @@
 //! |--------|-------|
 //! | a `fail` / `warn` row | a *rule* (`ruleId` = the requirement ID; the clause verbatim, its level, and its published link) |
 //! | each finding on that row | a *result* at level `error` (MUST) or `warning` (SHOULD), located at the trace line holding the event it names |
+//! | a failed wire schema ([`Report::wire_schema`]) | the rule `wire-schema` (the specification's statement that the schema is normative, and the vendored schema's address), a result per invalid message, at level `error` |
 //! | an `unsupported` row | an invocation notification, and `executionSuccessful: false` |
 //! | a trace that could not be judged ([`render_run`]) | an invocation notification located at the trace, and `executionSuccessful: false` |
 //! | pass / excluded / not-applicable / not-observed | nothing — SARIF records problems, not coverage |
@@ -176,6 +177,9 @@ pub fn render_run(
                     _ => {}
                 }
             }
+            if let Some(row) = wire_schema_row(report) {
+                log.findings(&row, &report.revision, *artifact);
+            }
         }
     }
     for trace in unjudged {
@@ -313,13 +317,17 @@ impl Log<'_> {
 fn rule_ids<'r>(reports: impl Iterator<Item = &'r Report>) -> BTreeMap<(&'r str, &'r str), String> {
     let mut revisions_of: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for report in reports {
-        for row in &report.requirements {
-            if matches!(row.outcome, Outcome::Fail | Outcome::Warn) {
-                let revisions = revisions_of.entry(row.id.as_str()).or_default();
-                // Several traces judged at one revision are still one revision.
-                if !revisions.contains(&report.revision.as_str()) {
-                    revisions.push(report.revision.as_str());
-                }
+        let schema = report.wire_schema_failed().then_some(WIRE_SCHEMA_RULE);
+        let failing = report
+            .requirements
+            .iter()
+            .filter(|row| matches!(row.outcome, Outcome::Fail | Outcome::Warn))
+            .map(|row| row.id.as_str());
+        for id in failing.chain(schema) {
+            let revisions = revisions_of.entry(id).or_default();
+            // Several traces judged at one revision are still one revision.
+            if !revisions.contains(&report.revision.as_str()) {
+                revisions.push(report.revision.as_str());
             }
         }
     }
@@ -335,6 +343,29 @@ fn rule_ids<'r>(reports: impl Iterator<Item = &'r Report>) -> BTreeMap<(&'r str,
         }
     }
     ids
+}
+
+/// The rule ID of wire-schema results: lower case, so it can never collide
+/// with a requirement ID.
+const WIRE_SCHEMA_RULE: &str = "wire-schema";
+
+/// A failed wire schema as a row the result path already knows how to render;
+/// `None` unless it failed.
+fn wire_schema_row(report: &Report) -> Option<RequirementReport> {
+    let wire_schema = report
+        .wire_schema
+        .as_ref()
+        .filter(|_| report.wire_schema_failed())?;
+    Some(RequirementReport {
+        id: WIRE_SCHEMA_RULE.to_owned(),
+        level: "schema".to_owned(),
+        outcome: Outcome::Fail,
+        findings: wire_schema.findings.clone(),
+        exclusion: None,
+        missing_checks: Vec::new(),
+        capability: None,
+        source: Some(wire_schema.source.clone()),
+    })
 }
 
 fn rule(rule_id: &str, row: &RequirementReport, revision: &str) -> Value {

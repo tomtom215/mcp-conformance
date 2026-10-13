@@ -894,5 +894,22 @@
       "level": "SHOULD",
       "outcome": "not-observed"
     }
-  ]
+  ],
+  "wire_schema": {
+    "outcome": "fail",
+    "messages": 18,
+    "findings": [
+      {
+        "check": "wire-schema",
+        "seq": 21,
+        "detail": "the client's message is not a valid ListToolsRequest under the 2026-07-28 schema: /params/_meta/io.modelcontextprotocol~1logLevel: \"chatty\" is not one of \"alert\", \"critical\" or 6 other candidates"
+      }
+    ],
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json",
+    "source": {
+      "section": "basic/index#schema",
+      "quote": "This is the source of truth for all protocol messages and structures.",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#schema"
+    }
+  }
 }

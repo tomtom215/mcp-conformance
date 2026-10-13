@@ -19,7 +19,7 @@
 
 use core::fmt::Write as _;
 
-use crate::report::{Outcome, Report, Unjudged};
+use crate::report::{Outcome, Report, Unjudged, WireSchemaReport};
 
 /// Renders the report as a single-suite `JUnit` XML document.
 ///
@@ -189,6 +189,9 @@ pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> Str
         for row in &report.requirements {
             render_row(&mut out, report, row, options);
         }
+        if let Some(wire_schema) = &report.wire_schema {
+            render_wire_schema(&mut out, report, wire_schema, options);
+        }
         out.push_str("  </testsuite>\n");
     }
     for trace in unjudged {
@@ -210,20 +213,28 @@ pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> Str
 
 /// `(tests, failures, skipped)` for one report; warnings count as failures when
 /// `strict` renders them as such.
+///
+/// The wire-schema case, when the report has one, counts like a row: a test,
+/// failed when a message was invalid and skipped when there were none.
 const fn counts(report: &Report, strict: bool) -> (u32, u32, u32) {
     let totals = report.totals;
-    let skipped =
+    let mut skipped =
         totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
-    let failures = if strict {
+    let mut failures = if strict {
         totals.fail + totals.warn
     } else {
         totals.fail
     };
-    (
-        totals.pass + totals.fail + totals.warn + skipped,
-        failures,
-        skipped,
-    )
+    let mut tests = totals.pass + totals.fail + totals.warn + skipped;
+    if let Some(wire_schema) = &report.wire_schema {
+        tests += 1;
+        match wire_schema.outcome {
+            Outcome::Fail => failures += 1,
+            Outcome::NotObserved => skipped += 1,
+            _ => {}
+        }
+    }
+    (tests, failures, skipped)
 }
 
 /// A test case's identifying attributes: its class, and the trace as a `file`
@@ -303,6 +314,45 @@ fn render_row(
     }
 }
 
+/// The wire-schema test case: one `<failure>` per invalid message.
+fn render_wire_schema(
+    out: &mut String,
+    report: &Report,
+    wire_schema: &WireSchemaReport,
+    options: &Options,
+) {
+    let attrs = case_attributes(report, options);
+    let name = "wire schema";
+    match wire_schema.outcome {
+        Outcome::Fail => {
+            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
+            let clause = format!(
+                "\nspec: \"{}\"\nsee: {}\nschema: {}",
+                wire_schema.source.quote, wire_schema.source.url, wire_schema.schema
+            );
+            for finding in &wire_schema.findings {
+                let _ = writeln!(
+                    out,
+                    r#"      <failure message="{}">{}{}</failure>"#,
+                    escape(&finding.detail),
+                    escape(&location(finding.seq, &finding.check)),
+                    escape(&clause),
+                );
+            }
+            out.push_str("    </testcase>\n");
+        }
+        Outcome::NotObserved => {
+            let _ = writeln!(
+                out,
+                r#"    <testcase {attrs} name="{name}"><skipped message="the trace holds no message"/></testcase>"#
+            );
+        }
+        _ => {
+            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}"/>"#);
+        }
+    }
+}
+
 /// The `<skipped>` message for the four non-judged outcomes.
 fn skip_reason(row: &crate::report::RequirementReport) -> String {
     match row.outcome {
@@ -359,9 +409,11 @@ fn escape(text: &str) -> String {
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
             '\t' | '\n' | '\r' => out.push(ch),
-            // C0 controls (except the three above) are not representable in
-            // XML 1.0 at all; substitute rather than emit an invalid document.
-            c if (c as u32) < 0x20 => out.push('\u{FFFD}'),
+            // C0 controls (except the three above), U+FFFE and U+FFFF are
+            // outside XML 1.0's `Char` production (§2.2) — the only Rust
+            // `char`s that are — so substitute rather than emit an invalid
+            // document.
+            c if (c as u32) < 0x20 || c == '\u{FFFE}' || c == '\u{FFFF}' => out.push('\u{FFFD}'),
             _ => out.push(ch),
         }
     }

@@ -44,9 +44,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 59 | 133 |
+| Goldens | 62 | 136 |
 | Excluded rows the ledger holds | 86 | 169 |
-| Distinct not-observed sets across them | 30 | 106 |
+| Distinct not-observed sets across them | 33 | 106 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -74,7 +74,10 @@ harness enforces the attribution by name
 (`violation_traces_fail_and_match_goldens`, and
 `draft::draft_violation_traces_fail_and_match_goldens` for `draft/`), so a
 defect re-routed to a different requirement cannot re-bless silently. A stem
-that does not begin with a requirement ID fails the suite loudly.
+that does not begin with a requirement ID fails the suite loudly. The one other
+prefix is `wire-schema-<slug>.jsonl`: such a trace must fail the report's wire
+schema — the messages against the revision's own JSON Schema, which no
+requirement row carries ([ADR-0020](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0020-wire-schema-validation.md)).
 
 ## Captured versus authored
 
@@ -181,6 +184,9 @@ example).
 | `tran-027-notification-answered-200.jsonl` | TRAN-027 (the `notifications/initialized` POST answered `200` instead of `202 Accepted`) |
 | `tran-029-content-type-unexpected.jsonl` | TRAN-029 (an `initialize` request answered `200` with `Content-Type: text/html`) |
 | `tran-040-get-answered-json.jsonl` | TRAN-040 (a standalone-stream GET answered `200` with `application/json` rather than `text/event-stream` or `405`) |
+| `wire-schema-resource-missing-uri.jsonl` | Wire schema: a `resources/list` result whose resource has no `uri`, which `Resource` requires |
+| `wire-schema-log-level-not-in-enum.jsonl` | Wire schema: a `notifications/message` at level `chatty`, outside `LoggingLevel` |
+| `wire-schema-content-block-unknown-type.jsonl` | Wire schema: a `tools/call` result whose content block has `type: "txt"`, matching no `ContentBlock` member |
 
 ### `2026-07-28` captured (`corpus/draft/captured/`)
 
@@ -632,4 +638,7 @@ it is named for.
 | `disc-002-dual-era-client-skips-probe.jsonl` | A client that speaks both eras — a modern `_meta` request, then an `initialize` fallback — whose first request is `tools/list` rather than the `server/discover` probe (DISC-002). The `initialize` carries a full `_meta` envelope so the trace isolates the missing probe rather than also failing BASE-030, and the handshake is left unanswered so no legacy-shaped result has to be judged for `resultType`. |
 | `vers-002-retry-with-unsupported-version.jsonl` | After a `-32022` offering `2026-07-28`, the client retries with `1899-01-01` — a version the list it was just handed does not contain (VERS-002) |
 | `vers-004-extension-identifier-without-prefix.jsonl` | Client capabilities advertise the extension `ui`: a valid `_meta` key, but extension identifiers require the prefix a `_meta` key may omit (VERS-004) |
+| `wire-schema-resource-missing-uri.jsonl` | Wire schema: a `resources/list` result whose resource has no `uri`, which `Resource` requires; the result carries both caching hints so the trace isolates the schema defect |
+| `wire-schema-cache-scope-not-in-enum.jsonl` | Wire schema: `cacheScope: "shared"`, which is neither `public` nor `private` |
+| `wire-schema-content-block-unknown-type.jsonl` | Wire schema: a `tools/call` result whose content block has `type: "txt"`, matching no `ContentBlock` member |
 | `vers-008-initialize-error-without-versions.jsonl` | A modern-only server refuses a legacy `initialize` with a bare `Method not found`, naming none of the versions it does speak (VERS-008). Necessarily also falsifies BASE-030: a legacy handshake carries no `_meta` envelope — that is what makes it legacy — so the antecedent of this clause is a client that cannot satisfy BASE-030. BASE-031 is *not* also reported, and this trace is why the check was narrowed: `basic/versioning`'s compatibility matrix makes the rejection code implementation-defined for exactly this exchange. |

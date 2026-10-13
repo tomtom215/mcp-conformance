@@ -65,3 +65,4 @@ pub mod reader;
 pub mod report;
 pub mod sarif;
 pub mod sessions;
+pub mod wire_schema;

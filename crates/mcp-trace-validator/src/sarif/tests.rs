@@ -50,9 +50,17 @@ fn an_id_judged_under_two_revisions_gets_a_rule_per_revision() {
         .iter()
         .map(|rule| rule["id"].as_str().unwrap())
         .collect();
+    // The message is invalid against both revisions' schemas too, and the
+    // schemas differ, so each revision's is a rule of its own.
     assert_eq!(
         ids,
-        ["BASE-001@2025-11-25", "BASE-001@2026-07-28", "ONLY-001"]
+        [
+            "BASE-001@2025-11-25",
+            "wire-schema@2025-11-25",
+            "BASE-001@2026-07-28",
+            "ONLY-001",
+            "wire-schema@2026-07-28"
+        ]
     );
     let results = log["runs"][0]["results"].as_array().unwrap();
     let levels: Vec<(&str, &str, u64)> = results
@@ -69,12 +77,14 @@ fn an_id_judged_under_two_revisions_gets_a_rule_per_revision() {
         levels,
         [
             ("BASE-001@2025-11-25", "error", 0),
-            ("BASE-001@2026-07-28", "error", 1),
-            ("ONLY-001", "warning", 2)
+            ("wire-schema@2025-11-25", "error", 1),
+            ("BASE-001@2026-07-28", "error", 2),
+            ("ONLY-001", "warning", 3),
+            ("wire-schema@2026-07-28", "error", 4)
         ]
     );
     assert_eq!(
-        log["runs"][0]["tool"]["driver"]["rules"][2]["defaultConfiguration"]["level"],
+        log["runs"][0]["tool"]["driver"]["rules"][3]["defaultConfiguration"]["level"],
         "warning"
     );
     assert_eq!(

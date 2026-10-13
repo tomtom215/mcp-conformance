@@ -54,6 +54,30 @@ in one trace (the validator notes this, and `{session}` in the capture's `-o`
 separates them), or a capture started mid-session. [Troubleshooting](troubleshooting.md)
 covers both.
 
+## The wire schema
+
+Below the clause rows, every report judges each message against the revision's own
+JSON Schema — the specification's `schema.json`, which it calls "the source of truth
+for all protocol messages and structures":
+
+```text
+  FAIL  wire schema — fail (1 of 5 messages invalid)
+        seq 4: the server's message is not a valid ListResourcesResult under the 2025-11-25 schema: /result/resources/0: "uri" is a required property
+        spec: "This is the source of truth for all protocol messages and structures."
+        see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#schema
+        schema: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/<commit>/schema/2025-11-25/schema.json
+```
+
+The finding names the definition the message was held to and the path of the member
+at fault; a member that matched none of several alternatives (a content block, an
+input request) names the closest alternative's defect. The schema catches what no
+sentence of the prose states on its own — a missing required member, a wrong type, a
+value outside an enumeration — so it is reported beside the clauses rather than as one,
+has no requirement ID, and is not counted in the totals; a failure still fails the
+verdict. Where the published schema is stricter than `schema.ts`, the validator
+corrects it and says where
+([ADR-0020](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0020-wire-schema-validation.md)).
+
 ## Why so many clauses are not observed
 
 A pass verdict says that nothing *this session* did broke a clause. A short session

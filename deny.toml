@@ -24,6 +24,10 @@ version = 2
 confidence-threshold = 0.8
 allow = [
     "MIT",
+    # MIT No Attribution: MIT without the notice-retention condition, so strictly
+    # more permissive. Entered 2026-10-13 for borrow-or-share (via jsonschema's
+    # `referencing`, ADR-0020).
+    "MIT-0",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
     "BSD-3-Clause",
@@ -66,6 +70,16 @@ skip = [
     # record a remote server. Collapses when ring moves; the pins are exact.
     { crate = "getrandom@0.2.17", reason = "ring 0.17 (mcp-trace-capture's TLS provider) still requires getrandom 0.2" },
     { crate = "windows-sys@0.52.0", reason = "ring 0.17 (mcp-trace-capture's TLS provider) still requires windows-sys 0.52" },
+    # Introduced 2026-10-13 by the validator's JSON Schema engine (ADR-0020):
+    # jsonschema 0.58 takes ahash 0.8 with its default features, whose
+    # `runtime-rng` requires getrandom 0.3 (and, on UEFI targets only, r-efi 5),
+    # where proptest and rmcp have moved to getrandom 0.4. Not switchable from
+    # this workspace: Cargo features are additive and the request is jsonschema's.
+    # A runtime dependency of mcp-trace-validator; the random hash seeds it
+    # supplies never reach a report, whose schema findings are sorted. Collapses
+    # when ahash or jsonschema moves; the pins are exact.
+    { crate = "getrandom@0.3.4", reason = "ahash 0.8 (jsonschema's, default features) requires getrandom 0.3" },
+    { crate = "r-efi@5.3.0", reason = "getrandom 0.3's UEFI backend, alongside getrandom 0.4's r-efi 6" },
     # Removed 2026-07-26: the wit-bindgen 0.51/0.57 split (rmcp's getrandom 0.4
     # vs proptest's dev-only getrandom 0.3) has collapsed — the lock now carries
     # only 0.57.1, so cargo-deny's unmatched-skip warning correctly retired it.

@@ -376,6 +376,19 @@ fn assert_falsifies_its_named_requirement(trace_path: &Path, report: &Report) {
         .collect::<Vec<_>>()
         .join("-")
         .to_uppercase();
+    // `wire-schema-…` traces falsify the wire schema, which has no row.
+    if id == "WIRE-SCHEMA" {
+        let wire_schema = report
+            .wire_schema
+            .as_ref()
+            .unwrap_or_else(|| panic!("{stem}: no wire-schema report"));
+        assert!(
+            wire_schema.outcome == Outcome::Fail && !wire_schema.findings.is_empty(),
+            "{stem} must fail the wire schema; got {:?}",
+            wire_schema.outcome
+        );
+        return;
+    }
     let row = report
         .requirements
         .iter()

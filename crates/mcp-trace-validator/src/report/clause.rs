@@ -3,7 +3,7 @@
 
 //! The clause a finding breaks, as a report row carries it.
 
-use mcp_conformance_core::requirement::Requirement;
+use mcp_conformance_core::requirement::{Requirement, SourceRef};
 use mcp_conformance_core::revision::ProtocolRevision;
 use serde::{Deserialize, Serialize};
 
@@ -24,10 +24,16 @@ impl ClauseSource {
     /// The source of `requirement` as published at `revision`.
     #[must_use]
     pub fn new(requirement: &Requirement, revision: ProtocolRevision) -> Self {
+        Self::from_source(&requirement.source, revision)
+    }
+
+    /// `source` as published at `revision`.
+    #[must_use]
+    pub fn from_source(source: &SourceRef, revision: ProtocolRevision) -> Self {
         Self {
-            section: requirement.source.section.clone(),
-            quote: requirement.source.quote.clone(),
-            url: requirement.source.url(revision),
+            section: source.section.clone(),
+            quote: source.quote.clone(),
+            url: source.url(revision),
         }
     }
 }
