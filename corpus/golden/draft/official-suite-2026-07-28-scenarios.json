@@ -1,9 +1,9 @@
 {
   "revision": "2026-07-28",
-  "verdict": "fail",
+  "verdict": "pass-with-warnings",
   "totals": {
-    "pass": 69,
-    "fail": 1,
+    "pass": 70,
+    "fail": 0,
     "warn": 1,
     "excluded": 320,
     "unsupported": 0,
@@ -208,7 +208,7 @@
         },
         {
           "check": "meta.server-info-on-results",
-          "seq": 50,
+          "seq": 54,
           "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
         },
         {
@@ -701,54 +701,7 @@
     {
       "id": "CACH-001",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 62,
-          "detail": "the `complete` result of `resources/list` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 62,
-          "detail": "the `complete` result of `resources/list` carries no `cacheScope` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 66,
-          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 66,
-          "detail": "the `complete` result of `resources/read` carries no `cacheScope` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 70,
-          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 70,
-          "detail": "the `complete` result of `resources/read` carries no `cacheScope` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 74,
-          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 74,
-          "detail": "the `complete` result of `resources/read` carries no `cacheScope` caching hint"
-        }
-      ],
-      "source": {
-        "section": "server/utilities/caching#cacheable-results",
-        "quote": "Servers MUST include caching hints on results with `resultType: \"complete\"` returned by the following operations: `server/discover`; `tools/list`; `prompts/list`; `resources/list`; `resources/templates/list`; `resources/read`",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cacheable-results"
-      }
+      "outcome": "pass"
     },
     {
       "id": "CACH-008",
@@ -1087,30 +1040,8 @@
     }
   ],
   "wire_schema": {
-    "outcome": "fail",
+    "outcome": "pass",
     "messages": 51,
-    "findings": [
-      {
-        "check": "wire-schema",
-        "seq": 62,
-        "detail": "the server's message is not a valid ListResourcesResult under the 2026-07-28 schema: /result: \"cacheScope\" is a required property; /result: \"ttlMs\" is a required property"
-      },
-      {
-        "check": "wire-schema",
-        "seq": 66,
-        "detail": "the server's message is not a valid ReadResourceResult under the 2026-07-28 schema: /result: \"cacheScope\" is a required property; /result: \"ttlMs\" is a required property"
-      },
-      {
-        "check": "wire-schema",
-        "seq": 70,
-        "detail": "the server's message is not a valid ReadResourceResult under the 2026-07-28 schema: /result: \"cacheScope\" is a required property; /result: \"ttlMs\" is a required property"
-      },
-      {
-        "check": "wire-schema",
-        "seq": 74,
-        "detail": "the server's message is not a valid ReadResourceResult under the 2026-07-28 schema: /result: \"cacheScope\" is a required property; /result: \"ttlMs\" is a required property"
-      }
-    ],
     "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json",
     "source": {
       "section": "basic/index#schema",

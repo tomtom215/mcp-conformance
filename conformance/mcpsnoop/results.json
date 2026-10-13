@@ -6440,41 +6440,14 @@
       "frames": 52,
       "unframed": 3,
       "ours": {
-        "verdict": "fail",
+        "verdict": "pass-with-warnings",
         "flagged": [
-          "BASE-037",
-          "CACH-001",
-          "wire-schema"
+          "BASE-037"
         ]
       },
       "mcpsnoop": {
         "exit": 1,
-        "findings": [
-          {
-            "signal": "warn",
-            "seq": 62,
-            "framed": true,
-            "message": "cacheable resources/list result declares no ttlMs, which 2026-07-28 requires"
-          },
-          {
-            "signal": "warn",
-            "seq": 66,
-            "framed": true,
-            "message": "cacheable resources/read result declares no ttlMs, which 2026-07-28 requires"
-          },
-          {
-            "signal": "warn",
-            "seq": 70,
-            "framed": true,
-            "message": "cacheable resources/read result declares no ttlMs, which 2026-07-28 requires"
-          },
-          {
-            "signal": "warn",
-            "seq": 74,
-            "framed": true,
-            "message": "cacheable resources/read result declares no ttlMs, which 2026-07-28 requires"
-          }
-        ],
+        "findings": [],
         "other": {
           "annotations": 18,
           "error": 1,
@@ -6489,10 +6462,8 @@
       "frames": 52,
       "unframed": 3,
       "ours": {
-        "verdict": "pass-with-warnings",
-        "flagged": [
-          "BASE-037"
-        ]
+        "verdict": "pass",
+        "flagged": []
       },
       "mcpsnoop": {
         "exit": 1,

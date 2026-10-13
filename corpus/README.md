@@ -242,38 +242,34 @@ two reports is attributable to that one change.
 | Field | `official-suite-2026-07-28-scenarios.jsonl` | `official-suite-2026-07-28-stateless.jsonl` |
 |---|---|---|
 | Client | The **official MCP conformance suite**, `0.2.0-alpha.12`, driving its `2026-07-28` scenario set (the pin `cargo xtask draft-readiness` holds) | The same client, the same scenarios, the same run |
-| Server | `mcp-everything-server` on rmcp 3.4.1, serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode, same build |
-| Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-04 | same run, second leg |
+| Server | `mcp-everything-server` on rmcp 3.5.1, serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode, same build |
+| Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-13 | same run, second leg |
 | Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
-| Our verdict | 69 pass, **1 fail**, 1 warn, 110 not observed, 320 excluded | **70 pass, 0 fail**, 1 warn, 110 not observed, 320 excluded |
-| The official runner's verdict, that run | `38 passing / 4 failing` | `42 passing / 0 failing` |
+| Our verdict | 70 pass, 0 fail, **1 warn**, 110 not observed, 320 excluded | **71 pass, 0 fail, 0 warn**, 110 not observed, 320 excluded |
+| The official runner's verdict, that run | `42 passing / 0 failing` | `42 passing / 0 failing` |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
 `resources/{list,read}`, `prompts/{list,get}` and progress notifications; every
 request carries the revision's per-request `_meta` envelope and its SEP-2243
 metadata headers, and neither carries an `initialize` anywhere. Their
-`tools/list` results differ by one entry, which is the point of recording both:
-`test_url_elicitation` is listed by the legacy server and not by the stateless
-one, because URL-mode elicitation is a feature `2026-07-28` removed.
+`tools/list` results differ by two entries, which is the point of recording both:
+`test_url_elicitation` and `test_list_changed` are listed by the legacy server
+(18 tools) and not by the stateless one (16), because URL-mode elicitation and
+broadcast `list_changed` notifications are features `2026-07-28` removed. Each
+listing is the first page; neither session follows `nextCursor`.
 
-**The one finding.** CACH-001 — the legacy server's `complete` results carry no
-`ttlMs`, on `resources/list` and three `resources/read`s. That is our
-`2025-11-25` server being held to a revision it does not implement, which is the
-correct answer, and the stateless capture is the control that proves the check
-reports the server rather than the recording.
-
-**And one warning, on both (2026-10-13).** BASE-037: of the server's 24
-results, only the `server/discover` one carries
-`io.modelcontextprotocol/serverInfo` in its `_meta`. rmcp sets it on
-`DiscoverResult` and `SubscriptionsListenResult` and nowhere else; the Go and
-Python SDK servers set it on every result (`sdk-go-2026-07-28`,
-`sdk-python-2026-07-28`). It is a SHOULD that exempts a server "specifically
-configured not to", so it is reported as a warning and never fails a run. It
-stands on every capture of an rmcp server that does not add the field itself
-(`sdk-rust-2026-07-28`); the everything server has added it on every result
-at `2026-07-28` since 2026-10-13, so the reference-host and probe captures
-below, recorded after that, no longer carry it. This pair predates the fix and
-stays as recorded (see below), warning included.
+**The one finding left: BASE-037, a warning, on the legacy leg.** Of that
+server's 24 results only the `server/discover` one carries
+`io.modelcontextprotocol/serverInfo` in its `_meta`; rmcp sets it there and on
+`subscriptions/listen` and nowhere else. The stateless server names itself on all
+24, as it has since 2026-10-13. The legacy server is left without the field on
+purpose: it implements `2025-11-25`, which names the server once, in
+`initialize`, and the measurement is that server held to a revision it does not
+implement (`ServedRevision::names_itself_on_results`). It is a SHOULD that
+exempts a server "specifically configured not to", so it warns and never fails a
+run. The same warning stands on every other rmcp server that does not add the
+field itself (`sdk-rust-2026-07-28`); the Go and Python SDK servers set it on every
+result (`sdk-go-2026-07-28`, `sdk-python-2026-07-28`).
 
 **Two findings that used to be here were ours, not the implementations'.** An
 earlier version of this pair reported TRAN-058 (client POSTs missing
@@ -300,8 +296,8 @@ violation `TRAN-025` names — was reported `pass`, because the one shared rule
 could only demand what both clauses had in common. `EventBody::Http` now carries
 the method, each clause is judged against the requests it binds, and an exchange
 whose method the capture did not record is judged by neither. These two captures
-were re-recorded on 2026-08-20 so the method is present, and again on 2026-10-04
-when the draft ratchet moved to `alpha.12`.
+were re-recorded on 2026-08-20 so the method is present, on 2026-10-04 when the
+draft ratchet moved to `alpha.12`, and on 2026-10-13 (below).
 
 **Why the runner's 23/23 and our 59-vs-60 were both right — and how the runner
 caught up.** The suite's `2026-07-28` scenarios exercise features — list a
@@ -326,14 +322,19 @@ prose-level reading arriving earlier than the schema-level one.
 **And then the implementation closed the gap.** rmcp 3.5.1 fills in missing
 cache hints for any peer speaking `2026-07-28` (rust-sdk #1308), so since the
 workspace moved to it (2026-10-12) the legacy server's results carry `ttlMs` and
-`cacheScope` too, and `cargo xtask draft-readiness` scores both legs 42 passing /
-0 failing. The pair above stays as recorded: it is the evidence for what the
-registry caught and when, not a measurement of today's server.
+`cacheScope` too (`ttlMs: 0` on `resources/list`, rmcp's default rather than
+this server's choice), and `cargo xtask draft-readiness` scores both legs 42
+passing / 0 failing. The pair was re-recorded on 2026-10-13, so the legacy leg
+no longer fails CACH-001 or the wire schema; until then it was kept as recorded
+on 2026-10-04 (69 pass, CACH-001 failing; the runner `38 passing / 4 failing`),
+and this section's history above is the evidence for what each instrument caught
+and when. With the hints filled in, the runner again scores both servers alike,
+and only the registry's BASE-037 warning tells them apart.
 
-The 64 not-observed rows are the honest denominator: of the 124 clauses this
-revision's registry can judge, these sessions carried subject matter for 60.
-They open no subscription, present no cursor, draw no error, and send no
-malformed `_meta`, so those clauses are neither passed nor failed here — they
+The 110 not-observed rows are the honest denominator: of the 181 clauses this
+revision's registry can judge, these sessions carried subject matter for 71.
+They open no subscription, present no cursor, draw no JSON-RPC error, and send
+no malformed `_meta`, so those clauses are neither passed nor failed here — they
 are untested, and the report says which.
 
 Regenerate both with `cargo xtask draft-readiness` and copy
@@ -558,8 +559,8 @@ read as a specimen instead.
 <!-- draft-coverage:begin (generated by `cargo xtask draft-coverage`; do not edit by hand) -->
 | Capture | Judged | pass | fail | warn | Not observed |
 |---------|-------:|-----:|-----:|-----:|-------------:|
-| `official-suite-2026-07-28-scenarios` | 71 | 69 | 1 | 1 | 110 |
-| `official-suite-2026-07-28-stateless` | 71 | 70 | 0 | 1 | 110 |
+| `official-suite-2026-07-28-scenarios` | 71 | 70 | 0 | 1 | 110 |
+| `official-suite-2026-07-28-stateless` | 71 | 71 | 0 | 0 | 110 |
 | `probe-2026-07-28-http` | 85 | 73 | 11 | 1 | 96 |
 | `reference-host-2026-07-28-http` | 125 | 125 | 0 | 0 | 56 |
 | `reference-host-2026-07-28-stdio` | 109 | 109 | 0 | 0 | 72 |

@@ -81,6 +81,14 @@ below is stated again in its entry, with the reasoning.
   re-recorded** with both fixes: the reference-host captures pass with no warning, the
   probe baseline's `BASE-037` entry is retired, and the GitHub Action CI job again
   requires both recorded legs to judge with no finding at all.
+- **`official-suite-2026-07-28-{scenarios,stateless}` are re-recorded** (2026-10-13,
+  rmcp 3.5.1). The stateless leg passes with no warning (71 pass; was 70 and a
+  `BASE-037` warning). The legacy leg passes with one warning, `BASE-037` (70 pass;
+  was 69 with `CACH-001` failing): rmcp 3.5.1 fills missing cache hints for a
+  `2026-07-28` peer, so the legacy server's results now carry them, and the official
+  runner scores it `42 passing / 0 failing` (was `38 / 4`). The `cacheable-without-ttl`
+  agreement with mcpsnoop goes with it (mcpsnoop: 75 agree, 34 both clean; were 76
+  and 33).
 - **A request a protected server refused with 401 (or 403 with a challenge), resent by
   the client with the same id,** no longer fails `BASE-003`/`BASE-045` or counts as a
   second session: the refused request was not delivered, the retry is. The refusal's
@@ -663,9 +671,10 @@ below is stated again in its entry, with the reasoning.
   must not call a tool whose `x-mcp-header` annotations it had to reject); and
   `BASE-033`, `BASE-037` and `DISC-003` (`clientInfo` on requests, `serverInfo` on
   results, as warnings). rmcp names the server on two result kinds only, so the Rust
-  SDK capture and the official-suite pair (recorded 2026-10-04 and kept as recorded)
-  warn on `BASE-037`; the Go and Python SDK servers pass it, and the everything server
-  does since it names itself on every result (see Fixed).
+  SDK capture and the official-suite pair's legacy leg (the everything server serving
+  `2025-11-25`, held to `2026-07-28` on purpose) warn on `BASE-037`; the Go and Python
+  SDK servers pass it, and the everything server at `2026-07-28` does since it names
+  itself on every result (see Fixed).
 - **`mcp-conformance watch stdio|http`** records a session exactly as
   `mcp-trace-capture` does and judges it while it runs: each new fail or warn finding
   prints on stderr as the exchange that shows it completes (clause ID, level, `seq`,

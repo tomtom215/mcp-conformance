@@ -35,15 +35,15 @@ Verdicts, ours against mcpsnoop's conformance signals:
 
 | | mcpsnoop flags the trace | mcpsnoop does not |
 |---|---:|---:|
-| our verdict `fail` | 81 | 126 |
-| our verdict `pass` or `pass-with-warnings` | 2 | 73 |
+| our verdict `fail` | 80 | 126 |
+| our verdict `pass` or `pass-with-warnings` | 2 | 74 |
 
 Traces by how the two readings relate:
 
 | Relation | Traces |
 |---|---:|
-| both clean | 33 |
-| agree | 76 |
+| both clean | 34 |
+| agree | 75 |
 | beyond mcpsnoop | 162 |
 | **divergent** | 11 |
 
@@ -294,7 +294,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `batch-routing-headers` | `routing headers are invalid on a JSON-RPC batch` | *TRAN-026* | *TRAN-059* | http | 0 | Routing headers on a POST whose body is a batch. Template read from the binary; mcpsnoop reports an HTTP batch only when routing headers ride it. |
 | `server-rejected-header-mismatch` | `a routing header disagrees with the body` | — | *TRAN-058*, *TRAN-071*, *TRAN-072*, *TRAN-077*, *TRAN-079*, *TRAN-086*, *TRAN-087*, *TRAN-089*, *TRAN-092*, *TRAN-130*, *TRAN-132*, *TRAN-134* | http | 10 | The server answered `-32020` (`HeaderMismatch`). mcpsnoop counts the rejection itself as the routing fault, which convicts the client's headers on the server's word. |
 | `response-content-type` | `the response to a request * the transport * application/json or text/event-stream` | TRAN-029 | TRAN-063 | http | 4 | A POST carrying a request answered with a `Content-Type` other than `application/json` or `text/event-stream`, or with none. |
-| `cacheable-without-ttl` | `cacheable * result declares no ttlMs, which * requires` | — | *CACH-001* | body | 10 | A complete result of a cacheable operation without `ttlMs`. CACH-001 asks for caching hints; mcpsnoop checks `ttlMs` and not `cacheScope`. |
+| `cacheable-without-ttl` | `cacheable * result declares no ttlMs, which * requires` | — | *CACH-001* | body | 9 | A complete result of a cacheable operation without `ttlMs`. CACH-001 asks for caching hints; mcpsnoop checks `ttlMs` and not `cacheScope`. |
 | `cache-scope-across-pages` | `cacheScope * on a later page of * disagrees with` | — | CACH-015, CACH-016 | body | 1 | Pages of one list request carrying different `cacheScope` values. |
 | `cache-scope-value` | `cacheScope is *, and * defines only public and private` | — | *wire-schema* | body | 1 | A `cacheScope` outside `public` and `private`. No RFC 2119 clause states the enumeration; the revision's JSON Schema does, which the report judges as its wire schema. |
 | `negative-ttl` | `ttlMs is *, and * requires a value of zero or more` | — | CACH-008 | body | 1 | A negative `ttlMs`. |
@@ -593,8 +593,8 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/wire-schema-cache-scope-not-in-enum` | 2026-07-28 | fail | `wire-schema` | flags | `cache-scope-value` | — | agree |
 | `draft/violations/wire-schema-content-block-unknown-type` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/wire-schema-resource-missing-uri` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
-| `draft/captured/official-suite-2026-07-28-scenarios` | 2026-07-28 | fail | `BASE-037`, `CACH-001`, `wire-schema` | flags | `cacheable-without-ttl` | — | agree |
-| `draft/captured/official-suite-2026-07-28-stateless` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
+| `draft/captured/official-suite-2026-07-28-scenarios` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
+| `draft/captured/official-suite-2026-07-28-stateless` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/captured/probe-2026-07-28-http` | 2026-07-28 | fail | `BASE-030`, `BASE-033`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `TRAN-071`, `TRAN-072`, `TRAN-079`, `TRAN-130`, `wire-schema` | flags | `param-header-missing`, `protocol-version-header-disagrees`, `request-meta-missing`, `server-rejected-header-mismatch` | — | agree |
 | `draft/captured/reference-host-2026-07-28-http` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/captured/reference-host-2026-07-28-stdio` | 2026-07-28 | pass | — | silent | — | — | both clean |
