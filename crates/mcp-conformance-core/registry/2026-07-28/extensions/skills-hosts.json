@@ -1,0 +1,280 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "SKILL-054",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT treat a `resources/read` of a `SKILL.md` that arrives by any other route as a load."
+      },
+      "exclusion": "Whether a host treats a read as a load is internal: the page itself says a read is transport and a load is the host placing content in the model's context, which no message marks."
+    },
+    {
+      "id": "SKILL-055",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Content obtained that way is ordinary resource content, and a host that returns it to the model SHOULD do so as it would any other resource read, not as a loaded skill."
+      },
+      "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+    },
+    {
+      "id": "SKILL-056",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "When a host retrieves a file listed in a skill's `resources`, it MUST verify the content against that entry's `digest` and `size`."
+      },
+      "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+    },
+    {
+      "id": "SKILL-057",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "In all cases, hosts MUST NOT use the unverified content."
+      },
+      "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+    },
+    {
+      "id": "SKILL-058",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "While acting on a skill, a host MUST resolve reads of the skill's files only to URIs listed in the held entry's `resources`."
+      },
+      "exclusion": "Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was."
+    },
+    {
+      "id": "SKILL-059",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A host MUST treat a read of an unlisted file within the skill as a verification failure equivalent to a digest mismatch."
+      },
+      "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+    },
+    {
+      "id": "SKILL-060",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "After fetching a `SKILL.md` for which the host holds an entry (digest-verified when the entry's `resources` is an array, unverifiable when it is `\"dynamic\"`), hosts MUST parse its YAML frontmatter and compare it field-by-field against the entry's `frontmatter`."
+      },
+      "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+    },
+    {
+      "id": "SKILL-061",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Any discrepancy MUST be treated as a verification failure equivalent to a digest mismatch, and the skill MUST NOT be loaded."
+      },
+      "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+    },
+    {
+      "id": "SKILL-062",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT retrieve a skill's files ahead of need, whether on connection, on listing, or at approval."
+      },
+      "exclusion": "Need is the model's or the user's request to load or read, which no recording carries: a read right after a listing is prefetching or a load the user asked for, and the wire is the same. The official suite judges this clause in a scripted scenario in which nothing asked for a load (`sep-2640-client-no-prefetch`), which a recording of an ordinary session cannot reproduce."
+    },
+    {
+      "id": "SKILL-063",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts SHOULD cache what they do retrieve."
+      },
+      "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+    },
+    {
+      "id": "SKILL-064",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT treat a digest match as a security boundary."
+      },
+      "exclusion": "A security policy inside the host; trusting or distrusting content produces no message."
+    },
+    {
+      "id": "SKILL-065",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "The `resultType` field MUST be set to `\"complete\"` on `ReadResourceDirectoryResult`, as it is the standard result shape for the `resources/directory/read` request."
+      },
+      "checks": [
+        "skills.directory-result-complete"
+      ]
+    },
+    {
+      "id": "SKILL-066",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "If the URI does not exist, or exists but is not a directory resource, the server MUST return error `-32602` (Invalid params)."
+      },
+      "checks": [
+        "skills.directory-read-invalid-params"
+      ]
+    },
+    {
+      "id": "SKILL-067",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A server that declares `directoryRead` MUST support the method for every directory within the skill namespaces it serves as individual files."
+      },
+      "checks": [
+        "skills.directory-read-every-directory"
+      ]
+    },
+    {
+      "id": "SKILL-068",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "While acting on the skill under the held entry, the host MUST NOT read the newly listed child (an unlisted file is a verification failure) and MUST NOT surface it to the model as a file of the skill."
+      },
+      "exclusion": "Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was."
+    },
+    {
+      "id": "SKILL-069",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts SHOULD present this sequence as a skill that has changed and needs re-approval, rather than as a read error."
+      },
+      "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+    },
+    {
+      "id": "SKILL-070",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT treat the directory result as extending the manifest."
+      },
+      "exclusion": "Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was."
+    },
+    {
+      "id": "SKILL-071",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Servers MUST return standard JSON-RPC errors for the following protocol error cases: `skills/get` with a `uri` that does not identify a skill the server serves: `-32602` (Invalid params).; `resources/directory/read` with a `uri` that does not exist or is not a directory resource: `-32602` (Invalid params).; `resources/read` of a skill file the server does not serve: `-32602` (Invalid params), per the base Resources specification.; Internal errors: `-32603` (Internal error)."
+      },
+      "checks": [
+        "skills.get-unknown-invalid-params",
+        "skills.directory-read-invalid-params"
+      ]
+    },
+    {
+      "id": "SKILL-072",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Servers SHOULD provide informative error messages to describe the cause of errors."
+      },
+      "exclusion": "Informativeness is a judgment about prose; any non-empty message passes a mechanical test of it."
+    }
+  ]
+}

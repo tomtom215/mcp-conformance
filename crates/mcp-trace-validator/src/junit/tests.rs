@@ -161,6 +161,7 @@ fn every_skip_variant() -> Report {
             bare_row("AAAA-006", Outcome::NotObserved),
         ],
         wire_schema: None,
+        extensions: vec![],
     }
 }
 
@@ -276,4 +277,27 @@ fn an_unjudged_trace_is_a_suite_with_an_error_and_counts_in_the_totals() {
         "{xml}"
     );
     assert_eq!(xml.matches("</testsuite>").count(), 3, "{xml}");
+}
+
+/// An extension's suite never fails the document, `--strict` or not (ADR-0023).
+#[test]
+fn an_extension_suite_shows_its_failure_and_fails_nothing() {
+    let (reports, _) = crate::fixtures::undeclared_task();
+    for strict in [false, true] {
+        let xml = render_with(&reports, &Options::for_trace("t.jsonl").strict(strict));
+        assert!(xml.contains(r#"failures="0""#), "{xml}");
+        assert!(!xml.contains("<failure"), "{xml}");
+        assert!(
+            xml.contains(r#"<testsuite name="t.jsonl (2026-07-28, extension io.modelcontextprotocol/tasks, not scored)""#),
+            "{xml}"
+        );
+        assert!(
+            xml.contains(r#"classname="t.jsonl.mcp.2026-07-28.io.modelcontextprotocol/tasks" file="t.jsonl" name="TASK-001 (MUST NOT)">"#),
+            "{xml}"
+        );
+        assert!(
+            xml.contains("<system-out>not scored (MUST NOT, extension): the clause fails"),
+            "{xml}"
+        );
+    }
 }

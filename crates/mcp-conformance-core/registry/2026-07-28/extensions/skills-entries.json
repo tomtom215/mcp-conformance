@@ -1,0 +1,429 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "SKILL-026",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "The `frontmatter` object MUST be identical in content to the frontmatter of the `SKILL.md` it describes."
+      },
+      "checks": [
+        "skills.frontmatter-identical"
+      ]
+    },
+    {
+      "id": "SKILL-027",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "The final `<skill-path>` segment of the entry's `uri` MUST equal `frontmatter.name`, per Resource Mapping."
+      },
+      "checks": [
+        "skills.final-segment-is-name"
+      ]
+    },
+    {
+      "id": "SKILL-028",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Implementations SHOULD ignore keys under this prefix that they do not recognize."
+      },
+      "exclusion": "Ignoring a metadata key leaves nothing on the wire."
+    },
+    {
+      "id": "SKILL-029",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Within a server's listing, names SHOULD be unique, but they are not guaranteed to be."
+      },
+      "checks": [
+        "skills.listing-names-unique"
+      ]
+    },
+    {
+      "id": "SKILL-030",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT assume name uniqueness."
+      },
+      "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+    },
+    {
+      "id": "SKILL-031",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "When two entries in one listing collide on `name`, hosts MUST disambiguate them (for example by their distinguishing path segments) rather than silently discarding or preferring one."
+      },
+      "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+    },
+    {
+      "id": "SKILL-032",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "When skills from different origins collide on `name`, hosts MUST resolve the name within a per-origin namespace, identifying servers by a host-assigned label."
+      },
+      "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+    },
+    {
+      "id": "SKILL-033",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "An MCP-served skill MUST NOT silently shadow, or be silently substituted for, a same-named skill from any other origin, whether another server or the host's own filesystem skills."
+      },
+      "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+    },
+    {
+      "id": "SKILL-034",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "`resources` is REQUIRED on every skill entry and takes one of two forms: an array of `SkillResource` objects enumerating the skill's files (`SKILL.md` and every supporting file), or the string `\"dynamic\"`."
+      },
+      "checks": [
+        "skills.entry-resources-form"
+      ]
+    },
+    {
+      "id": "SKILL-035",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "When `resources` is an array, it MUST be complete. It lists every file of the skill, each exactly once, including an entry whose `uri` equals the skill's top-level `uri`."
+      },
+      "checks": [
+        "skills.manifest-lists-skill-md"
+      ]
+    },
+    {
+      "id": "SKILL-036",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Each `uri` MUST be the skill's `SKILL.md` or a file within the skill's directory."
+      },
+      "checks": [
+        "skills.manifest-within-skill"
+      ]
+    },
+    {
+      "id": "SKILL-037",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Each entry MUST carry `size`, the length in bytes of the file's raw content (the same bytes the `digest` covers)."
+      },
+      "checks": [
+        "skills.manifest-entry-size"
+      ]
+    },
+    {
+      "id": "SKILL-038",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "When a skill's content is generated dynamically, such that stable digests cannot be published, the server MUST set `resources` to the string `\"dynamic\"` instead of an array."
+      },
+      "exclusion": "Its antecedent — content generated so that stable digests cannot be published — is the server's own knowledge. An array of digests and the string `\"dynamic\"` are both valid forms, and SKILL-034 judges that one of them is present."
+    },
+    {
+      "id": "SKILL-039",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "An entry with no `resources` at all, or with any value other than an array or `\"dynamic\"`, is invalid, and hosts MUST NOT load it."
+      },
+      "exclusion": "Loading is the host placing content in the model's context, which no message marks: a `resources/read` of the skill's `SKILL.md` is transport, not a load (the page says so), so a read after an invalid entry convicts nothing. The server's half — an entry without a valid `resources` — is SKILL-034."
+    },
+    {
+      "id": "SKILL-040",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MAY decline to load such skills, and server authors SHOULD expect that some hosts will."
+      },
+      "exclusion": "An expectation held by a server's author is not behaviour."
+    },
+    {
+      "id": "SKILL-041",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST support skills up to and including these limits"
+      },
+      "exclusion": "The capacity of the host: a recording shows what was served and read, not what the host could have accepted."
+    },
+    {
+      "id": "SKILL-042",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Servers SHOULD NOT serve a skill that exceeds either limit."
+      },
+      "checks": [
+        "skills.within-limits"
+      ]
+    },
+    {
+      "id": "SKILL-043",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A host that declines a skill on this basis SHOULD tell the user why rather than fail silently on a later read."
+      },
+      "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+    },
+    {
+      "id": "SKILL-044",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A server declaring this extension MUST implement the `skills/list` method, which returns entries for the skills it serves."
+      },
+      "checks": [
+        "skills.list-implemented"
+      ]
+    },
+    {
+      "id": "SKILL-045",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "The `resultType` field MUST be set to `\"complete\"` on `ListSkillsResult`, as it is the standard result shape for the `skills/list` request."
+      },
+      "checks": [
+        "skills.list-result-complete"
+      ]
+    },
+    {
+      "id": "SKILL-046",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT treat an empty or partial listing as proof that a server has no skills, and MUST support loading a skill given only its URI"
+      },
+      "exclusion": "How a host reasons from a listing, and whether it can load a skill by URI alone, are host capabilities; a session in which it never does either is conforming, and one in which it does looks like any `skills/get`."
+    },
+    {
+      "id": "SKILL-047",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "`ListSkillsResult` extends `CacheableResult`, so `ttlMs` and `cacheScope` are REQUIRED, as they are on `tools/list` and `resources/list`, and carry the same semantics."
+      },
+      "checks": [
+        "skills.list-cacheable"
+      ]
+    },
+    {
+      "id": "SKILL-048",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A server declaring this extension MUST implement the `skills/get` method, which returns the entry for a single skill named by the URI of its `SKILL.md`."
+      },
+      "checks": [
+        "skills.get-implemented"
+      ]
+    },
+    {
+      "id": "SKILL-049",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "The `resultType` field MUST be set to `\"complete\"` on `GetSkillResult`, as it is the standard result shape for the `skills/get` request."
+      },
+      "checks": [
+        "skills.get-result-complete"
+      ]
+    },
+    {
+      "id": "SKILL-050",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "`params.uri` MUST be the URI of a skill's `SKILL.md`."
+      },
+      "checks": [
+        "skills.get-uri-names-skill-md"
+      ]
+    },
+    {
+      "id": "SKILL-051",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "If the URI does not identify a skill the server serves, the server MUST return error `-32602` (Invalid params), the same code `resources/read` uses for unknown resources."
+      },
+      "checks": [
+        "skills.get-unknown-invalid-params"
+      ]
+    },
+    {
+      "id": "SKILL-052",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A server MUST answer for every skill it serves, whether or not that skill appears in its `skills/list` result."
+      },
+      "exclusion": "What a server serves is its own state at the moment of the call: a skill listed earlier and refused later may have been withdrawn in between, which the page allows (an entry is a point-in-time snapshot), so a refusal convicts nothing."
+    },
+    {
+      "id": "SKILL-053",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "`GetSkillResult` extends `CacheableResult`, so `ttlMs` and `cacheScope` are REQUIRED, as they are on `resources/read`, and carry the same semantics."
+      },
+      "checks": [
+        "skills.get-cacheable"
+      ]
+    }
+  ]
+}

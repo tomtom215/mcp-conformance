@@ -9,7 +9,7 @@
 
 use core::fmt::Write as _;
 
-use super::{Finding, Outcome, Report, WireSchemaReport};
+use super::{ExtensionReport, Finding, Outcome, Report, WireSchemaReport};
 
 /// How the human renderers lay a report out: [`Report::render_with`] and
 /// [`MultiReport::render_with`](crate::multi::MultiReport::render_with).
@@ -117,6 +117,9 @@ impl Report {
         }
         if let Some(wire_schema) = &self.wire_schema {
             wire_schema.write_human(&mut out, options, None);
+        }
+        for extension in &self.extensions {
+            extension.write_human(&mut out, options, None);
         }
         // Every outcome is named, so the counts sum to the registry's size — a
         // reader can check the arithmetic, and `Totals`' own exhaustive
@@ -313,5 +316,37 @@ impl WireSchemaReport {
             self.source.write_human(out);
             let _ = writeln!(out, "        schema: {}", self.schema);
         }
+    }
+}
+
+impl ExtensionReport {
+    /// The extension's block: a header saying it is not scored, the rows the
+    /// options select, and its own totals and verdict — under a `revision` in
+    /// the multi-revision report. Written before the report's totals, which it
+    /// is not part of; the header and the last line are written whatever the
+    /// options, so a reader sees the extension was exercised.
+    pub(crate) fn write_human(
+        &self,
+        out: &mut String,
+        options: &HumanOptions,
+        revision: Option<&str>,
+    ) {
+        let label = revision.map_or_else(String::new, |revision| format!(" at {revision}"));
+        let _ = writeln!(
+            out,
+            "extension {}{label} — not scored: its outcomes never change the verdict",
+            self.extension
+        );
+        for row in &self.requirements {
+            if options.all || row.outcome.needs_attention() {
+                write_row(out, row, options);
+            }
+        }
+        let _ = writeln!(
+            out,
+            "  extension totals: {} — extension verdict: {}",
+            self.totals,
+            self.verdict()
+        );
     }
 }

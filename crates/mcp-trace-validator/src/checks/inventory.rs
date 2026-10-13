@@ -204,9 +204,13 @@ const REVISION_ROWS: [Check; SHIPPED.len() + stateless_rows::ROWS.len()] =
 const FEATURE_ROWS: [Check; REVISION_ROWS.len() + client_feature_rows::ROWS.len()] =
     concatenated(&REVISION_ROWS, client_feature_rows::ROWS);
 
-/// The backing storage for [`ALL`].
-static EVERY: [Check; FEATURE_ROWS.len() + auth_rows::ROWS.len()] =
+/// The core rows: every revision's, and the pages both share.
+const CORE_ROWS: [Check; FEATURE_ROWS.len() + auth_rows::ROWS.len()] =
     concatenated(&FEATURE_ROWS, auth_rows::ROWS);
+
+/// The backing storage for [`ALL`]: the core rows, then the extensions'.
+static EVERY: [Check; CORE_ROWS.len() + extension_rows::ROWS.len()] =
+    concatenated(&CORE_ROWS, extension_rows::ROWS);
 
 /// Every check implemented by this build, in stable order.
 pub static ALL: &[Check] = &EVERY;
@@ -218,6 +222,7 @@ pub fn find(id: &str) -> Option<&'static Check> {
 
 mod auth_rows;
 mod client_feature_rows;
+mod extension_rows;
 mod stateless_rows;
 
 #[cfg(test)]

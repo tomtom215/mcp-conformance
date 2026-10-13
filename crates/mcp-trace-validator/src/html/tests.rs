@@ -422,3 +422,31 @@ fn the_verdict_sentence_names_every_cause() {
         )
     );
 }
+
+/// The extensions section: present, linked from the contents, its verdict
+/// shown, and the page's own verdict untouched (ADR-0023).
+#[test]
+fn an_extension_has_a_section_of_its_own_beside_the_verdict() {
+    let page = page(crate::fixtures::UNDECLARED_TASK);
+    assert!(
+        page.contains("<title>Pass — "),
+        "the page verdict ignores the extension"
+    );
+    assert!(page.contains("Extensions — not scored"), "{page}");
+    assert!(page.contains("Extensions, not scored <span class=\"count\">1</span>"));
+    assert!(page.contains(
+        "<code>io.modelcontextprotocol/tasks</code> <span class=\"badge v-fail\">Fail</span>"
+    ));
+    assert!(page.contains(r#"<article class="clause o-fail" id="TASK-001">"#));
+    // The finding's event links back to the clause.
+    assert!(
+        page.contains("href=\"#TASK-001-1\""),
+        "the timeline marks the finding"
+    );
+    // A session that never touched an extension has no such section.
+    assert!(!page_without_extensions().contains("Extensions — not scored"));
+}
+
+fn page_without_extensions() -> String {
+    page(SESSION)
+}

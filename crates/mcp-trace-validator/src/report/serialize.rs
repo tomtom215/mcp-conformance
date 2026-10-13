@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! [`Report`]'s JSON form: its fields, with the verdict they imply.
+//! [`Report`]'s and [`ExtensionReport`]'s JSON form: their fields, with the
+//! verdict they imply.
 //!
 //! Written by hand rather than derived because the verdict is a function of the
 //! totals, not a field: storing it would let the two disagree. The member order
@@ -10,11 +11,11 @@
 
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
-use super::Report;
+use super::{ExtensionReport, Report};
 
 impl Serialize for Report {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut report = serializer.serialize_struct("Report", 7)?;
+        let mut report = serializer.serialize_struct("Report", 8)?;
         report.serialize_field("revision", &self.revision)?;
         if let Some(mismatch) = &self.revision_mismatch {
             report.serialize_field("revision_mismatch", mismatch)?;
@@ -34,6 +35,22 @@ impl Serialize for Report {
         } else {
             report.skip_field("wire_schema")?;
         }
+        if self.extensions.is_empty() {
+            report.skip_field("extensions")?;
+        } else {
+            report.serialize_field("extensions", &self.extensions)?;
+        }
         report.end()
+    }
+}
+
+impl Serialize for ExtensionReport {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut extension = serializer.serialize_struct("ExtensionReport", 4)?;
+        extension.serialize_field("extension", &self.extension)?;
+        extension.serialize_field("verdict", &self.verdict())?;
+        extension.serialize_field("totals", &self.totals)?;
+        extension.serialize_field("requirements", &self.requirements)?;
+        extension.end()
     }
 }

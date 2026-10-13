@@ -14,6 +14,13 @@
       "why": "Re-decided 2026-10-12, the review-by (2026-10-15) being due: there is still nothing stable to bump to. npm `latest` is 0.1.16, published 2026-03-30 and unchanged for six and a half months; `alpha` is 0.2.0-alpha.12 (2026-10-01). Re-fetched 2026-10-12 (register 2.4). Pin bumps are deliberate PRs with a scenario diff review (03-conformance-strategy §Official-suite version policy)",
       "meanwhile": "The watch is a gate, not a date: `cargo xtask suite-currency` (weekly, in `claims-expire`) fails the moment npm's `latest` stops being 0.1.16, and a red weekly run files a tracking issue. The weekly suite-alpha job runs the alpha dist-tag non-blocking; the draft ratchet pins alpha.12 and gates every check's status; conformance#338's fix arrives with the stable bump and its agreement-divergence entry will go stale loudly",
       "review_by": "2026-12-15"
+    },
+    {
+      "id": "mcp-apps-extension",
+      "what": "The MCP Apps extension (modelcontextprotocol/ext-apps, the site's `extensions/apps/*`) as an extension registry beside 2026-07-28, the way ADR-0023 entered tasks and skills: every MUST- and SHOULD-family keyword of its specification entered, the clauses a recording can show judged with corpus pairs, the rest excluded with reasons",
+      "why": "Review item 2.6 named tasks and skills, the two extensions the official suite and SEP-1730 single out; Apps is the third official extension and was not read for this change. Most of it binds the view-to-host bridge, which runs over postMessage inside the host and never reaches an MCP recording, but its server half — `ui://` resources and the tool metadata that points at them — does cross the MCP connection, so it cannot be excluded wholesale without reading its clauses, and an unread page is not an exclusion",
+      "meanwhile": "`extensions/apps/overview` and `extensions/apps/build` sit in `site_out_of_scope` of registry/2026-07-28/extensions/sources.json naming this row, so the weekly spec-drift run keeps them decided rather than silent; the official suite runs no Apps scenario either (0.2.0-alpha.12, read 2026-10-13)",
+      "review_by": "2027-01-31"
     }
   ]
 }

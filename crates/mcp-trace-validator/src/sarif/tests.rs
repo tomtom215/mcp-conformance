@@ -240,3 +240,42 @@ fn an_unjudged_trace_is_a_failed_invocation_located_at_the_trace() {
     // The judged trace's results are all still there.
     assert_eq!(log["runs"][0]["results"], judged["runs"][0]["results"]);
 }
+
+/// An extension's findings are `note`s, marked unscored, `--strict` or not.
+#[test]
+fn an_extension_finding_is_an_unscored_note() {
+    let (reports, events) = crate::fixtures::undeclared_task();
+    for strict in [false, true] {
+        let log: Value = serde_json::from_str(&render_with(
+            &reports,
+            Artifact {
+                uri: Some("t.jsonl"),
+                events: &events,
+            },
+            &Options::default().strict(strict),
+        ))
+        .unwrap();
+        let results = log["runs"][0]["results"].as_array().unwrap();
+        let task = results
+            .iter()
+            .find(|result| result["ruleId"] == "TASK-001")
+            .unwrap();
+        assert_eq!(task["level"], "note");
+        assert_eq!(task["properties"]["scored"], false);
+        assert_eq!(
+            task["properties"]["extension"],
+            "io.modelcontextprotocol/tasks"
+        );
+        let rule = &log["runs"][0]["tool"]["driver"]["rules"]
+            [usize::try_from(task["ruleIndex"].as_u64().unwrap()).unwrap()];
+        assert_eq!(rule["defaultConfiguration"]["level"], "note");
+        assert!(
+            rule["helpUri"]
+                .as_str()
+                .unwrap()
+                .starts_with("https://modelcontextprotocol.github.io/ext-tasks/"),
+            "{rule}"
+        );
+        assert!(results.iter().all(|result| result["level"] != "error"));
+    }
+}

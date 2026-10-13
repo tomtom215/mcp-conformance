@@ -356,3 +356,25 @@ fn each_revisions_findings_are_limited_on_their_own() {
         "2025-11-25: … and 1 more (pass --all, or use --format json, for every finding)\n"
     ));
 }
+
+/// A several-revision report carries each revision's extensions in its summary
+/// and prints them, and its verdict ignores them as a single report's does.
+#[test]
+fn a_summary_carries_its_revisions_extensions() {
+    let events = crate::reader::parse_trace(
+        crate::fixtures::UNDECLARED_TASK,
+        &crate::reader::Limits::default(),
+    )
+    .unwrap();
+    let set = mcp_conformance_core::requirement::RegistrySet::builtin().unwrap();
+    let revisions = ["2025-11-25".parse().unwrap(), "2026-07-28".parse().unwrap()];
+    let report = validate_revisions(&set, &revisions, &events).unwrap();
+    assert_eq!(report.summaries[0].extensions.len(), 0);
+    assert_eq!(report.summaries[1].extensions[0].verdict(), Verdict::Fail);
+    assert_eq!(report.summaries[1].verdict, Verdict::Pass);
+    let human = report.render_findings();
+    assert!(
+        human.contains("extension io.modelcontextprotocol/tasks at 2026-07-28 — not scored"),
+        "{human}"
+    );
+}

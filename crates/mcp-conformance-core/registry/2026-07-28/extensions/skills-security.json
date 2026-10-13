@@ -1,0 +1,383 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "SKILL-073",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST treat MCP-served skill content as untrusted model input, subject to the same prompt-injection defenses applied to any server-provided text."
+      },
+      "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+    },
+    {
+      "id": "SKILL-074",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST treat MCP-served skills as a higher-risk surface than remote tool invocation."
+      },
+      "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+    },
+    {
+      "id": "SKILL-075",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST tag MCP-served skill content with its originating server identity at the point it enters model context."
+      },
+      "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+    },
+    {
+      "id": "SKILL-076",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT present an MCP-served skill to the model as indistinguishable from a local filesystem skill."
+      },
+      "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+    },
+    {
+      "id": "SKILL-077",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT allow MCP-served skill content to cause host-side code execution without explicit per-skill user approval."
+      },
+      "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+    },
+    {
+      "id": "SKILL-078",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST ignore or approval-gate (a)."
+      },
+      "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+    },
+    {
+      "id": "SKILL-079",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST apply the same approval gate to code-execution tool calls issued while the model is acting on an MCP-served skill."
+      },
+      "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+    },
+    {
+      "id": "SKILL-080",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST bind such reads to the skill's originating server."
+      },
+      "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+    },
+    {
+      "id": "SKILL-081",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A skill served by server A MUST NOT cause a `resources/read` against server B."
+      },
+      "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+    },
+    {
+      "id": "SKILL-082",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST identify servers by a host-assigned label, not the server's self-reported `serverInfo.name`."
+      },
+      "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+    },
+    {
+      "id": "SKILL-083",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Any cross-origin read MUST be gated behind explicit per-call user approval naming both servers."
+      },
+      "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+    },
+    {
+      "id": "SKILL-084",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST resolve skill names within a per-origin namespace, identifying servers by a host-assigned label."
+      },
+      "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+    },
+    {
+      "id": "SKILL-085",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT let an MCP-served skill silently shadow, replace, or intercept invocations of a same-named skill from any other origin, including the host's filesystem skills."
+      },
+      "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+    },
+    {
+      "id": "SKILL-086",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts SHOULD surface collisions to the user."
+      },
+      "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+    },
+    {
+      "id": "SKILL-087",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT honor frontmatter fields that widen the model's tool or filesystem permissions when the skill arrives over MCP."
+      },
+      "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+    },
+    {
+      "id": "SKILL-088",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "In particular, the Agent Skills `allowed-tools` field MUST be ignored for MCP-origin skills unless the user has explicitly approved that grant for that skill."
+      },
+      "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+    },
+    {
+      "id": "SKILL-089",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT treat skill resources as higher-authority than other context."
+      },
+      "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+    },
+    {
+      "id": "SKILL-090",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts SHOULD indicate which server a skill originates from when presenting it."
+      },
+      "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+    },
+    {
+      "id": "SKILL-091",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts SHOULD let users inspect a skill's content before it is loaded into model context."
+      },
+      "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+    },
+    {
+      "id": "SKILL-092",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "When a host persists any per-skill user approval, it MUST be bound to the entry's `resources` set (every `uri` and `digest`) observed at the moment of approval."
+      },
+      "exclusion": "Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one."
+    },
+    {
+      "id": "SKILL-093",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "If a subsequent entry for that skill, from `skills/list` or `skills/get`, advertises a different set, whether a file was rotated, added, or removed, the host MUST treat the prior approval as revoked and re-prompt before loading or executing."
+      },
+      "exclusion": "Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one."
+    },
+    {
+      "id": "SKILL-094",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MAY decline to load it, and MUST NOT treat a persisted approval as covering whatever content the server currently serves."
+      },
+      "exclusion": "Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one."
+    },
+    {
+      "id": "SKILL-095",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts SHOULD cache verified skill content locally, populated on demand as files are read rather than in bulk."
+      },
+      "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+    },
+    {
+      "id": "SKILL-096",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts that cache skill content on disk MUST do one of the following for every file served from the cache."
+      },
+      "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+    },
+    {
+      "id": "SKILL-097",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts that cache MCP-served skill content on disk MUST do so in a location excluded from every filesystem-skill discovery path."
+      },
+      "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+    },
+    {
+      "id": "SKILL-098",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST treat content loaded from that location as having arrived over MCP for all purposes of the no-implicit-local-execution rule above, including after host restart and after the originating server is disconnected."
+      },
+      "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+    },
+    {
+      "id": "SKILL-099",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts SHOULD remove a server's cached skill content when the user removes that server."
+      },
+      "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+    }
+  ]
+}

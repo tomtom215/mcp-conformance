@@ -20,6 +20,7 @@ use crate::applies::AppliesRange;
 use crate::capability::CapabilityGate;
 use crate::revision::ProtocolRevision;
 
+mod extension;
 mod registry;
 mod set;
 
@@ -262,6 +263,13 @@ pub struct Requirement {
     /// every revision; a present range is the half-open `[introduced, removed)` interval.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub applies: Option<AppliesRange>,
+    /// The official extension that states this clause, by its identifier
+    /// (`io.modelcontextprotocol/tasks`), when it is not a core clause of the
+    /// revision. Extension clauses are reported beside the core ones and never
+    /// change the verdict (ADR-0023): a [`Registry`] keeps them apart, under
+    /// [`Registry::extension_requirements`]. Absent for a core clause.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extension: Option<String>,
     /// Source location and verbatim quote.
     pub source: SourceRef,
     /// Check coverage or documented exclusion.
@@ -270,6 +278,38 @@ pub struct Requirement {
 }
 
 impl Requirement {
+    /// The published text of this clause, anchor included.
+    ///
+    /// A core clause is published with its revision ([`SourceRef::url`]). An
+    /// extension's clauses are published by the extension, wherever its own
+    /// repository puts them, so the revision plays no part; an extension this build
+    /// does not know (an external registry's) yields the bare section.
+    ///
+    /// ```
+    /// # use mcp_conformance_core::requirement::Requirement;
+    /// let tasks: Requirement = serde_json::from_str(
+    ///     r#"{"id": "TASK-017", "level": "MUST", "actor": "server",
+    ///         "extension": "io.modelcontextprotocol/tasks",
+    ///         "source": {"section": "specification/2026-07-28/tasks#response", "quote": "MUST"},
+    ///         "checks": ["tasks.results-complete"]}"#,
+    /// )?;
+    /// assert_eq!(
+    ///     tasks.url("2026-07-28".parse()?),
+    ///     "https://modelcontextprotocol.github.io/ext-tasks/specification/2026-07-28/tasks#response"
+    /// );
+    /// # Ok::<(), Box<dyn core::error::Error>>(())
+    /// ```
+    #[must_use]
+    pub fn url(&self, revision: ProtocolRevision) -> String {
+        self.extension.as_deref().map_or_else(
+            || self.source.url(revision),
+            |id| {
+                extension::published_url(id, &self.source.section)
+                    .unwrap_or_else(|| self.source.section.clone())
+            },
+        )
+    }
+
     /// Whether this clause is in force at `revision`.
     ///
     /// A requirement with no [`applies`](Self::applies) range applies to every revision;

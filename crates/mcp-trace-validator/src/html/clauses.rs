@@ -38,7 +38,7 @@ pub(super) fn open_section(out: &mut String, scope: &Scope<'_>, name: &str, titl
 }
 
 /// Under a several-revision page, the heading of one revision's part.
-fn revision_heading(out: &mut String, scope: &Scope<'_>, report: &Report) -> u8 {
+pub(super) fn revision_heading(out: &mut String, scope: &Scope<'_>, report: &Report) -> u8 {
     if scope.multi() {
         let _ = writeln!(
             out,
@@ -96,7 +96,7 @@ fn card_head(out: &mut String, anchor: &str, title: &str, pills: &[(&str, &str)]
     out.push_str("</header>\n");
 }
 
-fn clause(
+pub(super) fn clause(
     out: &mut String,
     scope: &Scope<'_>,
     report: &Report,
@@ -271,46 +271,56 @@ pub(super) fn accounting(out: &mut String, scope: &Scope<'_>) {
     );
     for report in scope.reports {
         revision_heading(out, scope, report);
-        for group in &GROUPS {
-            let rows: Vec<&RequirementReport> = report
-                .requirements
-                .iter()
-                .filter(|row| row.outcome == group.outcome)
-                .collect();
-            if rows.is_empty() {
-                continue;
-            }
-            let class = token(group.outcome);
-            let _ = writeln!(
-                out,
-                "<details class=\"group g-{class}\"><summary><span class=\"group-name\">{}</span>\
-                 <span class=\"count\">{}</span></summary>\n<p class=\"meaning\">{}</p>\n<ul class=\"rows\">",
-                group.title,
-                rows.len(),
-                group.meaning
-            );
-            for row in rows {
-                let _ = write!(
-                    out,
-                    "<li id=\"{}\"><code class=\"rid\">{}</code><span class=\"pill level\">{}</span>",
-                    scope.clause(&report.revision, &row.id),
-                    Text(&row.id),
-                    Text(&row.level)
-                );
-                if let Some(reason) = &row.exclusion {
-                    let _ = write!(out, "<span class=\"reason\">{}</span>", Text(reason));
-                }
-                if let Some(capability) = &row.capability {
-                    let _ = write!(
-                        out,
-                        "<span class=\"reason\">capability <code>{}</code> was not declared</span>",
-                        Text(capability)
-                    );
-                }
-                out.push_str("</li>\n");
-            }
-            out.push_str("</ul>\n</details>\n");
-        }
+        groups(out, scope, report, &report.requirements);
     }
     out.push_str("</section>\n");
+}
+
+/// `rows` with nothing to act on, one collapsed group per outcome, each row
+/// with its reason, anchored under `report`'s revision.
+pub(super) fn groups(
+    out: &mut String,
+    scope: &Scope<'_>,
+    report: &Report,
+    rows: &[RequirementReport],
+) {
+    for group in &GROUPS {
+        let members: Vec<&RequirementReport> = rows
+            .iter()
+            .filter(|row| row.outcome == group.outcome)
+            .collect();
+        if members.is_empty() {
+            continue;
+        }
+        let class = token(group.outcome);
+        let _ = writeln!(
+            out,
+            "<details class=\"group g-{class}\"><summary><span class=\"group-name\">{}</span>\
+             <span class=\"count\">{}</span></summary>\n<p class=\"meaning\">{}</p>\n<ul class=\"rows\">",
+            group.title,
+            members.len(),
+            group.meaning
+        );
+        for row in members {
+            let _ = write!(
+                out,
+                "<li id=\"{}\"><code class=\"rid\">{}</code><span class=\"pill level\">{}</span>",
+                scope.clause(&report.revision, &row.id),
+                Text(&row.id),
+                Text(&row.level)
+            );
+            if let Some(reason) = &row.exclusion {
+                let _ = write!(out, "<span class=\"reason\">{}</span>", Text(reason));
+            }
+            if let Some(capability) = &row.capability {
+                let _ = write!(
+                    out,
+                    "<span class=\"reason\">capability <code>{}</code> was not declared</span>",
+                    Text(capability)
+                );
+            }
+            out.push_str("</li>\n");
+        }
+        out.push_str("</ul>\n</details>\n");
+    }
 }

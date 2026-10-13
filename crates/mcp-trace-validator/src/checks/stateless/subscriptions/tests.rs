@@ -120,6 +120,31 @@ fn resource_updates_are_matched_by_uri() {
     assert!(findings[0].contains("file:///b.json"), "{findings:?}");
 }
 
+/// The tasks extension's filter field (ADR-0023): a task's status updates are
+/// requested by listing the task, the way resource updates are by listing the URI.
+#[test]
+fn task_updates_are_matched_by_task_id() {
+    let listed = r#"{"taskIds":["t-1"]}"#;
+    let wanted = trace(&[
+        listen(0, 1, listed),
+        ack(1, 1),
+        notify(2, 1, "notifications/tasks", r#","taskId":"t-1""#),
+    ]);
+    assert_eq!(findings_for(ONLY_REQUESTED, &wanted), Vec::<String>::new());
+
+    let unwanted = trace(&[
+        listen(0, 1, listed),
+        ack(1, 1),
+        notify(2, 1, "notifications/tasks", r#","taskId":"t-2""#),
+    ]);
+    let findings = findings_for(ONLY_REQUESTED, &unwanted);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(
+        findings[0].contains("does not list the task \"t-2\""),
+        "{findings:?}"
+    );
+}
+
 #[test]
 fn a_type_outside_the_filter_vocabulary_is_reported() {
     let session = trace(&[

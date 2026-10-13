@@ -32,4 +32,5 @@
 
 - [Requirements — `2026-07-28`](reference/requirements-2026-07-28.md)
 - [Requirements — `2025-11-25`](reference/requirements-2025-11-25.md)
+- [Extensions — `2026-07-28`](reference/extensions-2026-07-28.md)
 - [Glossary](glossary.md)

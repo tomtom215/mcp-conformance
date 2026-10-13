@@ -22,6 +22,7 @@
 mod auth;
 mod base;
 mod client_features;
+mod extensions;
 mod inventory;
 mod lifecycle;
 mod negotiation;

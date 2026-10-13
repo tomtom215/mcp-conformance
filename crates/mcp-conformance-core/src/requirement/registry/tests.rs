@@ -25,6 +25,7 @@ fn every_registry_area_document_is_embedded() {
     for (revision, embedded) in [
         ("2025-11-25", super::AREAS_2025_11_25),
         ("2026-07-28", super::AREAS_2026_07_28),
+        ("2026-07-28/extensions", super::EXTENSIONS_2026_07_28),
     ] {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("registry")
@@ -241,4 +242,113 @@ fn error_display_and_source_carry_real_information() {
     .unwrap_err();
     assert!(invalid.to_string().contains("invariant"), "{invalid}");
     assert!(invalid.source().is_none());
+}
+
+/// The built-in extension clauses (ADR-0023): every one names an extension,
+/// none leaks into the core list, and the core list is the size it was before
+/// any extension was entered.
+#[test]
+fn builtin_extension_clauses_stay_apart_from_the_core() {
+    let set = crate::requirement::RegistrySet::builtin().unwrap();
+    let registry = set.registry("2026-07-28".parse().unwrap()).unwrap();
+    assert!(
+        registry
+            .requirements()
+            .iter()
+            .all(|requirement| requirement.extension.is_none())
+    );
+    let mut per_extension: Vec<(&str, usize)> = Vec::new();
+    for requirement in registry.extension_requirements() {
+        let extension = requirement.extension.as_deref().unwrap();
+        match per_extension.iter_mut().find(|(id, _)| *id == extension) {
+            Some((_, count)) => *count += 1,
+            None => per_extension.push((extension, 1)),
+        }
+    }
+    assert_eq!(
+        per_extension,
+        [
+            ("io.modelcontextprotocol/tasks", 49),
+            ("io.modelcontextprotocol/skills", 99)
+        ]
+    );
+    assert!(
+        registry.get("TASK-001").is_some(),
+        "get finds extension clauses"
+    );
+    // `2025-11-25` has none: the tasks extension attaches to `2026-07-28` only.
+    let old = set.registry("2025-11-25".parse().unwrap()).unwrap();
+    assert_eq!(old.extension_requirements().len(), 0);
+}
+
+#[test]
+fn a_document_lists_extension_clauses_under_either_member() {
+    let tagged = r#"{"id": "TASK-001", "level": "MUST", "actor": "server",
+        "extension": "io.modelcontextprotocol/tasks",
+        "source": {"section": "p#a", "quote": "MUST t"}, "checks": ["t"]}"#;
+    let core = r#"{"id": "BASE-001", "level": "MUST", "actor": "both",
+        "source": {"section": "basic#x", "quote": "MUST x"}, "checks": ["a"]}"#;
+    for document in [
+        format!(r#"{{"revision": "2026-07-28", "requirements": [{tagged}, {core}]}}"#),
+        format!(
+            r#"{{"revision": "2026-07-28", "requirements": [{core}], "extensions": [{tagged}]}}"#
+        ),
+    ] {
+        let registry = Registry::from_json(&document).unwrap();
+        let core_ids: Vec<&str> = registry
+            .requirements()
+            .iter()
+            .map(|r| r.id.as_str())
+            .collect();
+        let extension_ids: Vec<&str> = registry
+            .extension_requirements()
+            .iter()
+            .map(|r| r.id.as_str())
+            .collect();
+        assert_eq!(
+            (core_ids, extension_ids),
+            (vec!["BASE-001"], vec!["TASK-001"])
+        );
+        // Serialized, the extension clause moves to its own member.
+        let back = serde_json::to_value(&registry).unwrap();
+        assert_eq!(back["extensions"][0]["id"], "TASK-001");
+        assert_eq!(Registry::from_json(&back.to_string()).unwrap(), registry);
+    }
+    // A document whose `extensions` holds a core clause is malformed.
+    let misplaced =
+        format!(r#"{{"revision": "2026-07-28", "requirements": [], "extensions": [{core}]}}"#);
+    let error = Registry::from_json(&misplaced).unwrap_err();
+    assert!(error.to_string().contains("names no extension"), "{error}");
+    // Ids are unique across both lists.
+    let twice = format!(
+        r#"{{"revision": "2026-07-28", "requirements": [{tagged}], "extensions": [{tagged}]}}"#
+    );
+    assert!(
+        Registry::from_json(&twice)
+            .unwrap_err()
+            .to_string()
+            .contains("duplicate")
+    );
+}
+
+#[test]
+fn rejects_a_malformed_extension_identifier() {
+    let document = r#"{"revision": "2026-07-28", "requirements": [
+        {"id": "TASK-001", "level": "MUST", "actor": "server", "extension": "tasks",
+         "source": {"section": "p#a", "quote": "MUST t"}, "checks": ["t"]}]}"#;
+    let error = Registry::from_json(document).unwrap_err();
+    assert!(
+        error.to_string().contains("not an extension identifier"),
+        "{error}"
+    );
+}
+
+#[test]
+fn an_unknown_extension_links_its_bare_section() {
+    let requirement: Requirement = serde_json::from_str(
+        r#"{"id": "EXT-001", "level": "MUST", "actor": "server", "extension": "com.example/x",
+            "source": {"section": "spec#a", "quote": "MUST"}, "checks": ["x"]}"#,
+    )
+    .unwrap();
+    assert_eq!(requirement.url("2026-07-28".parse().unwrap()), "spec#a");
 }

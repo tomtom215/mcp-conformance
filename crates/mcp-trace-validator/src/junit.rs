@@ -12,6 +12,7 @@
 //! | `fail` | `<failure>` per requirement, findings in the body |
 //! | `warn` | passing `<testcase>` with findings in `<system-out>` — SHOULD-level findings do not fail CI unless promoted by `--strict`, and that promotion is an exit-code concern, not a report concern |
 //! | `excluded` / `unsupported` / `not-applicable` | `<skipped>` with the reason as its message |
+//! | an extension's clauses ([`Report::extensions`]) | a suite of their own per extension, named `… (revision, extension ID, not scored)`, whose `fail` and `warn` rows are passing test cases with the findings in `<system-out>` — an extension never fails a run (ADR-0023), so no `<failure>` is written for one, `--strict` or not |
 //! | a trace that could not be judged ([`render_run`]) | a suite of one test case with an `<error>` giving the reason |
 //!
 //! The output is deterministic (registry order, no timestamps, no hostnames) for the
@@ -20,6 +21,10 @@
 use core::fmt::Write as _;
 
 use crate::report::{Outcome, Report, Unjudged, WireSchemaReport};
+
+mod extension;
+
+use extension::{extension_counts, render_extension};
 
 /// Renders the report as a single-suite `JUnit` XML document.
 ///
@@ -160,9 +165,16 @@ pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> Str
                 .map(move |report| (options, report, counts(report, options.strict)))
         })
         .collect();
-    let (tests, failures, skipped) = suites.iter().fold((0, 0, 0), |sum, (_, _, count)| {
-        (sum.0 + count.0, sum.1 + count.1, sum.2 + count.2)
-    });
+    let extension_counts = suites
+        .iter()
+        .flat_map(|(_, report, _)| report.extensions.iter().map(extension_counts));
+    let (tests, failures, skipped) = suites
+        .iter()
+        .map(|(_, _, count)| *count)
+        .chain(extension_counts)
+        .fold((0, 0, 0), |sum, count| {
+            (sum.0 + count.0, sum.1 + count.1, sum.2 + count.2)
+        });
     let mut out = String::new();
     out.push_str(r#"<?xml version="1.0" encoding="UTF-8"?>"#);
     out.push('\n');
@@ -178,21 +190,8 @@ pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> Str
         r#"<testsuites tests="{}" failures="{failures}" skipped="{skipped}"{errors}>"#,
         tests as usize + unjudged.len()
     );
-    for (options, report, (tests, failures, skipped)) in suites {
-        let suite = options.trace.as_deref().unwrap_or("mcp-trace-validator");
-        let _ = writeln!(
-            out,
-            r#"  <testsuite name="{} ({})" tests="{tests}" failures="{failures}" skipped="{skipped}">"#,
-            escape(suite),
-            escape(&report.revision)
-        );
-        for row in &report.requirements {
-            render_row(&mut out, report, row, options);
-        }
-        if let Some(wire_schema) = &report.wire_schema {
-            render_wire_schema(&mut out, report, wire_schema, options);
-        }
-        out.push_str("  </testsuite>\n");
+    for (options, report, counts) in suites {
+        render_suite(&mut out, options, report, counts);
     }
     for trace in unjudged {
         let name = escape(&trace.trace);
@@ -209,6 +208,28 @@ pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> Str
     }
     out.push_str("</testsuites>\n");
     out
+}
+
+/// One report's suite, then a suite per extension it carries.
+fn render_suite(out: &mut String, options: &Options, report: &Report, counts: (u32, u32, u32)) {
+    let (tests, failures, skipped) = counts;
+    let suite = options.trace.as_deref().unwrap_or("mcp-trace-validator");
+    let _ = writeln!(
+        out,
+        r#"  <testsuite name="{} ({})" tests="{tests}" failures="{failures}" skipped="{skipped}">"#,
+        escape(suite),
+        escape(&report.revision)
+    );
+    for row in &report.requirements {
+        render_row(out, report, row, options);
+    }
+    if let Some(wire_schema) = &report.wire_schema {
+        render_wire_schema(out, report, wire_schema, options);
+    }
+    out.push_str("  </testsuite>\n");
+    for extension in &report.extensions {
+        render_extension(out, suite, report, extension, options);
+    }
 }
 
 /// `(tests, failures, skipped)` for one report; warnings count as failures when

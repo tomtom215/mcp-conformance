@@ -151,7 +151,7 @@ pub(super) fn is_miscased_sentinel(value: &str) -> bool {
 
 /// How a mirrored header value relates to the body value it mirrors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Match {
+pub(in crate::checks) enum Match {
     /// The header carries the body value, plainly or Base64-encoded.
     Carried,
     /// The header repeats the body value verbatim even though it matches the
@@ -164,7 +164,7 @@ pub(super) enum Match {
 /// Compares a header value against the body value it mirrors, decoding the
 /// sentinel first — the comparison the specification requires of servers
 /// (TRAN-091, TRAN-103) and therefore the one a trace must be judged by.
-pub(super) fn compare(header: &str, body: &str) -> Match {
+pub(in crate::checks) fn compare(header: &str, body: &str) -> Match {
     if header == body {
         return if sentinel_payload(body).is_some() {
             Match::UnencodedSentinel

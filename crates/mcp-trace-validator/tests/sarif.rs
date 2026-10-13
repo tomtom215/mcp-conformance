@@ -69,10 +69,11 @@ fn render(path: &Path) -> (Value, Vec<Report>, String) {
     (serde_json::from_str(&log).unwrap(), reports, text)
 }
 
-/// The results a log must hold, in order: each report's failing rows, then its
-/// failed wire schema, which SARIF carries as the rule `wire-schema`
-/// (`@revision` when two revisions judged it).
-fn expected_results(reports: &[Report]) -> Vec<(&str, Outcome, &ClauseSource, &Finding)> {
+/// The results a log must hold, in order, each with its level: each report's
+/// failing rows, then its failed wire schema, which SARIF carries as the rule
+/// `wire-schema` (`@revision` when two revisions judged it), then its
+/// extensions' failing rows, at level `note` because they are not scored.
+fn expected_results(reports: &[Report]) -> Vec<(&str, &'static str, &ClauseSource, &Finding)> {
     reports
         .iter()
         .flat_map(|report| {
@@ -84,7 +85,11 @@ fn expected_results(reports: &[Report]) -> Vec<(&str, Outcome, &ClauseSource, &F
                     row.findings.iter().map(move |finding| {
                         (
                             row.id.as_str(),
-                            row.outcome,
+                            if row.outcome == Outcome::Fail {
+                                "error"
+                            } else {
+                                "warning"
+                            },
                             row.source.as_ref().unwrap(),
                             finding,
                         )
@@ -98,9 +103,24 @@ fn expected_results(reports: &[Report]) -> Vec<(&str, Outcome, &ClauseSource, &F
                     schema
                         .findings
                         .iter()
-                        .map(move |finding| ("wire-schema", Outcome::Fail, &schema.source, finding))
+                        .map(move |finding| ("wire-schema", "error", &schema.source, finding))
                 });
-            rows.chain(schema)
+            let extensions = report
+                .extensions
+                .iter()
+                .flat_map(|extension| &extension.requirements)
+                .filter(|row| matches!(row.outcome, Outcome::Fail | Outcome::Warn))
+                .flat_map(|row| {
+                    row.findings.iter().map(move |finding| {
+                        (
+                            row.id.as_str(),
+                            "note",
+                            row.source.as_ref().unwrap(),
+                            finding,
+                        )
+                    })
+                });
+            rows.chain(schema).chain(extensions)
         })
         .collect()
 }
@@ -115,7 +135,7 @@ fn every_finding_is_one_result_at_its_events_line_under_its_clause() {
         let findings = expected_results(&reports);
         assert_eq!(results.len(), findings.len(), "{}", path.display());
         let lines: Vec<&str> = text.lines().collect();
-        for (result, (id, outcome, source, finding)) in results.iter().zip(&findings) {
+        for (result, (id, expected_level, source, finding)) in results.iter().zip(&findings) {
             let context = format!("{}: {result}", path.display());
             let rule_id = result["ruleId"].as_str().unwrap();
             assert!(
@@ -130,12 +150,7 @@ fn every_finding_is_one_result_at_its_events_line_under_its_clause() {
                 finding.detail.as_str(),
                 "{context}"
             );
-            let expected_level = if *outcome == Outcome::Fail {
-                "error"
-            } else {
-                "warning"
-            };
-            assert_eq!(result["level"], expected_level, "{context}");
+            assert_eq!(result["level"], *expected_level, "{context}");
             let rule = &rules[usize::try_from(result["ruleIndex"].as_u64().unwrap()).unwrap()];
             assert_eq!(rule["id"], result["ruleId"], "{context}");
             assert_eq!(

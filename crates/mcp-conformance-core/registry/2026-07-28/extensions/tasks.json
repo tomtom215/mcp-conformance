@@ -1,0 +1,362 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "TASK-001",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#capability-negotiation",
+        "quote": "A server MUST NOT return `CreateTaskResult` to a client that did not include the extension capability on its request, regardless of prior declarations."
+      },
+      "checks": [
+        "tasks.create-requires-declaration"
+      ]
+    },
+    {
+      "id": "TASK-002",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#capability-negotiation",
+        "quote": "A client that has negotiated this extension MUST be prepared to handle either `CallToolResult` or `CreateTaskResult` in response to any supported request it issues."
+      },
+      "exclusion": "Being prepared is a property of the client's code. What a recording could show — a client that receives a `CreateTaskResult` and never polls the task — is also how a client conforms when its user abandons the call or the capture ends first, so the wire cannot tell an unprepared client from either."
+    },
+    {
+      "id": "TASK-003",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#capability-negotiation",
+        "quote": "A client that receives `CreateTaskResult` in response to an unsupported request type MUST interpret this as an invalid response to the request."
+      },
+      "exclusion": "How a client interprets a response is internal: the protocol defines no message for rejecting an invalid response, so a client that treated the task result as invalid and one that accepted it can send exactly the same thing next."
+    },
+    {
+      "id": "TASK-004",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#capability-negotiation",
+        "quote": "If a server is unable to service a request to a client that does not declare this extension capability without returning `CreateTaskResult`, the server MUST return an error with the code `-32021` (Missing Required Client Capability), indicating the required extension in the error response"
+      },
+      "exclusion": "Its antecedent — that the server cannot serve this request without creating a task — is the server's own judgment, which no message states: a server that can serve the call answers it normally, so a non-declaring client's call answered with a result conforms whichever way the server could have gone. The `-32021` error itself, when sent, is the core clause BASE-035 judges (`meta.missing-capability-error`)."
+    },
+    {
+      "id": "TASK-005",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#supported-methods",
+        "quote": "This specification may be extended to support tasks over other request types in the future; implementations SHOULD be designed to accommodate additional request types in future revisions of this specification."
+      },
+      "exclusion": "A design property: what an implementation is ready to accept from a later revision is in its code, not in anything it sends today."
+    },
+    {
+      "id": "TASK-006",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#polymorphic-results",
+        "quote": "Servers MUST set `resultType` to `\"task\"` when returning a `CreateTaskResult` so that clients can distinguish it from a standard result."
+      },
+      "checks": [
+        "tasks.create-result-discriminator"
+      ]
+    },
+    {
+      "id": "TASK-007",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#polymorphic-results",
+        "quote": "Servers MUST NOT set `resultType` to `\"task\"` on result types other than `CreateTaskResult`."
+      },
+      "checks": [
+        "tasks.task-result-type-only-on-create"
+      ]
+    },
+    {
+      "id": "TASK-008",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-status",
+        "quote": "`failed`: The request failed due to a JSON-RPC error during execution. The task will include the `error` field with the JSON-RPC error details. This status MUST NOT be used for non-JSON-RPC errors."
+      },
+      "checks": [
+        "tasks.failed-not-tool-result"
+      ]
+    },
+    {
+      "id": "TASK-009",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-creation",
+        "quote": "A server MUST NOT return `CreateTaskResult` until the task is durably created — that is, until a `tasks/get` for the returned `taskId` would resolve."
+      },
+      "exclusion": "Durable creation shows only as its failure — a `tasks/get` for the returned id that does not resolve — and that answer is also the conforming one once the task's TTL has elapsed (the page: \"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"). Telling the two apart needs the time between creation and poll, and checks never consult an event's `ts`."
+    },
+    {
+      "id": "TASK-010",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-creation",
+        "quote": "In eventually-consistent environments, the server MUST wait for consistency before responding."
+      },
+      "exclusion": "How the server's storage reaches consistency is internal; its one observable consequence is TASK-009's, excluded for the reason recorded there."
+    },
+    {
+      "id": "TASK-011",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-creation",
+        "quote": "Server implementations that use multi round-trip requests in conjunction with task creation (for example, a tool that requires elicitation over `InputRequiredResult` before creating a task) SHOULD resolve all MRTR exchanges _synchronously_ before responding with a `CreateTaskResult`."
+      },
+      "exclusion": "Every input-required round of the original request necessarily precedes the `CreateTaskResult` that ends it, so every recording of a server running such rounds shows them resolved first; how else the server could have resolved them is not a message."
+    },
+    {
+      "id": "TASK-012",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-polling",
+        "quote": "Clients SHOULD respect the `pollIntervalMs` provided in responses when determining polling frequency."
+      },
+      "exclusion": "Polling frequency is the time between requests, and checks never consult an event's `ts`: it is optional, informational, and stamped by the recorder's clock rather than the client's."
+    },
+    {
+      "id": "TASK-013",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-polling",
+        "quote": "Clients SHOULD continue polling until the task reaches a terminal status or until invoking `tasks/cancel`."
+      },
+      "exclusion": "A recording ends when its capture stops: a task with no terminal status in the trace shows a capture that ended as often as a client that stopped, and nothing on the wire tells the two apart."
+    },
+    {
+      "id": "TASK-014",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-polling",
+        "quote": "Clients SHOULD persist task IDs to durable storage so that polling can resume after a crash or restart."
+      },
+      "exclusion": "Durable storage is the client's own, and it shows only across a crash or restart, which a recording of one session does not span."
+    },
+    {
+      "id": "TASK-015",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#response",
+        "quote": "Upon receiving a `tasks/get` request, the server MUST check the status of the task and respond accordingly: If the status is `working`, the server MUST return a a `Task` object with status `working`.; If the status is `input_required`, the server MUST return a `Task` object with status `input_required` and an `inputRequests` field defined in Multi Round-Trip Requests.; If the status is `completed`, the server MUST return a `Task` object with status `completed` and a `result` field containing the final result of the task.; If the status is `cancelled`, the server MUST return a `Task` object with status `cancelled`.; If the status is `failed`, the server MUST return a `Task` object with status `failed` and the error that occurred during execution."
+      },
+      "checks": [
+        "tasks.task-fields",
+        "tasks.input-required-carries-requests",
+        "tasks.completed-carries-result",
+        "tasks.failed-carries-error"
+      ]
+    },
+    {
+      "id": "TASK-016",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#response",
+        "quote": "The `inputRequests` field MUST contain all outstanding requests from the server to the client that need to be fulfilled before the task can proceed."
+      },
+      "exclusion": "Which requests are outstanding is the server's own state: a `tasks/get` that lists fewer requests than the task is waiting on looks exactly like one that lists them all."
+    },
+    {
+      "id": "TASK-017",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#response",
+        "quote": "The `resultType` field MUST be set to `\"complete\"` on this object as it is the standard result shape for the `tasks/get` request."
+      },
+      "checks": [
+        "tasks.results-complete"
+      ]
+    },
+    {
+      "id": "TASK-018",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-update-requests",
+        "quote": "When a client observes a `tasks/get` response (or `notifications/tasks` notification) with `status: \"input_required\"`, the client SHOULD fulfill the outstanding requests in `inputRequests` by sending one or more `tasks/update` requests with corresponding `inputResponses`."
+      },
+      "exclusion": "Fulfilling an input request needs its user or model to answer, and the recording may end before they do: an unanswered `input_required` task shows a capture that stopped as often as a client that did not respond."
+    },
+    {
+      "id": "TASK-019",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-update-requests",
+        "quote": "After sending a `tasks/update`, the client SHOULD continue observing the task's status via polling (`tasks/get`) or notifications (`notifications/tasks`) until it reaches a terminal state."
+      },
+      "exclusion": "A recording ends when its capture stops: a task with no terminal status in the trace shows a capture that ended as often as a client that stopped, and nothing on the wire tells the two apart."
+    },
+    {
+      "id": "TASK-020",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-update-requests",
+        "quote": "Clients MUST treat each entry in `inputRequests` as they would the equivalent standalone server-to-client request — for example, an elicitation request surfaced via `inputRequests` is subject to the same trust model and user-facing behavior as a direct `elicitation/create` request."
+      },
+      "exclusion": "Binds how the host presents and trusts a request a task carries — consent and user interface, which strategy rule 2 keeps out: none of it is a message to the server."
+    },
+    {
+      "id": "TASK-021",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-update-requests",
+        "quote": "Clients SHOULD deduplicate `inputRequests` keys across consecutive polls to avoid presenting the same request to the user or model more than once."
+      },
+      "exclusion": "Deduplication here is presentation: receiving the same key on the next poll is the documented snapshot behaviour, and whether the user saw the request twice is user interface. Answering one key twice, which a recording does show, is TASK-026."
+    },
+    {
+      "id": "TASK-022",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-update-requests",
+        "quote": "Each request key in `inputRequests` MUST be unique over the lifetime of a single task."
+      },
+      "checks": [
+        "tasks.input-request-keys-stable"
+      ]
+    },
+    {
+      "id": "TASK-023",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-update-requests",
+        "quote": "A server MUST NOT reuse a key for a subsequent server-to-client request after a response for that key has been delivered, and MUST NOT use the same key to refer to two distinct requests over a task's lifetime."
+      },
+      "checks": [
+        "tasks.input-request-keys-stable"
+      ]
+    },
+    {
+      "id": "TASK-024",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#response-1",
+        "quote": "On success, the server MUST acknowledge the request with an empty result."
+      },
+      "checks": [
+        "tasks.ack-empty"
+      ]
+    }
+  ]
+}

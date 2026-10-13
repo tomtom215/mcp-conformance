@@ -1392,7 +1392,7 @@ Judged by `versioning.extension-identifier-format`.
 
 [`basic/versioning#extension-negotiation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#extension-negotiation)
 
-**Excluded.** Both permitted responses are defined by the extension, not by this specification: what "core protocol behavior" looks like for a given extension, and which error is "appropriate", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour.
+**Excluded.** Both permitted responses are defined by the extension, not by this specification: what "core protocol behavior" looks like for a given extension, and which error is "appropriate", are each stated in that extension's own document. Where an official extension's clauses are entered (tasks and skills, beside this revision), they judge exactly that, in the extension's own block and never scored (ADR-0023): TASK-001, for one, is this clause for the tasks extension. Judging it here, among the core's clauses, would let an optional extension's behaviour move the core verdict.
 
 ### VERS-006
 

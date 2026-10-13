@@ -29,15 +29,36 @@ fn listed_tools<'a>(context: &TraceContext<'a>) -> impl Iterator<Item = (u64, &'
     })
 }
 
+/// Whether a `tools/call` result is a `CreateTaskResult` rather than the tool's
+/// result: `augmented` when the request carried `2025-11-25`'s `task`, or a
+/// `2026-07-28` tasks extension `resultType: "task"`.
+fn is_task_handle(augmented: bool, result: &Value) -> bool {
+    augmented || result.get("resultType").and_then(Value::as_str) == Some("task")
+}
+
+/// The task id a `CreateTaskResult` issued, in either revision's shape.
+fn issued_task_id(augmented: bool, result: &Value) -> Option<&str> {
+    let handle = if augmented {
+        result.get("task")?
+    } else {
+        result
+    };
+    handle.get("taskId").and_then(Value::as_str)
+}
+
 /// Final `tools/call` results, with the called tool's name when stated.
 ///
-/// Two kinds of successful response are not the tool's result and are skipped:
+/// Three kinds of successful response are not the tool's result and are skipped:
 /// a `2026-07-28` multi-round-trip interim result (`resultType:
-/// "input_required"`, which asks the client for input and is retried), and a
+/// "input_required"`, which asks the client for input and is retried), a
 /// `2025-11-25` task-augmented call's `CreateTaskResult` (the request carried
-/// `task`; the tool's result is fetched later with `tasks/result`). For the
-/// latter, the `tasks/result` answer is yielded in its place, attributed to the
-/// tool through the task id the `CreateTaskResult` issued.
+/// `task`; the tool's result is fetched later with `tasks/result`), and a
+/// `2026-07-28` tasks extension's `CreateTaskResult` (`resultType: "task"`; the
+/// tool's result arrives as a completed task's `result` in `tasks/get`,
+/// ADR-0023). For the latter two, the tool's result is yielded in its place,
+/// attributed to the tool through the task id the `CreateTaskResult` issued.
+/// Until the extension's tasks were read this way, a conforming tasks session
+/// failed TOOL-040 for a task handle that carries no `structuredContent`.
 fn call_results<'a>(
     context: &TraceContext<'a>,
 ) -> impl Iterator<Item = (u64, Option<&'a str>, &'a Value)> {
@@ -52,12 +73,9 @@ fn call_results<'a>(
         match exchange.method {
             "tools/call" => {
                 let name = param("name").and_then(Value::as_str);
-                if param("task").is_some() {
-                    if let Some(task_id) = result
-                        .get("task")
-                        .and_then(|task| task.get("taskId"))
-                        .and_then(Value::as_str)
-                    {
+                let augmented = param("task").is_some();
+                if is_task_handle(augmented, result) {
+                    if let Some(task_id) = issued_task_id(augmented, result) {
                         task_tools.insert(task_id, name);
                     }
                     continue;
@@ -66,6 +84,22 @@ fn call_results<'a>(
                     continue;
                 }
                 results.push((exchange.response.seq, name, result));
+            }
+            // The tasks extension's completed task carries the tool's result.
+            "tasks/get" => {
+                let Some(name) = result
+                    .get("taskId")
+                    .and_then(Value::as_str)
+                    .and_then(|task_id| task_tools.get(task_id))
+                else {
+                    continue; // Not a task this trace saw a tool create.
+                };
+                if result.get("status").and_then(Value::as_str) != Some("completed") {
+                    continue;
+                }
+                if let Some(completed) = result.get("result") {
+                    results.push((exchange.response.seq, *name, completed));
+                }
             }
             "tasks/result" => {
                 let Some(name) = param("taskId")
