@@ -14,9 +14,9 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 **This release changes verdicts, report formats and what the capture tool
 records, and removes one deprecated module**, as pre-1.0 SemVer permits in a minor release
 ([STABILITY.md](STABILITY.md) says what counts as breaking). A session that
-passed under 0.6.0 can fail now with nothing in it changed: the registry carries
-37 more `2026-07-28` clauses (16 judged, 21 excluded with a reason), judges one it
-used to exclude, every message is now held to its revision's own JSON Schema, and
+passed under 0.6.0 can fail now with nothing in it changed: a `2025-11-25` report
+carries 179 more rows than under 0.6.0 (33 judged, 146 excluded with a reason) and a
+`2026-07-28` report 228 more (57 judged, 171 excluded), some clauses once excluded are judged, every message is now held to its revision's own JSON Schema, and
 several checks now catch what they missed. Other checks stop failing conforming sessions. Every change
 below is stated again in its entry, with the reasoning.
 
@@ -51,7 +51,9 @@ below is stated again in its entry, with the reasoning.
 | SARIF | Findings against `TRAN-074` name a new check, so their fingerprints change | An open alert for one closes and reopens once |
 | `mcp-trace-capture` traces | A message whose parsed value would differ from its text (an integer past 64 bits, a repeated member name) is recorded as its raw line over stdio and left out over HTTP; SSE events whose type is not `message` are not recorded; a forced HTTP stop ends the trace with `transport-abort` | None for a conforming peer; the summary counts what was left out |
 | `mcp-trace-capture stdio` | A stop gives the server 1 s (was 3 s) before its process group is killed, inside the official SDKs' 2 s; on Windows the exit code is the server's whole code, not its low eight bits | A server needing longer to shut down should finish on stdin closing |
-| Report totals | `2026-07-28` reports carry 37 more rows; `excluded` grows by 20 | Re-baseline any comparison of totals across versions |
+| Report totals | Against 0.6.0, every change in this release together (the wire-schema row above included): a `2025-11-25` report has 321 rows (was 142) and `excluded` 232 (was 86); a `2026-07-28` report has 501 (was 273) and `excluded` 320 (was 149) | Re-baseline any comparison of totals across versions |
+| Verdict, new rows | `AUTH-045`/`AUTH-049`/`AUTH-124`/`AUTH-130`: a protected server's challenge with the wrong status for its declared error (`invalid_token` not 401, `insufficient_scope` not 403); with the others of the 12 judged `AUTH` rows, from the `WWW-Authenticate` header ([ADR-0022](docs/plan/decisions/0022-judge-the-challenge-not-the-flow.md)) | Answer each error with the status the authorization page names |
+| Rust API | `mcp_conformance_core::trace::RECORDED_HEADERS` and `mcp_everything_server::tap::RECORDED_HEADERS` are `[&str; 11]` (were `[&str; 10]`): `WWW-Authenticate` is recorded | Iterate the array or take it as a slice, not by its length |
 | Registry data | `TOOL-033` and `TRAN-080` quotes rewritten in the flattened-list form (`; ` between items), the clauses unchanged. `TOOL-034` and `TRAN-081` each bundled clauses binding different parties: both now name only the safe-integer bound (binding the client), and the reachability and client-rejection clauses are `TOOL-045`, `TOOL-046` and `TRAN-137` | Key on the requirement ID; gate on the new IDs for the clauses that moved |
 
 ### Removed
@@ -61,6 +63,11 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **A request a protected server refused with 401 (or 403 with a challenge), resent by
+  the client with the same id,** no longer fails `BASE-003`/`BASE-045` or counts as a
+  second session: the refused request was not delivered, the retry is. The refusal's
+  OAuth error body (`{"error":"invalid_token"}`) is no longer judged as a JSON-RPC
+  message (it failed `BASE-006`/`008`/`009` and the wire schema).
 - **The `2026-07-28` page set's reason for excluding `deprecated` was wrong**: it said
   the page had no keyword instances, and the published page carries a SHOULD NOT and a
   SHOULD. The page stays out of scope, for the reason that holds: those keywords bind an
@@ -692,6 +699,19 @@ below is stated again in its entry, with the reasoning.
   verdict changed: the Go SDK at `2026-07-28` fails `ELIC-059` on the elicitation
   `BASE-034` already reports, and this project's reference host warns `ELIC-095` (it
   accepts a form with empty content where the schema requires fields).
+- **The authorization pages enter the registry at both revisions** (review item 2.8,
+  [ADR-0022](docs/plan/decisions/0022-judge-the-challenge-not-the-flow.md)). Every MUST-
+  and SHOULD-family keyword is entered: 85 entries at `2025-11-25`, 109 at `2026-07-28`
+  (area `AUTH`). 12 of them are judged by 7 checks that read a protected server's
+  `WWW-Authenticate` challenge: `scope` on a 401; the status for each declared error;
+  the 401 for `invalid_token`; the `insufficient_scope` response's 403, `scope` and
+  `resource_metadata`; and, at `2026-07-28`, no `offline_access` and no scope added on a
+  retried request's second challenge. The OAuth flow, the authorization server,
+  credential headers, query-string tokens and Protected Resource Metadata are excluded,
+  each with the reason a recording cannot show it. Every `AUTH` trace in the corpus is
+  authored: no committed capture is of a protected server. No committed verdict changed.
+- **`mcp-trace-capture` and the everything server's tap record `WWW-Authenticate`**
+  (`RECORDED_HEADERS` grows from 10 to 11 entries).
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.
