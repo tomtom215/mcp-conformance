@@ -907,7 +907,7 @@ fn a_trace_of_two_sessions_says_so() {
     assert!(stderr(&output).contains("records 2 sessions"), "{output:?}");
     // The advice names the capture option that splits them, as the book does.
     assert!(
-        stderr(&output).contains("put {session} in mcp-trace-capture's -o"),
+        stderr(&output).contains(concat!("put ", '{', "session} in mcp-trace-capture's -o")),
         "{output:?}"
     );
 

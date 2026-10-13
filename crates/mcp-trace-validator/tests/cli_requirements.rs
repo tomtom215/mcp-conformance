@@ -131,9 +131,28 @@ fn filters_narrow_the_listing_and_partition_it() {
         "2025-11-25",
         "--excluded",
     ]));
-    // `--excluded` promises the reason: each row is followed by its own.
+    // `--excluded` adds each row's reason on the line after it.
     assert_eq!(text.lines().count(), 1 + 2 * excluded.len(), "{text}");
     assert!(!text.contains("checks:"), "{text}");
+
+    let both = run(&["requirements", "--checked", "--excluded"]);
+    assert_eq!(both.status.code(), Some(2), "{both:?}");
+    let unknown = run(&["requirements", "--area", "NOPE"]);
+    assert_eq!(unknown.status.code(), Some(2), "{unknown:?}");
+    assert!(stderr(&unknown).contains("has no area NOPE"), "{unknown:?}");
+}
+
+#[test]
+fn the_excluded_listing_gives_each_reason() {
+    let all = requirements(&[]);
+    let excluded = requirements(&["--excluded"]);
+    let text = stdout(&run(&[
+        "requirements",
+        "--revision",
+        "2025-11-25",
+        "--excluded",
+    ]));
+    // `--excluded` promises the reason: each row is followed by its own.
     for requirement in &excluded {
         assert!(
             text.contains(&format!(
@@ -148,12 +167,6 @@ fn filters_narrow_the_listing_and_partition_it() {
     let unfiltered = stdout(&run(&["requirements", "--revision", "2025-11-25"]));
     assert_eq!(unfiltered.lines().count(), 1 + all.len(), "{unfiltered}");
     assert!(!unfiltered.contains("      why: "), "{unfiltered}");
-
-    let both = run(&["requirements", "--checked", "--excluded"]);
-    assert_eq!(both.status.code(), Some(2), "{both:?}");
-    let unknown = run(&["requirements", "--area", "NOPE"]);
-    assert_eq!(unknown.status.code(), Some(2), "{unknown:?}");
-    assert!(stderr(&unknown).contains("has no area NOPE"), "{unknown:?}");
 }
 
 #[test]
