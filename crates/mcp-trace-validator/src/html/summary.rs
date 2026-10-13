@@ -31,7 +31,7 @@ pub(super) const fn verdict_class(verdict: Verdict) -> &'static str {
     }
 }
 
-/// A verdict badge: the word, with the machine token beside it for search.
+/// A verdict badge: the word, styled by the verdict's token.
 fn badge(out: &mut String, verdict: Verdict) {
     let _ = write!(
         out,

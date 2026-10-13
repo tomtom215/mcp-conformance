@@ -24,7 +24,7 @@
 //! `<a>` elements, followed only when clicked.
 //!
 //! **Everything from the trace is text.** Method names, ids, headers, payloads
-//! and findings are escaped ([`escape::Text`]); only `http(s)` URLs become
+//! and findings are escaped as text; only `http(s)` URLs become
 //! links. A trace holding `<script>` renders the word, not the element.
 //!
 //! **Deterministic.** No clock, no environment: the same reports and events
