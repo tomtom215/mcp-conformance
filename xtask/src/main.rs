@@ -35,8 +35,8 @@
 //! - `deny` — run `cargo deny --all-features check`, skipping loudly when
 //!   cargo-deny is not installed.
 //! - `toolchain-pin` — every governed workflow gates on the compiler
-//!   `rust-toolchain.toml` names, and none installs bare `stable`
-//!   (`toolchain.rs`). Offline; its network sibling `toolchain-currency` runs
+//!   `rust-toolchain.toml` names, none installs bare `stable`, and the
+//!   `Dockerfile` builds on that version's `rust` image (`toolchain.rs`). Offline; its network sibling `toolchain-currency` runs
 //!   weekly and fails when a newer stable exists.
 //! - `spdx` — every tracked file that can carry a comment carries an
 //!   `SPDX-License-Identifier` in its first three lines (`local_gates.rs`). JSON,

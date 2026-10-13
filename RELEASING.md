@@ -309,7 +309,10 @@ the release PR, not in this file.
    one CycloneDX SBOM per crate (`cargo xtask sbom`, which CI's `package` job
    also runs on every PR) and attests each against its `.crate`, builds both
    CLIs with `cargo auditable` for five targets (Linux x86_64/aarch64 musl, macOS arm64/x86_64, Windows
-   x86_64) and attests each archive, creates the GitHub Release with the changelog
+   x86_64) and attests each archive, builds the container image from the
+   `Dockerfile` (no cache), smoke-tests it, pushes it as
+   `ghcr.io/tomtom215/mcp-conformance:X.Y.Z` and attests its digest (the
+   attestation pushed to the registry too), creates the GitHub Release with the changelog
    excerpt, the checksummed `.crate` files, their SBOMs
    (`<crate>-<version>.cdx.json`, checksummed in `SHA256SUMS-sbom`) and the
    checksummed binary archives (`SHA256SUMS-binaries`), then — behind
@@ -322,7 +325,12 @@ the release PR, not in this file.
    Rehearse first: `Actions → Release → Run workflow` from the `release/vX.Y.Z`
    branch runs every gate and packaging step but can never publish.
 5. **Verify**: crates on crates.io and docs on docs.rs — both still eyeball
-   steps. The install path is **no longer one of them**: the `verify-install`
+   steps. So is the container image's visibility, once: the first release that
+   pushes it creates the GHCR package, and a new package may start private
+   whatever the repository's visibility (not yet observed for this one). If
+   `docker pull ghcr.io/tomtom215/mcp-conformance:X.Y.Z` fails signed out, set
+   the package public in its settings (Package settings → Danger Zone → Change
+   visibility). The install path is **no longer one of them**: the `verify-install`
    job (added v0.4.0) runs `cargo install` for `mcp-trace-validator` and
    `mcp-trace-capture` on a clean, uncached runner, on both stable and the MSRV,
    once `publish` has succeeded (so after a resumed publish, only when the re-run
@@ -371,6 +379,20 @@ from `https://crates.io/api/v1/crates/mcp-trace-validator/X.Y.Z/download`
 verifies too. For an archive, `gh attestation verify <archive> -R
 tomtom215/mcp-conformance`. Releases before the first one with SBOMs have
 provenance only.
+
+The container image (releases after 0.6.0) carries provenance for the digest
+its version tag pointed at when `release.yml` pushed it, stored in the
+repository's attestations and in the registry beside the image:
+
+```text
+gh attestation verify oci://ghcr.io/tomtom215/mcp-conformance:X.Y.Z -R tomtom215/mcp-conformance
+docker pull ghcr.io/tomtom215/mcp-conformance:X.Y.Z
+docker run --rm ghcr.io/tomtom215/mcp-conformance:X.Y.Z mcp-trace-validator --version
+```
+
+`verify` resolves the tag to a digest and checks the attestation names it; pull
+by that digest (`…@sha256:…`) to be sure the image you run is the one verified,
+since a tag can be re-pointed by anyone with write access to the package.
 
 ## When publishing fails mid-way
 

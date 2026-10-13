@@ -25,7 +25,8 @@ mcp-conformance/
 ├── corpus/                     # recorded trace corpora + golden reports (test fixtures, not a crate)
 ├── fuzz/                       # cargo-fuzz targets
 ├── interop/                    # pinned third-party SDK clients and servers for cross-SDK sessions
-├── action/, action.yml         # the repository as a GitHub Action (validate recorded traces)
+├── action/, action.yml         # the repository as a GitHub Action (record sessions, validate traces)
+├── Dockerfile                  # the container image: both CLIs on distroless (GHCR, per release)
 ├── book/                       # the mdBook site; `cargo xtask book-site` builds every version
 ├── tools/                      # registry extraction scripts
 └── docs/                       # this plan, ADRs, dated reports, the design note
