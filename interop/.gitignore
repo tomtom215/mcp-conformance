@@ -3,3 +3,7 @@
 node_modules/
 .venv/
 out/
+out-matrix/
+upstream/
+rust/upstream/
+rust/target/
