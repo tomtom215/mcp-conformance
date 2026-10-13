@@ -2,9 +2,9 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 72,
+    "pass": 73,
     "fail": 11,
-    "warn": 2,
+    "warn": 1,
     "excluded": 218,
     "unsupported": 0,
     "not_applicable": 0,
@@ -233,29 +233,7 @@
     {
       "id": "BASE-037",
       "level": "SHOULD",
-      "outcome": "warn",
-      "findings": [
-        {
-          "check": "meta.server-info-on-results",
-          "seq": 11,
-          "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
-        },
-        {
-          "check": "meta.server-info-on-results",
-          "seq": 39,
-          "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
-        },
-        {
-          "check": "meta.server-info-on-results",
-          "seq": 43,
-          "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
-        }
-      ],
-      "source": {
-        "section": "basic/index#_meta",
-        "quote": "Servers SHOULD include the following `io.modelcontextprotocol/*` field in every result's `meta`, unless specifically configured not to do so, to identify themselves without relying on any prior connection state:",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
-      }
+      "outcome": "pass"
     },
     {
       "id": "BASE-039",

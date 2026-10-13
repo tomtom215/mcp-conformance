@@ -42,9 +42,9 @@ Traces by how the two readings relate:
 
 | Relation | Traces |
 |---|---:|
-| both clean | 29 |
+| both clean | 31 |
 | agree | 76 |
-| beyond mcpsnoop | 152 |
+| beyond mcpsnoop | 150 |
 | **divergent** | 11 |
 
 mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 186 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
@@ -581,9 +581,9 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/wire-schema-resource-missing-uri` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/captured/official-suite-2026-07-28-scenarios` | 2026-07-28 | fail | `BASE-037`, `CACH-001`, `wire-schema` | flags | `cacheable-without-ttl` | — | agree |
 | `draft/captured/official-suite-2026-07-28-stateless` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
-| `draft/captured/probe-2026-07-28-http` | 2026-07-28 | fail | `BASE-030`, `BASE-033`, `BASE-037`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `TRAN-071`, `TRAN-072`, `TRAN-079`, `TRAN-130`, `wire-schema` | flags | `param-header-missing`, `protocol-version-header-disagrees`, `request-meta-missing`, `server-rejected-header-mismatch` | — | agree |
-| `draft/captured/reference-host-2026-07-28-http` | 2026-07-28 | pass-with-warnings | `BASE-037`, `ELIC-095` | silent | — | — | beyond mcpsnoop |
-| `draft/captured/reference-host-2026-07-28-stdio` | 2026-07-28 | pass-with-warnings | `BASE-037`, `ELIC-095` | silent | — | — | beyond mcpsnoop |
+| `draft/captured/probe-2026-07-28-http` | 2026-07-28 | fail | `BASE-030`, `BASE-033`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `TRAN-071`, `TRAN-072`, `TRAN-079`, `TRAN-130`, `wire-schema` | flags | `param-header-missing`, `protocol-version-header-disagrees`, `request-meta-missing`, `server-rejected-header-mismatch` | — | agree |
+| `draft/captured/reference-host-2026-07-28-http` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/captured/reference-host-2026-07-28-stdio` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/captured/sdk-go-2026-07-28` | 2026-07-28 | fail | `BASE-034`, `ELIC-059`, `MRTR-012`, `MRTR-013`, `TRAN-068` | flags | `input-request-undeclared` | — | agree |
 | `draft/captured/sdk-python-2026-07-28` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/captured/sdk-rust-2026-07-28` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
