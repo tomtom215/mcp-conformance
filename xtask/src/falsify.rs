@@ -157,10 +157,21 @@ const FALSIFIERS: &[Falsifier] = &[
         runner: Runner::Xtask,
         file: "book/src/revisions.md",
         edit: Edit::Replace(
-            "**119 of the 145 judgeable clauses**",
-            "**118 of the 145 judgeable clauses**",
+            "**125 of the 145 judgeable clauses**",
+            "**124 of the 145 judgeable clauses**",
         ),
-        expect: "118",
+        expect: "124",
+    },
+    // A matrix row that no longer says what its committed report says.
+    Falsifier {
+        gate: "sdk-matrix --check",
+        runner: Runner::Xtask,
+        file: "book/src/sdk-matrix.md",
+        edit: Edit::Replace(
+            "| `2025-11-25` | pass | 39 | 0 | 0 | 18 |",
+            "| `2025-11-25` | pass | 40 | 0 | 0 | 18 |",
+        ),
+        expect: "sdk-matrix.md has drifted",
     },
     // Last of the gates: the registry is compiled into xtask, so this one
     // rebuilds it, and restoring the file rebuilds it again on the next run.

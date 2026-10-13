@@ -355,6 +355,21 @@ fn violation_traces_fail_and_match_goldens() {
     }
 }
 
+#[test]
+fn captured_traces_match_goldens() {
+    // The `2025-11-25` half of the independent corpus: the official SDKs'
+    // own conformance servers, recorded by `interop/matrix.sh` while an
+    // official SDK client drove them. As with `draft/captured`, no verdict is
+    // asserted — a real implementation is whatever it is — and the whole
+    // report is pinned, so a check that starts misfiring on independent
+    // traffic moves a golden (`cargo xtask sdk-matrix` publishes them).
+    let registry = Registry::builtin_2025_11_25().unwrap();
+    for trace_path in trace_files("captured") {
+        let report = validate_file(&registry, &trace_path);
+        check_golden(&registry, &trace_path, &report);
+    }
+}
+
 /// Attribution, not just failure: the trace `area-nnn-…` exists to falsify
 /// requirement AREA-NNN and must keep doing so by name.
 ///
@@ -430,7 +445,7 @@ fn every_golden_belongs_to_a_living_trace() {
     let mut ledgers = BTreeSet::new();
     for (subdirs, golden_dir, revision) in [
         (
-            ["good", "violations"].as_slice(),
+            ["good", "violations", "captured"].as_slice(),
             corpus_root().join("golden"),
             "2025-11-25",
         ),
@@ -491,6 +506,7 @@ fn every_trace_has_a_provenance_ledger_row() {
     for subdir in [
         "good",
         "violations",
+        "captured",
         "draft/good",
         "draft/violations",
         "draft/captured",
@@ -562,6 +578,7 @@ fn checks_count_their_subjects() {
     for subdir in [
         "good",
         "violations",
+        "captured",
         "draft/good",
         "draft/violations",
         "draft/captured",

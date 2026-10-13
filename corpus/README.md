@@ -13,6 +13,11 @@ Fixtures for the golden-corpus tests (`crates/mcp-trace-validator/tests/golden.r
 - **`draft/captured/`** — sessions recorded off the wire from implementations
   this repository did not write. No verdict is asserted for them; their whole
   report is byte-pinned instead. See *Captured versus authored* below.
+- **`captured/`** — the `2025-11-25` counterpart: the official SDKs'
+  conformance servers recorded by `interop/matrix.sh`, judged against that
+  revision's registry, likewise pinned without an asserted verdict. Their
+  `2026-07-28` sessions sit in `draft/captured/` beside the others. See *The
+  official SDKs' conformance servers* below.
 - **`golden/`** — the byte-pinned expected report for every trace, with
   `golden/draft/` holding the `2026-07-28` corpus's. Regenerate only via
   `cargo xtask bless` and review the diff like code.
@@ -44,9 +49,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 64 | 141 |
+| Goldens | 68 | 144 |
 | Excluded rows the ledger holds | 85 | 165 |
-| Distinct not-observed sets across them | 34 | 109 |
+| Distinct not-observed sets across them | 38 | 112 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -454,31 +459,41 @@ read as a specimen instead.
 | `probe-2026-07-28-http` | 67 | 58 | 9 | 0 | 78 |
 | `reference-host-2026-07-28-http` | 98 | 98 | 0 | 0 | 47 |
 | `reference-host-2026-07-28-stdio` | 89 | 89 | 0 | 0 | 56 |
-| **Union** | **119** | | | | **26** |
+| `sdk-go-2026-07-28` | 75 | 71 | 3 | 1 | 70 |
+| `sdk-python-2026-07-28` | 60 | 60 | 0 | 0 | 85 |
+| `sdk-rust-2026-07-28` | 69 | 69 | 0 | 0 | 76 |
+| **Union** | **125** | | | | **20** |
 
-Across all 5 captures, **119 of the 145 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 8 captures, **125 of the 145 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
-The 26 clauses no capture reaches: `CACH-015`, `CACH-016`, `CANC-003`, `CANC-011`, `DISC-002`, `MRTR-024`, `PROM-017`, `TOOL-033`, `TOOL-034`, `TOOL-045`, `TRAN-061`, `TRAN-070`, `TRAN-079`, `TRAN-080`, `TRAN-081`, `TRAN-082`, `TRAN-096`, `TRAN-128`, `TRAN-130`, `TRAN-132`, `TRAN-133`, `TRAN-134`, `TRAN-135`, `TRAN-136`, `TRAN-137`, `VERS-004`.
+The 20 clauses no capture reaches: `CACH-015`, `CACH-016`, `CANC-003`, `CANC-011`, `DISC-002`, `MRTR-024`, `PROM-017`, `TOOL-034`, `TRAN-061`, `TRAN-070`, `TRAN-079`, `TRAN-081`, `TRAN-096`, `TRAN-128`, `TRAN-130`, `TRAN-132`, `TRAN-133`, `TRAN-134`, `TRAN-135`, `TRAN-136`.
 <!-- draft-coverage:end -->
 
 The probe session closed the largest group — the rejection rules — and the
-cancellation round closed the next. What is left divides in three, and only
-the first is ordinary backlog.
+cancellation round closed the next. The official SDKs' conformance servers
+(below) closed six more without a line of this repository changing: each of
+the three that serve this revision lists a tool carrying an `x-mcp-header`
+designation, which `TOOL-033`, `TOOL-045`, `TRAN-080`, `TRAN-082` and
+`TRAN-137` judge, and the Rust SDK's declares an extension, which `VERS-004`
+judges. What is left divides in three, and only the first is ordinary backlog.
 
-**Eight need server surface this reference does not have**: pagination for
-`CACH-015`/`CACH-016`, an `x-mcp-header` designation for `TOOL-033`/`TOOL-034`
-and `TRAN-079`/`TRAN-080`/`TRAN-096`, and a prompt carrying audio for
-`PROM-017`.
+**Six need surface no recorded session exercises**: pagination for
+`CACH-015`/`CACH-016`; a *call* to a tool with an `x-mcp-header` designation,
+which `TOOL-034` and `TRAN-079` judge and neither this reference server (no
+designation) nor the SDK sessions (they never call that tool) supply, and a
+malformed `Mcp-Param-…` header for a server to reject (`TRAN-096`); and a
+prompt carrying audio for `PROM-017`.
 
-**Two cannot be reached by a conforming host at all**, and saying so is more
-useful than closing them. `VERS-004` judges the shape of an extension
-identifier, so a capture would have to declare an extension — and this host
-implements none; declaring one to light up a check is precisely the vacuous
-evidence the corpus exists to avoid. `MRTR-024` is a server *re-asking* after
-a client's shortfall, and a retry that omits requested input is the client
-violation `MRTR-015` names: driving it would make the reference host
-non-conforming, which is the one thing this capture may not be. Both are
-evidenced by authored violation traces instead, where the fault belongs.
+**One cannot be reached by a conforming host at all**, and saying so is more
+useful than closing it. `MRTR-024` is a server *re-asking* after a client's
+shortfall, and a retry that omits requested input is the client violation
+`MRTR-015` names: driving it would make the reference host non-conforming,
+which is the one thing this capture may not be. It is evidenced by an authored
+violation trace instead, where the fault belongs. `VERS-004` used to be its
+pair — a capture would have to declare an extension, and this host implements
+none, and declaring one only to light up a check is precisely the vacuous
+evidence the corpus exists to avoid. The Rust SDK's conformance server
+declares one of its own accord, and that is evidence.
 
 **One is a recording gap rather than a session gap**: `TRAN-070` needs a
 response stream to close mid-session, and the server's tap records no
@@ -490,6 +505,52 @@ because it was never a corpus gap: the check behind it counted only
 malformed responses as subjects, so every capture full of well-formed results
 reported the clause *not observed* — the tool saying it had seen nothing to
 judge about a session that had carried dozens of them.
+
+### The official SDKs' conformance servers (`captured/`, `draft/captured/`)
+
+Seven recordings of **each Tier 1 SDK's own conformance server** — the server
+its maintainers run the official suite against — driven over Streamable HTTP
+by an official SDK client. Neither end is ours: this repository supplies only
+the recorder and the judge. They are the evidence behind the book's
+[cross-SDK matrix](https://github.com/tomtom215/mcp-conformance/blob/main/book/src/sdk-matrix.md), which `cargo xtask sdk-matrix`
+generates from their goldens; the verdicts and counts live there, once, and
+are not restated here.
+
+| Field | Value |
+|---|---|
+| Servers | TypeScript: `test/conformance/src/everythingServer.ts` at SDK tag `1.32.0`, its `../../../src/` imports rewritten to the published `@modelcontextprotocol/sdk` 1.32.0 and nothing else. Python: `examples/servers/everything-server` at tag `v2.3.0`, on `mcp` 2.3.0. Go: `conformance/everything-server` from the `go-sdk` v1.8.0 module, stateful at `2025-11-25` and stateless at `2026-07-28`, as the Go SDK's own conformance workflow runs it. Rust: `conformance/src/bin/server.rs` at tag `rmcp-v3.5.1`, compiled against `rmcp` 3.5.1 from crates.io with upstream's feature set. Every pin, commit and file hash is in [`interop/sdk-pins.env`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/sdk-pins.env) |
+| Clients | `2025-11-25`: the TypeScript SDK 1.32.0 client ([`ts-client.mjs`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/ts-client.mjs)). `2026-07-28`: the Python SDK 2.3.0 client ([`py-client.py`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/py-client.py)). One client per revision for every server, so two rows of a revision differ by the server alone |
+| Recorded by | `mcp-trace-capture http`, in front of each server on fixed loopback ports, by [`interop/matrix.sh`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/matrix.sh), 2026-10-13 |
+| Re-verified | Weekly: the scheduled `sdk-matrix` job re-records every session with the same pins and runs `cargo xtask sdk-matrix --recaptured`, which fails if any re-judged report differs from its golden |
+
+| Trace | Session |
+|-------|---------|
+| `sdk-typescript-2025-11-25.jsonl` | The TypeScript server at `2025-11-25`: handshake, the standalone `GET` stream, tools, resources, prompts, `logging/setLevel`, an unknown tool, and the `DELETE` teardown. The TypeScript SDK's 1.x line does not serve `2026-07-28`; the Python client's discovery falls back to `initialize` against it, so there is no `2026-07-28` trace for it |
+| `sdk-python-2025-11-25.jsonl` | The Python server, the same session |
+| `sdk-go-2025-11-25.jsonl` | The Go server, the same session. Its first prompt is an MRTR fixture, which it answers to this `2025-11-25` client with a JSON-RPC error |
+| `sdk-rust-2025-11-25.jsonl` | The Rust server, the same session |
+| `sdk-python-2026-07-28.jsonl` | The Python server at `2026-07-28`: `server/discover`, then tools, resources and prompts with the per-request `_meta` envelope |
+| `sdk-go-2026-07-28.jsonl` | The Go server, the same session. Its first prompt answers with an `input_required` result asking for `elicitation/create` from a client that declared no `elicitation` capability — the findings the matrix reports against it |
+| `sdk-rust-2026-07-28.jsonl` | The Rust server, the same session |
+
+**The trace bytes are not reproducible, and are not normalized.** Each server
+mints a fresh session id on every run, and nothing is rewritten after
+recording — a recording edited after the fact is no longer a recording. What
+is held fixed instead is everything that changes a *result*: the ports (the
+proxy records the `Host` header), the client script, the pins, and the one
+race the session had. The TypeScript client opens its standalone `GET` stream
+in the background, and while that `GET` and the next `POST` both awaited a
+status the validator — correctly — attributed neither, so `TRAN-040` read
+*not observed* on some runs and `pass` on others; the client now waits for the
+`GET` to be answered before its next request. Five consecutive local runs then
+produced identical reports, `seq` for `seq`. The weekly comparison ignores a
+finding's `seq` all the same, because a session whose replies land a line
+apart is the same session.
+
+Regenerate with `interop/setup.sh` and `interop/matrix.sh`, then
+`BLESS=1 cargo xtask sdk-matrix --recaptured interop/out-matrix`,
+`cargo xtask bless`, `cargo xtask sdk-matrix` and `cargo xtask draft-coverage`,
+and review the golden diff.
 
 ### `2026-07-28` authored (`corpus/draft/`)
 

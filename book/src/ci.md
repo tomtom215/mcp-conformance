@@ -44,7 +44,8 @@ wrapper, and each client session through the proxy (the `traces/` directory must
 exist). The repository's
 [`interop/`](https://github.com/tomtom215/mcp-conformance/tree/main/interop) directory
 does exactly this with the official TypeScript and Python SDKs, and its `run.sh` is a
-working example of both transports.
+working example of both transports; its `matrix.sh` records each official SDK's own
+conformance server through the proxy ([Recording an SDK's server](sdk-servers.md)).
 
 ## GitHub Actions
 

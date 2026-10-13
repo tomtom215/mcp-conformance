@@ -4,7 +4,8 @@
 # Scheduled hygiene: weekly RustSec audit, the full mutation sweep that PR-scoped
 # runs (mutants.yml) deliberately skip, fuzzing, a cargo-careful UB/overflow run
 # over the engine crates, a cross-architecture (s390x/powerpc/i686) byte-identity
-# check, a minimal-versions dependency-floor check, benchmarks, and the
+# check, a minimal-versions dependency-floor check, benchmarks, the cross-SDK
+# matrix (each official SDK's conformance server re-recorded and compared), and the
 # claims-expiry gates. Manually dispatchable for on-demand runs.
 
 name: Scheduled
@@ -164,6 +165,54 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Draft scenarios vs everything-server, against the committed baseline
         run: cargo xtask draft-readiness
+
+  # The cross-SDK matrix (book/src/sdk-matrix.md; roadmap items 1.7 and 3.2):
+  # each official SDK's own conformance server — TypeScript, Python, Go,
+  # Rust — re-recorded through mcp-trace-capture with the SDK versions pinned
+  # in interop/sdk-pins.env, judged, and compared with the committed corpus.
+  # Red means the published matrix no longer describes what the pinned
+  # releases do (or the validator's judgment of them moved): re-record with
+  # BLESS=1 and review the golden diff, or find out why. The scripts it runs
+  # are the ones the book's worked guide includes, and `cargo xtask
+  # sdk-matrix --check` holds the guide and this job to that. Every SDK is
+  # installed with integrity: npm ci, pip --require-hashes, go.sum, Cargo.lock,
+  # and a SHA-256 per file fetched from an SDK's repository at a pinned commit.
+  sdk-matrix:
+    name: Cross-SDK matrix (official SDKs' conformance servers, re-recorded)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build the recorder and the validator
+        run: cargo build --locked -p mcp-trace-capture -p mcp-trace-validator
+      # Node, Python and Go are preinstalled on the runner image; go fetches
+      # the 1.25 toolchain interop/go/go.mod requires, checked against go.sum's
+      # checksum database like any module.
+      - name: Install the pinned SDKs and build their conformance servers
+        working-directory: interop
+        run: |
+          node --version && python3 --version && go version
+          ./setup.sh
+      - name: Record and judge every SDK's server
+        working-directory: interop
+        run: ./matrix.sh ../target/debug
+      - name: Compare with the committed corpus
+        run: cargo xtask sdk-matrix --recaptured interop/out-matrix
+      - name: Upload traces and reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sdk-matrix-${{ github.run_id }}
+          path: interop/out-matrix/
+          if-no-files-found: warn
+          retention-days: 30
 
   fuzz:
     name: Fuzz (every declared target)

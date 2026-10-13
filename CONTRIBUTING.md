@@ -67,8 +67,12 @@ All of these must pass before merging — `cargo xtask ci` runs them in order:
     `docs/plan/decisions/`, and released changelog sections. To quote a number
     you are *not* asserting — a line as it used to read, or sample tool output
     — put it in backticks; code is a specimen, prose is a claim
+13. The book's cross-SDK matrix (`book/src/sdk-matrix.md`) in sync with the
+    committed golden reports of the official SDKs' conformance servers, and the
+    book's worked guide still including, from `interop/matrix.sh`, the commands
+    the scheduled `sdk-matrix` job runs (`cargo xtask sdk-matrix --check`)
 
-Gates 7–12, plus seven structural checks — SPDX headers, a byte-identical copy of
+Gates 7–13, plus seven structural checks — SPDX headers, a byte-identical copy of
 `LICENSE` in every published crate, the CI write-scope inventory, the toolchain pin,
 cross-revision registry continuity, the shape of each revision's spec page set
 (`sources.json`: every page in exactly one of `in_scope` / `out_of_scope`, every

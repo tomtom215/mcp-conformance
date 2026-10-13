@@ -241,7 +241,9 @@ const UNCOMMENTABLE: [&str; 2] = ["json", "jsonl"];
 /// would be deleted by the next resolve. `interop/requirements.txt` is the same
 /// kind of file: a `uv pip compile --generate-hashes` lock of
 /// `interop/requirements.in` (which carries the header), and Dependabot's
-/// recompile rewrites it from the first line. `LICENSE` *is* the licence the
+/// recompile rewrites it from the first line. `interop/go/go.sum` is go's
+/// checksum list for `interop/go/go.mod` (which carries the header): the
+/// format has no comment syntax, and `go` rewrites it. `LICENSE` *is* the licence the
 /// identifier refers to. The fuzz corpus holds opaque byte inputs whose whole
 /// value is being byte-exact — a header would change the input.
 fn header_exempt(path: &str) -> bool {
@@ -251,6 +253,7 @@ fn header_exempt(path: &str) -> bool {
         || path.ends_with("/LICENSE")
         || path.ends_with("Cargo.lock")
         || path == "interop/requirements.txt"
+        || path == "interop/go/go.sum"
         || path.starts_with("fuzz/corpus/")
         || std::path::Path::new(path)
             .extension()
@@ -375,6 +378,7 @@ mod tests {
             "Cargo.lock",
             "fuzz/Cargo.lock",
             "interop/requirements.txt",
+            "interop/go/go.sum",
             "fuzz/corpus/trace_parse/seed-full-session",
             "corpus/golden/http-session.json",
             "corpus/good/http-session.jsonl",
@@ -393,6 +397,7 @@ mod tests {
             "rust-toolchain.toml",
             // The lock's *input* is hand-written and keeps its header.
             "interop/requirements.in",
+            "interop/go/go.mod",
         ] {
             assert!(!header_exempt(judged), "{judged} should be judged");
         }

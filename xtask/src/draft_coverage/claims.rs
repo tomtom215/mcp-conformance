@@ -82,6 +82,7 @@ pub(super) const CLAIM_FILES: &[&str] = &[
     "book/src/introduction.md",
     "book/src/getting-started.md",
     "book/src/clients.md",
+    "book/src/sdk-servers.md",
     "book/src/reading-a-report.md",
     "book/src/upgrading.md",
     "book/src/ci.md",
@@ -91,6 +92,7 @@ pub(super) const CLAIM_FILES: &[&str] = &[
     "book/src/revisions.md",
     "book/src/corpus.md",
     "book/src/conformance-results.md",
+    "book/src/sdk-matrix.md",
     "book/src/glossary.md",
     "book/src/SUMMARY.md",
 ];
