@@ -319,7 +319,7 @@ pub(crate) fn check(
 ///
 /// # Errors
 ///
-/// As [`run`]: unreadable artifacts, a malformed ledger, an unexplained
+/// As [`super::run`]: unreadable artifacts, a malformed ledger, an unexplained
 /// divergence, or a stale ledger entry.
 pub(crate) fn run_wire_schema_only(
     workspace_root: &Path,
