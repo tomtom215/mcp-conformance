@@ -29,7 +29,13 @@ cargo install mcp-trace-capture mcp-trace-validator
 > - a forced HTTP stop ending the trace with `transport-abort`; SSE events of a type
 >   other than `message` left out; unfaithful JSON recorded as its raw line (stdio) or
 >   left out (HTTP);
-> - on Windows, the server's whole exit code.
+> - on Windows, the server's whole exit code;
+> - `SIGQUIT` relayed as a stop; a last stdio line without its newline recorded as a
+>   string;
+> - over HTTP: one buffer budget for all exchanges, a 30-second request-head timeout,
+>   a 10-second upstream connect timeout, `Content-Length` kept, dot-segment paths
+>   refused, redirects pointed at the proxy's own address, and unseen session ids
+>   sharing one trace until the server accepts one.
 
 ## stdio servers
 
