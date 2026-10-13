@@ -75,6 +75,14 @@ pub(super) const ROWS: &[Check] = &[
         stateless::meta::trace_context_format
     ),
     check!(
+        "meta.client-info-on-requests",
+        stateless::meta::client_info_on_requests
+    ),
+    check!(
+        "meta.server-info-on-results",
+        stateless::meta::server_info_on_results
+    ),
+    check!(
         "transport.protocol-version-header-present",
         stateless::transport::protocol_version_header_present
     ),
@@ -162,10 +170,18 @@ pub(super) const ROWS: &[Check] = &[
         "transport.x-mcp-header-statically-reachable",
         stateless::transport::x_mcp_header_statically_reachable
     ),
+    check!(
+        "transport.x-mcp-header-invalid-tool-not-called",
+        stateless::transport::invalid_tool_not_called
+    ),
     check!("discover.implemented", stateless::discovery::implemented),
     check!(
         "discover.dual-era-probe-first",
         stateless::discovery::dual_era_probe_first
+    ),
+    check!(
+        "discover.server-info-included",
+        stateless::meta::discover_server_info
     ),
     check!(
         "versioning.retry-uses-supported-version",

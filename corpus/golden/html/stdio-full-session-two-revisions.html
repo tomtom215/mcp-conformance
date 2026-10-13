@@ -509,10 +509,10 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <div class="t-pass"><dt>pass</dt><dd>26</dd></div>
 <div class="t-fail zero"><dt>fail</dt><dd>0</dd></div>
 <div class="t-warn zero"><dt>warn</dt><dd>0</dd></div>
-<div class="t-excluded"><dt>excluded</dt><dd>95</dd></div>
+<div class="t-excluded"><dt>excluded</dt><dd>94</dd></div>
 <div class="t-unsupported zero"><dt>unsupported</dt><dd>0</dd></div>
 <div class="t-not-applicable"><dt>not applicable</dt><dd>6</dd></div>
-<div class="t-not-observed"><dt>not observed</dt><dd>26</dd></div>
+<div class="t-not-observed"><dt>not observed</dt><dd>27</dd></div>
 </dl>
 <p class="schema-line s-pass">Wire schema: pass (9 messages valid)</p>
 </section>
@@ -523,10 +523,10 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <div class="t-pass"><dt>pass</dt><dd>21</dd></div>
 <div class="t-fail"><dt>fail</dt><dd>9</dd></div>
 <div class="t-warn zero"><dt>warn</dt><dd>0</dd></div>
-<div class="t-excluded"><dt>excluded</dt><dd>167</dd></div>
+<div class="t-excluded"><dt>excluded</dt><dd>160</dd></div>
 <div class="t-unsupported zero"><dt>unsupported</dt><dd>0</dd></div>
 <div class="t-not-applicable zero"><dt>not applicable</dt><dd>0</dd></div>
-<div class="t-not-observed"><dt>not observed</dt><dd>117</dd></div>
+<div class="t-not-observed"><dt>not observed</dt><dd>124</dd></div>
 </dl>
 <p class="schema-line s-fail">Wire schema: fail (6 of 9 messages invalid)</p>
 </section>
@@ -927,7 +927,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2025-11-25-TOOL-008"><code class="rid">TOOL-008</code><span class="pill level">SHOULD</span></li>
 </ul>
 </details>
-<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">26</span></summary>
+<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">27</span></summary>
 <p class="meaning">Every covering check ran and found nothing to judge: the session carried none of the traffic these clauses bind to. A session that exercises them may pass or fail them.</p>
 <ul class="rows">
 <li id="2025-11-25-BASE-006"><code class="rid">BASE-006</code><span class="pill level">MUST</span></li>
@@ -940,6 +940,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2025-11-25-TRAN-013"><code class="rid">TRAN-013</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-017"><code class="rid">TRAN-017</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-018"><code class="rid">TRAN-018</code><span class="pill level">SHOULD</span></li>
+<li id="2025-11-25-TRAN-020"><code class="rid">TRAN-020</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-025"><code class="rid">TRAN-025</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-026"><code class="rid">TRAN-026</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-027"><code class="rid">TRAN-027</code><span class="pill level">MUST</span></li>
@@ -969,7 +970,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2025-11-25-PROM-008"><code class="rid">PROM-008</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
 </ul>
 </details>
-<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">95</span></summary>
+<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">94</span></summary>
 <p class="meaning">The registry does not judge these from a recording; each row says why.</p>
 <ul class="rows">
 <li id="2025-11-25-BASE-011"><code class="rid">BASE-011</code><span class="pill level">MUST NOT</span><span class="reason">A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009.</span></li>
@@ -1009,7 +1010,6 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2025-11-25-TRAN-015"><code class="rid">TRAN-015</code><span class="pill level">MUST</span><span class="reason">Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden).</span></li>
 <li id="2025-11-25-TRAN-016"><code class="rid">TRAN-016</code><span class="pill level">MUST</span><span class="reason">A 404 is attributed to the request it answered when the recording&#39;s order is unambiguous, but not to the moment the client read it: a recorder logs the status as it passes, and the client may already have sent further requests on the old session. Requests after the 404 therefore do not show the client ignored it, and a client that stops instead of reconnecting sends nothing to judge.</span></li>
 <li id="2025-11-25-TRAN-019"><code class="rid">TRAN-019</code><span class="pill level">SHOULD</span><span class="reason">Which version a server assumed is internal state; subsequent traffic does not reveal it.</span></li>
-<li id="2025-11-25-TRAN-020"><code class="rid">TRAN-020</code><span class="pill level">MUST</span><span class="reason">The server&#39;s supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. mcp-everything-server answers an in-session request bearing an unsupported MCP-Protocol-Version with 400 (rmcp&#39;s streamable HTTP tower layer; the initialize exchange itself negotiates in-band and does not consult the header), asserted by unsupported_protocol_version_is_rejected_with_400 in tests/http_policy.rs.</span></li>
 <li id="2025-11-25-TRAN-021"><code class="rid">TRAN-021</code><span class="pill level">SHOULD NOT</span><span class="reason">How a client interprets stderr is internal, and stderr bytes are not part of the protocol trace (the trace records MCP messages and transport lifecycle, not diagnostics channels).</span></li>
 <li id="2025-11-25-TRAN-022"><code class="rid">TRAN-022</code><span class="pill level">SHOULD</span><span class="reason">A client&#39;s supported-transport surface is a property of the implementation, not of any one session; a streamable-HTTP trace says nothing about whether stdio was available.</span></li>
 <li id="2025-11-25-TRAN-023"><code class="rid">TRAN-023</code><span class="pill level">MUST</span><span class="reason">The trace vocabulary covers stdio and streamable HTTP; custom transports are outside the capture universe by construction (TransportKind is closed per revision).</span></li>
@@ -1096,7 +1096,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2026-07-28-TOOL-030"><code class="rid">TOOL-030</code><span class="pill level">SHOULD</span></li>
 </ul>
 </details>
-<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">117</span></summary>
+<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">124</span></summary>
 <p class="meaning">Every covering check ran and found nothing to judge: the session carried none of the traffic these clauses bind to. A session that exercises them may pass or fail them.</p>
 <ul class="rows">
 <li id="2026-07-28-BASE-052"><code class="rid">BASE-052</code><span class="pill level">MUST</span></li>
@@ -1110,9 +1110,11 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2026-07-28-BASE-027"><code class="rid">BASE-027</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-BASE-029"><code class="rid">BASE-029</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-BASE-032"><code class="rid">BASE-032</code><span class="pill level">MUST</span></li>
+<li id="2026-07-28-BASE-033"><code class="rid">BASE-033</code><span class="pill level">SHOULD</span></li>
 <li id="2026-07-28-BASE-034"><code class="rid">BASE-034</code><span class="pill level">MUST NOT</span></li>
 <li id="2026-07-28-BASE-035"><code class="rid">BASE-035</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-BASE-036"><code class="rid">BASE-036</code><span class="pill level">MUST</span></li>
+<li id="2026-07-28-BASE-037"><code class="rid">BASE-037</code><span class="pill level">SHOULD</span></li>
 <li id="2026-07-28-BASE-039"><code class="rid">BASE-039</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-BASE-040"><code class="rid">BASE-040</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-056"><code class="rid">TRAN-056</code><span class="pill level">MUST</span></li>
@@ -1133,6 +1135,8 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2026-07-28-TRAN-080"><code class="rid">TRAN-080</code><span class="pill level">MUST NOT</span></li>
 <li id="2026-07-28-TRAN-081"><code class="rid">TRAN-081</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-082"><code class="rid">TRAN-082</code><span class="pill level">MUST NOT</span></li>
+<li id="2026-07-28-TRAN-083"><code class="rid">TRAN-083</code><span class="pill level">MUST</span></li>
+<li id="2026-07-28-TRAN-084"><code class="rid">TRAN-084</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-086"><code class="rid">TRAN-086</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-087"><code class="rid">TRAN-087</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-089"><code class="rid">TRAN-089</code><span class="pill level">MUST</span></li>
@@ -1153,6 +1157,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2026-07-28-TRAN-102"><code class="rid">TRAN-102</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-DISC-001"><code class="rid">DISC-001</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-DISC-002"><code class="rid">DISC-002</code><span class="pill level">SHOULD</span></li>
+<li id="2026-07-28-DISC-003"><code class="rid">DISC-003</code><span class="pill level">SHOULD</span></li>
 <li id="2026-07-28-VERS-001"><code class="rid">VERS-001</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-VERS-002"><code class="rid">VERS-002</code><span class="pill level">SHOULD</span></li>
 <li id="2026-07-28-VERS-003"><code class="rid">VERS-003</code><span class="pill level">MUST</span></li>
@@ -1201,10 +1206,12 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2026-07-28-TOOL-023"><code class="rid">TOOL-023</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TOOL-033"><code class="rid">TOOL-033</code><span class="pill level">MUST NOT</span></li>
 <li id="2026-07-28-TOOL-034"><code class="rid">TOOL-034</code><span class="pill level">MUST</span></li>
+<li id="2026-07-28-TOOL-035"><code class="rid">TOOL-035</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TOOL-038"><code class="rid">TOOL-038</code><span class="pill level">SHOULD</span></li>
 <li id="2026-07-28-TOOL-039"><code class="rid">TOOL-039</code><span class="pill level">SHOULD</span></li>
 <li id="2026-07-28-TOOL-040"><code class="rid">TOOL-040</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TOOL-045"><code class="rid">TOOL-045</code><span class="pill level">MUST</span></li>
+<li id="2026-07-28-TOOL-046"><code class="rid">TOOL-046</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-RES-012"><code class="rid">RES-012</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-RES-013"><code class="rid">RES-013</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-RES-018"><code class="rid">RES-018</code><span class="pill level">MUST</span></li>
@@ -1218,7 +1225,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2026-07-28-PROM-020"><code class="rid">PROM-020</code><span class="pill level">SHOULD</span></li>
 </ul>
 </details>
-<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">167</span></summary>
+<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">160</span></summary>
 <p class="meaning">The registry does not judge these from a recording; each row says why.</p>
 <ul class="rows">
 <li id="2026-07-28-BASE-041"><code class="rid">BASE-041</code><span class="pill level">MUST</span><span class="reason">The umbrella clause the BASE area mechanizes requirement-by-requirement; it has no observable beyond its constituents. Same role as BASE-012 at 2025-11-25, widened by this revision from &#39;base protocol and lifecycle management&#39; to &#39;base protocol, versioning, and the message patterns&#39;.</span></li>
@@ -1245,8 +1252,6 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2026-07-28-BASE-077"><code class="rid">BASE-077</code><span class="pill level">SHOULD</span><span class="reason">Depth caps, subschema counts and time budgets are validator-internal resource policy, invisible in the messages exchanged.</span></li>
 <li id="2026-07-28-BASE-025"><code class="rid">BASE-025</code><span class="pill level">MUST NOT</span><span class="reason">What an implementation assumes is internal; only conduct that follows from an assumption could surface, and attributing it requires the assumption. Same clause and same reasoning as BASE-018 at 2025-11-25.</span></li>
 <li id="2026-07-28-BASE-028"><code class="rid">BASE-028</code><span class="pill level">SHOULD</span><span class="reason">Whether a syntactically valid prefix is reverse-DNS for its author cannot be decided without knowing the author&#39;s domain. Same clause and same reasoning as BASE-021 at 2025-11-25.</span></li>
-<li id="2026-07-28-BASE-033"><code class="rid">BASE-033</code><span class="pill level">SHOULD</span><span class="reason">The clause&#39;s own escape hatch defeats the check: an absent `clientInfo` is either non-compliance or the configured-off case the clause permits, and a trace cannot distinguish them. The adjacent observable — that a *present* value is well-formed — belongs to the key-format checks on BASE-026/027/029.</span></li>
-<li id="2026-07-28-BASE-037"><code class="rid">BASE-037</code><span class="pill level">SHOULD</span><span class="reason">Same escape hatch as BASE-033, mirrored to the server: an absent `serverInfo` is either non-compliance or the configured-off case the clause permits, and the trace cannot tell which.</span></li>
 <li id="2026-07-28-BASE-038"><code class="rid">BASE-038</code><span class="pill level">SHOULD NOT</span><span class="reason">Self-reported identity is advisory; whether a peer let it change behavior or drive a security decision is internal reasoning with no wire footprint, the same boundary BASE-025 draws for reserved-key assumptions.</span></li>
 <li id="2026-07-28-BASE-078"><code class="rid">BASE-078</code><span class="pill level">MUST</span><span class="reason">Icon rendering support is client-internal capability with no wire footprint; the conditional premise (that the client renders icons) is equally invisible. Same reasoning as BASE-022 at 2025-11-25.</span></li>
 <li id="2026-07-28-BASE-079"><code class="rid">BASE-079</code><span class="pill level">SHOULD</span><span class="reason">Extends the same client-internal rendering-support premise as the MUST above it; neither the support nor its absence reaches the wire.</span></li>
@@ -1265,8 +1270,6 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2026-07-28-TRAN-069"><code class="rid">TRAN-069</code><span class="pill level">MUST</span><span class="reason">How a server *treats* a closed stream is internal: cancellation is a decision, and the trace shows only that the transport ended. The observable consequence — messages sent afterwards — is TRAN-070&#39;s business.</span></li>
 <li id="2026-07-28-TRAN-076"><code class="rid">TRAN-076</code><span class="pill level">MUST</span><span class="reason">Whether a server supports header-less clients is its own policy; a trace shows how it answered one request, not the policy behind it. The rejection shape, when it happens, is judged by TRAN-073.</span></li>
 <li id="2026-07-28-TRAN-078"><code class="rid">TRAN-078</code><span class="pill level">MUST</span><span class="reason">Client support for `x-mcp-header` is internal capability. Its observable consequence — mirroring designated values into headers — is the next clause and is checked there.</span></li>
-<li id="2026-07-28-TRAN-083"><code class="rid">TRAN-083</code><span class="pill level">MUST</span><span class="reason">Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client&#39;s verdict on it.</span></li>
-<li id="2026-07-28-TRAN-084"><code class="rid">TRAN-084</code><span class="pill level">MUST</span><span class="reason">The excluded tool is absent from a list the *client* assembles for its own consumer — a data structure that never reaches the wire.</span></li>
 <li id="2026-07-28-TRAN-085"><code class="rid">TRAN-085</code><span class="pill level">SHOULD</span><span class="reason">Logging is client-internal diagnostics with no wire footprint.</span></li>
 <li id="2026-07-28-TRAN-088"><code class="rid">TRAN-088</code><span class="pill level">SHOULD</span><span class="reason">A descriptive clause explaining why names are carried encoded, not an independent obligation; the encoding rule itself is checked on the clauses above.</span></li>
 <li id="2026-07-28-TRAN-090"><code class="rid">TRAN-090</code><span class="pill level">MUST</span><span class="reason">Decoding is what a receiver does internally before comparison; the trace shows the encoded value on the wire and the outcome, never the decode step.</span></li>
@@ -1283,7 +1286,6 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2026-07-28-TRAN-107"><code class="rid">TRAN-107</code><span class="pill level">SHOULD</span><span class="reason">Whether the client inspected a `400` body before falling back is internal reasoning; a subsequent fallback request is equally consistent with either.</span></li>
 <li id="2026-07-28-TRAN-108"><code class="rid">TRAN-108</code><span class="pill level">SHOULD</span><span class="reason">The umbrella introducing the backward-compatibility response table; each response it prescribes is a clause of its own, and the umbrella adds no separate observable.</span></li>
 <li id="2026-07-28-TRAN-109"><code class="rid">TRAN-109</code><span class="pill level">SHOULD NOT</span><span class="reason">Adopting or migrating away from a transport is a project decision, not a property of any session.</span></li>
-<li id="2026-07-28-DISC-003"><code class="rid">DISC-003</code><span class="pill level">SHOULD</span><span class="reason">The same clause as BASE-037, restated for one result type: BASE-037 is the general rule for `serverInfo` in every result and carries the escape hatch &quot;unless specifically configured not to do so&quot;. A restatement in the DiscoverResult field list does not withdraw that exemption, so an absent `serverInfo` here is still either non-compliance or the configured-off case, and the trace cannot tell which.</span></li>
 <li id="2026-07-28-DISC-004"><code class="rid">DISC-004</code><span class="pill level">SHOULD NOT</span><span class="reason">Binds what the client does with `serverInfo` after reading it — behaviour changes and security decisions are internal reasoning, and a trace records the messages, not the inferences drawn from them. Same boundary as BASE-022&#39;s icon-consumer clauses.</span></li>
 <li id="2026-07-28-VERS-005"><code class="rid">VERS-005</code><span class="pill level">MUST</span><span class="reason">Both permitted responses are defined by the extension, not by this specification: what &quot;core protocol behavior&quot; looks like for a given extension, and which error is &quot;appropriate&quot;, are each stated in that extension&#39;s own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour.</span></li>
 <li id="2026-07-28-VERS-006"><code class="rid">VERS-006</code><span class="pill level">SHOULD</span><span class="reason">Binds an extension&#39;s documentation, not either party&#39;s messages. The subject is not even a session participant: no recorded trace can be evidence about whether a document exists.</span></li>
@@ -1369,14 +1371,12 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2026-07-28-TOOL-028"><code class="rid">TOOL-028</code><span class="pill level">SHOULD</span><span class="reason">States how names are to be *compared*, not how they may be spelled. Two implementations differing on case sensitivity send identical messages until they disagree about a collision, and TOOL-030 already judges the collision.</span></li>
 <li id="2026-07-28-TOOL-031"><code class="rid">TOOL-031</code><span class="pill level">SHOULD</span><span class="reason">Binds a client aggregating *several* servers. One recorded session is one server, so the collision the clause is about cannot appear in it, and neither can the disambiguation strategy.</span></li>
 <li id="2026-07-28-TOOL-032"><code class="rid">TOOL-032</code><span class="pill level">SHOULD NOT</span><span class="reason">Forbids relying on `serverInfo` for disambiguation — a client-side decision about data it holds. Binds what the client does with what it received; the reasoning leaves no message behind.</span></li>
-<li id="2026-07-28-TOOL-035"><code class="rid">TOOL-035</code><span class="pill level">MUST</span><span class="reason">The client filtering its own copy of a list it already received. A tool excluded from the client&#39;s view is still in the server&#39;s `tools/list` result on the wire, so the trace shows nothing either way.</span></li>
 <li id="2026-07-28-TOOL-036"><code class="rid">TOOL-036</code><span class="pill level">SHOULD</span><span class="reason">Binds the client&#39;s log, which is not part of the session.</span></li>
 <li id="2026-07-28-TOOL-037"><code class="rid">TOOL-037</code><span class="pill level">SHOULD NOT</span><span class="reason">Requires deciding whether a parameter is sensitive — a judgement about the *meaning* of a name and its values, which this engine does not model. Same boundary as LOG-012.</span></li>
 <li id="2026-07-28-TOOL-041"><code class="rid">TOOL-041</code><span class="pill level">SHOULD</span><span class="reason">Validation performed inside the client. A client that validated a structured result and one that did not send the same messages, and the clause does not say what a client does with a result that fails; the server half of the rule, TOOL-040, is judged.</span></li>
 <li id="2026-07-28-TOOL-042"><code class="rid">TOOL-042</code><span class="pill level">SHOULD</span><span class="reason">Binds what the client hands to a language model, which is downstream of the session entirely.</span></li>
 <li id="2026-07-28-TOOL-043"><code class="rid">TOOL-043</code><span class="pill level">MUST</span><span class="reason">Four operational properties of the server — input validation, access control, rate limiting, output sanitization. A trace shows one call answered for one caller; whether another would have been refused, and whether the output was sanitized, are facts about the server&#39;s code and data.</span></li>
 <li id="2026-07-28-TOOL-044"><code class="rid">TOOL-044</code><span class="pill level">SHOULD</span><span class="reason">Six client-side practices — confirmation prompts, showing inputs, validating results, `$ref` resolution, timeouts, audit logs. Each happens inside the client or in its UI; none is a message.</span></li>
-<li id="2026-07-28-TOOL-046"><code class="rid">TOOL-046</code><span class="pill level">MUST</span><span class="reason">Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client&#39;s verdict on it. The same clause on the transport page is TRAN-083.</span></li>
 <li id="2026-07-28-RES-014"><code class="rid">RES-014</code><span class="pill level">MUST NOT</span><span class="reason">Binds the set across *connections* and across other requests — two properties that need more than one session, or a second request whose effect on the first is invisible. A single recording shows one list at one moment.</span></li>
 <li id="2026-07-28-RES-015"><code class="rid">RES-015</code><span class="pill level">SHOULD</span><span class="reason">The antecedent is that the underlying set changed, which happens inside the server and reaches the wire only as the notification the clause is asking for. A session with no notification is equally consistent with a list that never changed.</span></li>
 <li id="2026-07-28-RES-016"><code class="rid">RES-016</code><span class="pill level">SHOULD</span><span class="reason">Turns on whether the client can fetch the resource itself, which is a fact about the client and its network, not about any message. The server&#39;s choice of scheme is visible; the condition that licenses it is not.</span></li>

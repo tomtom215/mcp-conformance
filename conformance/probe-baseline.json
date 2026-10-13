@@ -1,6 +1,6 @@
 {
   "_policy": "The probe session (`cargo xtask draft-capture`, probe leg) sends deliberately malformed requests so the specification's rejection clauses have traffic to judge. It is not a conforming client, so its recording cannot be held to a clean verdict the way the other captures are — the client-side clauses it breaks are the faults under test. This file is what it is held to instead: every finding the probe draws must be listed here with a reason, and every listed finding must still occur. An unexpected finding is a new defect or a regression; an expected one that stopped occurring is either a fix that should retire its entry in the same change, or a check that quietly stopped firing. Both fail the gate. Entries are hand-written and never blessed: a generated file cannot carry the reason, and the reason is the point.",
-  "_reading": "`fault: probe` is the probe doing its job — the malformed request is the fixture, and the client-side clause it breaks is the one under test. There are no `fault: server` entries: the two this file carried (LOG-010, PAGE-011) were closed on 2026-08-17 by enforcing both rules on Streamable HTTP as well as stdio, and the gate required their entries retired in the same change. An entry with `fault: server` is an open defect, and each must say what would close it.",
+  "_reading": "`fault: probe` is the probe doing its job — the malformed request is the fixture, and the client-side clause it breaks is the one under test. The two `fault: server` entries this file once carried (LOG-010, PAGE-011) were closed on 2026-08-17 by enforcing both rules on Streamable HTTP as well as stdio, and the gate required their entries retired in the same change; one is open again since 2026-10-13 (BASE-037). An entry with `fault: server` is an open defect, and each must say what would close it.",
   "expected": [
     {
       "requirement": "BASE-030",
@@ -56,6 +56,16 @@
       "requirement": "TRAN-130",
       "fault": "probe",
       "why": "The same omitted header; TRAN-130 is the behaviour table's \"Parameter value provided | Client MUST include the header\", sharing `transport.x-mcp-header-mirrored` with TRAN-079."
+    },
+    {
+      "requirement": "BASE-033",
+      "fault": "probe",
+      "why": "The probe's requests carry no `io.modelcontextprotocol/clientInfo`. Not a fixture — a SHOULD-level warning the probe was written before the registry judged (BASE-033 was excluded until 2026-10-13). It retires when the probe names itself and its session is re-recorded."
+    },
+    {
+      "requirement": "BASE-037",
+      "fault": "server",
+      "why": "The everything server puts `io.modelcontextprotocol/serverInfo` in the `_meta` of its `server/discover` and `subscriptions/listen` results only — the two rmcp 3.5.1 sets it on — and not in the rest, some of which — `tools/list` and `prompts/list` — rmcp's handler macros build. A SHOULD-level warning, judged since 2026-10-13. It closes when the server names itself on every result, here or in rmcp; the reference-host captures carry the same warning."
     }
   ]
 }

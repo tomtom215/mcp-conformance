@@ -128,7 +128,9 @@
         "section": "basic/index#_meta",
         "quote": "Clients SHOULD include `io.modelcontextprotocol/clientInfo` on every request unless specifically configured not to do so."
       },
-      "exclusion": "The clause's own escape hatch defeats the check: an absent `clientInfo` is either non-compliance or the configured-off case the clause permits, and a trace cannot distinguish them. The adjacent observable — that a *present* value is well-formed — belongs to the key-format checks on BASE-026/027/029."
+      "checks": [
+        "meta.client-info-on-requests"
+      ]
     },
     {
       "id": "BASE-034",
@@ -186,7 +188,9 @@
         "section": "basic/index#_meta",
         "quote": "Servers SHOULD include the following `io.modelcontextprotocol/*` field in every result's `meta`, unless specifically configured not to do so, to identify themselves without relying on any prior connection state:"
       },
-      "exclusion": "Same escape hatch as BASE-033, mirrored to the server: an absent `serverInfo` is either non-compliance or the configured-off case the clause permits, and the trace cannot tell which."
+      "checks": [
+        "meta.server-info-on-results"
+      ]
     },
     {
       "id": "BASE-038",

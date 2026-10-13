@@ -122,6 +122,16 @@
       "quote": ["TRAN-017"],
       "note": "The transport page's statement of LIFE-018's rule; the same missing header and the same mcpsnoop gap.",
       "resolution": "upstream: mcpsnoop-version-header-2025-11-25"
+    },
+    {
+      "kind": "mcpsnoop-only",
+      "subject": "response-unmatched",
+      "traces": ["good/http-origin-refused-without-id", "draft/good/http-origin-refused-without-id"],
+      "class": "mcpsnoop-defect",
+      "right": "ours",
+      "quote": ["BASE-009", "BASE-052"],
+      "note": "A POST carrying `Host` and `Origin` `evil.example.com` is refused with HTTP 403 and a JSON-RPC error that has no `id`; the session then proceeds from `localhost`. The transport's security warning, at both revisions, describes exactly that answer: \"If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`.\" The refusal happens before the request is read, so there is no id to echo, and BASE-009/BASE-052's id rule does not reach a body the transport clause permits to have none. mcpsnoop reports the id-less error as matching no request. We did the same, as BASE-009, until 2026-10-13 — on the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`) — and these two traces are the regression pair for that fix.",
+      "resolution": "upstream: mcpsnoop-origin-refusal-unmatched"
     }
   ],
   "recorded": [
@@ -164,6 +174,11 @@
       "id": "mcpsnoop-version-header-2025-11-25",
       "title": "check: a missing MCP-Protocol-Version header is not reported on 2025-11-25 sessions",
       "body": "**Version:** mcpsnoop 0.26.1.\n\n**What happens.** A streamable-HTTP session negotiates `2025-11-25` (`initialize`, then `notifications/initialized` carrying `MCP-Protocol-Version: 2025-11-25`), then POSTs `tools/list` without the header. `check --fail-on error,invalid,warn,mismatch,pending,late-result,duplicate,deprecated,incomplete` exits 0.\n\n**Expected.** `2025-11-25` requires the header: \"If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server.\" The `mismatch` signal's description already covers a routing header that \"is missing where the negotiated revision requires it\"; at present only `2026-07-28` is treated as requiring it.\n\n**Reproduce.** `mcpsnoop http --target <server>/mcp`, then with curl: an `initialize` POST, an `initialized` POST with the header and the returned `Mcp-Session-Id`, and a `tools/list` POST with the session id but no `MCP-Protocol-Version`. Run `mcpsnoop check` on the session.\n\n**Suggested fix.** At `2025-11-25` (and `2025-06-18`), require the header on every POST after the `initialize` exchange."
+    },
+    {
+      "id": "mcpsnoop-origin-refusal-unmatched",
+      "title": "check: the id-less error body of a 403 Origin refusal is reported as a response with no matching request",
+      "body": "**Version:** mcpsnoop 0.26.1.\n\n**What happens.** Streamable HTTP, `2025-11-25` or `2026-07-28`. A POST arrives with `Origin: http://evil.example.com`; the server refuses it with `403 Forbidden` and the body `{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\"Forbidden: Origin not allowed\"}}`. `check` reports `response id has no matching request` on that error.\n\n**Expected.** No finding. The transport's security warning reads: \"If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`.\" The server refuses before it reads the request, so it has no id to echo, and the specification permits the body that results.\n\n**Suggested fix.** When an id-less error is the body of a `403` answering a request that carried an `Origin` header, treat it as that exchange's refusal rather than as an unmatched response."
     }
   ]
 }

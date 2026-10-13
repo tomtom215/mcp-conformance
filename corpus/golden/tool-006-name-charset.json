@@ -5,10 +5,10 @@
     "pass": 24,
     "fail": 0,
     "warn": 2,
-    "excluded": 95,
+    "excluded": 94,
     "unsupported": 0,
     "not_applicable": 6,
-    "not_observed": 26
+    "not_observed": 27
   },
   "requirements": [
     {
@@ -159,6 +159,11 @@
     {
       "id": "TRAN-018",
       "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-020",
+      "level": "MUST",
       "outcome": "not-observed"
     },
     {

@@ -61,6 +61,10 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **`BASE-009`/`BASE-052` no longer fail the id-less error a server may return in the
+  body of a `403` Origin refusal**, which both revisions' transport pages permit; the
+  official suite's DNS-rebinding scenario drew it. The everything server's refusal body
+  now omits `id` rather than sending `null`, which the schema does not admit.
 - **`TRAN-079` is judged on the mirrored value, not only its presence**
   (`transport.x-mcp-header-value-mirrored`): a client sending `Mcp-Param-*` with a value
   other than the body's was judged conformant. Found by the `mcpsnoop` comparison.
@@ -610,7 +614,7 @@ below is stated again in its entry, with the reasoning.
 - **`mcp-reference-host` follows `nextCursor`** in its tool loop and sweep, and
   `--probe` adds one request: a call with a designated argument's `Mcp-Param-*` header
   left out (`TRAN-136`).
-- **The `2026-07-28` captures evidence 137 of the 147 judgeable clauses**, up from 127:
+- **The `2026-07-28` captures evidence 140 of the 154 judgeable clauses** (127 before the new surface; the totals also count the rows 2.3 made judgeable):
   `CACH-015`/`CACH-016`, `PROM-017`, `TOOL-034`, `TRAN-079`, `TRAN-081`, `TRAN-130`,
   `TRAN-134`, `TRAN-135` and `TRAN-136`. The ten that remain are listed in
   `corpus/README.md`, each with its reason.
@@ -624,6 +628,13 @@ below is stated again in its entry, with the reasoning.
   Linux, macOS and Windows, and `release.yml` publishes them by trusted publishing once
   the owner has set up the registries (RELEASING.md).
 - **The release archives carry `mcp-conformance`** beside the validator and the recorder.
+- **Seven disputed exclusions are judged** (review finding M1): `TRAN-020` (a version
+  the server declined at `initialize`, sent again in `MCP-Protocol-Version`, must draw
+  `400`); `TRAN-083`/`TRAN-084` with `TOOL-046`/`TOOL-035` (a Streamable HTTP client
+  must not call a tool whose `x-mcp-header` annotations it had to reject); and
+  `BASE-033`, `BASE-037` and `DISC-003` (`clientInfo` on requests, `serverInfo` on
+  results, as warnings). Every rmcp-served capture now warns on `BASE-037`; the Go and
+  Python SDK servers pass it.
 - **Coverage is gated.** The coverage job fails below 95% of lines (96.40% measured
   on 2026-10-13, all features) and is no longer informational. As informational it
   had hidden a failing test: see Fixed.

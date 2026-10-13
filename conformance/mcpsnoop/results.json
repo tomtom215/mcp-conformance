@@ -33,6 +33,31 @@
   ],
   "traces": [
     {
+      "trace": "good/http-origin-refused-without-id",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
       "trace": "good/http-session",
       "revision": "2025-11-25",
       "transport": "http",
@@ -1138,6 +1163,26 @@
       }
     },
     {
+      "trace": "violations/tran-018-declined-version-header-refused-400",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TRAN-018"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
       "trace": "violations/tran-018-protocol-version-mismatched",
       "revision": "2025-11-25",
       "transport": "http",
@@ -1147,6 +1192,25 @@
         "verdict": "pass-with-warnings",
         "flagged": [
           "TRAN-018"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-020-declined-version-header-accepted",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-018",
+          "TRAN-020"
         ]
       },
       "mcpsnoop": {
@@ -1484,6 +1548,31 @@
         "other": {
           "error": 1,
           "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/http-origin-refused-without-id",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1
         }
       }
     },
@@ -2031,6 +2120,24 @@
       }
     },
     {
+      "trace": "draft/violations/base-033-request-without-client-info",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-033"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
       "trace": "draft/violations/base-034-input-request-for-undeclared-capability",
       "revision": "2026-07-28",
       "transport": "stdio",
@@ -2144,6 +2251,24 @@
         "other": {
           "error": 1
         }
+      }
+    },
+    {
+      "trace": "draft/violations/base-037-result-without-server-info",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-037"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
       }
     },
     {
@@ -2637,6 +2762,25 @@
           "error": 1,
           "pending": 1
         }
+      }
+    },
+    {
+      "trace": "draft/violations/disc-003-discover-result-without-server-info",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-037",
+          "DISC-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
       }
     },
     {
@@ -4319,6 +4463,36 @@
       }
     },
     {
+      "trace": "draft/violations/tran-082-invalid-tool-excluded-valid-called",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-045",
+          "TRAN-082",
+          "TRAN-137"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "tool \"deploy\" declares an x-mcp-header under \"anyOf\", which 2026-07-28 does not allow in the chain to an annotated property, so its Mcp-Param headers are not checked"
+          }
+        ],
+        "other": {
+          "annotations": 2,
+          "schema": 1
+        }
+      }
+    },
+    {
       "trace": "draft/violations/tran-082-x-mcp-header-under-any-of",
       "revision": "2026-07-28",
       "transport": "http",
@@ -4351,6 +4525,40 @@
             "signal": "warn",
             "seq": 1,
             "framed": false,
+            "message": "tool \"deploy\" declares an x-mcp-header under \"anyOf\", which 2026-07-28 does not allow in the chain to an annotated property, so its Mcp-Param headers are not checked"
+          }
+        ],
+        "other": {
+          "annotations": 1,
+          "schema": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-083-invalid-tool-called",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-035",
+          "TOOL-045",
+          "TOOL-046",
+          "TRAN-082",
+          "TRAN-083",
+          "TRAN-084",
+          "TRAN-137"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
             "message": "tool \"deploy\" declares an x-mcp-header under \"anyOf\", which 2026-07-28 does not allow in the chain to an annotated property, so its Mcp-Param headers are not checked"
           }
         ],
@@ -5033,6 +5241,7 @@
       "ours": {
         "verdict": "fail",
         "flagged": [
+          "BASE-037",
           "CACH-001",
           "wire-schema"
         ]
@@ -5079,8 +5288,10 @@
       "frames": 52,
       "unframed": 3,
       "ours": {
-        "verdict": "pass",
-        "flagged": []
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-037"
+        ]
       },
       "mcpsnoop": {
         "exit": 1,
@@ -5102,6 +5313,8 @@
         "verdict": "fail",
         "flagged": [
           "BASE-030",
+          "BASE-033",
+          "BASE-037",
           "COMP-006",
           "MRTR-002",
           "PAGE-006",
@@ -5175,8 +5388,10 @@
       "frames": 104,
       "unframed": 11,
       "ours": {
-        "verdict": "pass",
-        "flagged": []
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-037"
+        ]
       },
       "mcpsnoop": {
         "exit": 1,
@@ -5196,8 +5411,10 @@
       "frames": 105,
       "unframed": 0,
       "ours": {
-        "verdict": "pass",
-        "flagged": []
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-037"
+        ]
       },
       "mcpsnoop": {
         "exit": 1,
@@ -5270,8 +5487,10 @@
       "frames": 15,
       "unframed": 0,
       "ours": {
-        "verdict": "pass",
-        "flagged": []
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-037"
+        ]
       },
       "mcpsnoop": {
         "exit": 1,

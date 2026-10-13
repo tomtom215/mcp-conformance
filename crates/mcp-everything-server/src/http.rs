@@ -159,12 +159,19 @@ fn headers_allowed(policy: &HttpSecurityPolicy, headers: &HeaderMap) -> bool {
 
 /// The rejection the `2025-11-25` transports specification requires for
 /// failed `Origin` validation, with a JSON-RPC-shaped body for diagnostics.
+///
+/// The body is "a JSON-RPC _error response_ that has no `id`", as that clause
+/// permits: the member is left out rather than set to `null`, which the
+/// protocol schema's `JSONRPCErrorResponse` does not admit (its optional `id`
+/// is a `RequestId`, a string or an integer). Until 2026-10-13 it carried
+/// `"id": null`, which the validator's wire-schema check rejected on the
+/// recordings of the official suite's `dns-rebinding-protection` scenario.
 fn forbidden() -> Response {
     Response::builder()
         .status(StatusCode::FORBIDDEN)
         .header(header::CONTENT_TYPE, "application/json")
         .body(Body::from(
-            r#"{"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":"Forbidden: Host or Origin header rejected by security policy"}}"#,
+            r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Forbidden: Host or Origin header rejected by security policy"}}"#,
         ))
         .unwrap_or_else(|_| StatusCode::FORBIDDEN.into_response())
 }
@@ -282,13 +289,20 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn forbidden_response_is_403_json() {
+    #[tokio::test]
+    async fn forbidden_response_is_403_json() {
         let response = forbidden();
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
         assert_eq!(
             response.headers().get(header::CONTENT_TYPE).unwrap(),
             "application/json"
         );
+        // An error response "that has no `id`": absent, not `null`.
+        let body = axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap();
+        let error: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(error.get("id").is_none(), "{error}");
+        assert!(error["error"]["code"].is_i64(), "{error}");
     }
 }

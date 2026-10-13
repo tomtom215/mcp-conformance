@@ -1,14 +1,14 @@
 {
   "revision": "2026-07-28",
-  "verdict": "pass",
+  "verdict": "pass-with-warnings",
   "totals": {
-    "pass": 114,
+    "pass": 116,
     "fail": 0,
-    "warn": 0,
-    "excluded": 167,
+    "warn": 1,
+    "excluded": 160,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 33
+    "not_observed": 37
   },
   "requirements": [
     {
@@ -127,6 +127,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "BASE-033",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
       "id": "BASE-034",
       "level": "MUST NOT",
       "outcome": "pass"
@@ -140,6 +145,233 @@
       "id": "BASE-036",
       "level": "MUST",
       "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-037",
+      "level": "SHOULD",
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 16,
+          "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 20,
+          "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 24,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 28,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 32,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 36,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 40,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 44,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 48,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 52,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 56,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 60,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 64,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 68,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 72,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 76,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 80,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 84,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 88,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 92,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 99,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 106,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 110,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 114,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 118,
+          "detail": "result answering `resources/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 122,
+          "detail": "result answering `resources/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 126,
+          "detail": "result answering `resources/read` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 130,
+          "detail": "result answering `resources/read` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 134,
+          "detail": "result answering `resources/read` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 138,
+          "detail": "result answering `resources/templates/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 142,
+          "detail": "result answering `resources/templates/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 146,
+          "detail": "result answering `resources/read` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 150,
+          "detail": "result answering `resources/read` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 158,
+          "detail": "result answering `prompts/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 162,
+          "detail": "result answering `prompts/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 166,
+          "detail": "result answering `prompts/get` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 170,
+          "detail": "result answering `prompts/get` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 174,
+          "detail": "result answering `prompts/get` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 178,
+          "detail": "result answering `prompts/get` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 182,
+          "detail": "result answering `prompts/get` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 186,
+          "detail": "result answering `completion/complete` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 190,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 194,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        }
+      ],
+      "source": {
+        "section": "basic/index#_meta",
+        "quote": "Servers SHOULD include the following `io.modelcontextprotocol/*` field in every result's `meta`, unless specifically configured not to do so, to identify themselves without relying on any prior connection state:",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+      }
     },
     {
       "id": "BASE-039",
@@ -257,6 +489,16 @@
       "outcome": "pass"
     },
     {
+      "id": "TRAN-083",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-084",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-086",
       "level": "MUST",
       "outcome": "pass"
@@ -355,6 +597,11 @@
       "id": "DISC-002",
       "level": "SHOULD",
       "outcome": "not-observed"
+    },
+    {
+      "id": "DISC-003",
+      "level": "SHOULD",
+      "outcome": "pass"
     },
     {
       "id": "VERS-001",
@@ -662,6 +909,11 @@
       "outcome": "pass"
     },
     {
+      "id": "TOOL-035",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TOOL-038",
       "level": "SHOULD",
       "outcome": "pass"
@@ -680,6 +932,11 @@
       "id": "TOOL-045",
       "level": "MUST",
       "outcome": "pass"
+    },
+    {
+      "id": "TOOL-046",
+      "level": "MUST",
+      "outcome": "not-observed"
     },
     {
       "id": "RES-011",

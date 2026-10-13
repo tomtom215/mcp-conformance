@@ -4,7 +4,7 @@
 
 # Requirements — `2026-07-28`
 
-Every normative clause of the `2026-07-28` specification that the validator's registry carries — 314 in all, 147 judged from a recorded trace and 167 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
+Every normative clause of the `2026-07-28` specification that the validator's registry carries — 314 in all, 154 judged from a recorded trace and 160 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -486,7 +486,7 @@ Judged by `meta.missing-required-field-http-status`.
 
 [`basic/index#_meta`](https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta)
 
-**Excluded.** The clause's own escape hatch defeats the check: an absent `clientInfo` is either non-compliance or the configured-off case the clause permits, and a trace cannot distinguish them. The adjacent observable — that a *present* value is well-formed — belongs to the key-format checks on BASE-026/027/029.
+Judged by `meta.client-info-on-requests`.
 
 ### BASE-034
 
@@ -526,7 +526,7 @@ Judged by `meta.missing-capability-http-status`.
 
 [`basic/index#_meta`](https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta)
 
-**Excluded.** Same escape hatch as BASE-033, mirrored to the server: an absent `serverInfo` is either non-compliance or the configured-off case the clause permits, and the trace cannot tell which.
+Judged by `meta.server-info-on-results`.
 
 ### BASE-038
 
@@ -948,7 +948,7 @@ Judged by `transport.x-mcp-header-statically-reachable`.
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
-**Excluded.** Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it.
+Judged by `transport.x-mcp-header-invalid-tool-not-called`.
 
 ### TRAN-084
 
@@ -958,7 +958,7 @@ Judged by `transport.x-mcp-header-statically-reachable`.
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
-**Excluded.** The excluded tool is absent from a list the *client* assembles for its own consumer — a data structure that never reaches the wire.
+Judged by `transport.x-mcp-header-invalid-tool-not-called`.
 
 ### TRAN-085
 
@@ -1330,7 +1330,7 @@ Judged by `discover.dual-era-probe-first`.
 
 [`server/discover#discoverresult`](https://modelcontextprotocol.io/specification/2026-07-28/server/discover#discoverresult)
 
-**Excluded.** The same clause as BASE-037, restated for one result type: BASE-037 is the general rule for `serverInfo` in every result and carries the escape hatch "unless specifically configured not to do so". A restatement in the DiscoverResult field list does not withdraw that exemption, so an absent `serverInfo` here is still either non-compliance or the configured-off case, and the trace cannot tell which.
+Judged by `discover.server-info-included`.
 
 ### DISC-004
 
@@ -2822,7 +2822,7 @@ Judged by `tools.x-mcp-header-integer-range`.
 
 [`server/tools#x-mcp-header`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header)
 
-**Excluded.** The client filtering its own copy of a list it already received. A tool excluded from the client's view is still in the server's `tools/list` result on the wire, so the trace shows nothing either way.
+Judged by `transport.x-mcp-header-invalid-tool-not-called`.
 
 ### TOOL-036
 
@@ -2932,7 +2932,7 @@ Judged by `transport.x-mcp-header-statically-reachable`.
 
 [`server/tools#x-mcp-header`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header)
 
-**Excluded.** Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it. The same clause on the transport page is TRAN-083.
+Judged by `transport.x-mcp-header-invalid-tool-not-called`.
 
 ## RES
 

@@ -92,6 +92,10 @@ const SHIPPED: &[Check] = &[
         transport::protocol_version_negotiated
     ),
     check!(
+        "transport.unsupported-version-header-rejected",
+        transport::unsupported_version_rejected
+    ),
+    check!(
         "transport.http-post-single-message",
         transport::http_post_single_message
     ),

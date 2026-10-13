@@ -122,16 +122,6 @@
       "exclusion": "Whether a syntactically valid prefix is reverse-DNS for its author cannot be decided without knowing the author's domain. Same clause and same reasoning as BASE-021 at 2025-11-25."
     },
     {
-      "id": "BASE-033",
-      "level": "SHOULD",
-      "exclusion": "The clause's own escape hatch defeats the check: an absent `clientInfo` is either non-compliance or the configured-off case the clause permits, and a trace cannot distinguish them. The adjacent observable — that a *present* value is well-formed — belongs to the key-format checks on BASE-026/027/029."
-    },
-    {
-      "id": "BASE-037",
-      "level": "SHOULD",
-      "exclusion": "Same escape hatch as BASE-033, mirrored to the server: an absent `serverInfo` is either non-compliance or the configured-off case the clause permits, and the trace cannot tell which."
-    },
-    {
       "id": "BASE-038",
       "level": "SHOULD NOT",
       "exclusion": "Self-reported identity is advisory; whether a peer let it change behavior or drive a security decision is internal reasoning with no wire footprint, the same boundary BASE-025 draws for reserved-key assumptions."
@@ -222,16 +212,6 @@
       "exclusion": "Client support for `x-mcp-header` is internal capability. Its observable consequence — mirroring designated values into headers — is the next clause and is checked there."
     },
     {
-      "id": "TRAN-083",
-      "level": "MUST",
-      "exclusion": "Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it."
-    },
-    {
-      "id": "TRAN-084",
-      "level": "MUST",
-      "exclusion": "The excluded tool is absent from a list the *client* assembles for its own consumer — a data structure that never reaches the wire."
-    },
-    {
       "id": "TRAN-085",
       "level": "SHOULD",
       "exclusion": "Logging is client-internal diagnostics with no wire footprint."
@@ -310,11 +290,6 @@
       "id": "TRAN-109",
       "level": "SHOULD NOT",
       "exclusion": "Adopting or migrating away from a transport is a project decision, not a property of any session."
-    },
-    {
-      "id": "DISC-003",
-      "level": "SHOULD",
-      "exclusion": "The same clause as BASE-037, restated for one result type: BASE-037 is the general rule for `serverInfo` in every result and carries the escape hatch \"unless specifically configured not to do so\". A restatement in the DiscoverResult field list does not withdraw that exemption, so an absent `serverInfo` here is still either non-compliance or the configured-off case, and the trace cannot tell which."
     },
     {
       "id": "DISC-004",
@@ -742,11 +717,6 @@
       "exclusion": "Forbids relying on `serverInfo` for disambiguation — a client-side decision about data it holds. Binds what the client does with what it received; the reasoning leaves no message behind."
     },
     {
-      "id": "TOOL-035",
-      "level": "MUST",
-      "exclusion": "The client filtering its own copy of a list it already received. A tool excluded from the client's view is still in the server's `tools/list` result on the wire, so the trace shows nothing either way."
-    },
-    {
       "id": "TOOL-036",
       "level": "SHOULD",
       "exclusion": "Binds the client's log, which is not part of the session."
@@ -775,11 +745,6 @@
       "id": "TOOL-044",
       "level": "SHOULD",
       "exclusion": "Six client-side practices — confirmation prompts, showing inputs, validating results, `$ref` resolution, timeouts, audit logs. Each happens inside the client or in its UI; none is a message."
-    },
-    {
-      "id": "TOOL-046",
-      "level": "MUST",
-      "exclusion": "Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it. The same clause on the transport page is TRAN-083."
     },
     {
       "id": "RES-014",
