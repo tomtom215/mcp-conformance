@@ -344,3 +344,63 @@ async fn a_client_body_cut_off_is_recorded_as_an_abort() {
     })
     .await;
 }
+
+/// Framing the proxy's listener cannot read one way only never reaches the
+/// upstream as sent: two different lengths are refused, and `Transfer-Encoding`
+/// beside `Content-Length` is read as chunked (RFC 9112 §6.3) and forwarded
+/// with the one length it had — so the upstream cannot read a different body
+/// from the proxy (request smuggling). A chunked body arrives whole, recorded.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ambiguous_framing_is_resolved_before_the_upstream_sees_it() {
+    bounded(async {
+        let (upstream, mut requests) = upstream(
+            b"HTTP/1.1 202 Accepted\r\ncontent-length: 0\r\nconnection: close\r\n\r\n".to_vec(),
+        )
+        .await;
+        let (address, sink, stop) = proxy(format!("http://{upstream}"), 1024).await;
+        let response = exchange(
+            address,
+            b"POST /mcp HTTP/1.1\r\nhost: proxy\r\ncontent-length: 2\r\ncontent-length: 3\r\n\
+              connection: close\r\n\r\n{}",
+        )
+        .await;
+        assert!(response.starts_with("http/1.1 400"), "{response}");
+        assert!(requests.try_recv().is_err(), "nothing was forwarded");
+        let response = exchange(
+            address,
+            b"POST /mcp HTTP/1.1\r\nhost: proxy\r\ncontent-length: 40\r\n\
+              transfer-encoding: chunked\r\nconnection: close\r\n\r\n2\r\n{}\r\n0\r\n\r\n",
+        )
+        .await;
+        assert!(response.contains("202 accepted"), "{response}");
+        let forwarded = requests.recv().await.unwrap().to_ascii_lowercase();
+        assert!(forwarded.contains("content-length: 2\r\n"), "{forwarded}");
+        assert!(!forwarded.contains("content-length: 40"), "{forwarded}");
+        assert!(!forwarded.contains("transfer-encoding"), "{forwarded}");
+        assert!(forwarded.ends_with("\r\n\r\n{}"), "{forwarded}");
+        let body = r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#;
+        let (head, tail) = body.split_at(20);
+        let request = format!(
+            "POST /mcp HTTP/1.1\r\nhost: proxy\r\ntransfer-encoding: chunked\r\n\
+             content-type: application/json\r\nconnection: close\r\n\r\n\
+             {:x}\r\n{head}\r\n{:x}\r\n{tail}\r\n0\r\n\r\n",
+            head.len(),
+            tail.len()
+        );
+        let response = exchange(address, request.as_bytes()).await;
+        assert!(response.contains("202 accepted"), "{response}");
+        let forwarded = requests.recv().await.unwrap().to_ascii_lowercase();
+        assert!(
+            forwarded.contains(&format!("content-length: {}\r\n", body.len())),
+            "{forwarded}"
+        );
+        assert!(forwarded.ends_with(body), "{forwarded}");
+        stop().await.unwrap().unwrap();
+        assert!(
+            sink.events()
+                .iter()
+                .any(|event| event["payload"]["method"] == "notifications/initialized")
+        );
+    })
+    .await;
+}
