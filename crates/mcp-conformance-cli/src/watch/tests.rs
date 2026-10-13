@@ -40,11 +40,29 @@ fn setup(out: &Shared, judge: judging::Judge) -> Setup {
     }
 }
 
+/// The stand-in server of [`a_slow_judge_never_slows_the_relay`]: 200
+/// notifications 2 ms apart, returning how long writing them took.
+async fn write_notifications(mut server: tokio::io::DuplexStream) -> Duration {
+    use tokio::io::AsyncWriteExt as _;
+    let began = Instant::now();
+    for n in 0..200 {
+        let line = format!(
+            "{{\"jsonrpc\":\"2.0\",\"method\":\"notifications/message\",\"params\":{{\"level\":\"info\",\"data\":{n}}}}}\n"
+        );
+        server.write_all(line.as_bytes()).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(2)).await;
+    }
+    began.elapsed()
+}
+
 /// The relay path is the recorder's `pump`, observed by `watch`'s tap; the
 /// judge sleeps 50 ms a pass. The "server" writes 200 notifications (each a
 /// reason to judge) 2 ms apart: judging inline, relaying them would take at
-/// least 10 s; off the path it takes the 0.4 s the server takes, the judge
-/// coalescing whatever queued behind each pass.
+/// least 10 s beyond the server's own writing; off the path the relay ends
+/// when the server does, the judge coalescing whatever queued behind each
+/// pass. The bound is on the relay's lag behind the server, not on wall
+/// time: a runner whose timers stretch the server's 2 ms sleeps (macOS CI
+/// took 3.9 s for them) must not make the test about its clock.
 #[test]
 fn a_slow_judge_never_slows_the_relay() {
     let out = Shared::default();
@@ -61,17 +79,8 @@ fn a_slow_judge_never_slows_the_relay() {
         .unwrap();
     let started = Instant::now();
     let unrecorded = runtime.block_on(async {
-        let (mut server, from_server) = tokio::io::duplex(1 << 16);
-        let writing = tokio::spawn(async move {
-            use tokio::io::AsyncWriteExt as _;
-            for n in 0..200 {
-                let line = format!(
-                    "{{\"jsonrpc\":\"2.0\",\"method\":\"notifications/message\",\"params\":{{\"level\":\"info\",\"data\":{n}}}}}\n"
-                );
-                server.write_all(line.as_bytes()).await.unwrap();
-                tokio::time::sleep(Duration::from_millis(2)).await;
-            }
-        });
+        let (server, from_server) = tokio::io::duplex(1 << 16);
+        let writing = tokio::spawn(write_notifications(server));
         let relayed = stdio::pump(
             &recorder,
             Direction::ServerToClient,
@@ -81,16 +90,23 @@ fn a_slow_judge_never_slows_the_relay() {
         )
         .await
         .unwrap();
-        writing.await.unwrap();
-        relayed
+        let written = writing.await.unwrap();
+        (relayed, written)
     });
+    let (unrecorded, written) = unrecorded;
     let relayed = started.elapsed();
     assert_eq!(unrecorded, stdio::Unrecorded::default());
     notes.send(Note::End).unwrap();
     let judged = thread.join().unwrap();
+    // Inline judging would add at least 10 s; the server's own pace must stay
+    // well under that for the comparison to mean anything.
     assert!(
-        relayed < Duration::from_secs(3),
-        "the relay waited for judging: {relayed:?}"
+        written < Duration::from_secs(8),
+        "the server took {written:?} to write; the test cannot tell judging from its clock"
+    );
+    assert!(
+        relayed < written + Duration::from_secs(2),
+        "the relay waited for judging: {relayed:?}, the server wrote for {written:?}"
     );
     assert_eq!(judged.lines, 200, "every line still judged");
     assert!(
