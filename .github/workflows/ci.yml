@@ -4,8 +4,8 @@
 # Continuous integration — every quality gate from docs/plan/04-engineering-standards.md.
 #
 # Jobs: format, clippy (stable + MSRV × 3 OS × 3 feature modes), test (same matrix),
-#       docs (-D warnings), cargo-deny, package validation, semver (vs crates.io),
-#       nightly (informational).
+#       docs (-D warnings), cargo-deny, package validation,
+#       semver (vs crates.io), coverage and nightly (informational).
 #
 # Toolchains are installed with plain `rustup` rather than a third-party action:
 # one fewer supply-chain dependency. Remaining actions are pinned by commit SHA.
@@ -321,6 +321,51 @@ jobs:
         run: cargo install cargo-semver-checks --version 0.51.0 --locked
       - name: API compatibility, judged as the release [Unreleased] declares
         run: cargo xtask semver --unreleased
+
+  # Line and region coverage of the shipped crates' tests, all features
+  # (xtask excluded, as from the mutation standard: it ships nothing). Measured,
+  # not gated, for the reason the benchmarks are: no baseline history exists,
+  # and a threshold invented now would be folklore. No external service and no
+  # token: the lcov file is an artifact and the summary goes to the job summary.
+  coverage:
+    name: Coverage (informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the pinned toolchain with llvm-tools
+        # rust-toolchain.toml's minimal profile omits llvm-tools, which
+        # cargo-llvm-cov needs; added to the pinned toolchain, not a floating one.
+        run: |
+          rustup show active-toolchain
+          rustup component add llvm-tools
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --version 0.9.1 --locked
+      - name: Run the tests under coverage
+        run: cargo llvm-cov --workspace --exclude xtask --all-features --locked --lcov --output-path lcov.info
+      - name: Coverage summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo llvm-cov report --summary-only | tee "$RUNNER_TEMP/coverage.txt"
+          {
+            echo "## Coverage (shipped crates' tests, all features)"
+            echo ""
+            echo '```text'
+            cat "$RUNNER_TEMP/coverage.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the lcov report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-lcov
+          path: lcov.info
+          if-no-files-found: error
+          retention-days: 30
 
   nightly:
     name: Nightly (informational)
