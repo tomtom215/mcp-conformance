@@ -7,7 +7,7 @@ use super::*;
 use crate::workbench::fixture;
 
 fn compare(a: &str, b: &str) -> Diff {
-    let (workbench, _) = fixture::workbench("diff");
+    let (workbench, _dir) = fixture::workbench("diff");
     let (left, right) = (workbench.events(a).unwrap(), workbench.events(b).unwrap());
     diff(
         (workbench.entry(a).unwrap(), &left),
@@ -250,7 +250,7 @@ fn a_tie_takes_the_right_side_first() {
 
 #[test]
 fn either_side_past_the_limit_marks_the_diff_truncated() {
-    let (workbench, _) = fixture::workbench("truncated");
+    let (workbench, _dir) = fixture::workbench("truncated");
     let entry = workbench.entry("everything-stdio").unwrap();
     let ping = serde_json::json!({"jsonrpc": "2.0", "method": "notifications/ping"});
     let long: Vec<TraceEvent> = (0..=ALIGN_LIMIT as u64)

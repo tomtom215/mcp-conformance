@@ -30,7 +30,7 @@ fn ids(hits: &[Hit]) -> Vec<&str> {
 
 #[test]
 fn each_field_finds_what_it_names() {
-    let (workbench, _) = fixture::workbench("fields");
+    let (workbench, _dir) = fixture::workbench("fields");
     for (query, expected) in [
         ("req:BASE-001", vec!["base-001-request-id-boolean"]),
         ("req:base-001", vec!["base-001-request-id-boolean"]),
@@ -80,7 +80,7 @@ fn each_field_finds_what_it_names() {
 
 #[test]
 fn a_hit_carries_the_events_its_terms_matched() {
-    let (workbench, _) = fixture::workbench("hits");
+    let (workbench, _dir) = fixture::workbench("hits");
     let hits = find(&workbench, "req:BASE-001");
     assert_eq!(hits[0].events, [3]);
     let hits = find(&workbench, "method:ping");

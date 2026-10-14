@@ -8,7 +8,7 @@ use crate::workbench::fixture;
 
 #[test]
 fn the_fixture_library_counts_as_its_recordings_say() {
-    let (workbench, _) = fixture::workbench("stats");
+    let (workbench, _dir) = fixture::workbench("stats");
     let stats = compute(workbench.entries.values());
     assert_eq!(stats.sessions, 11);
     assert_eq!(stats.verdicts["pass"], 6);
@@ -84,7 +84,7 @@ fn an_empty_library_has_every_verdict_at_zero() {
 
 #[test]
 fn the_text_form_says_what_the_json_says() {
-    let (workbench, _) = fixture::workbench("human");
+    let (workbench, _dir) = fixture::workbench("human");
     let stats = compute(workbench.entries.values());
     let text = to_human(&stats);
     assert!(text.contains("coverage 2025-11-25:"), "{text}");

@@ -16,7 +16,7 @@ use crate::workbench::server;
 const HOST: &str = "127.0.0.1:4200";
 const ORIGIN: &str = "http://127.0.0.1:4200";
 
-fn shared(name: &str) -> (Arc<Shared>, std::path::PathBuf) {
+fn shared(name: &str) -> (Arc<Shared>, fixture::Scratch) {
     let dir = fixture::library(name);
     (server::shared(&dir, HOST.parse().unwrap()).unwrap(), dir)
 }
@@ -73,7 +73,7 @@ fn hardened(headers: &axum::http::HeaderMap) {
 
 #[tokio::test]
 async fn a_request_without_the_cookie_is_refused_and_still_hardened() {
-    let (shared, _) = shared("unauthenticated");
+    let (shared, _dir) = shared("unauthenticated");
     for path in ["/", "/assets/app.js", "/api/library", "/api/stats"] {
         let request = Request::get(path)
             .header(header::HOST, HOST)
@@ -87,7 +87,7 @@ async fn a_request_without_the_cookie_is_refused_and_still_hardened() {
 
 #[tokio::test]
 async fn the_launch_link_sets_the_cookie_once_and_redirects_away_from_itself() {
-    let (shared, _) = shared("launch");
+    let (shared, _dir) = shared("launch");
     let link = format!("/?token={}", shared.keys.launch_token());
     let launch = || {
         Request::get(link.as_str())
@@ -112,7 +112,7 @@ async fn the_launch_link_sets_the_cookie_once_and_redirects_away_from_itself() {
 
 #[tokio::test]
 async fn a_rebound_host_or_a_foreign_origin_is_refused_even_with_the_cookie() {
-    let (shared, _) = shared("origin");
+    let (shared, _dir) = shared("origin");
     let mut rebound = request(&shared, Method::GET, "/api/library", None);
     rebound.headers_mut().insert(
         header::HOST,
@@ -161,7 +161,7 @@ async fn a_rebound_host_or_a_foreign_origin_is_refused_even_with_the_cookie() {
 
 #[tokio::test]
 async fn the_page_and_its_assets_are_served_with_their_types() {
-    let (shared, _) = shared("assets");
+    let (shared, _dir) = shared("assets");
     let (status, headers, body) = send(&shared, request(&shared, Method::GET, "/", None)).await;
     assert_eq!(status, StatusCode::OK);
     assert!(
@@ -218,7 +218,7 @@ async fn the_page_and_its_assets_are_served_with_their_types() {
 
 #[tokio::test]
 async fn a_hostile_recording_reaches_the_page_as_json_strings_only() {
-    let (shared, _) = shared("hostile");
+    let (shared, _dir) = shared("hostile");
     let (status, headers, body) = send(
         &shared,
         request(&shared, Method::GET, "/api/sessions/hostile-markup", None),
@@ -306,7 +306,7 @@ async fn the_dashboards_read_exactly_what_library_stats_prints() {
 
 #[tokio::test]
 async fn the_report_downloads_as_the_validators_page() {
-    let (shared, _) = shared("report");
+    let (shared, _dir) = shared("report");
     let (status, headers, body) = send(
         &shared,
         request(
@@ -444,7 +444,7 @@ async fn changes_import_tag_redact_delete_and_expire() {
 
 #[tokio::test]
 async fn an_export_is_a_tar_of_the_traces_and_sidecars() {
-    let (shared, _) = shared("export");
+    let (shared, _dir) = shared("export");
     let (status, headers, body) = send(
         &shared,
         request(

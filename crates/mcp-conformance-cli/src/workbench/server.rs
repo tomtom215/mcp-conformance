@@ -172,7 +172,7 @@ mod tests {
         let dir = crate::workbench::fixture::library("serve");
         let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
         let (lines, mut said) = tokio::sync::mpsc::unbounded_channel();
-        let library = dir.clone();
+        let library = dir.to_path_buf();
         let serving = tokio::spawn(async move {
             let settings = Settings {
                 library: &library,
@@ -210,10 +210,7 @@ mod tests {
         let dir = crate::workbench::fixture::library("serve-refused");
         // A file is not a library, and an address that is not loopback is not bound.
         let file = dir.join("everything-http.jsonl");
-        for (library, listen) in [
-            (file.as_path(), "127.0.0.1:0"),
-            (dir.as_path(), "0.0.0.0:0"),
-        ] {
+        for (library, listen) in [(file.as_path(), "127.0.0.1:0"), (&*dir, "0.0.0.0:0")] {
             let settings = Settings {
                 library,
                 listen: listen.parse().unwrap(),

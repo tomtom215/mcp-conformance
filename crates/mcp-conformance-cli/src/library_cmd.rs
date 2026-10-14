@@ -171,7 +171,7 @@ mod tests {
         let stats = || LibraryCommand::Stats {
             format: StatsFormat::Json,
         };
-        assert_eq!(run(args(dir.clone(), stats())), EXIT_OK);
+        assert_eq!(run(args(dir.to_path_buf(), stats())), EXIT_OK);
         assert_eq!(
             run(args(dir.join("everything-http.jsonl"), stats())),
             EXIT_USAGE
@@ -179,12 +179,12 @@ mod tests {
         let missing = LibraryCommand::Delete {
             ids: vec!["nope".to_owned()],
         };
-        assert_eq!(run(args(dir.clone(), missing)), EXIT_USAGE);
+        assert_eq!(run(args(dir.to_path_buf(), missing)), EXIT_USAGE);
         let import = LibraryCommand::Import {
             file: dir.join("absent.jsonl"),
             from: "auto".to_owned(),
             transport: None,
         };
-        assert_eq!(run(args(dir, import)), EXIT_USAGE);
+        assert_eq!(run(args(dir.to_path_buf(), import)), EXIT_USAGE);
     }
 }

@@ -57,6 +57,17 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       # Compiled from source with --locked for reproducibility; the rust-cache step
       # caches the installed binary between runs.
+      # Room for a mutation run: the build copy of the workspace plus every
+      # mutant's test run. Two PR shards' runners were shut down mid-run on
+      # 2026-10-14 with no artifact; the workspace's tests were then leaving
+      # about 36 MB of fixture copies in the temporary directory per suite run
+      # (measured locally; 2 MB since). Toolchains no test here uses are
+      # removed, and the free space is logged before and after.
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
       - name: Install cargo-mutants
         run: cargo install cargo-mutants --version 27.1.0 --locked
       - name: Compute PR diff
@@ -71,9 +82,16 @@ jobs:
         # (the everything-server's `tap`) is never compiled into the mutated
         # build, so its mutants "pass" in zero seconds without a single test
         # running — 45 such phantom misses on PR #8 exposed this.
+        # `ulimit -d` caps each process's data segment at 6 GiB: a mutant that
+        # turns a loop endless while it allocates (`j += 1` → `j *= 1` in the
+        # workbench diff's alignment did) then fails its own test with an
+        # allocation error, caught, instead of exhausting the runner's memory.
+        # Address-space reservations do not count, so Node's are unaffected.
         env:
           SHARD: ${{ matrix.shard }}
-        run: cargo mutants --workspace --no-shuffle --in-diff pr.diff --shard "${SHARD}/16" -- --all-features
+        run: |
+          ulimit -d 6291456
+          cargo mutants --workspace --no-shuffle --in-diff pr.diff --shard "${SHARD}/16" -- --all-features
       - name: Upload this shard's outcomes
         # Missed, caught and timeout lists per shard: the evidence a red shard
         # is read from.

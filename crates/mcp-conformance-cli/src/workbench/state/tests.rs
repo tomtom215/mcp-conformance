@@ -87,7 +87,7 @@ fn files_added_and_removed_outside_are_noticed() {
 
 #[test]
 fn tags_are_written_to_the_sidecar_and_searchable() {
-    let (mut workbench, _) = fixture::workbench("tags");
+    let (mut workbench, _dir) = fixture::workbench("tags");
     workbench
         .set_tags(
             "everything-http",

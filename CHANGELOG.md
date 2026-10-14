@@ -829,6 +829,13 @@ not yet published to crates.io)
 
 ### Changed
 
+- **Tests leave nothing behind in the temporary directory.** The workbench's
+  fixture libraries are removed when their test ends (a guard that deletes on
+  drop); a full workspace test run left about 36 MB there, and now leaves about
+  2 MB of fixed-name directories each run reuses. A mutation run executes the
+  suite once per mutant, so the leftovers had filled CI runners' disks. Each
+  mutation shard also frees unused toolchains first and runs under a 6 GiB
+  data-segment cap, so a mutant that loops while allocating fails its own test.
 - **The PR mutation gate runs in sixteen shards**, as the scheduled sweep runs in
   eight: `--shard k/16` over the same `--no-shuffle --in-diff` list, with a final
   `Mutants (PR diff)` job that passes only when every shard did, so the gate keeps
