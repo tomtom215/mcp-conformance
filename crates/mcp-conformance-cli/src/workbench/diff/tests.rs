@@ -247,3 +247,17 @@ fn a_tie_takes_the_right_side_first() {
     assert_eq!(align(&a, &[]).len(), 2);
     assert_eq!(align(&[], &b).len(), 2);
 }
+
+#[test]
+fn either_side_past_the_limit_marks_the_diff_truncated() {
+    let (workbench, _) = fixture::workbench("truncated");
+    let entry = workbench.entry("everything-stdio").unwrap();
+    let ping = serde_json::json!({"jsonrpc": "2.0", "method": "notifications/ping"});
+    let long: Vec<TraceEvent> = (0..=ALIGN_LIMIT as u64)
+        .map(|seq| event(seq, &ping))
+        .collect();
+    let short = [event(0, &ping)];
+    assert!(diff((entry, &long), (entry, &short)).truncated);
+    assert!(diff((entry, &short), (entry, &long)).truncated);
+    assert!(!diff((entry, &short), (entry, &short)).truncated);
+}
