@@ -123,8 +123,13 @@ pub async fn stdio(recording: Recording<'_>, command: &[OsString]) -> i32 {
                     outcome.status
                 );
             }
-            summary::report_stdio("client", outcome.client);
-            summary::report_stdio("server", outcome.server);
+            let client = summary::stdio_lines("client", outcome.client);
+            for line in client
+                .into_iter()
+                .chain(summary::stdio_lines("server", outcome.server))
+            {
+                eprintln!("mcp-trace-capture: {line}");
+            }
             (exit_code_of(outcome.status), Some(outcome.status))
         }
         Err(error) => {
@@ -185,7 +190,9 @@ pub async fn http(
             return EXIT_USAGE;
         }
     };
-    summary::announce(bound, upstream);
+    for line in summary::announcement(bound, upstream) {
+        eprintln!("mcp-trace-capture: {line}");
+    }
     let served = serve_until_stopped(listener, &traces, options, signals).await;
     let code = served.map_or_else(
         |code| code,

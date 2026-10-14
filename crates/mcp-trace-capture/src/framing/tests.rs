@@ -272,3 +272,33 @@ fn a_dropped_event_is_skipped_to_its_end_and_the_next_is_kept() {
     );
     assert_eq!((parser.oversized(), parser.other_types()), (0, 0));
 }
+
+/// The end of a dropped event is found exactly: the blank line right after
+/// it, whether it was dropped mid-line or between lines, and however long
+/// its remaining lines are.
+#[test]
+fn a_dropped_event_ends_at_its_own_blank_line() {
+    // Mid-line: the rest of the line is skipped, not held, and the blank line
+    // after it ends the event.
+    let mut parser = SseParser::new(1024);
+    parser.push(b"data: {\"a\":");
+    parser.drop_event();
+    assert_eq!(parser.push(b"1}"), Vec::<Vec<u8>>::new());
+    assert_eq!(parser.buffered(), 0);
+    assert_eq!(
+        parser.push(b"\n\ndata: {\"b\":2}\n\n"),
+        [b"{\"b\":2}".to_vec()]
+    );
+    // Between lines: the very next line is blank, and ends it.
+    assert_eq!(parser.push(b"data: x\n"), Vec::<Vec<u8>>::new());
+    parser.drop_event();
+    assert_eq!(parser.push(b"\ndata: z\n\n"), [b"z".to_vec()]);
+    // A line of a dropped event too long for any event is skipped too: the
+    // event was dropped, not oversized.
+    let mut small = SseParser::new(4);
+    small.push(b"data: x\n");
+    small.drop_event();
+    let long = format!("data: {}\n\ndata: ok\n\n", "y".repeat(64));
+    assert_eq!(small.push(long.as_bytes()), [b"ok".to_vec()]);
+    assert_eq!((small.oversized(), small.other_types()), (0, 0));
+}
