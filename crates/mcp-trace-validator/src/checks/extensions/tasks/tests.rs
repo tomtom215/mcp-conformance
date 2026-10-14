@@ -270,3 +270,203 @@ fn a_declaring_clients_methods_are_served_and_a_refusal_is_the_rule_otherwise() 
         (1, vec![])
     );
 }
+
+/// A notification tagged with subscription `id`.
+fn tagged(direction: &'static str, method: &str, id: u64) -> (&'static str, Value) {
+    notification(
+        direction,
+        method,
+        json!({"_meta": {"io.modelcontextprotocol/subscriptionId": id}}),
+    )
+}
+
+#[test]
+fn only_a_client_cancellation_after_a_task_is_judged() {
+    let cancel = |direction| {
+        notification(
+            direction,
+            "notifications/cancelled",
+            json!({"requestId": 1}),
+        )
+    };
+    let mut steps = vec![
+        request(1, "tools/call", params(json!({"name": "deploy"}), &[TASKS])),
+        // Before the task exists.
+        cancel("client-to-server"),
+        result(1, with(task("t-1", "working"), "resultType", json!("task"))),
+        // Another notification, and the server's own cancellation.
+        notification(
+            "client-to-server",
+            "notifications/progress",
+            json!({"requestId": 1}),
+        ),
+        cancel("server-to-client"),
+    ];
+    assert_eq!(
+        judge("tasks.no-cancelled-notification", &steps),
+        (0, vec![])
+    );
+    steps.push(cancel("client-to-server"));
+    assert_eq!(
+        judge("tasks.no-cancelled-notification", &steps),
+        (
+            1,
+            vec![
+                "`notifications/cancelled` names request 1, which a task answered; a task is \
+                 cancelled with `tasks/cancel`"
+                    .to_owned()
+            ]
+        )
+    );
+}
+
+#[test]
+fn only_a_server_notification_on_the_subscription_after_a_listen_acknowledges_it() {
+    let listen = request(
+        1,
+        "subscriptions/listen",
+        params(json!({"notifications": {"taskIds": ["t-1"]}}), &[]),
+    );
+    let server_request = (
+        "server-to-client",
+        json!({"jsonrpc": "2.0", "id": "s1", "method": "ping",
+               "params": {"_meta": {"io.modelcontextprotocol/subscriptionId": 1}}}),
+    );
+    let initialized = notification("client-to-server", "notifications/initialized", json!({}));
+    for steps in [
+        // Tagged, but before the listen.
+        vec![
+            initialized.clone(),
+            tagged("server-to-client", "notifications/tasks", 1),
+            listen.clone(),
+        ],
+        vec![
+            listen.clone(),
+            tagged("client-to-server", "notifications/tasks", 1),
+        ],
+        vec![
+            listen.clone(),
+            tagged("server-to-client", "notifications/tasks", 2),
+        ],
+        vec![listen.clone(), initialized.clone()],
+        vec![listen.clone(), server_request],
+    ] {
+        assert_eq!(
+            judge("tasks.listen-requires-declaration", &steps),
+            (0, vec![]),
+            "{steps:?}"
+        );
+    }
+    assert_eq!(
+        judge(
+            "tasks.listen-requires-declaration",
+            &[listen, tagged("server-to-client", "notifications/tasks", 1)]
+        ),
+        (
+            1,
+            vec![format!(
+                "`subscriptions/listen` asked for task notifications without declaring `{TASKS}` \
+                 and was not refused with `-32021`"
+            )]
+        )
+    );
+}
+
+#[test]
+fn a_listen_request_from_the_server_is_no_task_listen() {
+    let steps = [
+        (
+            "server-to-client",
+            json!({"jsonrpc": "2.0", "id": 1, "method": "subscriptions/listen",
+                   "params": {"notifications": {"taskIds": ["t-1"]}}}),
+        ),
+        (
+            "client-to-server",
+            json!({"jsonrpc": "2.0", "id": 1, "result": {}}),
+        ),
+    ];
+    assert_eq!(
+        judge("tasks.listen-requires-declaration", &steps),
+        (0, vec![])
+    );
+}
+
+#[test]
+fn the_latest_listen_carrying_an_id_decides_its_stream() {
+    let listen = |id, notifications: Value| {
+        request(
+            id,
+            "subscriptions/listen",
+            params(json!({ "notifications": notifications }), &[TASKS]),
+        )
+    };
+    let steps = [
+        listen(2, json!({"taskIds": ["t-1"]})),
+        listen(1, json!({"toolsListChanged": true})),
+        // Not a listen: it opens no subscription 2.
+        request(2, "tools/call", params(json!({"name": "x"}), &[TASKS])),
+        // The client's own notification is not on the stream.
+        tagged("client-to-server", "notifications/progress", 2),
+        tagged("server-to-client", "notifications/progress", 2),
+        // Subscription 2 reopened without tasks.
+        listen(2, json!({"toolsListChanged": true})),
+        tagged("server-to-client", "notifications/progress", 2),
+    ];
+    assert_eq!(
+        judge("tasks.no-progress-on-task-stream", &steps),
+        (
+            1,
+            vec![
+                "`notifications/progress` was sent on a task's `subscriptions/listen` stream"
+                    .to_owned()
+            ]
+        )
+    );
+}
+
+/// What `check` reports on a Streamable HTTP trace of `(headers, payload)` POSTs.
+fn judge_posts(check: &str, posts: &[(Value, Value)]) -> (u32, Vec<String>) {
+    let mut lines = Vec::new();
+    for (headers, payload) in posts {
+        let seq = lines.len();
+        lines.push(json!({"seq": seq, "direction": "client-to-server",
+            "transport": "streamable-http", "kind": "http", "method": "POST", "headers": headers}));
+        lines.push(json!({"seq": seq + 1, "direction": "client-to-server",
+            "transport": "streamable-http", "kind": "message", "payload": payload}));
+    }
+    let document: Vec<String> = lines.iter().map(ToString::to_string).collect();
+    let events =
+        crate::reader::parse_trace(&document.join("\n"), &crate::reader::Limits::default())
+            .unwrap();
+    let outcome = crate::checks::find(check)
+        .unwrap()
+        .run(&crate::context::TraceContext::new(&events));
+    (
+        outcome.subjects,
+        outcome
+            .findings
+            .into_iter()
+            .map(|finding| finding.detail)
+            .collect(),
+    )
+}
+
+#[test]
+fn an_mcp_name_naming_another_task_is_a_mismatch() {
+    let post = |id: u64, name: &str| {
+        (
+            json!({"content-type": "application/json", "mcp-method": "tasks/get", "mcp-name": name}),
+            json!({"jsonrpc": "2.0", "id": id, "method": "tasks/get", "params": {"taskId": "t-1"}}),
+        )
+    };
+    assert_eq!(
+        judge_posts("tasks.mcp-name-header", &[post(1, "t-1"), post(2, "t-2")]),
+        (
+            2,
+            vec![
+                "`Mcp-Name` is \"t-2\" but the `tasks/get` request's `taskId` is \"t-1\""
+                    .to_owned()
+            ]
+        )
+    );
+}

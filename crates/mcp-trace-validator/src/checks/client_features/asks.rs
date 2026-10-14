@@ -304,3 +304,46 @@ pub(super) fn answers_for<'a>(context: &'a TraceContext<'a>, method: &str) -> Ve
         .filter(|answer| answer.ask.method == method)
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    use super::{answers, asks};
+    use crate::checks::client_features::testkit::{ask, client, reply, server, session};
+    use crate::context::TraceContext;
+    use crate::reader::{Limits, parse_trace};
+
+    #[test]
+    fn only_server_requests_for_the_ask_methods_are_asks_and_answers() {
+        // A client request for an ask method (answered by the server), and a
+        // server request for another method (answered by the client), are
+        // neither asks nor answers; only the server's `roots/list` is.
+        let trace = session(
+            r#"{"roots":{}}"#,
+            &[
+                client(
+                    3,
+                    r#"{"jsonrpc":"2.0","id":5,"method":"sampling/createMessage","params":{}}"#,
+                ),
+                server(4, r#"{"jsonrpc":"2.0","id":5,"result":{}}"#),
+                ask(5, 1, "ping", "{}"),
+                reply(6, 1, "{}"),
+                ask(7, 2, "roots/list", "{}"),
+                reply(8, 2, r#"{"roots":[]}"#),
+            ],
+        );
+        let events = parse_trace(&trace, &Limits::default()).expect("test trace parses");
+        let context = TraceContext::new(&events);
+        let asked: Vec<(u64, &str)> = asks(&context)
+            .iter()
+            .map(|ask| (ask.seq, ask.method))
+            .collect();
+        assert_eq!(asked, [(7, "roots/list")]);
+        let answered: Vec<(u64, u64, &str)> = answers(&context)
+            .iter()
+            .map(|answer| (answer.ask.seq, answer.seq, answer.ask.method))
+            .collect();
+        assert_eq!(answered, [(7, 8, "roots/list")]);
+    }
+}

@@ -66,63 +66,57 @@ const fn is_token68_char(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~' | b'+' | b'/')
 }
 
+/// The unread rest of a field value. It only ever shrinks by re-slicing, with
+/// no index arithmetic, and every loop below walks a slice or an iterator, so
+/// no value — however malformed — can keep a reading from ending.
 struct Cursor<'a> {
-    bytes: &'a [u8],
-    at: usize,
+    rest: &'a [u8],
 }
 
-impl Cursor<'_> {
-    fn peek(&self) -> Option<u8> {
-        self.bytes.get(self.at).copied()
+impl<'a> Cursor<'a> {
+    /// Consumes the longest prefix of bytes that `accept` takes, and returns it.
+    fn take_while(&mut self, accept: impl Fn(u8) -> bool) -> &'a [u8] {
+        let len = self
+            .rest
+            .iter()
+            .position(|&byte| !accept(byte))
+            .unwrap_or(self.rest.len());
+        let (taken, rest) = self.rest.split_at(len);
+        self.rest = rest;
+        taken
     }
 
     fn skip_whitespace(&mut self) {
-        while matches!(self.peek(), Some(b' ' | b'\t')) {
-            self.at += 1;
-        }
+        self.take_while(|byte| matches!(byte, b' ' | b'\t'));
     }
 
-    fn take_while(&mut self, accept: impl Fn(u8) -> bool) -> String {
-        let start = self.at;
-        while self.peek().is_some_and(&accept) {
-            self.at += 1;
-        }
-        String::from_utf8_lossy(&self.bytes[start..self.at]).into_owned()
-    }
-
-    /// A quoted-string's content, unescaped; the cursor sits on its `"`.
+    /// A quoted-string's content, unescaped; the cursor sits just past its
+    /// opening `"`. An unterminated string runs to the end of the value.
     fn quoted(&mut self) -> String {
-        self.at += 1;
         let mut out = Vec::new();
-        while let Some(byte) = self.peek() {
-            self.at += 1;
+        let mut bytes = self.rest.iter();
+        while let Some(&byte) = bytes.next() {
             match byte {
                 b'"' => break,
-                b'\\' => {
-                    if let Some(escaped) = self.peek() {
-                        out.push(escaped);
-                        self.at += 1;
-                    }
-                }
+                b'\\' => out.extend(bytes.next()),
                 other => out.push(other),
             }
         }
+        self.rest = bytes.as_slice();
         String::from_utf8_lossy(&out).into_owned()
     }
 
     /// Consumes a token68 after a scheme when one is there: its characters,
     /// any `=` padding, and then the end of the list element.
     fn token68(&mut self) {
-        let start = self.at;
+        let start = self.rest;
         let body = self.take_while(is_token68_char);
-        while self.peek() == Some(b'=') {
-            self.at += 1;
-        }
+        self.take_while(|byte| byte == b'=');
         self.skip_whitespace();
         // `error="x"` and `scope=a` are parameters, not a token68: a token68,
         // padded or not, ends its list element.
-        if body.is_empty() || !matches!(self.peek(), None | Some(b',')) {
-            self.at = start;
+        if body.is_empty() || !matches!(self.rest, [] | [b',', ..]) {
+            self.rest = start;
         }
     }
 }
@@ -130,36 +124,36 @@ impl Cursor<'_> {
 /// Every challenge in a `WWW-Authenticate` value, in order.
 pub(super) fn parse(value: &str) -> Vec<Challenge> {
     let mut cursor = Cursor {
-        bytes: value.as_bytes(),
-        at: 0,
+        rest: value.as_bytes(),
     };
     let mut challenges: Vec<Challenge> = Vec::new();
     loop {
-        while matches!(cursor.peek(), Some(b' ' | b'\t' | b',')) {
-            cursor.at += 1;
-        }
-        if cursor.peek().is_none() {
+        cursor.take_while(|byte| matches!(byte, b' ' | b'\t' | b','));
+        if cursor.rest.is_empty() {
             return challenges;
         }
         let token = cursor.take_while(is_tchar);
         if token.is_empty() {
-            // Not a token: skip to the next list element.
-            cursor.at += 1;
-            while cursor.peek().is_some_and(|byte| byte != b',') {
-                cursor.at += 1;
-            }
+            // Not a token: skip to the next list element. Dropping the stray
+            // byte first (it is no separator — those were just skipped) makes
+            // every pass through this loop consume at least one byte.
+            cursor.rest = &cursor.rest[1..];
+            cursor.take_while(|byte| byte != b',');
             continue;
         }
+        let token = String::from_utf8_lossy(token).into_owned();
         cursor.skip_whitespace();
-        if cursor.peek() == Some(b'=')
+        if let [b'=', after @ ..] = cursor.rest
             && let Some(current) = challenges.last_mut()
         {
-            cursor.at += 1;
+            cursor.rest = after;
             cursor.skip_whitespace();
-            let parameter = if cursor.peek() == Some(b'"') {
+            let parameter = if let [b'"', after @ ..] = cursor.rest {
+                cursor.rest = after;
                 cursor.quoted()
             } else {
-                cursor.take_while(|byte| byte != b',' && byte != b' ' && byte != b'\t')
+                let value = cursor.take_while(|byte| byte != b',' && byte != b' ' && byte != b'\t');
+                String::from_utf8_lossy(value).into_owned()
             };
             current.params.push((token.to_ascii_lowercase(), parameter));
             continue;

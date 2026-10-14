@@ -145,14 +145,18 @@ fn compress(state: &mut [u32; 8], block: &[u8; 64]) {
     let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = *state;
     for (k, w) in K.iter().zip(schedule) {
         let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
-        let choose = (e & f) ^ (!e & g);
+        // Ch and Maj in their equivalent forms whose every operator matters:
+        // the standard's `(e & f) ^ (!e & g)` XORs disjoint bits (so `|` is
+        // the same function), and its Maj has the same slack.
+        let choose = g ^ (e & (f ^ g));
         let t1 = h
             .wrapping_add(s1)
             .wrapping_add(choose)
             .wrapping_add(*k)
             .wrapping_add(w);
         let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
-        let majority = (a & b) ^ (a & c) ^ (b & c);
+        // Where a and b agree, that bit; where they differ, c's.
+        let majority = b ^ ((a ^ b) & (b ^ c));
         let t2 = s0.wrapping_add(majority);
         h = g;
         g = f;
@@ -174,8 +178,8 @@ pub(super) fn base64(data: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
     for chunk in data.chunks(3) {
-        let byte = |index: usize| u32::from(chunk.get(index).copied().unwrap_or(0));
-        let group = (byte(0) << 16) | (byte(1) << 8) | byte(2);
+        let byte = |index: usize| chunk.get(index).copied().unwrap_or(0);
+        let group = u32::from_be_bytes([0, byte(0), byte(1), byte(2)]);
         for index in 0..4_u32 {
             // A chunk of n bytes fills n + 1 sextets; the rest are padding.
             if index as usize <= chunk.len() {

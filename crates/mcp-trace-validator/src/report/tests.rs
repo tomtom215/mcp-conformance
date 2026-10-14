@@ -413,6 +413,8 @@ fn an_extension_failure_leaves_the_verdict_alone() {
     assert!(human.trim_end().ends_with("verdict: pass"), "{human}");
 }
 
+mod schema;
+
 /// A report with no extension block serializes without the member.
 #[test]
 fn a_report_without_extensions_omits_the_member() {

@@ -158,13 +158,12 @@ pub fn pair(events: &[TraceEvent]) -> Pairs {
 /// at a character boundary — and how many bytes it leaves out.
 #[must_use]
 pub fn preview(text: &str) -> (&str, usize) {
-    if text.len() <= PAYLOAD_PREVIEW_BYTES {
-        return (text, 0);
-    }
-    let mut end = PAYLOAD_PREVIEW_BYTES;
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
+    // The last character boundary at or before the limit: a bounded search
+    // that a boundary always ends within four bytes (0 is one too).
+    let end = (0..=PAYLOAD_PREVIEW_BYTES.min(text.len()))
+        .rev()
+        .find(|&end| text.is_char_boundary(end))
+        .unwrap_or_default();
     (&text[..end], text.len() - end)
 }
 

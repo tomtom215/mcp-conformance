@@ -55,6 +55,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::str::FromStr as _;
 
+use mcp_conformance_core::canonical::to_canonical_string;
 use mcp_conformance_core::requirement::BUILTIN_REVISIONS;
 use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::{Direction, EventBody, TraceEvent, TransportKind};
@@ -256,7 +257,10 @@ impl Responses {
                 continue;
             };
             by_id
-                .entry((event.direction == Direction::ClientToServer, canonical(id)))
+                .entry((
+                    event.direction == Direction::ClientToServer,
+                    to_canonical_string(id),
+                ))
                 .or_default()
                 .push((index, payload.get("result").is_some()));
         }
@@ -276,7 +280,7 @@ impl Responses {
         };
         let responder_is_client = request.direction != Direction::ClientToServer;
         self.by_id
-            .get(&(responder_is_client, canonical(id)))
+            .get(&(responder_is_client, to_canonical_string(id)))
             .and_then(|responses| {
                 let after = responses.partition_point(|&(at, _)| at <= index);
                 responses[after..].iter().find(|&&(at, _)| {
@@ -288,11 +292,6 @@ impl Responses {
             })
             .is_some_and(|&(_, result)| result)
     }
-}
-
-/// An id's bucket key: its canonical JSON (RFC 8785).
-fn canonical(id: &Value) -> String {
-    mcp_conformance_core::canonical::to_canonical_string(id)
 }
 
 /// Whether this message is a request whose id was answered with an error.

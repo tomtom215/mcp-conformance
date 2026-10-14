@@ -347,3 +347,82 @@ fn a_branch_with_another_discriminator_is_never_the_closest() {
     );
     assert!(!detail.contains("roots/list"), "{detail}");
 }
+
+#[test]
+fn exactly_the_listed_number_of_errors_counts_no_rest() {
+    let errors: Vec<String> = (0..MAX_ERRORS).map(|i| format!("e{i}")).collect();
+    assert_eq!(super::summarize(&errors), "e0; e1; e2; e3; e4; e5");
+    let more: Vec<String> = (0..=MAX_ERRORS).map(|i| format!("e{i}")).collect();
+    assert_eq!(
+        super::summarize(&more),
+        "e0; e1; e2; e3; e4; e5; and 1 more"
+    );
+}
+
+#[test]
+fn an_unknown_method_with_an_id_is_a_request_and_without_one_a_notification() {
+    let detail = |message: Value| {
+        judge(REVISION_2025_11_25, &[(C, message)])
+            .findings
+            .first()
+            .map(|finding| finding.detail.clone())
+            .unwrap_or_default()
+    };
+    let request = detail(json!({"jsonrpc": "2.0", "id": null, "method": "x-vendor/thing"}));
+    assert!(
+        request.starts_with("the client's message is not a valid JSONRPCRequest "),
+        "{request}"
+    );
+    let notification = detail(json!({"jsonrpc": "2.0", "method": "x-vendor/thing", "params": 5}));
+    assert!(
+        notification.starts_with("the client's message is not a valid JSONRPCNotification "),
+        "{notification}"
+    );
+}
+
+/// `2025-11-25` defines no `InputRequiredResult`, so a result claiming to be
+/// one is still held to its method's result.
+#[test]
+fn a_definition_the_revision_lacks_is_never_the_one_judged() {
+    let mut messages = initialize();
+    messages.extend([
+        (C, json!({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})),
+        (
+            S,
+            json!({"jsonrpc": "2.0", "id": 2, "result": {"resultType": "input_required", "tools": 5}}),
+        ),
+    ]);
+    let report = judge(REVISION_2025_11_25, &messages);
+    assert_eq!(report.findings.len(), 1, "{:#?}", report.findings);
+    assert!(
+        report.findings[0]
+            .detail
+            .starts_with("the server's message is not a valid ListToolsResult "),
+        "{:#?}",
+        report.findings
+    );
+}
+
+#[test]
+fn only_the_vendored_revisions_are_covered() {
+    assert!(super::covers(REVISION_2025_11_25));
+    assert!(super::covers(REVISION_2026_07_28));
+    assert!(!super::covers(ProtocolRevision::new(2025, 6, 18).unwrap()));
+}
+
+/// A declared schema is checked against its own dialect's metaschema: an
+/// array `items` is a tuple before 2020-12 and an error from it on.
+#[test]
+fn a_declared_schema_is_checked_by_its_own_metaschema() {
+    for dialect in [
+        "http://json-schema.org/draft-04/schema#",
+        "http://json-schema.org/draft-06/schema#",
+        "http://json-schema.org/draft-07/schema#",
+        "https://json-schema.org/draft/2019-09/schema",
+    ] {
+        let schema = json!({"$schema": dialect, "items": [{"type": "string"}]});
+        assert_eq!(super::schema_errors(&schema), Some(vec![]), "{dialect}");
+    }
+    let modern = super::schema_errors(&json!({"items": [{"type": "string"}]})).unwrap();
+    assert_ne!(modern, Vec::<String>::new());
+}

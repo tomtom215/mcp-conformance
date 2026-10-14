@@ -38,24 +38,23 @@ pub(in crate::checks) fn no_cancelled_notification(
             Some((exchange.response.seq, id))
         })
         .collect();
-    let Some(first) = tasked.keys().next().copied() else {
-        return;
-    };
     for (event, kind, _) in context.messages() {
         let MessageKind::Notification { method } = kind else {
             continue;
         };
-        if *method != "notifications/cancelled"
-            || event.direction != Direction::ClientToServer
-            || event.seq < first
-        {
+        if *method != "notifications/cancelled" || event.direction != Direction::ClientToServer {
+            continue;
+        }
+        // Only a cancellation after some task exists could misuse one.
+        let mut earlier = tasked.range(..event.seq).peekable();
+        if earlier.peek().is_none() {
             continue;
         }
         sink.examined();
         let named = event
             .message_payload()
             .and_then(|payload| payload.get("params")?.get("requestId"));
-        let cancels_task = tasked.range(..event.seq).any(|(_, id)| Some(*id) == named);
+        let cancels_task = earlier.any(|(_, id)| Some(*id) == named);
         if cancels_task {
             sink.push(
                 Some(event.seq),
@@ -106,12 +105,17 @@ pub(in crate::checks) fn listen_requires_declaration(
         let answer = context
             .exchanges_for("subscriptions/listen")
             .find(|exchange| exchange.request.seq == seq);
-        let acknowledged = context.messages().any(|(event, kind, _)| {
-            matches!(kind, MessageKind::Notification { .. })
-                && event.seq > seq
-                && event.direction == Direction::ServerToClient
-                && subscription_of(event) == Some(id)
-        });
+        // An acknowledgement is a server notification on the subscription,
+        // after the request.
+        let acknowledged = context
+            .messages()
+            .skip_while(|(event, _, _)| event.seq != seq)
+            .skip(1)
+            .any(|(event, kind, _)| {
+                matches!(kind, MessageKind::Notification { .. })
+                    && event.direction == Direction::ServerToClient
+                    && subscription_of(event) == Some(id)
+            });
         let refused = answer
             .as_ref()
             .and_then(|exchange| error_code(exchange.response));
@@ -150,33 +154,33 @@ pub(in crate::checks) fn no_progress_on_task_stream(
         return;
     }
     // The subscription an id names is the one opened by the latest listen
-    // request carrying it, so each id maps to whether that request asked for tasks.
-    let all_listens: Vec<(u64, &Value)> = context
-        .messages()
-        .filter_map(|(event, kind, _)| match kind {
-            MessageKind::Request { method, id } if *method == "subscriptions/listen" => {
-                Some((event.seq, *id))
-            }
-            _ => None,
-        })
-        .collect();
+    // request carrying it, so walking the trace in order, each listen seen so
+    // far is kept with whether it asked for tasks, and the last one carrying
+    // an id decides.
     let task_seqs: BTreeSet<u64> = listens.iter().map(|(seq, _, _)| *seq).collect();
+    let mut opened: Vec<(&Value, bool)> = Vec::new();
     for (event, kind, _) in context.messages() {
-        let MessageKind::Notification { method } = kind else {
-            continue;
+        let method = match kind {
+            MessageKind::Request { method, id } if *method == "subscriptions/listen" => {
+                opened.push((*id, task_seqs.contains(&event.seq)));
+                continue;
+            }
+            MessageKind::Notification { method }
+                if event.direction == Direction::ServerToClient =>
+            {
+                method
+            }
+            _ => continue,
         };
-        if event.direction != Direction::ServerToClient {
-            continue;
-        }
         let Some(subscription) = subscription_of(event) else {
             continue;
         };
-        let opened = all_listens
+        let on_task_stream = opened
             .iter()
-            .filter(|(seq, id)| *seq < event.seq && *id == subscription)
-            .map(|(seq, _)| *seq)
-            .next_back();
-        if !opened.is_some_and(|seq| task_seqs.contains(&seq)) {
+            .rev()
+            .find(|(id, _)| *id == subscription)
+            .is_some_and(|(_, asks_for_tasks)| *asks_for_tasks);
+        if !on_task_stream {
             continue;
         }
         sink.examined();

@@ -450,3 +450,5 @@ fn an_extension_has_a_section_of_its_own_beside_the_verdict() {
 fn page_without_extensions() -> String {
     page(SESSION)
 }
+
+mod sections;
