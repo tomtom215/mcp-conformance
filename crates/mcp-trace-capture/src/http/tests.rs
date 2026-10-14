@@ -315,9 +315,11 @@ fn a_hold_resizes_both_ways() {
     );
     assert!(held.resize(&budget, 0));
     assert_eq!((held.bytes(), budget.available_permits()), (0, 1000));
+    drop(held);
     let mut none = super::body::Held::default();
     assert!(none.resize(&budget, 0));
     assert_eq!(none.bytes(), 0);
+    drop(none);
 }
 
 /// A whole body is one frame of known length, and ends after it.
