@@ -60,6 +60,8 @@ fn formats_are_detected_by_their_first_record() {
         r#"[{"message":{},"direction":"request"}]"#,
         r#"{"session_id":"s","ts":"2026-10-13T10:00:00Z"}"#,
         r#"{"direction":"c2s","ts":"2026-10-13T10:00:00Z"}"#,
+        r#"{"seq":0,"direction":"client-to-server"}"#,
+        r#"{"kind":"message","direction":"client-to-server"}"#,
         "{\"a\":1}",
         "not json",
         "[not json",
