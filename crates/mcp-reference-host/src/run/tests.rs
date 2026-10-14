@@ -8,6 +8,8 @@
 
 use super::*;
 
+// SEP-2577 deprecates Logging, yet a `2026-07-28` request still asks for a level.
+#[allow(deprecated)]
 fn plan(log_level: Option<LoggingLevel>, trace_parent: Option<&str>) -> RunPlan {
     RunPlan {
         turn_limit: Some(1),
@@ -25,6 +27,8 @@ fn plan(log_level: Option<LoggingLevel>, trace_parent: Option<&str>) -> RunPlan 
 fn either_field_alone_is_enough_to_carry_a_meta() {
     assert!(call_meta(&plan(None, None)).is_none(), "neither asked for");
 
+    // SEP-2577 deprecates Logging, yet a `2026-07-28` request still asks for a level.
+    #[allow(deprecated)]
     let logging = call_meta(&plan(Some(LoggingLevel::Debug), None)).unwrap();
     assert!(logging.get_traceparent().is_none(), "{logging:?}");
     assert!(
@@ -48,6 +52,8 @@ fn either_field_alone_is_enough_to_carry_a_meta() {
         "{traced:?}"
     );
 
+    // SEP-2577 deprecates Logging, yet a `2026-07-28` request still asks for a level.
+    #[allow(deprecated)]
     let both = call_meta(&plan(
         Some(LoggingLevel::Debug),
         Some("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),

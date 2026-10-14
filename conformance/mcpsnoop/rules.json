@@ -1,0 +1,316 @@
+{
+  "mcpsnoop": "0.26.1",
+  "rules": [
+    {
+      "id": "jsonrpc-version",
+      "match": ["jsonrpc must be 2.0"],
+      "maps": { "2025-11-25": ["BASE-008"], "2026-07-28": ["BASE-042"] },
+      "partial": ["BASE-008", "BASE-042"],
+      "reading": "A frame whose `jsonrpc` member is not `\"2.0\"`: one of the JSON-RPC 2.0 rules every message must follow."
+    },
+    {
+      "id": "invalid-frame",
+      "match": ["frame on the protocol channel is not valid JSON-RPC"],
+      "maps": {
+        "2025-11-25": ["BASE-008", "TRAN-004", "TRAN-005"],
+        "2026-07-28": ["BASE-042", "TRAN-117", "TRAN-118"]
+      },
+      "partial": ["BASE-008", "BASE-042", "TRAN-004", "TRAN-005", "TRAN-117", "TRAN-118"],
+      "reading": "A frame that does not parse as a JSON-RPC message at all (a non-JSON line, an array, an object of no JSON-RPC shape). A frame that parses but breaks a narrower JSON-RPC rule is left to the rules below."
+    },
+    {
+      "id": "request-id-type",
+      "match": ["request id has type * MCP requires a string or integer id"],
+      "maps": { "2025-11-25": ["BASE-001"], "2026-07-28": ["BASE-043"] },
+      "reading": "A request id that is neither a string nor an integer."
+    },
+    {
+      "id": "request-id-null",
+      "match": ["request id is null; MCP requires a string or integer id"],
+      "maps": { "2025-11-25": ["BASE-001", "BASE-002"], "2026-07-28": ["BASE-043", "BASE-044"] },
+      "reading": "A request id that is `null`. The message itself names both clauses: `null` is not a string or integer id, and MCP forbids it outright."
+    },
+    {
+      "id": "request-id-in-flight",
+      "match": ["request reuses an id already in flight"],
+      "maps": { "2025-11-25": ["BASE-003"], "2026-07-28": ["BASE-045"] },
+      "partial": ["BASE-003"],
+      "context": "pairing",
+      "reading": "A request reusing the id of one of its sender's requests that has not been answered. At `2025-11-25` the clause is wider — no reuse within the session at all — and in-flight reuse is the part mcpsnoop checks."
+    },
+    {
+      "id": "response-unmatched",
+      "match": ["response id has no matching request"],
+      "maps": {
+        "2025-11-25": ["BASE-004", "BASE-009"],
+        "2026-07-28": ["BASE-046", "BASE-052"]
+      },
+      "context": "pairing",
+      "reading": "A response whose id names no outstanding request: the clauses requiring a response to carry the id of the request it answers."
+    },
+    {
+      "id": "response-duplicate",
+      "match": ["duplicate response for the same id"],
+      "maps": {
+        "2025-11-25": ["BASE-004", "BASE-009"],
+        "2026-07-28": ["BASE-046", "BASE-052"]
+      },
+      "context": "pairing",
+      "reading": "A second response for an id already answered, which corresponds to no outstanding request."
+    },
+    {
+      "id": "response-without-result-or-error",
+      "match": ["response has neither result nor error"],
+      "maps": { "2025-11-25": ["BASE-010"], "2026-07-28": ["BASE-047"] },
+      "reading": "A response carrying neither `result` nor `error`."
+    },
+    {
+      "id": "response-with-result-and-error",
+      "match": ["response has both result and error"],
+      "maps": { "2025-11-25": ["BASE-008"], "2026-07-28": ["BASE-042"] },
+      "partial": ["BASE-008", "BASE-042"],
+      "reading": "A response carrying both `result` and `error`, which JSON-RPC 2.0 forbids. Template read from the binary; no corpus trace exercises it."
+    },
+    {
+      "id": "result-type-missing",
+      "match": ["result is missing required resultType"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["BASE-048"] },
+      "reading": "A result without `resultType`. The field does not exist at `2025-11-25`."
+    },
+    {
+      "id": "client-sent-response",
+      "match": ["client sent a JSON-RPC response, which * no longer defines"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-060", "TRAN-119", "BASE-084"] },
+      "reading": "A client sending a JSON-RPC response at `2026-07-28`, where a server sends no requests to answer."
+    },
+    {
+      "id": "server-sent-request",
+      "match": ["server sent a JSON-RPC request *, which * replaced with the MRTR pattern"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["BASE-084", "MRTR-001", "TRAN-066", "TRAN-120"] },
+      "reading": "A server-initiated JSON-RPC request at `2026-07-28`, which replaced them with multi round-trip requests."
+    },
+    {
+      "id": "request-meta-missing",
+      "match": ["request _meta is missing required io.modelcontextprotocol/"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["BASE-030", "MRTR-002", "TOOL-016"] },
+      "reading": "A request without one of the `_meta` fields `2026-07-28` requires on every request."
+    },
+    {
+      "id": "protocol-version-header-missing",
+      "match": ["required routing header MCP-Protocol-Version is missing"],
+      "maps": { "2025-11-25": ["LIFE-018", "TRAN-017"], "2026-07-28": ["TRAN-071"] },
+      "context": "http",
+      "reading": "A POST without the `MCP-Protocol-Version` header where the negotiated revision requires it."
+    },
+    {
+      "id": "method-name-header-missing",
+      "match": ["required routing header Mcp-Method is missing", "required routing header Mcp-Name is missing"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-058"] },
+      "context": "http",
+      "reading": "A POST without its `Mcp-Method` or `Mcp-Name` request metadata header."
+    },
+    {
+      "id": "param-header-missing",
+      "match": ["required routing header Mcp-Param-* is missing for body parameter"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-079", "TRAN-130"] },
+      "context": "http",
+      "reading": "A `tools/call` carrying a parameter its tool marks with `x-mcp-header`, sent without the mirrored `Mcp-Param-*` header."
+    },
+    {
+      "id": "protocol-version-header-disagrees",
+      "match": ["MCP-Protocol-Version header * disagrees with _meta protocolVersion"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-072"] },
+      "context": "http",
+      "reading": "An `MCP-Protocol-Version` header that differs from the body's `_meta` protocol version."
+    },
+    {
+      "id": "method-header-disagrees",
+      "match": ["routing header Mcp-Method * disagrees with body method"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-058"] },
+      "context": "http",
+      "reading": "An `Mcp-Method` header that is not the body's method. Template read from the binary; no corpus trace exercises it."
+    },
+    {
+      "id": "name-header-disagrees",
+      "match": ["routing header Mcp-Name * disagrees with body name"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-058", "TRAN-077", "TRAN-092"] },
+      "partial": ["TRAN-077", "TRAN-092"],
+      "context": "http",
+      "reading": "An `Mcp-Name` header that is not the body's name after Base64 decoding. It catches an encoding fault only when the fault changes the value: a plain value shaped like the sentinel decodes to something else (TRAN-092), while an unencoded non-ASCII name that equals the body passes (TRAN-077)."
+    },
+    {
+      "id": "param-header-disagrees",
+      "match": ["routing header Mcp-Param-* disagrees with body parameter"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-079", "TRAN-086", "TRAN-087", "TRAN-089", "TRAN-092"] },
+      "partial": ["TRAN-086", "TRAN-087", "TRAN-089", "TRAN-092"],
+      "context": "http",
+      "reading": "An `Mcp-Param-*` header that is not the mirrored body value after Base64 decoding. The encoding clauses are caught only where a fault changes the value (a miscased sentinel does not decode); an unencoded value equal to the body passes."
+    },
+    {
+      "id": "param-header-without-value",
+      "match": ["routing header Mcp-Param-* is present but body parameter * is absent or null"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-132", "TRAN-134"] },
+      "context": "http",
+      "reading": "An `Mcp-Param-*` header sent although the body parameter is `null` or absent."
+    },
+    {
+      "id": "batch-routing-headers",
+      "match": ["routing headers are invalid on a JSON-RPC batch"],
+      "maps": { "2025-11-25": ["TRAN-026"], "2026-07-28": ["TRAN-059"] },
+      "partial": ["TRAN-026", "TRAN-059"],
+      "context": "http",
+      "reading": "Routing headers on a POST whose body is a batch. Template read from the binary; mcpsnoop reports an HTTP batch only when routing headers ride it."
+    },
+    {
+      "id": "server-rejected-header-mismatch",
+      "match": ["a routing header disagrees with the body"],
+      "maps": {
+        "2025-11-25": [],
+        "2026-07-28": ["TRAN-058", "TRAN-071", "TRAN-072", "TRAN-077", "TRAN-079", "TRAN-086", "TRAN-087", "TRAN-089", "TRAN-092", "TRAN-130", "TRAN-132", "TRAN-134"]
+      },
+      "partial": ["TRAN-058", "TRAN-071", "TRAN-072", "TRAN-077", "TRAN-079", "TRAN-086", "TRAN-087", "TRAN-089", "TRAN-092", "TRAN-130", "TRAN-132", "TRAN-134"],
+      "context": "http",
+      "reading": "The server answered `-32020` (`HeaderMismatch`). mcpsnoop counts the rejection itself as the routing fault, which convicts the client's headers on the server's word."
+    },
+    {
+      "id": "response-content-type",
+      "match": ["the response to a request * the transport * application/json or text/event-stream"],
+      "maps": { "2025-11-25": ["TRAN-029"], "2026-07-28": ["TRAN-063"] },
+      "context": "http",
+      "reading": "A POST carrying a request answered with a `Content-Type` other than `application/json` or `text/event-stream`, or with none."
+    },
+    {
+      "id": "cacheable-without-ttl",
+      "match": ["cacheable * result declares no ttlMs, which * requires"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["CACH-001"] },
+      "partial": ["CACH-001"],
+      "reading": "A complete result of a cacheable operation without `ttlMs`. CACH-001 asks for caching hints; mcpsnoop checks `ttlMs` and not `cacheScope`."
+    },
+    {
+      "id": "cache-scope-across-pages",
+      "match": ["cacheScope * on a later page of * disagrees with"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["CACH-015", "CACH-016"] },
+      "reading": "Pages of one list request carrying different `cacheScope` values."
+    },
+    {
+      "id": "cache-scope-value",
+      "match": ["cacheScope is *, and * defines only public and private"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["wire-schema"] },
+      "partial": ["wire-schema"],
+      "reading": "A `cacheScope` outside `public` and `private`. No RFC 2119 clause states the enumeration; the revision's JSON Schema does, which the report judges as its wire schema."
+    },
+    {
+      "id": "negative-ttl",
+      "match": ["ttlMs is *, and * requires a value of zero or more"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["CACH-008"] },
+      "reading": "A negative `ttlMs`."
+    },
+    {
+      "id": "input-required-empty",
+      "match": ["InputRequiredResult carries neither inputRequests nor requestState"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["MRTR-011"] },
+      "reading": "An `InputRequiredResult` with neither `inputRequests` nor `requestState`."
+    },
+    {
+      "id": "input-required-on-method",
+      "match": ["InputRequiredResult on *, which * allows only on"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["MRTR-004"] },
+      "reading": "An `InputRequiredResult` answering a method that may not return one."
+    },
+    {
+      "id": "input-request-method",
+      "match": ["inputRequests names *, and * allows only"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["MRTR-006"] },
+      "reading": "An `inputRequests` entry that is not an elicitation, sampling or roots request."
+    },
+    {
+      "id": "input-request-undeclared",
+      "match": ["inputRequests asks for * while the request declared no"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["BASE-034", "MRTR-012", "MRTR-013"] },
+      "partial": ["BASE-034", "MRTR-012", "MRTR-013"],
+      "reading": "An `inputRequests` entry for a capability the request did not declare at all. A declared capability whose mode or sub-capability is missing (URL-mode elicitation, `sampling.tools`) is not compared."
+    },
+    {
+      "id": "request-state-changed",
+      "match": ["MRTR retry changed requestState"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["MRTR-016", "MRTR-003", "MRTR-017"] },
+      "reading": "A retry echoing a `requestState` other than the one the server sent."
+    },
+    {
+      "id": "request-state-missing",
+      "match": ["MRTR retry is missing requestState"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["MRTR-016"] },
+      "reading": "A retry leaving out the `requestState` the server sent. Template read from the binary; no corpus trace exercises it."
+    },
+    {
+      "id": "request-state-invented",
+      "match": ["MRTR retry invented requestState"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["MRTR-018"] },
+      "reading": "A retry carrying a `requestState` the server never sent."
+    },
+    {
+      "id": "subscription-before-ack",
+      "match": ["arrived on subscription * before its acknowledgment"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["SUBS-002"] },
+      "reading": "A subscription notification sent before the subscription's acknowledgment."
+    },
+    {
+      "id": "subscription-untagged",
+      "match": ["carries no io.modelcontextprotocol/subscriptionId"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["BASE-039"] },
+      "partial": ["BASE-039"],
+      "reading": "A notification on a subscription stream without `io.modelcontextprotocol/subscriptionId`. BASE-039 also requires the id to be the stream's own; mcpsnoop checks presence."
+    },
+    {
+      "id": "subscription-unrequested",
+      "match": ["was not requested by subscription"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["SUBS-001"] },
+      "partial": ["SUBS-001"],
+      "reading": "A notification type the subscription did not ask for. SUBS-001 binds every notification the server sends; mcpsnoop checks those that carry a subscription id."
+    },
+    {
+      "id": "progress-not-increasing",
+      "match": ["progress for token * went from * requires it to increase"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["PROG-003"] },
+      "reading": "A progress value that does not increase. The `2025-11-25` registry carries no progress clauses."
+    },
+    {
+      "id": "progress-after-completion",
+      "match": ["progress notification for token * arrived after its request completed"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["PROG-008"] },
+      "reading": "A progress notification after its request was answered."
+    },
+    {
+      "id": "server-cancellation",
+      "match": ["server cancelled *, and * lets a server cancel only a subscriptions/listen request"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["CANC-003", "CANC-011"] },
+      "reading": "A server-sent `notifications/cancelled` naming anything but a `subscriptions/listen` request."
+    },
+    {
+      "id": "input-schema-not-object",
+      "match": ["advertises an inputSchema that is not a JSON object"],
+      "maps": { "2025-11-25": ["TOOL-003"], "2026-07-28": ["TOOL-025"] },
+      "reading": "A tool whose `inputSchema` is not a JSON Schema object."
+    },
+    {
+      "id": "x-mcp-header-chain",
+      "match": ["declares an x-mcp-header under *, which * does not allow in the chain"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-082", "TRAN-137", "TOOL-045"] },
+      "reading": "An `x-mcp-header` on a property not reachable through `properties` alone."
+    },
+    {
+      "id": "x-mcp-header-repeated",
+      "match": ["declares x-mcp-header * on more than one property"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-080", "TOOL-033"] },
+      "partial": ["TRAN-080", "TOOL-033"],
+      "reading": "One `x-mcp-header` name on two properties of a tool: one of the constraints TRAN-080 lists."
+    },
+    {
+      "id": "task-for-undeclaring-client",
+      "match": ["a task handle uses the io.modelcontextprotocol/tasks extension, which the client never advertised"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TASK-001", "VERS-005"] },
+      "partial": ["VERS-005"],
+      "reading": "A `CreateTaskResult` answering a request whose client capabilities do not declare the tasks extension. The tasks extension's own clause, TASK-001 — reported in the extension's block and never scored — names exactly this; mcpsnoop cites the core negotiation clause VERS-005, of which it is one case and which our registry excludes because each extension, not the core, says what falling back means."
+    }
+  ]
+}

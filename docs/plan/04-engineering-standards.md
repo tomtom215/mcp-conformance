@@ -4,7 +4,7 @@
 # Engineering Standards
 
 **Status:** Active
-**Last reviewed:** 2026-10-12
+**Last reviewed:** 2026-10-13
 
 ---
 
@@ -61,7 +61,7 @@ Package registries are reachable only at dependency-install time, under lockfile
 | Sanitization | `cargo-careful` | The engine crates (`mcp-conformance-core`, `mcp-trace-validator`) run their suites against a std built with debug assertions and extra const-UB checks; a UB or integer-overflow regression a release build folds is a failure. Scheduled (nightly toolchain) |
 | Cross-architecture | `s390x` + `powerpc` (qemu) + `i686` (native) | The engine crates' suites run on every corner of the (endianness × pointer-width) square CI's hosts leave untested — `s390x` (64-bit big-endian) and `powerpc` (32-bit big-endian) under qemu, `i686` (32-bit little-endian) native — via `cargo xtask cross-arch`: the canonical form, the JSON/`JUnit` reports, and the golden corpus must be byte-identical where every CI host is 64-bit little-endian (`x86-64`/`aarch64`). A byte-for-byte divergence is a failure. Scheduled (`cross-arch` matrix) |
 | Dependency floors | `-Z direct-minimal-versions` | Each declared floor (`Cargo.toml` `>=x.y.z`) is the oldest version the workspace resolves to and builds/tests against, not an assertion: `cargo xtask minimal-versions` pins every direct dependency to its floor, builds the workspace, and runs the engine suites there. A floor below the resolvable minimum (a transitive crate forces higher), or below an API the code uses, is a failure. Scheduled (`minimal-versions` job, nightly) |
-| Conformance | official runner via `xtask` | Agreement check green; M2 onward: 100% server-scenario pass as a hard gate |
+| Conformance | official runner via `xtask` | Agreement check green — requirement rows, and the wire schema message by message wherever the runner reports `wire-schema-valid` (`conformance/wire-schema-divergences.json`); M2 onward: 100% server-scenario pass as a hard gate |
 | Draft readiness | official runner's next-revision scenarios via `xtask` | The migration to the next revision is a **measured number, ratcheted**, not an estimate: `cargo xtask draft-readiness` drives the runner's `2026-07-28` draft scenarios against the current server — once per revision the server can serve, with baseline keys prefixed by the revision — and compares every check's status to the committed `conformance/draft-readiness.json`. Each leg's session is also captured to `corpus/draft/captured/`, where the golden suite replays it through the `2026-07-28` registry; that is where the two servers' scores actually diverge, because the runner's scenarios do not distinguish them. `cargo xtask draft-capture` does the same for stdio, which has no runner at all, and *gates* on a clean verdict — both ends of that session are ours, so a finding in it is a defect here rather than news about another implementation. Any change fails — a lost pass is a regression, a gained one is progress that gets recorded in the commit that earned it (`BLESS=1`). Both pins exact. Statuses are kept verbatim per check rather than folded into a ratio: the runner's `INFO` is neither a pass nor a failure, and a denominator that absorbs it repeats exactly the vacuous accounting [ADR-0006](decisions/0006-capability-gated-applicability.md) refuses. Scheduled (`draft-readiness` job) |
 | Benchmarks | `criterion` | Validator throughput (events/sec), canonicalization, state-machine stepping — measured, not gated: no baseline history exists yet, and an invented threshold would be folklore (decision recorded in `crates/mcp-trace-validator/benches/README.md`; revisit with M2's production-shaped workload) |
 
@@ -103,7 +103,13 @@ Package registries are reachable only at dependency-install time, under lockfile
    in the weekly scheduled job
 7. `cargo package --workspace --exclude xtask --locked` validation (publishability
    of every release crate; xtask is `publish = false` yet `--workspace` would
-   package it)
+   package it), with the release's CycloneDX SBOM generated for every crate as a
+   dry run (`cargo xtask sbom`); `cargo xtask semver --unreleased` checks the Rust
+   API against crates.io as the changelog's `[Unreleased]` section declares it — an
+   API break fails the PR while that section declares none, and is listed for the
+   reviewer once it carries a breaking-changes table; line and
+   region coverage is measured (`cargo llvm-cov`) and reported, and fails the
+   build below 95% of lines
 8. Mutation gate (diff-scoped), golden-corpus run, agreement check, fuzz smoke
    (every target, 60 s); the weekly scheduled job fuzzes five minutes per target
 9. Nightly toolchain (per-push, informational) + official-suite `0.2.0-alpha`
@@ -115,7 +121,9 @@ superseded pushes (never for `main`); least-privilege workflow permissions.
 ## Dependency policy
 
 - Every dependency is a liability; the burden of proof is on adding it.
-  `mcp-conformance-core` carries serde-family only ([02-architecture.md](02-architecture.md)).
+  `mcp-conformance-core` carries serde-family only ([02-architecture.md](02-architecture.md));
+  the protocol's JSON Schemas it ships are data, and the engine that reads them lives in
+  `mcp-trace-validator` ([ADR-0020](decisions/0020-wire-schema-validation.md)).
 - Workspace-level version ranges with upper bounds (`>=x.y, <next-major`), the a2a-rust
   convention; `deny.toml` enforces the license allowlist, denies wildcards, and denies a new
   duplicate version of any crate: each accepted duplicate is skipped by exact version with
@@ -132,6 +140,7 @@ dependencies are justified where they are declared):
 | Dependency | Crates | Why it clears the bar |
 |------------|--------|----------------------|
 | `serde`, `serde_json` | all | The protocol is JSON; `float_roundtrip` is correctness (canonical fixpoint) |
+| `jsonschema` | trace-validator | Wire-schema validation ([ADR-0020](decisions/0020-wire-schema-validation.md)): the 2020-12 engine that judges every message against the revision's vendored schema. No default features — no remote `$ref` resolution, so no network and no HTTP stack. Costs 4.8 MB of release binary (measured in the ADR); the alternative, a hand-written 2020-12 evaluator, is a correctness liability this project would have to prove |
 | `clap` | binaries, behind `cli` features | [ADR-0005](decisions/0005-cli-argument-parsing.md): library consumers never pay for it |
 | `clap_complete` | trace-validator, behind `cli` | Shell completions generated from the one clap definition, so they cannot drift from the flags; the clap project's own crate, released in lockstep with clap. Library consumers never pay for it (ADR-0005) |
 | `rmcp` | everything-server, reference-host | The point of M2: parity proven *on the official SDK*, not beside it. Feature-minimal (`server`, `macros`, `transport-io`, `transport-streamable-http-server`); MSRV consequence in [ADR-0008](decisions/0008-msrv-1.88.md) |
@@ -144,6 +153,8 @@ dependencies are justified where they are declared):
 | `axum`, `hyper`, `hyper-util`, `futures` | trace-capture | The HTTP recording proxy ([ADR-0019](decisions/0019-a-recording-tap-is-not-a-gateway.md)): axum listens, hyper's legacy client forwards so bodies stream through as the endpoints sent them, `futures` splices a recorded prefix back onto a stream. All four were already in the tree (axum for the everything server; hyper and futures under axum and reqwest) |
 | `tokio` | trace-capture | Child-process stdio, the listener, and signal relay; per-crate feature grant (`process`, `io-util`, `io-std`, `net`, `sync`, `signal`) |
 | `hyper-rustls`, `rustls` | trace-capture (`tls` feature, default) | `https://` upstreams, `ring` provider, native roots. Chosen over reqwest's TLS features, which Cargo feature unification spread to the reference host and made it panic in workspace builds (ADR-0019 §4); `ring` brings the two duplicate versions `deny.toml` skips with its reason |
+| `ring` | conformance-cli (`cli` feature) | `watch --otlp`'s trace and span ids, from the OS CSPRNG (`ring::rand::SystemRandom`). Already in the tree at the same version, as rustls's provider under trace-capture's `tls` feature, which this crate enables: no new crate, `deny.toml` unchanged. The OTLP export itself adds nothing: it is trace-capture's own hyper client (`http::client`), not the `opentelemetry` crates ([ADR-0021](decisions/0021-a-workbench-people-keep-open.md)) |
+| `axum`, `futures`, `tokio`, `ring` | mcp-conformance-cli (`cli` feature) | `test`'s stdio bridge and `serve`'s workbench listen with axum; `ring` gives the workbench its per-launch secrets (`SystemRandom`) and each trace's SHA-256 (the verdict cache's key). All four were already in this binary's tree: `ring` as the recorder's TLS provider (rustls), at the same version, so no crate was added to `Cargo.lock`. Its archive (`tar.rs`), its dates (`clock.rs`) and its percent-decoding are a few dozen lines each and written in the crate rather than taken as dependencies |
 | `reqwest`, `futures`, `sse-stream` | reference-host (`http` feature) | The SSE-resumption dance drives rmcp's **public** `StreamableHttpClient` seam (ADR-0009 §Amendment): `reqwest::Client` is the trait's only shipped implementation, and the seam's vocabulary is `futures` streams of `sse_stream::Sse` frames. All three version-mirror rmcp's own requirements and were already in the tree as its dependencies |
 
 ## Releases

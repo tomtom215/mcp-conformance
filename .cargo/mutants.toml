@@ -59,4 +59,15 @@ exclude_re = [
     # trace can separate them.
     "replace \\+ with \\* in answered_by_result",
     "replace \\+ with \\* in handshakes",
+    # Equivalent mutant: mcp-trace-capture's `Timed::poll_ready` forwards the
+    # upstream connector's readiness, and that connector is always ready.
+    # Without `tls` it is hyper-util's `HttpConnector<GaiResolver>`, whose
+    # `poll_ready` returns its resolver's readiness and then `Ready(Ok(()))`,
+    # and `GaiResolver::poll_ready` is unconditionally `Ready(Ok(()))`; with
+    # `tls` it is hyper-rustls's `HttpsConnector` over that same connector,
+    # whose `poll_ready` maps the inner readiness through unchanged. So the
+    # forwarded value is `Ready(Ok(()))` on every call, which is exactly the
+    # mutant's replacement; no test can separate them. (Re-check on a
+    # hyper-util or hyper-rustls upgrade, or a custom resolver.)
+    "Timed>::poll_ready -> Poll<Result<\\(\\), BoxError>> with Poll::from\\(Ok\\(\\(\\)\\)\\)",
 ]

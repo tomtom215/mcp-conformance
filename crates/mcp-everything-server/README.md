@@ -11,6 +11,18 @@ conformance suite against it — **40/40 checks** on the `2025-11-25` server
 scenarios at the pinned suite 0.1.16 — and compares the suite's verdicts with the
 validator's. It is also a known-good peer for testing an MCP **client**.
 
+> **This README is `main`'s.** `cargo install` gets the latest release, `0.6.0`,
+> whose own README is the one on crates.io. Documentation for the release is at
+> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
+>
+> **Not yet released** (on `main` since `0.6.0`):
+>
+> - `--revision` (an alias of `--protocol-version`) and `--listen` (an alias of
+>   `--bind`), which the examples below use;
+> - the endpoint URL the HTTP server prints after its readiness line.
+>
+> With `0.6.0`, spell them `--protocol-version` and `--bind`.
+
 ## Quick start
 
 ```text
@@ -49,9 +61,23 @@ is almost certainly the client's.
   `structuredContent`), which the suite does not exercise but the spec
   defines.
 
-  One TypeScript-server feature is a deliberate delta at this revision, not
-  an omission: **async sampling** (the tasks pattern, which `2025-11-25` does
-  not define — SEP-2663 moves tasks to an extension in `2026-07-28`).
+  **Every listing is paginated**, and the split is deliberate: the first page
+  of `tools/list`, `prompts/list`, `resources/list` and
+  `resources/templates/list` is exactly the catalogue the suite's scenarios
+  name, and a `nextCursor` leads to a second page carrying what they do not —
+  `test_resource_link` (a `resource_link` result beside annotated text, listed
+  with tool annotations and icons), `test_parameter_headers` (three arguments
+  designated for `Mcp-Param-*` mirroring with `x-mcp-header`), an audio prompt,
+  and a resource and a template with titles, icons and annotations. The server
+  names itself with an icon too. Cursors are stateless — the catalogues are
+  constants, so "did this server issue it?" is a membership test any instance
+  can answer — and one it never issued draws `-32602` at both revisions.
+
+  One TypeScript-server feature is a deliberate delta, not an omission:
+  **async sampling** (the tasks pattern). `2025-11-25` defines tasks on a page
+  this repository's registry keeps out of scope, and SEP-2663 moves them to an
+  extension in `2026-07-28`, so they belong with the extensions work rather
+  than with this core surface.
   **URL-mode elicitation** closed when the reference host landed its
   URL-capable handler: `test_url_elicitation` sends a `mode: "url"`
   `elicitation/create` (only to a client that declared `elicitation.url`; a
@@ -68,8 +94,9 @@ is almost certainly the client's.
   a handshake that leads nowhere. The suite's `2026-07-28` scenarios pass
   **42/42** against this mode at the pinned `0.2.0-alpha.12`, and the
   repository's own requirement registry
-  evidences **118 of the 141 judgeable clauses** across five committed captures
-  of it over both transports, with 0 fail on the conforming ones and everything
+  evidences **148 of the 181 judgeable clauses** across eight committed
+  captures — five of it over both transports, with 0 fail on the conforming
+  ones, and three of the official SDKs' conformance servers — and everything
   the sessions never touched reported *not observed* rather than counted as a
   pass. Server-to-client requests go by SEP-2322's MRTR pattern at this
   revision — `elicitation/create` and `sampling/createMessage` are *returned*
@@ -82,7 +109,13 @@ is almost certainly the client's.
   via `--allowed-host` / `--dangerously-allow-any-host`;
   `--revision`/`--protocol-version` for the revision).
 - A session trace tap (feature `tap`, `--tap-dir`): records each admitted HTTP
-  exchange as a validator-ready JSON Lines trace, session or not. Only the
+  exchange as a validator-ready JSON Lines trace, session or not: one file per
+  session the server assigned, one `stateless` file for exchanges naming no
+  session and one `unassigned` file for those naming a session the server never
+  assigned, each sequenced in the order the server saw it. The feature is
+  off by default, so a plain `cargo install mcp-everything-server` has no
+  `--tap-dir`; install with `cargo install mcp-everything-server --features tap`,
+  or record with `mcp-trace-capture` in front of the server instead. Only the
   headers in the public `RECORDED_HEADERS` allowlist (and the
   `RECORDED_HEADER_PREFIXES` arm, for SEP-2243's tool-designated
   `Mcp-Param-*`) are ever captured — credential-bearing headers never reach a

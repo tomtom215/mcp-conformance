@@ -13,6 +13,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::body::Body;
+use axum::http::StatusCode;
 use axum::response::Response;
 use axum::routing::post;
 use mcp_trace_capture::http;
@@ -50,7 +51,8 @@ async fn upstream(assign: bool) -> SocketAddr {
                 response = response.header("mcp-session-id", format!("s-{id}"));
             }
             response.body(Body::from(result.to_string())).unwrap()
-        }),
+        })
+        .delete(|| async { StatusCode::OK }),
     );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
@@ -303,6 +305,36 @@ async fn the_binary_writes_a_trace_per_session_or_warns_that_one_holds_several()
             run_binary_proxy(upstream, &dir.join("idle-{session}.jsonl"), idle).await;
         assert_eq!(code, 0, "{stderr}");
         assert!(stderr.contains("no session began"), "{stderr}");
+        std::fs::remove_dir_all(&dir).ok();
+    })
+    .await;
+}
+
+/// A session the client deleted, and the server agreed to end, is over: a
+/// request naming its id again is an unseen id's, recorded apart, not in the
+/// ended session's trace.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_request_after_its_sessions_delete_is_not_in_that_trace() {
+    bounded(async {
+        let dir = scratch("deleted");
+        let (address, sessions, stop) = proxy(upstream(true).await, &dir).await;
+        let id = send(address, 1, "initialize", None).await.unwrap();
+        send(address, 2, "ping", Some(&id)).await;
+        let deleted = reqwest::Client::new()
+            .delete(format!("http://{address}/mcp"))
+            .header("mcp-session-id", &id)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(deleted.status(), 200);
+        send(address, 3, "ping", Some(&id)).await;
+        stop().await.unwrap().unwrap();
+        let finished = sessions.finish();
+        assert_eq!(finished.len(), 2);
+        let (_, first) = read(finished[0].path.as_ref().unwrap());
+        let (_, second) = read(finished[1].path.as_ref().unwrap());
+        assert_eq!(first, [1, 1, 2, 2]);
+        assert_eq!(second, [3, 3]);
         std::fs::remove_dir_all(&dir).ok();
     })
     .await;

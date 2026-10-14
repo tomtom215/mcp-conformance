@@ -4,7 +4,11 @@
 # Continuous integration — every quality gate from docs/plan/04-engineering-standards.md.
 #
 # Jobs: format, clippy (stable + MSRV × 3 OS × 3 feature modes), test (same matrix),
-#       docs (-D warnings), cargo-deny, package validation, nightly (informational).
+#       docs (-D warnings), cargo-deny, package validation (with an SBOM dry run),
+#       semver (vs crates.io), coverage (95% line floor), nightly (informational),
+#       visual (the HTML report's screenshot baselines, no network on open),
+#       registry-packages (npm and PyPI packages installed and run, 3 OS).
+#       otlp (`watch --otlp` spans through a pinned OpenTelemetry Collector).
 #
 # Toolchains are installed with plain `rustup` rather than a third-party action:
 # one fewer supply-chain dependency. Remaining actions are pinned by commit SHA.
@@ -177,6 +181,11 @@ jobs:
       # numbers from drifting did not run on the change that published them.
       - name: Offline gates (sizes, fuzz targets, links, versions, coverage projections)
         run: cargo xtask gates
+      # Each of those gates, and the golden corpus, broken one at a time: a gate
+      # that cannot go red is a comment. The checkout is clean, as the task
+      # requires, and every file it edits is restored before the next gate.
+      - name: Every gate shown able to fail
+        run: cargo xtask falsify-gates
 
   book:
     name: Book (mdBook)
@@ -195,7 +204,7 @@ jobs:
         # Built from source under --locked rather than via a third-party setup
         # action: one fewer supply-chain dependency, the same discipline as the
         # plain-rustup toolchain installs. rust-cache restores the prior build.
-        run: cargo install mdbook --locked --version 0.5.3
+        run: cargo install mdbook --locked --version 0.5.4
       - name: Build the versioned site (a missing include file or anchor fails here)
         # The same command pages.yml deploys from: main's book plus every
         # release's, so a change that breaks an older book's build, the
@@ -203,7 +212,7 @@ jobs:
         run: cargo xtask book-site --out site
       - name: Upload the rendered site
         # The bytes a deploy would serve; pages.yml builds them again on main.
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: book
           path: site
@@ -243,7 +252,7 @@ jobs:
           done
       - name: Upload crash inputs
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fuzz-smoke-artifacts
           path: fuzz/artifacts/
@@ -282,7 +291,105 @@ jobs:
       # xtask .crate before release.yml learned this) — exclude it here for the same
       # reason, so this job validates exactly what a release would package.
       - name: Package all publishable crates
-        run: cargo package --workspace --exclude xtask --locked
+        run: cargo package --workspace --exclude xtask --exclude mcp-conformance-cli --locked
+      # The release's SBOM step, rehearsed: release.yml's `package` job runs
+      # this command and attests each file against its .crate. Here nothing is
+      # signed; the point is that generation, and the one-per-published-crate
+      # check inside it, cannot first fail after a tag.
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+      - name: One CycloneDX SBOM per published crate (release dry run)
+        run: |
+          cargo xtask sbom --out target/package
+          ls -l target/package/*.cdx.json
+
+  # The published crates' Rust API against their crates.io baseline, on every
+  # PR rather than only before a release, where an undeclared break is found
+  # by whoever prepares it (v0.5.0's three were). One invocation,
+  # `cargo xtask semver`, serves release.yml's `verify` job and this one;
+  # the flag picks which release the tree is judged as:
+  #   - release.yml runs it bare: the type follows the version bump, which on
+  #     a release commit is the declaration being checked;
+  #   - here `--unreleased`: between releases the version still equals the
+  #     published one, which the tool reads as a patch, so a derived type would
+  #     fail every PR after main's first deliberate pre-1.0 break. The tree is
+  #     judged as the release CHANGELOG.md's [Unreleased] declares instead. A
+  #     breaking-changes table (a `Migration` column) declares the next pre-1.0
+  #     minor, a breaking release to Cargo and so `--release-type major` to the
+  #     tool (its `minor` still refuses a removal at 0.x). That admits any
+  #     break, so the job first prints every break, without failing, for the
+  #     reviewer to hold against the table. No table promises no break: the
+  #     gate runs at `minor`, and an API break fails the PR until declared.
+  # Network: the baselines and the crates.io index (whether each crate has a
+  # published version) are fetched, as in release.yml's verify job.
+  semver:
+    name: Semver (cargo-semver-checks vs crates.io)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-semver-checks
+        # The version release.yml installs, so a PR and its release are judged
+        # by the same tool.
+        run: cargo install cargo-semver-checks --version 0.51.0 --locked
+      - name: API compatibility, judged as the release [Unreleased] declares
+        run: cargo xtask semver --unreleased
+
+  # Line and region coverage of the shipped crates' tests, all features
+  # (xtask excluded, as from the mutation standard: it ships nothing). Measured,
+  # not gated, for the reason the benchmarks are: no baseline history exists,
+  # and a threshold invented now would be folklore. No external service and no
+  # token: the lcov file is an artifact and the summary goes to the job summary.
+  coverage:
+    name: Coverage (95% line floor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the pinned toolchain with llvm-tools
+        # rust-toolchain.toml's minimal profile omits llvm-tools, which
+        # cargo-llvm-cov needs; added to the pinned toolchain, not a floating one.
+        run: |
+          rustup show active-toolchain
+          rustup component add llvm-tools
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --version 0.9.1 --locked
+      - name: Run the tests under coverage
+        run: cargo llvm-cov --workspace --exclude xtask --all-features --locked --lcov --output-path lcov.info
+      - name: Coverage summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The floor sits about one point under the measured 96.40% of lines
+          # (2026-10-13, all features), so a change that drops coverage
+          # noticeably fails here.
+          # The report is written first, so a failing run still shows the table.
+          cargo llvm-cov report --summary-only | tee "$RUNNER_TEMP/coverage.txt"
+          {
+            echo "## Coverage (shipped crates' tests, all features)"
+            echo ""
+            echo '```text'
+            cat "$RUNNER_TEMP/coverage.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cargo llvm-cov report --fail-under-lines 95 > /dev/null
+      - name: Upload the lcov report
+        # Also below the floor: the lines a failing run missed are the point.
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-lcov
+          path: lcov.info
+          if-no-files-found: error
+          retention-days: 30
 
   nightly:
     name: Nightly (informational)
@@ -332,8 +439,12 @@ jobs:
   # sequential so the sse-retry clock is never under parallel load), a
   # child-process stdio smoke between the two real binaries, and the
   # agreement replay on both sides (cargo xtask conformance documents the
-  # steps and the version pin). This job is the one deliberate exception
-  # to "no network beyond the package registries": npx fetches the pinned
+  # steps; the version pin is crates/mcp-conformance-cli/src/suite.rs). Last, the
+  # product leg (ADR-0021 W1): `mcp-conformance test` against the everything
+  # server over HTTP and over stdio, and against the reference host as a
+  # client, each report held to this job's own results for the same subject.
+  # This job is the one deliberate exception to "no network beyond the
+  # package registries": npx fetches the pinned
   # runner from npm, and the runner dials loopback in both directions. Tests
   # (`cargo test` anywhere in the workspace) still never touch a network.
   conformance:
@@ -346,10 +457,12 @@ jobs:
     # and the host capture tests), so two more npx jobs would re-run Node to
     # re-prove Rust code already proven cross-platform.
     runs-on: ubuntu-latest
-    # A warm run takes ~2 minutes; the bound exists because this is the one
-    # job whose tools (npx, the runner) can hang on network state, and a
-    # wedged job should fail in minutes, not at the 6-hour runner cap.
-    timeout-minutes: 15
+    # A warm run took ~2 minutes before the product leg, which adds three
+    # `mcp-conformance test` runs (the stdio one is one suite invocation per
+    # scenario). The bound exists because this is the one job whose tools
+    # (npx, the runner) can hang on network state, and a wedged job should
+    # fail in minutes, not at the 6-hour runner cap.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -363,10 +476,65 @@ jobs:
         run: cargo xtask conformance
       - name: Upload scenario verdicts
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: conformance-verdicts
           path: target/conformance/
+          if-no-files-found: warn
+          retention-days: 30
+
+  # The HTML report as people see it (ADR-0021, "Verification of what people
+  # see"): the committed golden pages (corpus/golden/html, pinned to the
+  # renderer by the golden_html test in the test job) rendered by the Chromium
+  # that the exact @playwright/test in visual/package-lock.json pins, compared
+  # pixel for pixel with visual/tests/__screenshots__, and opened with every
+  # request recorded and aborted (there must be none). The workbench's views
+  # (`mcp-conformance serve` over visual/fixtures/library) are compared the
+  # same way, with every request not to the workbench's own origin a failure,
+  # and its interactions run end to end; that half builds the binary.
+  #
+  # ubuntu-24.04, not -latest: the baselines depend on the image's fontconfig
+  # and on DejaVu, which the report's font stacks put first; a runner image
+  # moving underneath them would turn a pinned comparison into a moving one.
+  visual:
+    name: Visual (HTML report and workbench screenshots, no network)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Pin the font the baselines were taken with
+        # fonts-dejavu-core is in the image already; naming the version makes
+        # a change to it fail here, loudly, rather than as a pixel diff.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-dejavu-core=2.37-8
+          fc-match "DejaVu Sans" && fc-match "DejaVu Sans Mono"
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build the workbench the specs serve
+        run: cargo build --locked -p mcp-conformance-cli
+      - name: Install the pinned Playwright and its Chromium (Node is preinstalled on the runner image)
+        working-directory: visual
+        run: |
+          node --version
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Screenshots, links and no-network checks
+        working-directory: visual
+        env:
+          MCP_CONFORMANCE_BIN: ${{ github.workspace }}/target/debug/mcp-conformance
+        run: npx playwright test
+      - name: Upload the actual, expected and diff images
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: visual-diffs
+          path: |
+            visual/test-results/
+            visual/playwright-report/
           if-no-files-found: warn
           retention-days: 30
 
@@ -402,12 +570,72 @@ jobs:
         run: PYTHON="$PWD/.venv/bin/python" ./run.sh ../target/debug
       - name: Upload traces and reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: interop-traces
           path: interop/out/
           if-no-files-found: warn
           retention-days: 30
+
+  # `mcp-conformance watch --otlp` into a real OpenTelemetry Collector (ADR-0021
+  # W4): the pinned core distribution with an OTLP/HTTP receiver and a file
+  # exporter (conformance/otlp/collector.yaml). A corpus violation is replayed
+  # through `watch stdio` by the ignored integration test that needs this
+  # collector — every request must be accepted (2xx) — and then what the
+  # collector wrote back out is read for the MCP semantic conventions' span
+  # names and attributes, the CLIENT kind and the finding events
+  # (conformance/otlp/check.py). Network: the image pull from Docker Hub, by
+  # digest; the spans themselves travel only over loopback.
+  otlp:
+    name: OTLP export (watch --otlp into an OpenTelemetry Collector)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # otel/opentelemetry-collector:0.162.0 (the core distribution, which
+      # carries the otlp receiver and the file exporter), by its multi-arch
+      # index digest, read 2026-10-13 with `docker buildx imagetools inspect`.
+      COLLECTOR_IMAGE: otel/opentelemetry-collector@sha256:310a800ad69ee430e7c541796852a242c9c7db97aaad4daa5ccf843c525fbdb2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build the replay test first, so the collector waits for nothing
+        run: cargo test --locked -p mcp-conformance-cli --test cli --no-run
+      - name: Start the pinned collector
+        run: |
+          set -euo pipefail
+          mkdir -m 0777 "$RUNNER_TEMP/otel"
+          docker run --detach --name otel --publish 127.0.0.1:4318:4318 \
+            --volume "$PWD/conformance/otlp/collector.yaml:/etc/otelcol/config.yaml:ro" \
+            --volume "$RUNNER_TEMP/otel:/out" \
+            "$COLLECTOR_IMAGE" --config=/etc/otelcol/config.yaml
+          for _ in $(seq 30); do
+            if curl -sf -o /dev/null -X POST -H 'content-type: application/json' \
+                --data '{"resourceSpans":[]}' http://127.0.0.1:4318/v1/traces; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs otel
+          exit 1
+      - name: Replay a corpus violation through watch --otlp
+        env:
+          MCP_CONFORMANCE_OTLP_ENDPOINT: http://127.0.0.1:4318
+        run: >-
+          cargo test --locked -p mcp-conformance-cli --test cli --
+          --ignored --exact watch::spans_are_accepted_by_a_real_collector
+      - name: Read back what the collector exported
+        run: |
+          set -euo pipefail
+          # A graceful stop flushes the file exporter.
+          docker stop otel
+          python3 -I conformance/otlp/check.py "$RUNNER_TEMP/otel/spans.jsonl"
+      - name: Collector log
+        if: always()
+        run: docker logs otel || true
 
   # The workflows themselves, linted: actionlint (expression and type checks,
   # shellcheck over every `run:` script) and zizmor (GitHub Actions security
@@ -462,11 +690,14 @@ jobs:
 
   # The repository's own GitHub Action (action.yml), run as a user would run
   # it: built from this checkout, over passing traces (exit 0, reports written)
-  # and over a violating one (exit 1, the step fails, the reports still written).
+  # and over a violating one (exit 1, the step fails, the reports still written);
+  # then recording sessions itself (`capture`): the everything server driven by
+  # the reference host over stdio and through the HTTP proxy, each recording
+  # judged clean, and a client that fails failing the action.
   action:
-    name: GitHub Action (action.yml over the corpus)
+    name: GitHub Action (action.yml over the corpus, and recording sessions)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       # Shared by both runs of the action, so the second build is incremental.
       CARGO_TARGET_DIR: ${{ github.workspace }}/target
@@ -493,17 +724,191 @@ jobs:
           traces: corpus/violations/base-003-request-id-reuse.jsonl
           sarif-file: fail.sarif
           junit-file: fail.xml
+      # A pattern matching nothing must still leave valid reports behind, or
+      # the `if: always()` upload step after it fails on a missing file.
+      - name: A pattern matching no trace
+        id: none
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          traces: corpus/no-such-directory/*.jsonl
+          sarif-file: none.sarif
+          junit-file: none.xml
+          fail-on-findings: "false"
+      - name: Build the server and the client the recorded sessions run
+        run: cargo build --locked -p mcp-everything-server -p mcp-reference-host
+      - name: A stdio session, recorded and judged
+        id: stdio
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          capture: stdio
+          server: target/debug/mcp-everything-server --transport stdio --protocol-version 2026-07-28
+          client: >-
+            target/debug/mcp-reference-host --protocol-version 2026-07-28
+            --turn-limit 40 --error-budget 5 --server-cmd "$MCP_SERVER_COMMAND"
+          capture-dir: capture-stdio
+          sarif-file: stdio.sarif
+          junit-file: stdio.xml
+      - name: An HTTP session, recorded through the proxy and judged
+        id: http
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          capture: http
+          server: target/debug/mcp-everything-server --transport http --bind 127.0.0.1:38311 --protocol-version 2026-07-28
+          upstream: http://127.0.0.1:38311/mcp
+          client: target/debug/mcp-reference-host --protocol-version 2026-07-28 --url "$MCP_PROXY_URL"
+          capture-dir: capture-http
+          sarif-file: http.sarif
+          junit-file: http.xml
+      # A client that fails must fail the action, although the validator,
+      # with nothing recorded to judge, still writes its reports.
+      - name: A client that fails
+        id: badclient
+        continue-on-error: true
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          capture: stdio
+          server: target/debug/mcp-everything-server --transport stdio
+          client: exit 7
+          capture-dir: capture-badclient
+          sarif-file: badclient.sarif
+          junit-file: badclient.xml
+          fail-on-findings: "false"
       - name: The action reported what each run decided
         shell: bash
         env:
           PASS_CODE: ${{ steps.pass.outputs.exit-code }}
           FAIL_CODE: ${{ steps.fail.outputs.exit-code }}
           FAIL_OUTCOME: ${{ steps.fail.outcome }}
+          NONE_CODE: ${{ steps.none.outputs.exit-code }}
+          STDIO_CODE: ${{ steps.stdio.outputs.exit-code }}
+          STDIO_CLIENT: ${{ steps.stdio.outputs.client-exit-code }}
+          HTTP_CODE: ${{ steps.http.outputs.exit-code }}
+          HTTP_CLIENT: ${{ steps.http.outputs.client-exit-code }}
+          BAD_CLIENT: ${{ steps.badclient.outputs.client-exit-code }}
+          BAD_OUTCOME: ${{ steps.badclient.outcome }}
         run: |
           set -euo pipefail
           [[ "$PASS_CODE" == 0 ]] || { echo "::error::passing traces exited ${PASS_CODE}"; exit 1; }
           [[ "$FAIL_CODE" == 1 ]] || { echo "::error::violating trace exited ${FAIL_CODE}, expected 1"; exit 1; }
           [[ "$FAIL_OUTCOME" == failure ]] || { echo "::error::the failing run's step did not fail"; exit 1; }
+          [[ "$NONE_CODE" == 2 ]] || { echo "::error::an unmatched pattern exited ${NONE_CODE}, expected 2"; exit 1; }
+          jq -e '.runs[0].invocations[0].executionSuccessful == false' none.sarif
+          grep -q '<error message="no trace matches' none.xml
           jq -e '.runs[0].results | length == 0' pass.sarif
           jq -e '.runs[0].results[0].ruleId == "BASE-003"' fail.sarif
           grep -q '<failure' fail.xml
+          # Recorded sessions: one trace per leg, judged clean — no finding at
+          # all, warnings included. Both ends are this project's, so any finding
+          # is a defect here (BASE-037 was one until the server named itself on
+          # every result at 2026-07-28).
+          for leg in stdio http; do
+            traces=( "capture-${leg}"/*.jsonl )
+            [[ ${#traces[@]} -eq 1 && -s "${traces[0]}" ]] || { echo "::error::${leg}: expected one recorded trace, found ${traces[*]}"; exit 1; }
+            jq -e '.runs[0].invocations[0].executionSuccessful and (.runs[0].results | length == 0)' "${leg}.sarif"
+          done
+          [[ "$STDIO_CODE" == 0 && "$STDIO_CLIENT" == 0 ]] || { echo "::error::stdio capture exited ${STDIO_CODE}, client ${STDIO_CLIENT}"; exit 1; }
+          [[ "$HTTP_CODE" == 0 && "$HTTP_CLIENT" == 0 ]] || { echo "::error::HTTP capture exited ${HTTP_CODE}, client ${HTTP_CLIENT}"; exit 1; }
+          [[ "$BAD_CLIENT" == 7 ]] || { echo "::error::the failing client was reported as exiting ${BAD_CLIENT}, expected 7"; exit 1; }
+          [[ "$BAD_OUTCOME" == failure ]] || { echo "::error::a failing client did not fail the action"; exit 1; }
+          jq -e '.runs[0].invocations[0].executionSuccessful == false' badclient.sarif
+
+  # The container image (Dockerfile), built as release.yml builds it and run as
+  # a user would run it. Never pushed: this job holds no write scope, and the
+  # image is published only by release.yml on a release tag.
+  image:
+    name: Container image (built and run, never pushed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the image
+        run: docker build --pull --tag mcp-conformance:ci .
+      - name: Both binaries run, as a non-root user with no shell, and judge the corpus
+        run: |
+          set -euo pipefail
+          run() { docker run --rm -v "$PWD/corpus:/work/corpus:ro" mcp-conformance:ci "$@"; }
+          validator="$(run mcp-trace-validator --version | head -n 1)"
+          capture="$(run mcp-trace-capture --version | head -n 1)"
+          echo "$validator / $capture"
+          [[ "$validator" == "mcp-trace-validator ${capture#mcp-trace-capture }" ]] \
+            || { echo "::error::the two binaries report different versions"; exit 1; }
+          user="$(docker inspect --format '{{.Config.User}}' mcp-conformance:ci)"
+          [[ "$user" == 65532:65532 ]] || { echo "::error::the image runs as '${user}', expected 65532:65532"; exit 1; }
+          if docker run --rm mcp-conformance:ci sh -c true 2> /dev/null; then
+            echo "::error::the image has a shell"; exit 1
+          fi
+          run mcp-trace-validator validate --quiet corpus/good/*.jsonl corpus/draft/good/*.jsonl
+          # A violation trace must exit 1 (findings): 0 means it passed, and 2
+          # means the binary could not judge it at all.
+          status=0
+          run mcp-trace-validator validate --quiet corpus/draft/violations/mrtr-019-retry-reuses-id.jsonl || status=$?
+          [[ "$status" -eq 1 ]] || { echo "::error::a violation trace exited ${status}, expected 1"; exit 1; }
+
+  # The npm and PyPI packages (ADR-0021 decision 5), built and installed on each
+  # OS the way a user installs them, from local files only. Each leg builds the
+  # three CLIs for the target release.yml builds on that OS (same profile, same
+  # Windows crt-static flag; without cargo-auditable, which changes no code
+  # path), archives them with the script release.yml uses, checksums the
+  # archive, runs `cargo xtask packages` over it, then tools/test-packages.sh:
+  # `npm install` of the main and platform tarballs (offline) and
+  # `npx mcp-conformance --version` and its siblings, and `pip install` from the
+  # wheel directory into a venv (pip picks the wheel by its tags) and the same
+  # checks through the installed scripts — each judging corpus traces too.
+  # Nothing is published from here; release.yml publishes, on a tag.
+  registry-packages:
+    name: npm and PyPI packages (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, rustflags: "-D warnings" }
+          - { os: macos-latest, target: aarch64-apple-darwin, rustflags: "-D warnings" }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, rustflags: "-D warnings -C target-feature=+crt-static" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain and target
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          rustup show active-toolchain
+          rustup target add "$TARGET"
+      - name: Install the musl C toolchain (ring compiles C)
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build the three CLIs as release.yml does
+        shell: bash
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+          TARGET: ${{ matrix.target }}
+        run: cargo build --release --locked --target "$TARGET" -p mcp-trace-validator -p mcp-trace-capture -p mcp-conformance-cli --bins
+      - name: Archive and checksum as release.yml does
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          id="$(cargo pkgid -p mcp-conformance-cli)"
+          # `path+file:///…/mcp-conformance-cli#0.6.0` (cargo writes `#name@`
+          # before the version when the directory is named differently).
+          version="${id##*[#@]}"
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          mkdir dist
+          cd dist
+          bash ../tools/archive-binaries.sh "$TARGET" "$version" "../target/${TARGET}/release"
+          if command -v sha256sum > /dev/null; then sums="$(sha256sum ./*)"; else sums="$(shasum -a 256 ./*)"; fi
+          printf '%s\n' "$sums" | tee SHA256SUMS-binaries
+      - name: Generate the packages
+        run: cargo xtask packages --from dist --out packages
+      - name: Install them from the local files and run them
+        shell: bash
+        run: bash tools/test-packages.sh packages "$VERSION"

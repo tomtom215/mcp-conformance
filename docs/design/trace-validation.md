@@ -157,12 +157,20 @@ verdicts are diffed against the official runner's verdicts over those sessions.
   explains anything in the current run is *stale* and also fails CI, so the
   triage ledger cannot rot into a pile of permanent excuses.
 
-On the server side this currently reconciles 30 tapped sessions at zero
+On the server side this reconciles every session the pinned suite's server scenarios
+produce, as recorded by the server's tap, and requires zero
 unexplained divergence (the first run surfaced one real suite bug and one
 informational warning, both recorded); the client side reconciles the reference
 host's captured sessions the same way. The point is structural: a validator
 whose verdicts are diffed against the recognized authority on every commit is
 calibrated, not merely asserted to be correct.
+
+The wire schema is calibrated at a finer grain than the requirement rows. The
+official runner's `wire-schema-valid` check reports the invalid messages
+themselves, so the agreement step joins them to the recorded sessions by sender
+and canonical JSON and compares message by message with the validator's
+`wire_schema` member; a message flagged on one side only is a divergence with its
+own committed ledger, under the same two-directional gate.
 
 ## 7. Falsifiability: every check has a killer trace
 

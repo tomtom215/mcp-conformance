@@ -1,0 +1,52 @@
+{
+    "_policy": "The official extensions whose clauses are entered beside revision 2026-07-28, and where each publishes its specification (ADR-0023). Extensions are not published under docs/specification/<revision>/: the site lists each official extension under `extensions/` and defers to its own repository (`modelcontextprotocol/ext-*`) for the normative text, so each extension here names the site page that introduces it (`site_page`), where its text is fetched from (`text`, raw files on the repository's main branch), and its own page set — `in_scope` maps each page, as an entry's `source.section` cites it, to its file under `text`, and `out_of_scope` gives every other specification file of the extension, by its path under `text`, with the reason, as a revision's sources.json does. `site_out_of_scope` gives every other page the site lists under `extensions/`, each with the reason it has no entries here, so an official extension the site adds fails the weekly `cargo xtask spec-drift` until it is decided. That run also re-verifies every quote, recounts each in-scope page's keywords against the census below (frontmatter and fenced code excluded, table rows included), requires every MUST-family and SHOULD-family instance to sit inside an entry's quote, and reads each anchored section's heading id off the extension's rendered page; `cargo xtask gates` checks the shape offline. An extension's clauses are judged and reported beside the core verdict and never change it: the extension is optional by definition, as the official suite's `not_scored: extension` records it.",
+    "extensions": {
+        "io.modelcontextprotocol/tasks": {
+            "site_page": "extensions/tasks/overview",
+            "text": "https://raw.githubusercontent.com/modelcontextprotocol/ext-tasks/main/",
+            "in_scope": {
+                "specification/2026-07-28/tasks": "specification/2026-07-28/tasks.md"
+            },
+            "out_of_scope": {
+                "specification/draft/tasks.md": "The extension's unreleased draft, which accumulates the revision after its 2026-07-28 snapshot; released snapshots are immutable (the repository's README), so the entries quote the snapshot, as the core registry quotes released revisions and tracks `draft/` separately."
+            },
+            "must_census": {
+                "specification/2026-07-28/tasks": 41
+            },
+            "should_census": {
+                "specification/2026-07-28/tasks": 15
+            },
+            "may_census": {
+                "specification/2026-07-28/tasks": 15
+            }
+        },
+        "io.modelcontextprotocol/skills": {
+            "site_page": "extensions/skills/overview",
+            "text": "https://raw.githubusercontent.com/modelcontextprotocol/ext-skills/main/",
+            "in_scope": {
+                "specification/stable/skills.mdx": "specification/stable/skills.mdx"
+            },
+            "out_of_scope": {
+                "specification/stable/skills.md": "A six-line include stub (`<!--@include: ./skills.mdx{5,}-->`) that renders `skills.mdx` for the documentation site; it carries no text of its own, so its clauses are `skills.mdx`'s, entered once under that page."
+            },
+            "must_census": {
+                "specification/stable/skills.mdx": 80
+            },
+            "should_census": {
+                "specification/stable/skills.mdx": 22
+            },
+            "may_census": {
+                "specification/stable/skills.mdx": 19
+            }
+        }
+    },
+    "site_out_of_scope": {
+        "extensions/overview": "Index of the official extensions and of SEP-2133's process for writing one. Its one RFC 2119 passage binds extension authors (\"Extension specifications need to use RFC 2119 language\"), not anything a session sends.",
+        "extensions/client-matrix": "A table of which hosts support which extension: data about products, with no clause.",
+        "extensions/apps/overview": "MCP Apps, specified in modelcontextprotocol/ext-apps: deferred, not decided — `mcp-apps-extension` in docs/plan/deferrals.json carries what, why and the review date.",
+        "extensions/apps/build": "A how-to for building an MCP App; the extension it serves is deferred as `extensions/apps/overview` records.",
+        "extensions/auth/overview": "Index of the authorization extensions specified in modelcontextprotocol/ext-auth; the two the site lists are decided below.",
+        "extensions/auth/oauth-client-credentials": "Specified in modelcontextprotocol/ext-auth (`specification/draft/oauth-client-credentials.mdx`, read 2026-10-13): its clauses bind how a client authenticates to the authorization server's token endpoint and what the authorization server's metadata carries, none of which crosses the MCP endpoint a recording taps (ADR-0022, fact 3); the access token it yields travels in `Authorization`, which is never recorded (fact 1).",
+        "extensions/auth/enterprise-managed-authorization": "Specified in modelcontextprotocol/ext-auth (`specification/stable/enterprise-managed-authorization.mdx`, read 2026-10-13): its clauses bind the claims of the identity-assertion grant (ID-JAG) and the audience of the access token issued for it — exchanges among the client, the identity provider and the authorization server, off the MCP endpoint a recording taps (ADR-0022, fact 3); the token itself travels in `Authorization`, which is never recorded (fact 1)."
+    }
+}

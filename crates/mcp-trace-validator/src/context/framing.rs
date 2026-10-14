@@ -162,9 +162,10 @@ pub(crate) struct Framing<'a> {
 }
 
 impl<'a> Framing<'a> {
-    /// Derives the framing of `context`'s Streamable HTTP events in one pass.
-    pub(crate) fn new(context: &'a TraceContext<'_>) -> Self {
-        Self::of(context.events())
+    /// The framing of `context`'s Streamable HTTP events, derived once when
+    /// the context was built.
+    pub(crate) const fn new<'c>(context: &'c TraceContext<'a>) -> &'c Self {
+        &context.framing
     }
 
     /// Derives the framing of `events` directly — what the context's own

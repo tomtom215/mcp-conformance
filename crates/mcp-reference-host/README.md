@@ -7,7 +7,19 @@ A native Rust MCP host (client) and bounded agent loop, built on
 [rmcp](https://crates.io/crates/rmcp). The
 [mcp-conformance](https://github.com/tomtom215/mcp-conformance) project runs it as
 the official conformance suite's client under test, and uses it to drive servers
-through recorded sessions. It is also a quick way to exercise an MCP **server**:
+through recorded sessions. It is also a quick way to exercise an MCP **server**, as below.
+
+> **This README is `main`'s.** `cargo install` gets the latest release, `0.6.0`,
+> whose own README is the one on crates.io. Documentation for the release is at
+> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
+>
+> **Not yet released** (on `main` since `0.6.0`):
+>
+> - `--revision`, an alias of `--protocol-version`, which the example below uses;
+> - `--sweep` driving only the groups (completion, resources, prompts) the server
+>   declares;
+>
+> With `0.6.0`, spell it `--protocol-version`.
 
 ```text
 cargo install mcp-reference-host

@@ -70,9 +70,10 @@ async fn bytes_pass_through_unchanged_and_non_json_lines_are_recorded_as_strings
         assert_eq!(
             unrecorded,
             Unrecorded {
-                not_json: 4,
+                not_json: 3,
                 oversized: 0,
                 altered: 0,
+                unterminated: 1,
             }
         );
         let payloads: Vec<serde_json::Value> = events(&sink)
@@ -90,6 +91,42 @@ async fn bytes_pass_through_unchanged_and_non_json_lines_are_recorded_as_strings
                 serde_json::json!(""),
                 serde_json::json!("bad \u{FFFD} byte"),
                 serde_json::json!("{\"partial\":tr"),
+            ]
+        );
+    })
+    .await;
+}
+
+/// A stream that ends mid-line never delivered that line: stdio frames a
+/// message by its newline, and both official SDKs drop an unterminated
+/// remainder. So even when it is JSON it is recorded as the string it is, for
+/// the validator to judge, not as a message the peer received.
+#[tokio::test]
+async fn an_unterminated_last_line_is_recorded_as_a_string_even_when_json() {
+    bounded(async {
+        let sink = Shared::default();
+        let recorder = Recorder::new(sink.clone());
+        let input: &[u8] = b"{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{}}";
+        let (forward, mut forwarded) = tokio::io::duplex(1024);
+        let pumped = pump(&recorder, Direction::ServerToClient, input, forward, 1024);
+        let unrecorded = pumped.await.unwrap();
+        let mut out = Vec::new();
+        forwarded.read_to_end(&mut out).await.unwrap();
+        assert_eq!(out, input, "the peer receives exactly what was sent");
+        assert_eq!(unrecorded.unterminated, 1);
+        assert_eq!(unrecorded.not_json, 0);
+        let payloads: Vec<serde_json::Value> = events(&sink)
+            .into_iter()
+            .map(|event| match event.body {
+                EventBody::Message { payload } => payload,
+                other => panic!("only messages are recorded here: {other:?}"),
+            })
+            .collect();
+        assert_eq!(
+            payloads,
+            [
+                serde_json::json!({"jsonrpc": "2.0", "id": 1, "result": {}}),
+                serde_json::json!("{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{}}"),
             ]
         );
     })
@@ -220,6 +257,7 @@ async fn a_line_that_would_outgrow_the_line_limit_is_counted_as_oversized() {
                 not_json: 0,
                 oversized: 1,
                 altered: 0,
+                unterminated: 0,
             }
         );
         let written = events(&sink);
@@ -256,6 +294,7 @@ async fn json_the_trace_would_alter_is_recorded_as_the_line() {
                 not_json: 0,
                 oversized: 0,
                 altered: 2,
+                unterminated: 0,
             }
         );
         let payloads: Vec<serde_json::Value> = events(&sink)
@@ -305,6 +344,89 @@ async fn kill_ends_the_servers_whole_process_group() {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         assert!(!marker.exists(), "the server's child ran on after the kill");
         std::fs::remove_dir_all(&dir).ok();
+    })
+    .await;
+}
+
+/// `relay` carries the client on streams the caller hands it: what the caller
+/// writes reaches the server, what the server answers reaches the caller, both
+/// are recorded, and the caller closing its end ends the session the way a
+/// client closing stdin does.
+#[cfg(unix)]
+#[tokio::test]
+async fn relay_carries_the_client_on_the_callers_streams() {
+    bounded(async {
+        let sink = Shared::default();
+        let recorder = Arc::new(Recorder::new(sink.clone()));
+        let server = super::spawn("cat".as_ref(), &[]).unwrap();
+        let (signals, _requests) = crate::Signals::requested();
+        let (mut client, from_client) = tokio::io::duplex(1024);
+        let (to_client, answers) = tokio::io::duplex(1024);
+        let relayed = tokio::spawn(super::relay(
+            Arc::clone(&recorder),
+            server,
+            signals,
+            from_client,
+            to_client,
+            1024,
+        ));
+        client
+            .write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\n")
+            .await
+            .unwrap();
+        let mut line = String::new();
+        let mut answers = BufReader::new(answers);
+        answers.read_line(&mut line).await.unwrap();
+        assert_eq!(line, "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\n");
+        drop(client);
+        let outcome = relayed.await.unwrap().unwrap();
+        assert!(outcome.status.success(), "{outcome:?}");
+        assert_eq!(outcome.stop, None);
+        let events = events(&sink);
+        let directions: Vec<Direction> = events
+            .iter()
+            .filter(|event| matches!(event.body, EventBody::Message { .. }))
+            .map(|event| event.direction)
+            .collect();
+        assert_eq!(
+            directions,
+            [Direction::ClientToServer, Direction::ServerToClient]
+        );
+        assert!(
+            matches!(
+                events.last().map(|event| &event.body),
+                Some(EventBody::Lifecycle { .. })
+            ),
+            "the trace ends closed: {events:?}"
+        );
+    })
+    .await;
+}
+
+/// A stop the program requests is handled as a signal is: the trace is closed
+/// and the stop is relayed to the server, which here obeys it.
+#[cfg(unix)]
+#[tokio::test]
+async fn relay_stops_the_server_when_the_program_asks() {
+    bounded(async {
+        let recorder = Arc::new(Recorder::new(Shared::default()));
+        let server = super::spawn("sleep".as_ref(), &["30".into()]).unwrap();
+        let (signals, requests) = crate::Signals::requested();
+        let (_client, from_client) = tokio::io::duplex(64);
+        let (to_client, _answers) = tokio::io::duplex(64);
+        let relayed = tokio::spawn(super::relay(
+            Arc::clone(&recorder),
+            server,
+            signals,
+            from_client,
+            to_client,
+            1024,
+        ));
+        requests.request(crate::Stop::Terminate);
+        let outcome = relayed.await.unwrap().unwrap();
+        assert_eq!(outcome.stop, Some(crate::Stop::Terminate));
+        assert!(!outcome.status.success(), "{outcome:?}");
+        assert!(recorder.is_closed(), "the trace is closed by the stop");
     })
     .await;
 }

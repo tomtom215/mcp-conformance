@@ -8,10 +8,16 @@
 //!
 //! - **`Mcp-Session-Id`** (`2025-11-25`). The server assigns it on the response to
 //!   `initialize`; the client sends it on every later request. A request naming an
-//!   id belongs to that id's session — an id first seen on a request (the proxy
-//!   started mid-session) begins a session of its own, which becomes the one
-//!   later id-less requests join only once the server has answered it with a 2xx:
-//!   a stale or unknown id the server refuses (404) must not capture them.
+//!   id the server assigned belongs to that id's session. An id the proxy has not
+//!   seen (it started mid-session, or the client sent a stale or made-up one) is
+//!   not taken on the client's word: every such request goes to one trace kept
+//!   for them, until the server answers one with a 2xx. That id is then the
+//!   trace's session — the one later id-less requests join — and the next
+//!   unseen id starts a trace of its own. An id the server refuses (404) is not
+//!   remembered, so a client inventing ids cannot make the proxy open a file, or
+//!   keep a map entry, per id.
+//! - **`DELETE` with an id, answered 2xx**, ends that session: its id is
+//!   forgotten, so a later request naming it is an unseen id's.
 //! - **`initialize` without an id** begins a session: it is how every
 //!   `2025-11-25` session starts, with or without the server assigning an id.
 //! - **Nothing else.** A request with neither belongs to the session begun most
@@ -37,7 +43,7 @@ use mcp_conformance_core::trace::{Direction, LifecycleEvent, TransportKind};
 
 use crate::framing::parse_json;
 use crate::numbered::Numbered;
-use crate::recorder::{Recorder, Summary};
+use crate::recorder::{Observer, Recorder, Summary};
 
 /// Routes proxied exchanges to traces, one per session or one for all.
 #[derive(Debug)]
@@ -45,6 +51,7 @@ pub struct Traces {
     output: Output,
     max_line: usize,
     state: Mutex<State>,
+    observer: Option<Arc<dyn Observer>>,
 }
 
 #[derive(Debug)]
@@ -56,8 +63,11 @@ enum Output {
 #[derive(Debug, Default)]
 struct State {
     sessions: Vec<Session>,
+    /// The ids the server assigned or accepted, and their sessions.
     by_id: HashMap<String, usize>,
     current: Option<usize>,
+    /// The trace for requests naming an id the server has not yet accepted.
+    unseen: Option<usize>,
     next_number: u64,
 }
 
@@ -66,9 +76,6 @@ struct Session {
     recorder: Arc<Recorder>,
     path: Option<PathBuf>,
     id: Option<String>,
-    /// Begun by an id the proxy had not seen, and not yet answered with a 2xx:
-    /// not yet the current session.
-    unconfirmed: bool,
 }
 
 /// The trace one exchange is recorded in: hand it back to
@@ -77,6 +84,8 @@ struct Session {
 pub struct Route {
     index: usize,
     recorder: Arc<Recorder>,
+    /// The request's session id, when the server has not accepted it yet.
+    unseen: Option<String>,
 }
 
 impl Route {
@@ -121,20 +130,34 @@ impl Traces {
                 next_number: 1,
                 ..State::default()
             }),
+            observer: None,
         }
+    }
+
+    /// These traces, each session's recorder showing what it writes to
+    /// `observer` under the session's number. [`Traces::one`]'s recorder is
+    /// the caller's, observed (or not) as the caller made it.
+    #[must_use]
+    pub fn observed(mut self, observer: Arc<dyn Observer>) -> Self {
+        self.observer = Some(observer);
+        self
     }
 
     /// The session of a request carrying `session_id` (its `Mcp-Session-Id`)
     /// and `body` (when it was read whole).
     pub fn route(&self, session_id: Option<&str>, body: Option<&[u8]>) -> Route {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut unseen = None;
         let index = if let Some(id) = session_id {
             let known = state.by_id.get(id).copied();
             known.unwrap_or_else(|| {
-                let index = self.begin(&mut state, false);
-                state.sessions[index].id = Some(id.to_owned());
-                state.by_id.insert(id.to_owned(), index);
-                index
+                unseen = Some(id.to_owned());
+                let pending = state.unseen;
+                pending.unwrap_or_else(|| {
+                    let index = self.begin(&mut state, false);
+                    state.unseen = Some(index);
+                    index
+                })
             })
         } else if body.is_some_and(is_initialize) {
             self.begin(&mut state, true)
@@ -145,23 +168,41 @@ impl Traces {
         Route {
             index,
             recorder: Arc::clone(&state.sessions[index].recorder),
+            unseen,
         }
     }
 
     /// Notes how the server answered `route`'s request: the session id the
     /// response carried — the one an `initialize` response assigns names that
-    /// session from then on — and whether it `succeeded` (a 2xx), which makes a
-    /// session begun by an unseen id the current one.
+    /// session from then on — and whether it `succeeded` (a 2xx), which
+    /// accepts an unseen id the request named: its trace becomes that id's
+    /// session, and the current one.
     pub fn respond(&self, route: &Route, session_id: Option<&str>, succeeded: bool) {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        if succeeded && std::mem::take(&mut state.sessions[route.index].unconfirmed) {
+        if let Some(accepted) = route.unseen.as_deref().filter(|_| succeeded)
+            && !state.by_id.contains_key(accepted)
+        {
+            if state.unseen == Some(route.index) {
+                state.unseen = None;
+            }
             state.current = Some(route.index);
+            state.by_id.insert(accepted.to_owned(), route.index);
+            state.sessions[route.index]
+                .id
+                .get_or_insert_with(|| accepted.to_owned());
         }
         let Some(id) = session_id else { return };
         if state.sessions[route.index].id.is_none() && !state.by_id.contains_key(id) {
             state.sessions[route.index].id = Some(id.to_owned());
             state.by_id.insert(id.to_owned(), route.index);
         }
+    }
+
+    /// Forgets `session_id`: the server accepted the client's `DELETE` of that
+    /// session. A later request naming it is routed as an unseen id's.
+    pub fn end(&self, session_id: &str) {
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        state.by_id.remove(session_id);
     }
 
     /// Whether each session gets a trace of its own.
@@ -214,6 +255,13 @@ impl Traces {
     }
 
     /// Starts a session, and makes it the current one if `current`.
+    ///
+    /// Creating its file (a directory listing and a create) happens here, on
+    /// the async handler and under the router's lock, as every write to a trace
+    /// happens on the handler that records it: the recording is synchronous by
+    /// design, so a message is written before its bytes are relayed. It runs
+    /// once per session a client begins or the server accepts — never per id
+    /// a client invents.
     fn begin(&self, state: &mut State, current: bool) -> usize {
         let (recorder, path) = match &self.output {
             Output::One(recorder) => (Arc::clone(recorder), None),
@@ -225,10 +273,12 @@ impl Traces {
                         path.display()
                     );
                     let sink = Appender(path.clone());
-                    (
-                        Arc::new(Recorder::with_max_line(sink, self.max_line)),
-                        Some(path),
-                    )
+                    let recorder = Recorder::with_max_line(sink, self.max_line);
+                    let recorder = match &self.observer {
+                        Some(observer) => recorder.observed(Arc::clone(observer), number),
+                        None => recorder,
+                    };
+                    (Arc::new(recorder), Some(path))
                 }
                 // The recorder reports the failure on the session's first event,
                 // and `finish` reports the trace as incomplete.
@@ -242,7 +292,6 @@ impl Traces {
             recorder,
             path,
             id: None,
-            unconfirmed: !current,
         });
         let index = state.sessions.len() - 1;
         if current {

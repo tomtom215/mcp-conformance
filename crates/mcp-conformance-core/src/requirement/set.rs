@@ -62,7 +62,7 @@ pub struct RegistrySet {
 }
 
 impl RegistrySet {
-    /// Loads the embedded seed set from the same per-area documents
+    /// Loads the embedded set from the same per-area documents
     /// [`Registry::builtin_2025_11_25`] merges.
     ///
     /// It describes exactly [`BUILTIN_REVISIONS`]. Every `2025-11-25` requirement is
@@ -319,7 +319,7 @@ mod tests {
     /// The invariant the `removed = 2026-07-28` bound exists to protect, and the one
     /// that would fail silently if it were missing: describing a second revision must
     /// not change what the first one requires. An absent `applies` range means *every*
-    /// revision, so without the bound all 142 entries — every quote citing a
+    /// revision, so without the bound all 321 entries — every quote citing a
     /// `2025-11-25` page — would leak into `2026-07-28` and read as if that revision
     /// had been extracted.
     #[test]
@@ -327,7 +327,7 @@ mod tests {
         let set = RegistrySet::builtin().unwrap();
         let projected = set.registry(rev("2025-11-25")).unwrap();
         assert_eq!(projected, Registry::builtin_2025_11_25().unwrap());
-        assert_eq!(projected.requirements().len(), 142);
+        assert_eq!(projected.requirements().len(), 321);
     }
 
     /// No entry serves both revisions. Each revision's entries quote its own pages, so

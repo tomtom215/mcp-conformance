@@ -18,15 +18,15 @@ use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::numbered::{Numbered, PLACEHOLDER};
+use crate::recorder::{Observer, Sessions};
+use crate::traces::Traces;
+use crate::{Recorder, Summary};
 use mcp_conformance_core::trace::{DEFAULT_MAX_LINE_BYTES, LINE_ENVELOPE_BYTES};
-use mcp_trace_capture::numbered::{Numbered, PLACEHOLDER};
-use mcp_trace_capture::recorder::Sessions;
-use mcp_trace_capture::traces::Traces;
-use mcp_trace_capture::{Recorder, Summary};
 
 /// The exit code for a session whose trace is incomplete, when it would otherwise
 /// be 0.
-const EXIT_INCOMPLETE: i32 = 3;
+pub const EXIT_INCOMPLETE: i32 = 3;
 
 /// Where traces go: the one file `-o` names, or a numbered file per session.
 #[derive(Debug)]
@@ -96,8 +96,11 @@ fn exists(path: &Path) -> String {
     )
 }
 
-/// Creates the one trace a stdio session writes — the named file (truncating it
-/// under `force`), or the next numbered one — and its recorder.
+/// Creates the one trace a stdio session writes, and its recorder.
+///
+/// The trace is the named file (truncated under `force`) or the next numbered
+/// one; the recorder shows what it writes to `observer`, if any, as trace 1
+/// (or the numbered file's number).
 ///
 /// # Errors
 ///
@@ -106,24 +109,25 @@ pub fn open(
     target: &Target,
     force: bool,
     max_message: usize,
+    observer: Option<Arc<dyn Observer>>,
 ) -> Result<(Arc<Recorder>, PathBuf), String> {
-    let (path, file) = match target {
-        Target::File(path) => (path.clone(), create(path, force)?),
-        Target::Numbered(numbered) => {
-            let (_, path, file) = numbered.create_next(1).map_err(|error| error.to_string())?;
-            (path, file)
-        }
+    let (number, path, file) = match target {
+        Target::File(path) => (1, path.clone(), create(path, force)?),
+        Target::Numbered(numbered) => numbered.create_next(1).map_err(|error| error.to_string())?,
     };
     eprintln!("mcp-trace-capture: recording to {}", path.display());
     let max_line = max_line(max_message);
-    Ok((
-        Arc::new(Recorder::with_max_line(BufWriter::new(file), max_line)),
-        path,
-    ))
+    let recorder = Recorder::with_max_line(BufWriter::new(file), max_line);
+    let recorder = match observer {
+        Some(observer) => recorder.observed(observer, number),
+        None => recorder,
+    };
+    Ok((Arc::new(recorder), path))
 }
 
-/// The proxy's traces: every session into the named file, or each into its own.
-/// Returns the named file's path, for the summary.
+/// The proxy's traces: every session into the named file, or each into its own,
+/// each showing what it writes to `observer`, if any. Returns the named file's
+/// path, for the summary.
 ///
 /// # Errors
 ///
@@ -132,10 +136,11 @@ pub fn traces(
     target: &Target,
     force: bool,
     max_message: usize,
+    observer: Option<Arc<dyn Observer>>,
 ) -> Result<(Arc<Traces>, Option<PathBuf>), String> {
     match target {
         Target::File(_) => {
-            let (recorder, path) = open(target, force, max_message)?;
+            let (recorder, path) = open(target, force, max_message, observer)?;
             Ok((Arc::new(Traces::one(recorder)), Some(path)))
         }
         Target::Numbered(numbered) => {
@@ -144,10 +149,12 @@ pub fn traces(
                  there, like {}",
                 numbered.path(1).display()
             );
-            Ok((
-                Arc::new(Traces::per_session(numbered.clone(), max_line(max_message))),
-                None,
-            ))
+            let traces = Traces::per_session(numbered.clone(), max_line(max_message));
+            let traces = match observer {
+                Some(observer) => traces.observed(observer),
+                None => traces,
+            };
+            Ok((Arc::new(traces), None))
         }
     }
 }

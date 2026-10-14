@@ -40,15 +40,21 @@ wait_for_port() {
   return 1
 }
 
-# judge NAME EXPECTED_REVISION: the trace must judge `pass` (exit 0) at the
-# revision the session declared.
+# judge NAME EXPECTED_REVISION [WARNINGS]: the trace must judge clean (exit 0)
+# at the revision the session declared. Its verdict must be `pass`, or
+# `pass-with-warnings` with exactly the SHOULD-level clauses WARNINGS names
+# (space-separated) warning: an SDK's known shortfall is stated here, a new
+# one fails, and one the SDK has since fixed fails until it is removed.
 judge() {
-  local name=$1 want=$2 status=0
+  local name=$1 want=$2 warnings=${3:-} status=0
   "$VALIDATOR" validate --format json "$OUT/$name.jsonl" > "$OUT/$name.report.json" || status=$?
-  local verdict revision
+  local verdict revision warned
   verdict=$("$PYTHON" -c 'import json,sys; print(json.load(open(sys.argv[1]))["verdict"])' "$OUT/$name.report.json" 2>/dev/null || echo "none")
   revision=$("$PYTHON" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$OUT/$name.report.json" 2>/dev/null || echo "none")
-  if [[ $status -eq 0 && $verdict == pass && $revision == "$want" ]]; then
+  warned=$("$PYTHON" -c 'import json,sys; print(" ".join(sorted(r["id"] for r in json.load(open(sys.argv[1]))["requirements"] if r["outcome"] == "warn")))' "$OUT/$name.report.json" 2>/dev/null || echo "none")
+  local expected=pass
+  [[ -n $warnings ]] && expected=pass-with-warnings
+  if [[ $status -eq 0 && $verdict == "$expected" && $warned == "$warnings" && $revision == "$want" ]]; then
     printf 'PASS  %-24s revision %s, verdict %s\n' "$name" "$revision" "$verdict"
   else
     printf 'FAIL  %-24s exit %s, revision %s (want %s), verdict %s\n' "$name" "$status" "$revision" "$want" "$verdict"
@@ -59,7 +65,9 @@ judge() {
 
 # 1. TypeScript client -> TypeScript everything server, stdio.
 node ts-client.mjs stdio "$CAPTURE" -o "$OUT/ts-stdio.jsonl" stdio -- node "$EVERYTHING" stdio
-judge ts-stdio 2025-11-25
+# The TypeScript SDK's tools declare draft-07 schemas (JSON Schema 2020-12
+# is RECOMMENDED).
+judge ts-stdio 2025-11-25 BASE-086
 
 # 2. The same over streamable HTTP, through the proxy.
 PORT=38001 node "$EVERYTHING" streamableHttp > "$OUT/ts-server.log" 2>&1 & pids+=($!)
@@ -68,7 +76,7 @@ wait_for_port 38001
 wait_for_port 38101
 node ts-client.mjs http http://127.0.0.1:38101/mcp
 kill -INT "$cap"; wait "$cap" || true
-judge ts-http 2025-11-25
+judge ts-http 2025-11-25 BASE-086
 
 # 3. Python client -> Python server, stdio (2026-07-28, stateless).
 "$PYTHON" py-client.py stdio "$CAPTURE" -o "$OUT/py-stdio.jsonl" stdio -- "$PYTHON" py-server.py

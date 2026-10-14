@@ -7,6 +7,10 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.0",
     "@modelcontextprotocol/server-everything": "2026.8.31",
-    "sdk-2025-06-18": "npm:@modelcontextprotocol/sdk@1.13.0"
+    "cors": "2.8.6",
+    "express": "5.2.1",
+    "sdk-2025-06-18": "npm:@modelcontextprotocol/sdk@1.13.0",
+    "tsx": "4.23.15",
+    "zod": "4.6.5"
   }
 }

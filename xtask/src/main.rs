@@ -15,8 +15,11 @@
 //!   version sync,
 //!   changelog links, and both coverage projections. `ci.yml` runs exactly this,
 //!   and `ci` includes it, so the two cannot diverge.
-//! - `bless` — regenerate the golden corpus reports and the per-revision exclusion
-//!   ledgers (`BLESS=1` all-features golden test run); review
+//! - `falsify-gates` — each of those gates and the golden corpus, shown able to
+//!   fail: one edit apiece on a clean tree, restored after (`falsify.rs`).
+//! - `bless` — regenerate the golden corpus reports, the per-revision exclusion
+//!   ledgers and the golden HTML pages (`BLESS=1` all-features `golden` and
+//!   `golden_html` test run); review
 //!   the diff like any other code change.
 //! - `coverage` — regenerate the README's requirement-coverage table from the embedded
 //!   registry; `coverage --check` verifies it instead (ADR-0001: no hand-kept counts).
@@ -24,6 +27,12 @@
 //!   `corpus/README.md`'s per-capture table from the committed golden reports, and
 //!   verify every count the living Markdown states — "N of the M judgeable
 //!   clauses" and "N pass, M fail" alike — agrees with them (`draft_coverage.rs`).
+//! - `sdk-matrix [--check | --recaptured DIR]` — the cross-SDK matrix page
+//!   (`book/src/sdk-matrix.md`), generated from the committed golden reports of
+//!   the official SDKs' conformance servers; `--check` verifies it (and that the
+//!   book's worked guide still includes the commands the scheduled job runs),
+//!   and `--recaptured` compares a fresh `interop/matrix.sh` run with the
+//!   corpus (`BLESS=1` adopts the run's traces) (`sdk_matrix.rs`).
 //! - `file-sizes` — verify the ≤ 500-line cap on source and registry files.
 //! - `fuzz-targets` — every fuzz target source is declared as a `[[bin]]`, so
 //!   `cargo fuzz list` (which the weekly job takes its list from) can see it.
@@ -33,8 +42,8 @@
 //! - `deny` — run `cargo deny --all-features check`, skipping loudly when
 //!   cargo-deny is not installed.
 //! - `toolchain-pin` — every governed workflow gates on the compiler
-//!   `rust-toolchain.toml` names, and none installs bare `stable`
-//!   (`toolchain.rs`). Offline; its network sibling `toolchain-currency` runs
+//!   `rust-toolchain.toml` names, none installs bare `stable`, and the
+//!   `Dockerfile` builds on that version's `rust` image (`toolchain.rs`). Offline; its network sibling `toolchain-currency` runs
 //!   weekly and fails when a newer stable exists.
 //! - `spdx` — every tracked file that can carry a comment carries an
 //!   `SPDX-License-Identifier` in its first three lines (`local_gates.rs`). JSON,
@@ -48,7 +57,8 @@
 //!   judged in both or excluded in both (`registry_continuity.rs`). Not the same
 //!   check *ids* — a revision can need a different implementation of the same
 //!   clause, and five capability clauses do.
-//! - `page-set` — each revision's `sources.json` is well-formed: no page in both
+//! - `page-set` — each revision's `sources.json`, and the draft tracking
+//!   skeleton's, is well-formed: no page in both
 //!   `in_scope` and `out_of_scope`, every exclusion reasoned, every in-scope page
 //!   naming its own source file and censused (`spec_drift/pages.rs`). The offline
 //!   half; `spec-drift` holds the lists to the published page set itself.
@@ -78,18 +88,31 @@
 //!   runs weekly beside `deferrals --check`, for ADR-0010's reason (ADR-0015).
 //!   to format into the tracking issue it opens.
 //! - `spec-drift` — verify every registry quote against the published spec
-//!   text (network; weekly scheduled job — ADR-0010).
+//!   text (network; weekly scheduled job — ADR-0010). `--draft` instead reports,
+//!   informationally, what the specification's unreleased `draft/` has changed
+//!   against the newest release, from the tracking skeleton in
+//!   `registry/draft/` (`spec_drift/draft.rs`; weekly `draft-drift` job).
 //! - `suite-currency` — both pinned conformance-suite versions still equal the
 //!   npm dist-tags they track (network; weekly scheduled job). The bump stays a
 //!   deliberate PR; only the noticing is automated (`suite_currency.rs`).
 //! - `mutants [--jobs N]` — the exact diff-scoped mutation gate CI runs on PRs,
 //!   against `origin/main`. `--jobs` is the only argument it takes; see
 //!   `local_gates::mutants_gate` for why nothing else is.
-//! - `semver` — `cargo semver-checks check-release` against the published
-//!   crates.io baseline (network; release-readiness gate, run before tagging):
-//!   an API-breaking change shipped under a version bump that does not admit one
+//! - `semver [--unreleased | --release-type T]` — `cargo semver-checks
+//!   check-release` against the published crates.io baseline (network): an
+//!   API-breaking change shipped under a version bump that does not admit one
 //!   fails here, so declared behavioral breaks are never confused with
-//!   undeclared API breaks.
+//!   undeclared API breaks. `release.yml` runs it bare, so the type follows the
+//!   version bump; ci.yml's `semver` job runs `--unreleased` on every PR, which
+//!   judges the tree as the release `CHANGELOG.md`'s `[Unreleased]` declares.
+//! - `sbom --out DIR` — one `CycloneDX` SBOM per published crate, written as
+//!   `DIR/<crate>-<version>.cdx.json` (needs `cargo-cyclonedx`): what
+//!   `release.yml` attests and attaches beside each `.crate`, generated by
+//!   ci.yml's `package` job on every PR so the release path is exercised.
+//! - `packages --from DIR --out DIR [--require-all]` — the npm and `PyPI`
+//!   packages (ADR-0021 decision 5) from the release's binary archives, each
+//!   verified against its `SHA256SUMS-binaries`: what `release.yml` publishes
+//!   and ci.yml installs and runs on three OSes (`packages.rs`).
 //! - `cross-arch` — build the engine crates for architectures CI never covers
 //!   (`s390x` 64-bit big-endian and `powerpc` 32-bit big-endian under `qemu`,
 //!   `i686` 32-bit little-endian native) and run their suites there, proving
@@ -103,8 +126,16 @@
 //! - `conformance` — spawn the everything-server over streamable HTTP (session tap on)
 //!   and drive the pinned official runner against it, then reconcile the runner's
 //!   verdicts with our validator's over the tapped sessions (`agreement.rs`) and check
-//!   the coverage manifest. `conformance.rs` documents the network-use boundary:
-//!   orchestration may dial out, `cargo test` never does.
+//!   the coverage manifest; then the client and capture legs, and the product leg:
+//!   `mcp-conformance test` against the same subjects, held to these results
+//!   (`conformance/product.rs`). `conformance.rs` documents the network-use
+//!   boundary: orchestration may dial out, `cargo test` never does.
+//! - `mcpsnoop [--check|--render]` — the second calibration source: convert every corpus
+//!   trace into mcpsnoop's capture format, run the pinned `mcpsnoop check` on it
+//!   (binary at `$MCPSNOOP`; a loud skip without), and render the triaged
+//!   divergence table `book/src/mcpsnoop.md` (`mcpsnoop.rs`). `--check` needs no
+//!   binary: the committed page must be what the committed results, rule map and
+//!   triage render, every divergence triaged and no triage stale.
 //! - `draft-readiness` — drive the official runner's `2026-07-28` scenarios
 //!   against the current `2025-11-25` server and ratchet the score against a committed
 //!   baseline, turning the next revision's migration from an inventory of changes into
@@ -125,11 +156,16 @@ mod docs_links;
 mod draft_capture;
 mod draft_coverage;
 mod draft_readiness;
+mod falsify;
 mod fuzz_targets;
 mod license_files;
 mod local_gates;
+mod mcpsnoop;
 mod minimal_versions;
+mod packages;
 mod register_currency;
+mod sbom;
+mod sdk_matrix;
 mod semver;
 // A test harness rather than a task: it executes the notification shell that
 // `scheduled.yml` ships, so nothing in the binary calls into it.
@@ -159,9 +195,14 @@ fn main() -> ExitCode {
     match task.as_deref() {
         Some("ci") => run_ci(),
         Some("gates") => exit_if(gates()),
+        Some("falsify-gates") => exit_if(falsify::run()),
         Some("bless") => exit_if(run_all(&bless_steps())),
         Some("coverage") => coverage::run(args.next().as_deref() == Some("--check")),
         Some("draft-coverage") => draft_coverage::run(args.next().as_deref() == Some("--check")),
+        Some("sdk-matrix") => exit_if(sdk_matrix::run(
+            &args.collect::<Vec<_>>(),
+            std::env::var_os("BLESS").is_some(),
+        )),
         Some("file-sizes") => exit_if(local_gates::file_size_gate()),
         Some("spdx") => exit_if(local_gates::spdx_gate()),
         Some("license-files") => exit_if(license_files::run()),
@@ -169,11 +210,13 @@ fn main() -> ExitCode {
         Some("ci-permissions") => exit_if(ci_permissions::run()),
         Some("deny") => exit_if(local_gates::deny_gate()),
         Some("mutants") => exit_if(local_gates::mutants_gate(&args.collect::<Vec<_>>())),
-        Some("semver") => exit_if(semver::semver_gate()),
+        Some("semver") => exit_if(semver::semver_gate(&args.collect::<Vec<_>>())),
+        Some("sbom") => exit_if(sbom::run(&args.collect::<Vec<_>>())),
+        Some("packages") => exit_if(packages::run(&args.collect::<Vec<_>>())),
         Some("cross-arch") => exit_if(cross_arch::run()),
         Some("minimal-versions") => exit_if(minimal_versions::run()),
         Some("deferrals") => exit_if(deferrals::dispatch(args.next().as_deref())),
-        Some("spec-drift") => spec_drift::run(),
+        Some("spec-drift") => spec_drift::dispatch(args.next().as_deref()),
         Some("suite-currency") => exit_if(suite_currency::run()),
         Some("docs-links") => exit_if(docs_links::run()),
         Some("book-site") => exit_if(book_site::run(&args.collect::<Vec<_>>())),
@@ -194,6 +237,7 @@ fn main() -> ExitCode {
         Some("conformance") => conformance::run(),
         Some("draft-capture") => draft_capture::run(std::env::var_os("BLESS").is_some()),
         Some("draft-readiness") => draft_readiness::run(std::env::var_os("BLESS").is_some()),
+        Some("mcpsnoop") => exit_if(mcpsnoop::run(&args.collect::<Vec<_>>())),
         Some(other) => {
             eprintln!("unknown task {other:?}\n{USAGE}");
             ExitCode::FAILURE
@@ -248,51 +292,43 @@ fn run_ci() -> ExitCode {
 /// `deferrals --check` is deliberately not here: ADR-0010 puts it on the
 /// schedule so an expiry pages a maintainer rather than blocking unrelated work.
 fn gates() -> bool {
-    if !local_gates::file_size_gate() {
-        return false;
-    }
-    if !local_gates::spdx_gate() {
-        return false;
-    }
-    if !license_files::run() {
-        return false;
-    }
-    if !fuzz_targets::run() {
-        return false;
-    }
-    if !ci_permissions::run() {
-        return false;
-    }
-    if !toolchain::pin_gate() {
-        return false;
-    }
-    if !registry_continuity::run() {
-        return false;
-    }
-    if !spec_drift::pages::gate() {
-        return false;
-    }
-    if !register_currency::structure_gate() {
-        return false;
-    }
-    if !docs_links::run() {
-        return false;
-    }
-    if !version_sync::run() {
-        return false;
-    }
-    if !changelog_links::run() {
-        return false;
-    }
-    eprintln!("xtask: coverage table in sync — cargo xtask coverage --check");
-    if coverage::run(true) != ExitCode::SUCCESS {
-        return false;
-    }
-    eprintln!("xtask: capture coverage in sync — cargo xtask draft-coverage --check");
-    draft_coverage::run(true) == ExitCode::SUCCESS
+    GATES.iter().all(|(_, gate)| gate())
 }
 
-const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  gates              the offline gates ci.yml runs (a subset of `ci`)\n  bless              regenerate golden corpus reports + exclusion ledgers\n  coverage [--check] regenerate (or verify) the README coverage table\n  draft-coverage [--check] regenerate (or verify) corpus/README's per-capture\n                     coverage table, and verify every count the living Markdown\n                     states against the committed golden reports\n  file-sizes         verify the 500-line cap on source and registry files\n  fuzz-targets       every fuzz target source is declared as a [[bin]]\n  ci-permissions     workflow write scopes are per-job and inventoried in\n                     docs/plan/05-security-model.md\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants [--jobs N] diff-scoped mutation gate vs origin/main (the PR gate,\n                     locally); --jobs is the only flag it accepts\n  semver             cargo-semver-checks vs the crates.io baseline (release-readiness)\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check|--expired]\n                     list the deferral ledger; --check fails on expired rows,\n                     --expired prints `id review_by` per expired row on stdout\n  register-currency [--check]\n                     the ecosystem register's own 90-day rule, read from its own\n                     Verified dates: no flag validates row shape (runs in `ci`),\n                     --check fails on rows past ninety days (weekly job)\n  spec-drift         verify registry quotes, census and page set against the\n                     published spec (network)\n  page-set           each sources.json lists every page once, exclusions reasoned\n  suite-currency     both suite pins still equal the npm dist-tags they track\n                     (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  book-site [--out DIR]\n                     build the versioned documentation site: the newest\n                     release's book at the root, every release under /vX.Y.Z/,\n                     and main under /dev/ (needs mdbook and the release tags)\n  version-sync       README crates.io version tracks [workspace.package].version\n  changelog-links    every CHANGELOG version heading has a link def; Unreleased base current\n  draft-capture      record a 2026-07-28 stdio session (reference host against the\n                     everything server) and judge it; BLESS=1 to refresh the\n                     committed copy in corpus/draft/captured/\n  draft-readiness    measure the everything server against the official runner's\n                     2026-07-28 scenarios; ratchets against a committed\n                     baseline (BLESS=1 to re-record)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest)";
+/// A gate run in-process: `true` when it passes.
+type Gate = fn() -> bool;
+
+/// Every gate [`gates`] runs, in order, each under the task name that runs it
+/// alone — the list `falsify-gates` must break one by one (`falsify.rs`).
+const GATES: &[(&str, Gate)] = &[
+    ("file-sizes", local_gates::file_size_gate),
+    ("spdx", local_gates::spdx_gate),
+    ("license-files", license_files::run),
+    ("fuzz-targets", fuzz_targets::run),
+    ("ci-permissions", ci_permissions::run),
+    ("toolchain-pin", toolchain::pin_gate),
+    ("registry-continuity", registry_continuity::run),
+    ("page-set", spec_drift::pages::gate),
+    ("register-currency", register_currency::structure_gate),
+    ("docs-links", docs_links::run),
+    ("version-sync", version_sync::run),
+    ("changelog-links", changelog_links::run),
+    ("coverage --check", || {
+        eprintln!("xtask: coverage table in sync — cargo xtask coverage --check");
+        coverage::run(true) == ExitCode::SUCCESS
+    }),
+    ("draft-coverage --check", || {
+        eprintln!("xtask: capture coverage in sync — cargo xtask draft-coverage --check");
+        draft_coverage::run(true) == ExitCode::SUCCESS
+    }),
+    ("sdk-matrix --check", || {
+        eprintln!("xtask: SDK matrix in sync — cargo xtask sdk-matrix --check");
+        sdk_matrix::run(&["--check".to_owned()], false)
+    }),
+    ("mcpsnoop --check", mcpsnoop::check_gate),
+];
+
+const USAGE: &str = "usage: cargo xtask <task>\n\ntasks:\n  ci                 run all local quality gates\n  gates              the offline gates ci.yml runs (a subset of `ci`)\n  falsify-gates      break each gate's input in turn and confirm the gate goes red\n                     (needs a clean tree; restores every file it touches)\n  bless              regenerate golden corpus reports, exclusion ledgers and HTML pages\n  coverage [--check] regenerate (or verify) the README coverage table\n  draft-coverage [--check] regenerate (or verify) corpus/README's per-capture\n                     coverage table, and verify every count the living Markdown\n                     states against the committed golden reports\n  sdk-matrix [--check|--recaptured DIR]\n                     regenerate (or verify) the book's cross-SDK matrix from the\n                     committed reports; --recaptured compares a fresh\n                     interop/matrix.sh run (BLESS=1 adopts its traces)\n  file-sizes         verify the 500-line cap on source and registry files\n  fuzz-targets       every fuzz target source is declared as a [[bin]]\n  ci-permissions     workflow write scopes are per-job and inventoried in\n                     docs/plan/05-security-model.md\n  deny               run cargo deny check (loud skip when cargo-deny is absent)\n  mutants [--jobs N] diff-scoped mutation gate vs origin/main (the PR gate,\n                     locally); --jobs is the only flag it accepts\n  semver [--unreleased|--release-type T]\n                     cargo-semver-checks vs the crates.io baseline; --unreleased\n                     judges the tree as the release [Unreleased] declares (CI)\n  sbom --out DIR     one CycloneDX SBOM per published crate (needs cargo-cyclonedx)\n  packages --from DIR --out DIR [--require-all]\n                     npm and PyPI packages from release archives + SHA256SUMS-binaries\n  cross-arch         build+run the engine crates on s390x/powerpc (BE) + i686 (32-bit LE): byte-identical output\n  minimal-versions   build+test at the declared dependency floors (-Z direct-minimal-versions; nightly)\n  deferrals [--check|--expired]\n                     list the deferral ledger; --check fails on expired rows,\n                     --expired prints `id review_by` per expired row on stdout\n  register-currency [--check]\n                     the ecosystem register's own 90-day rule, read from its own\n                     Verified dates: no flag validates row shape (runs in `ci`),\n                     --check fails on rows past ninety days (weekly job)\n  spec-drift [--draft]\n                     verify registry quotes, census and page set against the\n                     published spec (network); --draft reports, informationally,\n                     what the spec's draft/ has changed against the newest release\n  page-set           each sources.json lists every page once, exclusions reasoned\n  suite-currency     both suite pins still equal the npm dist-tags they track\n                     (network)\n  docs-links         verify every relative link in tracked Markdown resolves\n  book-site [--out DIR]\n                     build the versioned documentation site: the newest\n                     release's book at the root, every release under /vX.Y.Z/,\n                     and main under /dev/ (needs mdbook and the release tags)\n  version-sync       README crates.io version tracks [workspace.package].version\n  changelog-links    every CHANGELOG version heading has a link def; Unreleased base current\n  draft-capture      record a 2026-07-28 stdio session (reference host against the\n                     everything server) and judge it; BLESS=1 to refresh the\n                     committed copy in corpus/draft/captured/\n  draft-readiness    measure the everything server against the official runner's\n                     2026-07-28 scenarios; ratchets against a committed\n                     baseline (BLESS=1 to re-record)\n  mcpsnoop [--check] measure the corpus with the pinned mcpsnoop (MCPSNOOP=binary)\n                     and render book/src/mcpsnoop.md; --check verifies the committed\n                     page, results and triage agree (needs no binary)\n  conformance        run the pinned official suite against the everything server,\n                     then the agreement and coverage-manifest checks (BLESS=1 to\n                     regenerate the manifest), the client and capture legs, and\n                     mcp-conformance test held to their results";
 
 /// One gate: a display name plus the cargo arguments to run.
 struct Step {
@@ -362,7 +398,8 @@ fn ci_steps() -> Vec<Step> {
     steps
 }
 
-/// Regenerates every revision's goldens in one test run.
+/// Regenerates every revision's goldens, and the golden HTML pages, in one
+/// test run.
 fn bless_steps() -> Vec<Step> {
     vec![Step {
         name: "bless golden corpus".to_owned(),
@@ -373,6 +410,8 @@ fn bless_steps() -> Vec<Step> {
             "--all-features",
             "--test",
             "golden",
+            "--test",
+            "golden_html",
         ],
         env: &[("BLESS", "1")],
     }]

@@ -12,6 +12,42 @@ clause against the specification.
 cargo install mcp-trace-capture mcp-trace-validator
 ```
 
+> **This README is `main`'s.** `cargo install` gets the latest release, `0.6.0`,
+> whose own README is the one on crates.io. Documentation for the release is at
+> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
+>
+> **Not yet released** (on `main` since `0.6.0`):
+>
+> - a stop giving the stdio server 1 second before its process group is killed (`0.6.0`:
+>   3 seconds);
+> - `{session}` numbers continuing after the highest present (`0.6.0`: the lowest free
+>   one);
+> - the proxy's `/` being the `--upstream` URL itself, and redirects into the upstream
+>   pointed back at the proxy (`0.6.0` appended `/` to the upstream path);
+> - the client URL printed at start, the non-2xx and 404 summary at exit, hints for
+>   near-miss arguments, and the exit codes in `--help`;
+> - a forced HTTP stop ending the trace with `transport-abort`; SSE events of a type
+>   other than `message` left out; unfaithful JSON recorded as its raw line (stdio) or
+>   left out (HTTP);
+> - on Windows, the server's whole exit code;
+> - `SIGQUIT` relayed as a stop; a last stdio line without its newline recorded as a
+>   string;
+> - over HTTP: one buffer budget for all exchanges, a 30-second request-head timeout,
+>   a 10-second upstream connect timeout, `Content-Length` kept, dot-segment paths
+>   refused, redirects pointed at the proxy's own address, and unseen session ids
+>   sharing one trace until the server accepts one.
+> - in the library, `stdio::relay` (the stdio wrapper with the client on streams the
+>   caller supplies) and `Signals::requested` (stops a program asks for, not the
+>   operating system) — what `mcp-conformance test` runs a stdio server with;
+> - in the library, the whole run behind both modes (`run::stdio`, `run::http`, with
+>   `output` and the `--upstream`/`--listen` parsing in `run::values`), and an
+>   `Observer` that is shown each event's line as it is written — what
+>   `mcp-conformance watch` records and judges a session with. An observer is called
+>   in `seq` order, with the trace's lock held, before the bytes the event completes are
+>   forwarded, so it must return at once: `watch`'s copies the line onto a channel.
+>   `http::client` connects to an endpoint of the caller's own exactly as the proxy
+>   connects upstream (`watch --otlp`'s collector).
+
 ## stdio servers
 
 Configure your MCP client to launch the wrapper instead of the server:
@@ -20,8 +56,9 @@ Configure your MCP client to launch the wrapper instead of the server:
 mcp-trace-capture -o session.jsonl stdio -- python my_server.py --its-flags
 ```
 
-The client and the server see each other's bytes unchanged; the server's stderr is
-passed through untouched. When the session ends, the server's exit code is the
+`-o` names the trace (without it, `mcp-trace.jsonl` in the working directory) and
+may come before or after the mode. The client and the server see each other's bytes
+unchanged; the server's stderr is passed through untouched. When the session ends, the server's exit code is the
 wrapper's exit code. Then:
 
 ```text
@@ -31,14 +68,16 @@ mcp-trace-validator validate session.jsonl
 **Stopping.** The server runs in a process group of its own (on Unix), so a
 launcher in front of it — `npx`, `uv run`, `sh -c` — cannot strand the real server,
 and a terminal's Ctrl-C reaches the server once, through the wrapper, not twice.
-`SIGINT`, `SIGTERM` and `SIGHUP` sent to the wrapper first close the trace with a
+`SIGINT`, `SIGTERM`, `SIGHUP` and `SIGQUIT` sent to the wrapper first close the trace with a
 `transport-close` event, then are relayed to that whole group; the server's processes
 get 1 second from the signal to exit on their own terms, then the group is killed
 (`SIGKILL`). A second signal skips the rest of the wait. What the server writes after
 the close is still relayed to the client, and counted in the exit summary instead of
-recorded. The wrapper then exits with the server's status.
+recorded. The wrapper then exits with the server's status. Other signals keep their
+default action: one that ends a process (`SIGUSR1`, `SIGUSR2`, `SIGALRM`) ends the
+wrapper as `SIGKILL` would, below, so send one of the four above.
 
-The second is deliberately shorter than the 2 seconds the official SDKs' stdio
+That 1-second grace is deliberately shorter than the 2 seconds the official SDKs' stdio
 clients wait between `SIGTERM` and `SIGKILL`. They send both to the wrapper alone
 (TypeScript) or to the wrapper's process group (Python) — never to the server's — so
 the wrapper must have killed the server before their `SIGKILL` arrives; the server has
@@ -58,7 +97,7 @@ highest one present (`my-server-001.jsonl`, `my-server-002.jsonl`, …), so ever
 session is kept and the files sort in session order. Without
 it, a second launch refuses to start unless `--force` lets it overwrite the first.
 
-The `mcpServers` shape most desktop clients use:
+The `mcpServers` shape Claude Desktop and Cursor use:
 
 ```json
 {
@@ -70,6 +109,23 @@ The `mcpServers` shape most desktop clients use:
   }
 }
 ```
+
+VS Code's `.vscode/mcp.json` names the same fields under `servers`, with a `type`:
+
+```json
+{
+  "servers": {
+    "my-server": {
+      "type": "stdio",
+      "command": "mcp-trace-capture",
+      "args": ["-o", "/tmp/my-server-{session}.jsonl", "stdio", "--", "python", "/path/to/my_server.py"]
+    }
+  }
+}
+```
+
+The book's [client chapter](https://mcp-conformance.com/dev/clients.html) has each
+client's file location and its HTTP form.
 
 From a test suite, through the official SDKs' stdio clients (Python's
 `StdioServerParameters`, TypeScript's `StdioClientTransport`) — the server's command
@@ -105,7 +161,10 @@ mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000/mcp --l
 The proxy's root path is the `--upstream` URL itself, and any other request path is
 appended to the upstream's: above, `/` reaches `/mcp` and `/x` reaches `/mcp/x`
 (with `--upstream http://localhost:3000`, point the client at
-`http://127.0.0.1:8080/mcp`). The proxy prints the client URL when it starts. At exit
+`http://127.0.0.1:8080/mcp`). A path with a `.` or `..` segment (`/../x`, or
+`/%2e%2e/x`) would leave the upstream's path once the server resolved it, so the
+proxy answers it `400` itself: not forwarded, not recorded, counted at exit. The
+proxy prints the client URL when it starts. At exit
 it says how many responses had a status outside 2xx, and, when the server answered
 404, asks whether the endpoint path is right — a client at `http://127.0.0.1:8080/mcp`
 in front of `--upstream http://localhost:3000/mcp` reaches `/mcp/mcp`.
@@ -116,7 +175,7 @@ proxy would not send them, so have the client send them as a header. The proxy
 listens on loopback unless `--listen` says otherwise, and warns when it does — anyone
 who can reach a non-loopback address can send requests through it.
 
-Stop it with Ctrl-C (or `SIGTERM`/`SIGHUP`). Standalone event streams — the GET
+Stop it with Ctrl-C (or `SIGTERM`/`SIGHUP`/`SIGQUIT`). Standalone event streams — the GET
 stream an MCP client keeps open for its whole session — are cut at once (aborted, not
 ended cleanly, so the client can tell); every other request in flight, SSE responses
 to POSTs included, gets 3 seconds to finish. The trace is then closed with a
@@ -127,6 +186,11 @@ not recorded. `https://` upstreams work (rustls,
 the platform's root certificates — loaded only for an `https` upstream, and checked
 before the trace is created: where none can be found, the proxy refuses to start).
 SSE streams are relayed as they arrive, event by event.
+
+A client gets 30 seconds to send each request's head, counted from when the proxy
+starts waiting for it, so one that opens connections and trickles header bytes into
+them cannot hold them open. The same bound closes a kept-alive connection left idle
+that long, as servers commonly do; clients open a new one.
 
 ### `Host`, and DNS rebinding
 
@@ -170,34 +234,49 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 ## What it guarantees
 
 - **Transparent.** Bytes are forwarded unchanged. Over HTTP, the only changes are the
-  ones a proxy must make: hop-by-hop headers (RFC 9110 §7.6.1), `Host` (names the
+  ones a proxy must make: hop-by-hop headers (RFC 9110 §7.6.1, and the
+  non-standard `Proxy-Connection`), a request's `Expect` (the proxy answers
+  `100-continue` itself), `Host` (names the
   upstream — `--preserve-host` keeps the client's instead), `Accept-Encoding`
   (removed, so the server answers uncompressed and the body can be recorded), and a
-  redirect's `Location` that points into the upstream (pointed back at the proxy, by
-  the `Host` the client used, so the client does not leave the recording; one the
-  proxy cannot reach is relayed as sent, and `Location` is not recorded). The
+  redirect's `Location` that points into the upstream (pointed back at the proxy, at
+  the address the client's connection reached — not at the client's `Host` header,
+  which can name anything — so the client does not leave the recording; one the
+  proxy cannot reach is relayed as sent, and `Location` is not recorded). A body's
+  bytes are forwarded unchanged, but its transfer framing is hop-by-hop and can
+  change: a body sent with `Content-Length` keeps it, and one sent chunked (or, in a
+  response, delimited by closing the connection) goes on with a `Content-Length` if
+  the proxy read it whole — a body within `--max-message-bytes` that is not an
+  event stream — and chunked if it streamed it. The
   official conformance suite scores the same through the proxy as without it; this
   repository's CI checks that on every run.
 - **Upstream failures as they happened.** An upstream that fails mid-response reaches
   the client as the same truncation — its status and headers, then a body cut off —
   and the trace records `transport-abort`. Only an upstream that cannot be reached at
-  all gets the proxy's own `502`, whose body names the upstream (without its query)
-  and the cause.
+  all — no connection, TLS handshake included, within 10 seconds — gets the proxy's
+  own `502`, whose body names the upstream (without its query) and the cause. Once
+  connected, the proxy waits for the upstream's answer for as long as it takes:
+  there is no response timeout, since an event stream or a long tool call is
+  open-ended by design, and a stop request ends any wait.
 - **Causal order.** Each message is recorded before the bytes that complete it are
   forwarded, so a response is never recorded ahead of its request.
 - **Nothing altered to fit the trace.** A message larger than `--max-message-bytes`
   (default 64 MiB) is forwarded intact, left out of the trace, and counted in the
   summary printed at exit. So is the rare message within the limit whose recorded
   line would not be (below), and, over HTTP, a body or SSE event that is not JSON or
-  is JSON the trace cannot hold as sent (below), and an SSE event whose `event` type
-  is not `message` — MCP clients, both official SDKs' among them, act on no other.
+  is JSON the trace cannot hold as sent (below), an SSE event whose `event` type
+  is not `message` — MCP clients, both official SDKs' among them, act on no other —
+  and a body or SSE event that arrives while the proxy's buffer budget is spent
+  (below).
 - **Nothing on a stdio stream goes unjudged.** A stdio line that is not JSON — a log
   line on the server's stdout, a blank line, a truncated message — is forwarded
   intact and recorded as a message whose payload is the line as a JSON string
   (invalid UTF-8 replaced, line terminator removed). The validator reports it as
   not a valid MCP message (`TRAN-004`/`TRAN-005` at 2025-11-25, `TRAN-117` at
   2026-07-28), and the exit summary counts it. So is a line of JSON the trace cannot
-  hold as sent (below), counted apart.
+  hold as sent (below), counted apart, and what a stream ends with after its last
+  newline — JSON or not: stdio frames a message by its newline, so the peer never
+  received it as one.
 - **Readable by the validator as recorded.** No trace line is longer than
   `--max-message-bytes` plus 1 MiB, checked on the line as written — which, at the
   default, is exactly the longest line `mcp-trace-validator` accepts by default. With
@@ -206,6 +285,10 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 - **No credentials in the trace.** Only an allowlist of headers is recorded — the same
   list every capture in this project uses (`RECORDED_HEADERS` in
   `mcp-conformance-core`). `Authorization` and cookies are forwarded, never written.
+  A server's `WWW-Authenticate` challenge is on the list (since 2026-10-13): it asks
+  for a credential and carries none, and the authorization checks read it. The
+  proxy records every path it relays but not the path itself, so a request to a
+  well-known metadata URI cannot be told from an MCP one in the trace.
   **Message content is recorded in full** — as parsed JSON, so whitespace, member
   order (written sorted) and number spelling (`1E2` as `100.0`) are not kept, but
   every value is: review a trace before sharing it. JSON whose parsed value would
@@ -222,11 +305,16 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 
 - **One session per trace.** The validator judges a trace as one session. With
   `{session}` in `-o`, the HTTP proxy writes each client session to its own numbered
-  file: a session begins with an `initialize`, or with an `Mcp-Session-Id` the proxy
-  has not seen, and every later exchange naming that id goes to its trace. An
-  exchange naming no id goes to the session begun last — counting one begun by an
-  unseen id only once the server has answered it with a 2xx, so a stale id the
-  server refuses gets its own trace without drawing in the rest.
+  file: a session begins with an `initialize`, and every later exchange naming the
+  `Mcp-Session-Id` the server assigned goes to its trace. Exchanges naming an id the
+  proxy has not seen — it started mid-session, or the id is stale or made up — share
+  one trace until the server answers one of them with a 2xx: that trace is then the
+  id's session, and the next unseen id starts another. An id the server refuses is
+  not remembered, so made-up ids cannot make the proxy open a file each. A `DELETE`
+  the server accepts ends its session; a later request naming that id is an unseen
+  id's. An exchange naming no id goes to the session begun last — counting one begun
+  by an unseen id only once the server has accepted it, so a stale id the server
+  refuses does not draw in the rest.
   `2026-07-28` traffic carries no session id and no `initialize`, so the proxy cannot
   tell its clients apart: every `2026-07-28` session through one proxy lands in one
   trace, `{session}` or not, and concurrent `2026-07-28` clients need a proxy each. Without `{session}`, everything goes to the one file, and the
@@ -239,9 +327,17 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   with its headers when exchanges overlap, and how the message is recorded before the
   bytes that complete it. So such a response reaches the client only once it has
   ended or passed the limit (the rest then streams): a body sent slowly arrives all
-  at once at the end, one that never ends (an endless ndjson stream) starts only past
-  the limit, and each response in flight can hold up to `--max-message-bytes` in
-  memory. Event streams are relayed event by event.
+  at once at the end, and one that never ends (an endless ndjson stream) starts only
+  past the limit. Event streams are relayed event by event.
+- **A buffer budget, shared.** What the proxy holds to record — request bodies and
+  non-SSE responses read whole, SSE events being assembled — comes out of one budget
+  of 4 × `--max-message-bytes` (256 MiB at the default) across every exchange in
+  flight, not `--max-message-bytes` for each of them. A body or event that arrives
+  while the budget is spent is not held up: it is streamed on as one over the limit
+  is, left out of the trace, and counted in the summary. Ordinary MCP traffic, whose
+  messages are small, never comes near it. (Writing a message to the trace takes
+  about twice its size again for a moment, for its parsed value and its line; that
+  is outside the budget.)
 - **An SSE event's data, and nothing else.** Only the `data` of events of type
   `message` is recorded; `id` and `retry` fields are forwarded but not recorded, so a
   trace does not show which event a client could resume from (the `Last-Event-ID`
@@ -253,12 +349,12 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 
 | Code | Meaning |
 |------|---------|
-| server's | `stdio`: the wrapped server's exit code — on Unix 128 + signal if a signal ended it (137 for a server killed at the end of the grace period); on Windows the whole code |
-| 1 | `stdio`: waiting for the server failed (an operating-system error); the trace keeps what it recorded, without a closing event unless a stop wrote one |
 | 0 | `http`: stopped with a complete trace |
-| 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests; the trace ends with `transport-abort` |
+| 1 | `stdio`: waiting for the server failed (an operating-system error); the trace keeps what it recorded, without a closing event unless a stop wrote one |
 | 2 | A run that could not start: bad arguments (`-o -` among them: the trace needs a path; an `--upstream` that is not an absolute `http`/`https` URL, carries credentials, or whose root certificates cannot be loaded), an existing output file (`--force` overwrites), `{session}` outside the file name or more than once, a `{session}` path whose directory does not exist, a server that would not start, an address that would not bind. No trace file is created: the file is made only once the session can start. Also `http`, after it started: serving failed (the error is printed; the trace keeps what it recorded, without a closing event) |
 | 3 | The session ran but a trace is incomplete (a write failed), when the code would otherwise be 0 |
+| 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests; the trace ends with `transport-abort` |
+| server's | `stdio`: the wrapped server's exit code — on Unix 128 + signal if a signal ended it (137 for a server killed at the end of the grace period); on Windows the whole code |
 
 ## License
 

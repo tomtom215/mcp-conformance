@@ -155,15 +155,20 @@ impl Declared {
 /// `resources/list`, `resources/templates/list`, a read of everything named —
 /// and, last, one read that is meant to fail.
 ///
+/// Every listing is followed to its last page (rmcp's `list_all_*`), for the
+/// reason tool discovery is: a catalogue split across pages is still one
+/// catalogue, and the requests that present a `nextCursor` back are the only
+/// traffic the pagination clauses can be judged on.
+///
 /// Returns the first listed URI, for the prompt arguments that need one.
 async fn sweep_resources(peer: &Peer<RoleClient>, report: &mut SweepReport) -> Option<String> {
-    let listed = match peer.list_resources(None).await {
-        Ok(result) => {
+    let listed = match peer.list_all_resources().await {
+        Ok(resources) => {
             report.record(
                 "resources/list",
-                Ok(format!("{} resource(s)", result.resources.len())),
+                Ok(format!("{} resource(s)", resources.len())),
             );
-            result.resources
+            resources
         }
         Err(error) => {
             report.record("resources/list", Err(error.to_string()));
@@ -173,13 +178,13 @@ async fn sweep_resources(peer: &Peer<RoleClient>, report: &mut SweepReport) -> O
     for resource in &listed {
         read(peer, &resource.uri, report).await;
     }
-    match peer.list_resource_templates(None).await {
-        Ok(result) => {
+    match peer.list_all_resource_templates().await {
+        Ok(templates) => {
             report.record(
                 "resources/templates/list",
-                Ok(format!("{} template(s)", result.resource_templates.len())),
+                Ok(format!("{} template(s)", templates.len())),
             );
-            for template in &result.resource_templates {
+            for template in &templates {
                 if let Some(uri) = substitute(&template.uri_template) {
                     read(peer, &uri, report).await;
                 }
@@ -242,8 +247,8 @@ async fn sweep_prompts(
     resource: Option<&str>,
     report: &mut SweepReport,
 ) -> Vec<Prompt> {
-    let listed = match peer.list_prompts(None).await {
-        Ok(result) => result.prompts,
+    let listed = match peer.list_all_prompts().await {
+        Ok(prompts) => prompts,
         Err(error) => {
             report.record("prompts/list", Err(error.to_string()));
             return Vec::new();

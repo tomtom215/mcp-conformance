@@ -16,23 +16,23 @@
 // SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
 // functional and REQUIRED on the `2025-11-25` surface this crate implements
 // and the official suite exercises, so rmcp 3.x's deprecation attributes fire
-// on correct code — here, Sampling and Roots. Scoped to this module, never the crate:
-// a blanket allow would also hide a deprecation that genuinely matters. The
-// honest cost is that a *different* future deprecation in this module would
-// be silenced too. Retires when the `2025-11-25` surface does.
-#![allow(deprecated)]
+// on correct code. Each use is allowed on the item or statement that makes it,
+// never the module or the crate, so a *different* future deprecation still
+// warns everywhere else. They retire when the `2025-11-25` surface does.
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use rmcp::model::{
-    ClientCapabilities, ClientConfig, CreateMessageRequestParams, CreateMessageResult,
-    ElicitRequestParams, ElicitResult, ElicitationAction, ListRootsResult, SamplingMessage,
+    ClientCapabilities, ClientConfig, ElicitRequestParams, ElicitResult, ElicitationAction,
+};
+// SEP-2577 deprecates Sampling and Roots; `2025-11-25` still requires them.
+#[allow(deprecated)]
+use rmcp::model::{
+    CreateMessageRequestParams, CreateMessageResult, ListRootsResult, SamplingMessage,
 };
 use rmcp::service::{NotificationContext, RequestContext, RoleClient};
 
-use crate::script::{
-    ElicitationPolicy, InteractionScript, UrlElicitationPolicy, defaults_from_schema,
-};
+use crate::script::{ElicitationPolicy, InteractionScript, UrlElicitationPolicy, accepted_content};
 
 /// One observed server-initiated interaction, in arrival order.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -111,22 +111,27 @@ fn answer_elicitation(
         ElicitRequestParams::FormElicitationParams {
             requested_schema, ..
         } => {
-            let (action, content, label) = match &script.elicitation {
-                ElicitationPolicy::AcceptWithDefaults => (
-                    ElicitationAction::Accept,
-                    Some(serde_json::Value::Object(defaults_from_schema(
-                        requested_schema,
-                    ))),
-                    "accept",
-                ),
-                ElicitationPolicy::AcceptWith(content) => (
-                    ElicitationAction::Accept,
-                    Some(serde_json::Value::Object(content.clone())),
-                    "accept",
-                ),
-                ElicitationPolicy::Decline => (ElicitationAction::Decline, None, "decline"),
-                ElicitationPolicy::Cancel => (ElicitationAction::Cancel, None, "cancel"),
-            };
+            let (action, content, label) =
+                match &script.elicitation {
+                    // ELIC-095: an `accept` whose content the schema rejects is
+                    // worse than a `decline`, so a form that cannot be filled
+                    // validly is declined rather than half-answered.
+                    ElicitationPolicy::AcceptWithDefaults => accepted_content(requested_schema)
+                        .map_or((ElicitationAction::Decline, None, "decline"), |content| {
+                            (
+                                ElicitationAction::Accept,
+                                Some(serde_json::Value::Object(content)),
+                                "accept",
+                            )
+                        }),
+                    ElicitationPolicy::AcceptWith(content) => (
+                        ElicitationAction::Accept,
+                        Some(serde_json::Value::Object(content.clone())),
+                        "accept",
+                    ),
+                    ElicitationPolicy::Decline => (ElicitationAction::Decline, None, "decline"),
+                    ElicitationPolicy::Cancel => (ElicitationAction::Cancel, None, "cancel"),
+                };
             let mut result = ElicitResult::new(action);
             result.content = content;
             (result, HostEvent::FormElicitationAnswered(label), None)
@@ -171,6 +176,8 @@ fn note_completion(pending: &mut BTreeSet<String>, elicitation_id: &str) -> Host
 }
 
 impl rmcp::ClientHandler for HostHandler {
+    // SEP-2577 deprecates Sampling and Roots; `2025-11-25` still requires them.
+    #[allow(deprecated)]
     fn get_info(&self) -> ClientConfig {
         let mut info = ClientConfig::default();
         // Named, not defaulted: since rmcp 3.5.0 the default is
@@ -197,6 +204,8 @@ impl rmcp::ClientHandler for HostHandler {
         info
     }
 
+    // SEP-2577 deprecates Sampling; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     async fn create_message(
         &self,
         _params: CreateMessageRequestParams,
@@ -225,6 +234,8 @@ impl rmcp::ClientHandler for HostHandler {
         Ok(result)
     }
 
+    // SEP-2577 deprecates Roots; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     async fn list_roots(
         &self,
         _context: RequestContext<RoleClient>,
@@ -321,6 +332,43 @@ mod tests {
         );
         assert_eq!(event, HostEvent::FormElicitationAnswered("accept"));
         assert_eq!(pending, None, "form mode never creates a pending id");
+    }
+
+    #[test]
+    fn form_accept_with_defaults_fills_required_fields_or_declines() {
+        // ELIC-095: the probe form's shape, both required, neither defaulted —
+        // accepted with a value for each rather than with `{}`.
+        let script = InteractionScript::default();
+        let (result, event, _) = answer_elicitation(
+            &script,
+            &form_params(&serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "username": { "type": "string" },
+                    "email": { "type": "string", "format": "email" }
+                },
+                "required": ["username", "email"]
+            })),
+        );
+        assert_eq!(result.action, ElicitationAction::Accept);
+        assert_eq!(
+            result.content,
+            Some(serde_json::json!({"username": "scripted", "email": "user@example.com"}))
+        );
+        assert_eq!(event, HostEvent::FormElicitationAnswered("accept"));
+        // And a required field no value satisfies is a decline, not an
+        // `accept` the schema would reject.
+        let (result, event, _) = answer_elicitation(
+            &script,
+            &form_params(&serde_json::json!({
+                "type": "object",
+                "properties": { "plan": { "type": "string", "enum": [] } },
+                "required": ["plan"]
+            })),
+        );
+        assert_eq!(result.action, ElicitationAction::Decline);
+        assert_eq!(result.content, None);
+        assert_eq!(event, HostEvent::FormElicitationAnswered("decline"));
     }
 
     #[test]

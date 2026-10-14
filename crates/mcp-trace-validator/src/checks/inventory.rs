@@ -58,6 +58,11 @@ const SHIPPED: &[Check] = &[
     check!("base.meta-key-format", base::meta_key_format),
     check!("base.result-field", base::result_field),
     check!(
+        "base.schemas-valid-for-dialect",
+        base::schemas_valid_for_dialect
+    ),
+    check!("base.schemas-use-2020-12", base::schemas_use_2020_12),
+    check!(
         "lifecycle.initialize-protocol-version",
         lifecycle::initialize_protocol_version
     ),
@@ -85,6 +90,10 @@ const SHIPPED: &[Check] = &[
     check!(
         "transport.protocol-version-negotiated",
         transport::protocol_version_negotiated
+    ),
+    check!(
+        "transport.unsupported-version-header-rejected",
+        transport::unsupported_version_rejected
     ),
     check!(
         "transport.http-post-single-message",
@@ -169,7 +178,7 @@ const SHIPPED: &[Check] = &[
     ),
 ];
 
-/// Concatenates the two halves at compile time, so each may live in its own file
+/// Concatenates two row lists at compile time, so each may live in its own file
 /// while `ALL` stays one `&[Check]` — the shape every caller and the coverage
 /// invariants read. `Check` is `Copy`, which is what makes the const loop legal.
 const fn concatenated<const N: usize>(first: &[Check], second: &[Check]) -> [Check; N] {
@@ -187,9 +196,21 @@ const fn concatenated<const N: usize>(first: &[Check], second: &[Check]) -> [Che
     out
 }
 
-/// The backing storage for [`ALL`].
-static EVERY: [Check; SHIPPED.len() + stateless_rows::ROWS.len()] =
+/// The two revision halves, before the rows both share.
+const REVISION_ROWS: [Check; SHIPPED.len() + stateless_rows::ROWS.len()] =
     concatenated(SHIPPED, stateless_rows::ROWS);
+
+/// The revision rows and the client-feature pages' rows.
+const FEATURE_ROWS: [Check; REVISION_ROWS.len() + client_feature_rows::ROWS.len()] =
+    concatenated(&REVISION_ROWS, client_feature_rows::ROWS);
+
+/// The core rows: every revision's, and the pages both share.
+const CORE_ROWS: [Check; FEATURE_ROWS.len() + auth_rows::ROWS.len()] =
+    concatenated(&FEATURE_ROWS, auth_rows::ROWS);
+
+/// The backing storage for [`ALL`]: the core rows, then the extensions'.
+static EVERY: [Check; CORE_ROWS.len() + extension_rows::ROWS.len()] =
+    concatenated(&CORE_ROWS, extension_rows::ROWS);
 
 /// Every check implemented by this build, in stable order.
 pub static ALL: &[Check] = &EVERY;
@@ -199,6 +220,9 @@ pub fn find(id: &str) -> Option<&'static Check> {
     ALL.iter().find(|check| check.id == id)
 }
 
+mod auth_rows;
+mod client_feature_rows;
+mod extension_rows;
 mod stateless_rows;
 
 #[cfg(test)]

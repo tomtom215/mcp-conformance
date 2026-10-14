@@ -19,9 +19,9 @@ changelog and becomes a measurement.
 
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Registry entries | 142 | 310 |
-| Judged by a named check | 56 | 141 |
-| Carrying a documented exclusion | 86 | 169 |
+| Registry entries | 321 | 501 |
+| Judged by a named check | 89 | 181 |
+| Carrying a documented exclusion | 232 | 320 |
 | Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -54,7 +54,8 @@ Judged against both revisions at once:
 $ mcp-trace-validator validate --revision 2025-11-25 --revision 2026-07-28 --all handshake.jsonl
 ```
 
-(`--all` lists every clause; without it the report lists only the failing ones.)
+(`--all` lists every clause; without it the report lists only the failing, warning
+and unsupported ones.)
 Four rows out of the report say the whole thing:
 
 ```text
@@ -80,14 +81,18 @@ And the verdict splits:
 
 ```text
 per revision:
-  2025-11-25: 17 pass, 0 fail, 0 warn, 86 excluded, 0 unsupported, 14 not applicable, 25 not observed — verdict pass
-  2026-07-28: 15 pass, 8 fail, 0 warn, 169 excluded, 0 unsupported, 0 not applicable, 118 not observed — verdict fail
+  2025-11-25: 17 pass, 0 fail, 0 warn, 232 excluded, 0 unsupported, 14 not applicable, 58 not observed — verdict pass
+  2025-11-25: wire schema pass (3 messages valid)
+  2026-07-28: 15 pass, 8 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 158 not observed — verdict fail
+  2026-07-28: wire schema fail (1 of 3 messages invalid)
 overall verdict: fail
 ```
 
-A conforming session today, and eight concrete failures tomorrow. Both summary
-lines account for **every** clause in their revision — the counts add up to 142
-and 310 — because a line that quietly omits an outcome is a line that overstates
+A conforming session today, and eight concrete failures tomorrow — nine, with
+the `2026-07-28` schema's own finding: the `initialize` result carries no
+`resultType`, which every result at that revision must. Both summary
+lines account for **every** clause in their revision — the counts add up to 321
+and 501 — because a line that quietly omits an outcome is a line that overstates
 what was measured.
 
 > The example above is executed by a test (`book_examples.rs`) against the real
@@ -155,9 +160,11 @@ usually are.
 - The reference server serves the stateless surface with
   `--protocol-version 2026-07-28`, and the official suite's `2026-07-28`
   scenarios score **42 passing / 0 failing** against it.
-- Five committed captures — a conforming session over each transport, a *probe*
-  session of deliberately malformed requests, and the official runner's two —
-  evidence **118 of the 141 judgeable clauses** between them. What no capture
+- Eight committed captures — a conforming session over each transport, a *probe*
+  session of deliberately malformed requests, the official runner's two, and
+  three of the official SDKs' own conformance servers
+  ([the cross-SDK matrix](sdk-matrix.md)) — evidence
+  **148 of the 181 judgeable clauses** between them. What no capture
   reaches is named, one clause at a time, in [the corpus chapter](corpus.md).
 - The project's CI re-runs that measurement weekly and **ratchets** it against a
   committed baseline: any change in either direction fails the build, so a
@@ -172,6 +179,19 @@ the `2025-11-25` server for returning cacheable results without the cache hints
 `2026-07-28` requires (CACH-001). Six weeks later `alpha.11` added a schema check
 and found the same clause, independently, from the other side. The server's SDK
 then fixed it: since rmcp 3.5.1 both legs score 42 passing / 0 failing.
+
+## The next revision
+
+The specification's unreleased next revision (`draft`) is watched, never judged. No
+build can validate against it — `--revision draft` is refused like any revision the
+build does not ship — but the project reads it weekly and records what it has changed
+against `2026-07-28`: pages added or dropped, keyword counts that moved, and each
+`2026-07-28` clause whose sentence the draft rewords or removes. So far that is one
+wording edit: the draft bounds a header-mirrored integer "for integers represented
+using IEEE754 double-precision floating point numbers" where the released transport
+page says "for JavaScript". The interval is the same, so the `2026-07-28` verdict is
+the same. When the draft ships as a dated revision, its registry starts from that
+record rather than from scratch.
 
 Full detail is in [the corpus chapter](corpus.md), the
 [ecosystem register](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/01-ecosystem-context.md)

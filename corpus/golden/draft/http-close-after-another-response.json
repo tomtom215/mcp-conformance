@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "pass",
   "totals": {
-    "pass": 44,
+    "pass": 47,
     "fail": 0,
     "warn": 0,
-    "excluded": 169,
+    "excluded": 320,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 97
+    "not_observed": 134
   },
   "requirements": [
     {
@@ -87,6 +87,16 @@
       "outcome": "pass"
     },
     {
+      "id": "BASE-073",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-088",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
       "id": "BASE-026",
       "level": "MUST",
       "outcome": "pass"
@@ -117,6 +127,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "BASE-033",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
       "id": "BASE-034",
       "level": "MUST NOT",
       "outcome": "not-observed"
@@ -130,6 +145,11 @@
       "id": "BASE-036",
       "level": "MUST",
       "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-037",
+      "level": "SHOULD",
+      "outcome": "pass"
     },
     {
       "id": "BASE-039",
@@ -242,6 +262,21 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-082",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-083",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-084",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-086",
       "level": "MUST",
       "outcome": "pass"
@@ -258,6 +293,16 @@
     },
     {
       "id": "TRAN-092",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-137",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-141",
       "level": "MUST",
       "outcome": "pass"
     },
@@ -328,6 +373,11 @@
     },
     {
       "id": "DISC-002",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "DISC-003",
       "level": "SHOULD",
       "outcome": "not-observed"
     },
@@ -637,6 +687,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TOOL-035",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TOOL-038",
       "level": "SHOULD",
       "outcome": "not-observed"
@@ -648,6 +703,16 @@
     },
     {
       "id": "TOOL-040",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-045",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-046",
       "level": "MUST",
       "outcome": "not-observed"
     },
@@ -715,6 +780,151 @@
       "id": "PROM-020",
       "level": "SHOULD",
       "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-057",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-059",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-060",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-062",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-064",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-065",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-095",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-026",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-027",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-028",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-029",
+      "level": "SHOULD NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-030",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-031",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-032",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-033",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-034",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-042",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-013",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-014",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-018",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-097",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-124",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-129",
+      "level": "SHOULD NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-130",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-131",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-132",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-133",
+      "level": "SHOULD",
+      "outcome": "not-observed"
     }
-  ]
+  ],
+  "wire_schema": {
+    "outcome": "pass",
+    "messages": 5,
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json",
+    "source": {
+      "section": "basic/index#schema",
+      "quote": "This is the source of truth for all protocol messages and structures.",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#schema"
+    }
+  }
 }

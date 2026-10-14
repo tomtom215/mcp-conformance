@@ -211,7 +211,7 @@ impl TraceEvent {
 /// `mcp-trace-capture` both record exactly this set.
 ///
 /// [05-security-model.md]: https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/05-security-model.md
-pub const RECORDED_HEADERS: [&str; 10] = [
+pub const RECORDED_HEADERS: [&str; 11] = [
     "host",
     "origin",
     "accept",
@@ -227,6 +227,13 @@ pub const RECORDED_HEADERS: [&str; 10] = [
     "mcp-method",
     "mcp-name",
     "x-accel-buffering",
+    // A protected resource's challenge (RFC 9110 §11.6.1): its scheme and
+    // parameters — `scope`, `error`, `resource_metadata` — are what the
+    // authorization clauses that a recording can judge read. It is the server
+    // asking for a credential, never one: the credential travels in the
+    // client's `Authorization`, which stays off this list. Absent until
+    // 2026-10-13, so a 401 recorded before then carries its status alone.
+    "www-authenticate",
 ];
 
 /// Header-name prefixes recorded in addition to [`RECORDED_HEADERS`].

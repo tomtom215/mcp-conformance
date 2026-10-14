@@ -1,0 +1,388 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "TASK-025",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#response-1",
+        "quote": "Servers SHOULD return a JSON-RPC error if the `taskId` does not correspond to a known task."
+      },
+      "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+    },
+    {
+      "id": "TASK-026",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#response-1",
+        "quote": "Clients SHOULD track `inputRequests` keys to avoid responding to requests more than once."
+      },
+      "checks": [
+        "tasks.update-answers-once"
+      ]
+    },
+    {
+      "id": "TASK-027",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#response-1",
+        "quote": "A server SHOULD ignore any `inputResponses` responses mapped to a key that is not currently outstanding for the task — including keys that were never issued, keys that have already been answered, and keys whose corresponding request has been superseded."
+      },
+      "exclusion": "Which keys are outstanding is the server's own state (TASK-016), and an ignored response leaves no trace of having been ignored: the acknowledgement is the same either way."
+    },
+    {
+      "id": "TASK-028",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#response-1",
+        "quote": "The `resultType` field MUST be set to `\"complete\"` on `UpdateTaskResult` as it is the standard result shape for the `tasks/update` request."
+      },
+      "checks": [
+        "tasks.results-complete"
+      ]
+    },
+    {
+      "id": "TASK-029",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-cancellation",
+        "quote": "The `notifications/cancelled` notification MUST NOT be used for task cancellation."
+      },
+      "checks": [
+        "tasks.no-cancelled-notification"
+      ]
+    },
+    {
+      "id": "TASK-030",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#response-2",
+        "quote": "On success, the server MUST acknowledge the request with an empty result."
+      },
+      "checks": [
+        "tasks.ack-empty"
+      ]
+    },
+    {
+      "id": "TASK-031",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#response-2",
+        "quote": "Servers SHOULD return a JSON-RPC error if the `taskId` does not correspond to a known task."
+      },
+      "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+    },
+    {
+      "id": "TASK-032",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#response-2",
+        "quote": "The `resultType` field MUST be set to `\"complete\"` on `CancelTaskResult` as it is the standard result shape for the `tasks/cancel` request."
+      },
+      "checks": [
+        "tasks.results-complete"
+      ]
+    },
+    {
+      "id": "TASK-033",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-status-notifications",
+        "quote": "If a client requests task status notifications but does not declare the `io.modelcontextprotocol/tasks` extension capability, the server MUST return a JSON-RPC error specifying the missing capabilities"
+      },
+      "checks": [
+        "tasks.listen-requires-declaration"
+      ]
+    },
+    {
+      "id": "TASK-034",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-status-notifications",
+        "quote": "`notifications/progress` and `notifications/message` notifications MUST NOT be sent on the `subscriptions/listen` stream for a task, and are not supported on tasks in general in this specification."
+      },
+      "checks": [
+        "tasks.no-progress-on-task-stream"
+      ]
+    },
+    {
+      "id": "TASK-035",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#streamable-http-routing-headers",
+        "quote": "When `tasks/get`, `tasks/update`, or `tasks/cancel` is sent over the Streamable HTTP transport, the client MUST set the `Mcp-Name` header to the value of `params.taskId`."
+      },
+      "checks": [
+        "tasks.mcp-name-header"
+      ]
+    },
+    {
+      "id": "TASK-036",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#protocol-errors",
+        "quote": "Servers MUST return standard JSON-RPC errors for the following protocol error cases: Invalid or nonexistent `taskId`: `-32602` (Invalid params); Servers MUST return this error for `tasks/get`."
+      },
+      "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+    },
+    {
+      "id": "TASK-037",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#protocol-errors",
+        "quote": "Servers SHOULD return this error for `tasks/update` and `tasks/cancel`."
+      },
+      "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+    },
+    {
+      "id": "TASK-038",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#protocol-errors",
+        "quote": "Missing required client capabilities: `-32021` (Missing Required Client Capability); Servers MUST return this error for non-declaring clients requesting task notifications on `subscriptions/listen`."
+      },
+      "checks": [
+        "tasks.listen-requires-declaration"
+      ]
+    },
+    {
+      "id": "TASK-039",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#protocol-errors",
+        "quote": "Servers MUST return this error for non-declaring clients issuing `tasks/get`, `tasks/update`, and `tasks/cancel` requests."
+      },
+      "checks": [
+        "tasks.methods-require-declaration"
+      ]
+    },
+    {
+      "id": "TASK-040",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#protocol-errors",
+        "quote": "Servers SHOULD provide informative error messages to describe the cause of errors."
+      },
+      "exclusion": "Informativeness is a judgment about prose; any non-empty message passes a mechanical test of it, so a check would only ever restate the core clause that error messages exist."
+    },
+    {
+      "id": "TASK-041",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-execution-errors",
+        "quote": "The `tasks/get` response SHOULD include a `statusMessage` field with diagnostic information about the failure"
+      },
+      "checks": [
+        "tasks.failed-status-message"
+      ]
+    },
+    {
+      "id": "TASK-042",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-execution-errors",
+        "quote": "and MUST include the `error` field with the JSON-RPC error."
+      },
+      "checks": [
+        "tasks.failed-carries-error"
+      ]
+    },
+    {
+      "id": "TASK-043",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-execution-errors",
+        "quote": "The `failed` status MUST NOT be used to represent non-JSON-RPC errors, such as a tool result that completed with `isError: true`."
+      },
+      "checks": [
+        "tasks.failed-not-tool-result"
+      ]
+    },
+    {
+      "id": "TASK-044",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-execution-errors",
+        "quote": "Errors within the context of a protocol method result MUST use the `completed` status with the error details in the `result` field."
+      },
+      "checks": [
+        "tasks.failed-not-tool-result",
+        "tasks.completed-carries-result"
+      ]
+    },
+    {
+      "id": "TASK-045",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-execution-errors",
+        "quote": "If the underlying request resulted in a JSON-RPC error, the task uses `failed` status and the `error` field MUST contain that JSON-RPC error."
+      },
+      "checks": [
+        "tasks.failed-carries-error"
+      ]
+    },
+    {
+      "id": "TASK-046",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#task-execution-errors",
+        "quote": "If the request completed with a result (even if `isError: true` for tool results), the task uses `completed` status and the `result` field MUST contain that result."
+      },
+      "checks": [
+        "tasks.completed-carries-result"
+      ]
+    },
+    {
+      "id": "TASK-047",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#security-considerations",
+        "quote": "Servers MUST generate them with sufficient entropy that a third party cannot enumerate or guess them."
+      },
+      "exclusion": "Entropy is a property of the generator, not of one identifier: a recording holds a handful of ids, and an unguessable one and a predictable one can be spelled alike."
+    },
+    {
+      "id": "TASK-048",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#security-considerations",
+        "quote": "Servers MUST perform authentication and authorization checks on each task-related request to ensure that the client has permission to access a task."
+      },
+      "exclusion": "Authorization is decided inside the server against a credential no recording carries: `Authorization` is never recorded (ADR-0022, fact 1)."
+    },
+    {
+      "id": "TASK-049",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/tasks",
+      "source": {
+        "section": "specification/2026-07-28/tasks#security-considerations",
+        "quote": "Hosts MUST apply the same trust model to these payloads as they would to standard elicitation/sampling requests."
+      },
+      "exclusion": "Binds how the host presents and trusts a request a task carries — consent and user interface, which strategy rule 2 keeps out: none of it is a message to the server."
+    }
+  ]
+}

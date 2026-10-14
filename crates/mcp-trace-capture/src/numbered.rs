@@ -119,8 +119,8 @@ impl Numbered {
         )))
     }
 
-    /// The highest number a file in the directory carries in this template's
-    /// place, if any. An unreadable directory has none; creating the file then
+    /// The highest number up to [`MAX_NUMBER`] a file in the directory carries
+    /// in this template's place, if any. An unreadable directory has none; creating the file then
     /// says why.
     fn highest(&self) -> Option<u64> {
         std::fs::read_dir(self.dir())
@@ -138,6 +138,10 @@ impl Numbered {
                 }
                 digits.parse::<u64>().ok()
             })
+            // A number the search would never claim (a hand-named file) is
+            // not a session this template numbered; counting from it would
+            // leave no number to take.
+            .filter(|&number| number <= MAX_NUMBER)
             .max()
     }
 }
@@ -228,6 +232,27 @@ mod tests {
         assert_eq!(error.kind(), io::ErrorKind::NotFound, "{error}");
         assert!(error.to_string().starts_with("cannot create "), "{error}");
         assert!(error.to_string().contains("absent"), "{error}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A stray file numbered past the search's bound — a hand-named
+    /// `s-9999999.jsonl` — put "after the highest" beyond every number the
+    /// search may try, so each later trace failed with "no free trace number".
+    #[test]
+    fn a_number_past_the_bound_is_not_the_highest() {
+        let dir = std::env::temp_dir().join(format!(
+            "mcp-trace-capture-numbered-stray-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let numbered = Numbered::parse(&dir.join("s-{session}.jsonl"))
+            .unwrap()
+            .unwrap();
+        std::fs::write(numbered.path(2), "").unwrap();
+        std::fs::write(numbered.path(MAX_NUMBER + 1), "").unwrap();
+        std::fs::write(dir.join("s-99999999999999999999999.jsonl"), "").unwrap();
+        let (number, ..) = numbered.create_next(1).unwrap();
+        assert_eq!(number, 3);
         std::fs::remove_dir_all(&dir).ok();
     }
 }

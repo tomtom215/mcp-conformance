@@ -5,9 +5,9 @@
 # shape follows a2a-rust's proven release.yml, hardened per ADR-0007):
 #
 #   verify ──┬──► package (attest + SHA256SUMS) ──► github-release ──► publish
-#            │                                                          └──► verify-install
-#   tests ───┘                                                         (release env,
-#                                                                       OIDC)
+#            │    binaries (attest) ──────────────┘   │                 └──► verify-install
+#   tests ───┤        └──► registry-packages ─────────┴──► publish-npm, publish-pypi
+#            └──► image (GHCR push + attest, tags only)   (each: release env, OIDC)
 #
 # Raised bars relative to the a2a-rust baseline it derives from:
 #   - no third-party toolchain action (plain rustup, like ci.yml) — nothing
@@ -157,9 +157,11 @@ jobs:
         # baseline), which a release verify job already is. Compiled from source
         # with --locked, like cargo-deny above.
         run: |
-          # Pinned for the same reason; 0.50.0 is the version every pre-flight
-          # since v0.5.0 recorded, and the one the v0.6.0 rehearsal resolved.
-          cargo install cargo-semver-checks --version 0.50.0 --locked
+          # Pinned for the same reason, and to the version ci.yml's `semver`
+          # job installs: that job runs `cargo xtask semver --unreleased` on
+          # every PR, this one the version-derived check on the release commit.
+          # 0.51.0 declares rust-version 1.93, under the pinned toolchain.
+          cargo install cargo-semver-checks --version 0.51.0 --locked
           cargo xtask semver
       - name: Publish order respects every internal dependency edge (dev included)
         shell: bash
@@ -239,7 +241,7 @@ jobs:
         # `cargo package` resolves them locally. xtask is publish = false yet
         # `cargo package --workspace` still packages it (observed in v0.1.0,
         # whose release carries a stray xtask crate file) — exclude it.
-        run: cargo package --workspace --exclude xtask --locked
+        run: cargo package --workspace --exclude xtask --exclude mcp-conformance-cli --locked
       - name: Exactly the published crates, at this version, and nothing else
         shell: bash
         env:
@@ -263,19 +265,83 @@ jobs:
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: target/package/*.crate
+      # ── One CycloneDX SBOM per crate, attested against that .crate ─────────
+      - name: Install cargo-cyclonedx
+        # Pinned and built --locked, like every tool whose output is shipped.
+        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+      - name: Generate the SBOMs
+        # The command ci.yml's `package` job runs on every PR. It writes
+        # target/package/<crate>-<version>.cdx.json beside each .crate, fails
+        # unless every published crate has one, and dates them by the commit,
+        # so the bytes are a function of the tag. Not added to SHA256SUMS,
+        # which covers exactly the .crate files `publish` re-packages and
+        # compares; SHA256SUMS-sbom covers these.
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo xtask sbom --out target/package
+          cd target/package
+          sha256sum ./*.cdx.json | tee SHA256SUMS-sbom
+      - name: One SBOM attestation step per published crate
+        # actions/attest takes one SBOM per call, so the steps below name the
+        # crates; this fails when PUBLISH_ORDER gains a crate they do not.
+        shell: bash
+        run: |
+          set -euo pipefail
+          read -r -a order <<< "$PUBLISH_ORDER"
+          [[ "${#order[@]}" -eq 5 ]] || { echo "::error::PUBLISH_ORDER has ${#order[@]} crates; add an SBOM attestation step for each"; exit 1; }
+      # actions/attest, not actions/attest-sbom: at v4 the latter is a
+      # deprecated wrapper that calls this action with the same inputs.
+      - name: Attest SBOM (mcp-conformance-core)
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/package/mcp-conformance-core-${{ needs.verify.outputs.version }}.crate
+          sbom-path: target/package/mcp-conformance-core-${{ needs.verify.outputs.version }}.cdx.json
+      - name: Attest SBOM (mcp-trace-validator)
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/package/mcp-trace-validator-${{ needs.verify.outputs.version }}.crate
+          sbom-path: target/package/mcp-trace-validator-${{ needs.verify.outputs.version }}.cdx.json
+      - name: Attest SBOM (mcp-everything-server)
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/package/mcp-everything-server-${{ needs.verify.outputs.version }}.crate
+          sbom-path: target/package/mcp-everything-server-${{ needs.verify.outputs.version }}.cdx.json
+      - name: Attest SBOM (mcp-reference-host)
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/package/mcp-reference-host-${{ needs.verify.outputs.version }}.crate
+          sbom-path: target/package/mcp-reference-host-${{ needs.verify.outputs.version }}.cdx.json
+      - name: Attest SBOM (mcp-trace-capture)
+        if: github.ref_type == 'tag'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/package/mcp-trace-capture-${{ needs.verify.outputs.version }}.crate
+          sbom-path: target/package/mcp-trace-capture-${{ needs.verify.outputs.version }}.cdx.json
       - name: Upload release artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-artifacts
+          # One directory, so the artifact stays flat: `publish` checks
+          # attested/SHA256SUMS against its own target/package.
           path: |
             target/package/*.crate
             target/package/SHA256SUMS
+            target/package/*.cdx.json
+            target/package/SHA256SUMS-sbom
           retention-days: 90
           if-no-files-found: error
 
-  # ── Prebuilt binaries: both CLIs per platform, attested like the crates ─────
-  # `cargo install` compiles for minutes; these are the same two binaries from
-  # the same tagged source, built with the workspace's release profile. Linux is
+  # ── Prebuilt binaries: the three CLIs per platform, attested like the crates ─
+  # `cargo install` compiles for minutes; these are the same binaries from the
+  # same tagged source, built with the workspace's release profile: the
+  # validator, the recorder, and the workbench `mcp-conformance` (from the
+  # crate mcp-conformance-cli, not yet on crates.io). The npm and PyPI packages
+  # carry these archives' binaries (`registry-packages` below). Linux is
   # musl, statically linked, so one archive runs on any distribution. Each
   # archive is attested (tag runs only, like the crates) and checksummed in the
   # github-release job; `cargo binstall` finds them through each crate's
@@ -325,15 +391,15 @@ jobs:
         # `cargo audit bin` and other scanners can check a downloaded binary
         # against RustSec without its lockfile. Pinned and built --locked:
         # it wraps the build of an attested artifact.
-        run: cargo install cargo-auditable --version 0.7.6 --locked
-      - name: Build both CLIs
+        run: cargo install cargo-auditable --version 0.7.7 --locked
+      - name: Build the three CLIs
         # bash on every OS: Windows' default shell, PowerShell, reads "$TARGET"
         # as an (empty) PowerShell variable, not the environment.
         shell: bash
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
           TARGET: ${{ matrix.target }}
-        run: cargo auditable build --release --locked --target "$TARGET" -p mcp-trace-validator -p mcp-trace-capture --bins
+        run: cargo auditable build --release --locked --target "$TARGET" -p mcp-trace-validator -p mcp-trace-capture -p mcp-conformance-cli --bins
       - name: Smoke-test the binaries (native targets)
         # The x86_64 macOS build is cross-compiled on an arm64 runner, where
         # running it depends on Rosetta being on the image; it is built and
@@ -348,6 +414,7 @@ jobs:
           BIN="target/${TARGET}/release"
           "$BIN/mcp-trace-validator" --version | grep -Fx "mcp-trace-validator ${VERSION}"
           "$BIN/mcp-trace-capture" --version | grep -Fx "mcp-trace-capture ${VERSION}"
+          "$BIN/mcp-conformance" --version | grep -Fx "mcp-conformance ${VERSION}"
           # A violation trace must exit 1 (findings): 0 means it passed, and 2
           # means the binary could not judge it at all. Both fail the step.
           status=0
@@ -365,33 +432,170 @@ jobs:
           VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
-          # This name is what each crate's [package.metadata.binstall] pkg-url
-          # and bin-dir templates expect; change both together.
-          NAME="mcp-conformance-v${VERSION}-${TARGET}"
-          EXT=""
-          if [[ "$TARGET" == *windows* ]]; then EXT=".exe"; fi
-          mkdir "$NAME"
-          cp "target/${TARGET}/release/mcp-trace-validator${EXT}" \
-             "target/${TARGET}/release/mcp-trace-capture${EXT}" \
-             LICENSE README.md "$NAME/"
-          if [[ "$ARCHIVE" == zip ]]; then
-            7z a -tzip "$NAME.zip" "$NAME" > /dev/null
-          else
-            tar -czf "$NAME.tar.gz" "$NAME"
-          fi
-          echo "file=$NAME.${ARCHIVE}" >> "$GITHUB_OUTPUT"
+          # The script names the archive as each crate's binstall templates and
+          # `cargo xtask packages` expect; ci.yml's registry-packages job
+          # archives its own build with it too, so the two shapes cannot drift.
+          FILE="$(bash tools/archive-binaries.sh "$TARGET" "$VERSION")"
+          [[ "$FILE" == *".${ARCHIVE}" ]] || { echo "::error::archive ${FILE} is not .${ARCHIVE}"; exit 1; }
+          echo "file=${FILE}" >> "$GITHUB_OUTPUT"
       - name: Attest build provenance (SLSA)
         if: github.ref_type == 'tag'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: ${{ steps.archive.outputs.file }}
       - name: Upload the archive
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: binaries-${{ matrix.target }}
           path: ${{ steps.archive.outputs.file }}
           retention-days: 90
           if-no-files-found: error
+
+  # ── Container image: built from the tag, pushed to GHCR, attested ───────────
+  # ── npm and PyPI packages, from the archives above (ADR-0021 decision 5) ────
+  # `cargo xtask packages` checks every archive against the same
+  # SHA256SUMS-binaries the release attaches (computed here exactly as
+  # `github-release` computes it), reads each binary's headers to confirm its
+  # target and derive the wheel tags, and writes the npm package directories
+  # and one wheel per target; `npm pack` then makes the tarballs. The Linux
+  # x86_64 packages are installed from these files and run before anything is
+  # uploaded. A rehearsal builds and checks them too; only the two publish
+  # jobs at the end, on a tag, send them anywhere. No write scope: this job
+  # compiles xtask, and what it uploads is checked again before publishing.
+  registry-packages:
+    name: npm and PyPI packages
+    needs: [verify, binaries]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        run: |
+          rustup show active-toolchain
+      - name: Download the binary archives
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: binaries-*
+          merge-multiple: true
+          path: release-binaries/
+      - name: Checksum the archives as github-release does
+        # The same command over the same five files, so the same bytes: the
+        # publish jobs compare this file with the release's before uploading.
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-binaries
+          sums="$(sha256sum ./*)"
+          printf '%s\n' "$sums" | tee SHA256SUMS-binaries
+      - name: Generate the packages (all five targets required)
+        run: cargo xtask packages --from release-binaries --out registry-packages --require-all
+      - name: Pack the npm packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir registry-packages/npm-tarballs
+          for dir in registry-packages/npm/*/; do
+            (cd "$dir" && npm pack --pack-destination ../../npm-tarballs)
+          done
+          ls -l registry-packages/npm-tarballs registry-packages/pypi
+          count="$(find registry-packages/npm-tarballs -name '*.tgz' | wc -l)"
+          [[ "$count" -eq 6 ]] || { echo "::error::${count} npm tarballs, expected 6"; exit 1; }
+          count="$(find registry-packages/pypi -name '*.whl' | wc -l)"
+          [[ "$count" -eq 5 ]] || { echo "::error::${count} wheels, expected 5"; exit 1; }
+      - name: Install the Linux x86_64 packages from these files and run them
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: bash tools/test-packages.sh registry-packages "$VERSION"
+      - name: Upload the packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: registry-packages
+          # SHA256SUMS-binaries rides along so each publish job can check it
+          # against the asset the GitHub release carries before uploading.
+          path: |
+            registry-packages/npm-tarballs/*.tgz
+            registry-packages/pypi/*.whl
+            release-binaries/SHA256SUMS-binaries
+          retention-days: 90
+          if-no-files-found: error
+
+  # The Dockerfile at the root, built clean (no cache, base images pulled by
+  # the digests it pins) and smoke-tested like the archives above. On a tag it
+  # is pushed as ghcr.io/tomtom215/mcp-conformance:<version> and its digest is
+  # attested with the same provenance action as the crates and archives, the
+  # attestation also pushed to the registry beside the image. A rehearsal
+  # (workflow_dispatch) builds and runs it and pushes nothing. linux/amd64
+  # only: the builder compiles natively, and an arm64 image would need either
+  # an emulated build or an arm64 runner per platform, plus a manifest merge.
+  image:
+    name: Container image
+    needs: [verify, tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push the image (and its attestation) to ghcr.io/tomtom215/mcp-conformance
+      id-token: write # OIDC identity for SLSA provenance signing
+      attestations: write # store the attestation in the repository
+    env:
+      IMAGE: ghcr.io/tomtom215/mcp-conformance
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the image (no cache)
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          docker build --pull --no-cache \
+            --label "org.opencontainers.image.version=${VERSION}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --tag "${IMAGE}:${VERSION}" .
+      - name: Smoke-test the image
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          run() { docker run --rm -v "$PWD/corpus:/work/corpus:ro" "${IMAGE}:${VERSION}" "$@"; }
+          run mcp-trace-validator --version | grep -Fx "mcp-trace-validator ${VERSION}"
+          run mcp-trace-capture --version | grep -Fx "mcp-trace-capture ${VERSION}"
+          status=0
+          run mcp-trace-validator validate corpus/draft/violations/mrtr-019-retry-reuses-id.jsonl --quiet || status=$?
+          if [[ "$status" -ne 1 ]]; then
+            echo "::error::a violation trace exited ${status}, expected 1"
+            exit 1
+          fi
+      - name: Log in to GHCR
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Push the image
+        id: push
+        if: github.ref_type == 'tag'
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          docker push "${IMAGE}:${VERSION}"
+          # The digest the registry now serves for the tag, which is what a
+          # user pulls and what the attestation must name.
+          digest="$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{.Manifest.Digest}}')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::unexpected digest '${digest}'"; exit 1; }
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "Pushed ${IMAGE}:${VERSION}@${digest}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Attest build provenance (SLSA)
+        if: github.ref_type == 'tag'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ghcr.io/tomtom215/mcp-conformance
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+      - name: Log out of GHCR
+        if: always() && github.ref_type == 'tag'
+        run: docker logout ghcr.io
 
   # ── GitHub Release before crates.io (RELEASING.md order; idempotent) ────────
   github-release:
@@ -406,12 +610,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Download release artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-artifacts
           path: release-artifacts/
       - name: Download the binary archives
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: binaries-*
           merge-multiple: true
@@ -457,6 +661,7 @@ jobs:
             echo "::warning::release ${TAG} already exists — updating in place"
             gh release edit "$TAG" $PRE_FLAG --title "$TAG" --notes-file release-notes.md
             gh release upload "$TAG" --clobber release-artifacts/*.crate release-artifacts/SHA256SUMS \
+              release-artifacts/*.cdx.json release-artifacts/SHA256SUMS-sbom \
               release-binaries/* SHA256SUMS-binaries
           else
             gh release create "$TAG" \
@@ -465,6 +670,7 @@ jobs:
               --title "$TAG" \
               --notes-file release-notes.md \
               release-artifacts/*.crate release-artifacts/SHA256SUMS \
+              release-artifacts/*.cdx.json release-artifacts/SHA256SUMS-sbom \
               release-binaries/* SHA256SUMS-binaries
           fi
 
@@ -497,7 +703,7 @@ jobs:
         run: |
           rustup show active-toolchain
       - name: Download attested artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-artifacts
           path: attested/
@@ -510,7 +716,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo package --workspace --exclude xtask --locked --no-verify
+          cargo package --workspace --exclude xtask --exclude mcp-conformance-cli --locked --no-verify
           cd target/package
           sha256sum --check --strict ../../attested/SHA256SUMS
       - name: Authenticate with crates.io (OIDC trusted publishing)
@@ -679,3 +885,121 @@ jobs:
           for crate in mcp-trace-validator mcp-trace-capture; do
             cargo install "${crate}" --version "${VERSION}" --locked --force
           done
+
+  # ── npm: the platform packages, then mcp-conformance (OIDC, provenance) ─────
+  # The tarballs `registry-packages` built and installed, published only after
+  # the GitHub release exists, and only once the release's SHA256SUMS-binaries
+  # is byte-equal to the one the packages were built against — so every binary
+  # on npm is one the release attests. Trusted publishing: npm exchanges this
+  # job's OIDC token (workflow release.yml, environment release) for a
+  # short-lived publish credential, and `--provenance` links each package to
+  # this run; no npm token exists in this repository. Like `publish`, it
+  # compiles nothing. The platform packages go first, so the main package never
+  # names one that is missing; a version already on npm is skipped, so a
+  # re-run resumes. One-time owner setup: RELEASING.md §npm and PyPI.
+  publish-npm:
+    name: Publish to npm
+    needs: [verify, github-release, registry-packages]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://www.npmjs.com/package/mcp-conformance/v/${{ needs.verify.outputs.version }}
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing (OIDC) and provenance
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: registry-packages
+          path: packages/
+      - name: The packages were built from the binaries this release attaches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" -p SHA256SUMS-binaries -O "$RUNNER_TEMP/released"
+          cmp "$RUNNER_TEMP/released" packages/release-binaries/SHA256SUMS-binaries
+      - name: Install the pinned npm (trusted publishing needs 11.5.1 or later)
+        # The runner image's npm may predate trusted publishing, so this job
+        # brings its own, the way workflow-lint brings actionlint: an exact
+        # version, its tarball checked by SHA-256 before it is installed (npm
+        # bundles its dependencies, so nothing else is fetched). The digest was
+        # taken 2026-10-13 from the registry's tarball, whose sha512 matched
+        # the registry's published integrity.
+        env:
+          NPM_VERSION: "11.19.1"
+          NPM_SHA256: 9f58bff01604cb1b14008fef14dceb14d836a49225e45c6c2e37de3be3e707f0
+        run: | # zizmor: ignore[adhoc-packages] exact version, hash-checked tarball
+          set -euo pipefail
+          curl -sSfL --retry 3 -o "$RUNNER_TEMP/npm.tgz" "https://registry.npmjs.org/npm/-/npm-${NPM_VERSION}.tgz"
+          echo "${NPM_SHA256}  $RUNNER_TEMP/npm.tgz" | sha256sum --check --strict
+          npm install --global "$RUNNER_TEMP/npm.tgz"
+          [[ "$(npm --version)" == "$NPM_VERSION" ]] || { echo "::error::npm is $(npm --version)"; exit 1; }
+      - name: Publish (platform packages first; idempotent)
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
+        run: |
+          set -euo pipefail
+          # npm 11 refuses a pre-release without an explicit dist-tag, and
+          # `latest` must keep naming the newest stable release.
+          tag=latest
+          if [[ "$IS_PRERELEASE" == "true" ]]; then tag=next; fi
+          dir=packages/registry-packages/npm-tarballs
+          main="${dir}/mcp-conformance-${VERSION}.tgz"
+          platforms=()
+          for tgz in "$dir"/*.tgz; do
+            [[ "$tgz" == "$main" ]] || platforms+=("$tgz")
+          done
+          [[ -f "$main" && ${#platforms[@]} -eq 5 ]] || { echo "::error::expected ${main} and 5 platform tarballs"; ls "$dir"; exit 1; }
+          for tgz in "${platforms[@]}" "$main"; do
+            name="$(tar -xzOf "$tgz" package/package.json | jq -r .name)"
+            if [[ "$(npm view "${name}@${VERSION}" version 2> /dev/null || true)" == "$VERSION" ]]; then
+              echo "::warning::${name}@${VERSION} is already on npm — skipping"
+              continue
+            fi
+            npm publish "$tgz" --provenance --access public --tag "$tag"
+          done
+
+  # ── PyPI: the five wheels (trusted publishing, PEP 740 attestations) ────────
+  # The same gate as publish-npm, then pypa's publishing action, which
+  # exchanges this job's OIDC token with PyPI's trusted publisher (workflow
+  # release.yml, environment release — a "pending publisher" until the project
+  # exists) and uploads each wheel with a digital attestation. skip-existing
+  # makes a re-run resume. No PyPI token exists in this repository; nothing is
+  # compiled here. One-time owner setup: RELEASING.md §npm and PyPI.
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [verify, github-release, registry-packages]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/project/mcp-conformance/
+    permissions:
+      contents: read
+      id-token: write # PyPI trusted publishing (OIDC) and attestations
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: registry-packages
+          path: packages/
+      - name: The wheels were built from the binaries this release attaches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" -p SHA256SUMS-binaries -O "$RUNNER_TEMP/released"
+          cmp "$RUNNER_TEMP/released" packages/release-binaries/SHA256SUMS-binaries
+          mkdir dist
+          mv packages/registry-packages/pypi/*.whl dist/
+          count="$(find dist -name '*.whl' | wc -l)"
+          [[ "$count" -eq 5 ]] || { echo "::error::${count} wheels, expected 5"; exit 1; }
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: dist/
+          skip-existing: true

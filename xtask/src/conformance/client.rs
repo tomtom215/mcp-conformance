@@ -15,8 +15,10 @@
 //! 2. **The four `2025-11-25` protocol scenarios**, sequentially: parallel
 //!    suite mode would put the `sse-retry` clock under load noise, and
 //!    client runs fail on WARNINGs, so the timing window is load-bearing.
-//!    The `auth/*` set is deferred (registry TRAN-009; deferral ledger row
-//!    `auth-client-scenarios`).
+//!    The `auth/*` set is deferred (deferral ledger row
+//!    `auth-client-scenarios`): it needs a full OAuth client in the host. The
+//!    registry judges what a recording shows of authorization — the
+//!    server's challenge (`AUTH-*`) — without one.
 //! 3. **Client-side agreement** — every host-captured trace replays through
 //!    `mcp-trace-validator` against
 //!    `conformance/client-agreement-divergences.json`. The `sse-retry`
@@ -33,13 +35,9 @@ use std::process::{Command, ExitCode};
 
 use super::{EXPECTED_FAILURES, SPEC_VERSION};
 
-/// The four protocol scenarios the pinned suite defines for `2025-11-25`.
-const CLIENT_SCENARIOS: [&str; 4] = [
-    "initialize",
-    "tools_call",
-    "elicitation-sep1034-client-defaults",
-    "sse-retry",
-];
+/// The four protocol scenarios the pinned suite defines for `2025-11-25`:
+/// the set `mcp-conformance test --client-command` runs by default too.
+const CLIENT_SCENARIOS: [&str; 4] = mcp_conformance_cli::suite::CLIENT_SCENARIOS;
 
 /// Committed client-side divergence baseline, relative to the workspace root.
 const CLIENT_DIVERGENCE_BASELINE: &str = "conformance/client-agreement-divergences.json";
@@ -93,6 +91,7 @@ pub(crate) fn run(root: &Path, suite: &str) -> ExitCode {
         suite,
         CLIENT_DIVERGENCE_BASELINE,
         false,
+        &crate::agreement::schema::CLIENT_LEG,
     ) {
         Ok(()) => {
             eprintln!(
@@ -124,7 +123,7 @@ fn run_scenarios(
         eprintln!("xtask: conformance — client scenario {scenario} (suite {suite})");
         let status = Command::new("npx")
             .arg("-y")
-            .arg(format!("@modelcontextprotocol/conformance@{suite}"))
+            .arg(format!("{}@{suite}", super::SUITE_PACKAGE))
             .arg("client")
             .arg("--scenario")
             .arg(scenario)

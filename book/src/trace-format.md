@@ -14,7 +14,10 @@ capture-assigned `seq` (the only ordering authority — never inferred later), a
   status, and a client request's `method` — Streamable HTTP binds different
   obligations to `POST`, `GET`, and `DELETE`, so a clause addressed to one of
   them is judged only where the recording says which it was; and
-- **`lifecycle`** events mark transport open/close.
+- **`lifecycle`** events mark the transport's moments: `transport-open` (it became
+  usable), `transport-close` (it closed in an orderly way) and `transport-abort` (it
+  failed or was torn down abnormally — an unreachable upstream, a response cut off, a
+  forced stop).
 
 The format is published as a JSON Schema (draft 2020-12),
 [`trace-event.schema.json`](https://github.com/tomtom215/mcp-conformance/blob/main/crates/mcp-conformance-core/schema/trace-event.schema.json),

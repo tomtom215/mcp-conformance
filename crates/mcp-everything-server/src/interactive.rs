@@ -11,25 +11,19 @@
 //! cannot answer — the scenarios' "if the client doesn't support X, return
 //! an error" clause.
 
-// SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
-// functional and REQUIRED on the `2025-11-25` surface this crate implements
-// and the official suite exercises, so rmcp 3.x's deprecation attributes fire
-// on correct code — here, Sampling. Scoped to this module, never the crate:
-// a blanket allow would also hide a deprecation that genuinely matters. The
-// honest cost is that a *different* future deprecation in this module would
-// be silenced too. Retires when the `2025-11-25` surface does.
-#![allow(deprecated)]
 use std::collections::BTreeMap;
 
 use rmcp::handler::server::tool::{InputResponses, RequestState};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{
-    BooleanSchema, CallToolResponse, CallToolResult, ConstTitle, ContentBlock,
-    CreateMessageRequestParams, ElicitRequestParams, ElicitationSchema, EnumSchema, ErrorData,
-    IntegerSchema, LegacyEnumSchema, MultiSelectEnumSchema, NumberSchema,
-    PrimitiveSchemaDefinition, SamplingMessage, SingleSelectEnumSchema, StringSchema, TitledItems,
-    TitledMultiSelectEnumSchema, TitledSingleSelectEnumSchema,
+    BooleanSchema, CallToolResponse, CallToolResult, ConstTitle, ContentBlock, ElicitRequestParams,
+    ElicitationSchema, EnumSchema, ErrorData, IntegerSchema, LegacyEnumSchema,
+    MultiSelectEnumSchema, NumberSchema, PrimitiveSchemaDefinition, SingleSelectEnumSchema,
+    StringSchema, TitledItems, TitledMultiSelectEnumSchema, TitledSingleSelectEnumSchema,
 };
+// SEP-2577 deprecates Sampling; `2025-11-25` still requires it.
+#[allow(deprecated)]
+use rmcp::model::{CreateMessageRequestParams, SamplingMessage};
 use rmcp::service::RequestContext;
 use rmcp::{RoleServer, tool, tool_router};
 
@@ -77,6 +71,8 @@ impl EverythingServer {
             state,
             responses,
         };
+        // SEP-2577 deprecates Sampling; `2025-11-25` still requires it.
+        #[allow(deprecated)]
         let answer = match mrtr::ask(
             &context,
             self.revision(),

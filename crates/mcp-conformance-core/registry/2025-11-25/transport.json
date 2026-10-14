@@ -120,7 +120,7 @@
         "section": "basic/transports#security-warning",
         "quote": "Servers SHOULD implement proper authentication for all connections"
       },
-      "exclusion": "Whether authentication is properly implemented is not decidable from one session's headers; authorization flows are their own scenario area (corpus/auth, post-M1) mirroring the official suite's `auth` suite."
+      "exclusion": "Whether authentication is properly implemented is not decidable from one session's headers: the client's credential is never recorded, and the server's validation of it is internal. What a recording does show — the challenge a protected server answers with — is judged under the authorization page's own clauses (AUTH-014, AUTH-045, AUTH-049–AUTH-051)."
     },
     {
       "id": "TRAN-010",
@@ -271,7 +271,9 @@
         "section": "basic/transports#protocol-version-header",
         "quote": "If the server receives a request with an invalid or unsupported `MCP-Protocol-Version`, it MUST respond with `400 Bad Request`."
       },
-      "exclusion": "The server's supported-version set is not in the trace, so invalid-or-unsupported cannot be decided offline. mcp-everything-server answers an in-session request bearing an unsupported MCP-Protocol-Version with 400 (rmcp's streamable HTTP tower layer; the initialize exchange itself negotiates in-band and does not consult the header), asserted by unsupported_protocol_version_is_rejected_with_400 in tests/http_policy.rs."
+      "checks": [
+        "transport.unsupported-version-header-rejected"
+      ]
     },
     {
       "id": "TRAN-021",

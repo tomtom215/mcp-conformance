@@ -10,6 +10,8 @@
 //! |--------|-------|
 //! | a `fail` / `warn` row | a *rule* (`ruleId` = the requirement ID; the clause verbatim, its level, and its published link) |
 //! | each finding on that row | a *result* at level `error` (MUST) or `warning` (SHOULD), located at the trace line holding the event it names |
+//! | a failed wire schema ([`Report::wire_schema`]) | the rule `wire-schema` (the specification's statement that the schema is normative, and the vendored schema's address), a result per invalid message, at level `error` |
+//! | a finding on an extension's `fail` / `warn` row ([`Report::extensions`]) | a result at level `note` under the clause's rule, its `properties` naming the extension and `scored: false` — an extension never fails a run (ADR-0023), `--strict` or not |
 //! | an `unsupported` row | an invocation notification, and `executionSuccessful: false` |
 //! | a trace that could not be judged ([`render_run`]) | an invocation notification located at the trace, and `executionSuccessful: false` |
 //! | pass / excluded / not-applicable / not-observed | nothing — SARIF records problems, not coverage |
@@ -24,13 +26,18 @@
 //! registry and finding order, no timestamps or environment — like every other
 //! report format.
 
-use core::fmt::Write as _;
 use std::collections::BTreeMap;
 
 use mcp_conformance_core::trace::TraceEvent;
 use serde_json::{Value, json};
 
 use crate::report::{Outcome, Report, RequirementReport, Unjudged};
+
+mod location;
+
+use location::location;
+#[cfg(test)]
+use location::uri_reference;
 
 /// Where the findings point.
 ///
@@ -167,15 +174,7 @@ pub fn render_run(
     };
     for (artifact, reports) in traces {
         for report in *reports {
-            for row in &report.requirements {
-                match row.outcome {
-                    Outcome::Fail | Outcome::Warn => {
-                        log.findings(row, &report.revision, *artifact);
-                    }
-                    Outcome::Unsupported => log.unsupported(row, &report.revision),
-                    _ => {}
-                }
-            }
+            log.report(report, *artifact);
         }
     }
     for trace in unjudged {
@@ -229,12 +228,63 @@ struct Log<'r> {
 }
 
 impl Log<'_> {
+    /// Everything one report adds to the run: its rows' results and
+    /// notifications, its failed wire schema, then its extensions'.
+    fn report(&mut self, report: &Report, artifact: Artifact<'_>) {
+        for row in &report.requirements {
+            match row.outcome {
+                Outcome::Fail | Outcome::Warn => self.findings(row, &report.revision, artifact),
+                Outcome::Unsupported => self.unsupported(row, &report.revision),
+                _ => {}
+            }
+        }
+        if let Some(row) = wire_schema_row(report) {
+            self.findings(&row, &report.revision, artifact);
+        }
+        for extension in &report.extensions {
+            for row in &extension.requirements {
+                match row.outcome {
+                    Outcome::Fail | Outcome::Warn => self.extension_findings(
+                        row,
+                        &report.revision,
+                        artifact,
+                        &extension.extension,
+                    ),
+                    Outcome::Unsupported => self.unsupported(row, &report.revision),
+                    _ => {}
+                }
+            }
+        }
+    }
+
     /// A result per finding on a `fail` / `warn` row, under the row's rule.
     fn findings(&mut self, row: &RequirementReport, revision: &str, artifact: Artifact<'_>) {
+        self.results_for(row, revision, artifact, None);
+    }
+
+    /// A result per finding on an extension's `fail` / `warn` row, at level
+    /// `note`: reported, never scored.
+    fn extension_findings(
+        &mut self,
+        row: &RequirementReport,
+        revision: &str,
+        artifact: Artifact<'_>,
+        extension: &str,
+    ) {
+        self.results_for(row, revision, artifact, Some(extension));
+    }
+
+    fn results_for(
+        &mut self,
+        row: &RequirementReport,
+        revision: &str,
+        artifact: Artifact<'_>,
+        extension: Option<&str>,
+    ) {
         let rule_id = self.rule_ids[&(row.id.as_str(), revision)].clone();
         let rules = &mut self.rules;
         let rule_index = *self.index_of.entry(rule_id.clone()).or_insert_with(|| {
-            rules.push(rule(&rule_id, row, revision));
+            rules.push(rule(&rule_id, row, revision, extension));
             rules.len() - 1
         });
         for finding in &row.findings {
@@ -256,12 +306,14 @@ impl Log<'_> {
                 .entry((artifact.uri.unwrap_or_default().to_owned(), stem.clone()))
                 .or_insert(0);
             *occurrence += 1;
-            let level = if self.strict && row.outcome == Outcome::Warn {
+            let level = if extension.is_some() {
+                NOT_SCORED
+            } else if self.strict && row.outcome == Outcome::Warn {
                 "error"
             } else {
                 level(row.outcome)
             };
-            self.results.push(json!({
+            let mut result = json!({
                 "ruleId": rule_id,
                 "ruleIndex": rule_index,
                 "level": level,
@@ -275,7 +327,12 @@ impl Log<'_> {
                     "check": finding.check,
                     "seq": finding.seq,
                 },
-            }));
+            });
+            if let Some(extension) = extension {
+                result["properties"]["extension"] = json!(extension);
+                result["properties"]["scored"] = json!(false);
+            }
+            self.results.push(result);
         }
     }
 
@@ -313,13 +370,22 @@ impl Log<'_> {
 fn rule_ids<'r>(reports: impl Iterator<Item = &'r Report>) -> BTreeMap<(&'r str, &'r str), String> {
     let mut revisions_of: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for report in reports {
-        for row in &report.requirements {
-            if matches!(row.outcome, Outcome::Fail | Outcome::Warn) {
-                let revisions = revisions_of.entry(row.id.as_str()).or_default();
-                // Several traces judged at one revision are still one revision.
-                if !revisions.contains(&report.revision.as_str()) {
-                    revisions.push(report.revision.as_str());
-                }
+        let schema = report.wire_schema_failed().then_some(WIRE_SCHEMA_RULE);
+        let extension_rows = report
+            .extensions
+            .iter()
+            .flat_map(|extension| &extension.requirements);
+        let failing = report
+            .requirements
+            .iter()
+            .chain(extension_rows)
+            .filter(|row| matches!(row.outcome, Outcome::Fail | Outcome::Warn))
+            .map(|row| row.id.as_str());
+        for id in failing.chain(schema) {
+            let revisions = revisions_of.entry(id).or_default();
+            // Several traces judged at one revision are still one revision.
+            if !revisions.contains(&report.revision.as_str()) {
+                revisions.push(report.revision.as_str());
             }
         }
     }
@@ -337,16 +403,46 @@ fn rule_ids<'r>(reports: impl Iterator<Item = &'r Report>) -> BTreeMap<(&'r str,
     ids
 }
 
-fn rule(rule_id: &str, row: &RequirementReport, revision: &str) -> Value {
+/// The rule ID of wire-schema results: lower case, so it can never collide
+/// with a requirement ID.
+const WIRE_SCHEMA_RULE: &str = "wire-schema";
+
+/// A failed wire schema as a row the result path already knows how to render;
+/// `None` unless it failed.
+fn wire_schema_row(report: &Report) -> Option<RequirementReport> {
+    let wire_schema = report
+        .wire_schema
+        .as_ref()
+        .filter(|_| report.wire_schema_failed())?;
+    Some(RequirementReport {
+        id: WIRE_SCHEMA_RULE.to_owned(),
+        level: "schema".to_owned(),
+        outcome: Outcome::Fail,
+        findings: wire_schema.findings.clone(),
+        exclusion: None,
+        missing_checks: Vec::new(),
+        capability: None,
+        source: Some(wire_schema.source.clone()),
+    })
+}
+
+/// The level of an extension's results: shown, and failing nothing.
+const NOT_SCORED: &str = "note";
+
+fn rule(rule_id: &str, row: &RequirementReport, revision: &str, extension: Option<&str>) -> Value {
     let mut rule = json!({
         "id": rule_id,
-        "defaultConfiguration": { "level": level(row.outcome) },
+        "defaultConfiguration": { "level": extension.map_or_else(|| level(row.outcome), |_| NOT_SCORED) },
         "properties": {
             "tags": ["mcp", "conformance", row.level],
             "precision": "very-high",
             "revision": revision,
         },
     });
+    if let Some(extension) = extension {
+        rule["properties"]["extension"] = json!(extension);
+        rule["properties"]["scored"] = json!(false);
+    }
     let (short, help) = row.source.as_ref().map_or_else(
         || (format!("{} ({})", row.id, row.level), None),
         |source| {
@@ -398,57 +494,6 @@ const fn level(outcome: Outcome) -> &'static str {
         Outcome::Fail => "error",
         _ => "warning",
     }
-}
-
-/// The result's location: the trace, at the line holding the event `seq` names.
-/// The reader accepts only one event per line with no blank lines, so the event
-/// at index `i` is on line `i + 1`.
-fn location(artifact: Artifact<'_>, seq: Option<u64>) -> Value {
-    let Some(uri) = artifact.uri else {
-        return json!([]);
-    };
-    let mut physical = json!({ "artifactLocation": { "uri": uri_reference(uri) } });
-    let line = seq.and_then(|seq| {
-        artifact
-            .events
-            .binary_search_by_key(&seq, |event| event.seq)
-            .ok()
-    });
-    if let Some(index) = line {
-        physical["region"] = json!({ "startLine": index + 1 });
-    }
-    json!([{ "physicalLocation": physical }])
-}
-
-/// `path` as a URI reference, `/`-separated with every byte outside RFC 3986's
-/// unreserved set and `/` percent-encoded.
-///
-/// A relative path stays relative — the form code scanning resolves against the
-/// repository root — and its colons stay encoded, so none can be read as a
-/// scheme. An absolute path becomes a `file:` URI (RFC 8089): `/tmp/t.jsonl` is
-/// `file:///tmp/t.jsonl`, and Windows' `D:\t.jsonl` is `file:///D:/t.jsonl`, its
-/// drive letter intact rather than the relative `D%3A/t.jsonl` it would
-/// otherwise read as.
-fn uri_reference(path: &str) -> String {
-    let path = path.replace('\\', "/");
-    let bytes = path.as_bytes();
-    let drive =
-        bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/';
-    let (mut out, rest) = if drive {
-        (format!("file:///{}:", char::from(bytes[0])), &path[2..])
-    } else if path.starts_with('/') {
-        ("file://".to_owned(), path.as_str())
-    } else {
-        (String::with_capacity(path.len()), path.as_str())
-    };
-    for byte in rest.bytes() {
-        if byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte) {
-            out.push(char::from(byte));
-        } else {
-            let _ = write!(out, "%{byte:02X}");
-        }
-    }
-    out
 }
 
 #[cfg(test)]

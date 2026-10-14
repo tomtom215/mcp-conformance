@@ -4,8 +4,7 @@
 //! Reference MCP host: a deterministic, scriptable client-side system under
 //! test (roadmap M3, ADR-0009).
 //!
-//! Three pieces ship today, each pure or transport-agnostic and tested
-//! in-process against `mcp-everything-server`:
+//! The modules, each tested in-process against `mcp-everything-server`:
 //!
 //! - [`script`] — every behavior a model or user would supply, as data: the
 //!   sampling reply, the elicitation policy (including SEP-1034 defaults and
@@ -41,8 +40,14 @@
 //!   walking the error's source chain rather than printing rmcp's types.
 //! - [`scenario`] — the pinned suite's client scenarios as plans; one table,
 //!   governed by the suite pin (ADR-0009).
-//! - `resume` (feature `http`) — the compliant SSE-resumption dance rmcp
-//!   1.7's transport cannot perform (measured; ADR-0009 §Amendment).
+//! - [`subscribe`] and [`cancel`] — a `subscriptions/listen` stream drained
+//!   to its end, and one cancelled call followed by another, so a recording
+//!   carries what the `2026-07-28` subscription and cancellation clauses judge.
+//! - `resume` (feature `http`) — the compliant SSE-resumption dance, on rmcp's
+//!   public `StreamableHttpClient` seam because rmcp's own transport lost an
+//!   in-flight request when its POST SSE stream closed early (measured at
+//!   rmcp 1.7, ADR-0009 §Amendment; not re-measured since the workspace moved
+//!   to rmcp 3.x).
 //!
 //! The binary (`cli` feature) maps `MCP_CONFORMANCE_SCENARIO` to a plan and
 //! exits clean on success — the pinned suite's client-SUT contract.

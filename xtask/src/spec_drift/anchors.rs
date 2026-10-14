@@ -50,7 +50,7 @@ pub(super) fn broken(registry: &Registry, requirements: &[&Requirement]) -> Resu
 /// Headings only, because the site's chrome carries ids too (`navbar`,
 /// `sidebar`) and a section anchor that happened to equal one would pass
 /// without pointing at any section.
-fn heading_ids(html: &str) -> BTreeSet<String> {
+pub(super) fn heading_ids(html: &str) -> BTreeSet<String> {
     let mut ids = BTreeSet::new();
     let mut rest = html;
     while let Some(start) = rest.find("<h") {

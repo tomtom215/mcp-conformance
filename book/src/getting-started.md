@@ -18,6 +18,24 @@ instead of compiling (Linux x86_64 and aarch64, macOS, Windows x86_64). To build
 the unreleased source, which may be ahead of the release:
 `cargo install --locked --git https://github.com/tomtom215/mcp-conformance mcp-trace-capture mcp-trace-validator`.
 
+**From npm or PyPI (not yet released).** From the first release after `0.6.0`,
+the same prebuilt binaries install without Rust:
+
+```text
+npx mcp-conformance --version          # one-off, or: npm install -g mcp-conformance
+pip install mcp-conformance            # into the active environment
+```
+
+Both put `mcp-trace-capture`, `mcp-trace-validator` and `mcp-conformance` on your
+`PATH`, as the release's own binaries, byte for byte: npm installs the one
+`@mcp-conformance/<os>-<cpu>` package that fits your machine as an optional
+dependency of `mcp-conformance` (no install script, nothing downloaded beyond the
+packages), and pip installs the wheel for your platform. Packages exist for the
+five targets above; elsewhere, install from source. With npm, keep optional
+dependencies enabled (`--omit=optional` removes the binaries). If a Python
+environment's scripts directory is not on `PATH`, `python -m mcp_conformance`
+runs the workbench. Until that release, neither registry has the packages.
+
 ## Record a session
 
 `mcp-trace-capture` sits between a client and a server, forwards every byte unchanged,
@@ -69,8 +87,14 @@ with the id the `initialize` already used:
 Each finding names the clause (`BASE-003`) and its strength (`MUST NOT`), the event in
 the trace (`seq 3` — every event carries a `seq`, its position in the recording), what
 was wrong, the sentence of the specification it breaks, and a link to it. The exit
-status is the verdict: `0` pass, `1` a clause failed, `2` the run could not judge (a
-bad invocation, or a trace with nothing in it), `3` the trace is malformed.
+status is the verdict: `0` pass (warnings included, unless `--strict`), `1` a clause
+failed (or warned, under `--strict`), `2` the run could not judge or report — a bad
+invocation (an unknown flag, a trace file that cannot be read), nothing judgeable (a
+trace with nothing in it, or one declaring only revisions this build does not know),
+or output not written — and `3` the trace is malformed.
+[STABILITY.md](https://github.com/tomtom215/mcp-conformance/blob/main/STABILITY.md)
+keeps these meanings fixed. [Reading a report](reading-a-report.md) goes further:
+triaging a finding, raising coverage, and disputing a verdict.
 
 ## Reading a report
 

@@ -1,15 +1,21 @@
 # SPDX-License-Identifier: MIT
 # Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-# Validate recorded MCP sessions in GitHub Actions. Record the traces in an
-# earlier step (mcp-trace-capture wrapping your server, or your own recorder),
-# then point this action at them. It writes a SARIF log and a JUnit report,
-# prints the findings to the job log and summary, and fails the step when a
-# clause fails (or warns, with `strict`).
+# Validate recorded MCP sessions in GitHub Actions. Point this action at
+# traces recorded in an earlier step, or have it record them: with `capture`,
+# it runs your client against your server through mcp-trace-capture first. It
+# writes a SARIF log and a JUnit report, prints the findings to the job log and
+# summary, and fails the step when a clause fails (or warns, with `strict`).
 #
 #   - uses: tomtom215/mcp-conformance@<tag or commit>
 #     with:
 #       traces: traces/*.jsonl
+#
+#   - uses: tomtom215/mcp-conformance@<tag or commit>
+#     with:
+#       capture: stdio
+#       server: ./target/release/my-server --stdio
+#       client: my-client --server-cmd "$MCP_SERVER_COMMAND"
 #
 # Upload the SARIF log to code scanning in a following step, with
 # `security-events: write` on the job:
@@ -31,8 +37,46 @@ inputs:
   traces:
     description: >-
       The traces to validate: paths or globs (`**` supported), separated by
-      spaces or newlines, relative to the workspace.
-    required: true
+      spaces or newlines, relative to the workspace. Required unless `capture`
+      is set; with it, these are judged beside the recorded sessions.
+    required: false
+    default: ""
+  capture:
+    description: >-
+      Record sessions with mcp-trace-capture before validating them: `stdio`
+      or `http`. Empty (the default) records nothing.
+    required: false
+    default: ""
+  server:
+    description: >-
+      A bash command line, run from the workspace. With `capture: stdio`, the
+      stdio server to record (required). With `capture: http`, optional: a
+      server to start in the background before the client, wait for at
+      `upstream`, and stop afterwards.
+    required: false
+    default: ""
+  upstream:
+    description: >-
+      With `capture: http`, the server's URL (e.g. `http://127.0.0.1:3000/mcp`);
+      the recording proxy forwards to it.
+    required: false
+    default: ""
+  client:
+    description: >-
+      With `capture`, a bash command line, run from the workspace, that drives
+      the sessions to record. For stdio it gets `MCP_SERVER_COMMAND`: an
+      executable to launch in place of the server, which runs `server` under
+      the recorder. For http it gets `MCP_PROXY_URL`: the recording proxy's
+      address, which reaches `upstream` itself. A client that exits non-zero
+      fails the action, after its sessions are judged.
+    required: false
+    default: ""
+  capture-dir:
+    description: >-
+      With `capture`, where each recorded session is written, as `NNN.jsonl`.
+      Must not exist or be empty; no spaces.
+    required: false
+    default: mcp-conformance-capture
   version:
     description: >-
       A release (e.g. `0.6.0`) whose prebuilt binaries to download, verified
@@ -59,7 +103,10 @@ inputs:
     required: false
     default: mcp-conformance-junit.xml
   fail-on-findings:
-    description: Fail the step when the run's exit status is not 0.
+    description: >-
+      Fail the step when the run's exit status is not 0. `false` never fails
+      it, including for exit 2 and 3 (nothing judged, a malformed trace); read
+      the `exit-code` output to tell those from findings.
     required: false
     default: "true"
 
@@ -67,14 +114,20 @@ outputs:
   exit-code:
     description: >-
       The validator's exit status: 0 pass, 1 a clause failed (or warned, with
-      strict), 2 bad invocation or nothing judgeable, 3 a malformed trace.
+      strict), 2 bad invocation (a `traces` pattern matching nothing included)
+      or nothing judgeable or output not written, 3 a malformed trace.
     value: ${{ steps.validate.outputs.exit-code }}
   sarif-file:
-    description: The SARIF log written, if any.
+    description: >-
+      The SARIF log written, if any. It is written even when the validator
+      could not start, as a run marked `executionSuccessful: false`.
     value: ${{ inputs.sarif-file }}
   junit-file:
     description: The JUnit report written, if any.
     value: ${{ inputs.junit-file }}
+  client-exit-code:
+    description: With `capture`, the client command's exit status.
+    value: ${{ steps.capture.outputs.client-exit-code }}
 
 runs:
   using: composite
@@ -83,24 +136,48 @@ runs:
       shell: bash
       env:
         VERSION: ${{ inputs.version }}
+        CAPTURE: ${{ inputs.capture }}
         GH_TOKEN: ${{ github.token }}
         REPOSITORY: tomtom215/mcp-conformance
       run: '"$GITHUB_ACTION_PATH/action/install.sh"'
+    - name: Record the sessions
+      id: capture
+      if: inputs.capture != ''
+      shell: bash
+      env:
+        CAPTURE: ${{ inputs.capture }}
+        SERVER: ${{ inputs.server }}
+        UPSTREAM: ${{ inputs.upstream }}
+        CLIENT: ${{ inputs.client }}
+        CAPTURE_DIR: ${{ inputs.capture-dir }}
+      run: '"$GITHUB_ACTION_PATH/action/capture.sh"'
     - name: Validate the traces
       id: validate
+      # Also after a capture that could not be set up, so the reports exist
+      # (marked unjudged) for an `if: always()` upload step to read.
+      if: success() || steps.capture.outcome == 'failure'
       shell: bash
       env:
         TRACES: ${{ inputs.traces }}
+        CAPTURED: ${{ steps.capture.outputs.traces }}
         REVISIONS: ${{ inputs.revision }}
         STRICT: ${{ inputs.strict }}
         SARIF_FILE: ${{ inputs.sarif-file }}
         JUNIT_FILE: ${{ inputs.junit-file }}
       run: '"$GITHUB_ACTION_PATH/action/validate.sh"'
+    - name: Fail when the client failed
+      if: inputs.capture != '' && steps.capture.outputs.client-exit-code != '0'
+      shell: bash
+      env:
+        CODE: ${{ steps.capture.outputs.client-exit-code }}
+      run: |
+        echo "::error::the client command exited ${CODE}; the sessions it recorded were judged above"
+        exit 1
     - name: Fail on findings
       if: inputs.fail-on-findings == 'true' && steps.validate.outputs.exit-code != '0'
       shell: bash
       env:
         CODE: ${{ steps.validate.outputs.exit-code }}
       run: |
-        echo "::error::mcp-trace-validator exited ${CODE} (1: a clause failed; 2: bad invocation or nothing judgeable; 3: a malformed trace)"
+        echo "::error::mcp-trace-validator exited ${CODE} (1: a clause failed; 2: bad invocation, nothing judgeable, or output not written; 3: a malformed trace)"
         exit 1

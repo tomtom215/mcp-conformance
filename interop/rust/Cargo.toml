@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# The Rust SDK's own conformance server, built against the published rmcp.
+#
+# rust-sdk keeps it in its repository (`conformance/src/bin/server.rs`,
+# package `mcp-conformance`, `publish = false`), so no crate ships it. fetch.sh
+# copies that one file from the tag `sdk-pins.env` names, checks its SHA-256,
+# and this package compiles it against rmcp from crates.io at the same version,
+# with the feature set upstream's `conformance/Cargo.toml` gives it. The
+# dependencies the client binary alone needs are left out. Cargo.lock beside
+# this file pins every crate by checksum (`cargo build --locked`).
+#
+# Not a member of this repository's workspace — the empty `[workspace]` table
+# makes it its own root — so its dependency tree never reaches the shipped
+# crates, their lockfile, or `cargo deny`.
+
+[package]
+name = "interop-rust-conformance-server"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "conformance-server"
+path = "upstream/server.rs"
+
+[dependencies]
+rmcp = { version = "=3.5.1", features = [
+    "server",
+    "client",
+    "elicitation",
+    "auth",
+    "auth-client-credentials-jwt",
+    "auth-enterprise-managed",
+    "request-state",
+    "transport-streamable-http-server",
+    "transport-streamable-http-client-reqwest",
+] }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+axum = { version = "0.8", features = ["macros"] }
+anyhow = "1"

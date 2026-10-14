@@ -4,7 +4,10 @@
 # Scheduled hygiene: weekly RustSec audit, the full mutation sweep that PR-scoped
 # runs (mutants.yml) deliberately skip, fuzzing, a cargo-careful UB/overflow run
 # over the engine crates, a cross-architecture (s390x/powerpc/i686) byte-identity
-# check, a minimal-versions dependency-floor check, benchmarks, and the
+# check, a minimal-versions dependency-floor check, benchmarks, the cross-SDK
+# matrix (each official SDK's conformance server re-recorded and compared), an
+# informational mcpsnoop calibration run, an informational report of what the
+# specification's draft/ has changed since the newest release, and the
 # claims-expiry gates. Manually dispatchable for on-demand runs.
 
 name: Scheduled
@@ -95,6 +98,17 @@ jobs:
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # Room for a mutation run: the build copy of the workspace plus every
+      # mutant's test run. Two PR shards' runners were shut down mid-run on
+      # 2026-10-14 with no artifact; the workspace's tests were then leaving
+      # about 36 MB of fixture copies in the temporary directory per suite run
+      # (measured locally; 2 MB since). Toolchains no test here uses are
+      # removed, and the free space is logged before and after.
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
       - name: Install cargo-mutants
         run: cargo install cargo-mutants --version 27.1.0 --locked
       # The standard (docs/plan/04-engineering-standards.md): zero surviving mutants
@@ -106,14 +120,21 @@ jobs:
         # are the PR gate's and `cargo xtask mutants`'s, plus `--shard`, which
         # partitions the one deterministic (`--no-shuffle`) mutant list so the
         # eight shards together cover it exactly once.
+        # `ulimit -d` caps each process's data segment at 6 GiB: a mutant that
+        # turns a loop endless while it allocates (`j += 1` → `j *= 1` in the
+        # workbench diff's alignment did) then fails its own test with an
+        # allocation error, caught, instead of exhausting the runner's memory.
+        # Address-space reservations do not count, so Node's are unaffected.
         env:
           SHARD: ${{ matrix.shard }}
-        run: cargo mutants --workspace --no-shuffle --shard "${SHARD}/8" -- --all-features
+        run: |
+          ulimit -d 6291456
+          cargo mutants --workspace --no-shuffle --shard "${SHARD}/8" -- --all-features
       - name: Upload this shard's outcomes
         # Missed, caught and timeout lists per shard: the evidence a red shard
         # is read from, and on a green run the record that it ran at all.
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mutants-shard-${{ matrix.shard }}-${{ github.run_id }}
           path: mutants.out/
@@ -164,6 +185,129 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Draft scenarios vs everything-server, against the committed baseline
         run: cargo xtask draft-readiness
+
+  # The cross-SDK matrix (book/src/sdk-matrix.md; roadmap items 1.7 and 3.2):
+  # each official SDK's own conformance server — TypeScript, Python, Go,
+  # Rust — re-recorded through mcp-trace-capture with the SDK versions pinned
+  # in interop/sdk-pins.env, judged, and compared with the committed corpus.
+  # Red means the published matrix no longer describes what the pinned
+  # releases do (or the validator's judgment of them moved): re-record with
+  # BLESS=1 and review the golden diff, or find out why. The scripts it runs
+  # are the ones the book's worked guide includes, and `cargo xtask
+  # sdk-matrix --check` holds the guide and this job to that. Every SDK is
+  # installed with integrity: npm ci, pip --require-hashes, go.sum, Cargo.lock,
+  # and a SHA-256 per file fetched from an SDK's repository at a pinned commit.
+  sdk-matrix:
+    name: Cross-SDK matrix (official SDKs' conformance servers, re-recorded)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build the recorder and the validator
+        run: cargo build --locked -p mcp-trace-capture -p mcp-trace-validator
+      # Node, Python and Go are preinstalled on the runner image; go fetches
+      # the 1.25 toolchain interop/go/go.mod requires, checked against go.sum's
+      # checksum database like any module.
+      - name: Install the pinned SDKs and build their conformance servers
+        working-directory: interop
+        run: |
+          node --version && python3 --version && go version
+          ./setup.sh
+      - name: Record and judge every SDK's server
+        working-directory: interop
+        run: ./matrix.sh ../target/debug
+      - name: Compare with the committed corpus
+        run: cargo xtask sdk-matrix --recaptured interop/out-matrix
+      - name: Upload traces and reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sdk-matrix-${{ github.run_id }}
+          path: interop/out-matrix/
+          if-no-files-found: warn
+          retention-days: 30
+
+  # The second calibration source (book/src/mcpsnoop.md, roadmap item 3.3):
+  # re-measure the whole corpus with the pinned mcpsnoop and compare with the
+  # committed results. Informational by design — an external binary never
+  # gates this project's builds; the committed table is gated offline by
+  # `cargo xtask mcpsnoop --check` in `cargo xtask gates`. The binary comes
+  # from the npm registry tarball (no install script exists to run, and none
+  # is run: `npm pack` only downloads), verified against the registry's
+  # integrity and the binary's own SHA-256 before it executes. Bumping the pin
+  # means changing VERSION, both digests and `PINNED` in xtask/src/mcpsnoop.rs
+  # together, then re-measuring and re-triaging.
+  mcpsnoop:
+    name: mcpsnoop calibration (informational)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Fetch mcpsnoop 0.26.1 (linux-x64) and verify it
+        env:
+          VERSION: "0.26.1"
+          INTEGRITY: "sha512-mNsXyDgs4vznFP6BQz9oxAJYLEo+I2YC2F9vDICd5Z4FSUPTjHWT/A6HW+i6/FvyUu0Ymf3HnMc2zM9X2xZQ2Q=="
+          BINARY_SHA256: "81c3636fa5a371833ab4558d6ac417d9d94a86f99949e0cff32bb09ccf69c2a9"
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/mcpsnoop"
+          mkdir -p "$dir"
+          cd "$dir"
+          npm pack "@mcpsnoop/linux-x64@${VERSION}" --json > pack.json
+          file="$(jq -r '.[0].filename' pack.json)"
+          actual="sha512-$(openssl dgst -sha512 -binary "$file" | base64 -w0)"
+          if [ "$actual" != "$INTEGRITY" ]; then
+            echo "::error::$file has integrity $actual, expected $INTEGRITY"
+            exit 1
+          fi
+          tar -xzf "$file"
+          echo "${BINARY_SHA256}  package/bin/mcpsnoop" | sha256sum -c -
+          echo "MCPSNOOP=$dir/package/bin/mcpsnoop" >> "$GITHUB_ENV"
+      - name: Re-measure the corpus against the committed results
+        run: |
+          cargo xtask mcpsnoop
+          git diff --exit-code -- conformance/mcpsnoop book/src/mcpsnoop.md
+
+  # The next revision, read before it ships (roadmap 2.9). `claims-expire`
+  # below holds each *released* revision to its own text, and a released
+  # revision does not move; upstream's draft/ does. This compares it with the
+  # committed skeleton (crates/mcp-conformance-core/registry/draft/) and looks
+  # for every `2026-07-28` quote on its draft page, so a clause the next
+  # revision rewords or drops is listed weeks before it ships. Informational
+  # twice over: the task exits 0 on any finding (only an unreadable draft
+  # fails it), and the job cannot fail the run. The report lands in the job
+  # summary. Read-only: the workflow default `contents: read`, no write scope.
+  draft-drift:
+    name: Draft tracking (spec draft/ against 2026-07-28, informational)
+    # Skipped by a `claims`-scoped dispatch; see the `only` input above.
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
+        run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Draft page set, census and released quotes (report in the job summary)
+        run: cargo xtask spec-drift --draft
 
   fuzz:
     name: Fuzz (every declared target)
@@ -227,7 +371,7 @@ jobs:
       # it to a committed regression seed stays a deliberate PR.
       - name: Upload crash inputs
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fuzz-artifacts-${{ github.run_id }}
           path: fuzz/artifacts/
@@ -369,7 +513,7 @@ jobs:
       - name: Run benchmarks
         run: cargo bench --workspace
       - name: Upload criterion estimates
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bench-history-${{ github.run_id }}
           path: target/criterion/

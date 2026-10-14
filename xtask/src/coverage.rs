@@ -228,6 +228,15 @@ fn render_all(set: &RegistrySet) -> Option<String> {
         let _ = writeln!(out, "**`{revision}`{label}**\n");
         out.push_str(&render(&registry));
         out.push('\n');
+        if !registry.extension_requirements().is_empty() {
+            let _ = writeln!(
+                out,
+                "**Extensions attached to `{revision}` — reported beside the verdict, never scored \
+                 ([ADR-0023](docs/plan/decisions/0023-extensions-are-reported-never-scored.md))**\n"
+            );
+            out.push_str(&render_extensions(&registry));
+            out.push('\n');
+        }
     }
     out.push_str(
         "Every check is falsified by a committed violation trace and examines a real \
@@ -277,6 +286,57 @@ fn render(registry: &Registry) -> String {
         totals.checked,
         distinct_checks.len(),
         totals.excluded,
+    );
+    out
+}
+
+/// One row per extension, in registry order, and the sentence under them.
+fn render_extensions(registry: &Registry) -> String {
+    let mut distinct_checks: BTreeSet<&str> = BTreeSet::new();
+    let mut rows: Vec<AreaRow> = Vec::new();
+    for requirement in registry.extension_requirements() {
+        let extension = requirement.extension.as_deref().unwrap_or_default();
+        let index = rows
+            .iter()
+            .position(|row| row.area == extension)
+            .unwrap_or_else(|| {
+                rows.push(AreaRow {
+                    area: extension.to_owned(),
+                    requirements: 0,
+                    checked: 0,
+                    excluded: 0,
+                    gated: 0,
+                });
+                rows.len() - 1
+            });
+        rows[index].requirements += 1;
+        tally(&mut rows[index], requirement, &mut distinct_checks);
+    }
+    let mut out = String::new();
+    out.push_str("| Extension | Requirements | Checked | Excluded |\n");
+    out.push_str("|-----------|-------------:|--------:|---------:|\n");
+    let (mut requirements, mut checked, mut excluded) = (0, 0, 0);
+    for row in &rows {
+        let _ = writeln!(
+            out,
+            "| `{}` | {} | {} | {} |",
+            row.area, row.requirements, row.checked, row.excluded
+        );
+        requirements += row.requirements;
+        checked += row.checked;
+        excluded += row.excluded;
+    }
+    let _ = writeln!(
+        out,
+        "| **Total** | **{requirements}** | **{checked}** | **{excluded}** |"
+    );
+    let _ = writeln!(
+        out,
+        "\n{requirements} extension requirements: {checked} judged by {} distinct trace checks, \
+         {excluded} carrying a documented exclusion. A report lists an extension's outcomes \
+         under its `extensions`, with a verdict of its own that the report's verdict and exit \
+         status never read.",
+        distinct_checks.len()
     );
     out
 }

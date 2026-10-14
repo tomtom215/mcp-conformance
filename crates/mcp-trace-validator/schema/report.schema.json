@@ -124,14 +124,17 @@
       "minItems": 1
     },
     "source": {
-      "description": "The clause a failing or warning row breaks: its spec page and anchor, the clause verbatim, and its published link at the judged revision.",
+      "description": "The clause a failing or warning row breaks: its spec page and anchor, the clause verbatim, and its published link — at the judged revision, or, for an extension's clause, where the extension's own repository publishes it (ADR-0023).",
       "type": "object",
       "required": ["section", "quote", "url"],
       "additionalProperties": false,
       "properties": {
         "section": { "type": "string", "minLength": 1 },
         "quote": { "type": "string", "minLength": 1 },
-        "url": { "type": "string", "pattern": "^https://modelcontextprotocol\\.io/specification/" }
+        "url": {
+          "type": "string",
+          "pattern": "^https://(modelcontextprotocol\\.io/specification/|modelcontextprotocol\\.github\\.io/ext-|github\\.com/modelcontextprotocol/ext-)"
+        }
       }
     },
     "row": {
@@ -176,6 +179,22 @@
         }
       ]
     },
+    "wireSchema": {
+      "description": "Every message held to the judged revision's own JSON Schema, vendored from the specification (the `schema` URL pins the upstream commit). Not a requirement row and not counted in `totals`, but a `fail` fails the verdict. Absent when the build vendors no schema for the revision.",
+      "type": "object",
+      "required": ["outcome", "messages", "schema", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "outcome": { "enum": ["pass", "fail", "not-observed"] },
+        "messages": { "description": "How many messages were validated.", "type": "integer", "minimum": 0 },
+        "findings": { "$ref": "#/$defs/findings" },
+        "schema": { "type": "string", "pattern": "^https://github\\.com/modelcontextprotocol/modelcontextprotocol/blob/[0-9a-f]{40}/schema/" },
+        "source": { "$ref": "#/$defs/source" }
+      },
+      "if": { "properties": { "outcome": { "const": "fail" } } },
+      "then": { "required": ["findings"] },
+      "else": { "not": { "required": ["findings"] } }
+    },
     "report": {
       "description": "One trace judged against one revision.",
       "type": "object",
@@ -186,6 +205,33 @@
         "revision_mismatch": { "$ref": "#/$defs/revisionMismatch" },
         "revision_source": { "$ref": "#/$defs/revisionSource" },
         "verdict": { "$ref": "#/$defs/verdict" },
+        "totals": { "$ref": "#/$defs/totals" },
+        "requirements": { "type": "array", "items": { "$ref": "#/$defs/row" } },
+        "wire_schema": { "$ref": "#/$defs/wireSchema" },
+        "extensions": { "$ref": "#/$defs/extensions" }
+      }
+    },
+    "extensions": {
+      "description": "The extensions the session exercised, each judged against its own clauses and never scored: nothing here moves the report's `totals` or `verdict`, the way the official suite runs an extension's scenarios under `not_scored: extension` (ADR-0023). An extension appears once one of its clauses passed, failed, warned or is unsupported; omitted when none did.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/extension" }
+    },
+    "extension": {
+      "description": "One extension's clauses: its own verdict and totals, derived as a report's are and read by nothing else.",
+      "type": "object",
+      "required": ["extension", "verdict", "totals", "requirements"],
+      "additionalProperties": false,
+      "properties": {
+        "extension": {
+          "description": "The extension identifier (`io.modelcontextprotocol/tasks`).",
+          "type": "string",
+          "pattern": "^[^/\\s]+/\\S+$"
+        },
+        "verdict": {
+          "description": "What the extension's clauses add up to, for its implementers; informational, never an exit status.",
+          "$ref": "#/$defs/verdict"
+        },
         "totals": { "$ref": "#/$defs/totals" },
         "requirements": { "type": "array", "items": { "$ref": "#/$defs/row" } }
       }
@@ -238,7 +284,9 @@
             "properties": {
               "revision": { "$ref": "#/$defs/revision" },
               "totals": { "$ref": "#/$defs/totals" },
-              "verdict": { "$ref": "#/$defs/verdict" }
+              "verdict": { "$ref": "#/$defs/verdict" },
+              "wire_schema": { "$ref": "#/$defs/wireSchema" },
+              "extensions": { "$ref": "#/$defs/extensions" }
             }
           }
         },

@@ -29,15 +29,36 @@ fn listed_tools<'a>(context: &TraceContext<'a>) -> impl Iterator<Item = (u64, &'
     })
 }
 
+/// Whether a `tools/call` result is a `CreateTaskResult` rather than the tool's
+/// result: `augmented` when the request carried `2025-11-25`'s `task`, or a
+/// `2026-07-28` tasks extension `resultType: "task"`.
+fn is_task_handle(augmented: bool, result: &Value) -> bool {
+    augmented || result.get("resultType").and_then(Value::as_str) == Some("task")
+}
+
+/// The task id a `CreateTaskResult` issued, in either revision's shape.
+fn issued_task_id(augmented: bool, result: &Value) -> Option<&str> {
+    let handle = if augmented {
+        result.get("task")?
+    } else {
+        result
+    };
+    handle.get("taskId").and_then(Value::as_str)
+}
+
 /// Final `tools/call` results, with the called tool's name when stated.
 ///
-/// Two kinds of successful response are not the tool's result and are skipped:
+/// Three kinds of successful response are not the tool's result and are skipped:
 /// a `2026-07-28` multi-round-trip interim result (`resultType:
-/// "input_required"`, which asks the client for input and is retried), and a
+/// "input_required"`, which asks the client for input and is retried), a
 /// `2025-11-25` task-augmented call's `CreateTaskResult` (the request carried
-/// `task`; the tool's result is fetched later with `tasks/result`). For the
-/// latter, the `tasks/result` answer is yielded in its place, attributed to the
-/// tool through the task id the `CreateTaskResult` issued.
+/// `task`; the tool's result is fetched later with `tasks/result`), and a
+/// `2026-07-28` tasks extension's `CreateTaskResult` (`resultType: "task"`; the
+/// tool's result arrives as a completed task's `result` in `tasks/get`,
+/// ADR-0023). For the latter two, the tool's result is yielded in its place,
+/// attributed to the tool through the task id the `CreateTaskResult` issued.
+/// Until the extension's tasks were read this way, a conforming tasks session
+/// failed TOOL-040 for a task handle that carries no `structuredContent`.
 fn call_results<'a>(
     context: &TraceContext<'a>,
 ) -> impl Iterator<Item = (u64, Option<&'a str>, &'a Value)> {
@@ -52,12 +73,9 @@ fn call_results<'a>(
         match exchange.method {
             "tools/call" => {
                 let name = param("name").and_then(Value::as_str);
-                if param("task").is_some() {
-                    if let Some(task_id) = result
-                        .get("task")
-                        .and_then(|task| task.get("taskId"))
-                        .and_then(Value::as_str)
-                    {
+                let augmented = param("task").is_some();
+                if is_task_handle(augmented, result) {
+                    if let Some(task_id) = issued_task_id(augmented, result) {
                         task_tools.insert(task_id, name);
                     }
                     continue;
@@ -66,6 +84,22 @@ fn call_results<'a>(
                     continue;
                 }
                 results.push((exchange.response.seq, name, result));
+            }
+            // The tasks extension's completed task carries the tool's result.
+            "tasks/get" => {
+                let Some(name) = result
+                    .get("taskId")
+                    .and_then(Value::as_str)
+                    .and_then(|task_id| task_tools.get(task_id))
+                else {
+                    continue; // Not a task this trace saw a tool create.
+                };
+                if result.get("status").and_then(Value::as_str) != Some("completed") {
+                    continue;
+                }
+                if let Some(completed) = result.get("result") {
+                    results.push((exchange.response.seq, *name, completed));
+                }
             }
             "tasks/result" => {
                 let Some(name) = param("taskId")
@@ -256,28 +290,35 @@ pub(super) fn structured_content_text(context: &TraceContext<'_>, sink: &mut Fin
 }
 
 /// `TOOL-011`/`TOOL-040`: when a tool declared an `outputSchema` in `tools/list`,
-/// its successful, non-`isError` call results must provide `structuredContent`.
-/// Conformance of that content *to* the schema needs a JSON Schema engine and is
-/// exercised through the official-suite agreement check; what a trace judges is
-/// presence, and the one piece of shape the schema states at its root: a schema
-/// of `"type": "object"` (the only kind `2025-11-25` allows) needs an object.
-/// `2026-07-28` admits any JSON value, an array schema included.
+/// its successful, non-`isError` call results must provide `structuredContent`
+/// that conforms to it. The schema is applied in the dialect it declares
+/// (2020-12 without a `$schema`); one this engine cannot compile — an unknown
+/// dialect, a reference to a document outside it, or an invalid schema, which
+/// is `BASE-017`/`BASE-073`'s finding — is held only to its root `type`: a
+/// schema of `"type": "object"` (the only kind `2025-11-25` allows) needs an
+/// object. `2026-07-28` admits any JSON value, an array schema included.
 pub(super) fn output_schema_structured_result(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    let with_output_schema: std::collections::BTreeMap<&str, bool> = listed_tools(context)
-        .filter_map(|(_, tool)| {
-            let schema = tool
-                .get("outputSchema")
-                .filter(|schema| schema.is_object())?;
-            let wants_object = schema.get("type").and_then(Value::as_str) == Some("object");
-            Some((tool.get("name").and_then(Value::as_str)?, wants_object))
-        })
-        .collect();
+    let with_output_schema: std::collections::BTreeMap<&str, (bool, &Value)> =
+        listed_tools(context)
+            .filter_map(|(_, tool)| {
+                let schema = tool
+                    .get("outputSchema")
+                    .filter(|schema| schema.is_object())?;
+                let wants_object = schema.get("type").and_then(Value::as_str) == Some("object");
+                Some((
+                    tool.get("name").and_then(Value::as_str)?,
+                    (wants_object, schema),
+                ))
+            })
+            .collect();
+    let mut compiled: std::collections::BTreeMap<&str, Option<jsonschema::Validator>> =
+        std::collections::BTreeMap::new();
     if with_output_schema.is_empty() {
         return;
     }
     for (seq, name, result) in call_results(context) {
         let Some(name) = name else { continue };
-        let Some(&wants_object) = with_output_schema.get(name) else {
+        let Some(&(wants_object, schema)) = with_output_schema.get(name) else {
             continue;
         };
         if result.get("isError").and_then(Value::as_bool) == Some(true) {
@@ -297,7 +338,22 @@ pub(super) fn output_schema_structured_result(context: &TraceContext<'_>, sink: 
                     "tool {name:?} declares an object outputSchema but this result's structuredContent is not an object"
                 ),
             ),
-            Some(_) => {}
+            Some(structured) => {
+                let validator = compiled
+                    .entry(name)
+                    .or_insert_with(|| crate::wire_schema::compile_declared(schema));
+                let Some(validator) = validator else { continue };
+                let errors = crate::wire_schema::instance_errors(validator, structured, "");
+                if !errors.is_empty() {
+                    sink.push(
+                        Some(seq),
+                        format!(
+                            "tool {name:?}'s structuredContent does not conform to its outputSchema: {}",
+                            crate::wire_schema::summarize(&errors)
+                        ),
+                    );
+                }
+            }
         }
     }
 }

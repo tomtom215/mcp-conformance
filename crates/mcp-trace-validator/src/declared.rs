@@ -55,6 +55,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::str::FromStr as _;
 
+use mcp_conformance_core::canonical::to_canonical_string;
 use mcp_conformance_core::requirement::BUILTIN_REVISIONS;
 use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::{Direction, EventBody, TraceEvent, TransportKind};
@@ -160,6 +161,7 @@ fn refused_request_ids(events: &[TraceEvent]) -> BTreeSet<String> {
 /// found scanning forward from the probe, so a later request reusing the id
 /// cannot vouch for it.
 pub(crate) fn failed_discover_probes(events: &[TraceEvent]) -> BTreeSet<u64> {
+    let responses = Responses::of(events);
     let mut failed = BTreeSet::new();
     for (index, event) in events.iter().enumerate() {
         let Some(payload) = event.message_payload() else {
@@ -168,7 +170,7 @@ pub(crate) fn failed_discover_probes(events: &[TraceEvent]) -> BTreeSet<u64> {
         if payload.get("method").and_then(Value::as_str) != Some("server/discover") {
             continue;
         }
-        if !answered_by_result(events, index) {
+        if !responses.answered_by_result(events, index) {
             failed.insert(event.seq);
         }
     }
@@ -188,6 +190,7 @@ pub(crate) fn failed_discover_probes(events: &[TraceEvent]) -> BTreeSet<u64> {
 /// this set records is that the request belongs to the modern era, not to the
 /// handshake session that follows it.
 pub(crate) fn failed_modern_attempts(events: &[TraceEvent]) -> BTreeSet<u64> {
+    let responses = Responses::of(events);
     let mut failed = BTreeSet::new();
     for (index, event) in events.iter().enumerate() {
         if event.direction != Direction::ClientToServer
@@ -209,7 +212,7 @@ pub(crate) fn failed_modern_attempts(events: &[TraceEvent]) -> BTreeSet<u64> {
             .and_then(|params| params.get("_meta"))
             .and_then(|meta| meta.get(META_PROTOCOL_VERSION))
             .is_some();
-        if modern && payload.get("id").is_some() && !answered_by_result(events, index) {
+        if modern && payload.get("id").is_some() && !responses.answered_by_result(events, index) {
             failed.insert(event.seq);
         }
     }
@@ -225,23 +228,70 @@ pub(crate) fn era_detection(events: &[TraceEvent]) -> BTreeSet<u64> {
     detection
 }
 
-/// Whether the request at `index` was answered by a *result* carrying its id,
-/// found scanning forward from it, so a later request reusing the id cannot
-/// vouch for it.
-fn answered_by_result(events: &[TraceEvent], index: usize) -> bool {
-    let request = &events[index];
-    let Some(id) = request
-        .message_payload()
-        .and_then(|payload| payload.get("id"))
-    else {
-        return false;
-    };
-    events[index + 1..]
-        .iter()
-        .filter(|later| later.direction != request.direction)
-        .filter_map(TraceEvent::message_payload)
-        .find(|later| later.get("method").is_none() && later.get("id") == Some(id))
-        .is_some_and(|response| response.get("result").is_some())
+/// Every response in a trace, indexed for "what answered this request first".
+///
+/// Built in one pass so each lookup is a binary search: scanning forward from
+/// every candidate request instead made era detection quadratic, and a trace
+/// of 40,000 unanswered pre-`initialize` requests took a minute to judge.
+pub(crate) struct Responses {
+    /// `(sent by the client, id in canonical form)` → `(index, carries
+    /// result)` of each message with that id and no `method`, in trace order.
+    /// Canonical form is coarser than value equality (it folds `1.0` into
+    /// `1`), so a lookup confirms the id with `==`, the comparison this
+    /// replaced.
+    by_id: std::collections::BTreeMap<(bool, String), Vec<(usize, bool)>>,
+}
+
+impl Responses {
+    pub(crate) fn of(events: &[TraceEvent]) -> Self {
+        let mut by_id: std::collections::BTreeMap<(bool, String), Vec<(usize, bool)>> =
+            std::collections::BTreeMap::new();
+        for (index, event) in events.iter().enumerate() {
+            let Some(payload) = event.message_payload() else {
+                continue;
+            };
+            if payload.get("method").is_some() {
+                continue;
+            }
+            let Some(id) = payload.get("id") else {
+                continue;
+            };
+            by_id
+                .entry((
+                    event.direction == Direction::ClientToServer,
+                    to_canonical_string(id),
+                ))
+                .or_default()
+                .push((index, payload.get("result").is_some()));
+        }
+        Self { by_id }
+    }
+
+    /// Whether the request at `index` was answered by a *result* carrying its
+    /// id: the first response from the other party with that id, after it, so
+    /// a later request reusing the id cannot vouch for it.
+    pub(crate) fn answered_by_result(&self, events: &[TraceEvent], index: usize) -> bool {
+        let request = &events[index];
+        let Some(id) = request
+            .message_payload()
+            .and_then(|payload| payload.get("id"))
+        else {
+            return false;
+        };
+        let responder_is_client = request.direction != Direction::ClientToServer;
+        self.by_id
+            .get(&(responder_is_client, to_canonical_string(id)))
+            .and_then(|responses| {
+                let after = responses.partition_point(|&(at, _)| at <= index);
+                responses[after..].iter().find(|&&(at, _)| {
+                    events[at]
+                        .message_payload()
+                        .and_then(|payload| payload.get("id"))
+                        == Some(id)
+                })
+            })
+            .is_some_and(|&(_, result)| result)
+    }
 }
 
 /// Whether this message is a request whose id was answered with an error.

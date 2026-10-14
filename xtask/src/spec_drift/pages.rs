@@ -50,7 +50,7 @@ pub(super) fn navigation() -> Result<String, ()> {
 /// lists `basic`, `2026-07-28` lists `basic/index`, and the site serves both at
 /// the directory — so the comparison folds the suffix away. The revision's own
 /// root page stays `index`.
-fn canonical(page: &str) -> &str {
+pub(super) fn canonical(page: &str) -> &str {
     page.strip_suffix("/index").unwrap_or(page)
 }
 
@@ -89,7 +89,7 @@ pub(super) fn verify(revision: &str, sources: &Sources, navigation: &str) -> Vec
 /// When the document does not parse, or lists no page for the revision — a
 /// navigation restructured past what this reads must fail, not verify an empty
 /// set against itself.
-fn published(navigation: &str, revision: &str) -> Result<BTreeSet<String>, String> {
+pub(super) fn published(navigation: &str, revision: &str) -> Result<BTreeSet<String>, String> {
     let document: Value = serde_json::from_str(navigation)
         .map_err(|error| format!("the site navigation is not JSON: {error}"))?;
     let mut listed = Vec::new();
@@ -111,7 +111,7 @@ fn published(navigation: &str, revision: &str) -> Result<BTreeSet<String>, Strin
 
 /// Every string in a `pages` array, at any depth: the navigation nests groups
 /// inside tabs inside versions, and a page is a string wherever it appears.
-fn navigation_pages<'v>(value: &'v Value, out: &mut Vec<&'v str>) {
+pub(super) fn navigation_pages<'v>(value: &'v Value, out: &mut Vec<&'v str>) {
     match value {
         Value::Object(map) => {
             for (key, child) in map {
@@ -164,7 +164,7 @@ fn coverage(revision: &str, sources: &Sources, published: &BTreeSet<String>) -> 
 /// What can be checked without the network: the two lists are disjoint and
 /// spell each page once, every exclusion has a reason, every in-scope page
 /// names its own source file, and the census covers exactly the in-scope pages.
-fn structure(revision: &str, sources: &Sources) -> Vec<String> {
+pub(super) fn structure(revision: &str, sources: &Sources) -> Vec<String> {
     let mut problems = Vec::new();
     let mut seen: BTreeMap<&str, &str> = BTreeMap::new();
     let lists = [
@@ -195,29 +195,37 @@ fn structure(revision: &str, sources: &Sources) -> Vec<String> {
                 "{revision}/{page}: `in_scope` names {file:?}, which is not this page's source"
             ));
         }
-        if !sources.must_census.contains_key(page) {
-            problems.push(format!(
-                "{revision}/{page}: in scope with no `must_census` entry; count its \
-                 MUST-family keywords"
-            ));
+        for (family, census) in sources.censuses() {
+            if !census.contains_key(page) {
+                problems.push(format!(
+                    "{revision}/{page}: in scope with no `{}` entry; count its {} keywords",
+                    family.field(),
+                    family.label()
+                ));
+            }
         }
     }
-    for page in sources.must_census.keys() {
-        if !sources.in_scope.contains_key(page) {
-            problems.push(format!(
-                "{revision}/{page}: has a `must_census` entry but is not in scope"
-            ));
+    for (family, census) in sources.censuses() {
+        for page in census.keys() {
+            if !sources.in_scope.contains_key(page) {
+                problems.push(format!(
+                    "{revision}/{page}: has a `{}` entry but is not in scope",
+                    family.field()
+                ));
+            }
         }
     }
     problems
 }
 
 /// The offline half, run by `cargo xtask gates`: every revision's lists are
-/// well-formed by [`structure`]. `true` when they are.
+/// well-formed by [`structure`], and so are the draft tracking skeleton's —
+/// it is the next revision's `sources.json` in waiting, so it is held to the
+/// same shape before it ever judges anything. `true` when they are.
 pub(crate) fn gate() -> bool {
     let mut ok = true;
     let mut pages = 0usize;
-    for revision in REVISIONS {
+    for revision in REVISIONS.iter().chain([&super::draft::DRAFT]) {
         let sources = match load_sources(revision) {
             Ok(sources) => sources,
             Err(message) => {
@@ -232,15 +240,52 @@ pub(crate) fn gate() -> bool {
             ok = false;
         }
     }
+    ok &= extension_gate();
     if ok {
         eprintln!(
-            "xtask: page-set — {pages} page(s) across {} revision(s), each in exactly one \
-             list, every exclusion reasoned (the published set itself is checked by \
-             `cargo xtask spec-drift`)",
+            "xtask: page-set — {pages} page(s) across {} revision(s) and the draft skeleton, \
+             each in exactly one list, every exclusion reasoned (the published set itself is \
+             checked by `cargo xtask spec-drift`, the draft's by `spec-drift --draft`)",
             REVISIONS.len()
         );
     }
     ok
+}
+
+/// The offline half for the extension registries (ADR-0023): their page set's
+/// shape, and its agreement with the entries that cite it.
+fn extension_gate() -> bool {
+    let sources = match super::extensions::load() {
+        Ok(sources) => sources,
+        Err(message) => {
+            eprintln!("xtask: page-set — extensions: {message}");
+            return false;
+        }
+    };
+    let registry = mcp_conformance_core::requirement::RegistrySet::builtin()
+        .ok()
+        .and_then(|set| set.registry(super::extensions::REVISION.parse().ok()?));
+    let Some(registry) = registry else {
+        eprintln!(
+            "xtask: page-set — the embedded set does not describe {}",
+            super::extensions::REVISION
+        );
+        return false;
+    };
+    let problems = super::extensions::structure(&sources, &registry);
+    for problem in &problems {
+        eprintln!("xtask: page-set — extensions: {problem}");
+    }
+    if problems.is_empty() {
+        eprintln!(
+            "xtask: page-set — {} extension(s) attached to {}, each page in one list and \
+             cited by its entries, {} other extension page(s) of the site reasoned out",
+            sources.extensions.len(),
+            super::extensions::REVISION,
+            sources.site_out_of_scope.len()
+        );
+    }
+    problems.is_empty()
 }
 
 #[cfg(test)]

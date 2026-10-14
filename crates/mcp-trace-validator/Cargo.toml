@@ -5,6 +5,7 @@
 name = "mcp-trace-validator"
 description = "Deterministic offline validator for recorded Model Context Protocol traces: requirement-level findings, machine-readable reports"
 readme = "README.md"
+documentation = "https://docs.rs/mcp-trace-validator"
 keywords = ["mcp", "conformance", "validator", "testing", "protocol"]
 categories = ["development-tools::testing", "command-line-utilities"]
 edition.workspace = true
@@ -48,13 +49,15 @@ rustdoc-args = ["--generate-link-to-definition"]
 mcp-conformance-core = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+# Wire-schema validation (ADR-0020): every message checked against the
+# revision's own JSON Schema, vendored in mcp-conformance-core. No default
+# features: no remote `$ref` resolution, so no network and no HTTP stack. The
+# 0.58 floor is the version the vendored schemas were verified with.
+jsonschema = { version = ">=0.58.6, <0.59", default-features = false }
 clap = { workspace = true, optional = true }
 clap_complete = { workspace = true, optional = true }
 
 [dev-dependencies]
-# Checks the published trace-event JSON Schema against the reader
-# (tests/trace_schema.rs). No default features: no remote `$ref` resolution.
-jsonschema = { version = ">=0.57, <0.59", default-features = false }
 proptest = { workspace = true }
 criterion = { workspace = true }
 

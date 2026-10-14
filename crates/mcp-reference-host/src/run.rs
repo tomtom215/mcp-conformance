@@ -8,14 +8,10 @@
 //! that order, so every run ends for a reason the report names
 //! (02-architecture.md: no "the loop usually terminates").
 
-// SEP-2577 forward-deprecates Logging, and rmcp 3.x carries the attribute, so
-// naming `LoggingLevel` fires it on correct code: the level a request asks for
-// is how `2026-07-28` *replaced* `logging/setLevel`, and it is the only way a
-// recording can carry the logging clauses at all. Scoped to this module rather
-// than the crate, matching `mcp-everything-server`'s two module-level allows —
-// a blanket allow would also hide a deprecation that genuinely matters.
-#![allow(deprecated)]
-use rmcp::model::{CallToolRequestParams, LoggingLevel, RequestMetaObject};
+use rmcp::model::{CallToolRequestParams, RequestMetaObject};
+// SEP-2577 deprecates Logging, yet a `2026-07-28` request still asks for a level.
+#[allow(deprecated)]
+use rmcp::model::LoggingLevel;
 use rmcp::service::{Peer, RoleClient, RunningService, Service};
 use serde_json::{Map, Value};
 use tokio_util::sync::CancellationToken;
@@ -45,6 +41,8 @@ pub struct RunPlan {
     /// clauses are unjudgeable against a session that never asked to see a log
     /// line — and asking is the client-side half of the mechanism that
     /// replaced `logging/setLevel`.
+    // SEP-2577 deprecates Logging, yet a `2026-07-28` request still asks for a level.
+    #[allow(deprecated)]
     pub log_level: Option<LoggingLevel>,
     /// The W3C Trace Context `traceparent` to carry in each call's `_meta`.
     ///
@@ -289,6 +287,11 @@ fn judge_outcome(
 
 /// Materializes the call list; `None` when discovery itself failed (the
 /// failure is already recorded on the report).
+///
+/// Discovery follows `nextCursor` to the last page (rmcp's `list_all_tools`):
+/// a tool listed on a later page is as much the server's surface as one on
+/// the first, and a client that stopped at one page would record a sweep of
+/// whatever happened to fit there.
 async fn resolve_calls(
     peer: &Peer<RoleClient>,
     policy: &CallPolicy,
@@ -296,10 +299,9 @@ async fn resolve_calls(
 ) -> Option<Vec<PlannedCall>> {
     match policy {
         CallPolicy::Scripted(calls) => Some(calls.clone()),
-        CallPolicy::EachDiscoveredToolOnce => match peer.list_tools(None).await {
-            Ok(listing) => Some(
-                listing
-                    .tools
+        CallPolicy::EachDiscoveredToolOnce => match peer.list_all_tools().await {
+            Ok(tools) => Some(
+                tools
                     .iter()
                     .map(|tool| PlannedCall {
                         tool: tool.name.to_string(),

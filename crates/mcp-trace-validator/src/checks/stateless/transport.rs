@@ -25,6 +25,8 @@ use crate::context::TraceContext;
 
 mod headers;
 mod omission;
+mod placement;
+mod rejection;
 mod stdio;
 mod stream;
 mod validation;
@@ -38,12 +40,14 @@ mod tests;
 pub(in crate::checks) use headers::{
     header_value_encoding, protocol_version_header_matches_body, protocol_version_header_present,
     request_metadata_headers, sentinel_marker_case, sentinel_pattern_encoded,
-    x_mcp_header_mirrored, x_mcp_header_name_valid,
+    x_mcp_header_mirrored, x_mcp_header_name_valid, x_mcp_header_value_mirrored,
 };
 pub(in crate::checks) use omission::{
     absent_param_header_not_expected, missing_param_header_rejected,
     null_param_header_not_expected, x_mcp_header_absent_omitted, x_mcp_header_null_omitted,
 };
+pub(in crate::checks) use placement::x_mcp_header_statically_reachable;
+pub(in crate::checks) use rejection::invalid_tool_not_called;
 pub(in crate::checks) use stdio::{
     cancel_notification_references_request, no_messages_after_cancel_notification,
 };
@@ -147,7 +151,7 @@ pub(super) fn is_miscased_sentinel(value: &str) -> bool {
 
 /// How a mirrored header value relates to the body value it mirrors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Match {
+pub(in crate::checks) enum Match {
     /// The header carries the body value, plainly or Base64-encoded.
     Carried,
     /// The header repeats the body value verbatim even though it matches the
@@ -160,7 +164,7 @@ pub(super) enum Match {
 /// Compares a header value against the body value it mirrors, decoding the
 /// sentinel first — the comparison the specification requires of servers
 /// (TRAN-091, TRAN-103) and therefore the one a trace must be judged by.
-pub(super) fn compare(header: &str, body: &str) -> Match {
+pub(in crate::checks) fn compare(header: &str, body: &str) -> Match {
     if header == body {
         return if sentinel_payload(body).is_some() {
             Match::UnencodedSentinel

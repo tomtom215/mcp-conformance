@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+
+# An allowlist: the Dockerfile's build context is exactly what the build reads,
+# so a local target/, an untracked secret or a stray trace never reaches the
+# builder. xtask is a workspace member, so `--locked` resolution needs it even
+# though nothing builds it.
+*
+!Cargo.toml
+!Cargo.lock
+!rust-toolchain.toml
+!LICENSE
+!crates/
+!xtask/
+crates/*/*.cdx.json
+xtask/*.cdx.json

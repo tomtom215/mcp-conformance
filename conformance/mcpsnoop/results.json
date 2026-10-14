@@ -1,0 +1,7682 @@
+{
+  "mcpsnoop": "0.26.1",
+  "native": [
+    {
+      "session": "http-2025-11-25",
+      "findings": 28,
+      "same_as_native": true,
+      "only_as_recorded": [
+        "pending: elicitation/create (id 0) never got a response",
+        "pending: elicitation/create (id 1) never got a response",
+        "pending: elicitation/create (id 2) never got a response",
+        "pending: elicitation/create (id 4) never got a response",
+        "pending: sampling/createMessage (id 3) never got a response",
+        "warn: response id has no matching request",
+        "warn: response id has no matching request",
+        "warn: response id has no matching request",
+        "warn: response id has no matching request",
+        "warn: response id has no matching request"
+      ]
+    },
+    {
+      "session": "http-2026-07-28",
+      "findings": 22,
+      "same_as_native": true,
+      "only_as_recorded": []
+    },
+    {
+      "session": "stdio-2025-11-25",
+      "findings": 28,
+      "same_as_native": true,
+      "only_as_recorded": []
+    }
+  ],
+  "traces": [
+    {
+      "trace": "good/http-authorization",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 3
+        }
+      }
+    },
+    {
+      "trace": "good/http-origin-refused-without-id",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "good/http-session",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "good/stdio-client-features",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 20,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 4,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "good/stdio-feature-session",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 28,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 3,
+          "deprecated": 2
+        }
+      }
+    },
+    {
+      "trace": "good/stdio-full-session",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 10,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "good/stdio-minimal-init",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/auth-014-challenge-without-scope",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-014"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/auth-045-invalid-token-answered-403",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-045",
+          "AUTH-049"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "violations/auth-049-insufficient-scope-answered-401",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-049",
+          "AUTH-050"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "violations/auth-050-insufficient-scope-without-resource-metadata",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-050"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "violations/auth-051-insufficient-scope-names-no-scope",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-050",
+          "AUTH-051"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "violations/base-001-request-id-boolean",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-001",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "request id has type boolean; MCP requires a string or integer id"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/base-002-request-id-null",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-001",
+          "BASE-002",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "request id is null; MCP requires a string or integer id"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/base-003-request-id-reuse",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/base-004-request-answered-twice-cross-flavor",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-004"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "duplicate response for the same id"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/base-004-result-unknown-id",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-004"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/base-005-notification-with-id",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-005",
+          "LIFE-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/base-006-error-missing-message",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-006",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/base-007-error-code-float",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-007",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "invalid",
+            "seq": 1,
+            "framed": true,
+            "message": "frame on the protocol channel is not valid JSON-RPC"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/base-008-jsonrpc-version",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-008",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "jsonrpc must be 2.0"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/base-009-error-unknown-id",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-009"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/base-010-response-without-result",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-008",
+          "BASE-010",
+          "TRAN-004",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 4,
+            "framed": true,
+            "message": "response has neither result nor error"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/base-017-input-schema-invalid",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-017"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/base-019-meta-key-bad-prefix",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-019",
+          "BASE-020"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/base-086-input-schema-draft-07",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-086"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1,
+          "schema": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/comp-001-capability-undeclared",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "COMP-001",
+          "LIFE-009"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/elic-004-answered-without-capability",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-004",
+          "ELIC-006",
+          "LIFE-009"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/elic-006-url-mode-undeclared",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-006",
+          "LIFE-009"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/elic-007-request-without-message",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-007",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/elic-009-form-without-schema",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-009",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/elic-011-url-without-elicitation-id",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-011",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/elic-012-url-without-scheme",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-012"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/elic-014-complete-names-unknown-id",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-014"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/elic-018-url-required-error-without-list",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-018",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/elic-019-url-required-error-form-mode",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-019",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/elic-021-undeclared-mode-accepted",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-006",
+          "ELIC-021",
+          "LIFE-009"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/elic-049-accepted-content-violates-schema",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "ELIC-049"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/life-001-first-message-not-initialize",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-001",
+          "LIFE-004"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/life-002-initialize-missing-protocolversion",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-002",
+          "LIFE-007",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/life-003-missing-initialized",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/life-004-client-request-before-init-response",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "LIFE-004"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/life-005-server-request-before-initialized",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "LIFE-005"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/life-006-result-version-invalid",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-006"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/life-007-initialize-protocolversion-not-string",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-002",
+          "LIFE-007",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/life-009-undeclared-capability-use",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-009"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/life-010-initialize-result-missing-capabilities",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-010",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/log-001-capability-undeclared",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-009",
+          "LOG-001"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/page-002-cursor-never-issued",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PAGE-002",
+          "PAGE-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/page-002-fabricated-cursor-rejected",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PAGE-002"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/prom-001-capability-undeclared",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-009",
+          "PROM-001"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prom-003-image-data-invalid",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROM-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prom-004-audio-data-invalid",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROM-004"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prom-005-embedded-resource-malformed",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROM-005",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prom-008-required-argument-unvalidated",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "PROM-008"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/res-001-capability-undeclared",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-009",
+          "RES-001"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/res-004-uri-bad-scheme",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "RES-004"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/res-006-blob-not-base64",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "RES-006"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/root-001-answered-without-capability",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-009",
+          "ROOT-001",
+          "ROOT-004",
+          "ROOT-009"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/root-003-root-not-file-uri",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ROOT-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/root-004-unsupported-answered-internal-error",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-009",
+          "ROOT-004",
+          "ROOT-009"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/root-009-asked-without-capability",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-009",
+          "ROOT-009"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/samp-004-tools-without-sampling-tools",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-009",
+          "SAMP-004"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/samp-005-answered-without-capability",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-009",
+          "SAMP-005"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/samp-006-include-context-deprecated",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "SAMP-006"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/samp-007-include-context-undeclared",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "SAMP-006",
+          "SAMP-007"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/samp-008-tool-results-mixed",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SAMP-008",
+          "SAMP-009",
+          "SAMP-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/samp-009-tool-use-unanswered",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SAMP-009",
+          "SAMP-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/samp-010-required-tool-choice-ignored",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SAMP-010"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/samp-011-none-tool-choice-ignored",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SAMP-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/samp-012-malformed-tool-messages-answered",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SAMP-009",
+          "SAMP-012",
+          "SAMP-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/tool-001-capability-undeclared",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-009",
+          "TOOL-001"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tool-003-input-schema-null",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-017",
+          "TOOL-003",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 4,
+            "framed": true,
+            "message": "tool \"echo\" advertises an inputSchema that is not a JSON object, and 2026-07-28 requires one whose root type is \"object\""
+          }
+        ],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/tool-005-name-length",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TOOL-005"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/tool-006-name-charset",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TOOL-006",
+          "TOOL-007"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/tool-008-name-duplicate",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TOOL-008"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/tool-009-embedded-resource-without-capability",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TOOL-009"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tool-010-structured-without-text",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TOOL-010"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tool-011-output-schema-no-structured-result",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/tool-011-structured-content-not-conforming",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/tran-004-stdout-invalid-message",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-008",
+          "TRAN-004",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "invalid",
+            "seq": 3,
+            "framed": true,
+            "message": "frame on the protocol channel is not valid JSON-RPC"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-005-stdin-invalid-message",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-008",
+          "TRAN-005",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "invalid",
+            "seq": 3,
+            "framed": true,
+            "message": "frame on the protocol channel is not valid JSON-RPC"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-011-session-id-invisible-ascii",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-013-session-id-not-echoed",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-013"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-017-protocol-version-header-missing",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LIFE-018",
+          "TRAN-017"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-018-declined-version-header-refused-400",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TRAN-018"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/tran-018-protocol-version-mismatched",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TRAN-018"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-020-declined-version-header-accepted",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-018",
+          "TRAN-020"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-025-accept-header-json-missing",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-025"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-025-accept-header-missing",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-025"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-026-http-post-batch",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-008",
+          "TRAN-026",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/tran-027-notification-answered-200",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-027"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-029-content-type-unexpected",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-029"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "the response to a request is text/html, and the transport allows only application/json or text/event-stream"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-029-error-without-content-type",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-029"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 10,
+            "framed": true,
+            "message": "the response to a request carried no Content-Type, and the transport requires application/json or text/event-stream"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/tran-039-get-accept-header-missing",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-039"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-040-get-answered-json",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-040"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/tran-049-message-not-posted",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-049"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/wire-schema-content-block-unknown-type",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/wire-schema-log-level-not-in-enum",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 2
+        }
+      }
+    },
+    {
+      "trace": "violations/wire-schema-resource-missing-uri",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/caching-ttl-written-as-float",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/client-features-mrtr",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/good/http-authorization",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 13,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/good/http-close-after-another-response",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 6,
+      "unframed": 1,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/http-concurrent-posts",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 4,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 6,
+            "framed": false,
+            "message": "routing header mismatch: required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "mismatch",
+            "seq": 7,
+            "framed": false,
+            "message": "routing header mismatch: required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 6,
+            "framed": false,
+            "message": "required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 7,
+            "framed": false,
+            "message": "required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          }
+        ],
+        "other": {
+          "annotations": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/good/http-dual-era-modern-request-first",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1,
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/http-origin-refused-without-id",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/http-stream-closed-by-client",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/http-upstream-abort",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 4,
+      "unframed": 1,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/http-x-mcp-header-omitted",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/input-required-id-reused",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/logging-per-request",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/mrtr-parallel-rounds",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/mrtr-retry-round-before-recording",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/resource-read-existing-empty",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/skills-session",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 21,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/good/stateless-session",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/stdio-cancellation-race",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "late-result": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/stdio-cancelled-id-reused",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "late-result": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/stdio-discover-preferred-version-unsupported",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/stdio-progress",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 14,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/stdio-x-mcp-header-large-integer",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/streamable-http-session",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 12,
+      "unframed": 1,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/good/subscription-id-reused-after-close",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/subscription-server-teardown",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/tasks-http",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/tasks-session",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 33,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 2,
+          "error": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/good/traceparent-higher-version",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/auth-097-challenge-without-scope",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-097"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-124-invalid-token-answered-403",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-124",
+          "AUTH-130"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-129-offline-access-challenged",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-129"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-130-insufficient-scope-answered-401",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-130",
+          "AUTH-131"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-131-insufficient-scope-without-resource-metadata",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-131"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-132-insufficient-scope-names-no-scope",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-131",
+          "AUTH-132"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-133-scope-challenged-incrementally",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "AUTH-133"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-030-malformed-request-id-reused-correctly",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-030",
+          "COMP-006",
+          "MRTR-002",
+          "PAGE-006",
+          "PROM-011",
+          "RES-011",
+          "TOOL-016",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 0,
+            "framed": true,
+            "message": "request _meta is missing required io.modelcontextprotocol/clientCapabilities"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-030-malformed-request-refused-without-id",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-030",
+          "BASE-052",
+          "COMP-006",
+          "MRTR-002",
+          "PAGE-006",
+          "PROM-011",
+          "RES-011",
+          "TOOL-016",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "request _meta is missing required io.modelcontextprotocol/clientCapabilities"
+          },
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-030-request-meta-missing-required-field",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-030",
+          "BASE-031",
+          "CACH-001",
+          "COMP-006",
+          "MRTR-002",
+          "PAGE-006",
+          "PROM-011",
+          "RES-011",
+          "TOOL-016",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 0,
+            "framed": true,
+            "message": "request _meta is missing required io.modelcontextprotocol/clientCapabilities"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "cacheable tools/list result declares no ttlMs, which 2026-07-28 requires"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/base-030-unsupported-version-refused-as-invalid-params",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-030",
+          "COMP-006",
+          "MRTR-002",
+          "PAGE-006",
+          "PROM-011",
+          "RES-011",
+          "TOOL-016",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 2,
+            "framed": true,
+            "message": "request _meta is missing required io.modelcontextprotocol/clientCapabilities"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-031-malformed-meta-answered-with-result",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-030",
+          "BASE-031",
+          "CACH-001",
+          "COMP-006",
+          "MRTR-002",
+          "PAGE-006",
+          "PROM-011",
+          "RES-011",
+          "TOOL-016",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/base-031-reused-id-malformed-answered",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-030",
+          "BASE-031",
+          "COMP-006",
+          "MRTR-002",
+          "PAGE-006",
+          "PROM-011",
+          "RES-011",
+          "TOOL-016",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 2,
+            "framed": true,
+            "message": "request _meta is missing required io.modelcontextprotocol/clientCapabilities"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/base-032-invalid-params-not-http-400",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 1,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-030",
+          "BASE-032",
+          "COMP-006",
+          "MRTR-002",
+          "PAGE-006",
+          "PROM-011",
+          "RES-011",
+          "TOOL-016",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-033-request-without-client-info",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-033"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/base-034-input-request-for-undeclared-capability",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-034",
+          "ELIC-059",
+          "MRTR-012",
+          "MRTR-013",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "inputRequests asks for \"elicitation/create\" while the request declared no elicitation capability"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-034-input-request-for-undeclared-mode",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-034",
+          "ELIC-059",
+          "MRTR-012",
+          "MRTR-013",
+          "SAMP-026"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-035-missing-capability-error-without-capabilities",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-035",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-036-missing-capability-not-http-400",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 1,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-035",
+          "BASE-036",
+          "TRAN-063",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 0,
+            "framed": false,
+            "message": "routing header mismatch: required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 0,
+            "framed": false,
+            "message": "required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 2,
+            "framed": true,
+            "message": "the response to a request carried no Content-Type, and the transport requires application/json or text/event-stream"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-037-result-without-server-info",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-037"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/base-039-subscription-notification-mistagged",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-039"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/base-039-subscription-notification-untagged",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-039",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "notification \"notifications/tools/list_changed\" carries no io.modelcontextprotocol/subscriptionId, which 2026-07-28 requires on a subscription stream"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/base-040-malformed-traceparent",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-040",
+          "CACH-001",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "cacheable tools/list result declares no ttlMs, which 2026-07-28 requires"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/base-040-traceparent-version-ff",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-040"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/base-045-request-id-reused-in-flight",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-045",
+          "CACH-001",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "request reuses an id already in flight"
+          },
+          {
+            "signal": "warn",
+            "seq": 2,
+            "framed": true,
+            "message": "cacheable prompts/list result declares no ttlMs, which 2026-07-28 requires"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/base-048-result-without-result-type",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-048",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "result is missing required resultType"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/base-052-null-id-error-then-id-reused",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-052",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "request reuses an id already in flight"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-057-undefined-reserved-error-code",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-057"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-058-withdrawn-error-code",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-058",
+          "BASE-083",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-060-app-code-in-reserved-range",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-060"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-073-input-schema-invalid",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-073"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-083-legacy-error-code",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-083"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-088-input-schema-draft-07",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-088"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1,
+          "schema": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/cach-001-cacheable-result-without-hints",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CACH-001",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "cacheable tools/list result declares no ttlMs, which 2026-07-28 requires"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/cach-001-ttl-without-cache-scope",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CACH-001",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/cach-008-negative-ttl",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CACH-008",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "ttlMs is -1, and 2026-07-28 requires a value of zero or more"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/cach-015-page-scope-changes",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CACH-015",
+          "CACH-016"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "cacheScope \"public\" on a later page of tools/list disagrees with \"private\" on the first, and 2026-07-28 requires one scope per list request"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/canc-003-server-cancels-tool-call",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CANC-003",
+          "CANC-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "server cancelled \"tools/call\", and 2026-07-28 lets a server cancel only a subscriptions/listen request"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/comp-007-completions-undeclared",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "COMP-007"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/disc-001-server-discover-method-not-found",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "DISC-001",
+          "VERS-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1,
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/disc-002-dual-era-client-skips-probe",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "DISC-002",
+          "TRAN-128"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1,
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/disc-003-discover-result-without-server-info",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-037",
+          "DISC-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/elic-057-answered-without-capability",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-057"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/elic-059-url-mode-undeclared",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-034",
+          "ELIC-059",
+          "MRTR-012",
+          "MRTR-013"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/elic-060-request-without-message",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-060",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/elic-062-form-without-schema",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-062",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/elic-064-url-mode-without-url",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-064",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/elic-065-url-not-a-valid-url",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-065"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/elic-095-accepted-content-violates-schema",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "ELIC-095"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/log-007-logging-undeclared",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LOG-007",
+          "TOOL-019",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/log-008-log-for-request-without-level",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LOG-008"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/log-008-log-without-requested-level",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LOG-008",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/log-009-log-on-subscription-stream",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LOG-009",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/log-009-log-with-no-request-in-flight",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LOG-009"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/log-010-unrecognized-log-level-accepted",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LOG-010",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/mrtr-004-input-required-on-unsupported-method",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "MRTR-004"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "InputRequiredResult on \"resources/list\", which 2026-07-28 allows only on prompts/get, resources/read and tools/call"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/mrtr-006-input-request-unknown-method",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "MRTR-006",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "inputRequests names \"tools/list\", and 2026-07-28 allows only elicitation/create, sampling/createMessage and roots/list"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/mrtr-011-input-required-empty",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "MRTR-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "InputRequiredResult carries neither inputRequests nor requestState, and 2026-07-28 requires at least one"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/mrtr-015-retry-without-input-responses",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "MRTR-015"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/mrtr-016-parallel-retry-alters-state",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "MRTR-003",
+          "MRTR-016",
+          "MRTR-017"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 6,
+            "framed": true,
+            "message": "MRTR retry changed requestState"
+          }
+        ],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/mrtr-016-request-state-not-echoed",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "MRTR-003",
+          "MRTR-016",
+          "MRTR-017"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 2,
+            "framed": true,
+            "message": "MRTR retry changed requestState"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/mrtr-018-unsolicited-request-state",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "MRTR-018"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 2,
+            "framed": true,
+            "message": "MRTR retry invented requestState"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/mrtr-019-retry-reuses-id",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "MRTR-019",
+          "TOOL-023"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/mrtr-020-request-state-on-another-method",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "MRTR-020"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/mrtr-024-shortfall-answered-with-error",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "MRTR-015",
+          "MRTR-024"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/prog-001-progress-token-not-integer",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-001",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/prog-002-progress-token-reused-in-flight",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-002"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/prog-003-progress-value-decreases",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 2,
+            "framed": true,
+            "message": "progress for token \"t1\" went from 50 to 10, and 2026-07-28 requires it to increase with each notification"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/prog-008-progress-after-completion",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-005",
+          "PROG-008"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "progress notification for token \"t1\" arrived after its request completed, and 2026-07-28 requires them to stop"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/prom-012-prompts-undeclared",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROM-012"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/prom-013-declared-prompts-list-unimplemented",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROM-013"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/res-012-resources-undeclared",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "RES-012"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/res-013-declared-resources-list-unimplemented",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "RES-013"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/res-022-read-empty-contents",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "RES-022"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/root-013-answered-without-capability",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ROOT-013"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/root-014-root-not-file-uri",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ROOT-014"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/root-018-asked-without-capability",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-034",
+          "MRTR-012",
+          "MRTR-013",
+          "ROOT-018"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "inputRequests asks for \"roots/list\" while the request declared no roots capability"
+          }
+        ],
+        "other": {
+          "deprecated": 1,
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/samp-026-tools-without-sampling-tools",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-034",
+          "MRTR-012",
+          "MRTR-013",
+          "SAMP-026"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/samp-027-answered-without-capability",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SAMP-027"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/samp-028-include-context-deprecated",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "SAMP-028"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/samp-029-include-context-undeclared",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "SAMP-028",
+          "SAMP-029"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/samp-030-tool-results-mixed",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SAMP-030",
+          "SAMP-031",
+          "SAMP-042"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/samp-031-tool-use-unanswered",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SAMP-031",
+          "SAMP-042"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/samp-032-required-tool-choice-ignored",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SAMP-032"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/samp-033-none-tool-choice-ignored",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SAMP-033"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/samp-034-message-without-role",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SAMP-034",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-003-directory-read-not-implemented",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-004-directory-read-undeclared",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-004"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-005-skills-without-resources",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-005"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-007-entry-uri-not-skill-md",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-007"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-008-skill-md-without-frontmatter",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-008"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-011-skill-under-other-scheme",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-012-path-not-ending-in-name",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-012",
+          "SKILL-027"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-013-name-breaks-naming-rules",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-013"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-014-authority-not-reg-name",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-014"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-015-prefix-segment-invalid",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-015"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-018-skill-md-not-markdown",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-018"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-019-resource-name-not-skill-name",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-020-resource-description-differs",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-020"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-026-entry-frontmatter-differs",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-026"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-029-listing-names-collide",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-029"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-034-entry-without-resources",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-034"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-035-manifest-without-skill-md",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-035"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-036-manifest-file-outside-skill",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-036"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-037-manifest-entry-without-size",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-037"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-042-skill-beyond-limits",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-042"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-044-list-not-implemented",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-002",
+          "SKILL-044"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-045-list-result-type-not-complete",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-045"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-047-list-without-cache-fields",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-047"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-048-get-not-implemented",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-002",
+          "SKILL-048"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-049-get-result-type-not-complete",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-049"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-050-get-names-a-directory",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-050"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-051-unknown-skill-wrong-error",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-051",
+          "SKILL-071"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/skill-053-get-without-cache-fields",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-053"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-065-directory-result-type-not-complete",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-065"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-066-directory-read-of-a-file-answered",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-066",
+          "SKILL-071"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/skill-067-skill-directory-refused",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-067"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/subs-001-cancelled-for-another-request",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CANC-003",
+          "CANC-011",
+          "SUBS-001"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "server cancelled \"tools/call\", and 2026-07-28 lets a server cancel only a subscriptions/listen request"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/subs-001-unrequested-notification-type",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SUBS-001",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 2,
+            "framed": true,
+            "message": "notification \"notifications/prompts/list_changed\" was not requested by subscription 1, and 2026-07-28 forbids sending a type the client did not ask for"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/subs-002-notification-before-acknowledgment",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SUBS-002",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "notification \"notifications/tools/list_changed\" arrived on subscription 1 before its acknowledgment, which 2026-07-28 requires first"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/subs-002-reused-id-first-opening-unacknowledged",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "SUBS-002"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "notification \"notifications/tools/list_changed\" arrived on subscription 1 before its acknowledgment, which 2026-07-28 requires first"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/subs-006-graceful-close-result-not-empty",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "SUBS-005",
+          "SUBS-006"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/task-001-task-for-undeclaring-client",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-001"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "a task handle uses the io.modelcontextprotocol/tasks extension, which the client never advertised, and 2026-07-28 requires the supporting side to fall back to core behaviour or reject the request"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-006-task-without-result-type",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TASK-006",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/task-007-task-result-type-without-task",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-007"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/task-015-get-result-not-a-task",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-015"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-015-input-required-without-requests",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-015"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-017-get-result-type-not-complete",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-017",
+          "TASK-028",
+          "TASK-032"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-022-input-request-key-reused",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-022",
+          "TASK-023"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-024-update-ack-not-empty",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-024",
+          "TASK-030"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-026-input-answered-twice",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-026"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-029-task-cancelled-by-notification",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-029"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-033-task-listen-without-declaration",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-033",
+          "TASK-038"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-034-progress-on-task-stream",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LOG-007",
+          "LOG-008",
+          "LOG-009",
+          "SUBS-001",
+          "TASK-034"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-035-mcp-name-missing",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-035"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-039-get-without-declaration",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-039"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-041-failed-without-status-message",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-041"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-042-failed-without-error",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-015",
+          "TASK-042",
+          "TASK-045"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-043-tool-error-reported-failed",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-008",
+          "TASK-043",
+          "TASK-044"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/task-046-completed-without-result",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "TASK-015",
+          "TASK-044",
+          "TASK-046"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tool-019-tools-undeclared",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tool-020-declared-tools-list-unimplemented",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-020"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tool-022-tools-list-order-changes",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TOOL-022"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tool-034-mirrored-integer-out-of-range",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 4,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-034",
+          "TRAN-081"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 0,
+            "framed": false,
+            "message": "routing header mismatch: required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing"
+          },
+          {
+            "signal": "mismatch",
+            "seq": 2,
+            "framed": false,
+            "message": "routing header mismatch: required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing, required routing header Mcp-Param-Mcp-Param-Region is missing for body parameter \"region\""
+          },
+          {
+            "signal": "warn",
+            "seq": 0,
+            "framed": false,
+            "message": "required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 2,
+            "framed": false,
+            "message": "required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing, required routing header Mcp-Param-Mcp-Param-Region is missing for body parameter \"region\""
+          }
+        ],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tool-038-embedded-resource-undeclared",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TOOL-038"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tool-040-structured-content-not-conforming",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-040"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tool-045-x-mcp-header-in-defs",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 2,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-045",
+          "TRAN-082",
+          "TRAN-137"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 0,
+            "framed": false,
+            "message": "routing header mismatch: required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 0,
+            "framed": false,
+            "message": "required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": false,
+            "message": "tool \"deploy\" declares an x-mcp-header under \"$defs\", which 2026-07-28 does not allow in the chain to an annotated property, so its Mcp-Param headers are not checked"
+          }
+        ],
+        "other": {
+          "annotations": 1,
+          "schema": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-058-mcp-name-mismatch-refused-without-id",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-052",
+          "TRAN-058",
+          "TRAN-141",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header mismatch: routing header Mcp-Name \"wrong\" disagrees with body name \"echo\""
+          },
+          {
+            "signal": "mismatch",
+            "seq": 3,
+            "framed": true,
+            "message": "routing header mismatch: response id has no matching request"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header Mcp-Name \"wrong\" disagrees with body name \"echo\""
+          },
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-058-request-metadata-headers-missing",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-058",
+          "TRAN-141"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header mismatch: required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tran-060-client-posts-a-response",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-046",
+          "CACH-001",
+          "TRAN-060",
+          "TRAN-119",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "cacheable tools/list result declares no ttlMs, which 2026-07-28 requires"
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "response id has no matching request, client sent a JSON-RPC response, which 2026-07-28 no longer defines"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tran-061-notification-answered-200",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-061"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tran-063-error-without-content-type",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-063"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "the response to a request carried no Content-Type, and the transport requires application/json or text/event-stream"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-066-independent-server-request",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 4,
+      "unframed": 1,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-084",
+          "MRTR-001",
+          "TRAN-066",
+          "TRAN-120"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": false,
+            "message": "server sent a JSON-RPC request \"elicitation/create\", which 2026-07-28 replaced with the MRTR pattern"
+          }
+        ],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-068-sse-media-type-mixed-case",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TRAN-068"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tran-068-sse-without-accel-buffering",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "TRAN-068"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tran-070-message-after-stream-close",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-070"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tran-071-protocol-version-header-missing",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CACH-001",
+          "TRAN-071",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header mismatch: required routing header MCP-Protocol-Version is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "required routing header MCP-Protocol-Version is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "cacheable tools/list result declares no ttlMs, which 2026-07-28 requires"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tran-072-mismatch-rejected-without-id",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-052",
+          "TRAN-072",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header mismatch: MCP-Protocol-Version header 2025-11-25 disagrees with _meta protocolVersion 2026-07-28"
+          },
+          {
+            "signal": "mismatch",
+            "seq": 3,
+            "framed": true,
+            "message": "routing header mismatch: response id has no matching request"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "MCP-Protocol-Version header 2025-11-25 disagrees with _meta protocolVersion 2026-07-28"
+          },
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-072-protocol-version-header-mismatched",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-072"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header mismatch: MCP-Protocol-Version header 2025-11-25 disagrees with _meta protocolVersion 2026-07-28"
+          },
+          {
+            "signal": "mismatch",
+            "seq": 3,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "MCP-Protocol-Version header 2025-11-25 disagrees with _meta protocolVersion 2026-07-28"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-072-unsupported-body-version-header-mismatch",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-072"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: MCP-Protocol-Version header 2026-07-28 disagrees with _meta protocolVersion 2099-01-01"
+          },
+          {
+            "signal": "mismatch",
+            "seq": 7,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "MCP-Protocol-Version header 2026-07-28 disagrees with _meta protocolVersion 2099-01-01"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-072-unsupported-body-version-refused-as-unsupported",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-072"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: MCP-Protocol-Version header 2026-07-28 disagrees with _meta protocolVersion 2099-01-01"
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "MCP-Protocol-Version header 2026-07-28 disagrees with _meta protocolVersion 2099-01-01"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-073-header-mismatch-not-rejected",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CACH-001",
+          "TRAN-072",
+          "TRAN-073",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header mismatch: MCP-Protocol-Version header 2025-11-25 disagrees with _meta protocolVersion 2026-07-28"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "MCP-Protocol-Version header 2025-11-25 disagrees with _meta protocolVersion 2026-07-28"
+          },
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "cacheable tools/list result declares no ttlMs, which 2026-07-28 requires"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tran-073-mismatch-refused-without-id",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-052",
+          "TRAN-072",
+          "TRAN-073",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header mismatch: MCP-Protocol-Version header 2025-11-25 disagrees with _meta protocolVersion 2026-07-28"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "MCP-Protocol-Version header 2025-11-25 disagrees with _meta protocolVersion 2026-07-28"
+          },
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-074-unsupported-version-accepted",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CACH-001",
+          "TOOL-019",
+          "TRAN-074",
+          "VERS-001",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tran-074-unsupported-version-without-400",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-074"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-074-unsupported-version-without-supported-list",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-074",
+          "VERS-001",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-075-method-not-found-not-404",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-075"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-077-mcp-name-unencoded",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CACH-001",
+          "TRAN-077",
+          "TRAN-086",
+          "TRAN-087",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "cacheable resources/read result declares no ttlMs, which 2026-07-28 requires"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tran-077-param-header-value-rejected",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-077",
+          "TRAN-086",
+          "TRAN-087"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 7,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          }
+        ],
+        "other": {
+          "annotations": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-079-missing-param-header-rejected",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-079",
+          "TRAN-130"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: required routing header Mcp-Param-Region is missing for body parameter \"region\""
+          },
+          {
+            "signal": "mismatch",
+            "seq": 7,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "required routing header Mcp-Param-Region is missing for body parameter \"region\""
+          }
+        ],
+        "other": {
+          "annotations": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-079-param-header-value-not-mirrored",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-079"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: routing header Mcp-Param-Region \"us-east1\" disagrees with body parameter \"region\" \"us-west1\""
+          },
+          {
+            "signal": "mismatch",
+            "seq": 7,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header Mcp-Param-Region \"us-east1\" disagrees with body parameter \"region\" \"us-west1\""
+          }
+        ],
+        "other": {
+          "annotations": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-079-x-mcp-header-not-mirrored",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-079",
+          "TRAN-130",
+          "TRAN-136"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: required routing header Mcp-Param-Region is missing for body parameter \"region\""
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "required routing header Mcp-Param-Region is missing for body parameter \"region\""
+          }
+        ],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-080-x-mcp-header-name-invalid",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-033",
+          "TRAN-080"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "tool \"broken\" declares x-mcp-header \"tenant\" on more than one property, so its Mcp-Param headers are not checked"
+          }
+        ],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-082-invalid-tool-excluded-valid-called",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-045",
+          "TRAN-082",
+          "TRAN-137"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "tool \"deploy\" declares an x-mcp-header under \"anyOf\", which 2026-07-28 does not allow in the chain to an annotated property, so its Mcp-Param headers are not checked"
+          }
+        ],
+        "other": {
+          "annotations": 2,
+          "schema": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-082-x-mcp-header-under-any-of",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 2,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-045",
+          "TRAN-082",
+          "TRAN-137"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 0,
+            "framed": false,
+            "message": "routing header mismatch: required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 0,
+            "framed": false,
+            "message": "required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": false,
+            "message": "tool \"deploy\" declares an x-mcp-header under \"anyOf\", which 2026-07-28 does not allow in the chain to an annotated property, so its Mcp-Param headers are not checked"
+          }
+        ],
+        "other": {
+          "annotations": 1,
+          "schema": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-083-invalid-tool-called",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-035",
+          "TOOL-045",
+          "TOOL-046",
+          "TRAN-082",
+          "TRAN-083",
+          "TRAN-084",
+          "TRAN-137"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "tool \"deploy\" declares an x-mcp-header under \"anyOf\", which 2026-07-28 does not allow in the chain to an annotated property, so its Mcp-Param headers are not checked"
+          }
+        ],
+        "other": {
+          "annotations": 1,
+          "schema": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-089-sentinel-markers-miscased",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-089"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: routing header Mcp-Param-Region \"=?BASE64?Y2Fmw6k=?=\" disagrees with body parameter \"region\" \"café\""
+          },
+          {
+            "signal": "mismatch",
+            "seq": 7,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header Mcp-Param-Region \"=?BASE64?Y2Fmw6k=?=\" disagrees with body parameter \"region\" \"café\""
+          }
+        ],
+        "other": {
+          "annotations": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-092-sentinel-pattern-unencoded",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CACH-001",
+          "TRAN-092",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header mismatch: routing header Mcp-Name \"\\x96+^\\xad\\xa9\" disagrees with body name \"=?base64?literal?=\""
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header Mcp-Name \"\\x96+^\\xad\\xa9\" disagrees with body name \"=?base64?literal?=\""
+          },
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "cacheable resources/read result declares no ttlMs, which 2026-07-28 requires"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/tran-096-invalid-param-header-accepted",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-077",
+          "TRAN-086",
+          "TRAN-087",
+          "TRAN-096"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-097-header-body-mismatch-accepted",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-079",
+          "TRAN-097",
+          "TRAN-100",
+          "TRAN-131"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: routing header Mcp-Param-Region \"us-east1\" disagrees with body parameter \"region\" \"us-west1\""
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header Mcp-Param-Region \"us-east1\" disagrees with body parameter \"region\" \"us-west1\""
+          }
+        ],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-097-integer-header-different-number",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-079",
+          "TRAN-097",
+          "TRAN-100",
+          "TRAN-131"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: routing header Mcp-Param-Limit \"41\" disagrees with body parameter \"limit\" \"42\""
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header Mcp-Param-Limit \"41\" disagrees with body parameter \"limit\" \"42\""
+          }
+        ],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-097-mismatch-after-concurrent-posts",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 4,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-058",
+          "TRAN-097",
+          "TRAN-100",
+          "TRAN-131",
+          "TRAN-141"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 6,
+            "framed": false,
+            "message": "routing header mismatch: required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "mismatch",
+            "seq": 7,
+            "framed": false,
+            "message": "routing header mismatch: required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "mismatch",
+            "seq": 13,
+            "framed": true,
+            "message": "routing header mismatch: routing header Mcp-Name \"beta\" disagrees with body name \"alpha\""
+          },
+          {
+            "signal": "warn",
+            "seq": 6,
+            "framed": false,
+            "message": "required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 7,
+            "framed": false,
+            "message": "required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing, required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 13,
+            "framed": true,
+            "message": "routing header Mcp-Name \"beta\" disagrees with body name \"alpha\""
+          }
+        ],
+        "other": {
+          "annotations": 2
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-098-header-mismatch-without-400",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-098",
+          "TRAN-102"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 3,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          }
+        ],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-123-cancellation-without-request-id",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CANC-005",
+          "TRAN-123",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-124-message-after-cancel-notification",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-124"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "late-result": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-132-null-parameter-header-sent",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-132"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: routing header Mcp-Param-Region is present but body parameter \"region\" is absent or null"
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header Mcp-Param-Region is present but body parameter \"region\" is absent or null"
+          }
+        ],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-133-omitted-null-header-rejected",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-133"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 7,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          }
+        ],
+        "other": {
+          "annotations": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-134-absent-parameter-header-sent",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-134"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: routing header Mcp-Param-Region is present but body parameter \"region\" is absent or null"
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header Mcp-Param-Region is present but body parameter \"region\" is absent or null"
+          }
+        ],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-135-omitted-absent-header-rejected",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-135"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 7,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          }
+        ],
+        "other": {
+          "annotations": 1,
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-136-missing-param-header-accepted",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-079",
+          "TRAN-130",
+          "TRAN-136"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: required routing header Mcp-Param-Region is missing for body parameter \"region\""
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "required routing header Mcp-Param-Region is missing for body parameter \"region\""
+          }
+        ],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-137-x-mcp-header-under-items",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 2,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TOOL-045",
+          "TRAN-082",
+          "TRAN-137"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 0,
+            "framed": false,
+            "message": "routing header mismatch: required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 0,
+            "framed": false,
+            "message": "required routing header MCP-Protocol-Version is missing, required routing header Mcp-Method is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": false,
+            "message": "tool \"deploy\" declares an x-mcp-header under \"items\", which 2026-07-28 does not allow in the chain to an annotated property, so its Mcp-Param headers are not checked"
+          }
+        ],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/tran-141-mcp-name-header-missing",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "TRAN-058",
+          "TRAN-141"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 1,
+            "framed": true,
+            "message": "routing header mismatch: required routing header Mcp-Name is missing"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "required routing header Mcp-Name is missing"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/vers-002-retry-with-unsupported-version",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "VERS-002"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1,
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/vers-004-extension-identifier-without-prefix",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 2,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "VERS-004"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/vers-008-initialize-error-without-versions",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-030",
+          "COMP-006",
+          "MRTR-002",
+          "PAGE-006",
+          "PROM-011",
+          "RES-011",
+          "TOOL-016",
+          "VERS-008"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/wire-schema-cache-scope-not-in-enum",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "cacheScope is \"shared\", and 2026-07-28 defines only public and private"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/wire-schema-content-block-unknown-type",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/wire-schema-resource-missing-uri",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "draft/captured/official-suite-2026-07-28-scenarios",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 52,
+      "unframed": 3,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-037"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 18,
+          "error": 1,
+          "schema": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/captured/official-suite-2026-07-28-stateless",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 52,
+      "unframed": 3,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 16,
+          "error": 1,
+          "schema": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/captured/probe-2026-07-28-http",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 25,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-030",
+          "BASE-033",
+          "COMP-006",
+          "MRTR-002",
+          "PAGE-006",
+          "PROM-011",
+          "RES-011",
+          "TOOL-016",
+          "TRAN-071",
+          "TRAN-072",
+          "TRAN-079",
+          "TRAN-130",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 13,
+            "framed": true,
+            "message": "routing header mismatch: MCP-Protocol-Version header 2025-11-25 disagrees with _meta protocolVersion 2026-07-28"
+          },
+          {
+            "signal": "mismatch",
+            "seq": 15,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          },
+          {
+            "signal": "mismatch",
+            "seq": 45,
+            "framed": true,
+            "message": "routing header mismatch: required routing header Mcp-Param-Limit is missing for body parameter \"limit\""
+          },
+          {
+            "signal": "mismatch",
+            "seq": 47,
+            "framed": true,
+            "message": "a routing header disagrees with the body"
+          },
+          {
+            "signal": "warn",
+            "seq": 1,
+            "framed": true,
+            "message": "request _meta is missing required io.modelcontextprotocol/clientCapabilities"
+          },
+          {
+            "signal": "warn",
+            "seq": 13,
+            "framed": true,
+            "message": "MCP-Protocol-Version header 2025-11-25 disagrees with _meta protocolVersion 2026-07-28"
+          },
+          {
+            "signal": "warn",
+            "seq": 45,
+            "framed": true,
+            "message": "required routing header Mcp-Param-Limit is missing for body parameter \"limit\""
+          }
+        ],
+        "other": {
+          "annotations": 17,
+          "error": 9,
+          "schema": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/captured/reference-host-2026-07-28-http",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 104,
+      "unframed": 11,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 17,
+          "deprecated": 4,
+          "error": 4,
+          "schema": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/captured/reference-host-2026-07-28-stdio",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 105,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 17,
+          "deprecated": 4,
+          "error": 4,
+          "schema": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/captured/sdk-go-2026-07-28",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-034",
+          "ELIC-059",
+          "MRTR-012",
+          "MRTR-013",
+          "TRAN-068"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 27,
+            "framed": true,
+            "message": "inputRequests asks for \"elicitation/create\" while the request declared no elicitation capability"
+          }
+        ],
+        "other": {
+          "annotations": 28,
+          "error": 1,
+          "pending": 1,
+          "schema": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/captured/sdk-python-2026-07-28",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 28,
+          "error": 1,
+          "schema": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/captured/sdk-rust-2026-07-28",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "BASE-037"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 35,
+          "error": 1,
+          "schema": 4
+        }
+      }
+    }
+  ]
+}

@@ -19,7 +19,10 @@
 //! The registered list itself lives in the private `inventory` module, re-exported
 //! here as [`ALL`].
 
+mod auth;
 mod base;
+mod client_features;
+mod extensions;
 mod inventory;
 mod lifecycle;
 mod negotiation;

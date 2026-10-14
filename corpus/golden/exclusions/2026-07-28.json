@@ -69,7 +69,7 @@
     {
       "id": "BASE-068",
       "level": "SHOULD NOT",
-      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, which `sources.json` records as out of scope for the same reason it is at 2025-11-25."
+      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own pages: AUTH-086 and AUTH-087 restate this sentence there, and the challenge clauses a recording can judge carry checks. Same decision as BASE-085 at 2025-11-25."
     },
     {
       "id": "BASE-069",
@@ -90,11 +90,6 @@
       "id": "BASE-072",
       "level": "SHOULD",
       "exclusion": "Documentation is a property of the project, not of any session. Same reasoning as BASE-016 at 2025-11-25."
-    },
-    {
-      "id": "BASE-073",
-      "level": "MUST",
-      "exclusion": "Full dialect validation requires a JSON Schema engine, a dependency `mcp-conformance-core` deliberately excludes (serde-family only, 02-architecture.md). Same reasoning as BASE-017 at 2025-11-25."
     },
     {
       "id": "BASE-074",
@@ -125,16 +120,6 @@
       "id": "BASE-028",
       "level": "SHOULD",
       "exclusion": "Whether a syntactically valid prefix is reverse-DNS for its author cannot be decided without knowing the author's domain. Same clause and same reasoning as BASE-021 at 2025-11-25."
-    },
-    {
-      "id": "BASE-033",
-      "level": "SHOULD",
-      "exclusion": "The clause's own escape hatch defeats the check: an absent `clientInfo` is either non-compliance or the configured-off case the clause permits, and a trace cannot distinguish them. The adjacent observable — that a *present* value is well-formed — belongs to the key-format checks on BASE-026/027/029."
-    },
-    {
-      "id": "BASE-037",
-      "level": "SHOULD",
-      "exclusion": "Same escape hatch as BASE-033, mirrored to the server: an absent `serverInfo` is either non-compliance or the configured-off case the clause permits, and the trace cannot tell which."
     },
     {
       "id": "BASE-038",
@@ -184,7 +169,7 @@
     {
       "id": "TRAN-054",
       "level": "SHOULD",
-      "exclusion": "Authentication sits in front of the protocol; the authorization specification is out of scope for this registry for the reason `sources.json` records. Same reasoning as TRAN-009 at 2025-11-25."
+      "exclusion": "Whether authentication is properly implemented is not decidable from one session's headers: the client's credential is never recorded, and the server's validation of it is internal. What a recording does show — the challenge a protected server answers with — is judged under the authorization pages' own clauses (AUTH-097, AUTH-124, AUTH-129–AUTH-133). Same reasoning as TRAN-009 at 2025-11-25."
     },
     {
       "id": "TRAN-055",
@@ -227,21 +212,6 @@
       "exclusion": "Client support for `x-mcp-header` is internal capability. Its observable consequence — mirroring designated values into headers — is the next clause and is checked there."
     },
     {
-      "id": "TRAN-082",
-      "level": "MUST NOT",
-      "exclusion": "The forbidden keyword chain is judged where the annotation sits, which needs the JSON Schema vocabulary TRAN-137 explains core leaves out."
-    },
-    {
-      "id": "TRAN-083",
-      "level": "MUST",
-      "exclusion": "Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it."
-    },
-    {
-      "id": "TRAN-084",
-      "level": "MUST",
-      "exclusion": "The excluded tool is absent from a list the *client* assembles for its own consumer — a data structure that never reaches the wire."
-    },
-    {
       "id": "TRAN-085",
       "level": "SHOULD",
       "exclusion": "Logging is client-internal diagnostics with no wire footprint."
@@ -270,11 +240,6 @@
       "id": "TRAN-094",
       "level": "SHOULD",
       "exclusion": "Whether a client re-fetched `tools/list` after a `HeaderMismatch` is recovery conduct; a later `tools/list` in the same recording is equally consistent with any other reason for calling it."
-    },
-    {
-      "id": "TRAN-137",
-      "level": "MUST",
-      "exclusion": "Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws."
     },
     {
       "id": "TRAN-095",
@@ -327,11 +292,6 @@
       "exclusion": "Adopting or migrating away from a transport is a project decision, not a property of any session."
     },
     {
-      "id": "DISC-003",
-      "level": "SHOULD",
-      "exclusion": "The same clause as BASE-037, restated for one result type: BASE-037 is the general rule for `serverInfo` in every result and carries the escape hatch \"unless specifically configured not to do so\". A restatement in the DiscoverResult field list does not withdraw that exemption, so an absent `serverInfo` here is still either non-compliance or the configured-off case, and the trace cannot tell which."
-    },
-    {
       "id": "DISC-004",
       "level": "SHOULD NOT",
       "exclusion": "Binds what the client does with `serverInfo` after reading it — behaviour changes and security decisions are internal reasoning, and a trace records the messages, not the inferences drawn from them. Same boundary as BASE-022's icon-consumer clauses."
@@ -339,7 +299,7 @@
     {
       "id": "VERS-005",
       "level": "MUST",
-      "exclusion": "Both permitted responses are defined by the extension, not by this specification: what \"core protocol behavior\" looks like for a given extension, and which error is \"appropriate\", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour — the same architectural boundary that leaves the JSON Schema clauses to BASE-073."
+      "exclusion": "Both permitted responses are defined by the extension, not by this specification: what \"core protocol behavior\" looks like for a given extension, and which error is \"appropriate\", are each stated in that extension's own document. Where an official extension's clauses are entered (tasks and skills, beside this revision), they judge exactly that, in the extension's own block and never scored (ADR-0023): TASK-001, for one, is this clause for the tasks extension. Judging it here, among the core's clauses, would let an optional extension's behaviour move the core verdict."
     },
     {
       "id": "VERS-006",
@@ -350,6 +310,11 @@
       "id": "VERS-007",
       "level": "SHOULD",
       "exclusion": "The cached value is the era determination — client-internal state, and the clause's horizon is the server process or origin, which outlives the recorded session. The one wire-visible candidate, a repeated probe, is not evidence: the clause's own \"re-probing if the cached assumption later fails\" permits it."
+    },
+    {
+      "id": "VERS-009",
+      "level": "SHOULD",
+      "exclusion": "The compatibility matrix's modern-client, legacy-server row. Its antecedent is the server being legacy, which is exactly what an unprobed exchange fails to reveal — the row itself says such a server may reject the request, stay silent, or process it under legacy semantics — and, as for TRAN-142, a recording cannot show that its first request was the client's first. The dual-era form of the same advice is TRAN-128, judged where a session witnesses both eras."
     },
     {
       "id": "TRAN-110",
@@ -415,6 +380,11 @@
       "id": "TRAN-129",
       "level": "MUST NOT",
       "exclusion": "Binds the client's decision function, not any message it sends. A session exhibits one probe answered by one error code and one decision taken; whether the client would have fallen back on a *different* code is a property of code paths that session never exercised, and no number of traces settles it."
+    },
+    {
+      "id": "TRAN-142",
+      "level": "SHOULD",
+      "exclusion": "Asks a modern-only client to open with a `server/discover` probe, and a recording can show neither half. Not the antecedent: a modern-only client and a dual-era client whose server never forced a fallback send the same messages. Not the order: a modern stdio session has no handshake marking where it began, so a recording that opens on `tools/call` is equally one that started after the probe. The dual-era statement, TRAN-128, is judged by `discover.dual-era-probe-first`, which reports only where a session witnesses both eras; this clause offers no such witness."
     },
     {
       "id": "MRTR-005",
@@ -694,7 +664,7 @@
     {
       "id": "LOG-011",
       "level": "SHOULD",
-      "exclusion": "Rate limiting is measured in elapsed time (LIFE-015); \"relevant context\", \"consistent\" logger names and \"sensitive\" information are judgements about the meaning of the payload, which this engine does not model — the same boundary BASE-073 draws for JSON Schema."
+      "exclusion": "Rate limiting is measured in elapsed time (LIFE-015); \"relevant context\", \"consistent\" logger names and \"sensitive\" information are judgements about the meaning of the payload, which this engine does not model."
     },
     {
       "id": "LOG-012",
@@ -747,11 +717,6 @@
       "exclusion": "Forbids relying on `serverInfo` for disambiguation — a client-side decision about data it holds. Binds what the client does with what it received; the reasoning leaves no message behind."
     },
     {
-      "id": "TOOL-035",
-      "level": "MUST",
-      "exclusion": "The client filtering its own copy of a list it already received. A tool excluded from the client's view is still in the server's `tools/list` result on the wire, so the trace shows nothing either way."
-    },
-    {
       "id": "TOOL-036",
       "level": "SHOULD",
       "exclusion": "Binds the client's log, which is not part of the session."
@@ -764,7 +729,7 @@
     {
       "id": "TOOL-041",
       "level": "SHOULD",
-      "exclusion": "Validation performed inside the client, against a schema this engine has no JSON Schema evaluator for by deliberate architectural choice — the boundary BASE-073 draws. A client that validated and one that did not send the same messages."
+      "exclusion": "Validation performed inside the client. A client that validated a structured result and one that did not send the same messages, and the clause does not say what a client does with a result that fails; the server half of the rule, TOOL-040, is judged."
     },
     {
       "id": "TOOL-042",
@@ -780,16 +745,6 @@
       "id": "TOOL-044",
       "level": "SHOULD",
       "exclusion": "Six client-side practices — confirmation prompts, showing inputs, validating results, `$ref` resolution, timeouts, audit logs. Each happens inside the client or in its UI; none is a message."
-    },
-    {
-      "id": "TOOL-045",
-      "level": "MUST",
-      "exclusion": "Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws."
-    },
-    {
-      "id": "TOOL-046",
-      "level": "MUST",
-      "exclusion": "Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it. The same clause on the transport page is TRAN-083."
     },
     {
       "id": "RES-014",
@@ -845,6 +800,1263 @@
       "id": "PROM-021",
       "level": "MUST",
       "exclusion": "\"Carefully validate to prevent injection attacks\" is a property of the server's handling, not of the message: a prompt that was validated and one that was not look identical when both are accepted. What a trace can hold an implementation to is the concrete shape rules, PROM-016 through PROM-020."
+    },
+    {
+      "id": "ELIC-054",
+      "level": "MUST NOT",
+      "exclusion": "Whether a requested field is \"sensitive information\" — the page's own definition is \"secrets and credentials that grant access or authorize transactions\" — is a judgement about meaning, not syntax: a schema property named `token` may be a display preference and one named `answer` may collect a password. A check would have to guess from field names, and a guess convicts conforming servers. The server's author decides it; nothing in the message settles it."
+    },
+    {
+      "id": "ELIC-055",
+      "level": "MUST",
+      "exclusion": "The counterpart of the form mode prohibition, and blocked by the same judgement: that an interaction \"involves such sensitive information\" is a fact about what the user will be asked for, which no message states, so a form mode request cannot be shown to have needed URL mode."
+    },
+    {
+      "id": "ELIC-056",
+      "level": "MUST",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-058",
+      "level": "MUST",
+      "exclusion": "No declaration can violate it on the wire. The page makes an `elicitation` object naming neither mode \"equivalent to declaring support for `form` mode only\", so every declared `elicitation` capability names at least one mode. What remains is whether the client can actually handle the mode it declared, which is internal: a client that cannot still returns a well-formed `decline` or `cancel`."
+    },
+    {
+      "id": "ELIC-061",
+      "level": "MUST",
+      "exclusion": "A reading, not an act, like MRTR-007: a client's answers to a form mode request and to one without `mode` are the same messages (`accept` with `content`, `decline`, `cancel`), and `content` is optional in the result, so no answer shows which reading the client took. The server half — that such a request is form mode — is what `elicitation.mode-supported` and `elicitation.form-schema-present` apply."
+    },
+    {
+      "id": "ELIC-063",
+      "level": "SHOULD",
+      "exclusion": "UI behaviour: pre-populating a form is what the user sees before submitting. The submitted `content` cannot show it — the user may change or clear every default — so no message carries the clause."
+    },
+    {
+      "id": "ELIC-066",
+      "level": "SHOULD",
+      "exclusion": "UI behaviour: the controls the client offers its user. The wire shows only whether a retry or cancellation was eventually sent, which a user may decline to do whatever controls exist."
+    },
+    {
+      "id": "ELIC-067",
+      "level": "SHOULD NOT",
+      "exclusion": "Forbids an assumption. Its wire-visible consequence would be a server that breaks when an elicitation is declined, and the page leaves the server free to answer a declined retry with a result, an error or another round, so no answer is wrong on its face — the same reasoning as MRTR-014."
+    },
+    {
+      "id": "ELIC-068",
+      "level": "MUST",
+      "exclusion": "\"Handle\" names no observable outcome: the specification lets a server answer a declined, cancelled or failed elicitation with a result, an error or a further `input_required` round, and every one of those is handling. A server that fails to handle the case shows it only by breaking — a crash or a hang ends the recording rather than writing anything into it."
+    },
+    {
+      "id": "ELIC-069",
+      "level": "MUST",
+      "exclusion": "Server-internal state handling. How a server stores per-user state, protects it and binds it to an identity happens behind its own storage and authorization, and the identity it binds to is established outside the session's messages, by MCP authorization (whose pages this registry keeps out of scope, `sources.json`). Verified, where verified at all, by the server's own security review and tests; at `2026-07-28` the state a client carries is `requestState`, opaque by construction (MRTR-008)."
+    },
+    {
+      "id": "ELIC-070",
+      "level": "MUST NOT",
+      "exclusion": "Concerns what the server treats as authorization of its own users — an internal decision. A URL mode elicitation used to sign a user in to the server looks on the wire exactly like one used for a third-party grant; the difference is what the server does with the outcome."
+    },
+    {
+      "id": "ELIC-071",
+      "level": "MUST NOT",
+      "exclusion": "Third-party credentials are opaque strings whose provenance no message declares: a check cannot tell one in a result from any other string, and by design they never enter the session at all. The obligation is the server's — credentials could only transit the client if the server sent them — and it is kept by the flow the server builds, outside the recording."
+    },
+    {
+      "id": "ELIC-072",
+      "level": "MUST NOT",
+      "exclusion": "Token passthrough happens between the server and the third-party service, outside the MCP session; the recording holds only the client–server exchange, in which the client's credentials appear (as HTTP authorization) whether or not the server reuses them elsewhere."
+    },
+    {
+      "id": "ELIC-073",
+      "level": "MUST",
+      "exclusion": "By the clause's own words the interaction \"happens outside the MCP protocol, without involving the MCP client\": it is between the user's browser and the server or a third-party authorization server, so a recording of the MCP session cannot contain it."
+    },
+    {
+      "id": "ELIC-074",
+      "level": "MUST NOT",
+      "exclusion": "The same barrier as the transit clause: a credential obtained through URL mode elicitation is an opaque string whose provenance no message declares, so a check cannot tell one in a result from any other value the server returns."
+    },
+    {
+      "id": "ELIC-075",
+      "level": "MUST",
+      "exclusion": "Binding is server-internal state, and the identity it binds to is established by authorization outside the session's messages, so no message shows whether an elicitation was bound to it."
+    },
+    {
+      "id": "ELIC-076",
+      "level": "MUST",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-077",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-078",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-079",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-080",
+      "level": "MUST NOT",
+      "exclusion": "Whether a URL's path or query carries \"sensitive information about the end-user\" is a semantic judgement about opaque values — an identifier in a query may be a random nonce or an email address — so a check would convict on a guess. The page's own examples put an `elicitationId` in the query, which is exactly the kind of value a pattern would misread."
+    },
+    {
+      "id": "ELIC-081",
+      "level": "MUST NOT",
+      "exclusion": "Whether a URL grants access without further authentication is a property of the server it points to, observable only by dereferencing it — which a validator must not do (the client rules on the same page forbid even pre-fetching it), and which a recording does not contain."
+    },
+    {
+      "id": "ELIC-082",
+      "level": "SHOULD NOT",
+      "exclusion": "Intent: the clause forbids URLs \"intended to be clickable\", and a form's `message` or a field's description may mention a URL for reference. A check for URL-shaped text would convict a server for mentioning a link, and the intent itself is not on the wire."
+    },
+    {
+      "id": "ELIC-083",
+      "level": "SHOULD",
+      "exclusion": "Its antecedent — that this is a non-development environment — is not in the trace. A loopback host suggests development without proving it, and a staging or internal host proves nothing either way, so an `http` URL is not by itself evidence of a violation. The scheme is recorded; the environment is not."
+    },
+    {
+      "id": "ELIC-084",
+      "level": "MUST",
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-085",
+      "level": "MUST NOT",
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-086",
+      "level": "MUST NOT",
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-087",
+      "level": "MUST",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-088",
+      "level": "MUST",
+      "exclusion": "Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`)."
+    },
+    {
+      "id": "ELIC-089",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-090",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-091",
+      "level": "SHOULD NOT",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "ELIC-092",
+      "level": "MUST NOT",
+      "exclusion": "Server-internal: whether the server verified an identity before trusting it is a decision made with information — its authorization context — that the session's messages do not carry."
+    },
+    {
+      "id": "ELIC-093",
+      "level": "SHOULD",
+      "exclusion": "Points to a separate document whose practices are server-internal; nothing in the session's messages shows which were followed."
+    },
+    {
+      "id": "ELIC-094",
+      "level": "MUST NOT",
+      "exclusion": "Whether a requested field is \"sensitive information\" — the page's own definition is \"secrets and credentials that grant access or authorize transactions\" — is a judgement about meaning, not syntax: a schema property named `token` may be a display preference and one named `answer` may collect a password. A check would have to guess from field names, and a guess convicts conforming servers. The server's author decides it; nothing in the message settles it."
+    },
+    {
+      "id": "ELIC-096",
+      "level": "SHOULD",
+      "exclusion": "Binds an act of validation, as MRTR-021 does: the server's outcome — accepting the data, re-asking, or failing — is the only thing that reaches the wire, and each is consistent with a server that validated and with one that did not."
+    },
+    {
+      "id": "ELIC-097",
+      "level": "MUST",
+      "exclusion": "Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it."
+    },
+    {
+      "id": "ELIC-098",
+      "level": "MUST",
+      "exclusion": "Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it."
+    },
+    {
+      "id": "ELIC-099",
+      "level": "MUST",
+      "exclusion": "Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it."
+    },
+    {
+      "id": "SAMP-021",
+      "level": "SHOULD NOT",
+      "exclusion": "Whether an implementation is new is not in any message: a session using the feature is equally consistent with an existing implementation that has not yet migrated, which the sentence asks only to migrate."
+    },
+    {
+      "id": "SAMP-022",
+      "level": "SHOULD",
+      "exclusion": "Asks for a migration over time, which one recording cannot show either way — a session that uses the feature may come from an implementation partway through migrating, and the feature remains in the specification until removal."
+    },
+    {
+      "id": "SAMP-023",
+      "level": "SHOULD",
+      "exclusion": "Policy and UI: whether a human reviews sampling requests, and whether they can deny one, is the client application's design. A request answered with a result may have been approved by a person or by policy; nothing in the answer says which."
+    },
+    {
+      "id": "SAMP-024",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "SAMP-025",
+      "level": "MUST",
+      "exclusion": "The precondition half of the sentence. A client that has not declared `sampling.tools` does nothing wrong by receiving a tool-enabled request — the server does, and the sentence's other half (`sampling.tools-declared`) judges it. Nothing the client sends can break this half: the declaration is either made or not, and its absence becomes a violation only when such a request arrives, which is the server's act."
+    },
+    {
+      "id": "SAMP-035",
+      "level": "SHOULD NOT",
+      "exclusion": "Retention is client-internal state: the next request's `messages` are the server's, and say nothing about what the client kept from the last one."
+    },
+    {
+      "id": "SAMP-036",
+      "level": "MUST",
+      "exclusion": "A bound in the model's tokens, and the tokenizer is the model's: a validator cannot count the tokens of a result's `content` without knowing which tokenizer produced it (the result's `model` names the model, not its vocabulary), so an over-long answer cannot be shown."
+    },
+    {
+      "id": "SAMP-037",
+      "level": "SHOULD",
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "SAMP-038",
+      "level": "SHOULD",
+      "exclusion": "Validation is internal; its outcome is whatever each party sends next, and the shape of what they send is judged directly by the clauses that constrain it (tool-message balance, message roles)."
+    },
+    {
+      "id": "SAMP-039",
+      "level": "SHOULD",
+      "exclusion": "Hints are advisory and mapping them is the client's choice (the page: clients \"MAY map hints to equivalent models from different providers\"); the result's `model` names what was used, but no rule says which model a hint selects, so no answer contradicts one."
+    },
+    {
+      "id": "SAMP-040",
+      "level": "SHOULD",
+      "exclusion": "A request schedule: rate limiting is measured in elapsed time, which checks may not consult (LIFE-015, the time boundary in `02-architecture.md`), and its threshold is the client's own policy."
+    },
+    {
+      "id": "SAMP-041",
+      "level": "MUST",
+      "exclusion": "\"Appropriately\" names no observable criterion, and which data is sensitive is a semantic judgement about content (see the elicitation pages' sensitive-information clauses): no message can be shown to have mishandled it."
+    },
+    {
+      "id": "SAMP-043",
+      "level": "SHOULD",
+      "exclusion": "A limit on a loop's length is a policy whose threshold the page does not set: any finite loop in a recording is consistent with some limit, and an unbounded one cannot be recorded."
+    },
+    {
+      "id": "ROOT-011",
+      "level": "SHOULD NOT",
+      "exclusion": "Whether an implementation is new is not in any message: a session using the feature is equally consistent with an existing implementation that has not yet migrated, which the sentence asks only to migrate."
+    },
+    {
+      "id": "ROOT-012",
+      "level": "SHOULD",
+      "exclusion": "Asks for a migration over time, which one recording cannot show either way — a session that uses the feature may come from an implementation partway through migrating, and the feature remains in the specification until removal."
+    },
+    {
+      "id": "ROOT-015",
+      "level": "MUST",
+      "exclusion": "Client-internal policy: which directories the user permitted, how paths are validated and accessed, and whether they remain reachable are facts about the client's host system, not its messages. The one part a message carries — the URI's form — is judged by `roots.uri-file-scheme`; a `file://` URI with `..` segments is still well formed, and whether it escapes a permitted directory depends on the filesystem."
+    },
+    {
+      "id": "ROOT-016",
+      "level": "SHOULD",
+      "exclusion": "Server-internal: what the server does with roots — keeping within their boundaries, validating paths against them, coping when they vanish or change, caching them — happens in its own operations on its host, which the MCP session does not record."
+    },
+    {
+      "id": "ROOT-017",
+      "level": "SHOULD",
+      "exclusion": "UI and internal monitoring: consent prompts and root-management screens are the client's interface, and checking or watching roots' accessibility happens on its filesystem. A recording carries only the roots it finally reported."
+    },
+    {
+      "id": "ROOT-019",
+      "level": "SHOULD",
+      "exclusion": "Server-internal: what the server does with roots — keeping within their boundaries, validating paths against them, coping when they vanish or change, caching them — happens in its own operations on its host, which the MCP session does not record."
+    },
+    {
+      "id": "AUTH-086",
+      "level": "SHOULD",
+      "exclusion": "Conformance to the pages as a whole is what their own entries judge, clause by clause; the sentence adds no property of a message beyond them. It binds only implementations that support authorization at all, which the page makes OPTIONAL. Same sentence as BASE-068 on the basic page."
+    },
+    {
+      "id": "AUTH-087",
+      "level": "SHOULD NOT",
+      "exclusion": "A stdio session has no HTTP layer for a challenge or a token header to appear in, so a recording cannot show the specification being followed there; retrieving credentials from the environment is process-local conduct with no wire footprint. Same sentence as BASE-068 on the basic page."
+    },
+    {
+      "id": "AUTH-088",
+      "level": "MUST",
+      "exclusion": "Binds transports other than the two this revision defines, which no recording of an MCP session over stdio or Streamable HTTP carries, and names no practice a check could hold a message to."
+    },
+    {
+      "id": "AUTH-089",
+      "level": "MUST",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-090",
+      "level": "SHOULD",
+      "exclusion": "Support for a client registration mechanism is exercised between the client and the authorization server, off the MCP endpoint. Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-091",
+      "level": "MUST",
+      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-092",
+      "level": "MUST",
+      "exclusion": "Which document a client used to find its authorization server is visible only in fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-093",
+      "level": "MUST",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-094",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (authorization server metadata discovery), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-095",
+      "level": "MUST",
+      "exclusion": "Points at requirements stated elsewhere (the authorization-server-discovery page), each entered under its own id there; the sentence adds no obligation a recording could show apart from them."
+    },
+    {
+      "id": "AUTH-096",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (client registration), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-098",
+      "level": "MUST NOT",
+      "exclusion": "Conduct inside the client's OAuth flow (the scope it requests, whatever it assumes about `scopes_supported`), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-099",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (the scope it requests in its authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-100",
+      "level": "SHOULD",
+      "exclusion": "Conduct inside the client's OAuth flow (the scope of its re-authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-101",
+      "level": "SHOULD",
+      "exclusion": "Striving for consistency is a design aim, not a property any one challenge has, and challenges for different operations legitimately name different scopes; `scopes_supported` lives in the Protected Resource Metadata document, which a recording does not carry."
+    },
+    {
+      "id": "AUTH-102",
+      "level": "SHOULD",
+      "exclusion": "Conduct inside the client's OAuth flow (the scope of its authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-103",
+      "level": "SHOULD",
+      "exclusion": "Conduct inside the client's OAuth flow (the scope of its authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-104",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (the issuer it records beside its PKCE verifier, which is the client's own state), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-105",
+      "level": "SHOULD",
+      "exclusion": "Authorization responses reach the client through the user's browser. Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-106",
+      "level": "MUST",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-107",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (the authorization response's `iss` and the issuer recorded for it), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-108",
+      "level": "SHOULD",
+      "exclusion": "Names the two keywords to describe a future revision's intent; it binds no party at this one. The obligation it refers to is the authorization server's SHOULD entered above, excluded for the reason given there."
+    },
+    {
+      "id": "AUTH-109",
+      "level": "MUST NOT",
+      "exclusion": "Conduct inside the client's OAuth flow (the authorization response's `iss` and the issuer recorded for it), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-110",
+      "level": "MUST NOT",
+      "exclusion": "Conduct inside the client's OAuth flow (the authorization response's `iss` and the issuer recorded for it), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records. Displaying an error is user interface besides."
+    },
+    {
+      "id": "AUTH-111",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-112",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-113",
+      "level": "SHOULD",
+      "exclusion": "Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-114",
+      "level": "SHOULD",
+      "exclusion": "Accepting a URI is a comparison made by whoever receives the `resource` parameter or validates a token's audience — the authorization server, or the MCP server inside its validation — and neither comparison is a message on the MCP endpoint."
+    },
+    {
+      "id": "AUTH-115",
+      "level": "SHOULD",
+      "exclusion": "The canonical URI's spelling appears in the `resource` parameter of requests to the authorization server and in token audiences, neither of which a recording of the MCP endpoint carries; and an `http` event records no request target, so not even the endpoint URL the client used is there."
+    },
+    {
+      "id": "AUTH-116",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-117",
+      "level": "MUST",
+      "exclusion": "`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording. The section's other requirement, no token in the query string, has its own entry."
+    },
+    {
+      "id": "AUTH-118",
+      "level": "MUST",
+      "exclusion": "`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording."
+    },
+    {
+      "id": "AUTH-119",
+      "level": "MUST",
+      "exclusion": "`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording. A 401 to a request does not settle it either: an expired token draws the same answer as a missing one."
+    },
+    {
+      "id": "AUTH-120",
+      "level": "MUST NOT",
+      "exclusion": "An `http` event records the method, status and allowlisted headers, and no request target: neither the path nor the query string a request was sent to is in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs."
+    },
+    {
+      "id": "AUTH-121",
+      "level": "MUST",
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+    },
+    {
+      "id": "AUTH-122",
+      "level": "MUST",
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+    },
+    {
+      "id": "AUTH-123",
+      "level": "MUST",
+      "exclusion": "Whether validation failed is decided inside the server, against a token the recording never holds, and the sentence imports OAuth 2.1 Section 5.3 wholesale. What a recording can hold the response to is the page's own statement of it: the status each declared error receives and the 401 for an invalid token, judged by `auth.error-status` and `auth.invalid-token-401`."
+    },
+    {
+      "id": "AUTH-125",
+      "level": "MUST NOT",
+      "exclusion": "`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording."
+    },
+    {
+      "id": "AUTH-126",
+      "level": "MUST",
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+    },
+    {
+      "id": "AUTH-127",
+      "level": "MUST NOT",
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. Transiting a token is a request to an upstream service, outside the MCP session."
+    },
+    {
+      "id": "AUTH-128",
+      "level": "MUST",
+      "exclusion": "Refresh tokens are issued and redeemed at the authorization server's token endpoint and kept in the client's storage; client metadata is registered with the authorization server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-134",
+      "level": "SHOULD",
+      "exclusion": "A strategy is a policy over every challenge the server issues, across sessions and users; one recording shows a few challenges for different operations, which legitimately name different scopes, and cannot tell an inconsistent strategy from a consistent one applied to different requests."
+    },
+    {
+      "id": "AUTH-135",
+      "level": "SHOULD",
+      "exclusion": "Binds the server's deliberation, not a message: a challenge shows the scopes chosen, not whether their user experience impact was weighed."
+    },
+    {
+      "id": "AUTH-136",
+      "level": "SHOULD",
+      "exclusion": "Conduct inside the client's OAuth flow (the token request a step-up makes), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records. The clause also admits \"other, appropriate ways\", which no message distinguishes."
+    },
+    {
+      "id": "AUTH-137",
+      "level": "SHOULD",
+      "exclusion": "Whether a client acts on behalf of a user or on its own (`client_credentials`) is a fact about its grant, which no MCP message states. Conduct inside the client's OAuth flow (the step-up re-authorization), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-138",
+      "level": "SHOULD",
+      "exclusion": "A limit is a property of the client's implementation, which a session that simply stops retrying satisfies whatever the limit is; the page fixes no number (\"no more than a few times\") a recording could be held to, and the attempts tracked are re-authorizations off the MCP endpoint."
+    },
+    {
+      "id": "AUTH-139",
+      "level": "MUST",
+      "exclusion": "The decision is made inside the server from the scopes a token carries, and the token is never recorded; a challenge shows the outcome, not the scopes it was decided against."
+    },
+    {
+      "id": "AUTH-140",
+      "level": "MUST",
+      "exclusion": "Points at requirements stated elsewhere (the security-considerations page), each entered under its own id there; the sentence adds no obligation a recording could show apart from them."
+    },
+    {
+      "id": "AUTH-141",
+      "level": "MUST",
+      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-142",
+      "level": "MUST",
+      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-143",
+      "level": "MUST",
+      "exclusion": "Registration state is the client's own storage, and the credentials it holds are presented to authorization servers off the MCP endpoint — or, as tokens, in the `Authorization` header a recording never keeps."
+    },
+    {
+      "id": "AUTH-144",
+      "level": "MUST",
+      "exclusion": "A disjunction whose second branch a recording cannot witness. A 401 whose challenge carries no `resource_metadata` is conforming when the server serves the well-known document instead, and that document is not in the trace: The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-145",
+      "level": "MUST",
+      "exclusion": "Which URLs the client requested next, and in what order, are fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+    },
+    {
+      "id": "AUTH-146",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (parsing the challenge, then the discovery, authorization and token requests that are the appropriate response to a 401), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-147",
+      "level": "MUST",
+      "exclusion": "Requests to the authorization server's well-known endpoints, and what the client does with the documents they return. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-148",
+      "level": "MUST",
+      "exclusion": "Requests to the authorization server's well-known endpoints, and what the client does with the documents they return. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-149",
+      "level": "MUST",
+      "exclusion": "Requests to the authorization server's well-known endpoints, and what the client does with the documents they return. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-150",
+      "level": "MUST",
+      "exclusion": "Requests to the authorization server's well-known endpoints, and what the client does with the documents they return. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-151",
+      "level": "SHOULD",
+      "exclusion": "Conduct inside the client's OAuth flow (choosing a registration mechanism), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-152",
+      "level": "SHOULD",
+      "exclusion": "Support for a client registration mechanism is exercised between the client and the authorization server, off the MCP endpoint. Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-153",
+      "level": "MUST",
+      "exclusion": "Points at requirements stated elsewhere (the Client ID Metadata Document draft, and the two lists that follow on this page), each entered under its own id there; the sentence adds no obligation a recording could show apart from them."
+    },
+    {
+      "id": "AUTH-154",
+      "level": "MUST",
+      "exclusion": "The metadata document is hosted by the client and fetched by the authorization server; neither request touches the MCP endpoint, and the `client_id` travels in the authorization request. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-155",
+      "level": "MUST",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-156",
+      "level": "SHOULD",
+      "exclusion": "Conduct inside the client's OAuth flow (reading authorization server metadata and choosing a registration mechanism), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-157",
+      "level": "SHOULD",
+      "exclusion": "A configuration option of the client, exercised against the authorization server; no MCP message shows whether the option exists."
+    },
+    {
+      "id": "AUTH-158",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (Dynamic Client Registration with the authorization server), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-159",
+      "level": "SHOULD",
+      "exclusion": "Conduct inside the client's OAuth flow (Dynamic Client Registration with the authorization server), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records. Which kind of application the client is, is not stated anywhere a recording reaches either."
+    },
+    {
+      "id": "AUTH-160",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (Dynamic Client Registration with the authorization server), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-161",
+      "level": "SHOULD",
+      "exclusion": "Conduct inside the client's OAuth flow (Dynamic Client Registration with the authorization server), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records. Surfacing an error is user interface besides."
+    },
+    {
+      "id": "AUTH-162",
+      "level": "MUST",
+      "exclusion": "Client credentials are the client's own stored state, presented to authorization servers off the MCP endpoint. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-163",
+      "level": "MUST NOT",
+      "exclusion": "Client credentials are the client's own stored state, presented to authorization servers off the MCP endpoint. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct. The change itself is detected in Protected Resource Metadata, which a recording does not carry."
+    },
+    {
+      "id": "AUTH-164",
+      "level": "SHOULD",
+      "exclusion": "Client credentials are the client's own stored state, presented to authorization servers off the MCP endpoint. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct. Surfacing an error is user interface besides."
+    },
+    {
+      "id": "AUTH-165",
+      "level": "MUST",
+      "exclusion": "Points at requirements stated elsewhere (the sections of this page), each entered under its own id there; the sentence adds no obligation a recording could show apart from them."
+    },
+    {
+      "id": "AUTH-166",
+      "level": "MUST",
+      "exclusion": "Imports OAuth 2.1 Section 7 wholesale. Its observable consequences for an MCP exchange are the challenge clauses this page states itself, judged under their own ids; the rest is implementation conduct (storage, transport configuration, the OAuth flow) with no footprint on the MCP endpoint."
+    },
+    {
+      "id": "AUTH-167",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-168",
+      "level": "MUST",
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+    },
+    {
+      "id": "AUTH-169",
+      "level": "MUST",
+      "exclusion": "Token storage is local state of each party, and a token is never recorded: nothing on the wire shows how either party keeps one."
+    },
+    {
+      "id": "AUTH-170",
+      "level": "SHOULD",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-171",
+      "level": "MUST",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-172",
+      "level": "MUST",
+      "exclusion": "Imports OAuth 2.1 Section 1.5 wholesale. Its observable consequences for an MCP exchange are the challenge clauses this page states itself, judged under their own ids; the rest is implementation conduct (storage, transport configuration, the OAuth flow) with no footprint on the MCP endpoint."
+    },
+    {
+      "id": "AUTH-173",
+      "level": "MUST",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-174",
+      "level": "MUST",
+      "exclusion": "Redirect URIs are registered with the authorization server and travel in authorization requests through the user's browser. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-175",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (PKCE and the authorization server metadata it is verified against), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-176",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (PKCE and the authorization server metadata it is verified against), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-177",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (PKCE and the authorization server metadata it is verified against), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-178",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (PKCE and the authorization server metadata it is verified against), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-179",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (PKCE and the authorization server metadata it is verified against), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-180",
+      "level": "MUST",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-181",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (client registration), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-182",
+      "level": "MUST",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-183",
+      "level": "SHOULD",
+      "exclusion": "Conduct inside the client's OAuth flow (the authorization code flow's `state`), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    },
+    {
+      "id": "AUTH-184",
+      "level": "MUST",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-185",
+      "level": "SHOULD",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-186",
+      "level": "MUST",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-187",
+      "level": "SHOULD",
+      "exclusion": "Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-188",
+      "level": "MUST",
+      "exclusion": "What the authorization server shows the user during authorization is consent UI in the user's browser. Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
+    },
+    {
+      "id": "AUTH-189",
+      "level": "MUST",
+      "exclusion": "Consent is obtained in the user's browser, and the forwarding is the proxy server's own OAuth flow with a third-party authorization server; neither is a message on the MCP endpoint the recording captures."
+    },
+    {
+      "id": "AUTH-190",
+      "level": "MUST",
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. A result returned to an unauthorized party would need the request's credential to show, and that is the header a recording never keeps."
+    },
+    {
+      "id": "AUTH-191",
+      "level": "MUST",
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+    },
+    {
+      "id": "AUTH-192",
+      "level": "MUST",
+      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+    },
+    {
+      "id": "AUTH-193",
+      "level": "MUST NOT",
+      "exclusion": "Passthrough is a request from the MCP server to an upstream API, outside the MCP session; the recording holds the client–server exchange only, and not even the token the client sent (`Authorization` is never recorded)."
+    },
+    {
+      "id": "AUTH-194",
+      "level": "MUST",
+      "exclusion": "Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
+    }
+  ],
+  "extensions": [
+    {
+      "extension": "io.modelcontextprotocol/tasks",
+      "requirements": [
+        {
+          "id": "TASK-002",
+          "level": "MUST",
+          "exclusion": "Being prepared is a property of the client's code. What a recording could show — a client that receives a `CreateTaskResult` and never polls the task — is also how a client conforms when its user abandons the call or the capture ends first, so the wire cannot tell an unprepared client from either."
+        },
+        {
+          "id": "TASK-003",
+          "level": "MUST",
+          "exclusion": "How a client interprets a response is internal: the protocol defines no message for rejecting an invalid response, so a client that treated the task result as invalid and one that accepted it can send exactly the same thing next."
+        },
+        {
+          "id": "TASK-004",
+          "level": "MUST",
+          "exclusion": "Its antecedent — that the server cannot serve this request without creating a task — is the server's own judgment, which no message states: a server that can serve the call answers it normally, so a non-declaring client's call answered with a result conforms whichever way the server could have gone. The `-32021` error itself, when sent, is the core clause BASE-035 judges (`meta.missing-capability-error`)."
+        },
+        {
+          "id": "TASK-005",
+          "level": "SHOULD",
+          "exclusion": "A design property: what an implementation is ready to accept from a later revision is in its code, not in anything it sends today."
+        },
+        {
+          "id": "TASK-009",
+          "level": "MUST NOT",
+          "exclusion": "Durable creation shows only as its failure — a `tasks/get` for the returned id that does not resolve — and that answer is also the conforming one once the task's TTL has elapsed (the page: \"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"). Telling the two apart needs the time between creation and poll, and checks never consult an event's `ts`."
+        },
+        {
+          "id": "TASK-010",
+          "level": "MUST",
+          "exclusion": "How the server's storage reaches consistency is internal; its one observable consequence is TASK-009's, excluded for the reason recorded there."
+        },
+        {
+          "id": "TASK-011",
+          "level": "SHOULD",
+          "exclusion": "Every input-required round of the original request necessarily precedes the `CreateTaskResult` that ends it, so every recording of a server running such rounds shows them resolved first; how else the server could have resolved them is not a message."
+        },
+        {
+          "id": "TASK-012",
+          "level": "SHOULD",
+          "exclusion": "Polling frequency is the time between requests, and checks never consult an event's `ts`: it is optional, informational, and stamped by the recorder's clock rather than the client's."
+        },
+        {
+          "id": "TASK-013",
+          "level": "SHOULD",
+          "exclusion": "A recording ends when its capture stops: a task with no terminal status in the trace shows a capture that ended as often as a client that stopped, and nothing on the wire tells the two apart."
+        },
+        {
+          "id": "TASK-014",
+          "level": "SHOULD",
+          "exclusion": "Durable storage is the client's own, and it shows only across a crash or restart, which a recording of one session does not span."
+        },
+        {
+          "id": "TASK-016",
+          "level": "MUST",
+          "exclusion": "Which requests are outstanding is the server's own state: a `tasks/get` that lists fewer requests than the task is waiting on looks exactly like one that lists them all."
+        },
+        {
+          "id": "TASK-018",
+          "level": "SHOULD",
+          "exclusion": "Fulfilling an input request needs its user or model to answer, and the recording may end before they do: an unanswered `input_required` task shows a capture that stopped as often as a client that did not respond."
+        },
+        {
+          "id": "TASK-019",
+          "level": "SHOULD",
+          "exclusion": "A recording ends when its capture stops: a task with no terminal status in the trace shows a capture that ended as often as a client that stopped, and nothing on the wire tells the two apart."
+        },
+        {
+          "id": "TASK-020",
+          "level": "MUST",
+          "exclusion": "Binds how the host presents and trusts a request a task carries — consent and user interface, which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "TASK-021",
+          "level": "SHOULD",
+          "exclusion": "Deduplication here is presentation: receiving the same key on the next poll is the documented snapshot behaviour, and whether the user saw the request twice is user interface. Answering one key twice, which a recording does show, is TASK-026."
+        },
+        {
+          "id": "TASK-025",
+          "level": "SHOULD",
+          "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+        },
+        {
+          "id": "TASK-027",
+          "level": "SHOULD",
+          "exclusion": "Which keys are outstanding is the server's own state (TASK-016), and an ignored response leaves no trace of having been ignored: the acknowledgement is the same either way."
+        },
+        {
+          "id": "TASK-031",
+          "level": "SHOULD",
+          "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+        },
+        {
+          "id": "TASK-036",
+          "level": "MUST",
+          "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+        },
+        {
+          "id": "TASK-037",
+          "level": "SHOULD",
+          "exclusion": "Whether a `taskId` is known is the server's own state: a task created before the recording began, or one already purged after its TTL (\"It is compliant behavior for a server to return an error stating the task cannot be found if it has purged an expired task\"), is indistinguishable in a trace from one that never existed, so no answer to an unfamiliar id convicts the server."
+        },
+        {
+          "id": "TASK-040",
+          "level": "SHOULD",
+          "exclusion": "Informativeness is a judgment about prose; any non-empty message passes a mechanical test of it, so a check would only ever restate the core clause that error messages exist."
+        },
+        {
+          "id": "TASK-047",
+          "level": "MUST",
+          "exclusion": "Entropy is a property of the generator, not of one identifier: a recording holds a handful of ids, and an unguessable one and a predictable one can be spelled alike."
+        },
+        {
+          "id": "TASK-048",
+          "level": "MUST",
+          "exclusion": "Authorization is decided inside the server against a credential no recording carries: `Authorization` is never recorded (ADR-0022, fact 1)."
+        },
+        {
+          "id": "TASK-049",
+          "level": "MUST",
+          "exclusion": "Binds how the host presents and trusts a request a task carries — consent and user interface, which strategy rule 2 keeps out: none of it is a message to the server."
+        }
+      ]
+    },
+    {
+      "extension": "io.modelcontextprotocol/skills",
+      "requirements": [
+        {
+          "id": "SKILL-001",
+          "level": "MUST",
+          "exclusion": "Restates the core rule the revision's own registry judges on every request (BASE-030, `meta.required-request-fields`). Judged there once, it is not judged again here, where a request missing its metadata would read as a skills defect in a session that never touched the extension."
+        },
+        {
+          "id": "SKILL-006",
+          "level": "MUST",
+          "exclusion": "The umbrella over the format rules this page goes on to state: those it states with their own keyword are entered and judged one by one (SKILL-007, SKILL-008, SKILL-013). The rest of the Agent Skills specification is another document, outside this registry's page set."
+        },
+        {
+          "id": "SKILL-009",
+          "level": "MUST",
+          "exclusion": "Binds a client's response to a future incompatible revision of another specification; no such revision exists, and what a client honours of one is in its code, not in what it sends."
+        },
+        {
+          "id": "SKILL-010",
+          "level": "SHOULD",
+          "exclusion": "As SKILL-009: support for a format revision is a property of client code."
+        },
+        {
+          "id": "SKILL-016",
+          "level": "MUST NOT",
+          "exclusion": "Name resolution happens off the MCP connection: a recording of the session carries none of the client's DNS queries or other network traffic."
+        },
+        {
+          "id": "SKILL-017",
+          "level": "MUST NOT",
+          "exclusion": "What a host concludes about a resource is internal. The only act on the wire it could lead to — reading the resource — is permitted whether or not the host takes it for a skill (the page: reading is transport, not a load)."
+        },
+        {
+          "id": "SKILL-021",
+          "level": "SHOULD",
+          "exclusion": "Binds the keys that expose frontmatter fields, and nothing on the wire says which `_meta` keys do: a key under another prefix on a skill resource may carry any other metadata, which the base protocol permits."
+        },
+        {
+          "id": "SKILL-022",
+          "level": "MUST NOT",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-023",
+          "level": "MUST",
+          "exclusion": "Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it."
+        },
+        {
+          "id": "SKILL-024",
+          "level": "MUST NOT",
+          "exclusion": "Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it."
+        },
+        {
+          "id": "SKILL-025",
+          "level": "MUST",
+          "exclusion": "Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it."
+        },
+        {
+          "id": "SKILL-028",
+          "level": "SHOULD",
+          "exclusion": "Ignoring a metadata key leaves nothing on the wire."
+        },
+        {
+          "id": "SKILL-030",
+          "level": "MUST NOT",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-031",
+          "level": "MUST",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-032",
+          "level": "MUST",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-033",
+          "level": "MUST NOT",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-038",
+          "level": "MUST",
+          "exclusion": "Its antecedent — content generated so that stable digests cannot be published — is the server's own knowledge. An array of digests and the string `\"dynamic\"` are both valid forms, and SKILL-034 judges that one of them is present."
+        },
+        {
+          "id": "SKILL-039",
+          "level": "MUST NOT",
+          "exclusion": "Loading is the host placing content in the model's context, which no message marks: a `resources/read` of the skill's `SKILL.md` is transport, not a load (the page says so), so a read after an invalid entry convicts nothing. The server's half — an entry without a valid `resources` — is SKILL-034."
+        },
+        {
+          "id": "SKILL-040",
+          "level": "SHOULD",
+          "exclusion": "An expectation held by a server's author is not behaviour."
+        },
+        {
+          "id": "SKILL-041",
+          "level": "MUST",
+          "exclusion": "The capacity of the host: a recording shows what was served and read, not what the host could have accepted."
+        },
+        {
+          "id": "SKILL-043",
+          "level": "SHOULD",
+          "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+        },
+        {
+          "id": "SKILL-046",
+          "level": "MUST NOT",
+          "exclusion": "How a host reasons from a listing, and whether it can load a skill by URI alone, are host capabilities; a session in which it never does either is conforming, and one in which it does looks like any `skills/get`."
+        },
+        {
+          "id": "SKILL-052",
+          "level": "MUST",
+          "exclusion": "What a server serves is its own state at the moment of the call: a skill listed earlier and refused later may have been withdrawn in between, which the page allows (an entry is a point-in-time snapshot), so a refusal convicts nothing."
+        },
+        {
+          "id": "SKILL-054",
+          "level": "MUST NOT",
+          "exclusion": "Whether a host treats a read as a load is internal: the page itself says a read is transport and a load is the host placing content in the model's context, which no message marks."
+        },
+        {
+          "id": "SKILL-055",
+          "level": "SHOULD",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-056",
+          "level": "MUST",
+          "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+        },
+        {
+          "id": "SKILL-057",
+          "level": "MUST NOT",
+          "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+        },
+        {
+          "id": "SKILL-058",
+          "level": "MUST",
+          "exclusion": "Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was."
+        },
+        {
+          "id": "SKILL-059",
+          "level": "MUST",
+          "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+        },
+        {
+          "id": "SKILL-060",
+          "level": "MUST",
+          "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+        },
+        {
+          "id": "SKILL-061",
+          "level": "MUST",
+          "exclusion": "Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call."
+        },
+        {
+          "id": "SKILL-062",
+          "level": "MUST NOT",
+          "exclusion": "Need is the model's or the user's request to load or read, which no recording carries: a read right after a listing is prefetching or a load the user asked for, and the wire is the same. The official suite judges this clause in a scripted scenario in which nothing asked for a load (`sep-2640-client-no-prefetch`), which a recording of an ordinary session cannot reproduce."
+        },
+        {
+          "id": "SKILL-063",
+          "level": "SHOULD",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        },
+        {
+          "id": "SKILL-064",
+          "level": "MUST NOT",
+          "exclusion": "A security policy inside the host; trusting or distrusting content produces no message."
+        },
+        {
+          "id": "SKILL-068",
+          "level": "MUST NOT",
+          "exclusion": "Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was."
+        },
+        {
+          "id": "SKILL-069",
+          "level": "SHOULD",
+          "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+        },
+        {
+          "id": "SKILL-070",
+          "level": "MUST NOT",
+          "exclusion": "Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was."
+        },
+        {
+          "id": "SKILL-072",
+          "level": "SHOULD",
+          "exclusion": "Informativeness is a judgment about prose; any non-empty message passes a mechanical test of it."
+        },
+        {
+          "id": "SKILL-073",
+          "level": "MUST",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-074",
+          "level": "MUST",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-075",
+          "level": "MUST",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-076",
+          "level": "MUST NOT",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-077",
+          "level": "MUST NOT",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-078",
+          "level": "MUST",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-079",
+          "level": "MUST",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-080",
+          "level": "MUST",
+          "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+        },
+        {
+          "id": "SKILL-081",
+          "level": "MUST NOT",
+          "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+        },
+        {
+          "id": "SKILL-082",
+          "level": "MUST",
+          "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+        },
+        {
+          "id": "SKILL-083",
+          "level": "MUST",
+          "exclusion": "Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it."
+        },
+        {
+          "id": "SKILL-084",
+          "level": "MUST",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-085",
+          "level": "MUST NOT",
+          "exclusion": "Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message."
+        },
+        {
+          "id": "SKILL-086",
+          "level": "SHOULD",
+          "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+        },
+        {
+          "id": "SKILL-087",
+          "level": "MUST NOT",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-088",
+          "level": "MUST",
+          "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+        },
+        {
+          "id": "SKILL-089",
+          "level": "MUST NOT",
+          "exclusion": "Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server."
+        },
+        {
+          "id": "SKILL-090",
+          "level": "SHOULD",
+          "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+        },
+        {
+          "id": "SKILL-091",
+          "level": "SHOULD",
+          "exclusion": "Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message."
+        },
+        {
+          "id": "SKILL-092",
+          "level": "MUST",
+          "exclusion": "Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one."
+        },
+        {
+          "id": "SKILL-093",
+          "level": "MUST",
+          "exclusion": "Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one."
+        },
+        {
+          "id": "SKILL-094",
+          "level": "MUST NOT",
+          "exclusion": "Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one."
+        },
+        {
+          "id": "SKILL-095",
+          "level": "SHOULD",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        },
+        {
+          "id": "SKILL-096",
+          "level": "MUST",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        },
+        {
+          "id": "SKILL-097",
+          "level": "MUST",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        },
+        {
+          "id": "SKILL-098",
+          "level": "MUST",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        },
+        {
+          "id": "SKILL-099",
+          "level": "SHOULD",
+          "exclusion": "Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection."
+        }
+      ]
     }
   ]
 }

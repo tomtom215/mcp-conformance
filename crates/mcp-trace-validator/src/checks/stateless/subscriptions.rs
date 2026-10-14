@@ -56,6 +56,16 @@ const RESOURCE_SUBSCRIPTIONS: &str = "resourceSubscriptions";
 /// The notification type `RESOURCE_SUBSCRIPTIONS` governs.
 const RESOURCE_UPDATED: &str = "notifications/resources/updated";
 
+/// The tasks extension's notification, and the filter field that requests it
+/// for the tasks it lists (`io.modelcontextprotocol/tasks`, ADR-0023). An
+/// extension may add a filter field, and this one is how a client asks for a
+/// task's status updates; without it a conforming tasks session read as a
+/// server sending a type nobody requested.
+const TASK_STATUS: &str = "notifications/tasks";
+
+/// The filter field listing the tasks whose updates were requested.
+const TASK_IDS: &str = "taskIds";
+
 /// An open subscription: the request that opened it, and its filter.
 #[derive(Debug, Clone, Copy)]
 struct Subscription<'a> {
@@ -207,6 +217,17 @@ fn unrequested(
             .is_some_and(|uris| uris.iter().any(|value| value.as_str() == Some(uri)));
         return (!listed)
             .then(|| format!("its `{RESOURCE_SUBSCRIPTIONS}` does not list the URI {uri:?}"));
+    }
+    if method == TASK_STATUS {
+        let task = params
+            .get("taskId")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let listed = filter
+            .and_then(|filter| filter.get(TASK_IDS))
+            .and_then(Value::as_array)
+            .is_some_and(|tasks| tasks.iter().any(|value| value.as_str() == Some(task)));
+        return (!listed).then(|| format!("its `{TASK_IDS}` does not list the task {task:?}"));
     }
     Some("is not one of the notification types the filter can request".to_owned())
 }

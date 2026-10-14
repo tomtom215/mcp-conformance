@@ -3,7 +3,7 @@
 #
 # Scenario-level expected-failure baselines for the pinned official suite
 # (@modelcontextprotocol/conformance, version pinned in
-# xtask/src/conformance.rs). The runner reads exactly two keys — `server:`
+# crates/mcp-conformance/src/suite.rs). The runner reads exactly two keys — `server:`
 # and `client:`, each a list of scenario names — and SILENTLY IGNORES any
 # other key (verified against the 0.1.16 bundle's loader, which is also why
 # this file's previous `failures:` key was a no-op that happened to coincide

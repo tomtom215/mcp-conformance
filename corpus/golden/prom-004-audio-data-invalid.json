@@ -5,10 +5,10 @@
     "pass": 19,
     "fail": 1,
     "warn": 0,
-    "excluded": 86,
+    "excluded": 232,
     "unsupported": 0,
     "not_applicable": 10,
-    "not_observed": 26
+    "not_observed": 59
   },
   "requirements": [
     {
@@ -62,6 +62,11 @@
       "outcome": "pass"
     },
     {
+      "id": "BASE-017",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "BASE-019",
       "level": "MUST",
       "outcome": "not-observed"
@@ -69,6 +74,11 @@
     {
       "id": "BASE-020",
       "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-086",
+      "level": "SHOULD",
       "outcome": "not-observed"
     },
     {
@@ -149,6 +159,11 @@
     {
       "id": "TRAN-018",
       "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-020",
+      "level": "MUST",
       "outcome": "not-observed"
     },
     {
@@ -312,6 +327,166 @@
       "id": "PAGE-003",
       "level": "SHOULD",
       "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-004",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-006",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-007",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-009",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-011",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-012",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-014",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-018",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-019",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-021",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-049",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-004",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-005",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-006",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-007",
+      "level": "SHOULD NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-008",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-009",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-010",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-011",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-012",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-019",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-001",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-003",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-004",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-009",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-014",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-045",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-049",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-050",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-051",
+      "level": "SHOULD",
+      "outcome": "not-observed"
     }
-  ]
+  ],
+  "wire_schema": {
+    "outcome": "pass",
+    "messages": 5,
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json",
+    "source": {
+      "section": "basic#schema",
+      "quote": "This is the source of truth for all protocol messages and structures.",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#schema"
+    }
+  }
 }

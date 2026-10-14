@@ -63,6 +63,15 @@ pub struct RevisionSummary {
     pub totals: Totals,
     /// This revision's standalone verdict.
     pub verdict: Verdict,
+    /// The messages against this revision's JSON Schema
+    /// ([`Report::wire_schema`](crate::report::Report::wire_schema)).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wire_schema: Option<crate::report::WireSchemaReport>,
+    /// The extensions the session exercised at this revision, judged and never
+    /// scored ([`Report::extensions`](crate::report::Report::extensions)):
+    /// [`Self::verdict`] does not read them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extensions: Vec<crate::report::ExtensionReport>,
 }
 
 /// One clause's row across every judged revision.
@@ -211,6 +220,14 @@ impl MultiReport {
             }
             self.write_row(&mut out, row, options);
         }
+        for summary in &self.summaries {
+            if let Some(wire_schema) = &summary.wire_schema {
+                wire_schema.write_human(&mut out, options, Some(&summary.revision));
+            }
+            for extension in &summary.extensions {
+                extension.write_human(&mut out, options, Some(&summary.revision));
+            }
+        }
         let _ = writeln!(out, "per revision:");
         for summary in &self.summaries {
             // The same phrase the single-revision report prints, from the same
@@ -221,6 +238,14 @@ impl MultiReport {
                 "  {}: {} — verdict {}",
                 summary.revision, summary.totals, summary.verdict
             );
+            if let Some(wire_schema) = &summary.wire_schema {
+                let _ = writeln!(
+                    out,
+                    "  {}: wire schema {}",
+                    summary.revision,
+                    wire_schema.summary()
+                );
+            }
         }
         let _ = writeln!(out, "overall verdict: {}", self.verdict());
         self.write_revision_mismatch(&mut out);
@@ -360,6 +385,8 @@ pub fn validate_revisions(
             revision: revision.to_string(),
             totals: report.totals,
             verdict: report.verdict(),
+            wire_schema: report.wire_schema.clone(),
+            extensions: report.extensions.clone(),
         });
         reports.push(report);
     }

@@ -7,15 +7,19 @@
 //! `conformance.rs` taps the everything-server while the pinned suite runs;
 //! this module replays every captured session through `mcp-trace-validator`
 //! and enforces the policy in docs/plan/03-conformance-strategy.md
-//! §Calibration: **zero unexplained divergence**. A divergence is a MUST-level
-//! validator failure on a session the runner passed; explanations live in
-//! `conformance/agreement-divergences.json`, where every entry must carry a
-//! triage class (`our-bug` | `suite-bug` | `spec-ambiguity`) and an upstream
-//! link. The baseline must also stay live: an entry that explains nothing in
-//! the current run is stale — the divergence it described no longer occurs —
-//! and fails the gate until it is removed, so explanations leave the baseline
-//! in the same change that resolves them (e.g. a suite pin bump). The full
-//! reconciliation is written to `target/conformance/agreement.json`.
+//! §Calibration: **zero unexplained divergence**, and a baseline that stays
+//! live. The policy itself — what explains a failure, what makes an entry
+//! stale, what a baseline must carry — is `mcp_conformance_cli::agreement`, which
+//! `mcp-conformance test` reports with for any subject; this module is the
+//! repository's gate around it. Explanations live in
+//! `conformance/agreement-divergences.json`. The full reconciliation is
+//! written to `target/conformance/agreement.json`.
+//!
+//! The same reconciliation runs for the wire schema (`schema.rs`,
+//! `schema_ledger.rs`): the runner's `wire-schema-valid` verdict on every
+//! message against the validator's report `wire_schema` member, with
+//! divergences explained in `conformance/wire-schema-divergences.json` or
+//! failing the gate. It is the `wire_schema` member of `agreement.json`.
 //!
 //! The same captured sessions also prove the server's exercised surface: the
 //! coverage manifest (`conformance/coverage-manifest.json`, `manifest.rs`)
@@ -29,96 +33,34 @@
 
 use std::path::Path;
 
+use mcp_conformance_cli::agreement::{self, Baseline, Reconciliation, Totals, ValidatorFailure};
+use mcp_conformance_cli::suite::Summary;
 use mcp_conformance_core::requirement::Registry;
 use mcp_conformance_core::trace::TraceEvent;
-use mcp_trace_validator::report::{Outcome, Report};
-use serde::{Deserialize, Serialize};
+use mcp_trace_validator::report::Report;
+use serde::Serialize;
 
 mod artifacts;
 mod manifest;
+pub(crate) mod schema;
+mod schema_ledger;
 
-use artifacts::RunnerSide;
+pub(crate) use schema_ledger::run_wire_schema_only;
+use schema_ledger::session_views;
 
 /// Committed explanations for validator-vs-runner divergences, relative to
 /// the workspace root.
 const DIVERGENCE_BASELINE: &str = "conformance/agreement-divergences.json";
-
-/// The triage classes the policy admits — nothing else parses.
-const TRIAGE_CLASSES: [&str; 3] = ["our-bug", "suite-bug", "spec-ambiguity"];
-
-/// One explained divergence in the committed baseline. Unknown fields are
-/// rejected so a typo (say, `trace_containz`) cannot silently broaden an
-/// entry's reach.
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ExplainedDivergence {
-    /// The registry requirement ID the validator flags.
-    requirement: String,
-    /// Triage class: `our-bug` | `suite-bug` | `spec-ambiguity`.
-    class: String,
-    /// Upstream issue/PR URL explaining the divergence.
-    upstream: String,
-    /// Optional substring filter on the trace file name.
-    #[serde(default)]
-    trace_contains: Option<String>,
-    /// Free-text context for reviewers; never consulted by the gate.
-    #[serde(default, rename = "_note")]
-    #[allow(dead_code)]
-    note: Option<String>,
-}
-
-impl ExplainedDivergence {
-    /// How the entry is named in gate output: requirement plus filter.
-    fn describe(&self) -> String {
-        self.trace_contains.as_ref().map_or_else(
-            || self.requirement.clone(),
-            |needle| format!("{} (trace_contains {needle:?})", self.requirement),
-        )
-    }
-}
-
-/// The committed divergence baseline file.
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct DivergenceBaseline {
-    /// The policy text (kept in the file so the contract travels with it).
-    #[allow(dead_code)]
-    policy: String,
-    /// The explained divergences.
-    divergences: Vec<ExplainedDivergence>,
-}
-
-/// One validator failure observed on a tapped session.
-#[derive(Debug, Clone, Serialize)]
-struct ValidatorFailure {
-    /// Trace file name (relative to the tap directory).
-    trace: String,
-    /// The failing requirement ID.
-    requirement: String,
-    /// The first finding's detail line.
-    detail: String,
-}
-
-/// Aggregated outcome counts across every tapped session.
-#[derive(Debug, Default, Serialize)]
-struct AggregateTotals {
-    pass: u32,
-    fail: u32,
-    warn: u32,
-    excluded: u32,
-    unsupported: u32,
-    not_applicable: u32,
-    not_observed: u32,
-}
 
 /// The reconciliation artifact written to `target/conformance/agreement.json`.
 #[derive(Debug, Serialize)]
 struct AgreementArtifact {
     suite_version: String,
     spec_revision: String,
-    runner: RunnerSide,
+    runner: Summary,
     validator: ValidatorSide,
-    divergences: DivergenceReport,
+    divergences: Reconciliation,
+    wire_schema: schema_ledger::SchemaAgreement,
     agreement: bool,
 }
 
@@ -126,26 +68,8 @@ struct AgreementArtifact {
 #[derive(Debug, Serialize)]
 struct ValidatorSide {
     sessions: usize,
-    totals: AggregateTotals,
+    totals: Totals,
     failures: Vec<ValidatorFailure>,
-}
-
-/// Divergences split three ways against the baseline: failures it explains,
-/// failures it does not, and entries that explained nothing (stale).
-#[derive(Debug, Serialize)]
-struct DivergenceReport {
-    unexplained: Vec<ValidatorFailure>,
-    explained: Vec<ValidatorFailure>,
-    stale_baseline_entries: Vec<String>,
-}
-
-/// The three-way reconciliation of observed failures against the baseline.
-struct Reconciliation {
-    explained: Vec<ValidatorFailure>,
-    unexplained: Vec<ValidatorFailure>,
-    /// Baseline entries (as [`ExplainedDivergence::describe`] strings) that
-    /// matched no failure in this run.
-    stale: Vec<String>,
 }
 
 /// Runs the agreement check and the coverage-manifest check over the tapped
@@ -170,6 +94,7 @@ pub(crate) fn run(
         suite_version,
         DIVERGENCE_BASELINE,
         true,
+        &schema::SERVER_LEG,
     )
 }
 
@@ -177,7 +102,8 @@ pub(crate) fn run(
 /// named divergence baseline. The coverage manifest is server-party
 /// bookkeeping (declared server capabilities vs registry gates), so the
 /// client leg runs with `check_coverage_manifest` off — host-side capability
-/// honesty is pinned by the host's own tests instead.
+/// honesty is pinned by the host's own tests instead. `leg` names the run
+/// for the wire-schema reconciliation and says which party is under test.
 ///
 /// # Errors
 ///
@@ -189,6 +115,7 @@ pub(crate) fn run_with(
     suite_version: &str,
     baseline_rel: &str,
     check_coverage_manifest: bool,
+    leg: &schema::Leg,
 ) -> Result<(), String> {
     let registry = Registry::builtin_2025_11_25()
         .map_err(|error| format!("embedded registry failed to load: {error}"))?;
@@ -203,13 +130,23 @@ pub(crate) fn run_with(
     }
 
     let (totals, failures, reports) = validate_sessions(&registry, &sessions);
-    let reconciliation = reconcile(&baseline, &failures);
-    let gate = gate_error(&reconciliation, baseline_rel);
+    let reconciliation = agreement::reconcile(&baseline, &failures);
+    let wire_schema = schema_ledger::check(
+        workspace_root,
+        leg,
+        results_dir,
+        &session_views(&sessions, &reports),
+    )?;
+    let gate = join_gates(
+        reconciliation.gate_error(baseline_rel),
+        wire_schema.gate_error(),
+    );
+    eprintln!("xtask: agreement — {}", wire_schema.summary());
 
     let runner = artifacts::summarize_runner(results_dir)?;
     let artifact = AgreementArtifact {
         suite_version: suite_version.to_owned(),
-        spec_revision: registry_revision(&reports),
+        spec_revision: registry.revision().to_string(),
         runner,
         validator: ValidatorSide {
             sessions: sessions.len(),
@@ -217,11 +154,8 @@ pub(crate) fn run_with(
             failures,
         },
         agreement: gate.is_none(),
-        divergences: DivergenceReport {
-            unexplained: reconciliation.unexplained,
-            explained: reconciliation.explained,
-            stale_baseline_entries: reconciliation.stale,
-        },
+        divergences: reconciliation,
+        wire_schema,
     };
     artifacts::write_artifact(results_dir, &artifact)?;
 
@@ -233,172 +167,47 @@ pub(crate) fn run_with(
         return Err(error);
     }
     eprintln!(
-        "xtask: agreement — {} session(s) validated; zero unexplained divergence; \
-         baseline live; artifact at {}",
+        "xtask: agreement — {} session(s) validated; zero unexplained divergence \
+         (requirement rows and wire schema); baselines live; artifact at {}",
         sessions.len(),
         results_dir.join("agreement.json").display()
     );
     Ok(())
 }
 
-/// Splits observed failures into explained/unexplained against the baseline,
-/// and surfaces baseline entries that explained nothing. Both directions
-/// gate: an unexplained failure is an undocumented divergence, and a stale
-/// entry is documentation for a divergence that no longer exists — left in
-/// place it would silently absorb the *next* failure matching its pattern.
-fn reconcile(baseline: &DivergenceBaseline, failures: &[ValidatorFailure]) -> Reconciliation {
-    let (explained, unexplained): (Vec<_>, Vec<_>) =
-        failures.iter().cloned().partition(|failure| {
-            baseline
-                .divergences
-                .iter()
-                .any(|entry| explains(entry, failure))
-        });
-    let stale = baseline
-        .divergences
-        .iter()
-        .filter(|entry| !failures.iter().any(|failure| explains(entry, failure)))
-        .map(ExplainedDivergence::describe)
-        .collect();
-    Reconciliation {
-        explained,
-        unexplained,
-        stale,
-    }
-}
-
-/// The gate-failure message, when the reconciliation demands one: every
-/// unexplained divergence and every stale baseline entry, with triage
-/// instructions naming the baseline file this run was reconciled against.
-fn gate_error(reconciliation: &Reconciliation, baseline_rel: &str) -> Option<String> {
-    let mut sections = Vec::new();
-    if !reconciliation.unexplained.is_empty() {
-        let listing = reconciliation
-            .unexplained
-            .iter()
-            .map(|failure| {
-                format!(
-                    "  {} on {}: {}",
-                    failure.requirement, failure.trace, failure.detail
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-        sections.push(format!(
-            "{} unexplained validator-vs-runner divergence(s):\n{listing}\n\
-             Triage each (our-bug | suite-bug | spec-ambiguity), fix or file \
-             upstream, and record explained ones in {baseline_rel}",
-            reconciliation.unexplained.len()
-        ));
-    }
-    if !reconciliation.stale.is_empty() {
-        let listing = reconciliation
-            .stale
-            .iter()
-            .map(|entry| format!("  {entry}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        sections.push(format!(
-            "{} stale baseline entr(y/ies) in {baseline_rel} — each \
-             explains a divergence that no longer occurs:\n{listing}\n\
-             Remove them in this same change (typically the suite pin bump or \
-             fix that resolved them)",
-            reconciliation.stale.len()
-        ));
-    }
-    if sections.is_empty() {
-        None
-    } else {
-        Some(sections.join("\n"))
+/// Both gates' messages, when either demands one.
+fn join_gates(rows: Option<String>, wire_schema: Option<String>) -> Option<String> {
+    match (rows, wire_schema) {
+        (Some(rows), Some(wire_schema)) => Some(format!("{rows}\n{wire_schema}")),
+        (rows, wire_schema) => rows.or(wire_schema),
     }
 }
 
 /// Validates every session, returning aggregate totals, the MUST-level
-/// failures, and the per-session reports.
+/// failures, and the per-session reports (the wire-schema reconciliation
+/// reads them).
 fn validate_sessions(
     registry: &Registry,
     sessions: &[(String, Vec<TraceEvent>)],
-) -> (
-    AggregateTotals,
-    Vec<ValidatorFailure>,
-    Vec<(String, Report)>,
-) {
-    let mut totals = AggregateTotals::default();
+) -> (Totals, Vec<ValidatorFailure>, Vec<(String, Report)>) {
+    let mut totals = Totals::default();
     let mut failures = Vec::new();
     let mut reports = Vec::new();
     for (name, events) in sessions {
         let report = mcp_trace_validator::engine::validate(registry, events);
-        accumulate(&mut totals, &report);
-        for row in &report.requirements {
-            if row.outcome == Outcome::Fail {
-                failures.push(ValidatorFailure {
-                    trace: name.clone(),
-                    requirement: row.id.clone(),
-                    detail: row
-                        .findings
-                        .first()
-                        .map_or_else(String::new, |finding| finding.detail.clone()),
-                });
-            }
-        }
+        totals.add(&report);
+        failures.extend(agreement::failures(name, &report));
         reports.push((name.clone(), report));
     }
     (totals, failures, reports)
 }
 
-/// The registry revision, taken from any report (they all share it).
-fn registry_revision(reports: &[(String, Report)]) -> String {
-    reports
-        .first()
-        .map_or_else(String::new, |(_, report)| report.revision.clone())
-}
-
-/// Adds one report's totals into the aggregate.
-const fn accumulate(totals: &mut AggregateTotals, report: &Report) {
-    totals.pass += report.totals.pass;
-    totals.fail += report.totals.fail;
-    totals.warn += report.totals.warn;
-    totals.excluded += report.totals.excluded;
-    totals.unsupported += report.totals.unsupported;
-    totals.not_applicable += report.totals.not_applicable;
-    totals.not_observed += report.totals.not_observed;
-}
-
-/// Whether a baseline entry explains a failure.
-fn explains(entry: &ExplainedDivergence, failure: &ValidatorFailure) -> bool {
-    entry.requirement == failure.requirement
-        && entry
-            .trace_contains
-            .as_ref()
-            .is_none_or(|needle| failure.trace.contains(needle))
-}
-
-/// Loads and structurally validates the divergence baseline: every entry
-/// must carry a known triage class and an HTTP(S) upstream link.
-fn load_baseline(path: &Path) -> Result<DivergenceBaseline, String> {
+/// Reads and checks the divergence baseline (`mcp_conformance_cli::agreement`'s
+/// rules: a known triage class and an upstream link on every entry).
+fn load_baseline(path: &Path) -> Result<Baseline, String> {
     let text = std::fs::read_to_string(path)
         .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-    let baseline: DivergenceBaseline = serde_json::from_str(&text)
-        .map_err(|error| format!("{} is not valid: {error}", path.display()))?;
-    for entry in &baseline.divergences {
-        if !TRIAGE_CLASSES.contains(&entry.class.as_str()) {
-            return Err(format!(
-                "{}: entry for {} has class {:?}; the policy admits {TRIAGE_CLASSES:?}",
-                path.display(),
-                entry.requirement,
-                entry.class
-            ));
-        }
-        if !entry.upstream.starts_with("https://") && !entry.upstream.starts_with("http://") {
-            return Err(format!(
-                "{}: entry for {} needs an upstream issue/PR URL, got {:?}",
-                path.display(),
-                entry.requirement,
-                entry.upstream
-            ));
-        }
-    }
-    Ok(baseline)
+    Baseline::parse(&text).map_err(|error| format!("{}: {error}", path.display()))
 }
 
 #[cfg(test)]

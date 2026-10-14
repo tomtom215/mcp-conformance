@@ -8,7 +8,14 @@
 # Using the toolkit
 
 - [Getting started](getting-started.md)
+- [Capturing from your client](clients.md)
+- [Recording an SDK's server](sdk-servers.md)
+- [Testing a server or client](testing.md)
+- [Watching a session live](watching.md)
+- [Reading a report](reading-a-report.md)
+- [The workbench](workbench.md)
 - [Using it in CI](ci.md)
+- [Upgrading](upgrading.md)
 - [Troubleshooting](troubleshooting.md)
 
 # How it works
@@ -18,9 +25,12 @@
 - [Two revisions at once](revisions.md)
 - [The trace corpus](corpus.md)
 - [Conformance results](conformance-results.md)
+- [The cross-SDK matrix](sdk-matrix.md)
+- [A second opinion: mcpsnoop](mcpsnoop.md)
 
 # Reference
 
 - [Requirements — `2026-07-28`](reference/requirements-2026-07-28.md)
 - [Requirements — `2025-11-25`](reference/requirements-2025-11-25.md)
+- [Extensions — `2026-07-28`](reference/extensions-2026-07-28.md)
 - [Glossary](glossary.md)

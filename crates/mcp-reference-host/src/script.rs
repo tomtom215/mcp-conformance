@@ -10,19 +10,17 @@
 //! requires: a client accepting a form fills every omitted field that carries a
 //! schema default before responding.
 
-// SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
-// functional and REQUIRED on the `2025-11-25` surface this crate implements
-// and the official suite exercises, so rmcp 3.x's deprecation attributes fire
-// on correct code — here, Sampling. Scoped to this module, never the crate:
-// a blanket allow would also hide a deprecation that genuinely matters. The
-// honest cost is that a *different* future deprecation in this module would
-// be silenced too. Retires when the `2025-11-25` surface does.
-#![allow(deprecated)]
 use rmcp::model::{
-    ElicitationSchema, EnumSchema, MultiSelectEnumSchema, PrimitiveSchemaDefinition, Root,
+    ElicitationSchema, EnumSchema, MultiSelectEnumSchema, PrimitiveSchemaDefinition,
     SingleSelectEnumSchema,
 };
+// SEP-2577 deprecates Roots; `2025-11-25` still requires it.
+#[allow(deprecated)]
+use rmcp::model::Root;
 use serde_json::{Map, Value};
+
+mod answer;
+pub use answer::accepted_content;
 
 /// Deterministic answers for everything a server may ask of this host.
 #[derive(Debug, Clone)]
@@ -36,13 +34,19 @@ pub struct InteractionScript {
     /// How URL-mode `elicitation/create` requests are answered.
     pub url_elicitation: UrlElicitationPolicy,
     /// The roots this host exposes to `roots/list`.
+    // SEP-2577 deprecates Roots; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     pub roots: Vec<Root>,
 }
 
 impl Default for InteractionScript {
     /// The conformance-run script: accept forms by applying SEP-1034 schema
-    /// defaults, consent to URL elicitations, answer sampling with a fixed
-    /// line, and expose one synthetic project root.
+    /// defaults and filling required fields the schema admits (declining a
+    /// form that cannot be filled validly), consent to URL elicitations,
+    /// answer sampling with a fixed line, and expose one synthetic project
+    /// root.
+    // SEP-2577 deprecates Roots; `2025-11-25` still requires it.
+    #[allow(deprecated)]
     fn default() -> Self {
         Self {
             sampling_reply: "Scripted response".to_owned(),
@@ -57,8 +61,11 @@ impl Default for InteractionScript {
 /// Answer policy for form-mode elicitation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ElicitationPolicy {
-    /// Accept, filling every field that carries a schema default (SEP-1034)
-    /// and omitting the rest.
+    /// Accept with content the requested schema admits: every field that
+    /// carries a schema default gets it (SEP-1034), every *required* field
+    /// without one gets a deterministic value of its type, and the optional
+    /// rest are omitted. A required field no value can satisfy declines the
+    /// form instead — see [`accepted_content`] for the rule.
     AcceptWithDefaults,
     /// Accept with exactly this content object.
     AcceptWith(Map<String, Value>),

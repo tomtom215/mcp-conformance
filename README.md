@@ -3,6 +3,12 @@
 
 # mcp-conformance
 
+[![CI](https://github.com/tomtom215/mcp-conformance/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tomtom215/mcp-conformance/actions/workflows/ci.yml?query=branch%3Amain)
+[![crates.io](https://img.shields.io/crates/v/mcp-trace-validator.svg)](https://crates.io/crates/mcp-trace-validator)
+[![docs.rs](https://img.shields.io/docsrs/mcp-trace-validator)](https://docs.rs/mcp-trace-validator)
+[![MSRV](https://img.shields.io/crates/msrv/mcp-trace-validator)](STABILITY.md)
+[![License](https://img.shields.io/crates/l/mcp-trace-validator)](LICENSE)
+
 **Clause-by-clause conformance checking for the [Model Context Protocol](https://modelcontextprotocol.io).**
 Record any MCP session — any language, any SDK, stdio or streamable HTTP — and find
 out which of the specification's requirements it met, which it broke, where, and
@@ -11,6 +17,31 @@ which it never exercised.
 **Status: `0.6.0`, on [crates.io](https://crates.io/crates/mcp-trace-validator).**
 Pre-1.0: the API and the verdicts may change between minor releases, and the
 [changelog](CHANGELOG.md) says so when they do.
+
+> **This README describes `main`**, which is ahead of the latest release:
+> `cargo install` gets `0.6.0`. Documentation for the release is at
+> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
+>
+> **Not yet released** (on `main` since `0.6.0`; the
+> [changelog's `Unreleased` section](CHANGELOG.md#unreleased) has the full list):
+>
+> - the `incomplete` verdict for a run that could not judge one of its traces;
+> - the cap of 20 findings per clause in the human report;
+> - release binaries built with `cargo auditable`, for `cargo audit bin`;
+> - the `requirements <ID>` view, its `--area`/`--level`/`--checked`/`--excluded`
+>   filters, and the `completions` subcommand;
+> - the `2026-07-28` registry rows added since, so the example totals and the
+>   coverage table below are `main`'s, not `0.6.0`'s;
+> - the wire schema — every message validated against its revision's JSON Schema —
+>   and the five clauses it made judgeable;
+> - the container image (`ghcr.io/tomtom215/mcp-conformance`, first published by
+>   the next release) and the GitHub Action's `capture` input, which records the
+>   sessions it then judges;
+> - the npm (`npx mcp-conformance`) and PyPI (`pip install mcp-conformance`)
+>   packages carrying the release binaries, and `mcp-conformance` in the release
+>   archives;
+> - the cross-SDK matrix: the official TypeScript, Python, Go and Rust SDKs'
+>   conformance servers, recorded and judged weekly ([book](book/src/sdk-matrix.md)).
 
 ## Quickstart
 
@@ -24,6 +55,17 @@ aarch64), macOS (arm64 and x86_64) and Windows (x86_64), with SLSA build-provena
 attestations (`gh attestation verify <archive> --repo tomtom215/mcp-conformance`)
 and `SHA256SUMS-binaries` beside them. The binaries embed their dependency list
 (`cargo auditable`), so `cargo audit bin` checks them against RustSec.
+
+**Not yet released:** from the first release after `0.6.0`, the same attested
+binaries — and the `mcp-conformance` workbench beside them — also install from npm
+and PyPI, with no compiler and no download at install time:
+
+```text
+npx mcp-conformance --version     # or: npm install -g mcp-conformance
+pip install mcp-conformance       # mcp-trace-capture, mcp-trace-validator, mcp-conformance
+```
+
+Neither package is published yet; until it is, these commands fail or find nothing.
 
 Record a session. For a **stdio** server, configure your client to launch the
 capture wrapper instead of the server:
@@ -68,9 +110,30 @@ step, then
     sarif_file: mcp-conformance.sarif
 ```
 
+Or let the action record them: with `capture: stdio` (or `http`), it runs your
+`client` command against your `server` through `mcp-trace-capture`, then judges
+every session recorded:
+
+```yaml
+- uses: tomtom215/mcp-conformance@<commit or tag>
+  with:
+    capture: stdio
+    server: python my_server.py
+    client: python my_client.py --server-cmd "$MCP_SERVER_COMMAND"
+```
+
 [`action.yml`](action.yml) lists the inputs (`revision`, `strict`, a released `version`
-to download instead of building) and outputs; the `action` job in
-[CI](.github/workflows/ci.yml) runs it on every push.
+to download instead of building, the capture inputs) and outputs; the `action` job in
+[CI](.github/workflows/ci.yml) runs it on every push, recording sessions over both
+transports. The book's [CI chapter](book/src/ci.md#github-actions) has the details.
+
+Both CLIs also ship as a container image, from the release that follows `0.6.0` on
+([`Dockerfile`](Dockerfile); distroless, non-root, no shell; linux/amd64):
+
+```text
+docker run --rm -v "$PWD:/work" ghcr.io/tomtom215/mcp-conformance:<version> \
+  mcp-trace-validator validate session.jsonl
+```
 
 ## See it work
 
@@ -88,7 +151,8 @@ MCP trace validation — revision 2026-07-28 (declared by the trace)
         seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
         spec: "Note that the JSON-RPC `id` MUST be different between the initial request and the retry."
         see:  https://modelcontextprotocol.io/specification/2026-07-28/server/tools#input-required-tool-results
-totals: 38 pass, 2 fail, 0 warn, 169 excluded, 0 unsupported, 0 not applicable, 101 not observed
+totals: 46 pass, 2 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 133 not observed
+wire schema: pass (3 messages valid)
 verdict: fail
 ```
 
@@ -107,6 +171,12 @@ verdict: fail
   one no trace can judge is *excluded*, with the reason. The not-observed rows above are clauses
   this short session never exercised — reporting them as passes would be a score, not
   a verdict.
+- **Every message is also held to the revision's own JSON Schema** — the
+  specification's `schema.json`, vendored at a pinned commit and re-verified weekly —
+  so a missing required member, a wrong type or a value outside an enumeration fails
+  the report even where no sentence of the prose names it. It is reported beside the
+  clause rows as the wire schema, not counted in their totals
+  ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)).
 - **An empty recording is a bad invocation**, not a pass: the shape a broken capture
   step produces should fail the build.
 
@@ -148,16 +218,18 @@ audience in [docs/design/trace-validation.md](docs/design/trace-validation.md).
 
 | Crate | What it gives you |
 |-------|-------------------|
+| [`mcp-conformance-cli`](crates/mcp-conformance-cli) | **The suite, recorded and judged, and a workbench** (on `main`, not yet released; binary `mcp-conformance`). `mcp-conformance test` runs the pinned official suite against a server (`--url`, or `--command` for stdio) or a client (`--client-command`) through the recorder, then reports the suite's checks, the clause report of every session it drove, and whether the two agree. Needs Node.js for the suite; installs nothing. CI holds its report to `cargo xtask conformance`'s on this repository's server and client ([Testing a server or client](book/src/testing.md)). `mcp-conformance serve` is a local web page over a library of recordings — search, timeline and inspector, two-session diff, live tail, dashboards, import from `mcpsnoop` and the MCP Inspector, redaction — loopback-only, token-guarded, sending nothing anywhere ([The workbench](book/src/workbench.md)). |
 | [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) | **The recorder.** A stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write a validator-ready trace, recording each message before the bytes that complete it are forwarded. CI runs reference-host sessions through it at both revisions and requires them to judge clean, and runs the official suite through the proxy. |
 | [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Findings with the clause ID and the offending event `seq`, as human text (what needs attention, or `--all`), JSON (with a published JSON Schema), JUnit, or SARIF, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The spec as data.** Requirement registries for `2025-11-25` and `2026-07-28` whose every entry carries a verbatim spec quote, an RFC 2119 level, an optional capability gate, and either a mechanical check or a documented exclusion (the SEP-2484 traceability shape); a weekly job re-verifies every quote against the published text. Plus the JSON Lines trace schema and RFC 8785 canonical JSON. Serde only. |
-| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk). It passes the pinned official suite's `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy. `--protocol-version 2026-07-28` serves the stateless revision; the suite's pre-release `2026-07-28` scenarios score **42 passing / 0 failing** against it, and five committed captures evidence **118 of the 141 judgeable clauses** between them. Its tap records each suite session for the calibration check. |
+| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk). It passes the pinned official suite's `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy. `--protocol-version 2026-07-28` serves the stateless revision; the suite's pre-release `2026-07-28` scenarios score **42 passing / 0 failing** against it, and the eight committed captures at that revision — five of this server, three of the official SDKs' own conformance servers — evidence **148 of the 181 judgeable clauses** between them. Its tap records each suite session for the calibration check. |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference client.** Passes all four of the official suite's `2025-11-25` client scenarios at the pinned version; bounded tool-use loops over stdio and streamable HTTP, scriptable sampling / elicitation / roots with no model-provider network use. |
 
 **Calibration.** On every CI run the official suite (pinned `0.1.16`, `2025-11-25`)
 drives the everything server and the reference host, the tapped sessions replay
 through the validator, and any MUST-level disagreement not triaged in a committed
-ledger fails the build. The `2026-07-28` surface is measured weekly against the
+ledger fails the build; so does any message the validator's wire-schema check and the
+suite's `wire-schema-valid` disagree about, wherever the suite reports that check. The `2026-07-28` surface is measured weekly against the
 suite's pinned pre-release (`0.2.0-alpha.12`) as a ratchet, not yet as a blocking
 agreement check: the suite has no stable `2026-07-28` release to calibrate against.
 
@@ -170,10 +242,10 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 
 | Area | Requirements | Checked | Excluded | Capability-gated |
 |------|-------------:|--------:|---------:|-----------------:|
-| BASE | 59 | 27 | 32 | 0 |
-| TRAN | 88 | 42 | 46 | 0 |
-| DISC | 4 | 2 | 2 | 0 |
-| VERS | 8 | 5 | 3 | 0 |
+| BASE | 60 | 31 | 29 | 0 |
+| TRAN | 90 | 47 | 43 | 0 |
+| DISC | 4 | 3 | 1 | 0 |
+| VERS | 9 | 5 | 4 | 0 |
 | MRTR | 25 | 15 | 10 | 0 |
 | SUBS | 7 | 4 | 3 | 0 |
 | CANC | 17 | 3 | 14 | 0 |
@@ -182,29 +254,47 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | COMP | 6 | 2 | 4 | 0 |
 | PAGE | 6 | 1 | 5 | 0 |
 | LOG | 8 | 4 | 4 | 0 |
-| TOOL | 31 | 14 | 17 | 0 |
+| TOOL | 31 | 17 | 14 | 0 |
 | RES | 13 | 6 | 7 | 0 |
 | PROM | 11 | 7 | 4 | 0 |
-| **Total** | **310** | **141** | **169** | **0** |
+| ELIC | 46 | 7 | 39 | 0 |
+| SAMP | 23 | 10 | 13 | 0 |
+| ROOT | 9 | 3 | 6 | 0 |
+| AUTH | 109 | 7 | 102 | 0 |
+| **Total** | **501** | **181** | **320** | **0** |
 
-310 requirements: 141 judged by 110 distinct trace checks, 169 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+501 requirements: 181 judged by 144 distinct trace checks, 320 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+
+**Extensions attached to `2026-07-28` — reported beside the verdict, never scored ([ADR-0023](docs/plan/decisions/0023-extensions-are-reported-never-scored.md))**
+
+| Extension | Requirements | Checked | Excluded |
+|-----------|-------------:|--------:|---------:|
+| `io.modelcontextprotocol/tasks` | 49 | 25 | 24 |
+| `io.modelcontextprotocol/skills` | 99 | 34 | 65 |
+| **Total** | **148** | **59** | **89** |
+
+148 extension requirements: 59 judged by 49 distinct trace checks, 89 carrying a documented exclusion. A report lists an extension's outcomes under its `extensions`, with a verdict of its own that the report's verdict and exit status never read.
 
 **`2025-11-25`**
 
 | Area | Requirements | Checked | Excluded | Capability-gated |
 |------|-------------:|--------:|---------:|-----------------:|
-| BASE | 25 | 12 | 13 | 0 |
-| LIFE | 18 | 10 | 8 | 0 |
-| TRAN | 49 | 13 | 36 | 0 |
-| TOOL | 15 | 9 | 6 | 13 |
+| BASE | 28 | 14 | 14 | 0 |
+| LIFE | 20 | 10 | 10 | 0 |
+| TRAN | 52 | 14 | 38 | 0 |
+| TOOL | 18 | 9 | 9 | 13 |
 | RES | 10 | 3 | 7 | 6 |
 | PROM | 10 | 5 | 5 | 7 |
 | LOG | 5 | 1 | 4 | 4 |
 | COMP | 5 | 1 | 4 | 3 |
 | PAGE | 5 | 2 | 3 | 0 |
-| **Total** | **142** | **56** | **86** | **33** |
+| ELIC | 53 | 11 | 42 | 0 |
+| SAMP | 20 | 10 | 10 | 0 |
+| ROOT | 10 | 4 | 6 | 0 |
+| AUTH | 85 | 5 | 80 | 0 |
+| **Total** | **321** | **89** | **232** | **33** |
 
-142 requirements: 56 judged by 53 distinct trace checks, 86 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+321 requirements: 89 judged by 85 distinct trace checks, 232 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 Every check is falsified by a committed violation trace and examines a real subject on at least one conforming one. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
 <!-- coverage:end -->
@@ -215,7 +305,7 @@ A trace is JSON Lines: one event per line, each carrying a capture-assigned `seq
 (the only ordering authority), a `direction`, a `transport`, and a `kind` —
 `message` events hold the JSON-RPC payload; `http` events record
 conformance-relevant headers, a response's status, and a client request's
-`method`; `lifecycle` events mark transport open/close. The format is published as
+`method`; `lifecycle` events mark transport open, close and abort. The format is published as
 a JSON Schema, [`trace-event.schema.json`](crates/mcp-conformance-core/schema/trace-event.schema.json)
 (also `mcp_conformance_core::trace::EVENT_JSON_SCHEMA`), so a recorder written in
 any language can check its output without this toolkit; a test holds the schema
@@ -240,7 +330,8 @@ event:
         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
-totals: 17 pass, 1 fail, 0 warn, 86 excluded, 0 unsupported, 6 not applicable, 32 not observed
+totals: 17 pass, 1 fail, 0 warn, 232 excluded, 0 unsupported, 6 not applicable, 65 not observed
+wire schema: pass (4 messages valid)
 verdict: fail
 ```
 <!-- ANCHOR_END: trace-example -->
@@ -255,8 +346,10 @@ sessions for every area.
 ## Documentation
 
 - **[The book](https://mcp-conformance.com)** — architecture, the trace format, the
-  two revisions, the corpus, and conformance results ([`book/`](book), built on every
-  push).
+  two revisions, the corpus, and conformance results, for the latest release;
+  [`/dev/`](https://mcp-conformance.com/dev/) is the same book for `main`
+  ([`book/`](book), built on every push), and the version selector switches
+  between them and every earlier release.
 - **API docs** for every crate on [docs.rs](https://docs.rs/mcp-trace-validator).
 - **[STABILITY.md](STABILITY.md)** — what each release keeps stable: verdicts,
   requirement IDs, exit codes, report and trace formats, the MSRV.
@@ -265,7 +358,8 @@ sessions for every area.
   [`docs/plan/`](docs/plan/README.md). The ecosystem register dates every external
   fact it records, and a weekly CI job fails when a row is older than ninety days.
 - **The [project review of 2026-09-24](docs/reports/project-review-2026-09-24.md)** —
-  what was wrong, and the plan being executed to fix it.
+  a dated review: what was wrong on that date, and the plan it proposed. It is kept as
+  written; [the roadmap](docs/plan/06-roadmap.md) records what has been done since.
 
 ## Engineering
 

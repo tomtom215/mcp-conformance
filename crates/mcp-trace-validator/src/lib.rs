@@ -54,10 +54,19 @@
 //! it is handed — so a hand-picked registry judges a trace of another revision
 //! by the wrong rules.
 
+/// The crate README's examples, compiled and run as doctests so the README
+/// cannot show code that no longer works.
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+pub struct ReadmeDoctests;
+
 pub mod checks;
 pub mod context;
 pub mod declared;
 pub mod engine;
+#[cfg(test)]
+mod fixtures;
+pub mod html;
 pub mod judge;
 pub mod junit;
 pub mod multi;
@@ -65,3 +74,5 @@ pub mod reader;
 pub mod report;
 pub mod sarif;
 pub mod sessions;
+pub mod timeline;
+pub mod wire_schema;

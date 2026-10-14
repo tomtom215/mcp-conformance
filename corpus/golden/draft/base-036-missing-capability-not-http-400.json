@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 29,
-    "fail": 2,
+    "pass": 30,
+    "fail": 3,
     "warn": 0,
-    "excluded": 169,
+    "excluded": 320,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 110
+    "not_observed": 148
   },
   "requirements": [
     {
@@ -87,6 +87,16 @@
       "outcome": "pass"
     },
     {
+      "id": "BASE-073",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-088",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
       "id": "BASE-026",
       "level": "MUST",
       "outcome": "pass"
@@ -115,6 +125,11 @@
       "id": "BASE-032",
       "level": "MUST",
       "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-033",
+      "level": "SHOULD",
+      "outcome": "pass"
     },
     {
       "id": "BASE-034",
@@ -154,6 +169,11 @@
         "quote": "On HTTP, the response status MUST be `400 Bad Request`.",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
       }
+    },
+    {
+      "id": "BASE-037",
+      "level": "SHOULD",
+      "outcome": "not-observed"
     },
     {
       "id": "BASE-039",
@@ -203,7 +223,19 @@
     {
       "id": "TRAN-063",
       "level": "MUST",
-      "outcome": "not-observed"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "transport.success-content-type",
+          "seq": 1,
+          "detail": "HTTP 500 answering a JSON-RPC request carries no Content-Type; a request must be answered with application/json or text/event-stream"
+        }
+      ],
+      "source": {
+        "section": "basic/transports/streamable-http#sending-messages",
+        "quote": "If the body is a JSON-RPC request, the server MUST return either `Content-Type: application/json` (a single JSON object) or `Content-Type: text/event-stream` (an SSE response stream).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#sending-messages"
+      }
     },
     {
       "id": "TRAN-066",
@@ -266,6 +298,21 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-082",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-083",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-084",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-086",
       "level": "MUST",
       "outcome": "not-observed"
@@ -282,6 +329,16 @@
     },
     {
       "id": "TRAN-092",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-137",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-141",
       "level": "MUST",
       "outcome": "not-observed"
     },
@@ -352,6 +409,11 @@
     },
     {
       "id": "DISC-002",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "DISC-003",
       "level": "SHOULD",
       "outcome": "not-observed"
     },
@@ -661,6 +723,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TOOL-035",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TOOL-038",
       "level": "SHOULD",
       "outcome": "not-observed"
@@ -672,6 +739,16 @@
     },
     {
       "id": "TOOL-040",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-045",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-046",
       "level": "MUST",
       "outcome": "not-observed"
     },
@@ -739,6 +816,163 @@
       "id": "PROM-020",
       "level": "SHOULD",
       "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-057",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-059",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-060",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-062",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-064",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-065",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-095",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-026",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-027",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-028",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-029",
+      "level": "SHOULD NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-030",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-031",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-032",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-033",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-034",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-042",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-013",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-014",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-018",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-097",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-124",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-129",
+      "level": "SHOULD NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-130",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-131",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-132",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-133",
+      "level": "SHOULD",
+      "outcome": "not-observed"
     }
-  ]
+  ],
+  "wire_schema": {
+    "outcome": "fail",
+    "messages": 2,
+    "findings": [
+      {
+        "check": "wire-schema",
+        "seq": 0,
+        "detail": "the client's message is not a valid CallToolRequest under the 2026-07-28 schema: /params: \"name\" is a required property"
+      },
+      {
+        "check": "wire-schema",
+        "seq": 2,
+        "detail": "the server's message is not a valid MissingRequiredClientCapabilityError under the 2026-07-28 schema: /error/data/requiredCapabilities: [\"elicitation\"] is not of type \"object\""
+      }
+    ],
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json",
+    "source": {
+      "section": "basic/index#schema",
+      "quote": "This is the source of truth for all protocol messages and structures.",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#schema"
+    }
+  }
 }

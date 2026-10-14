@@ -23,7 +23,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mcp_conformance_core::requirement::{Registry, Verification};
+use mcp_conformance_core::requirement::{Registry, Requirement, Verification};
 use mcp_trace_validator::report::{Outcome, Report, RequirementReport, Verdict};
 use mcp_trace_validator::{engine, reader};
 use serde::{Deserialize, Serialize};
@@ -107,6 +107,13 @@ fn render_golden(report: &Report) -> String {
     pinned
         .requirements
         .retain(|row| row.outcome != Outcome::Excluded);
+    // An extension's excluded rows are registry facts too, pinned in the same
+    // ledger under the extension (ADR-0023); its totals stay whole.
+    for extension in &mut pinned.extensions {
+        extension
+            .requirements
+            .retain(|row| row.outcome != Outcome::Excluded);
+    }
     let mut rendered = serde_json::to_string_pretty(&pinned).unwrap();
     rendered.push('\n');
     rendered
@@ -149,6 +156,16 @@ fn check_golden(registry: &Registry, trace_path: &Path, report: &Report) {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct ExclusionLedger {
     revision: String,
+    requirements: Vec<ExcludedRow>,
+    /// Each extension's excluded clauses (ADR-0023), in registry order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    extensions: Vec<ExtensionLedger>,
+}
+
+/// One extension's excluded set, as the ledger carries it.
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct ExtensionLedger {
+    extension: String,
     requirements: Vec<ExcludedRow>,
 }
 
@@ -194,23 +211,56 @@ const fn is_excluded(verification: &Verification) -> bool {
     matches!(verification, Verification::Excluded { .. })
 }
 
+/// `requirements`' excluded rows, in order.
+fn excluded_rows<'r>(requirements: impl Iterator<Item = &'r Requirement>) -> Vec<ExcludedRow> {
+    requirements
+        .filter(|requirement| is_excluded(&requirement.verification))
+        .map(|requirement| {
+            let Verification::Excluded { exclusion } = &requirement.verification else {
+                unreachable!("is_excluded admitted a non-exclusion")
+            };
+            ExcludedRow {
+                id: requirement.id.to_string(),
+                level: requirement.level.keyword().to_owned(),
+                exclusion: exclusion.clone(),
+            }
+        })
+        .collect()
+}
+
+/// Each extension the registry carries, in the order it first names them.
+fn extension_ids(registry: &Registry) -> Vec<&str> {
+    let mut ids: Vec<&str> = Vec::new();
+    for requirement in registry.extension_requirements() {
+        let id = requirement.extension.as_deref().unwrap_or_default();
+        if !ids.contains(&id) {
+            ids.push(id);
+        }
+    }
+    ids
+}
+
+/// One extension's clauses, in registry order.
+fn extension_clauses<'r>(
+    registry: &'r Registry,
+    id: &'r str,
+) -> impl Iterator<Item = &'r Requirement> {
+    registry
+        .extension_requirements()
+        .iter()
+        .filter(move |requirement| requirement.extension.as_deref() == Some(id))
+}
+
 /// The excluded set as the registry states it, in registry order.
 fn exclusions_of(registry: &Registry) -> ExclusionLedger {
     ExclusionLedger {
         revision: registry.revision().to_string(),
-        requirements: registry
-            .requirements()
-            .iter()
-            .filter(|requirement| is_excluded(&requirement.verification))
-            .map(|requirement| {
-                let Verification::Excluded { exclusion } = &requirement.verification else {
-                    unreachable!("is_excluded admitted a non-exclusion")
-                };
-                ExcludedRow {
-                    id: requirement.id.to_string(),
-                    level: requirement.level.keyword().to_owned(),
-                    exclusion: exclusion.clone(),
-                }
+        requirements: excluded_rows(registry.requirements().iter()),
+        extensions: extension_ids(registry)
+            .into_iter()
+            .map(|id| ExtensionLedger {
+                extension: id.to_owned(),
+                requirements: excluded_rows(extension_clauses(registry, id)),
             })
             .collect(),
     }
@@ -271,11 +321,60 @@ fn assert_reconstructs_the_full_report(registry: &Registry, trace_path: &Path, r
         serde_json::from_str(&fs::read_to_string(golden_path(trace_path)).unwrap()).unwrap();
     let ledger = read_exclusion_ledger(&registry.revision().to_string());
 
-    let mut judged = golden.requirements.iter();
-    let mut excluded = ledger.requirements.iter();
-    let rebuilt: Vec<RequirementReport> = registry
-        .requirements()
-        .iter()
+    let rebuilt = splice(
+        trace_path,
+        registry.requirements().iter(),
+        &golden.requirements,
+        &ledger.requirements,
+    );
+    assert_rows_equal(trace_path, &rebuilt, &report.requirements);
+    assert_eq!(
+        (&golden.revision, golden.totals),
+        (&report.revision, report.totals),
+        "{}: the golden's revision and totals must be the report's",
+        trace_path.display()
+    );
+
+    // Each extension block the same way, against its own ledger section.
+    assert_eq!(
+        golden.extensions.len(),
+        report.extensions.len(),
+        "{}: the golden pins a different set of extension blocks",
+        trace_path.display()
+    );
+    for (pinned, live) in golden.extensions.iter().zip(&report.extensions) {
+        let excluded = ledger
+            .extensions
+            .iter()
+            .find(|section| section.extension == live.extension)
+            .map_or(&[][..], |section| section.requirements.as_slice());
+        let rebuilt = splice(
+            trace_path,
+            extension_clauses(registry, &live.extension),
+            &pinned.requirements,
+            excluded,
+        );
+        assert_rows_equal(trace_path, &rebuilt, &live.requirements);
+        assert_eq!(
+            (&pinned.extension, pinned.totals),
+            (&live.extension, live.totals),
+            "{}: the golden's extension block and totals must be the report's",
+            trace_path.display()
+        );
+    }
+}
+
+/// Golden rows and ledger rows interleaved in the order `requirements` gives,
+/// which must use up both exactly.
+fn splice<'r>(
+    trace_path: &Path,
+    requirements: impl Iterator<Item = &'r Requirement>,
+    golden: &[RequirementReport],
+    ledger: &[ExcludedRow],
+) -> Vec<RequirementReport> {
+    let mut judged = golden.iter();
+    let mut excluded = ledger.iter();
+    let rebuilt: Vec<RequirementReport> = requirements
         .map(|requirement| {
             if is_excluded(&requirement.verification) {
                 excluded
@@ -297,8 +396,12 @@ fn assert_reconstructs_the_full_report(registry: &Registry, trace_path: &Path, r
         "{}: golden and ledger carry rows the registry does not name",
         trace_path.display()
     );
+    rebuilt
+}
 
-    for (rebuilt, live) in rebuilt.iter().zip(&report.requirements) {
+/// The spliced rows are the live ones, row for row.
+fn assert_rows_equal(trace_path: &Path, rebuilt: &[RequirementReport], live: &[RequirementReport]) {
+    for (rebuilt, live) in rebuilt.iter().zip(live) {
         assert_eq!(
             rebuilt,
             live,
@@ -309,17 +412,11 @@ fn assert_reconstructs_the_full_report(registry: &Registry, trace_path: &Path, r
     }
     assert_eq!(
         rebuilt.len(),
-        report.requirements.len(),
+        live.len(),
         "{}: the splice has {} rows; the report has {}",
         trace_path.display(),
         rebuilt.len(),
-        report.requirements.len()
-    );
-    assert_eq!(
-        (&golden.revision, golden.totals),
-        (&report.revision, report.totals),
-        "{}: the golden's revision and totals must be the report's",
-        trace_path.display()
+        live.len()
     );
 }
 
@@ -355,6 +452,21 @@ fn violation_traces_fail_and_match_goldens() {
     }
 }
 
+#[test]
+fn captured_traces_match_goldens() {
+    // The `2025-11-25` half of the independent corpus: the official SDKs'
+    // own conformance servers, recorded by `interop/matrix.sh` while an
+    // official SDK client drove them. As with `draft/captured`, no verdict is
+    // asserted — a real implementation is whatever it is — and the whole
+    // report is pinned, so a check that starts misfiring on independent
+    // traffic moves a golden (`cargo xtask sdk-matrix` publishes them).
+    let registry = Registry::builtin_2025_11_25().unwrap();
+    for trace_path in trace_files("captured") {
+        let report = validate_file(&registry, &trace_path);
+        check_golden(&registry, &trace_path, &report);
+    }
+}
+
 /// Attribution, not just failure: the trace `area-nnn-…` exists to falsify
 /// requirement AREA-NNN and must keep doing so by name.
 ///
@@ -376,9 +488,30 @@ fn assert_falsifies_its_named_requirement(trace_path: &Path, report: &Report) {
         .collect::<Vec<_>>()
         .join("-")
         .to_uppercase();
+    // `wire-schema-…` traces falsify the wire schema, which has no row.
+    if id == "WIRE-SCHEMA" {
+        let wire_schema = report
+            .wire_schema
+            .as_ref()
+            .unwrap_or_else(|| panic!("{stem}: no wire-schema report"));
+        assert!(
+            wire_schema.outcome == Outcome::Fail && !wire_schema.findings.is_empty(),
+            "{stem} must fail the wire schema; got {:?}",
+            wire_schema.outcome
+        );
+        return;
+    }
+    // An extension's trace (`task-…`, `skill-…`) names an extension clause,
+    // whose row is in the report's extension block, not among the core rows.
     let row = report
         .requirements
         .iter()
+        .chain(
+            report
+                .extensions
+                .iter()
+                .flat_map(|extension| &extension.requirements),
+        )
         .find(|row| row.id == id)
         .unwrap_or_else(|| panic!("{stem}: no report row for {id}"));
     assert!(
@@ -417,7 +550,7 @@ fn every_golden_belongs_to_a_living_trace() {
     let mut ledgers = BTreeSet::new();
     for (subdirs, golden_dir, revision) in [
         (
-            ["good", "violations"].as_slice(),
+            ["good", "violations", "captured"].as_slice(),
             corpus_root().join("golden"),
             "2025-11-25",
         ),
@@ -478,6 +611,7 @@ fn every_trace_has_a_provenance_ledger_row() {
     for subdir in [
         "good",
         "violations",
+        "captured",
         "draft/good",
         "draft/violations",
         "draft/captured",
@@ -509,7 +643,11 @@ fn corpus_falsifies_every_check() {
     let mut collect = |registry: &Registry, subdir: &str| {
         for trace_path in trace_files(subdir) {
             let report = validate_file(registry, &trace_path);
-            for row in &report.requirements {
+            let extension_rows = report
+                .extensions
+                .iter()
+                .flat_map(|extension| &extension.requirements);
+            for row in report.requirements.iter().chain(extension_rows) {
                 for finding in &row.findings {
                     failed_checks.insert(finding.check.clone());
                 }
@@ -549,6 +687,7 @@ fn checks_count_their_subjects() {
     for subdir in [
         "good",
         "violations",
+        "captured",
         "draft/good",
         "draft/violations",
         "draft/captured",
@@ -600,9 +739,14 @@ mod draft {
         let registry = draft_registry();
         for trace_path in trace_files("draft/good") {
             let report = validate_file(&registry, &trace_path);
+            let extension_rows = report
+                .extensions
+                .iter()
+                .flat_map(|extension| &extension.requirements);
             let failures: Vec<_> = report
                 .requirements
                 .iter()
+                .chain(extension_rows)
                 .filter(|row| !row.findings.is_empty())
                 .map(|row| (row.id.clone(), row.findings.clone()))
                 .collect();
@@ -625,9 +769,14 @@ mod draft {
         let registry = draft_registry();
         for trace_path in trace_files("draft/violations") {
             let report = validate_file(&registry, &trace_path);
-            assert_ne!(
-                report.verdict(),
-                Verdict::Pass,
+            // An extension's violation leaves the verdict alone (ADR-0023):
+            // that it produced findings is read off the extension's own.
+            let extension_found = report
+                .extensions
+                .iter()
+                .any(|extension| extension.verdict() != Verdict::Pass);
+            assert!(
+                report.verdict() != Verdict::Pass || extension_found,
                 "{} is in draft/violations/ but produced no findings",
                 trace_path.display()
             );

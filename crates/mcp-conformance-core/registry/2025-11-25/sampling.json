@@ -1,0 +1,286 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "SAMP-001",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#user-interaction-model",
+        "quote": "For trust & safety and security, there SHOULD always be a human in the loop with the ability to deny sampling requests."
+      },
+      "exclusion": "Policy and UI: whether a human reviews sampling requests, and whether they can deny one, is the client application's design. A request answered with a result may have been approved by a person or by policy; nothing in the answer says which."
+    },
+    {
+      "id": "SAMP-002",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#user-interaction-model",
+        "quote": "Applications SHOULD: Provide UI that makes it easy and intuitive to review sampling requests; Allow users to view and edit prompts before sending; Present generated responses for review before delivery"
+      },
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "SAMP-003",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#tools-in-sampling",
+        "quote": "Clients MUST declare support for tool use via the `sampling.tools` capability to receive tool-enabled sampling requests."
+      },
+      "exclusion": "The precondition half of the sentence. A client that has not declared `sampling.tools` does nothing wrong by receiving a tool-enabled request — the server does, and the sentence's other half (`sampling.tools-declared`) judges it. Nothing the client sends can break this half: the declaration is either made or not, and its absence becomes a violation only when such a request arrives, which is the server's act."
+    },
+    {
+      "id": "SAMP-004",
+      "level": "MUST NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#tools-in-sampling",
+        "quote": "Servers MUST NOT send tool-enabled sampling requests to Clients that have not declared support for tool use via the `sampling.tools` capability."
+      },
+      "checks": [
+        "sampling.tools-declared"
+      ]
+    },
+    {
+      "id": "SAMP-005",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#capabilities",
+        "quote": "Clients that support sampling MUST declare the `sampling` capability during initialization:"
+      },
+      "checks": [
+        "sampling.client-declares-capability"
+      ]
+    },
+    {
+      "id": "SAMP-006",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#capabilities",
+        "quote": "Servers SHOULD avoid using these values (e.g. can just omit `includeContext` since it defaults to `\"none\"`)"
+      },
+      "checks": [
+        "sampling.include-context-avoided"
+      ]
+    },
+    {
+      "id": "SAMP-007",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#capabilities",
+        "quote": "and SHOULD NOT use them unless the client declares `sampling.context` capability."
+      },
+      "checks": [
+        "sampling.include-context-declared"
+      ]
+    },
+    {
+      "id": "SAMP-008",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#tool-result-messages",
+        "quote": "When a user message contains tool results (type: \"tool_result\"), it MUST contain ONLY tool results."
+      },
+      "checks": [
+        "sampling.tool-results-only"
+      ]
+    },
+    {
+      "id": "SAMP-009",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#tool-use-and-result-balance",
+        "quote": "When using tool use in sampling, every assistant message containing `ToolUseContent` blocks MUST be followed by a user message that consists entirely of `ToolResultContent` blocks, with each tool use (e.g. with `id: $id`) matched by a corresponding tool result (with `toolUseId: $id`), before any other message."
+      },
+      "checks": [
+        "sampling.tool-use-answered"
+      ]
+    },
+    {
+      "id": "SAMP-010",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#tool-choice-modes",
+        "quote": "`{mode: \"required\"}`: Model MUST use at least one tool before completing"
+      },
+      "checks": [
+        "sampling.tool-choice-required-honoured"
+      ]
+    },
+    {
+      "id": "SAMP-011",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#tool-choice-modes",
+        "quote": "`{mode: \"none\"}`: Model MUST NOT use any tools"
+      },
+      "checks": [
+        "sampling.tool-choice-none-honoured"
+      ]
+    },
+    {
+      "id": "SAMP-012",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#error-handling",
+        "quote": "Clients SHOULD return errors for common failure cases: Tool result missing in request: `-32602` (Invalid params); Tool results mixed with other content: `-32602` (Invalid params)"
+      },
+      "checks": [
+        "sampling.malformed-tool-messages-rejected"
+      ]
+    },
+    {
+      "id": "SAMP-013",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#error-handling",
+        "quote": "Clients SHOULD return errors for common failure cases: User rejected sampling request: `-1`"
+      },
+      "exclusion": "Its antecedent — that the user rejected the request — happens in the client's interface. An error with another code may be some other failure, and a result may follow the user's approval, so no answer is wrong without knowing what the user did."
+    },
+    {
+      "id": "SAMP-014",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#security-considerations",
+        "quote": "Clients SHOULD implement user approval controls"
+      },
+      "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
+    },
+    {
+      "id": "SAMP-015",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#security-considerations",
+        "quote": "Both parties SHOULD validate message content"
+      },
+      "exclusion": "Validation is internal; its outcome is whatever each party sends next, and the shape of what they send is judged directly by the clauses that constrain it (tool-message balance, message roles)."
+    },
+    {
+      "id": "SAMP-016",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#security-considerations",
+        "quote": "Clients SHOULD respect model preference hints"
+      },
+      "exclusion": "Hints are advisory and mapping them is the client's choice (the page: clients \"MAY map hints to equivalent models from different providers\"); the result's `model` names what was used, but no rule says which model a hint selects, so no answer contradicts one."
+    },
+    {
+      "id": "SAMP-017",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#security-considerations",
+        "quote": "Clients SHOULD implement rate limiting"
+      },
+      "exclusion": "A request schedule: rate limiting is measured in elapsed time, which checks may not consult (LIFE-015, the time boundary in `02-architecture.md`), and its threshold is the client's own policy."
+    },
+    {
+      "id": "SAMP-018",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#security-considerations",
+        "quote": "Both parties MUST handle sensitive data appropriately"
+      },
+      "exclusion": "\"Appropriately\" names no observable criterion, and which data is sensitive is a semantic judgement about content (see the elicitation pages' sensitive-information clauses): no message can be shown to have mishandled it."
+    },
+    {
+      "id": "SAMP-019",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#security-considerations",
+        "quote": "Servers MUST ensure that when replying to a `stopReason: \"toolUse\"`, each `ToolUseContent` item is responded to with a `ToolResultContent` item with a matching `toolUseId`, and that the user message contains only tool results (no other content types)"
+      },
+      "checks": [
+        "sampling.tool-use-answered",
+        "sampling.tool-results-only"
+      ]
+    },
+    {
+      "id": "SAMP-020",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "client/sampling#security-considerations",
+        "quote": "Both parties SHOULD implement iteration limits for tool loops"
+      },
+      "exclusion": "A limit on a loop's length is a policy whose threshold the page does not set: any finite loop in a recording is consistent with some limit, and an unbounded one cannot be recorded."
+    }
+  ]
+}

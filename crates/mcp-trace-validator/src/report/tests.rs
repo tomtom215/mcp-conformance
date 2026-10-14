@@ -56,6 +56,8 @@ fn sample() -> Report {
             not_applicable,
             row("PAGE-002", "MUST", Outcome::NotObserved),
         ],
+        wire_schema: None,
+        extensions: vec![],
     }
 }
 
@@ -352,4 +354,70 @@ fn the_revision_mismatch_note_names_a_flag_only_on_the_command_line() {
             .render_with(&HumanOptions::default().all(false).cli(true))
             .contains("BASE-001")
     );
+}
+
+/// A finding quoting the trace cannot drive the terminal: control characters,
+/// `ESC` among them, are escaped in the human form and left to JSON's own
+/// escaping in the machine forms.
+#[test]
+fn control_characters_in_a_finding_are_escaped_for_the_terminal() {
+    let mut report = sample();
+    report.requirements[1].findings[0].detail =
+        "method \u{1b}]0;pwned\u{7}\u{1b}[2J x\u{85}".to_owned();
+    let human = report.render_human();
+    assert!(
+        !human.chars().any(|c| c.is_control() && c != '\n'),
+        "{human:?}"
+    );
+    assert!(
+        human.contains(r"method \u{1b}]0;pwned\u{7}\u{1b}[2J x\u{85}"),
+        "{human}"
+    );
+    let json = serde_json::to_string(&report).unwrap();
+    let back: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        back["requirements"][1]["findings"][0]["detail"],
+        "method \u{1b}]0;pwned\u{7}\u{1b}[2J x\u{85}"
+    );
+}
+
+/// An extension's failure is the extension's (ADR-0023): the report's totals,
+/// verdict and error status ignore it, and every form still shows it.
+#[test]
+fn an_extension_failure_leaves_the_verdict_alone() {
+    let (reports, _) = crate::fixtures::undeclared_task();
+    let report = &reports[0];
+    assert_eq!(report.verdict(), Verdict::Pass);
+    assert!(!report.has_errors());
+    assert_eq!(report.extensions.len(), 1);
+    let extension = &report.extensions[0];
+    assert_eq!(extension.extension, "io.modelcontextprotocol/tasks");
+    assert_eq!(extension.verdict(), Verdict::Fail);
+    assert_eq!(extension.totals.fail, 1);
+
+    let json: serde_json::Value = serde_json::to_value(report).unwrap();
+    assert_eq!(json["verdict"], "pass");
+    assert_eq!(json["extensions"][0]["verdict"], "fail");
+    assert_eq!(
+        json["extensions"][0]["extension"],
+        "io.modelcontextprotocol/tasks"
+    );
+
+    let human = report.render_findings();
+    assert!(
+        human.contains("extension io.modelcontextprotocol/tasks — not scored"),
+        "{human}"
+    );
+    assert!(human.contains("  FAIL  TASK-001 (MUST NOT)"), "{human}");
+    assert!(human.contains("extension verdict: fail"), "{human}");
+    assert!(human.trim_end().ends_with("verdict: pass"), "{human}");
+}
+
+mod schema;
+
+/// A report with no extension block serializes without the member.
+#[test]
+fn a_report_without_extensions_omits_the_member() {
+    let json = serde_json::to_value(sample()).unwrap();
+    assert!(json.get("extensions").is_none(), "{json}");
 }

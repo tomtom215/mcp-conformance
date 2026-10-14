@@ -43,10 +43,13 @@ fn joined(headers: &HeaderMap, name: &str) -> Option<String> {
     Some(combined)
 }
 
-/// Fields that belong to a single connection (RFC 9110 §7.6.1).
-const HOP_BY_HOP: [HeaderName; 8] = [
+/// Fields that belong to a single connection (RFC 9110 §7.6.1), and
+/// `Proxy-Connection`: not in the RFC, but sent by some clients in place of
+/// `Connection` to a proxy, and dropped by proxies on the same grounds.
+const HOP_BY_HOP: [HeaderName; 9] = [
     header::CONNECTION,
     HeaderName::from_static("keep-alive"),
+    HeaderName::from_static("proxy-connection"),
     header::PROXY_AUTHENTICATE,
     header::PROXY_AUTHORIZATION,
     header::TE,
@@ -108,13 +111,23 @@ mod tests {
             ("Accept", "application/json"),
             ("Accept", "text/event-stream"),
             ("Mcp-Param-Region", "eu"),
+            ("WWW-Authenticate", "Bearer scope=\"files:read\""),
             ("X-Unrelated", "1"),
         ]);
         let recorded = recorded(&headers);
+        // The server's challenge is kept and the client's credential is not:
+        // the two halves of an authorization exchange sit on opposite sides of
+        // the allowlist.
         assert_eq!(
             recorded.keys().map(String::as_str).collect::<Vec<_>>(),
-            ["accept", "mcp-param-region", "mcp-session-id"]
+            [
+                "accept",
+                "mcp-param-region",
+                "mcp-session-id",
+                "www-authenticate"
+            ]
         );
+        assert_eq!(recorded["www-authenticate"], "Bearer scope=\"files:read\"");
         assert_eq!(recorded["accept"], "application/json, text/event-stream");
         assert!(!format!("{recorded:?}").contains("secret"));
     }
@@ -124,6 +137,7 @@ mod tests {
         let headers = map(&[
             ("Connection", "keep-alive, X-Hop"),
             ("Keep-Alive", "timeout=5"),
+            ("Proxy-Connection", "keep-alive"),
             ("X-Hop", "1"),
             ("Transfer-Encoding", "chunked"),
             ("Host", "proxy:8080"),

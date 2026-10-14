@@ -50,9 +50,17 @@ fn an_id_judged_under_two_revisions_gets_a_rule_per_revision() {
         .iter()
         .map(|rule| rule["id"].as_str().unwrap())
         .collect();
+    // The message is invalid against both revisions' schemas too, and the
+    // schemas differ, so each revision's is a rule of its own.
     assert_eq!(
         ids,
-        ["BASE-001@2025-11-25", "BASE-001@2026-07-28", "ONLY-001"]
+        [
+            "BASE-001@2025-11-25",
+            "wire-schema@2025-11-25",
+            "BASE-001@2026-07-28",
+            "ONLY-001",
+            "wire-schema@2026-07-28"
+        ]
     );
     let results = log["runs"][0]["results"].as_array().unwrap();
     let levels: Vec<(&str, &str, u64)> = results
@@ -69,12 +77,14 @@ fn an_id_judged_under_two_revisions_gets_a_rule_per_revision() {
         levels,
         [
             ("BASE-001@2025-11-25", "error", 0),
-            ("BASE-001@2026-07-28", "error", 1),
-            ("ONLY-001", "warning", 2)
+            ("wire-schema@2025-11-25", "error", 1),
+            ("BASE-001@2026-07-28", "error", 2),
+            ("ONLY-001", "warning", 3),
+            ("wire-schema@2026-07-28", "error", 4)
         ]
     );
     assert_eq!(
-        log["runs"][0]["tool"]["driver"]["rules"][2]["defaultConfiguration"]["level"],
+        log["runs"][0]["tool"]["driver"]["rules"][3]["defaultConfiguration"]["level"],
         "warning"
     );
     assert_eq!(
@@ -229,4 +239,68 @@ fn an_unjudged_trace_is_a_failed_invocation_located_at_the_trace() {
     );
     // The judged trace's results are all still there.
     assert_eq!(log["runs"][0]["results"], judged["runs"][0]["results"]);
+}
+
+/// An extension's findings are `note`s, marked unscored, `--strict` or not.
+#[test]
+fn an_extension_finding_is_an_unscored_note() {
+    let (reports, events) = crate::fixtures::undeclared_task();
+    for strict in [false, true] {
+        let log: Value = serde_json::from_str(&render_with(
+            &reports,
+            Artifact {
+                uri: Some("t.jsonl"),
+                events: &events,
+            },
+            &Options::default().strict(strict),
+        ))
+        .unwrap();
+        let results = log["runs"][0]["results"].as_array().unwrap();
+        let task = results
+            .iter()
+            .find(|result| result["ruleId"] == "TASK-001")
+            .unwrap();
+        assert_eq!(task["level"], "note");
+        assert_eq!(task["properties"]["scored"], false);
+        assert_eq!(
+            task["properties"]["extension"],
+            "io.modelcontextprotocol/tasks"
+        );
+        let rule = &log["runs"][0]["tool"]["driver"]["rules"]
+            [usize::try_from(task["ruleIndex"].as_u64().unwrap()).unwrap()];
+        assert_eq!(rule["defaultConfiguration"]["level"], "note");
+        assert!(
+            rule["helpUri"]
+                .as_str()
+                .unwrap()
+                .starts_with("https://modelcontextprotocol.github.io/ext-tasks/"),
+            "{rule}"
+        );
+        assert!(results.iter().all(|result| result["level"] != "error"));
+    }
+}
+
+/// An extension clause this build cannot judge is a notification like any.
+#[test]
+fn an_unsupported_extension_clause_is_a_notification() {
+    let (mut reports, events) = crate::fixtures::undeclared_task();
+    let row = &mut reports[0].extensions[0].requirements[0];
+    row.outcome = Outcome::Unsupported;
+    row.findings.clear();
+    row.missing_checks = vec!["future.check".to_owned()];
+    let id = row.id.clone();
+    let log = log(&reports, Some("t.jsonl"), &events);
+    let notifications = log["runs"][0]["invocations"][0]["toolExecutionNotifications"]
+        .as_array()
+        .unwrap();
+    assert_eq!(
+        notifications
+            .iter()
+            .map(|notification| notification["message"]["text"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        [format!(
+            "{id} (2026-07-28): the registry references checks this build does not implement: \
+             future.check"
+        )]
+    );
 }

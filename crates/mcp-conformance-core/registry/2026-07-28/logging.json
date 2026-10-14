@@ -85,7 +85,7 @@
         "section": "server/utilities/logging#implementation-considerations",
         "quote": "Servers SHOULD: Rate limit log messages; Include relevant context in data field; Use consistent logger names; Remove sensitive information"
       },
-      "exclusion": "Rate limiting is measured in elapsed time (LIFE-015); \"relevant context\", \"consistent\" logger names and \"sensitive\" information are judgements about the meaning of the payload, which this engine does not model \u2014 the same boundary BASE-073 draws for JSON Schema."
+      "exclusion": "Rate limiting is measured in elapsed time (LIFE-015); \"relevant context\", \"consistent\" logger names and \"sensitive\" information are judgements about the meaning of the payload, which this engine does not model."
     },
     {
       "id": "LOG-012",

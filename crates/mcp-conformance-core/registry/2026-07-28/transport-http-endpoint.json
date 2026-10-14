@@ -64,7 +64,7 @@
         "section": "basic/transports/streamable-http#security-&-endpoint",
         "quote": "Servers SHOULD implement proper authentication for all connections."
       },
-      "exclusion": "Authentication sits in front of the protocol; the authorization specification is out of scope for this registry for the reason `sources.json` records. Same reasoning as TRAN-009 at 2025-11-25."
+      "exclusion": "Whether authentication is properly implemented is not decidable from one session's headers: the client's credential is never recorded, and the server's validation of it is internal. What a recording does show — the challenge a protected server answers with — is judged under the authorization pages' own clauses (AUTH-097, AUTH-124, AUTH-129–AUTH-133). Same reasoning as TRAN-009 at 2025-11-25."
     }
   ]
 }

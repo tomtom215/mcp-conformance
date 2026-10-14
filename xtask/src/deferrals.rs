@@ -255,22 +255,33 @@ pub(crate) const fn civil_from_days(z: i64) -> (i64, i64, i64) {
     (year, month, day)
 }
 
-/// `YYYY-MM-DD` shape with sane ranges (not a full calendar validation —
-/// the ledger is reviewed code, not hostile input).
-fn valid_iso_date(date: &str) -> bool {
+/// A `YYYY-MM-DD` date that exists: the shape, a year from 2020, and a day the
+/// month has (`2026-02-30` and `2026-04-31` are refused, `2028-02-29` is not).
+pub(crate) fn valid_iso_date(date: &str) -> bool {
     let bytes = date.as_bytes();
-    bytes.len() == 10
-        && bytes[4] == b'-'
-        && bytes[7] == b'-'
-        && date
-            .split('-')
-            .enumerate()
-            .all(|(index, part)| match (index, part.parse::<u32>()) {
-                (0, Ok(year)) => (2020..=9999).contains(&year),
-                (1, Ok(month)) => (1..=12).contains(&month),
-                (2, Ok(day)) => (1..=31).contains(&day),
-                _ => false,
-            })
+    let shaped = bytes.len() == 10
+        && bytes.iter().enumerate().all(|(index, byte)| match index {
+            4 | 7 => *byte == b'-',
+            _ => byte.is_ascii_digit(),
+        });
+    if !shaped {
+        return false;
+    }
+    let mut parts = date.split('-').map(str::parse::<u32>);
+    let (Some(Ok(year)), Some(Ok(month)), Some(Ok(day))) =
+        (parts.next(), parts.next(), parts.next())
+    else {
+        return false;
+    };
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days_in_month = match month {
+        2 if leap => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        1..=12 => 31,
+        _ => return false,
+    };
+    (2020..=9999).contains(&year) && (1..=days_in_month).contains(&day)
 }
 
 #[cfg(test)]
@@ -293,6 +304,23 @@ mod tests {
         assert!(!valid_iso_date("2026-13-01"));
         assert!(!valid_iso_date("soon"));
         assert!(!valid_iso_date("2026-08-15T00:00:00Z"));
+        // Only digits: `u32::from_str` alone would read `+8` as 8.
+        assert!(!valid_iso_date("2026-+8-15"));
+    }
+
+    /// Dates of the right shape that no calendar has: the gate passed
+    /// `2026-02-30` until `falsify-gates` showed it.
+    #[test]
+    fn days_the_month_lacks_are_refused() {
+        assert!(!valid_iso_date("2026-02-30"));
+        assert!(!valid_iso_date("2026-02-29"));
+        assert!(!valid_iso_date("2026-04-31"));
+        assert!(!valid_iso_date("2026-00-10"));
+        assert!(!valid_iso_date("2026-01-00"));
+        assert!(valid_iso_date("2028-02-29"));
+        assert!(!valid_iso_date("2100-02-29"));
+        assert!(valid_iso_date("2400-02-29"));
+        assert!(valid_iso_date("2026-12-31"));
     }
 
     #[test]

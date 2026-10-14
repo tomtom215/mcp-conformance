@@ -12,6 +12,7 @@
 //! | `fail` | `<failure>` per requirement, findings in the body |
 //! | `warn` | passing `<testcase>` with findings in `<system-out>` — SHOULD-level findings do not fail CI unless promoted by `--strict`, and that promotion is an exit-code concern, not a report concern |
 //! | `excluded` / `unsupported` / `not-applicable` | `<skipped>` with the reason as its message |
+//! | an extension's clauses ([`Report::extensions`]) | a suite of their own per extension, named `… (revision, extension ID, not scored)`, whose `fail` and `warn` rows are passing test cases with the findings in `<system-out>` — an extension never fails a run (ADR-0023), so no `<failure>` is written for one, `--strict` or not |
 //! | a trace that could not be judged ([`render_run`]) | a suite of one test case with an `<error>` giving the reason |
 //!
 //! The output is deterministic (registry order, no timestamps, no hostnames) for the
@@ -19,7 +20,11 @@
 
 use core::fmt::Write as _;
 
-use crate::report::{Outcome, Report, Unjudged};
+use crate::report::{Outcome, Report, Unjudged, WireSchemaReport};
+
+mod extension;
+
+use extension::{extension_counts, render_extension};
 
 /// Renders the report as a single-suite `JUnit` XML document.
 ///
@@ -160,9 +165,16 @@ pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> Str
                 .map(move |report| (options, report, counts(report, options.strict)))
         })
         .collect();
-    let (tests, failures, skipped) = suites.iter().fold((0, 0, 0), |sum, (_, _, count)| {
-        (sum.0 + count.0, sum.1 + count.1, sum.2 + count.2)
-    });
+    let extension_counts = suites
+        .iter()
+        .flat_map(|(_, report, _)| report.extensions.iter().map(extension_counts));
+    let (tests, failures, skipped) = suites
+        .iter()
+        .map(|(_, _, count)| *count)
+        .chain(extension_counts)
+        .fold((0, 0, 0), |sum, count| {
+            (sum.0 + count.0, sum.1 + count.1, sum.2 + count.2)
+        });
     let mut out = String::new();
     out.push_str(r#"<?xml version="1.0" encoding="UTF-8"?>"#);
     out.push('\n');
@@ -178,18 +190,8 @@ pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> Str
         r#"<testsuites tests="{}" failures="{failures}" skipped="{skipped}"{errors}>"#,
         tests as usize + unjudged.len()
     );
-    for (options, report, (tests, failures, skipped)) in suites {
-        let suite = options.trace.as_deref().unwrap_or("mcp-trace-validator");
-        let _ = writeln!(
-            out,
-            r#"  <testsuite name="{} ({})" tests="{tests}" failures="{failures}" skipped="{skipped}">"#,
-            escape(suite),
-            escape(&report.revision)
-        );
-        for row in &report.requirements {
-            render_row(&mut out, report, row, options);
-        }
-        out.push_str("  </testsuite>\n");
+    for (options, report, counts) in suites {
+        render_suite(&mut out, options, report, counts);
     }
     for trace in unjudged {
         let name = escape(&trace.trace);
@@ -208,22 +210,52 @@ pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> Str
     out
 }
 
+/// One report's suite, then a suite per extension it carries.
+fn render_suite(out: &mut String, options: &Options, report: &Report, counts: (u32, u32, u32)) {
+    let (tests, failures, skipped) = counts;
+    let suite = options.trace.as_deref().unwrap_or("mcp-trace-validator");
+    let _ = writeln!(
+        out,
+        r#"  <testsuite name="{} ({})" tests="{tests}" failures="{failures}" skipped="{skipped}">"#,
+        escape(suite),
+        escape(&report.revision)
+    );
+    for row in &report.requirements {
+        render_row(out, report, row, options);
+    }
+    if let Some(wire_schema) = &report.wire_schema {
+        render_wire_schema(out, report, wire_schema, options);
+    }
+    out.push_str("  </testsuite>\n");
+    for extension in &report.extensions {
+        render_extension(out, suite, report, extension, options);
+    }
+}
+
 /// `(tests, failures, skipped)` for one report; warnings count as failures when
 /// `strict` renders them as such.
+///
+/// The wire-schema case, when the report has one, counts like a row: a test,
+/// failed when a message was invalid and skipped when there were none.
 const fn counts(report: &Report, strict: bool) -> (u32, u32, u32) {
     let totals = report.totals;
-    let skipped =
+    let mut skipped =
         totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
-    let failures = if strict {
+    let mut failures = if strict {
         totals.fail + totals.warn
     } else {
         totals.fail
     };
-    (
-        totals.pass + totals.fail + totals.warn + skipped,
-        failures,
-        skipped,
-    )
+    let mut tests = totals.pass + totals.fail + totals.warn + skipped;
+    if let Some(wire_schema) = &report.wire_schema {
+        tests += 1;
+        match wire_schema.outcome {
+            Outcome::Fail => failures += 1,
+            Outcome::NotObserved => skipped += 1,
+            _ => {}
+        }
+    }
+    (tests, failures, skipped)
 }
 
 /// A test case's identifying attributes: its class, and the trace as a `file`
@@ -303,6 +335,45 @@ fn render_row(
     }
 }
 
+/// The wire-schema test case: one `<failure>` per invalid message.
+fn render_wire_schema(
+    out: &mut String,
+    report: &Report,
+    wire_schema: &WireSchemaReport,
+    options: &Options,
+) {
+    let attrs = case_attributes(report, options);
+    let name = "wire schema";
+    match wire_schema.outcome {
+        Outcome::Fail => {
+            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
+            let clause = format!(
+                "\nspec: \"{}\"\nsee: {}\nschema: {}",
+                wire_schema.source.quote, wire_schema.source.url, wire_schema.schema
+            );
+            for finding in &wire_schema.findings {
+                let _ = writeln!(
+                    out,
+                    r#"      <failure message="{}">{}{}</failure>"#,
+                    escape(&finding.detail),
+                    escape(&location(finding.seq, &finding.check)),
+                    escape(&clause),
+                );
+            }
+            out.push_str("    </testcase>\n");
+        }
+        Outcome::NotObserved => {
+            let _ = writeln!(
+                out,
+                r#"    <testcase {attrs} name="{name}"><skipped message="the trace holds no message"/></testcase>"#
+            );
+        }
+        _ => {
+            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}"/>"#);
+        }
+    }
+}
+
 /// The `<skipped>` message for the four non-judged outcomes.
 fn skip_reason(row: &crate::report::RequirementReport) -> String {
     match row.outcome {
@@ -359,9 +430,11 @@ fn escape(text: &str) -> String {
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
             '\t' | '\n' | '\r' => out.push(ch),
-            // C0 controls (except the three above) are not representable in
-            // XML 1.0 at all; substitute rather than emit an invalid document.
-            c if (c as u32) < 0x20 => out.push('\u{FFFD}'),
+            // C0 controls (except the three above), U+FFFE and U+FFFF are
+            // outside XML 1.0's `Char` production (§2.2) — the only Rust
+            // `char`s that are — so substitute rather than emit an invalid
+            // document.
+            c if (c as u32) < 0x20 || c == '\u{FFFE}' || c == '\u{FFFF}' => out.push('\u{FFFD}'),
             _ => out.push(ch),
         }
     }

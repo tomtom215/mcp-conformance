@@ -449,8 +449,20 @@ fn multi_revision_json_shows_per_clause_applicability_across_revisions() {
         "json",
     ]);
     std::fs::remove_file(&set).ok();
-    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    // Every clause passes, but a `2025-11-25` session is not valid against the
+    // `2026-07-28` schema: its `initialize` result has no `resultType`.
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
     let report: serde_json::Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(report["summaries"][0]["wire_schema"]["outcome"], "pass");
+    let schema = &report["summaries"][1]["wire_schema"];
+    assert_eq!(schema["outcome"], "fail");
+    assert!(
+        schema["findings"][0]["detail"]
+            .as_str()
+            .unwrap()
+            .contains("\"resultType\" is a required property"),
+        "{schema}"
+    );
     assert_eq!(
         report["revisions"],
         serde_json::json!(["2025-11-25", "2026-07-28"])
@@ -905,6 +917,11 @@ fn a_trace_of_two_sessions_says_so() {
     let output = run(&["validate", path.to_str().unwrap()]);
     std::fs::remove_file(&path).ok();
     assert!(stderr(&output).contains("records 2 sessions"), "{output:?}");
+    // The advice names the capture option that splits them, as the book does.
+    assert!(
+        stderr(&output).contains(concat!("put ", '{', "session} in mcp-trace-capture's -o")),
+        "{output:?}"
+    );
 
     let single = run(&[
         "validate",

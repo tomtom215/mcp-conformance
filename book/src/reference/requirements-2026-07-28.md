@@ -4,7 +4,7 @@
 
 # Requirements — `2026-07-28`
 
-Every normative clause of the `2026-07-28` specification that the validator's registry carries — 310 in all, 141 judged from a recorded trace and 169 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
+Every normative clause of the `2026-07-28` specification that the validator's registry carries — 501 in all, 181 judged from a recorded trace and 320 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -296,7 +296,7 @@ Judged by `base.notification-no-id`.
 
 [`basic/index#auth`](https://modelcontextprotocol.io/specification/2026-07-28/basic#auth)
 
-**Excluded.** Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, which `sources.json` records as out of scope for the same reason it is at 2025-11-25.
+**Excluded.** Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own pages: AUTH-086 and AUTH-087 restate this sentence there, and the challenge clauses a recording can judge carry checks. Same decision as BASE-085 at 2025-11-25.
 
 ### BASE-069
 
@@ -346,7 +346,7 @@ Judged by `base.notification-no-id`.
 
 [`basic/index#schema-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic#schema-validation)
 
-**Excluded.** Full dialect validation requires a JSON Schema engine, a dependency `mcp-conformance-core` deliberately excludes (serde-family only, 02-architecture.md). Same reasoning as BASE-017 at 2025-11-25.
+Judged by `base.schemas-valid-for-dialect`.
 
 ### BASE-074
 
@@ -387,6 +387,16 @@ Judged by `base.notification-no-id`.
 [`basic/index#composition-keyword-resource-use`](https://modelcontextprotocol.io/specification/2026-07-28/basic#composition-keyword-resource-use)
 
 **Excluded.** Depth caps, subschema counts and time budgets are validator-internal resource policy, invisible in the messages exchanged.
+
+### BASE-088
+
+**SHOULD** · binds the client and server
+
+> Implementors are RECOMMENDED to use JSON Schema 2020-12.
+
+[`basic/index#schema-dialect`](https://modelcontextprotocol.io/specification/2026-07-28/basic#schema-dialect)
+
+Judged by `base.schemas-use-2020-12`.
 
 ### BASE-025
 
@@ -476,7 +486,7 @@ Judged by `meta.missing-required-field-http-status`.
 
 [`basic/index#_meta`](https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta)
 
-**Excluded.** The clause's own escape hatch defeats the check: an absent `clientInfo` is either non-compliance or the configured-off case the clause permits, and a trace cannot distinguish them. The adjacent observable — that a *present* value is well-formed — belongs to the key-format checks on BASE-026/027/029.
+Judged by `meta.client-info-on-requests`.
 
 ### BASE-034
 
@@ -516,7 +526,7 @@ Judged by `meta.missing-capability-http-status`.
 
 [`basic/index#_meta`](https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta)
 
-**Excluded.** Same escape hatch as BASE-033, mirrored to the server: an absent `serverInfo` is either non-compliance or the configured-off case the clause permits, and the trace cannot tell which.
+Judged by `meta.server-info-on-results`.
 
 ### BASE-038
 
@@ -648,7 +658,7 @@ Judged by `transport.no-independent-server-requests`.
 
 [`basic/transports/streamable-http#security-&-endpoint`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#security-&-endpoint)
 
-**Excluded.** Authentication sits in front of the protocol; the authorization specification is out of scope for this registry for the reason `sources.json` records. Same reasoning as TRAN-009 at 2025-11-25.
+**Excluded.** Whether authentication is properly implemented is not decidable from one session's headers: the client's credential is never recorded, and the server's validation of it is internal. What a recording does show — the challenge a protected server answers with — is judged under the authorization pages' own clauses (AUTH-097, AUTH-124, AUTH-129–AUTH-133). Same reasoning as TRAN-009 at 2025-11-25.
 
 ### TRAN-055
 
@@ -898,7 +908,7 @@ Judged by `transport.header-value-encoding`.
 
 [`basic/transports/streamable-http#custom-headers-from-tool-parameters`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#custom-headers-from-tool-parameters)
 
-Judged by `transport.x-mcp-header-mirrored`.
+Judged by `transport.x-mcp-header-mirrored`, `transport.x-mcp-header-value-mirrored`.
 
 ### TRAN-080
 
@@ -928,7 +938,7 @@ Judged by `tools.x-mcp-header-integer-range`.
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
-**Excluded.** The forbidden keyword chain is judged where the annotation sits, which needs the JSON Schema vocabulary TRAN-137 explains core leaves out.
+Judged by `transport.x-mcp-header-statically-reachable`.
 
 ### TRAN-083
 
@@ -938,7 +948,7 @@ Judged by `tools.x-mcp-header-integer-range`.
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
-**Excluded.** Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it.
+Judged by `transport.x-mcp-header-invalid-tool-not-called`.
 
 ### TRAN-084
 
@@ -948,7 +958,7 @@ Judged by `tools.x-mcp-header-integer-range`.
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
-**Excluded.** The excluded tool is absent from a list the *client* assembles for its own consumer — a data structure that never reaches the wire.
+Judged by `transport.x-mcp-header-invalid-tool-not-called`.
 
 ### TRAN-085
 
@@ -1058,7 +1068,17 @@ Judged by `transport.sentinel-pattern-encoded`.
 
 [`basic/transports/streamable-http#schema-extension`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension)
 
-**Excluded.** Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws.
+Judged by `transport.x-mcp-header-statically-reachable`.
+
+### TRAN-141
+
+**MUST** · binds the client
+
+> These headers are REQUIRED for compliance.
+
+[`basic/transports/streamable-http#standard-request-headers`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#standard-request-headers)
+
+Judged by `transport.request-metadata-headers`.
 
 ### TRAN-095
 
@@ -1310,7 +1330,7 @@ Judged by `discover.dual-era-probe-first`.
 
 [`server/discover#discoverresult`](https://modelcontextprotocol.io/specification/2026-07-28/server/discover#discoverresult)
 
-**Excluded.** The same clause as BASE-037, restated for one result type: BASE-037 is the general rule for `serverInfo` in every result and carries the escape hatch "unless specifically configured not to do so". A restatement in the DiscoverResult field list does not withdraw that exemption, so an absent `serverInfo` here is still either non-compliance or the configured-off case, and the trace cannot tell which.
+Judged by `discover.server-info-included`.
 
 ### DISC-004
 
@@ -1372,7 +1392,7 @@ Judged by `versioning.extension-identifier-format`.
 
 [`basic/versioning#extension-negotiation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#extension-negotiation)
 
-**Excluded.** Both permitted responses are defined by the extension, not by this specification: what "core protocol behavior" looks like for a given extension, and which error is "appropriate", are each stated in that extension's own document. `mcp-conformance-core` models the core protocol only, so it has no vocabulary in which a message counts as extension behaviour rather than core behaviour — the same architectural boundary that leaves the JSON Schema clauses to BASE-073.
+**Excluded.** Both permitted responses are defined by the extension, not by this specification: what "core protocol behavior" looks like for a given extension, and which error is "appropriate", are each stated in that extension's own document. Where an official extension's clauses are entered (tasks and skills, beside this revision), they judge exactly that, in the extension's own block and never scored (ADR-0023): TASK-001, for one, is this clause for the tasks extension. Judging it here, among the core's clauses, would let an optional extension's behaviour move the core verdict.
 
 ### VERS-006
 
@@ -1403,6 +1423,16 @@ Judged by `versioning.extension-identifier-format`.
 [`basic/versioning#backward-compatibility-with-initialization-based-versions`](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#backward-compatibility-with-initialization-based-versions)
 
 Judged by `versioning.initialize-error-names-versions`.
+
+### VERS-009
+
+**SHOULD** · binds the client
+
+> Modern | Legacy | Fails. The server may reject the request with an implementation-defined error, stay silent, or even process an era-ambiguous method under legacy semantics. On stdio, clients SHOULD send `server/discover` first to fail deterministically; the client then surfaces an actionable error to the user.
+
+[`basic/versioning#compatibility-matrix`](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#compatibility-matrix)
+
+**Excluded.** The compatibility matrix's modern-client, legacy-server row. Its antecedent is the server being legacy, which is exactly what an unprobed exchange fails to reveal — the row itself says such a server may reject the request, stay silent, or process it under legacy semantics — and, as for TRAN-142, a recording cannot show that its first request was the client's first. The dual-era form of the same advice is TRAN-128, judged where a session witnesses both eras.
 
 ## TRAN
 
@@ -1605,6 +1635,16 @@ Judged by `discover.dual-era-probe-first`.
 [`basic/transports/stdio#backward-compatibility`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility)
 
 **Excluded.** Binds the client's decision function, not any message it sends. A session exhibits one probe answered by one error code and one decision taken; whether the client would have fallen back on a *different* code is a property of code paths that session never exercised, and no number of traces settles it.
+
+### TRAN-142
+
+**SHOULD** · binds the client
+
+> A client that only supports modern versions does not need to probe, but probing is still RECOMMENDED: some legacy servers do not validate that a request arrives after `initialize` and would process an era-ambiguous method (such as `tools/call`) under legacy semantics.
+
+[`basic/transports/stdio#backward-compatibility`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility)
+
+**Excluded.** Asks a modern-only client to open with a `server/discover` probe, and a recording can show neither half. Not the antecedent: a modern-only client and a dual-era client whose server never forced a fallback send the same messages. Not the order: a modern stdio session has no handshake marking where it began, so a recording that opens on `tools/call` is equally one that started after the probe. The dual-era statement, TRAN-128, is judged by `discover.dual-era-probe-first`, which reports only where a session witnesses both eras; this clause offers no such witness.
 
 ## MRTR
 
@@ -2560,7 +2600,7 @@ Judged by `logging.invalid-level-rejected`.
 
 [`server/utilities/logging#implementation-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/logging#implementation-considerations)
 
-**Excluded.** Rate limiting is measured in elapsed time (LIFE-015); "relevant context", "consistent" logger names and "sensitive" information are judgements about the meaning of the payload, which this engine does not model — the same boundary BASE-073 draws for JSON Schema.
+**Excluded.** Rate limiting is measured in elapsed time (LIFE-015); "relevant context", "consistent" logger names and "sensitive" information are judgements about the meaning of the payload, which this engine does not model.
 
 ### LOG-012
 
@@ -2782,7 +2822,7 @@ Judged by `tools.x-mcp-header-integer-range`.
 
 [`server/tools#x-mcp-header`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header)
 
-**Excluded.** The client filtering its own copy of a list it already received. A tool excluded from the client's view is still in the server's `tools/list` result on the wire, so the trace shows nothing either way.
+Judged by `transport.x-mcp-header-invalid-tool-not-called`.
 
 ### TOOL-036
 
@@ -2842,7 +2882,7 @@ Judged by `tools.output-schema-structured-result`.
 
 [`server/tools#output-schema`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#output-schema)
 
-**Excluded.** Validation performed inside the client, against a schema this engine has no JSON Schema evaluator for by deliberate architectural choice — the boundary BASE-073 draws. A client that validated and one that did not send the same messages.
+**Excluded.** Validation performed inside the client. A client that validated a structured result and one that did not send the same messages, and the clause does not say what a client does with a result that fails; the server half of the rule, TOOL-040, is judged.
 
 ### TOOL-042
 
@@ -2882,7 +2922,7 @@ Judged by `tools.output-schema-structured-result`.
 
 [`server/tools#x-mcp-header`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header)
 
-**Excluded.** Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws.
+Judged by `transport.x-mcp-header-statically-reachable`.
 
 ### TOOL-046
 
@@ -2892,7 +2932,7 @@ Judged by `tools.output-schema-structured-result`.
 
 [`server/tools#x-mcp-header`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#x-mcp-header)
 
-**Excluded.** Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it. The same clause on the transport page is TRAN-083.
+Judged by `transport.x-mcp-header-invalid-tool-not-called`.
 
 ## RES
 
@@ -3137,4 +3177,1882 @@ Judged by `prompts.arguments-validated`.
 [`server/prompts#security`](https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#security)
 
 **Excluded.** "Carefully validate to prevent injection attacks" is a property of the server's handling, not of the message: a prompt that was validated and one that was not look identical when both are accepted. What a trace can hold an implementation to is the concrete shape rules, PROM-016 through PROM-020.
+
+## ELIC
+
+### ELIC-054
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT use form mode elicitation to request sensitive information such as passwords, API keys, access tokens, or payment credentials
+
+[`client/elicitation#user-interaction-model`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#user-interaction-model)
+
+**Excluded.** Whether a requested field is "sensitive information" — the page's own definition is "secrets and credentials that grant access or authorize transactions" — is a judgement about meaning, not syntax: a schema property named `token` may be a display preference and one named `answer` may collect a password. A check would have to guess from field names, and a guess convicts conforming servers. The server's author decides it; nothing in the message settles it.
+
+### ELIC-055
+
+**MUST** · binds the server
+
+> Servers MUST use URL mode for interactions involving such sensitive information
+
+[`client/elicitation#user-interaction-model`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#user-interaction-model)
+
+**Excluded.** The counterpart of the form mode prohibition, and blocked by the same judgement: that an interaction "involves such sensitive information" is a fact about what the user will be asked for, which no message states, so a form mode request cannot be shown to have needed URL mode.
+
+### ELIC-056
+
+**MUST** · binds the client
+
+> MCP clients MUST: Provide UI that makes it clear which server is requesting information; Respect user privacy and provide clear decline and cancel options; For form mode, allow users to review and modify their responses before sending; For URL mode, clearly display the target domain/host and gather user consent before navigation to the target URL
+
+[`client/elicitation#user-interaction-model`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#user-interaction-model)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-057
+
+**MUST** · binds the client
+
+> Clients that support elicitation MUST declare the `elicitation` capability in `_meta.io.modelcontextprotocol/clientCapabilities` on each request:
+
+[`client/elicitation#capabilities`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#capabilities)
+
+Judged by `elicitation.client-declares-capability`.
+
+### ELIC-058
+
+**MUST** · binds the client
+
+> Clients declaring the `elicitation` capability MUST support at least one mode (`form` or `url`).
+
+[`client/elicitation#capabilities`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#capabilities)
+
+**Excluded.** No declaration can violate it on the wire. The page makes an `elicitation` object naming neither mode "equivalent to declaring support for `form` mode only", so every declared `elicitation` capability names at least one mode. What remains is whether the client can actually handle the mode it declared, which is internal: a client that cannot still returns a well-formed `decline` or `cancel`.
+
+### ELIC-059
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT send elicitation requests with modes that are not supported by the client.
+
+[`client/elicitation#capabilities`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#capabilities)
+
+Judged by `elicitation.mode-supported`.
+
+### ELIC-060
+
+**MUST** · binds the server
+
+> All elicitation requests MUST include the following parameters:
+
+[`client/elicitation#elicitation-requests`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#elicitation-requests)
+
+Judged by `elicitation.request-parameters`.
+
+### ELIC-061
+
+**MUST** · binds the client
+
+> Clients MUST treat requests without a `mode` field as form mode.
+
+[`client/elicitation#elicitation-requests`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#elicitation-requests)
+
+**Excluded.** A reading, not an act, like MRTR-007: a client's answers to a form mode request and to one without `mode` are the same messages (`accept` with `content`, `decline`, `cancel`), and `content` is optional in the result, so no answer shows which reading the client took. The server half — that such a request is form mode — is what `elicitation.mode-supported` and `elicitation.form-schema-present` apply.
+
+### ELIC-062
+
+**MUST** · binds the server
+
+> Form mode elicitation requests MUST either specify `mode: "form"` or omit the `mode` field, and include these additional parameters:
+
+[`client/elicitation#form-mode-elicitation-requests`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#form-mode-elicitation-requests)
+
+Judged by `elicitation.form-schema-present`.
+
+### ELIC-063
+
+**SHOULD** · binds the client
+
+> Clients that support defaults SHOULD pre-populate form fields with these values.
+
+[`client/elicitation#requested-schema`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#requested-schema)
+
+**Excluded.** UI behaviour: pre-populating a form is what the user sees before submitting. The submitted `content` cannot show it — the user may change or clear every default — so no message carries the clause.
+
+### ELIC-064
+
+**MUST** · binds the server
+
+> URL mode elicitation requests MUST specify `mode: "url"`, a `message`, and include these additional parameters:
+
+[`client/elicitation#url-mode-elicitation-requests`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#url-mode-elicitation-requests)
+
+Judged by `elicitation.url-parameters`.
+
+### ELIC-065
+
+**MUST** · binds the server
+
+> The `url` parameter MUST contain a valid URL.
+
+[`client/elicitation#url-mode-elicitation-requests`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#url-mode-elicitation-requests)
+
+Judged by `elicitation.url-valid`.
+
+### ELIC-066
+
+**SHOULD** · binds the client
+
+> Clients SHOULD provide manual controls that let the user retry or cancel the original request (or otherwise resume interacting with the client).
+
+[`client/elicitation#example-request-sensitive-data`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#example-request-sensitive-data)
+
+**Excluded.** UI behaviour: the controls the client offers its user. The wire shows only whether a retry or cancellation was eventually sent, which a user may decline to do whatever controls exist.
+
+### ELIC-067
+
+**SHOULD NOT** · binds the server
+
+> Servers SHOULD NOT assume that elicitation requests will always succeed
+
+[`client/elicitation#error-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#error-handling)
+
+**Excluded.** Forbids an assumption. Its wire-visible consequence would be a server that breaks when an elicitation is declined, and the page leaves the server free to answer a declined retry with a result, an error or another round, so no answer is wrong on its face — the same reasoning as MRTR-014.
+
+### ELIC-068
+
+**MUST** · binds the server
+
+> and MUST handle cases where the user declines or cancels the elicitation, or where the client fails to process the request.
+
+[`client/elicitation#error-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#error-handling)
+
+**Excluded.** "Handle" names no observable outcome: the specification lets a server answer a declined, cancelled or failed elicitation with a result, an error or a further `input_required` round, and every one of those is handling. A server that fails to handle the case shows it only by breaking — a crash or a hang ends the recording rather than writing anything into it.
+
+### ELIC-069
+
+**MUST** · binds the server
+
+> However, if state is stored, servers implementing elicitation MUST securely associate this state with individual users following the guidelines in the security best practices document. Specifically: State storage MUST be protected against unauthorized access; For remote MCP servers, user identification MUST be derived from credentials acquired via MCP authorization when possible (e.g. `sub` claim)
+
+[`client/elicitation#statefulness`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#statefulness)
+
+**Excluded.** Server-internal state handling. How a server stores per-user state, protects it and binds it to an identity happens behind its own storage and authorization, and the identity it binds to is established outside the session's messages, by MCP authorization (whose pages this registry keeps out of scope, `sources.json`). Verified, where verified at all, by the server's own security review and tests; at `2026-07-28` the state a client carries is `requestState`, opaque by construction (MRTR-008).
+
+### ELIC-070
+
+**MUST NOT** · binds the server
+
+> MCP servers MUST NOT rely on URL mode elicitation to authorize users for themselves.
+
+[`client/elicitation#url-mode-elicitation-for-oauth-flows`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#url-mode-elicitation-for-oauth-flows)
+
+**Excluded.** Concerns what the server treats as authorization of its own users — an internal decision. A URL mode elicitation used to sign a user in to the server looks on the wire exactly like one used for a third-party grant; the difference is what the server does with the outcome.
+
+### ELIC-071
+
+**MUST NOT** · binds the server
+
+> The third-party credentials MUST NOT transit through the MCP client
+
+[`client/elicitation#understanding-the-distinction`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#understanding-the-distinction)
+
+**Excluded.** Third-party credentials are opaque strings whose provenance no message declares: a check cannot tell one in a result from any other string, and by design they never enter the session at all. The obligation is the server's — credentials could only transit the client if the server sent them — and it is kept by the flow the server builds, outside the recording.
+
+### ELIC-072
+
+**MUST NOT** · binds the server
+
+> The MCP server MUST NOT use the client's credentials for the third-party service
+
+[`client/elicitation#understanding-the-distinction`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#understanding-the-distinction)
+
+**Excluded.** Token passthrough happens between the server and the third-party service, outside the MCP session; the recording holds only the client–server exchange, in which the client's credentials appear (as HTTP authorization) whether or not the server reuses them elsewhere.
+
+### ELIC-073
+
+**MUST** · binds the server
+
+> The user MUST authorize the MCP server directly
+
+[`client/elicitation#understanding-the-distinction`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#understanding-the-distinction)
+
+**Excluded.** By the clause's own words the interaction "happens outside the MCP protocol, without involving the MCP client": it is between the user's browser and the server or a third-party authorization server, so a recording of the MCP session cannot contain it.
+
+### ELIC-074
+
+**MUST NOT** · binds the server
+
+> The MCP server MUST NOT transmit credentials obtained through URL mode elicitation to the MCP client.
+
+[`client/elicitation#understanding-the-distinction`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#understanding-the-distinction)
+
+**Excluded.** The same barrier as the transit clause: a credential obtained through URL mode elicitation is an opaque string whose provenance no message declares, so a check cannot tell one in a result from any other value the server returns.
+
+### ELIC-075
+
+**MUST** · binds the server
+
+> Servers MUST bind elicitation requests to the client and user identity
+
+[`client/elicitation#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#security-considerations)
+
+**Excluded.** Binding is server-internal state, and the identity it binds to is established by authorization outside the session's messages, so no message shows whether an elicitation was bound to it.
+
+### ELIC-076
+
+**MUST** · binds the client
+
+> Clients MUST provide clear indication of which server is requesting information
+
+[`client/elicitation#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#security-considerations)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-077
+
+**SHOULD** · binds the client
+
+> Clients SHOULD implement user approval controls
+
+[`client/elicitation#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#security-considerations)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-078
+
+**SHOULD** · binds the client
+
+> Clients SHOULD allow users to decline elicitation requests at any time
+
+[`client/elicitation#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#security-considerations)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-079
+
+**SHOULD** · binds the client
+
+> Clients SHOULD present elicitation requests in a way that makes it clear what information is being requested and why
+
+[`client/elicitation#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#security-considerations)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-080
+
+**MUST NOT** · binds the server
+
+> MCP servers requesting elicitation: MUST NOT include sensitive information about the end-user, including credentials, personally identifiable information, etc., in the URL sent to the client in a URL elicitation request.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Whether a URL's path or query carries "sensitive information about the end-user" is a semantic judgement about opaque values — an identifier in a query may be a random nonce or an email address — so a check would convict on a guess. The page's own examples put an `elicitationId` in the query, which is exactly the kind of value a pattern would misread.
+
+### ELIC-081
+
+**MUST NOT** · binds the server
+
+> MCP servers requesting elicitation: MUST NOT provide a URL which is pre-authenticated to access a protected resource, as the URL could be used to impersonate the user by a malicious client.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Whether a URL grants access without further authentication is a property of the server it points to, observable only by dereferencing it — which a validator must not do (the client rules on the same page forbid even pre-fetching it), and which a recording does not contain.
+
+### ELIC-082
+
+**SHOULD NOT** · binds the server
+
+> MCP servers requesting elicitation: SHOULD NOT include URLs intended to be clickable in any field of a form mode elicitation request.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Intent: the clause forbids URLs "intended to be clickable", and a form's `message` or a field's description may mention a URL for reference. A check for URL-shaped text would convict a server for mentioning a link, and the intent itself is not on the wire.
+
+### ELIC-083
+
+**SHOULD** · binds the server
+
+> MCP servers requesting elicitation: SHOULD use HTTPS URLs for non-development environments.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Its antecedent — that this is a non-development environment — is not in the trace. A loopback host suggests development without proving it, and a staging or internal host proves nothing either way, so an `http` URL is not by itself evidence of a violation. The scheme is recorded; the environment is not.
+
+### ELIC-084
+
+**MUST** · binds the client
+
+> Clients implementing URL mode elicitation MUST handle URLs carefully to prevent users from unknowingly clicking malicious links.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`).
+
+### ELIC-085
+
+**MUST NOT** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: MUST NOT automatically pre-fetch the URL or any of its metadata.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`).
+
+### ELIC-086
+
+**MUST NOT** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: MUST NOT open the URL without explicit consent from the user.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`).
+
+### ELIC-087
+
+**MUST** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: MUST show the full URL to the user for examination before consent.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-088
+
+**MUST** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: MUST open the URL provided by the server in a secure manner that does not enable the client or LLM to inspect the content or user inputs.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds what the client does with a URL outside the MCP session — fetching it, opening it, displaying it — none of which is a message the session carries. The reference host never dereferences an elicitation URL: it answers URL mode from its interaction script and records the id (`answer_elicitation`, `crates/mcp-reference-host/src/handler.rs`).
+
+### ELIC-089
+
+**SHOULD** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: SHOULD highlight the domain of the URL to mitigate subdomain spoofing.
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-090
+
+**SHOULD** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: SHOULD have warnings for ambiguous/suspicious URIs (i.e., containing Punycode).
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-091
+
+**SHOULD NOT** · binds the client
+
+> When handling URL mode elicitation requests, MCP clients: SHOULD NOT render URLs as clickable in any field of an elicitation request, except for the `url` field in a URL elicitation request (with the restrictions detailed above).
+
+[`client/elicitation#safe-url-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#safe-url-handling)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### ELIC-092
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT rely on client-provided user identification without server verification, as this can be forged.
+
+[`client/elicitation#identifying-the-user`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#identifying-the-user)
+
+**Excluded.** Server-internal: whether the server verified an identity before trusting it is a decision made with information — its authorization context — that the session's messages do not carry.
+
+### ELIC-093
+
+**SHOULD** · binds the server
+
+> Instead, servers SHOULD follow security best practices.
+
+[`client/elicitation#identifying-the-user`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#identifying-the-user)
+
+**Excluded.** Points to a separate document whose practices are server-internal; nothing in the session's messages shows which were followed.
+
+### ELIC-094
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT request sensitive information (passwords, API keys, etc.) via form mode
+
+[`client/elicitation#form-mode-security`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#form-mode-security)
+
+**Excluded.** Whether a requested field is "sensitive information" — the page's own definition is "secrets and credentials that grant access or authorize transactions" — is a judgement about meaning, not syntax: a schema property named `token` may be a display preference and one named `answer` may collect a password. A check would have to guess from field names, and a guess convicts conforming servers. The server's author decides it; nothing in the message settles it.
+
+### ELIC-095
+
+**SHOULD** · binds the client
+
+> Clients SHOULD validate all responses against the provided schema
+
+[`client/elicitation#form-mode-security`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#form-mode-security)
+
+Judged by `elicitation.response-matches-schema`.
+
+### ELIC-096
+
+**SHOULD** · binds the server
+
+> Servers SHOULD validate received data matches the requested schema
+
+[`client/elicitation#form-mode-security`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#form-mode-security)
+
+**Excluded.** Binds an act of validation, as MRTR-021 does: the server's outcome — accepting the data, re-asking, or failing — is the only thing that reaches the wire, and each is consistent with a server that validated and with one that did not.
+
+### ELIC-097
+
+**MUST** · binds the server
+
+> The MCP Server MUST verify the identity of the user who opens the URL before accepting information.
+
+[`client/elicitation#phishing`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#phishing)
+
+**Excluded.** Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it.
+
+### ELIC-098
+
+**MUST** · binds the server
+
+> To prevent this attack, the server MUST ensure that the user who started the elicitation request (the end-user who is accessing the server via the MCP client) is the same user who completes the authorization flow.
+
+[`client/elicitation#phishing`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#phishing)
+
+**Excluded.** Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it.
+
+### ELIC-099
+
+**MUST** · binds the server
+
+> In all implementations, the server MUST ensure that the mechanism to determine the user's identity is resilient to attacks where an attacker can modify the elicitation URL.
+
+[`client/elicitation#phishing`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#phishing)
+
+**Excluded.** Identity verification of the user who opens the URL happens between that user's browser and the server, outside the MCP session; the recording carries the URL the server sent and the client's `accept`, not who opened it.
+
+## SAMP
+
+### SAMP-021
+
+**SHOULD NOT** · binds the client and server
+
+> New implementations SHOULD NOT adopt it
+
+[`client/sampling`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling)
+
+**Excluded.** Whether an implementation is new is not in any message: a session using the feature is equally consistent with an existing implementation that has not yet migrated, which the sentence asks only to migrate.
+
+### SAMP-022
+
+**SHOULD** · binds the client and server
+
+> existing implementations SHOULD migrate to integrating directly with LLM provider APIs.
+
+[`client/sampling`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling)
+
+**Excluded.** Asks for a migration over time, which one recording cannot show either way — a session that uses the feature may come from an implementation partway through migrating, and the feature remains in the specification until removal.
+
+### SAMP-023
+
+**SHOULD** · binds the client
+
+> For trust & safety and security, there SHOULD always be a human in the loop with the ability to deny sampling requests.
+
+[`client/sampling#user-interaction-model`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#user-interaction-model)
+
+**Excluded.** Policy and UI: whether a human reviews sampling requests, and whether they can deny one, is the client application's design. A request answered with a result may have been approved by a person or by policy; nothing in the answer says which.
+
+### SAMP-024
+
+**SHOULD** · binds the client
+
+> Applications SHOULD: Provide UI that makes it easy and intuitive to review sampling requests; Allow users to view and edit prompts before sending; Present generated responses for review before delivery
+
+[`client/sampling#user-interaction-model`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#user-interaction-model)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### SAMP-025
+
+**MUST** · binds the client
+
+> Clients MUST declare support for tool use via the `sampling.tools` capability to receive tool-enabled sampling requests.
+
+[`client/sampling#tools-in-sampling`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#tools-in-sampling)
+
+**Excluded.** The precondition half of the sentence. A client that has not declared `sampling.tools` does nothing wrong by receiving a tool-enabled request — the server does, and the sentence's other half (`sampling.tools-declared`) judges it. Nothing the client sends can break this half: the declaration is either made or not, and its absence becomes a violation only when such a request arrives, which is the server's act.
+
+### SAMP-026
+
+**MUST NOT** · binds the server
+
+> Servers MUST NOT send tool-enabled sampling requests to Clients that have not declared support for tool use via the `sampling.tools` capability.
+
+[`client/sampling#tools-in-sampling`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#tools-in-sampling)
+
+Judged by `sampling.tools-declared`.
+
+### SAMP-027
+
+**MUST** · binds the client
+
+> Clients that support sampling MUST declare the `sampling` capability in `_meta.io.modelcontextprotocol/clientCapabilities` on each request:
+
+[`client/sampling#capabilities`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#capabilities)
+
+Judged by `sampling.client-declares-capability`.
+
+### SAMP-028
+
+**SHOULD** · binds the server
+
+> Servers SHOULD avoid using these values (e.g. can just omit `includeContext` since it defaults to `"none"`)
+
+[`client/sampling#capabilities`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#capabilities)
+
+Judged by `sampling.include-context-avoided`.
+
+### SAMP-029
+
+**SHOULD NOT** · binds the server
+
+> and SHOULD NOT use them unless the client declares `sampling.context` capability.
+
+[`client/sampling#capabilities`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#capabilities)
+
+Judged by `sampling.include-context-declared`.
+
+### SAMP-030
+
+**MUST** · binds the server
+
+> When a user message contains tool results (type: "tool_result"), it MUST contain ONLY tool results.
+
+[`client/sampling#tool-result-messages`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#tool-result-messages)
+
+Judged by `sampling.tool-results-only`.
+
+### SAMP-031
+
+**MUST** · binds the server
+
+> When using tool use in sampling, every assistant message containing `ToolUseContent` blocks MUST be followed by a user message that consists entirely of `ToolResultContent` blocks, with each tool use (e.g. with `id: $id`) matched by a corresponding tool result (with `toolUseId: $id`), before any other message.
+
+[`client/sampling#tool-use-and-result-balance`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#tool-use-and-result-balance)
+
+Judged by `sampling.tool-use-answered`.
+
+### SAMP-032
+
+**MUST** · binds the client
+
+> `{mode: "required"}`: Model MUST use at least one tool before completing
+
+[`client/sampling#tool-choice-modes`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#tool-choice-modes)
+
+Judged by `sampling.tool-choice-required-honoured`.
+
+### SAMP-033
+
+**MUST NOT** · binds the client
+
+> `{mode: "none"}`: Model MUST NOT use any tools
+
+[`client/sampling#tool-choice-modes`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#tool-choice-modes)
+
+Judged by `sampling.tool-choice-none-honoured`.
+
+### SAMP-034
+
+**MUST** · binds the client and server
+
+> Sampling messages MUST contain a `role` field of `"user"` or `"assistant"`; and a `content` field representing the message data.
+
+[`client/sampling#messages`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#messages)
+
+Judged by `sampling.message-shape`.
+
+### SAMP-035
+
+**SHOULD NOT** · binds the client
+
+> The list of messages in a sampling request SHOULD NOT be retained between separate requests.
+
+[`client/sampling#messages`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#messages)
+
+**Excluded.** Retention is client-internal state: the next request's `messages` are the server's, and say nothing about what the client kept from the last one.
+
+### SAMP-036
+
+**MUST** · binds the client
+
+> The client MUST respect the `maxTokens` parameter.
+
+[`client/sampling#sampling-parameters`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#sampling-parameters)
+
+**Excluded.** A bound in the model's tokens, and the tokenizer is the model's: a validator cannot count the tokens of a result's `content` without knowing which tokenizer produced it (the result's `model` names the model, not its vocabulary), so an over-long answer cannot be shown.
+
+### SAMP-037
+
+**SHOULD** · binds the client
+
+> Clients SHOULD implement user approval controls
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#security-considerations)
+
+**Excluded.** Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.
+
+### SAMP-038
+
+**SHOULD** · binds the client and server
+
+> Both parties SHOULD validate message content
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#security-considerations)
+
+**Excluded.** Validation is internal; its outcome is whatever each party sends next, and the shape of what they send is judged directly by the clauses that constrain it (tool-message balance, message roles).
+
+### SAMP-039
+
+**SHOULD** · binds the client
+
+> Clients SHOULD respect model preference hints
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#security-considerations)
+
+**Excluded.** Hints are advisory and mapping them is the client's choice (the page: clients "MAY map hints to equivalent models from different providers"); the result's `model` names what was used, but no rule says which model a hint selects, so no answer contradicts one.
+
+### SAMP-040
+
+**SHOULD** · binds the client
+
+> Clients SHOULD implement rate limiting
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#security-considerations)
+
+**Excluded.** A request schedule: rate limiting is measured in elapsed time, which checks may not consult (LIFE-015, the time boundary in `02-architecture.md`), and its threshold is the client's own policy.
+
+### SAMP-041
+
+**MUST** · binds the client and server
+
+> Both parties MUST handle sensitive data appropriately
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#security-considerations)
+
+**Excluded.** "Appropriately" names no observable criterion, and which data is sensitive is a semantic judgement about content (see the elicitation pages' sensitive-information clauses): no message can be shown to have mishandled it.
+
+### SAMP-042
+
+**MUST** · binds the server
+
+> Servers MUST ensure that when replying to a `stopReason: "toolUse"`, each `ToolUseContent` item is responded to with a `ToolResultContent` item with a matching `toolUseId`, and that the user message contains only tool results (no other content types)
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#security-considerations)
+
+Judged by `sampling.tool-use-answered`, `sampling.tool-results-only`.
+
+### SAMP-043
+
+**SHOULD** · binds the client and server
+
+> Both parties SHOULD implement iteration limits for tool loops
+
+[`client/sampling#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/sampling#security-considerations)
+
+**Excluded.** A limit on a loop's length is a policy whose threshold the page does not set: any finite loop in a recording is consistent with some limit, and an unbounded one cannot be recorded.
+
+## ROOT
+
+### ROOT-011
+
+**SHOULD NOT** · binds the client and server
+
+> New implementations SHOULD NOT adopt it
+
+[`client/roots`](https://modelcontextprotocol.io/specification/2026-07-28/client/roots)
+
+**Excluded.** Whether an implementation is new is not in any message: a session using the feature is equally consistent with an existing implementation that has not yet migrated, which the sentence asks only to migrate.
+
+### ROOT-012
+
+**SHOULD** · binds the client and server
+
+> existing implementations SHOULD migrate to passing directories or files via tool parameters, resource URIs, or server configuration.
+
+[`client/roots`](https://modelcontextprotocol.io/specification/2026-07-28/client/roots)
+
+**Excluded.** Asks for a migration over time, which one recording cannot show either way — a session that uses the feature may come from an implementation partway through migrating, and the feature remains in the specification until removal.
+
+### ROOT-013
+
+**MUST** · binds the client
+
+> Clients that support roots MUST declare the `roots` capability in `_meta.io.modelcontextprotocol/clientCapabilities` on each request:
+
+[`client/roots#capabilities`](https://modelcontextprotocol.io/specification/2026-07-28/client/roots#capabilities)
+
+Judged by `roots.client-declares-capability`.
+
+### ROOT-014
+
+**MUST** · binds the client
+
+> `uri`: Unique identifier for the root. This MUST be a `file://` URI in the current specification.
+
+[`client/roots#root`](https://modelcontextprotocol.io/specification/2026-07-28/client/roots#root)
+
+Judged by `roots.uri-file-scheme`.
+
+### ROOT-015
+
+**MUST** · binds the client
+
+> Clients MUST: Only expose roots with appropriate permissions; Validate all root URIs to prevent path traversal; Implement proper access controls; Monitor root accessibility
+
+[`client/roots#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/roots#security-considerations)
+
+**Excluded.** Client-internal policy: which directories the user permitted, how paths are validated and accessed, and whether they remain reachable are facts about the client's host system, not its messages. The one part a message carries — the URI's form — is judged by `roots.uri-file-scheme`; a `file://` URI with `..` segments is still well formed, and whether it escapes a permitted directory depends on the filesystem.
+
+### ROOT-016
+
+**SHOULD** · binds the server
+
+> Servers SHOULD: Handle cases where roots become unavailable; Respect root boundaries during operations; Validate all paths against provided roots
+
+[`client/roots#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/client/roots#security-considerations)
+
+**Excluded.** Server-internal: what the server does with roots — keeping within their boundaries, validating paths against them, coping when they vanish or change, caching them — happens in its own operations on its host, which the MCP session does not record.
+
+### ROOT-017
+
+**SHOULD** · binds the client
+
+> Clients SHOULD: Prompt users for consent before exposing roots to servers; Provide clear user interfaces for root management; Validate root accessibility before exposing; Monitor for root changes
+
+[`client/roots#implementation-guidelines`](https://modelcontextprotocol.io/specification/2026-07-28/client/roots#implementation-guidelines)
+
+**Excluded.** UI and internal monitoring: consent prompts and root-management screens are the client's interface, and checking or watching roots' accessibility happens on its filesystem. A recording carries only the roots it finally reported.
+
+### ROOT-018
+
+**SHOULD** · binds the server
+
+> Servers SHOULD: Check for roots capability before usage
+
+[`client/roots#implementation-guidelines`](https://modelcontextprotocol.io/specification/2026-07-28/client/roots#implementation-guidelines)
+
+Judged by `roots.capability-checked`.
+
+### ROOT-019
+
+**SHOULD** · binds the server
+
+> Servers SHOULD: Respect root boundaries in operations; Cache root information appropriately
+
+[`client/roots#implementation-guidelines`](https://modelcontextprotocol.io/specification/2026-07-28/client/roots#implementation-guidelines)
+
+**Excluded.** Server-internal: what the server does with roots — keeping within their boundaries, validating paths against them, coping when they vanish or change, caching them — happens in its own operations on its host, which the MCP session does not record.
+
+## AUTH
+
+### AUTH-086
+
+**SHOULD** · binds the client and server
+
+> Implementations using an HTTP-based transport SHOULD conform to this specification.
+
+[`basic/authorization/index#protocol-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#protocol-requirements)
+
+**Excluded.** Conformance to the pages as a whole is what their own entries judge, clause by clause; the sentence adds no property of a message beyond them. It binds only implementations that support authorization at all, which the page makes OPTIONAL. Same sentence as BASE-068 on the basic page.
+
+### AUTH-087
+
+**SHOULD NOT** · binds the client and server
+
+> Implementations using an STDIO transport SHOULD NOT follow this specification, and instead retrieve credentials from the environment.
+
+[`basic/authorization/index#protocol-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#protocol-requirements)
+
+**Excluded.** A stdio session has no HTTP layer for a challenge or a token header to appear in, so a recording cannot show the specification being followed there; retrieving credentials from the environment is process-local conduct with no wire footprint. Same sentence as BASE-068 on the basic page.
+
+### AUTH-088
+
+**MUST** · binds the client and server
+
+> Implementations using alternative transports MUST follow established security best practices for their protocol.
+
+[`basic/authorization/index#protocol-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#protocol-requirements)
+
+**Excluded.** Binds transports other than the two this revision defines, which no recording of an MCP session over stdio or Streamable HTTP carries, and names no practice a check could hold a message to.
+
+### AUTH-089
+
+**MUST** · binds the server
+
+> Authorization servers MUST implement OAuth 2.1 with appropriate security measures for both confidential and public clients.
+
+[`basic/authorization/index#overview`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#overview)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-090
+
+**SHOULD** · binds the client and server
+
+> Authorization servers and MCP clients SHOULD support OAuth Client ID Metadata Documents
+
+[`basic/authorization/index#overview`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#overview)
+
+**Excluded.** Support for a client registration mechanism is exercised between the client and the authorization server, off the MCP endpoint. Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-091
+
+**MUST** · binds the server
+
+> MCP servers MUST implement OAuth 2.0 Protected Resource Metadata (RFC9728).
+
+[`basic/authorization/index#overview`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#overview)
+
+**Excluded.** The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+
+### AUTH-092
+
+**MUST** · binds the client
+
+> MCP clients MUST use OAuth 2.0 Protected Resource Metadata for authorization server discovery.
+
+[`basic/authorization/index#overview`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#overview)
+
+**Excluded.** Which document a client used to find its authorization server is visible only in fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+
+### AUTH-093
+
+**MUST** · binds the server
+
+> MCP authorization servers MUST provide at least one of the following discovery mechanisms:
+
+[`basic/authorization/index#overview`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#overview)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-094
+
+**MUST** · binds the client
+
+> MCP clients MUST support both discovery mechanisms to obtain the information required to interact with the authorization server.
+
+[`basic/authorization/index#overview`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#overview)
+
+**Excluded.** Conduct inside the client's OAuth flow (authorization server metadata discovery), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-095
+
+**MUST** · binds the client and server
+
+> Implementations MUST follow the normative discovery requirements defined in Authorization Server Discovery.
+
+[`basic/authorization/index#authorization-server-discovery`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#authorization-server-discovery)
+
+**Excluded.** Points at requirements stated elsewhere (the authorization-server-discovery page), each entered under its own id there; the sentence adds no obligation a recording could show apart from them.
+
+### AUTH-096
+
+**MUST** · binds the client
+
+> Before initiating the authorization flow, MCP clients MUST obtain a client ID through one of three registration mechanisms: Client ID Metadata Documents, pre-registration, or Dynamic Client Registration, following the requirements and selection priority defined in Client Registration.
+
+[`basic/authorization/index#client-registration`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#client-registration)
+
+**Excluded.** Conduct inside the client's OAuth flow (client registration), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-097
+
+**SHOULD** · binds the server
+
+> MCP servers SHOULD include a `scope` parameter in the `WWW-Authenticate` header as defined in RFC 6750 Section 3 to indicate the scopes required for accessing the resource.
+
+[`basic/authorization/index#scope-selection-strategy`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#scope-selection-strategy)
+
+Judged by `auth.challenge-scope`.
+
+### AUTH-098
+
+**MUST NOT** · binds the client
+
+> Clients MUST NOT assume any particular set relationship between the challenged scope set and `scopes_supported`.
+
+[`basic/authorization/index#scope-selection-strategy`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#scope-selection-strategy)
+
+**Excluded.** Conduct inside the client's OAuth flow (the scope it requests, whatever it assumes about `scopes_supported`), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-099
+
+**MUST** · binds the client
+
+> Clients MUST treat the scopes provided in the challenge as authoritative for the current operation.
+
+[`basic/authorization/index#scope-selection-strategy`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#scope-selection-strategy)
+
+**Excluded.** Conduct inside the client's OAuth flow (the scope it requests in its authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-100
+
+**SHOULD** · binds the client
+
+> When re-authorizing, clients SHOULD include these scopes alongside any previously granted scopes to avoid losing permissions needed for other operations
+
+[`basic/authorization/index#scope-selection-strategy`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#scope-selection-strategy)
+
+**Excluded.** Conduct inside the client's OAuth flow (the scope of its re-authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-101
+
+**SHOULD** · binds the server
+
+> Servers SHOULD strive for consistency in how they construct scope sets but they are not required to surface every dynamically issued scope through `scopes_supported`.
+
+[`basic/authorization/index#scope-selection-strategy`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#scope-selection-strategy)
+
+**Excluded.** Striving for consistency is a design aim, not a property any one challenge has, and challenges for different operations legitimately name different scopes; `scopes_supported` lives in the Protected Resource Metadata document, which a recording does not carry.
+
+### AUTH-102
+
+**SHOULD** · binds the client
+
+> When implementing authorization flows, MCP clients SHOULD follow the principle of least privilege by requesting only the scopes necessary for their intended operations.
+
+[`basic/authorization/index#scope-selection-strategy`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#scope-selection-strategy)
+
+**Excluded.** Conduct inside the client's OAuth flow (the scope of its authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-103
+
+**SHOULD** · binds the client
+
+> During the initial authorization handshake, MCP clients SHOULD follow this priority order for scope selection:
+
+[`basic/authorization/index#scope-selection-strategy`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#scope-selection-strategy)
+
+**Excluded.** Conduct inside the client's OAuth flow (the scope of its authorization request), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-104
+
+**MUST** · binds the client
+
+> Before redirecting the user-agent, the client MUST record the `issuer` value from the selected authorization server's validated metadata document (see Authorization Server Metadata Discovery) and associate it with the same per-request record used to store the PKCE code verifier (and the `state` value, if used).
+
+[`basic/authorization/index#authorization-response-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#authorization-response-validation)
+
+**Excluded.** Conduct inside the client's OAuth flow (the issuer it records beside its PKCE verifier, which is the client's own state), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-105
+
+**SHOULD** · binds the server
+
+> MCP authorization servers SHOULD include the `iss` parameter in authorization responses, including error responses, as defined in RFC9207 Section 2.
+
+[`basic/authorization/index#authorization-response-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#authorization-response-validation)
+
+**Excluded.** Authorization responses reach the client through the user's browser. Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-106
+
+**MUST** · binds the server
+
+> Authorization servers that include the `iss` parameter MUST advertise this by setting `authorization_response_iss_parameter_supported` to `true` in their metadata (RFC9207 Section 2.3).
+
+[`basic/authorization/index#authorization-response-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#authorization-response-validation)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-107
+
+**MUST** · binds the client
+
+> On receiving the authorization response, MCP clients MUST apply the validation in RFC9207 Section 2.4 before transmitting the authorization code to any token endpoint:
+
+[`basic/authorization/index#authorization-response-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#authorization-response-validation)
+
+**Excluded.** Conduct inside the client's OAuth flow (the authorization response's `iss` and the issuer recorded for it), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-108
+
+**SHOULD** · binds the server
+
+> A future revision of this specification is expected to upgrade authorization server inclusion of `iss` from SHOULD to MUST.
+
+[`basic/authorization/index#authorization-response-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#authorization-response-validation)
+
+**Excluded.** Names the two keywords to describe a future revision's intent; it binds no party at this one. The obligation it refers to is the authorization server's SHOULD entered above, excluded for the reason given there.
+
+### AUTH-109
+
+**MUST NOT** · binds the client
+
+> After decoding the `iss` value from the `application/x-www-form-urlencoded` response per RFC 9207 Section 2.4, clients MUST NOT apply scheme or host case folding, default-port elision, trailing-slash, or percent-encoding normalization (RFC 3986 Sections 6.2.2-6.2.3) before comparison.
+
+[`basic/authorization/index#authorization-response-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#authorization-response-validation)
+
+**Excluded.** Conduct inside the client's OAuth flow (the authorization response's `iss` and the issuer recorded for it), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-110
+
+**MUST NOT** · binds the client
+
+> This validation applies equally to error responses - on mismatch the client MUST NOT act on or display `error`, `error_description`, or `error_uri`.
+
+[`basic/authorization/index#authorization-response-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#authorization-response-validation)
+
+**Excluded.** Conduct inside the client's OAuth flow (the authorization response's `iss` and the issuer recorded for it), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records. Displaying an error is user interface besides.
+
+### AUTH-111
+
+**MUST** · binds the client
+
+> MCP clients MUST implement Resource Indicators for OAuth 2.0 as defined in RFC 8707 to explicitly specify the target resource for which the token is being requested.
+
+[`basic/authorization/index#resource-parameter-implementation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#resource-parameter-implementation)
+
+**Excluded.** Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-112
+
+**MUST** · binds the client
+
+> The `resource` parameter: MUST be included in both authorization requests and token requests.; MUST identify the MCP server that the client intends to use the token with.; MUST use the canonical URI of the MCP server as defined in RFC 8707 Section 2.
+
+[`basic/authorization/index#resource-parameter-implementation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#resource-parameter-implementation)
+
+**Excluded.** Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-113
+
+**SHOULD** · binds the client
+
+> MCP clients SHOULD provide the most specific URI that they can for the MCP server they intend to access, following the guidance in RFC 8707.
+
+[`basic/authorization/index#canonical-server-uri`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#canonical-server-uri)
+
+**Excluded.** Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-114
+
+**SHOULD** · binds the client and server
+
+> While the canonical form uses lowercase scheme and host components, implementations SHOULD accept uppercase scheme and host components for robustness and interoperability.
+
+[`basic/authorization/index#canonical-server-uri`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#canonical-server-uri)
+
+**Excluded.** Accepting a URI is a comparison made by whoever receives the `resource` parameter or validates a token's audience — the authorization server, or the MCP server inside its validation — and neither comparison is a message on the MCP endpoint.
+
+### AUTH-115
+
+**SHOULD** · binds the client and server
+
+> While both `https://mcp.example.com/` (with trailing slash) and `https://mcp.example.com` (without trailing slash) are technically valid absolute URIs according to RFC 3986, implementations SHOULD consistently use the form without the trailing slash for better interoperability unless the trailing slash is semantically significant for the specific resource.
+
+[`basic/authorization/index#canonical-server-uri`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#canonical-server-uri)
+
+**Excluded.** The canonical URI's spelling appears in the `resource` parameter of requests to the authorization server and in token audiences, neither of which a recording of the MCP endpoint carries; and an `http` event records no request target, so not even the endpoint URL the client used is there.
+
+### AUTH-116
+
+**MUST** · binds the client
+
+> MCP clients MUST send this parameter regardless of whether authorization servers support it.
+
+[`basic/authorization/index#canonical-server-uri`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#canonical-server-uri)
+
+**Excluded.** Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-117
+
+**MUST** · binds the client
+
+> Access token handling when making requests to MCP servers MUST conform to the requirements defined in OAuth 2.1 Section 5 "Resource Requests".
+
+[`basic/authorization/index#token-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-requirements)
+
+**Excluded.** `Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording. The section's other requirement, no token in the query string, has its own entry.
+
+### AUTH-118
+
+**MUST** · binds the client
+
+> MCP client MUST use the Authorization request header field defined in OAuth 2.1 Section 5.1.1:
+
+[`basic/authorization/index#token-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-requirements)
+
+**Excluded.** `Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording.
+
+### AUTH-119
+
+**MUST** · binds the client
+
+> Note that authorization MUST be included in every HTTP request from client to server.
+
+[`basic/authorization/index#token-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-requirements)
+
+**Excluded.** `Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording. A 401 to a request does not settle it either: an expired token draws the same answer as a missing one.
+
+### AUTH-120
+
+**MUST NOT** · binds the client
+
+> Access tokens MUST NOT be included in the URI query string
+
+[`basic/authorization/index#token-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-requirements)
+
+**Excluded.** An `http` event records the method, status and allowlisted headers, and no request target: neither the path nor the query string a request was sent to is in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs.
+
+### AUTH-121
+
+**MUST** · binds the server
+
+> MCP servers, acting in their role as an OAuth 2.1 resource server, MUST validate access tokens as described in OAuth 2.1 Section 5.2.
+
+[`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
+
+**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+
+### AUTH-122
+
+**MUST** · binds the server
+
+> MCP servers MUST validate that access tokens were issued specifically for them as the intended audience, according to RFC 8707 Section 2.
+
+[`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
+
+**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+
+### AUTH-123
+
+**MUST** · binds the server
+
+> If validation fails, servers MUST respond according to OAuth 2.1 Section 5.3 error handling requirements.
+
+[`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
+
+**Excluded.** Whether validation failed is decided inside the server, against a token the recording never holds, and the sentence imports OAuth 2.1 Section 5.3 wholesale. What a recording can hold the response to is the page's own statement of it: the status each declared error receives and the 401 for an invalid token, judged by `auth.error-status` and `auth.invalid-token-401`.
+
+### AUTH-124
+
+**MUST** · binds the server
+
+> Invalid or expired tokens MUST receive a HTTP 401 response.
+
+[`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
+
+Judged by `auth.invalid-token-401`.
+
+### AUTH-125
+
+**MUST NOT** · binds the client
+
+> MCP clients MUST NOT send tokens to the MCP server other than ones issued by the MCP server's authorization server.
+
+[`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
+
+**Excluded.** `Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording.
+
+### AUTH-126
+
+**MUST** · binds the server
+
+> MCP servers MUST only accept tokens that are valid for use with their own resources.
+
+[`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
+
+**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+
+### AUTH-127
+
+**MUST NOT** · binds the server
+
+> MCP servers MUST NOT accept or transit any other tokens.
+
+[`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
+
+**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. Transiting a token is a request to an upstream service, outside the MCP session.
+
+### AUTH-128
+
+**MUST** · binds the client
+
+> MCP Clients that desire refresh tokens: MUST keep refresh tokens confidential in transit and storage as specified in OAuth 2.1 Section 4.3; SHOULD include `refresh_token` in their `grant_types` client metadata; MUST NOT assume refresh tokens will be issued; the AS retains discretion
+
+[`basic/authorization/index#refresh-tokens`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#refresh-tokens)
+
+**Excluded.** Refresh tokens are issued and redeemed at the authorization server's token endpoint and kept in the client's storage; client metadata is registered with the authorization server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-129
+
+**SHOULD NOT** · binds the server
+
+> MCP Servers (Protected Resources) SHOULD NOT include `offline_access` in `WWW-Authenticate` scope or Protected Resource Metadata `scopes_supported`, as refresh tokens are not a resource requirement.
+
+[`basic/authorization/index#refresh-tokens`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#refresh-tokens)
+
+Judged by `auth.no-offline-access-challenge`.
+
+### AUTH-130
+
+**MUST** · binds the server
+
+> Servers MUST return appropriate HTTP status codes for authorization errors
+
+[`basic/authorization/index#error-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#error-handling)
+
+Judged by `auth.error-status`.
+
+### AUTH-131
+
+**SHOULD** · binds the server
+
+> When a client makes a request with an access token with insufficient scope during runtime operations, the server SHOULD respond with: `HTTP 403 Forbidden` status code (per RFC 6750 Section 3.1); `WWW-Authenticate` header with the `Bearer` scheme and additional parameters: `error="insufficient_scope"` - indicating the specific type of authorization failure; `scope="required_scope1 required_scope2"` - specifying the minimum scopes needed for the operation; `resource_metadata` - the URI of the Protected Resource Metadata document (for consistency with 401 responses)
+
+[`basic/authorization/index#runtime-insufficient-scope-errors`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#runtime-insufficient-scope-errors)
+
+Judged by `auth.insufficient-scope-response`.
+
+### AUTH-132
+
+**SHOULD** · binds the server
+
+> Server Scope Management: When responding with insufficient scope errors, servers SHOULD include the scopes needed to satisfy the current operation in the `scope` parameter, consistent with RFC 6750 Section 3.1.
+
+[`basic/authorization/index#runtime-insufficient-scope-errors`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#runtime-insufficient-scope-errors)
+
+Judged by `auth.insufficient-scope-names-scopes`.
+
+### AUTH-133
+
+**SHOULD** · binds the server
+
+> Whatever scope-inclusion strategy a server adopts, servers SHOULD include all scopes required for the current operation in a single challenge.
+
+[`basic/authorization/index#runtime-insufficient-scope-errors`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#runtime-insufficient-scope-errors)
+
+Judged by `auth.single-challenge`.
+
+### AUTH-134
+
+**SHOULD** · binds the server
+
+> Servers SHOULD be consistent in their scope inclusion strategy to provide predictable behavior for clients.
+
+[`basic/authorization/index#runtime-insufficient-scope-errors`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#runtime-insufficient-scope-errors)
+
+**Excluded.** A strategy is a policy over every challenge the server issues, across sessions and users; one recording shows a few challenges for different operations, which legitimately name different scopes, and cannot tell an inconsistent strategy from a consistent one applied to different requests.
+
+### AUTH-135
+
+**SHOULD** · binds the server
+
+> Servers SHOULD consider the user experience impact when determining which scopes to include in the response, as misconfigured scopes may require frequent user interaction.
+
+[`basic/authorization/index#runtime-insufficient-scope-errors`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#runtime-insufficient-scope-errors)
+
+**Excluded.** Binds the server's deliberation, not a message: a challenge shows the scopes chosen, not whether their user experience impact was weighed.
+
+### AUTH-136
+
+**SHOULD** · binds the client
+
+> Clients SHOULD respond to these errors by requesting a new access token with an increased set of scopes via a step-up authorization flow or handle the errors in other, appropriate ways.
+
+[`basic/authorization/index#step-up-authorization-flow`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#step-up-authorization-flow)
+
+**Excluded.** Conduct inside the client's OAuth flow (the token request a step-up makes), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records. The clause also admits "other, appropriate ways", which no message distinguishes.
+
+### AUTH-137
+
+**SHOULD** · binds the client
+
+> Clients acting on behalf of a user SHOULD attempt the step-up authorization flow.
+
+[`basic/authorization/index#step-up-authorization-flow`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#step-up-authorization-flow)
+
+**Excluded.** Whether a client acts on behalf of a user or on its own (`client_credentials`) is a fact about its grant, which no MCP message states. Conduct inside the client's OAuth flow (the step-up re-authorization), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-138
+
+**SHOULD** · binds the client
+
+> Clients SHOULD implement retry limits and SHOULD track scope upgrade attempts to avoid repeated failures for the same resource and operation combination.
+
+[`basic/authorization/index#step-up-authorization-flow`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#step-up-authorization-flow)
+
+**Excluded.** A limit is a property of the client's implementation, which a session that simply stops retrying satisfies whatever the limit is; the page fixes no number ("no more than a few times") a recording could be held to, and the attempts tracked are re-authorizations off the MCP endpoint.
+
+### AUTH-139
+
+**MUST** · binds the server
+
+> Servers MUST account for scope hierarchies, where a broader scope implies narrower ones, when deciding whether a token is sufficient for an operation.
+
+[`basic/authorization/index#step-up-authorization-flow`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#step-up-authorization-flow)
+
+**Excluded.** The decision is made inside the server from the scopes a token carries, and the token is never recorded; a challenge shows the outcome, not the scopes it was decided against.
+
+### AUTH-140
+
+**MUST** · binds the client and server
+
+> Implementations of this specification MUST follow the normative security requirements in Security Considerations
+
+[`basic/authorization/index#security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#security-considerations)
+
+**Excluded.** Points at requirements stated elsewhere (the security-considerations page), each entered under its own id there; the sentence adds no obligation a recording could show apart from them.
+
+### AUTH-141
+
+**MUST** · binds the server
+
+> MCP servers MUST implement the OAuth 2.0 Protected Resource Metadata (RFC9728) specification to indicate the locations of authorization servers.
+
+[`basic/authorization/authorization-server-discovery#authorization-server-location`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery#authorization-server-location)
+
+**Excluded.** The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+
+### AUTH-142
+
+**MUST** · binds the server
+
+> The Protected Resource Metadata document returned by the MCP server MUST include the `authorization_servers` field containing at least one authorization server.
+
+[`basic/authorization/authorization-server-discovery#authorization-server-location`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery#authorization-server-location)
+
+**Excluded.** The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+
+### AUTH-143
+
+**MUST** · binds the client
+
+> Clients MUST maintain separate registration state (client credentials, tokens) per authorization server and MUST NOT assume that credentials valid for one authorization server will be accepted by another.
+
+[`basic/authorization/authorization-server-discovery#authorization-server-location`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery#authorization-server-location)
+
+**Excluded.** Registration state is the client's own storage, and the credentials it holds are presented to authorization servers off the MCP endpoint — or, as tokens, in the `Authorization` header a recording never keeps.
+
+### AUTH-144
+
+**MUST** · binds the server
+
+> MCP servers MUST implement one of the following discovery mechanisms to provide authorization server location information to MCP clients:
+
+[`basic/authorization/authorization-server-discovery#protected-resource-metadata-discovery-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery#protected-resource-metadata-discovery-requirements)
+
+**Excluded.** A disjunction whose second branch a recording cannot witness. A 401 whose challenge carries no `resource_metadata` is conforming when the server serves the well-known document instead, and that document is not in the trace: The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+
+### AUTH-145
+
+**MUST** · binds the client
+
+> MCP clients MUST support both discovery mechanisms and use the resource metadata URL from the parsed `WWW-Authenticate` headers when present; otherwise, they MUST fall back to constructing and requesting the well-known URIs in the order listed above.
+
+[`basic/authorization/authorization-server-discovery#protected-resource-metadata-discovery-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery#protected-resource-metadata-discovery-requirements)
+
+**Excluded.** Which URLs the client requested next, and in what order, are fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+
+### AUTH-146
+
+**MUST** · binds the client
+
+> MCP clients MUST be able to parse `WWW-Authenticate` headers and respond appropriately to `HTTP 401 Unauthorized` responses from the MCP server.
+
+[`basic/authorization/authorization-server-discovery#protected-resource-metadata-discovery-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery#protected-resource-metadata-discovery-requirements)
+
+**Excluded.** Conduct inside the client's OAuth flow (parsing the challenge, then the discovery, authorization and token requests that are the appropriate response to a 401), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-147
+
+**MUST** · binds the client
+
+> To handle different issuer URL formats and ensure interoperability with both OAuth 2.0 Authorization Server Metadata and OpenID Connect Discovery 1.0 specifications, MCP clients MUST attempt multiple well-known endpoints when discovering authorization server metadata.
+
+[`basic/authorization/authorization-server-discovery#authorization-server-metadata-discovery`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery#authorization-server-metadata-discovery)
+
+**Excluded.** Requests to the authorization server's well-known endpoints, and what the client does with the documents they return. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-148
+
+**MUST** · binds the client
+
+> For issuer URLs with path components (e.g., `https://auth.example.com/tenant1`), clients MUST try endpoints in the following priority order:
+
+[`basic/authorization/authorization-server-discovery#authorization-server-metadata-discovery`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery#authorization-server-metadata-discovery)
+
+**Excluded.** Requests to the authorization server's well-known endpoints, and what the client does with the documents they return. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-149
+
+**MUST** · binds the client
+
+> For issuer URLs without path components (e.g., `https://auth.example.com`), clients MUST try:
+
+[`basic/authorization/authorization-server-discovery#authorization-server-metadata-discovery`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery#authorization-server-metadata-discovery)
+
+**Excluded.** Requests to the authorization server's well-known endpoints, and what the client does with the documents they return. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-150
+
+**MUST** · binds the client
+
+> After retrieving a metadata document, MCP clients MUST validate it as required by RFC8414 Section 3.3 or OpenID Connect Discovery Section 4.3: the `issuer` value in the document MUST be identical to the issuer identifier used to construct the well-known URL. If they differ, the client MUST NOT use the metadata. For example, a document fetched from `https://attacker.example/.well-known/oauth-authorization-server` that contains `"issuer": "https://honest.example"` MUST be rejected.
+
+[`basic/authorization/authorization-server-discovery#authorization-server-metadata-discovery`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery#authorization-server-metadata-discovery)
+
+**Excluded.** Requests to the authorization server's well-known endpoints, and what the client does with the documents they return. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-151
+
+**SHOULD** · binds the client
+
+> Clients supporting all options SHOULD use the following priority order:
+
+[`basic/authorization/client-registration`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration)
+
+**Excluded.** Conduct inside the client's OAuth flow (choosing a registration mechanism), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-152
+
+**SHOULD** · binds the client and server
+
+> MCP clients and authorization servers SHOULD support OAuth Client ID Metadata Documents as specified in OAuth Client ID Metadata Document for client registration.
+
+[`basic/authorization/client-registration#client-id-metadata-documents`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#client-id-metadata-documents)
+
+**Excluded.** Support for a client registration mechanism is exercised between the client and the authorization server, off the MCP endpoint. Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-153
+
+**MUST** · binds the client and server
+
+> MCP implementations supporting Client ID Metadata Documents MUST follow the requirements specified in OAuth Client ID Metadata Document.
+
+[`basic/authorization/client-registration#implementation-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#implementation-requirements)
+
+**Excluded.** Points at requirements stated elsewhere (the Client ID Metadata Document draft, and the two lists that follow on this page), each entered under its own id there; the sentence adds no obligation a recording could show apart from them.
+
+### AUTH-154
+
+**MUST** · binds the client
+
+> Clients MUST host their metadata document at an HTTPS URL following RFC requirements; The `client_id` URL MUST use the "https" scheme and contain a path component, e.g. `https://example.com/client.json`; The metadata document MUST include at least the following properties: `client_id`, `client_name`, `redirect_uris`; Clients MUST ensure the `client_id` value in the metadata matches the document URL exactly
+
+[`basic/authorization/client-registration#implementation-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#implementation-requirements)
+
+**Excluded.** The metadata document is hosted by the client and fetched by the authorization server; neither request touches the MCP endpoint, and the `client_id` travels in the authorization request. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-155
+
+**MUST** · binds the server
+
+> For Authorization Servers: SHOULD fetch metadata documents when encountering URL-formatted client_ids; MUST validate that the fetched document's `client_id` matches the URL exactly; SHOULD cache metadata respecting HTTP cache headers; MUST validate redirect URIs presented in an authorization request against those in the metadata document; MUST validate the document structure is valid JSON and contains required fields; SHOULD follow the security considerations in Section 6 of Client ID Metadata Document and in Client ID Metadata Document Security
+
+[`basic/authorization/client-registration#implementation-requirements`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#implementation-requirements)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-156
+
+**SHOULD** · binds the client
+
+> MCP clients SHOULD check for this capability and MAY fall back to Dynamic Client Registration or pre-registration if unavailable.
+
+[`basic/authorization/client-registration#advertising-cimd-support`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#advertising-cimd-support)
+
+**Excluded.** Conduct inside the client's OAuth flow (reading authorization server metadata and choosing a registration mechanism), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-157
+
+**SHOULD** · binds the client
+
+> MCP clients SHOULD support an option for static client credentials such as those supplied by a pre-registration flow.
+
+[`basic/authorization/client-registration#pre-registration`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#pre-registration)
+
+**Excluded.** A configuration option of the client, exercised against the authorization server; no MCP message shows whether the option exists.
+
+### AUTH-158
+
+**MUST** · binds the client
+
+> MCP clients MUST specify an appropriate `application_type` during Dynamic Client Registration.
+
+[`basic/authorization/client-registration#application-type-and-redirect-uri-constraints`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#application-type-and-redirect-uri-constraints)
+
+**Excluded.** Conduct inside the client's OAuth flow (Dynamic Client Registration with the authorization server), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-159
+
+**SHOULD** · binds the client
+
+> Native applications (desktop applications, mobile apps, CLI tools, and locally-hosted web applications accessed via `localhost`) SHOULD use `application_type: "native"`; Web applications (remote browser-based applications served from a non-local host) SHOULD use `application_type: "web"`
+
+[`basic/authorization/client-registration#application-type-and-redirect-uri-constraints`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#application-type-and-redirect-uri-constraints)
+
+**Excluded.** Conduct inside the client's OAuth flow (Dynamic Client Registration with the authorization server), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records. Which kind of application the client is, is not stated anywhere a recording reaches either.
+
+### AUTH-160
+
+**MUST** · binds the client
+
+> MCP clients MUST be prepared to handle registration failures due to redirect URI constraints when authorization servers implement OIDC.
+
+[`basic/authorization/client-registration#application-type-and-redirect-uri-constraints`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#application-type-and-redirect-uri-constraints)
+
+**Excluded.** Conduct inside the client's OAuth flow (Dynamic Client Registration with the authorization server), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-161
+
+**SHOULD** · binds the client
+
+> When a registration request is rejected, clients SHOULD surface a meaningful error to the user or developer.
+
+[`basic/authorization/client-registration#application-type-and-redirect-uri-constraints`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#application-type-and-redirect-uri-constraints)
+
+**Excluded.** Conduct inside the client's OAuth flow (Dynamic Client Registration with the authorization server), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records. Surfacing an error is user interface besides.
+
+### AUTH-162
+
+**MUST** · binds the client
+
+> Clients that use pre-registered credentials, or persist client credentials obtained via Dynamic Client Registration, MUST associate those credentials with the specific authorization server that issued them, keyed by the authorization server's `issuer` identifier.
+
+[`basic/authorization/client-registration#authorization-server-binding`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#authorization-server-binding)
+
+**Excluded.** Client credentials are the client's own stored state, presented to authorization servers off the MCP endpoint. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-163
+
+**MUST NOT** · binds the client
+
+> When the authorization server changes (detected via updated protected resource metadata), clients MUST NOT reuse client credentials from a different authorization server and MUST re-register with the new authorization server.
+
+[`basic/authorization/client-registration#authorization-server-binding`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#authorization-server-binding)
+
+**Excluded.** Client credentials are the client's own stored state, presented to authorization servers off the MCP endpoint. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct. The change itself is detected in Protected Resource Metadata, which a recording does not carry.
+
+### AUTH-164
+
+**SHOULD** · binds the client
+
+> If the authorization server indicated by protected resource metadata no longer matches the one the credentials were registered with, clients SHOULD surface an error rather than silently attempting to use mismatched credentials.
+
+[`basic/authorization/client-registration#authorization-server-binding`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#authorization-server-binding)
+
+**Excluded.** Client credentials are the client's own stored state, presented to authorization servers off the MCP endpoint. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct. Surfacing an error is user interface besides.
+
+### AUTH-165
+
+**MUST** · binds the client and server
+
+> This document outlines security requirements that implementers MUST consider when building MCP clients and servers.
+
+[`basic/authorization/security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations)
+
+**Excluded.** Points at requirements stated elsewhere (the sections of this page), each entered under its own id there; the sentence adds no obligation a recording could show apart from them.
+
+### AUTH-166
+
+**MUST** · binds the client and server
+
+> Additionally, implementors MUST follow OAuth 2.1 security best practices as outlined in OAuth 2.1 Section 7. "Security Considerations".
+
+[`basic/authorization/security-considerations`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations)
+
+**Excluded.** Imports OAuth 2.1 Section 7 wholesale. Its observable consequences for an MCP exchange are the challenge clauses this page states itself, judged under their own ids; the rest is implementation conduct (storage, transport configuration, the OAuth flow) with no footprint on the MCP endpoint.
+
+### AUTH-167
+
+**MUST** · binds the client
+
+> MCP clients MUST include the `resource` parameter in authorization and token requests as specified in the Resource Parameter Implementation section
+
+[`basic/authorization/security-considerations#token-audience-binding-and-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#token-audience-binding-and-validation)
+
+**Excluded.** Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-168
+
+**MUST** · binds the server
+
+> MCP servers MUST validate that tokens presented to them were specifically issued for their use
+
+[`basic/authorization/security-considerations#token-audience-binding-and-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#token-audience-binding-and-validation)
+
+**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+
+### AUTH-169
+
+**MUST** · binds the client and server
+
+> Clients and servers MUST implement secure token storage and follow OAuth best practices, as outlined in OAuth 2.1, Section 7.1.
+
+[`basic/authorization/security-considerations#token-theft`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#token-theft)
+
+**Excluded.** Token storage is local state of each party, and a token is never recorded: nothing on the wire shows how either party keeps one.
+
+### AUTH-170
+
+**SHOULD** · binds the server
+
+> Authorization servers SHOULD issue short-lived access tokens to reduce the impact of leaked tokens.
+
+[`basic/authorization/security-considerations#token-theft`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#token-theft)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-171
+
+**MUST** · binds the server
+
+> For public clients, authorization servers MUST rotate refresh tokens as described in OAuth 2.1 Section 4.3.1 "Token Endpoint Extension".
+
+[`basic/authorization/security-considerations#token-theft`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#token-theft)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-172
+
+**MUST** · binds the client and server
+
+> Implementations MUST follow OAuth 2.1 Section 1.5 "Communication Security".
+
+[`basic/authorization/security-considerations#communication-security`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#communication-security)
+
+**Excluded.** Imports OAuth 2.1 Section 1.5 wholesale. Its observable consequences for an MCP exchange are the challenge clauses this page states itself, judged under their own ids; the rest is implementation conduct (storage, transport configuration, the OAuth flow) with no footprint on the MCP endpoint.
+
+### AUTH-173
+
+**MUST** · binds the server
+
+> All authorization server endpoints MUST be served over HTTPS.
+
+[`basic/authorization/security-considerations#communication-security`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#communication-security)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-174
+
+**MUST** · binds the client
+
+> All redirect URIs MUST be either `localhost` or use HTTPS.
+
+[`basic/authorization/security-considerations#communication-security`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#communication-security)
+
+**Excluded.** Redirect URIs are registered with the authorization server and travel in authorization requests through the user's browser. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-175
+
+**MUST** · binds the client
+
+> To mitigate this, MCP clients MUST implement PKCE according to OAuth 2.1 Section 7.5.2 and MUST verify PKCE support before proceeding with authorization.
+
+[`basic/authorization/security-considerations#authorization-code-protection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#authorization-code-protection)
+
+**Excluded.** Conduct inside the client's OAuth flow (PKCE and the authorization server metadata it is verified against), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-176
+
+**MUST** · binds the client
+
+> MCP clients MUST use the `S256` code challenge method when technically capable, as required by OAuth 2.1 Section 4.1.1.
+
+[`basic/authorization/security-considerations#authorization-code-protection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#authorization-code-protection)
+
+**Excluded.** Conduct inside the client's OAuth flow (PKCE and the authorization server metadata it is verified against), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-177
+
+**MUST** · binds the client
+
+> Since OAuth 2.1 and PKCE specifications do not define a mechanism for clients to discover PKCE support, MCP clients MUST rely on authorization server metadata to verify this capability:
+
+[`basic/authorization/security-considerations#authorization-code-protection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#authorization-code-protection)
+
+**Excluded.** Conduct inside the client's OAuth flow (PKCE and the authorization server metadata it is verified against), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-178
+
+**MUST** · binds the client
+
+> OAuth 2.0 Authorization Server Metadata: If `code_challenge_methods_supported` is absent, the authorization server does not support PKCE and MCP clients MUST refuse to proceed.
+
+[`basic/authorization/security-considerations#authorization-code-protection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#authorization-code-protection)
+
+**Excluded.** Conduct inside the client's OAuth flow (PKCE and the authorization server metadata it is verified against), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-179
+
+**MUST** · binds the client
+
+> MCP clients MUST verify the presence of `code_challenge_methods_supported` in the provider metadata response. If the field is absent, MCP clients MUST refuse to proceed.
+
+[`basic/authorization/security-considerations#authorization-code-protection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#authorization-code-protection)
+
+**Excluded.** Conduct inside the client's OAuth flow (PKCE and the authorization server metadata it is verified against), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-180
+
+**MUST** · binds the server
+
+> Authorization servers providing OpenID Connect Discovery 1.0 MUST include `code_challenge_methods_supported` in their metadata to ensure MCP compatibility.
+
+[`basic/authorization/security-considerations#authorization-code-protection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#authorization-code-protection)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-181
+
+**MUST** · binds the client
+
+> MCP clients MUST have redirect URIs registered with the authorization server.
+
+[`basic/authorization/security-considerations#open-redirection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#open-redirection)
+
+**Excluded.** Conduct inside the client's OAuth flow (client registration), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-182
+
+**MUST** · binds the server
+
+> Authorization servers MUST validate exact redirect URIs against pre-registered values to prevent redirection attacks.
+
+[`basic/authorization/security-considerations#open-redirection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#open-redirection)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-183
+
+**SHOULD** · binds the client
+
+> MCP clients SHOULD use and verify state parameters in the authorization code flow and discard any results that do not include or have a mismatch with the original state.
+
+[`basic/authorization/security-considerations#open-redirection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#open-redirection)
+
+**Excluded.** Conduct inside the client's OAuth flow (the authorization code flow's `state`), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
+
+### AUTH-184
+
+**MUST** · binds the server
+
+> Authorization servers MUST take precautions to prevent redirecting user agents to untrusted URI's, following suggestions laid out in OAuth 2.1 Section 7.12.2
+
+[`basic/authorization/security-considerations#open-redirection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#open-redirection)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-185
+
+**SHOULD** · binds the server
+
+> Authorization servers SHOULD only automatically redirect the user agent if it trusts the redirection URI.
+
+[`basic/authorization/security-considerations#open-redirection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#open-redirection)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-186
+
+**MUST** · binds the server
+
+> When implementing Client ID Metadata Documents, authorization servers MUST consider the security implications detailed in OAuth Client ID Metadata Document, Section 6.
+
+[`basic/authorization/security-considerations#client-id-metadata-document-security`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#client-id-metadata-document-security)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-187
+
+**SHOULD** · binds the server
+
+> Authorization servers fetching metadata documents SHOULD consider Server-Side Request Forgery (SSRF) risks
+
+[`basic/authorization/security-considerations#authorization-server-abuse-protection`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#authorization-server-abuse-protection)
+
+**Excluded.** Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-188
+
+**MUST** · binds the server
+
+> Authorization servers: SHOULD display additional warnings for `localhost`-only redirect URIs; MUST clearly display the redirect URI hostname during authorization
+
+[`basic/authorization/security-considerations#localhost-redirect-uri-risks`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#localhost-redirect-uri-risks)
+
+**Excluded.** What the authorization server shows the user during authorization is consent UI in the user's browser. Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.
+
+### AUTH-189
+
+**MUST** · binds the server
+
+> MCP proxy servers using static client IDs MUST obtain user consent for each dynamically registered client before forwarding to third-party authorization servers (which may require additional consent).
+
+[`basic/authorization/security-considerations#confused-deputy-problem`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#confused-deputy-problem)
+
+**Excluded.** Consent is obtained in the user's browser, and the forwarding is the proxy server's own OAuth flow with a third-party authorization server; neither is a message on the MCP endpoint the recording captures.
+
+### AUTH-190
+
+**MUST** · binds the server
+
+> MCP servers MUST validate access tokens before processing the request, ensuring the access token is issued specifically for the MCP server, and take all necessary steps to ensure no data is returned to unauthorized parties.
+
+[`basic/authorization/security-considerations#access-token-privilege-restriction`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#access-token-privilege-restriction)
+
+**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. A result returned to an unauthorized party would need the request's credential to show, and that is the header a recording never keeps.
+
+### AUTH-191
+
+**MUST** · binds the server
+
+> A MCP server MUST follow the guidelines in OAuth 2.1 - Section 5.2 to validate inbound tokens.
+
+[`basic/authorization/security-considerations#access-token-privilege-restriction`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#access-token-privilege-restriction)
+
+**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+
+### AUTH-192
+
+**MUST** · binds the server
+
+> MCP servers MUST only accept tokens specifically intended for themselves and MUST reject tokens that do not include them in the audience claim or otherwise verify that they are the intended recipient of the token.
+
+[`basic/authorization/security-considerations#access-token-privilege-restriction`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#access-token-privilege-restriction)
+
+**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+
+### AUTH-193
+
+**MUST NOT** · binds the server
+
+> The MCP server MUST NOT pass through the token it received from the MCP client.
+
+[`basic/authorization/security-considerations#access-token-privilege-restriction`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#access-token-privilege-restriction)
+
+**Excluded.** Passthrough is a request from the MCP server to an upstream API, outside the MCP session; the recording holds the client–server exchange only, and not even the token the client sent (`Authorization` is never recorded).
+
+### AUTH-194
+
+**MUST** · binds the client
+
+> MCP clients MUST implement and use the `resource` parameter as defined in RFC 8707 - Resource Indicators for OAuth 2.0 to explicitly specify the target resource for which the token is being requested.
+
+[`basic/authorization/security-considerations#access-token-privilege-restriction`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#access-token-privilege-restriction)
+
+**Excluded.** Conduct inside the client's OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.
 

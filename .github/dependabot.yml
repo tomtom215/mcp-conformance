@@ -95,3 +95,36 @@ updates:
     groups:
       interop-python:
         patterns: ["*"]
+  # The Dockerfile's two base images, each pinned by digest. A new digest for
+  # the same tag (a Debian security rebuild) is proposed here. The Rust image's
+  # version is not: it follows rust-toolchain.toml (`cargo xtask toolchain-pin`
+  # fails on any other) and moves in the commit that bumps the pin.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    # Cooldown: as for the workspace cargo entry.
+    cooldown:
+      default-days: 7
+    groups:
+      container-images:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*rust"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+  # The screenshot suite's pinned Playwright (visual/, ci.yml `visual`). A bump
+  # moves the Chromium build, which can move pixels: such a PR fails `visual`
+  # until its baselines are re-taken and reviewed, by design.
+  - package-ecosystem: npm
+    directory: /visual
+    schedule:
+      interval: weekly
+    # Cooldown: as for the workspace cargo entry.
+    cooldown:
+      default-days: 7
+    groups:
+      visual-npm:
+        patterns: ["*"]

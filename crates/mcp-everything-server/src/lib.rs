@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! Reference MCP server exercising every `2025-11-25` protocol capability.
+//! Reference MCP server exercising the protocol's capabilities at both
+//! `2025-11-25` and `2026-07-28` (chosen per instance by
+//! [`server::ServedRevision`]).
 //!
 //! Built on rmcp, the official Rust SDK (ADR-0008 records the MSRV
-//! consequence). Milestone M2 is complete: 40/40 checks on the official
-//! conformance suite's `2025-11-25` server scenarios, run in CI against the
-//! pinned suite via `cargo xtask conformance`. What ships:
+//! consequence). CI runs the pinned official conformance suite's
+//! `2025-11-25` server scenarios against it via `cargo xtask conformance`,
+//! and every check must pass; the crate README states the current scores.
+//! What ships:
 //!
 //! - [`policy`] — the default-secure HTTP transport policy that closes the
 //!   CVE-2026-42559 class (DNS rebinding via unvalidated `Host`/`Origin`
@@ -21,9 +24,12 @@
 //!   ([`prompts`]), completions, and logging-level filtering ([`logging`]) —
 //!   plus `get-structured-content`, the TypeScript everything server's
 //!   structured-output tool (`outputSchema` + `structuredContent`), which
-//!   the suite does not exercise but the spec defines. The crate README
-//!   records the two deliberate TypeScript-surface deltas (URL-mode
-//!   elicitation, async sampling) and why.
+//!   the suite does not exercise but the spec defines. Every listing is
+//!   served in two pages ([`pagination`]): the suite's catalogue first, then
+//!   icons, annotations, `resource_link` content, an audio prompt and
+//!   `x-mcp-header` designations behind a `nextCursor`. The crate README
+//!   records the one deliberate TypeScript-surface delta (async sampling —
+//!   tasks, which `2026-07-28` moves to an extension) and why.
 //! - The session trace tap (module `tap`, feature `tap`): each admitted HTTP
 //!   session recorded as a validator-ready JSON Lines trace, capturing only
 //!   the headers in its public `RECORDED_HEADERS` allowlist.
@@ -36,6 +42,7 @@ pub mod http;
 pub mod interactive;
 pub mod logging;
 pub mod notifying;
+pub mod pagination;
 pub mod policy;
 
 /// Prefix of the one readiness line the HTTP binary prints to stderr.

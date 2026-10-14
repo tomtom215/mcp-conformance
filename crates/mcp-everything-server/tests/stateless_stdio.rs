@@ -428,3 +428,104 @@ fn the_tools_that_belong_to_the_older_model_are_not_offered() {
         );
     }
 }
+
+/// The server's name as a result's `_meta` carries it, if it does.
+fn named_server(result: &Value) -> Option<&str> {
+    result["_meta"]["io.modelcontextprotocol/serverInfo"]["name"].as_str()
+}
+
+/// One request per result kind this revision's server answers with — ids
+/// `1..`, in order — both MRTR arms of `tools/call` among them.
+fn one_request_per_result_kind() -> Vec<(&'static str, String)> {
+    let asks = r#""io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{"elicitation":{}}"#;
+    vec![
+        ("server/discover", request(1, "server/discover", "")),
+        ("tools/list", request(2, "tools/list", "")),
+        (
+            "tools/call (complete)",
+            request(
+                3,
+                "tools/call",
+                r#","name":"echo","arguments":{"message":"hi"}"#,
+            ),
+        ),
+        (
+            "tools/call (input_required)",
+            format!(
+                r#"{{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{{"_meta":{{{asks}}},"name":"test_elicitation","arguments":{{"message":"hi"}}}}}}"#
+            ),
+        ),
+        ("prompts/list", request(5, "prompts/list", "")),
+        (
+            "prompts/get",
+            request(6, "prompts/get", r#","name":"test_simple_prompt""#),
+        ),
+        ("resources/list", request(7, "resources/list", "")),
+        (
+            "resources/templates/list",
+            request(8, "resources/templates/list", ""),
+        ),
+        (
+            "resources/read",
+            request(9, "resources/read", r#","uri":"test://static-text""#),
+        ),
+        (
+            "completion/complete",
+            request(
+                10,
+                "completion/complete",
+                r#","ref":{"type":"ref/prompt","name":"test_prompt_with_arguments"},"argument":{"name":"arg1","value":"pa"}"#,
+            ),
+        ),
+    ]
+}
+
+#[test]
+fn every_result_kind_names_the_server() {
+    // BASE-037: "every result's `_meta`", not only the two rmcp builds itself
+    // (`server/discover`, `subscriptions/listen`). One request per result kind
+    // this revision's server answers with, both MRTR arms of `tools/call`
+    // among them, each through the real binary — so a handler that bypassed
+    // the seam, or a transport that dropped the field, fails here by name.
+    let mut server = Server::start();
+    let cases = one_request_per_result_kind();
+    for (_, message) in &cases {
+        server.send(message);
+    }
+    let answers = server.answers(cases.len());
+    for (id, (kind, _)) in (1_u64..).zip(&cases) {
+        let result = answers[&id]
+            .get("result")
+            .unwrap_or_else(|| panic!("{kind} answered no result: {}", answers[&id]));
+        assert_eq!(
+            named_server(result),
+            Some("mcp-everything-server"),
+            "{kind}: {result}"
+        );
+    }
+    assert_eq!(
+        answers[&4]["result"]["resultType"], "input_required",
+        "the second tools/call must be the asking arm: {}",
+        answers[&4]
+    );
+
+    // The last kind is the long-lived one, read through its own sequence.
+    let listen = request(11, "subscriptions/listen", r#","notifications":{}"#);
+    server.send(&listen);
+    let (_, closed) = server.subscription(11);
+    assert_eq!(
+        named_server(&closed["result"]),
+        Some("mcp-everything-server"),
+        "subscriptions/listen: {closed}"
+    );
+}
+
+#[test]
+fn a_removed_logging_set_level_is_refused() {
+    // `2026-07-28` removed `logging/setLevel`; rmcp still dispatches it, and
+    // answering `{}` would be a result with no `resultType`.
+    let mut server = Server::start();
+    let answer = server.exchange(&request(1, "logging/setLevel", r#","level":"debug""#), 1);
+    assert_eq!(answer["error"]["code"], -32601, "{answer}");
+    assert!(answer.get("result").is_none(), "{answer}");
+}

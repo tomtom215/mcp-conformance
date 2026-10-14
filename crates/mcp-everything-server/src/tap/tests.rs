@@ -28,7 +28,8 @@ async fn record_json_preserves_the_body_and_records_the_message() {
             headers: std::collections::BTreeMap::new(),
         },
     );
-    let returned = record_json(&tap, "json-session", status, response).await;
+    let file = tap.file(TraceKey::Session("json-session".to_owned()));
+    let returned = record_json(&tap, &file, status, response).await;
     let returned_body = axum::body::to_bytes(returned.into_body(), 1024 * 1024)
         .await
         .expect("body");
@@ -139,6 +140,30 @@ async fn a_body_of_exactly_the_cap_is_recorded_and_one_byte_more_is_not() {
     assert_eq!(delivered.len(), MAX_RECORDED_BODY + 1);
 }
 
+/// The kinds of events one writer command carries as a unit, in order; `None`
+/// for a reservation, which carries none. A request naming no session reserves
+/// its place first and fills it once the response is in; either way its events
+/// travel together.
+fn unit_kinds(command: Command) -> Option<Vec<(Direction, &'static str)>> {
+    let events = match command {
+        Command::Write(record) => record.events,
+        Command::Fill { events, .. } => events,
+        Command::Reserve { .. } => return None,
+    };
+    let kinds = events
+        .iter()
+        .map(|(direction, body)| {
+            let kind = match body {
+                EventBody::Http { .. } => "http",
+                EventBody::Message { .. } => "message",
+                _ => "other",
+            };
+            (*direction, kind)
+        })
+        .collect();
+    Some(kinds)
+}
+
 /// A request's HTTP event and its message travel to the writer as one record,
 /// so they become adjacent lines: sent separately, a concurrent GET's request
 /// event could land between them, and the validator then read the POST's
@@ -151,7 +176,7 @@ async fn a_request_and_its_message_are_one_record() {
     let tap = Arc::new(Tap {
         dir: dir.clone(),
         sender,
-        sessions: Mutex::new(HashMap::new()),
+        files: Mutex::new(HashMap::new()),
         created: AtomicU64::new(0),
     });
     let service = axum::Router::new()
@@ -173,35 +198,35 @@ async fn a_request_and_its_message_are_one_record() {
         .unwrap();
     let _ = service.oneshot(request).await.unwrap();
 
-    let kinds = |record: &Record| -> Vec<(Direction, &'static str)> {
-        record
-            .events
-            .iter()
-            .map(|(direction, body)| {
-                let kind = match body {
-                    EventBody::Http { .. } => "http",
-                    EventBody::Message { .. } => "message",
-                    _ => "other",
-                };
-                (*direction, kind)
-            })
-            .collect()
-    };
-    let request_record = receiver.recv().await.unwrap();
+    let mut units = Vec::new();
+    while let Ok(command) = receiver.try_recv() {
+        units.extend(unit_kinds(command));
+    }
     assert_eq!(
-        kinds(&request_record),
+        units,
         [
-            (Direction::ClientToServer, "http"),
-            (Direction::ClientToServer, "message")
-        ]
-    );
-    let response_record = receiver.recv().await.unwrap();
-    assert_eq!(
-        kinds(&response_record),
-        [
-            (Direction::ServerToClient, "http"),
-            (Direction::ServerToClient, "message")
+            vec![
+                (Direction::ClientToServer, "http"),
+                (Direction::ClientToServer, "message")
+            ],
+            vec![
+                (Direction::ServerToClient, "http"),
+                (Direction::ServerToClient, "message")
+            ]
         ]
     );
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// A session id is a client-supplied header: it names a file, never a path.
+#[test]
+fn a_session_id_cannot_leave_the_trace_directory_or_open_a_stream() {
+    use super::file_label;
+    assert_eq!(file_label("mcp-session-7f3a_b.c"), "mcp-session-7f3a_b.c");
+    assert_eq!(file_label("../../etc/passwd"), ".._.._etc_passwd");
+    assert_eq!(file_label("a:b\\c\u{0}d"), "a_b_c_d");
+    assert_eq!(file_label(&"x".repeat(200)).len(), 64);
+    assert_eq!(file_label("é"), "_");
+}
+
+mod ordering;

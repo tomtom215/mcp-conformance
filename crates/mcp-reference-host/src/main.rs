@@ -15,14 +15,6 @@
 //! Diagnostics go to stderr; stdout stays silent (suite runs capture it, and
 //! a future stdout report format must not have to fight old noise).
 
-// SEP-2577 forward-deprecates Logging, and rmcp 3.x carries the attribute, so
-// naming `LoggingLevel` fires it on correct code: the level a request asks for
-// is how `2026-07-28` *replaced* `logging/setLevel`, and it is the only way a
-// recording can carry the logging clauses at all. Scoped to this module rather
-// than the crate, matching `mcp-everything-server`'s two module-level allows —
-// a blanket allow would also hide a deprecation that genuinely matters.
-#![allow(deprecated)]
-
 use std::path::PathBuf;
 use std::process::ExitCode;
 

@@ -20,12 +20,19 @@
 //! probes are hand-built HTTP requests — the bytes are the fixture — and each
 //! one names the clause it exists to put a question to.
 //!
+//! One probe is not static: a `tools/call` sent without one of the
+//! `Mcp-Param-*` headers its tool designates (`TRAN-136`) needs a tool that
+//! designates one, so it lists the server's tools first and builds the call
+//! from what it read. It lives in its own module, sent after the rest.
+//!
 //! Nothing here asserts what the server *should* answer. The probe records; the
 //! registry judges the recording. A probe that carried its own expectations
 //! would be a second, weaker implementation of the checks, and the two would
 //! drift.
 
 use std::time::Duration;
+
+mod designated;
 
 /// The protocol revision every probe names, except where naming another is the
 /// point.
@@ -241,6 +248,9 @@ pub async fn run(url: &str) -> Vec<ProbeOutcome> {
             answer,
         });
     }
+    // Last, and in its own module, because it is the one probe that has to
+    // read the server's answers to know what to send ([`designated`]).
+    outcomes.extend(designated::run(&client, url).await);
     outcomes
 }
 

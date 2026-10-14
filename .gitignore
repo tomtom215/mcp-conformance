@@ -54,3 +54,9 @@ __pycache__/
 # up with one of these; it holds per-run logs and the caught/missed/timeout
 # ledgers, all reproducible from the run itself.
 /mutants.out/
+
+# cargo-cyclonedx writes `<crate>.cdx.json` beside each manifest; `cargo xtask
+# sbom` moves the published crates' out and deletes the rest, but a failed run
+# leaves them, and an untracked file there would be packaged into the .crate.
+/crates/*/*.cdx.json
+/xtask/*.cdx.json

@@ -336,8 +336,9 @@ fn each_revisions_findings_are_limited_on_their_own() {
         .collect();
     let events = parse_trace(&trace.join("\n"), &Limits::default()).unwrap();
     let report = validate_revisions(&set(), &revs(), &events).unwrap();
-    // BASE-001 under both revisions, and the clause each has alone.
-    assert_eq!(report.render_human().matches(" seq 2: ").count(), 4);
+    // BASE-001 under both revisions, the clause each has alone, and the wire
+    // schema under each (`jsonrpc` is the schema's constant too).
+    assert_eq!(report.render_human().matches(" seq 2: ").count(), 6);
 
     let limited = HumanOptions::default().all(false).max_findings(Some(2));
     let text = report.render_with(&limited);
@@ -354,4 +355,26 @@ fn each_revisions_findings_are_limited_on_their_own() {
     assert!(report.render_with(&limited.cli(true)).contains(
         "2025-11-25: … and 1 more (pass --all, or use --format json, for every finding)\n"
     ));
+}
+
+/// A several-revision report carries each revision's extensions in its summary
+/// and prints them, and its verdict ignores them as a single report's does.
+#[test]
+fn a_summary_carries_its_revisions_extensions() {
+    let events = crate::reader::parse_trace(
+        crate::fixtures::UNDECLARED_TASK,
+        &crate::reader::Limits::default(),
+    )
+    .unwrap();
+    let set = mcp_conformance_core::requirement::RegistrySet::builtin().unwrap();
+    let revisions = ["2025-11-25".parse().unwrap(), "2026-07-28".parse().unwrap()];
+    let report = validate_revisions(&set, &revisions, &events).unwrap();
+    assert_eq!(report.summaries[0].extensions.len(), 0);
+    assert_eq!(report.summaries[1].extensions[0].verdict(), Verdict::Fail);
+    assert_eq!(report.summaries[1].verdict, Verdict::Pass);
+    let human = report.render_findings();
+    assert!(
+        human.contains("extension io.modelcontextprotocol/tasks at 2026-07-28 — not scored"),
+        "{human}"
+    );
 }

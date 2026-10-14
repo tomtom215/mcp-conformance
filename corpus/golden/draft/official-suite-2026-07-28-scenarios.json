@@ -1,14 +1,14 @@
 {
   "revision": "2026-07-28",
-  "verdict": "fail",
+  "verdict": "pass-with-warnings",
   "totals": {
-    "pass": 64,
-    "fail": 1,
-    "warn": 0,
-    "excluded": 169,
+    "pass": 70,
+    "fail": 0,
+    "warn": 1,
+    "excluded": 320,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 76
+    "not_observed": 110
   },
   "requirements": [
     {
@@ -87,6 +87,16 @@
       "outcome": "pass"
     },
     {
+      "id": "BASE-073",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-088",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
       "id": "BASE-026",
       "level": "MUST",
       "outcome": "pass"
@@ -117,6 +127,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "BASE-033",
+      "level": "SHOULD",
+      "outcome": "pass"
+    },
+    {
       "id": "BASE-034",
       "level": "MUST NOT",
       "outcome": "not-observed"
@@ -130,6 +145,133 @@
       "id": "BASE-036",
       "level": "MUST",
       "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-037",
+      "level": "SHOULD",
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 3,
+          "detail": "result answering `completion/complete` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 7,
+          "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 11,
+          "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 15,
+          "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 19,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 23,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 27,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 31,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 35,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 39,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 46,
+          "detail": "result answering `tools/call` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 54,
+          "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 57,
+          "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 58,
+          "detail": "result answering `tools/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 62,
+          "detail": "result answering `resources/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 66,
+          "detail": "result answering `resources/read` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 70,
+          "detail": "result answering `resources/read` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 74,
+          "detail": "result answering `resources/read` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 78,
+          "detail": "result answering `prompts/list` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 82,
+          "detail": "result answering `prompts/get` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 86,
+          "detail": "result answering `prompts/get` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 90,
+          "detail": "result answering `prompts/get` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        },
+        {
+          "check": "meta.server-info-on-results",
+          "seq": 94,
+          "detail": "result answering `prompts/get` carries no `io.modelcontextprotocol/serverInfo` in its `_meta`; servers should include it in every result unless specifically configured not to"
+        }
+      ],
+      "source": {
+        "section": "basic/index#_meta",
+        "quote": "Servers SHOULD include the following `io.modelcontextprotocol/*` field in every result's `meta`, unless specifically configured not to do so, to identify themselves without relying on any prior connection state:",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta"
+      }
     },
     {
       "id": "BASE-039",
@@ -242,6 +384,21 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-082",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-083",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-084",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-086",
       "level": "MUST",
       "outcome": "pass"
@@ -258,6 +415,16 @@
     },
     {
       "id": "TRAN-092",
+      "level": "MUST",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-137",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-141",
       "level": "MUST",
       "outcome": "pass"
     },
@@ -330,6 +497,11 @@
       "id": "DISC-002",
       "level": "SHOULD",
       "outcome": "not-observed"
+    },
+    {
+      "id": "DISC-003",
+      "level": "SHOULD",
+      "outcome": "pass"
     },
     {
       "id": "VERS-001",
@@ -529,54 +701,7 @@
     {
       "id": "CACH-001",
       "level": "MUST",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 62,
-          "detail": "the `complete` result of `resources/list` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 62,
-          "detail": "the `complete` result of `resources/list` carries no `cacheScope` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 66,
-          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 66,
-          "detail": "the `complete` result of `resources/read` carries no `cacheScope` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 70,
-          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 70,
-          "detail": "the `complete` result of `resources/read` carries no `cacheScope` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 74,
-          "detail": "the `complete` result of `resources/read` carries no `ttlMs` caching hint"
-        },
-        {
-          "check": "caching.hints-on-cacheable-results",
-          "seq": 74,
-          "detail": "the `complete` result of `resources/read` carries no `cacheScope` caching hint"
-        }
-      ],
-      "source": {
-        "section": "server/utilities/caching#cacheable-results",
-        "quote": "Servers MUST include caching hints on results with `resultType: \"complete\"` returned by the following operations: `server/discover`; `tools/list`; `prompts/list`; `resources/list`; `resources/templates/list`; `resources/read`",
-        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching#cacheable-results"
-      }
+      "outcome": "pass"
     },
     {
       "id": "CACH-008",
@@ -684,6 +809,11 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TOOL-035",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TOOL-038",
       "level": "SHOULD",
       "outcome": "pass"
@@ -695,6 +825,16 @@
     },
     {
       "id": "TOOL-040",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-045",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-046",
       "level": "MUST",
       "outcome": "not-observed"
     },
@@ -762,6 +902,151 @@
       "id": "PROM-020",
       "level": "SHOULD",
       "outcome": "pass"
+    },
+    {
+      "id": "ELIC-057",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-059",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-060",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-062",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-064",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-065",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-095",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-026",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-027",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-028",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-029",
+      "level": "SHOULD NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-030",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-031",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-032",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-033",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-034",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-042",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-013",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-014",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-018",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-097",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-124",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-129",
+      "level": "SHOULD NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-130",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-131",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-132",
+      "level": "SHOULD",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-133",
+      "level": "SHOULD",
+      "outcome": "not-observed"
     }
-  ]
+  ],
+  "wire_schema": {
+    "outcome": "pass",
+    "messages": 51,
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json",
+    "source": {
+      "section": "basic/index#schema",
+      "quote": "This is the source of truth for all protocol messages and structures.",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#schema"
+    }
+  }
 }

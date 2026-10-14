@@ -45,18 +45,72 @@ instances are normative):
 
 1. **Every MUST / MUST NOT** on an in-scope page enters — with checks when a recorded
    trace can judge it, with a documented exclusion naming where it *is* enforced when
-   it cannot. No exceptions: that is the SEP-2484 floor. Gated since 2026-08-20 by the
-   `must_census` in each revision's `sources.json`: `cargo xtask spec-drift` recounts
-   every page's MUST-family keyword instances against the published text, so a clause
-   the registry never had can no longer arrive unnoticed. Before that gate existed the
-   rule was hand-verified, and two clauses had been missed — BASE-082 and LIFE-018,
-   both restating an obligation the registry already held under another page's id.
-2. **SHOULD / SHOULD NOT / MAY** enter when the clause constrains observable wire
-   behavior (messages, headers, capability declarations). Guidance about UI, internal
-   policy, or model interaction stays out of the registry.
+   it cannot. No exceptions: that is the SEP-2484 floor. MUST-family means every
+   RFC 2119 spelling of it — MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT — including
+   keywords in table rows. Gated since 2026-08-20 by the `must_census` in each
+   revision's `sources.json`: `cargo xtask spec-drift` recounts every page's
+   MUST-family keyword instances against the published text, so a clause the registry
+   never had can no longer arrive unnoticed. Before that gate existed the rule was
+   hand-verified, and two clauses had been missed — BASE-082 and LIFE-018, both
+   restating an obligation the registry already held under another page's id. Since
+   2026-10-13 the gate also requires every instance to sit inside the quote of an
+   entry citing its page: a count matched while `REQUIRED` went uncounted and
+   unentered (TRAN-141).
+2. **SHOULD / SHOULD NOT / RECOMMENDED / NOT RECOMMENDED** enter too, every instance:
+   judged when the clause constrains observable wire behavior (messages, headers,
+   capability declarations), and otherwise entered with an exclusion saying why —
+   guidance about UI, internal policy, or model interaction is recorded as decided
+   rather than left unread. Gated the same way since 2026-10-13 (`should_census`, and
+   the same every-instance-entered rule). **MAY / OPTIONAL** grant latitude, so a
+   trace has nothing in them to violate: they are counted (`may_census`, so an edit
+   still asks for a re-read) but enter only where a clause pairs the permission with
+   something checkable.
 3. Constraints stated only in schema field documentation without RFC 2119 keywords
    (e.g. completion's 100-value cap) are not registry entries; the agreement check
    (M2) covers any divergence that matters in practice.
+4. **An official extension's specification enters by the same rules, beside the
+   revision it attaches to, and is never scored**
+   ([ADR-0023](decisions/0023-extensions-are-reported-never-scored.md)). Extensions are
+   published in their own repositories, not under the revision's pages, so they have
+   their own page set and census (`registry/2026-07-28/extensions/sources.json`), held
+   to the site's `extensions/` navigation; every keyword is entered and decided as rules
+   1 and 2 say. Their entries name their extension, and a report judges them into an
+   `extensions` block whose verdict the report's never reads — the official suite's
+   `not_scored: extension`. Tasks and skills are entered; MCP Apps is deferred
+   (`mcp-apps-extension`) and the authorization extensions are reasoned out.
+
+### How the next revision starts
+
+From data, not from a report. The specification publishes its unreleased next revision
+under `docs/specification/draft/`, and the registry tracks it with a skeleton in
+`crates/mcp-conformance-core/registry/draft/`:
+
+- `sources.json` has a dated revision's shape — every page the draft publishes in exactly
+  one of `in_scope` / `out_of_scope`, each exclusion with its reason, and the three
+  censuses as last read — and `cargo xtask page-set` holds it to that shape offline.
+- `post-release.json` records each released clause the draft words differently: the
+  entry, its released quote (checked against the registry by `cargo test`), the draft's
+  wording, and what the change means for the entry. The first row is TRAN-081's
+  safe-integer sentence, which the draft now bounds "for integers represented using
+  IEEE754 double-precision floating point numbers" rather than "for JavaScript" — the
+  interval and the check unchanged.
+
+The skeleton is data, never a judged revision: the core crate embeds registry documents
+by an explicit per-revision list that names nothing in `draft/`, `draft` is not a protocol
+revision `--revision` accepts, the directory is left out of the published package, and it
+carries no requirement entries. `cargo xtask spec-drift --draft` compares it with the live
+draft — the page set, each page's census, every MUST-family or SHOULD-family keyword no
+released quote covers, and for every `2026-07-28` entry whether its sentence is still on
+the draft page (present, changed with the draft wording shown, removed, or on a page the
+draft dropped). It is informational: it exits 0 with a Markdown report whatever it finds,
+failing only when the draft cannot be read, and runs weekly as the scheduled workflow's
+`draft-drift` job, where the report is the job summary.
+
+When the draft is cut as a dated revision, the skeleton becomes that revision's
+directory: its `sources.json` the new `sources.json`, each `post-release.json` row applied
+to the new revision's entry, each report finding entered or retired, the area files
+added to the embedded list, and the revision added to `spec-drift`'s `REVISIONS` — at
+which point the release gate, not this report, holds it to its text.
 
 ### Check semantics
 
@@ -65,6 +119,7 @@ instances are normative):
 | MUST / MUST NOT | Error | Fails the run (exit 1) |
 | SHOULD / SHOULD NOT | Warning | Reported, never fails the run by default; `--strict` promotes to error |
 | MAY | Informational | Coverage signal only |
+| An extension's clause, any level | In the extension's own block, with its own verdict | Never fails the run, `--strict` or not: the extension is optional by definition ([ADR-0023](decisions/0023-extensions-are-reported-never-scored.md)) |
 
 Two hard rules:
 
@@ -86,9 +141,9 @@ content lands:
 | Official suite | Our corpus directory | Notes |
 |----------------|---------------------|-------|
 | `core` | `corpus/core/` | Lifecycle, tools, resources, prompts, logging, completion, pagination |
-| `auth` | `corpus/auth/` | OAuth flows, metadata discovery — traces include the HTTP layer |
+| `auth` | `corpus/{,draft/}{good,violations}/` (`http-authorization`, `auth-*`) | The HTTP-observable subset only (review item 2.8): a protected server's `401`/`403` `WWW-Authenticate` challenge. OAuth flows and metadata discovery run off the MCP endpoint and are excluded clause by clause (`AUTH-*`); the suite's `auth/*` client scenarios stay deferred (`auth-client-scenarios`) |
 | `backcompat` | `corpus/backcompat/` | Older-revision behavior against `applies` ranges |
-| `extensions` | `corpus/extensions/` | Reverse-DNS extension negotiation ([register 1.5](01-ecosystem-context.md)) |
+| `extensions` | `corpus/draft/{good,violations}/` (`tasks-*`, `task-*`, `skills-*`, `skill-*`) | The tasks and skills extensions' clauses, judged beside `2026-07-28` and never scored, as the suite runs its `tasks-*` scenarios under `not_scored: extension` ([ADR-0023](decisions/0023-extensions-are-reported-never-scored.md)); reverse-DNS extension negotiation itself is a core clause ([register 1.5](01-ecosystem-context.md)) |
 | `draft` | `corpus/draft/` | `2026-07-28` traces: `good/`, `violations/`, and `captured/` (recordings of real sessions). The directory keeps its pre-release name; every build judges it |
 | `metadata`, `sep-NNN` | per-SEP directories | Tagged for SEP-2484 traceability |
 
@@ -132,10 +187,57 @@ as [conformance#338](https://github.com/modelcontextprotocol/conformance/issues/
 2026-06-11) and one
 informational SHOULD warning on the suite's version-compat probe.
 
+**The wire schema is reconciled the same way (2026-10-13; review item 2.4,
+[ADR-0020](decisions/0020-wire-schema-validation.md)).** From `0.2.0-alpha.11` the
+runner appends a `wire-schema-valid` check to each scenario's `checks.json`, listing
+every message the implementation under test sent that fails the negotiated revision's
+JSON Schema — the message itself, not a session — and a `wire-schema-harness-error`
+check of the same shape for messages the runner sent. The agreement step joins those
+messages to the tapped sessions by sender and canonical JSON and compares them with
+the validator's report `wire_schema` member (`xtask/src/agreement/schema.rs`): a
+message one side flags and the other does not, or a flagged message no tapped session
+carries, is a divergence. Each is explained in
+`conformance/wire-schema-divergences.json` — leg, kind, a required `message_contains`
+filter, a triage class, an upstream link and a reason — or fails the run, and an entry
+that explains nothing in a compared run is stale and fails it too. The ledger admits a
+fourth class, `schema-pin-skew`, because the runner bundles its own copy of each
+revision's schema and this validator vendors `wire_schema::UPSTREAM_COMMIT` with its
+own errata, so two correct readings can differ. The pinned `0.1.16` predates the
+check: on the pinned run the runner's green verdict is its whole side, and any message
+the validator flags is a divergence, exactly as a failing requirement row is. The
+message-level comparison proper runs wherever the runner reports the check — the
+scheduled alpha-tracking job (`MCP_SUITE_VERSION`), and both legs of
+`cargo xtask draft-readiness`, whose sessions are judged at `2026-07-28` because that
+is the revision the runner validates against whatever the server serves. The
+reconciliation is the `wire_schema` member of `agreement.json` (for the draft legs,
+`target/draft-readiness/<revision>/wire-schema-agreement.json`). Known sources of
+divergence that no run has yet exercised: the runner asserts JSON Schema `format`
+(through `ajv-formats`) and this validator does not; the runner applies none of this
+validator's errata (`ElicitResult.content`, `JSONValue`), only its own `NumberSchema`
+one, which our vendored copy already carries upstream; and its bundled `2026-07-28`
+copy predates ours, naming `SubscriptionsListenResultMeta` where ours (equal to
+upstream `main`) names `SubscriptionsListenResultMetaObject` and adds
+`SubscriptionsListenResultResponse` — a rename that validates the same messages.
+
+### A second calibration source: mcpsnoop
+
+Since 2026-10-13 the corpus is also read by `mcpsnoop check`, the one other tool
+that judges recorded sessions ([register 5.10](01-ecosystem-context.md)). Our
+traces are converted into its capture format without inventing anything a
+verdict reads, and the conversion is held against mcpsnoop's own recordings of
+the same sessions on every measurement. Its rules are mapped to registry clauses
+by reading both texts, and every divergence is triaged much as above — our
+defect (fixed, with a regression trace), its defect (an upstream
+issue drafted for the owner), or a reading the text does not settle (an open
+item). `cargo xtask mcpsnoop` measures with the pinned binary — informational and
+scheduled, never a gate; `cargo xtask mcpsnoop --check` gates the committed table
+offline. The table and its triage: [book/src/mcpsnoop.md](../../book/src/mcpsnoop.md).
+
 ## Official-suite version policy
 
 - **Pin** the stable line (`0.1.16` as of 2026-06-11 — [register 2.4](01-ecosystem-context.md))
-  in `xtask` via an exact version (`SUITE_VERSION` in `xtask/src/conformance.rs`);
+  via an exact version (`VERSION` in `crates/mcp-conformance-cli/src/suite.rs`, which
+  `xtask` and `mcp-conformance test` both run);
   upgrades are deliberate PRs with a diff of scenario changes.
 - **Track** the `0.2.0-alpha` line in a scheduled, non-blocking CI job so breakage arrives as
   an early warning, not a release-day surprise. That job floats the `alpha` dist-tag *by

@@ -1,0 +1,384 @@
+{
+  "revision": "2026-07-28",
+  "requirements": [
+    {
+      "id": "SKILL-001",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "For brevity, request examples omit `_meta`. Every request MUST include the required request metadata."
+      },
+      "exclusion": "Restates the core rule the revision's own registry judges on every request (BASE-030, `meta.required-request-fields`). Judged there once, it is not judged again here, where a request missing its metadata would read as a skills defect in a session that never touched the extension."
+    },
+    {
+      "id": "SKILL-002",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A server that declares this extension MUST implement `skills/list` and `skills/get`."
+      },
+      "checks": [
+        "skills.list-implemented",
+        "skills.get-implemented"
+      ]
+    },
+    {
+      "id": "SKILL-003",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A server that additionally declares `directoryRead: true` MUST implement `resources/directory/read`."
+      },
+      "checks": [
+        "skills.directory-read-implemented"
+      ]
+    },
+    {
+      "id": "SKILL-004",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Clients MUST NOT call `resources/directory/read` against a server that has not declared `directoryRead: true`."
+      },
+      "checks": [
+        "skills.directory-read-declared"
+      ]
+    },
+    {
+      "id": "SKILL-005",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A server declaring this extension therefore MUST also declare the `resources` capability."
+      },
+      "checks": [
+        "skills.declares-resources"
+      ]
+    },
+    {
+      "id": "SKILL-006",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A skill served over MCP MUST conform to the Agent Skills specification."
+      },
+      "exclusion": "The umbrella over the format rules this page goes on to state: those it states with their own keyword are entered and judged one by one (SKILL-007, SKILL-008, SKILL-013). The rest of the Agent Skills specification is another document, outside this registry's page set."
+    },
+    {
+      "id": "SKILL-007",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Every skill MUST contain a `SKILL.md` file at its root."
+      },
+      "checks": [
+        "skills.entry-uri-is-skill-md"
+      ]
+    },
+    {
+      "id": "SKILL-008",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "`SKILL.md` MUST begin with YAML frontmatter containing at minimum the `name` and `description` fields as defined by the Agent Skills specification."
+      },
+      "checks": [
+        "skills.skill-md-frontmatter"
+      ]
+    },
+    {
+      "id": "SKILL-009",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "In the event that the Agent Skills specification changes in a backwards incompatible way, clients MUST honor any backwards compatibility mechanisms provided by the Agent Skills specification"
+      },
+      "exclusion": "Binds a client's response to a future incompatible revision of another specification; no such revision exists, and what a client honours of one is in its code, not in what it sends."
+    },
+    {
+      "id": "SKILL-010",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "and SHOULD continue to support the Agent Skills specification as it existed prior to any incompatible change."
+      },
+      "exclusion": "As SKILL-009: support for a format revision is a property of client code."
+    },
+    {
+      "id": "SKILL-011",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Servers SHOULD use the `skill://` URI scheme"
+      },
+      "checks": [
+        "skills.skill-scheme"
+      ]
+    },
+    {
+      "id": "SKILL-012",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "The final segment of `<skill-path>` MUST equal the skill's `name` as declared in its `SKILL.md` frontmatter."
+      },
+      "checks": [
+        "skills.final-segment-is-name"
+      ]
+    },
+    {
+      "id": "SKILL-013",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "The final segment, being the skill `name`, MUST satisfy the Agent Skills specification's naming rules."
+      },
+      "checks": [
+        "skills.name-follows-naming-rules"
+      ]
+    },
+    {
+      "id": "SKILL-014",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "The first segment occupies the URI authority component and SHOULD be a valid `reg-name` per RFC 3986."
+      },
+      "checks": [
+        "skills.authority-reg-name"
+      ]
+    },
+    {
+      "id": "SKILL-015",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Any other prefix segments SHOULD be valid URI path segments."
+      },
+      "checks": [
+        "skills.prefix-segments"
+      ]
+    },
+    {
+      "id": "SKILL-016",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "The authority component carries no special semantics under this extension, and clients MUST NOT attempt DNS or network resolution of it."
+      },
+      "exclusion": "Name resolution happens off the MCP connection: a recording of the session carries none of the client's DNS queries or other network traffic."
+    },
+    {
+      "id": "SKILL-017",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A host MUST NOT conclude that a resource is a skill merely because its URI carries a particular scheme."
+      },
+      "exclusion": "What a host concludes about a resource is internal. The only act on the wire it could lead to — reading the resource — is permitted whether or not the host takes it for a skill (the page: reading is transport, not a load)."
+    },
+    {
+      "id": "SKILL-018",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "`mimeType` SHOULD be `text/markdown`."
+      },
+      "checks": [
+        "skills.skill-md-mime-type"
+      ]
+    },
+    {
+      "id": "SKILL-019",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "`name` SHOULD be set from the `name` field of the `SKILL.md` YAML frontmatter."
+      },
+      "checks": [
+        "skills.skill-md-resource-name"
+      ]
+    },
+    {
+      "id": "SKILL-020",
+      "level": "SHOULD",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "`description` SHOULD be set from the `description` field of the `SKILL.md` YAML frontmatter."
+      },
+      "checks": [
+        "skills.skill-md-resource-description"
+      ]
+    },
+    {
+      "id": "SKILL-021",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "When `_meta` keys are used for skill resources, implementations SHOULD use the `io.modelcontextprotocol.skills/` reverse-domain prefix."
+      },
+      "exclusion": "Binds the keys that expose frontmatter fields, and nothing on the wire says which `_meta` keys do: a key under another prefix on a skill resource may carry any other metadata, which the base protocol permits."
+    },
+    {
+      "id": "SKILL-022",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "A nested `SKILL.md` read this way is ordinary markdown, and hosts MUST NOT act on its frontmatter."
+      },
+      "exclusion": "Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server."
+    },
+    {
+      "id": "SKILL-023",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST preserve both halves wherever a skill is recorded or addressed, including the registry, persisted approvals, the cache, and any tool or path through which the model reaches the skill."
+      },
+      "exclusion": "Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it."
+    },
+    {
+      "id": "SKILL-024",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Hosts MUST NOT key any of these on the `uri` alone."
+      },
+      "exclusion": "Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it."
+    },
+    {
+      "id": "SKILL-025",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "Any path at which a host materializes skill content, whether a cache directory or a virtual mount, MUST encode the server identity as well as the `uri`, so that same-URI skills from different servers land at distinct paths and the originating server is recoverable from the path."
+      },
+      "exclusion": "Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it."
+    }
+  ]
+}

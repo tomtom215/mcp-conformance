@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! The [`Registry`] container: loading, invariants, and the embedded seed data.
+//! The [`Registry`] container: loading, invariants, and the embedded data.
 //!
 //! The embedded `2025-11-25` registry lives as one JSON document per requirement area
 //! (`registry/2025-11-25/*.json`, each under the file-size cap and reviewable in
@@ -17,8 +17,8 @@ use super::{Requirement, Verification};
 use crate::revision::{ProtocolRevision, REVISION_2025_11_25};
 
 /// The embedded per-area registry documents for protocol revision `2025-11-25`, in
-/// report order: base protocol, lifecycle, transports, then the capability-gated
-/// feature areas.
+/// report order: base protocol, lifecycle, transports, the capability-gated server
+/// feature areas, the client-feature pages, then authorization.
 const AREAS_2025_11_25: &[&str] = &[
     include_str!("../../registry/2025-11-25/base.json"),
     include_str!("../../registry/2025-11-25/lifecycle.json"),
@@ -30,6 +30,13 @@ const AREAS_2025_11_25: &[&str] = &[
     include_str!("../../registry/2025-11-25/logging.json"),
     include_str!("../../registry/2025-11-25/completion.json"),
     include_str!("../../registry/2025-11-25/pagination.json"),
+    include_str!("../../registry/2025-11-25/elicitation.json"),
+    include_str!("../../registry/2025-11-25/elicitation-security.json"),
+    include_str!("../../registry/2025-11-25/sampling.json"),
+    include_str!("../../registry/2025-11-25/roots.json"),
+    include_str!("../../registry/2025-11-25/authorization.json"),
+    include_str!("../../registry/2025-11-25/authorization-tokens.json"),
+    include_str!("../../registry/2025-11-25/authorization-security.json"),
 ];
 
 /// The embedded per-area registry documents for protocol revision `2026-07-28`.
@@ -66,13 +73,44 @@ const AREAS_2026_07_28: &[&str] = &[
     include_str!("../../registry/2026-07-28/tools.json"),
     include_str!("../../registry/2026-07-28/resources.json"),
     include_str!("../../registry/2026-07-28/prompts.json"),
+    include_str!("../../registry/2026-07-28/elicitation.json"),
+    include_str!("../../registry/2026-07-28/elicitation-security.json"),
+    include_str!("../../registry/2026-07-28/sampling.json"),
+    include_str!("../../registry/2026-07-28/roots.json"),
+    include_str!("../../registry/2026-07-28/authorization.json"),
+    include_str!("../../registry/2026-07-28/authorization-tokens.json"),
+    include_str!("../../registry/2026-07-28/authorization-discovery.json"),
+    include_str!("../../registry/2026-07-28/authorization-security.json"),
+];
+
+/// The embedded extension registries for protocol revision `2026-07-28`: the
+/// clauses of each official extension that attaches to it, reported beside the
+/// core clauses and never scored with them (ADR-0023). Every entry names its
+/// extension, which is how [`Registry`] tells them from the core areas above.
+const EXTENSIONS_2026_07_28: &[&str] = &[
+    include_str!("../../registry/2026-07-28/extensions/tasks.json"),
+    include_str!("../../registry/2026-07-28/extensions/tasks-errors.json"),
+    include_str!("../../registry/2026-07-28/extensions/skills.json"),
+    include_str!("../../registry/2026-07-28/extensions/skills-entries.json"),
+    include_str!("../../registry/2026-07-28/extensions/skills-hosts.json"),
+    include_str!("../../registry/2026-07-28/extensions/skills-security.json"),
 ];
 
 /// A complete requirement registry for one protocol revision.
+///
+/// Its core clauses ([`Registry::requirements`]) decide the verdict. The clauses
+/// of the extensions in force at the revision
+/// ([`Registry::extension_requirements`]) are held apart, so that no reader of
+/// the core clauses — a report's totals, a coverage count, an exclusion ledger —
+/// can count an extension's by accident. A document may list both kinds under
+/// `requirements`; loading moves every entry that names an `extension` to the
+/// extension list, in order.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Registry {
     revision: ProtocolRevision,
     requirements: Vec<Requirement>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    extensions: Vec<Requirement>,
 }
 
 /// Error produced when loading or validating a [`Registry`].
@@ -104,7 +142,7 @@ impl core::error::Error for RegistryError {
 }
 
 impl Registry {
-    /// Loads the embedded seed registry for protocol revision `2025-11-25`.
+    /// Loads the embedded registry for protocol revision `2025-11-25`.
     ///
     /// # Errors
     ///
@@ -124,10 +162,7 @@ impl Registry {
     /// ```
     pub fn builtin_2025_11_25() -> Result<Self, RegistryError> {
         let requirements = builtin_requirements()?;
-        let registry = Self {
-            revision: REVISION_2025_11_25,
-            requirements,
-        };
+        let registry = Self::from_parts(REVISION_2025_11_25, requirements);
         registry.validate()?;
         Ok(registry)
     }
@@ -140,13 +175,16 @@ impl Registry {
     /// projects a revision-filtered subset of a set whose union those same invariants
     /// were checked over — and a subset of unique, well-formed entries is itself unique
     /// and well-formed, so re-validating would only repeat work already done.
-    pub(super) const fn from_parts(
-        revision: ProtocolRevision,
-        requirements: Vec<Requirement>,
-    ) -> Self {
+    ///
+    /// Entries naming an extension go to the extension list, in order.
+    pub(super) fn from_parts(revision: ProtocolRevision, requirements: Vec<Requirement>) -> Self {
+        let (extensions, requirements) = requirements
+            .into_iter()
+            .partition(|requirement| requirement.extension.is_some());
         Self {
             revision,
             requirements,
+            extensions,
         }
     }
 
@@ -157,8 +195,25 @@ impl Registry {
     /// Returns [`RegistryError::Parse`] for malformed JSON and
     /// [`RegistryError::Invalid`] when invariants fail: duplicate requirement IDs, an
     /// empty `checks` list, or an empty `exclusion`, `quote`, or `section`.
+    ///
+    /// An entry naming an `extension` is an extension clause wherever the document
+    /// lists it, and one under `extensions` that names none is
+    /// [`RegistryError::Invalid`]: that list holds only extension clauses.
     pub fn from_json(text: &str) -> Result<Self, RegistryError> {
-        let registry: Self = serde_json::from_str(text).map_err(RegistryError::Parse)?;
+        let document: Self = serde_json::from_str(text).map_err(RegistryError::Parse)?;
+        if let Some(core) = document
+            .extensions
+            .iter()
+            .find(|requirement| requirement.extension.is_none())
+        {
+            return Err(RegistryError::Invalid(format!(
+                "{}: listed under `extensions` but names no extension",
+                core.id
+            )));
+        }
+        let mut entries = document.requirements;
+        entries.extend(document.extensions);
+        let registry = Self::from_parts(document.revision, entries);
         registry.validate()?;
         Ok(registry)
     }
@@ -169,22 +224,48 @@ impl Registry {
         self.revision
     }
 
-    /// All requirements, in registry (= report) order.
+    /// The core requirements, in registry (= report) order: every clause the
+    /// revision's own pages state, and nothing an extension states.
     #[must_use]
     pub fn requirements(&self) -> &[Requirement] {
         &self.requirements
     }
 
-    /// Looks up a requirement by ID.
+    /// The clauses of the extensions in force at this revision, in registry order,
+    /// each naming its extension. Reported beside the core clauses and never
+    /// counted with them (ADR-0023).
+    ///
+    /// ```
+    /// use mcp_conformance_core::requirement::RegistrySet;
+    ///
+    /// let set = RegistrySet::builtin()?;
+    /// let registry = set.registry("2026-07-28".parse()?).unwrap();
+    /// assert!(registry.extension_requirements().iter().all(|r| r.extension.is_some()));
+    /// assert!(registry.requirements().iter().all(|r| r.extension.is_none()));
+    /// # Ok::<(), Box<dyn core::error::Error>>(())
+    /// ```
+    #[must_use]
+    pub fn extension_requirements(&self) -> &[Requirement] {
+        &self.extensions
+    }
+
+    /// Looks up a requirement by ID, core or extension.
     #[must_use]
     pub fn get(&self, id: &str) -> Option<&Requirement> {
         self.requirements
             .iter()
+            .chain(&self.extensions)
             .find(|requirement| requirement.id.as_str() == id)
     }
 
     fn validate(&self) -> Result<(), RegistryError> {
-        validate_requirements(&self.requirements)
+        let all: Vec<Requirement> = self
+            .requirements
+            .iter()
+            .chain(&self.extensions)
+            .cloned()
+            .collect();
+        validate_requirements(&all)
     }
 }
 
@@ -216,7 +297,7 @@ pub(super) fn builtin_requirements() -> Result<Vec<Requirement>, RegistryError> 
 /// uses it.
 pub(super) fn builtin_set_requirements() -> Result<Vec<Requirement>, RegistryError> {
     let mut requirements = builtin_requirements()?;
-    for document in AREAS_2026_07_28 {
+    for document in AREAS_2026_07_28.iter().chain(EXTENSIONS_2026_07_28) {
         let area: Registry = serde_json::from_str(document).map_err(RegistryError::Parse)?;
         if area.revision != crate::revision::REVISION_2026_07_28 {
             return Err(RegistryError::Invalid(format!(
@@ -230,7 +311,8 @@ pub(super) fn builtin_set_requirements() -> Result<Vec<Requirement>, RegistryErr
 }
 
 /// The per-requirement registry invariants, checked over any sequence: unique IDs, a
-/// non-empty quote and section, and a non-empty `checks` list or `exclusion` reason.
+/// non-empty quote and section, a well-formed extension identifier where one is
+/// named, and a non-empty `checks` list or `exclusion` reason.
 ///
 /// Factored out so the single-revision [`Registry`] and the multi-revision
 /// [`RegistrySet`](super::RegistrySet) enforce one definition of "well-formed" rather
@@ -249,6 +331,14 @@ pub(super) fn validate_requirements(requirements: &[Requirement]) -> Result<(), 
         }
         if requirement.source.section.trim().is_empty() {
             return Err(RegistryError::Invalid(format!("{id}: empty section")));
+        }
+        if let Some(extension) = &requirement.extension
+            && !super::extension::is_identifier(extension)
+        {
+            return Err(RegistryError::Invalid(format!(
+                "{id}: extension {extension:?} is not an extension identifier \
+                 (`vendor-prefix/extension-name`)"
+            )));
         }
         match &requirement.verification {
             Verification::Checks { checks } => {

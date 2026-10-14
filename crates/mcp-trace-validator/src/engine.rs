@@ -8,6 +8,10 @@
 //! requirement. Checks shared across requirements run once per referencing requirement —
 //! the same evidence violating two clauses is two findings, which is what
 //! requirement-level accounting means.
+//!
+//! The registry's extension clauses are judged the same way and reported apart, one
+//! [`ExtensionReport`] per extension, with totals of their own that the report's
+//! totals — and so its verdict — never see (ADR-0023).
 
 use mcp_conformance_core::capability::{CapabilityGate, CapabilityParty};
 use mcp_conformance_core::requirement::{Registry, Requirement, Verification};
@@ -16,7 +20,7 @@ use mcp_conformance_core::trace::TraceEvent;
 
 use crate::checks;
 use crate::context::TraceContext;
-use crate::report::{ClauseSource, Outcome, Report, RequirementReport, Totals};
+use crate::report::{ClauseSource, ExtensionReport, Outcome, Report, RequirementReport, Totals};
 
 /// Validates a parsed trace against a requirement registry.
 ///
@@ -124,7 +128,47 @@ fn validate_ordered(registry: &Registry, events: &[TraceEvent]) -> Report {
         revision_source: None,
         totals,
         requirements: rows,
+        wire_schema: crate::wire_schema::check(registry.revision(), &context),
+        extensions: extension_reports(registry, &context),
     }
+}
+
+/// One report per extension whose clauses the session exercised, in the order the
+/// registry first names each extension.
+///
+/// An extension appears when one of its rows passed, failed, warned or is
+/// unsupported. One whose every row is excluded, not applicable or not observed
+/// has nothing to report about this session — it never negotiated or used the
+/// extension, which is how an optional extension is usually met — and listing
+/// its clauses anyway would print a block of nothing on every report.
+fn extension_reports(registry: &Registry, context: &TraceContext<'_>) -> Vec<ExtensionReport> {
+    let mut reports: Vec<ExtensionReport> = Vec::new();
+    for requirement in registry.extension_requirements() {
+        let extension = requirement.extension.as_deref().unwrap_or_default();
+        let index = reports
+            .iter()
+            .position(|report| report.extension == extension)
+            .unwrap_or_else(|| {
+                reports.push(ExtensionReport {
+                    extension: extension.to_owned(),
+                    totals: Totals::default(),
+                    requirements: Vec::new(),
+                });
+                reports.len() - 1
+            });
+        let row = build_row(requirement, registry.revision(), context);
+        tally(&mut reports[index].totals, row.outcome);
+        reports[index].requirements.push(row);
+    }
+    reports.retain(|report| {
+        report.requirements.iter().any(|row| {
+            matches!(
+                row.outcome,
+                Outcome::Pass | Outcome::Fail | Outcome::Warn | Outcome::Unsupported
+            )
+        })
+    });
+    reports
 }
 
 fn build_row(

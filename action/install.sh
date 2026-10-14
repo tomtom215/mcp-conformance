@@ -4,7 +4,9 @@
 
 # Installs mcp-trace-validator for action.yml: the prebuilt, checksum-verified
 # release archive when VERSION is set, else a build from the action's own
-# source (the checkout GitHub made at the action ref). Puts it on PATH.
+# source (the checkout GitHub made at the action ref). Puts it on PATH. With
+# CAPTURE set, mcp-trace-capture too (the archive carries both; a source build
+# compiles it only when it will be used).
 set -euo pipefail
 
 bin_dir="$RUNNER_TEMP/mcp-conformance-bin"
@@ -17,7 +19,13 @@ if [[ -z "${VERSION:-}" ]]; then
   (cd "$GITHUB_ACTION_PATH" &&
     cargo install --locked --quiet --root "$RUNNER_TEMP/mcp-conformance" \
       --path crates/mcp-trace-validator)
-  cp "$RUNNER_TEMP"/mcp-conformance/bin/mcp-trace-validator* "$bin_dir/"
+  if [[ -n "${CAPTURE:-}" ]]; then
+    echo "Building mcp-trace-capture from the action's source"
+    (cd "$GITHUB_ACTION_PATH" &&
+      cargo install --locked --quiet --root "$RUNNER_TEMP/mcp-conformance" \
+        --path crates/mcp-trace-capture)
+  fi
+  cp "$RUNNER_TEMP"/mcp-conformance/bin/mcp-trace-* "$bin_dir/"
 else
   case "${RUNNER_OS}-${RUNNER_ARCH}" in
     Linux-X64) target=x86_64-unknown-linux-musl ext=tar.gz ;;
@@ -53,7 +61,8 @@ else
   else
     tar -xzf "${name}.tar.gz"
   fi
-  cp "${name}"/mcp-trace-validator* "$bin_dir/"
+  cp "${name}"/mcp-trace-validator* "${name}"/mcp-trace-capture* "$bin_dir/"
 fi
 echo "$bin_dir" >> "$GITHUB_PATH"
 "$bin_dir"/mcp-trace-validator --version
+if [[ -n "${CAPTURE:-}" ]]; then "$bin_dir"/mcp-trace-capture --version; fi

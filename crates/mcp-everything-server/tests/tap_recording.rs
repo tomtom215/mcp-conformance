@@ -516,6 +516,85 @@ async fn sessionless_exchanges_are_recorded_under_the_stateless_trace() {
     let _ = std::fs::remove_dir_all(dir);
 }
 
+/// The trace file names currently in `dir`, sorted.
+fn trace_names(dir: &Path) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    names
+}
+
+/// A session id the server never assigned is answered 404, and that exchange is
+/// recorded in the run's one `unassigned` trace rather than in a file named
+/// after whatever the client sent: otherwise every made-up id opens a file of
+/// its own, and the replay judges each as a session that never initialized.
+/// A session the server did assign keeps its file after `DELETE` (state is
+/// kept for the run by design), so a request after teardown still lands there.
+#[tokio::test]
+async fn a_session_the_server_never_assigned_records_into_the_unassigned_trace() {
+    let (app, dir) = tapped_app("unassigned");
+    for made_up in ["never-assigned-1", "never-assigned-2"] {
+        let response = app
+            .clone()
+            .oneshot(session_post(made_up, INITIALIZED.as_bytes().to_vec()))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{made_up}");
+    }
+    let events = read_trace(&dir, "unassigned", 6).await;
+    let statuses: Vec<_> = events
+        .iter()
+        .filter(|event| event["direction"] == "server-to-client")
+        .map(|event| event["status"].clone())
+        .collect();
+    assert_eq!(statuses, [404, 404], "{events:#?}");
+    for (index, event) in events.iter().enumerate() {
+        assert_eq!(event["seq"], index as u64, "{events:#?}");
+    }
+
+    let session_id = initialized_session(&app, &dir).await;
+    let delete = Request::builder()
+        .method("DELETE")
+        .uri("/mcp")
+        .header("host", "localhost:8080")
+        .header("mcp-session-id", session_id.as_str())
+        .body(Body::empty())
+        .unwrap();
+    assert!(
+        app.clone()
+            .oneshot(delete)
+            .await
+            .unwrap()
+            .status()
+            .is_success()
+    );
+    let after = app
+        .clone()
+        .oneshot(session_post(&session_id, INITIALIZED.as_bytes().to_vec()))
+        .await
+        .unwrap();
+    assert_eq!(after.status(), StatusCode::NOT_FOUND, "the session is gone");
+    let events = read_trace(&dir, &session_id, 13).await;
+    assert_eq!(events.last().unwrap()["status"], 404, "{events:#?}");
+
+    let names = trace_names(&dir);
+    assert_eq!(
+        names.len(),
+        2,
+        "one unassigned trace, one session: {names:?}"
+    );
+    assert!(
+        !names.iter().any(|name| name.contains("never-assigned")),
+        "{names:?}"
+    );
+
+    let _ = std::fs::remove_dir_all(dir);
+}
+
 /// A `/mcp` POST on `session_id` carrying an arbitrary (possibly huge) body.
 fn session_post(session_id: &str, body: Vec<u8>) -> Request<Body> {
     Request::builder()

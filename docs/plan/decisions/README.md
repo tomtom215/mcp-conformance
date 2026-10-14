@@ -36,6 +36,10 @@ or when the reasoning would otherwise live only in someone's head.
 | [0017](0017-both-stranded-properties-were-already-settled.md) | Both Stranded Properties Were Already Settled — and the Rule That Settles One Is Thin | Accepted (corrects 0016; extends its decision 3) |
 | [0018](0018-judge-the-declared-revision.md) | Judge the Revision the Trace Declares, and Ship `2026-07-28` in Every Build | Accepted (replaces the feature-gate condition in 02-architecture and roadmap M5) |
 | [0019](0019-a-recording-tap-is-not-a-gateway.md) | A Recording Tap Is Not a Gateway — Ship `mcp-trace-capture` | Accepted (narrows 0002's gateway/proxy non-goal) |
+| [0020](0020-wire-schema-validation.md) | Judge Every Message Against the Revision's Own JSON Schema | Accepted (reverses the no-schema-engine boundary) |
+| [0021](0021-a-workbench-people-keep-open.md) | A Workbench People Keep Open — `mcp-conformance` | Accepted (adds a sixth published crate) |
+| [0022](0022-judge-the-challenge-not-the-flow.md) | Judge the Challenge, Not the Flow — the Authorization Pages' Observable Subset | Accepted (implements review decision D4) |
+| [0023](0023-extensions-are-reported-never-scored.md) | Extensions Are Reported, Never Scored — the Tasks and Skills Registries | Accepted (implements review item 2.6) |
 
 ## Process
 

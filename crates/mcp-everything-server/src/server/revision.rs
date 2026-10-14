@@ -81,7 +81,10 @@ impl ServedRevision {
                  Tools include echo, add, and the suite's test_* contract; \
                  resources test://static-text, test://static-binary, and the \
                  test://template/{id}/data template; four test_* prompts; \
-                 logging/setLevel; completion/complete."
+                 logging/setLevel; completion/complete. That is the first page \
+                 of each listing; follow nextCursor for the second, which adds \
+                 icons, annotations, a resource_link tool, x-mcp-header \
+                 parameters and an audio prompt."
             }
             Self::V2026_07_28 => {
                 "Reference server for MCP conformance testing, serving the \
@@ -90,8 +93,11 @@ impl ServedRevision {
                  for capabilities. Tools include echo, add, and the suite's \
                  test_* contract; resources test://static-text, \
                  test://static-binary, and the test://template/{id}/data \
-                 template; four test_* prompts; completion/complete. Log level \
-                 rides each request's _meta at this revision; there is no \
+                 template; four test_* prompts; completion/complete. That is the \
+                 first page of each listing; follow nextCursor for the second, \
+                 which adds icons, annotations, a resource_link tool, \
+                 x-mcp-header parameters and an audio prompt. Log level rides \
+                 each request's _meta at this revision; there is no \
                  logging/setLevel."
             }
         }
@@ -108,6 +114,22 @@ impl ServedRevision {
     /// side effect of adding a mode nobody enabled.
     #[must_use]
     pub const fn emits_caching_hints(self) -> bool {
+        matches!(self, Self::V2026_07_28)
+    }
+
+    /// Whether every result names this server in its `_meta`
+    /// (`io.modelcontextprotocol/serverInfo`, BASE-037).
+    ///
+    /// `2026-07-28` asks it of every result, because a stateless client holding
+    /// one answer has no handshake to have learned the server's name from;
+    /// `2025-11-25` names the server once, in `initialize`, and defines no such
+    /// field. Read from the served revision for the reason
+    /// [`Self::emits_caching_hints`] gives: the legacy server answering a
+    /// `2026-07-28` request in `draft-readiness` is that server being held to a
+    /// revision it does not implement, and keeping it honest about that is the
+    /// measurement.
+    #[must_use]
+    pub const fn names_itself_on_results(self) -> bool {
         matches!(self, Self::V2026_07_28)
     }
 
@@ -190,6 +212,15 @@ mod tests {
     }
 
     #[test]
+    fn the_instructions_say_the_listings_have_a_second_page() {
+        // A client reading one page would otherwise take the suite's catalogue
+        // for the whole surface.
+        for revision in [ServedRevision::V2025_11_25, ServedRevision::V2026_07_28] {
+            assert!(revision.instructions().contains("follow nextCursor"));
+        }
+    }
+
+    #[test]
     fn a_missing_resource_draws_the_code_its_revision_permits() {
         // -32002 is withdrawn at 2026-07-28 (`basic/index#error-codes` lists
         // it under "MUST NOT emit these codes" and names -32602 as the
@@ -224,5 +255,11 @@ mod tests {
         assert!(!ServedRevision::V2025_11_25.emits_caching_hints());
         assert!(ServedRevision::V2026_07_28.is_stateless());
         assert!(ServedRevision::V2026_07_28.emits_caching_hints());
+    }
+
+    #[test]
+    fn only_the_newer_revision_names_itself_on_every_result() {
+        assert!(!ServedRevision::V2025_11_25.names_itself_on_results());
+        assert!(ServedRevision::V2026_07_28.names_itself_on_results());
     }
 }

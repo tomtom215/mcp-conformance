@@ -8,20 +8,12 @@
 //! *during* a tool call, so the inter-notification delays the scenarios ask
 //! for (~50 ms) are part of the contract, not an implementation detail.
 
-// SEP-2577 forward-deprecates Roots, Sampling and Logging. They remain fully
-// functional and REQUIRED on the `2025-11-25` surface this crate implements
-// and the official suite exercises, so rmcp 3.x's deprecation attributes fire
-// on correct code — here, Logging. Scoped to this module, never the crate:
-// a blanket allow would also hide a deprecation that genuinely matters. The
-// honest cost is that a *different* future deprecation in this module would
-// be silenced too. Retires when the `2025-11-25` surface does.
-#![allow(deprecated)]
 use std::time::Duration;
 
-use rmcp::model::{
-    CallToolResult, ContentBlock, LoggingLevel, LoggingMessageNotificationParam,
-    ProgressNotificationParam,
-};
+use rmcp::model::{CallToolResult, ContentBlock, ProgressNotificationParam};
+// SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+#[allow(deprecated)]
+use rmcp::model::{LoggingLevel, LoggingMessageNotificationParam};
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, tool, tool_router};
 
@@ -50,7 +42,11 @@ impl EverythingServer {
         // info silences these at `2025-11-25` (the scenario's "filter
         // subsequent log notifications" requirement), and at `2026-07-28` only
         // a request that asked for info in its `_meta` gets them at all.
+        // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+        #[allow(deprecated)]
         let permitted = self.log_permits(&context, LoggingLevel::Info);
+        // SEP-2577 deprecates Logging; `2025-11-25` still requires it.
+        #[allow(deprecated)]
         let log = |message: &'static str| {
             let peer = context.peer.clone();
             async move {

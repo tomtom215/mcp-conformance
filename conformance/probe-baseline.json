@@ -1,6 +1,6 @@
 {
   "_policy": "The probe session (`cargo xtask draft-capture`, probe leg) sends deliberately malformed requests so the specification's rejection clauses have traffic to judge. It is not a conforming client, so its recording cannot be held to a clean verdict the way the other captures are — the client-side clauses it breaks are the faults under test. This file is what it is held to instead: every finding the probe draws must be listed here with a reason, and every listed finding must still occur. An unexpected finding is a new defect or a regression; an expected one that stopped occurring is either a fix that should retire its entry in the same change, or a check that quietly stopped firing. Both fail the gate. Entries are hand-written and never blessed: a generated file cannot carry the reason, and the reason is the point.",
-  "_reading": "`fault: probe` is the probe doing its job — the malformed request is the fixture, and the client-side clause it breaks is the one under test. There are no `fault: server` entries: the two this file carried (LOG-010, PAGE-011) were closed on 2026-08-17 by enforcing both rules on Streamable HTTP as well as stdio, and the gate required their entries retired in the same change. An entry with `fault: server` is an open defect, and each must say what would close it.",
+  "_reading": "`fault: probe` is the probe doing its job — the malformed request is the fixture, and the client-side clause it breaks is the one under test. The two `fault: server` entries this file once carried (LOG-010, PAGE-011) were closed on 2026-08-17 by enforcing both rules on Streamable HTTP as well as stdio, and the gate required their entries retired in the same change. A third, BASE-037, opened on 2026-10-13 when the clause became judged and closed the same day, when the everything server began naming itself on every result. An entry with `fault: server` is an open defect, and each must say what would close it.",
   "expected": [
     {
       "requirement": "BASE-030",
@@ -46,6 +46,21 @@
       "requirement": "TRAN-072",
       "fault": "probe",
       "why": "One probe deliberately disagrees between its `MCP-Protocol-Version` header and its body's `_meta` version. That disagreement is the antecedent of TRAN-073 and TRAN-098 — a server must reject it with `HeaderMismatch` under HTTP 400 — and both pass on this recording."
+    },
+    {
+      "requirement": "TRAN-079",
+      "fault": "probe",
+      "why": "The designated-header probe calls a tool whose `inputSchema` designates `limit` for `Mcp-Param-Limit` and sends `limit` without that header. The omission is the fixture: it is the antecedent of TRAN-136 — the behaviour table's \"Client omits header but value is in body | Non-conforming client | Server MUST reject the request\" — which no conforming client can exercise, and which passes on this recording."
+    },
+    {
+      "requirement": "TRAN-130",
+      "fault": "probe",
+      "why": "The same omitted header; TRAN-130 is the behaviour table's \"Parameter value provided | Client MUST include the header\", sharing `transport.x-mcp-header-mirrored` with TRAN-079."
+    },
+    {
+      "requirement": "BASE-033",
+      "fault": "probe",
+      "why": "The probe's requests carry no `io.modelcontextprotocol/clientInfo`. Not a fixture — a SHOULD-level warning the probe was written before the registry judged (BASE-033 was excluded until 2026-10-13). It retires when the probe names itself and its session is re-recorded."
     }
   ]
 }

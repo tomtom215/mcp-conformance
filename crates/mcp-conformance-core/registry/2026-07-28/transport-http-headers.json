@@ -41,7 +41,8 @@
         "quote": "When a server's tool definition includes `x-mcp-header` annotations, conforming clients MUST mirror the designated parameter values into HTTP headers."
       },
       "checks": [
-        "transport.x-mcp-header-mirrored"
+        "transport.x-mcp-header-mirrored",
+        "transport.x-mcp-header-value-mirrored"
       ]
     },
     {
@@ -85,7 +86,9 @@
         "section": "basic/transports/streamable-http#schema-extension",
         "quote": "The chain MUST NOT pass through `items` (or any other array keyword), composition keywords (`oneOf`, `anyOf`, `allOf`, `not`), conditional keywords (`if`/`then`/`else`), or `$ref`."
       },
-      "exclusion": "The forbidden keyword chain is judged where the annotation sits, which needs the JSON Schema vocabulary TRAN-137 explains core leaves out."
+      "checks": [
+        "transport.x-mcp-header-statically-reachable"
+      ]
     },
     {
       "id": "TRAN-083",
@@ -98,7 +101,9 @@
         "section": "basic/transports/streamable-http#schema-extension",
         "quote": "Clients using the Streamable HTTP transport MUST reject tool definitions where any `x-mcp-header` value violates these constraints."
       },
-      "exclusion": "Rejection happens inside the client before it ever emits a message; the trace records the tool definition the server served, not the client's verdict on it."
+      "checks": [
+        "transport.x-mcp-header-invalid-tool-not-called"
+      ]
     },
     {
       "id": "TRAN-084",
@@ -111,7 +116,9 @@
         "section": "basic/transports/streamable-http#schema-extension",
         "quote": "Rejection means the client MUST exclude the invalid tool from the result of `tools/list`."
       },
-      "exclusion": "The excluded tool is absent from a list the *client* assembles for its own consumer — a data structure that never reaches the wire."
+      "checks": [
+        "transport.x-mcp-header-invalid-tool-not-called"
+      ]
     },
     {
       "id": "TRAN-085",
@@ -262,7 +269,24 @@
         "section": "basic/transports/streamable-http#schema-extension",
         "quote": "Constraints on `x-mcp-header` values: MUST only be applied to properties that are statically reachable from the schema root: reachable via a chain consisting solely of `properties` keys."
       },
-      "exclusion": "Judging where an `x-mcp-header` annotation sits means finding every one in the schema and telling subschemas from instance data: `default`, `const`, `enum` and `examples` hold data that may carry the same key, and an unknown keyword's value is not a schema. That is JSON Schema vocabulary `mcp-conformance-core` deliberately leaves out (02-architecture.md), the boundary BASE-073 draws."
+      "checks": [
+        "transport.x-mcp-header-statically-reachable"
+      ]
+    },
+    {
+      "id": "TRAN-141",
+      "level": "MUST",
+      "actor": "client",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/transports/streamable-http#standard-request-headers",
+        "quote": "These headers are REQUIRED for compliance."
+      },
+      "checks": [
+        "transport.request-metadata-headers"
+      ]
     }
   ]
 }
