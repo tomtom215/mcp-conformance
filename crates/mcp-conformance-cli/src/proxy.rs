@@ -257,14 +257,16 @@ mod tests {
         dir
     }
 
-    /// An upstream nothing listens on: a loopback port just given back.
-    fn refusing() -> Uri {
-        let port = std::net::TcpListener::bind("127.0.0.1:0")
-            .unwrap()
-            .local_addr()
-            .unwrap()
-            .port();
-        format!("http://127.0.0.1:{port}").parse().unwrap()
+    /// An upstream that refuses every connection: a loopback port held bound
+    /// but never listened on, for as long as the returned socket lives. (A
+    /// port bound and given back could be taken by any listener started in the
+    /// meantime, this proxy's own included, and a request to one that never
+    /// answers waits forever.)
+    fn refusing() -> (Uri, tokio::net::TcpSocket) {
+        let socket = tokio::net::TcpSocket::new_v4().unwrap();
+        socket.bind("127.0.0.1:0".parse().unwrap()).unwrap();
+        let port = socket.local_addr().unwrap().port();
+        (format!("http://127.0.0.1:{port}").parse().unwrap(), socket)
     }
 
     const INITIALIZE: &str = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
@@ -274,7 +276,8 @@ mod tests {
         let client = reqwest::Client::new();
 
         let dir = scratch("complete");
-        let proxy = start(refusing(), true, &dir).await.unwrap();
+        let (upstream, _held) = refusing();
+        let proxy = start(upstream, true, &dir).await.unwrap();
         let url = format!("http://{}/mcp", proxy.address);
         let answered = client.post(&url).body(INITIALIZE).send().await.unwrap();
         assert_eq!(answered.status(), 502);
@@ -286,7 +289,8 @@ mod tests {
         // The session's file goes away after its first write: the next write
         // to it fails, and the trace is incomplete.
         let dir = scratch("incomplete");
-        let proxy = start(refusing(), true, &dir).await.unwrap();
+        let (upstream, _held) = refusing();
+        let proxy = start(upstream, true, &dir).await.unwrap();
         let url = format!("http://{}/mcp", proxy.address);
         client.post(&url).body(INITIALIZE).send().await.unwrap();
         let path = dir.join("001.jsonl");
