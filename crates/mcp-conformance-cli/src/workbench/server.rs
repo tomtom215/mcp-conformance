@@ -59,20 +59,39 @@ pub(crate) fn app(shared: Arc<Shared>) -> axum::Router {
     axum::Router::new().fallback(move |request: Request<Body>| api::handle(shared.clone(), request))
 }
 
-/// Opens `url` in the system's browser, without a shell.
-fn open_browser(url: &str) {
-    let (program, args): (&str, Vec<&str>) = if cfg!(target_os = "macos") {
+/// The command that opens `url` in the system's browser: a program and its
+/// arguments, run without a shell.
+fn browser_command(url: &str) -> (&'static str, Vec<&str>) {
+    if cfg!(target_os = "macos") {
         ("open", vec![url])
     } else if cfg!(windows) {
         ("rundll32", vec!["url.dll,FileProtocolHandler", url])
     } else {
         ("xdg-open", vec![url])
-    };
-    if let Err(error) = std::process::Command::new(program).args(args).spawn() {
-        eprintln!(
-            "mcp-conformance serve: could not open a browser ({program}: {error}); open the link above"
-        );
     }
+}
+
+/// Starts `program` with `args` and leaves it running; why it could not be
+/// started, when it could not.
+fn launch(program: &str, args: &[&str]) -> Result<(), String> {
+    std::process::Command::new(program)
+        .args(args)
+        .spawn()
+        .map(drop)
+        .map_err(|error| {
+            format!("could not open a browser ({program}: {error}); open the link above")
+        })
+}
+
+/// The warning a workbench listening on `address` prints after its link,
+/// when `address` is not loopback.
+fn exposure_warning(address: SocketAddr) -> Option<String> {
+    (!address.ip().is_loopback()).then(|| {
+        format!(
+            "WARNING: listening on {address}, which is not loopback: anyone who can reach it \
+             and holds the link can read the library"
+        )
+    })
 }
 
 /// Binds the address and opens the library: the listener and the state.
@@ -121,14 +140,14 @@ pub(crate) async fn run_until(
     ));
     say(format!("mcp-conformance serve: open {url}"));
     say("mcp-conformance serve: the link works once; Ctrl-C stops the workbench".to_owned());
-    if !address.ip().is_loopback() {
-        eprintln!(
-            "mcp-conformance serve: WARNING: listening on {address}, which is not loopback: \
-             anyone who can reach it and holds the link can read the library"
-        );
+    if let Some(warning) = exposure_warning(address) {
+        eprintln!("mcp-conformance serve: {warning}");
     }
     if settings.open {
-        open_browser(&url);
+        let (program, args) = browser_command(&url);
+        if let Err(why) = launch(program, &args) {
+            eprintln!("mcp-conformance serve: {why}");
+        }
     }
     match axum::serve(listener, app(shared))
         .with_graceful_shutdown(shutdown)
@@ -165,6 +184,45 @@ mod tests {
             );
             assert!(check_address(address, true).is_ok());
         }
+    }
+
+    #[test]
+    fn only_a_non_loopback_address_is_warned_about() {
+        assert_eq!(exposure_warning("127.0.0.1:4200".parse().unwrap()), None);
+        assert_eq!(exposure_warning("[::1]:4200".parse().unwrap()), None);
+        let warning = exposure_warning("0.0.0.0:4200".parse().unwrap()).unwrap();
+        assert!(
+            warning.starts_with("WARNING: listening on 0.0.0.0:4200, which is not loopback"),
+            "{warning}"
+        );
+    }
+
+    #[test]
+    fn the_browser_is_the_platforms_opener_given_the_link_alone() {
+        let (program, args) = browser_command("http://127.0.0.1:1/?t=a&b");
+        let expected = if cfg!(target_os = "macos") {
+            "open"
+        } else if cfg!(windows) {
+            "rundll32"
+        } else {
+            "xdg-open"
+        };
+        assert_eq!(program, expected);
+        assert_eq!(args.last(), Some(&"http://127.0.0.1:1/?t=a&b"));
+        // No shell: the link's `&` is an argument's byte, not an operator.
+        assert!(args.len() <= 2);
+    }
+
+    #[test]
+    fn a_launcher_that_cannot_start_says_why() {
+        let missing = "mcp-conformance-no-such-browser";
+        let why = launch(missing, &["http://127.0.0.1:1/"]).unwrap_err();
+        assert!(
+            why.contains(missing) && why.ends_with("open the link above"),
+            "{why}"
+        );
+        #[cfg(unix)]
+        assert_eq!(launch("true", &[]), Ok(()));
     }
 
     #[tokio::test]

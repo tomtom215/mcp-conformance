@@ -103,6 +103,82 @@ fn the_text_form_says_what_the_json_says() {
     assert_eq!(area("plain"), "plain");
 }
 
+/// `entry` judged at revision `R` with only `rows` (`[id, outcome,
+/// findings]`), and a wire schema with `schema_findings` findings.
+fn judged(entry: &Entry, rows: &[(&str, &str, usize)], schema_findings: usize) -> Entry {
+    let finding = |n: usize| serde_json::json!({"check": "c", "detail": format!("d{n}")});
+    let mut entry = entry.clone();
+    entry.reports.truncate(1);
+    let report = &mut entry.reports[0];
+    report.revision = "R".to_owned();
+    report.requirements = rows
+        .iter()
+        .map(|(id, outcome, findings)| {
+            serde_json::from_value(serde_json::json!({
+                "id": id, "level": "MUST", "outcome": outcome,
+                "findings": (0..*findings).map(finding).collect::<Vec<_>>(),
+            }))
+            .unwrap()
+        })
+        .collect();
+    let schema = report.wire_schema.as_mut().unwrap();
+    schema.findings = (0..schema_findings)
+        .map(|n| serde_json::from_value(finding(n)).unwrap())
+        .collect();
+    entry
+}
+
+#[test]
+fn clauses_and_findings_are_counted_exactly() {
+    let (workbench, _dir) = fixture::workbench("exact");
+    let base = workbench.entry("everything-http").unwrap();
+    let first = judged(
+        base,
+        &[
+            ("A-1", "pass", 0),
+            ("A-2", "excluded", 0),
+            ("A-3", "fail", 2),
+            ("B-1", "not-applicable", 0),
+            ("B-2", "excluded", 0),
+        ],
+        3,
+    );
+    // B-2, excluded in one recording, is judged in another: it counts as
+    // exercised, not excluded.
+    let second = judged(base, &[("B-2", "pass", 0), ("A-3", "warn", 1)], 0);
+    let stats = compute([&first, &second]);
+    let coverage = &stats.coverage[0];
+    assert_eq!(coverage.revision, "R");
+    assert_eq!(
+        (
+            coverage.sessions,
+            coverage.clauses,
+            coverage.excluded,
+            coverage.exercised
+        ),
+        (2, 5, 1, 3)
+    );
+    let areas: Vec<(&str, usize, usize, usize)> = coverage
+        .areas
+        .iter()
+        .map(|a| (a.area.as_str(), a.clauses, a.excluded, a.exercised))
+        .collect();
+    assert_eq!(areas, [("A", 3, 1, 2), ("B", 2, 0, 1)]);
+    let found: Vec<(&str, usize, usize)> = stats
+        .findings_by_area
+        .iter()
+        .map(|c| (c.area.as_str(), c.findings, c.sessions))
+        .collect();
+    assert_eq!(found, [("A", 3, 2), (WIRE_SCHEMA, 3, 1)]);
+
+    let mut text = to_human(&stats);
+    assert!(!text.contains("without a recording date"), "{text}");
+    let mut undated = stats;
+    undated.undated = 1;
+    text = to_human(&undated);
+    assert!(text.contains("\n  1 without a recording date\n"), "{text}");
+}
+
 #[test]
 fn an_undated_recording_is_counted_not_placed() {
     let dir = fixture::scratch("undated");

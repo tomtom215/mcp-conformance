@@ -86,6 +86,54 @@ fn files_added_and_removed_outside_are_noticed() {
 }
 
 #[test]
+fn an_entry_is_reloaded_when_its_size_or_time_changes_and_only_then() {
+    let (mut workbench, dir) = fixture::workbench("unchanged");
+    let id = "everything-stdio";
+    let path = dir.join(format!("{id}.jsonl"));
+    let tagged = |workbench: &Workbench| workbench.entry(id).unwrap().meta.tags.clone();
+    let before = tagged(&workbench);
+    // A sidecar changed behind the workbench's back, the trace untouched:
+    // the entry is not read again.
+    let mut meta = workbench.library.read_meta(id).meta;
+    meta.set_tags(["outside"]);
+    workbench.library.write_meta(id, &meta).unwrap();
+    workbench.refresh().unwrap();
+    assert_eq!(tagged(&workbench), before);
+    // The same bytes with another modification time: read again.
+    let bytes = std::fs::read(&path).unwrap();
+    std::fs::write(&path, &bytes).unwrap();
+    let file = std::fs::File::options().write(true).open(&path).unwrap();
+    file.set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(86_400))
+        .unwrap();
+    workbench.refresh().unwrap();
+    assert_eq!(tagged(&workbench), ["outside"]);
+    // Another size with the same modification time: read again.
+    meta.set_tags(["again"]);
+    workbench.library.write_meta(id, &meta).unwrap();
+    let mut longer = bytes;
+    longer.extend_from_slice(b"\n");
+    std::fs::write(&path, &longer).unwrap();
+    file.set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(86_400))
+        .unwrap();
+    workbench.refresh().unwrap();
+    assert_eq!(tagged(&workbench), ["again"]);
+}
+
+#[test]
+fn a_sidecar_written_for_a_bare_trace_is_of_the_current_format() {
+    let dir = fixture::scratch("bare");
+    std::fs::copy(
+        fixture::fixtures().join("everything-stdio.jsonl"),
+        dir.join("bare.jsonl"),
+    )
+    .unwrap();
+    let workbench = Workbench::open(&dir).unwrap();
+    let text = std::fs::read_to_string(workbench.library.meta_path("bare")).unwrap();
+    let written: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(written["format"], crate::workbench::meta::FORMAT);
+}
+
+#[test]
 fn tags_are_written_to_the_sidecar_and_searchable() {
     let (mut workbench, _dir) = fixture::workbench("tags");
     workbench

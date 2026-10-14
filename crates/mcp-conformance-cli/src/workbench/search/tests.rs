@@ -6,6 +6,8 @@
 
 #![allow(clippy::unwrap_used)]
 
+use serde_json::json;
+
 use super::*;
 use crate::workbench::fixture;
 use crate::workbench::query::parse;
@@ -96,6 +98,38 @@ fn a_hit_carries_the_events_its_terms_matched() {
         .find(|hit| hit.id == "base-001-request-id-boolean")
         .unwrap();
     assert!(base.events.contains(&3), "{base:?}");
+}
+
+#[test]
+fn a_request_indexes_the_prompt_or_resource_it_names() {
+    let mut doc = Doc::default();
+    let requests = [
+        json!({"method": "prompts/get", "params": {"name": "Greeting", "uri": "x://not-a-resource"}}),
+        json!({"method": "resources/read", "params": {"uri": "x://read", "name": "not-a-prompt"}}),
+        json!({"method": "resources/subscribe", "params": {"uri": "x://subscribe"}}),
+        json!({"method": "resources/unsubscribe", "params": {"uri": "x://unsubscribe"}}),
+        json!({"method": "resources/list", "params": {"uri": "x://listed"}}),
+    ];
+    for (seq, request) in (1..).zip(&requests) {
+        doc.message(request, seq);
+    }
+    let values = |field: Field| -> Vec<(String, Vec<u64>)> {
+        doc.fields
+            .get(&field)
+            .into_iter()
+            .flatten()
+            .map(|(value, seqs)| (value.clone(), seqs.iter().copied().collect()))
+            .collect()
+    };
+    assert_eq!(values(Field::Prompt), [("greeting".to_owned(), vec![1])]);
+    assert_eq!(
+        values(Field::Resource),
+        [
+            ("x://read".to_owned(), vec![2]),
+            ("x://subscribe".to_owned(), vec![3]),
+            ("x://unsubscribe".to_owned(), vec![4]),
+        ]
+    );
 }
 
 fn doc(id: &str, methods: &[(&str, u64)], findings: &[&str], tags: &[&str]) -> Doc {

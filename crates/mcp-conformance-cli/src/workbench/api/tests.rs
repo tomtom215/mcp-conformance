@@ -16,7 +16,7 @@ use crate::workbench::server;
 const HOST: &str = "127.0.0.1:4200";
 const ORIGIN: &str = "http://127.0.0.1:4200";
 
-fn shared(name: &str) -> (Arc<Shared>, fixture::Scratch) {
+pub(super) fn shared(name: &str) -> (Arc<Shared>, fixture::Scratch) {
     let dir = fixture::library(name);
     (server::shared(&dir, HOST.parse().unwrap()).unwrap(), dir)
 }
@@ -38,7 +38,7 @@ fn request(shared: &Shared, method: Method, path: &str, body: Option<&Value>) ->
     builder.body(Body::empty()).unwrap()
 }
 
-async fn send(
+pub(super) async fn send(
     shared: &Arc<Shared>,
     request: Request<Body>,
 ) -> (StatusCode, axum::http::HeaderMap, Vec<u8>) {
@@ -483,4 +483,5 @@ fn query_components_are_percent_decoded() {
     assert_eq!(decode("a+b%3Ac%2f%E2%9C%93"), "a b:c/✓");
     assert_eq!(decode("100%"), "100%");
     assert_eq!(decode("%zz%4"), "%zz%4");
+    assert_eq!(decode("%41%42c%"), "ABc%");
 }

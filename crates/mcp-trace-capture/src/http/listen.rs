@@ -90,3 +90,28 @@ fn is_connection_error(error: &io::Error) -> bool {
             | io::ErrorKind::ConnectionReset
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_a_failure_of_the_one_connection_is_retried_at_once() {
+        for kind in [
+            io::ErrorKind::ConnectionRefused,
+            io::ErrorKind::ConnectionAborted,
+            io::ErrorKind::ConnectionReset,
+        ] {
+            assert!(is_connection_error(&io::Error::from(kind)), "{kind:?}");
+        }
+        // Out of file descriptors, or of memory: the next accept fails the
+        // same way, so the loop backs off.
+        for error in [
+            io::Error::from_raw_os_error(24),
+            io::Error::from(io::ErrorKind::OutOfMemory),
+            io::Error::other("other"),
+        ] {
+            assert!(!is_connection_error(&error), "{error}");
+        }
+    }
+}

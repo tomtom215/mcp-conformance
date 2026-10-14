@@ -106,6 +106,14 @@ fn assert_contiguous(events: &[serde_json::Value]) {
     }
 }
 
+/// Waits until the service holds a request (10 s deadline: a tap that never
+/// passed the request on fails the test rather than hanging it).
+async fn held(arrived: &tokio::sync::Notify) {
+    tokio::time::timeout(std::time::Duration::from_secs(10), arrived.notified())
+        .await
+        .expect("the request reached the service within 10s");
+}
+
 /// Sends request 1, waits until the service holds it, then sends request 2,
 /// which releases it: request 1 is observed first and answered last.
 async fn overlap(router: &axum::Router, arrived: &tokio::sync::Notify, session: Option<&str>) {
@@ -113,7 +121,7 @@ async fn overlap(router: &axum::Router, arrived: &tokio::sync::Notify, session: 
         r#"{"jsonrpc":"2.0","id":1,"method":"tools/call"}"#,
         session,
     )));
-    arrived.notified().await;
+    held(arrived).await;
     let _ = router
         .clone()
         .oneshot(post(r#"{"jsonrpc":"2.0","id":2,"method":"ping"}"#, session))
@@ -181,7 +189,7 @@ async fn a_reserved_place_is_released_when_the_request_lands_elsewhere_or_never(
         r#"{"jsonrpc":"2.0","id":3,"method":"tools/call"}"#,
         None,
     )));
-    arrived.notified().await;
+    held(&arrived).await;
     abandoned.abort();
     let _ = abandoned.await;
     // Elsewhere: an initialize whose response assigns session `s1`.

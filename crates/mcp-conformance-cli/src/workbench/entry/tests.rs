@@ -146,3 +146,21 @@ fn the_summary_carries_what_the_list_shows() {
     assert_eq!(summary["sidecar_problem"], "odd");
     assert_eq!(summary["bytes"], entry.size);
 }
+
+#[test]
+fn the_first_events_timestamp_is_a_fact() {
+    let timed = "{\"seq\":0,\"ts\":\"2026-01-02T03:04:05Z\",\"direction\":\"client-to-server\",\"transport\":\"stdio\",\"kind\":\"lifecycle\",\"event\":\"transport-open\"}\n{\"seq\":1,\"ts\":\"2026-01-02T03:04:06Z\",\"direction\":\"client-to-server\",\"transport\":\"stdio\",\"kind\":\"lifecycle\",\"event\":\"transport-close\"}\n";
+    let (entry, _) = Entry::load("t", timed.as_bytes(), Meta::default(), None, None);
+    assert_eq!(
+        entry.facts.first_ts.as_deref(),
+        Some("2026-01-02T03:04:05Z")
+    );
+    let (untimed, _) = Entry::load(
+        "u",
+        &read("everything-stdio.jsonl"),
+        Meta::default(),
+        None,
+        None,
+    );
+    assert_eq!(untimed.facts.first_ts, None);
+}

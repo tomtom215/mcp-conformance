@@ -79,10 +79,12 @@ async fn list_tools(
 ) -> (Vec<Value>, u64) {
     let mut tools = Vec::new();
     let mut cursor: Option<String> = None;
-    let mut id = FIRST_ID;
-    while id < FIRST_ID + PAGE_LIMIT {
+    let mut next = FIRST_ID;
+    // One request id per page, from a bounded range: the loop ends whatever
+    // the server's cursors say.
+    for id in FIRST_ID..FIRST_ID + PAGE_LIMIT {
         let body = listing(id, cursor.as_deref());
-        id += 1;
+        next = id + 1;
         let (answer, payload) = post(client, url, "tools/list", None, &[], body).await;
         outcomes.push(ProbeOutcome {
             clauses: LISTING,
@@ -106,7 +108,7 @@ async fn list_tools(
             break;
         }
     }
-    (tools, id)
+    (tools, next)
 }
 
 /// A `tools/list` body, presenting `cursor` when there is one.
@@ -266,6 +268,44 @@ mod tests {
             next["params"]["_meta"]["io.modelcontextprotocol/protocolVersion"],
             REVISION
         );
+    }
+
+    /// A server on a loopback socket answering every `tools/list` with one
+    /// tool and a `nextCursor` for as long as `pages` says; returns its URL.
+    async fn lister(pages: u64) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/mcp", listener.local_addr().unwrap());
+        let app = axum::Router::new().fallback(move |body: String| async move {
+            let request: Value = serde_json::from_str(&body).unwrap();
+            let id = request["id"].as_u64().unwrap();
+            let mut result = json!({"tools": [{"name": format!("t{id}")}]});
+            if id < FIRST_ID + pages - 1 {
+                result["nextCursor"] = json!(format!("after-{id}"));
+            }
+            (
+                [(axum::http::header::CONTENT_TYPE, "application/json")],
+                json!({"jsonrpc": "2.0", "id": id, "result": result}).to_string(),
+            )
+        });
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        url
+    }
+
+    #[tokio::test]
+    async fn the_listing_follows_cursors_up_to_its_page_limit() {
+        let client = reqwest::Client::new();
+        // Two pages: both listed, and the call takes the id after them.
+        let mut outcomes = Vec::new();
+        let (tools, next) = list_tools(&client, &lister(2).await, &mut outcomes).await;
+        assert_eq!(tools, [json!({"name": "t10"}), json!({"name": "t11"})]);
+        assert_eq!((outcomes.len(), next), (2, 12));
+        // Cursors that never end: eight pages, then the probe moves on.
+        let mut outcomes = Vec::new();
+        let (tools, next) = list_tools(&client, &lister(u64::MAX / 2).await, &mut outcomes).await;
+        assert_eq!(tools.len(), 8);
+        assert_eq!(tools[7], json!({"name": "t17"}));
+        assert_eq!((outcomes.len(), next), (8, 18));
+        assert!(outcomes.iter().all(|outcome| outcome.answer == Ok(200)));
     }
 
     #[test]

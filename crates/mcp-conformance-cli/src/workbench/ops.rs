@@ -134,3 +134,49 @@ pub(crate) fn export_archive(wb: &Workbench, ids: &[&str]) -> Result<Vec<u8>, Fa
     }
     Ok(archive.finish())
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::*;
+    use crate::workbench::fixture;
+
+    #[test]
+    fn a_trace_is_recorded_and_another_format_imported() {
+        let (mut wb, dir) = fixture::workbench("import-kind");
+        let trace = std::fs::read_to_string(dir.join("everything-stdio.jsonl")).unwrap();
+        let entry = import_document(&mut wb, "a/b\\copy.jsonl", &trace, None, None).unwrap();
+        assert_eq!(entry["source"]["kind"], "recorded");
+        assert_eq!(entry["source"]["importer"], "trace");
+        assert_eq!(wb.entry("copy").unwrap().meta.source.kind, "recorded");
+        let capture = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../conformance/mcpsnoop/native/stdio-2025-11-25.mcpsnoop.jsonl"),
+        )
+        .unwrap();
+        let entry = import_document(&mut wb, "snoop.jsonl", &capture, Some("auto"), None).unwrap();
+        assert_eq!(entry["source"]["kind"], "imported");
+    }
+
+    #[test]
+    fn retention_keeps_what_is_exactly_as_old_as_the_limit() {
+        let (wb, _dir) = fixture::workbench("retention-edge");
+        let now = "2026-10-12T23:59:59Z";
+        let today: Vec<&str> = wb
+            .entries
+            .values()
+            .filter(|entry| entry.day().as_deref() == Some("2026-10-12"))
+            .map(|entry| entry.id.as_str())
+            .collect();
+        assert!(
+            !today.is_empty(),
+            "the fixtures hold a recording of that day"
+        );
+        let selected = retention_select(&wb, 0, now);
+        for id in &today {
+            assert!(!selected.iter().any(|s| s == id), "{id} is 0 days old");
+        }
+        assert_eq!(selected.len(), wb.entries.len() - today.len());
+    }
+}

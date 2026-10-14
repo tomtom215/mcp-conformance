@@ -156,7 +156,7 @@ fn meta_values(value: &mut Value) -> usize {
 /// Replaces `needle` in every string and member name under `value`.
 fn scrub(value: &mut Value, needle: &str) -> usize {
     match value {
-        Value::String(text) if text.contains(needle) => {
+        Value::String(text) => {
             let count = text.matches(needle).count();
             *text = text.replace(needle, REDACTED);
             count

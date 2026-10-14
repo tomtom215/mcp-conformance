@@ -296,6 +296,58 @@ mod tests {
     }
 
     #[test]
+    fn a_scan_lists_every_trace_by_id_and_says_why_it_skipped_the_rest() {
+        let dir = crate::workbench::fixture::library("library-scan");
+        fs::write(dir.join("bad name.jsonl"), "").unwrap();
+        fs::create_dir(dir.join("folder.jsonl")).unwrap();
+        fs::write(dir.join("notes.txt"), "").unwrap();
+        let (ids, skipped) = Library::open(&dir).unwrap().scan().unwrap();
+        assert_eq!(
+            ids,
+            [
+                "base-001-request-id-boolean",
+                "everything-http",
+                "everything-stdio",
+                "hostile-markup",
+                "leaky-session",
+                "sdk-go-2025-11-25",
+                "sdk-python-2025-11-25",
+                "sdk-rust-2025-11-25",
+                "sdk-rust-2026-07-28",
+                "sdk-typescript-2025-11-25",
+                "tool-005-name-length",
+            ]
+        );
+        let skipped: Vec<(&str, &str)> = skipped
+            .iter()
+            .map(|s| (s.file.as_str(), s.reason.as_str()))
+            .collect();
+        assert_eq!(skipped.len(), 2, "{skipped:?}");
+        assert_eq!(skipped[0].0, "bad name.jsonl");
+        assert!(skipped[0].1.starts_with("the name is not a library id"));
+        assert_eq!(skipped[1], ("folder.jsonl", "not a regular file"));
+    }
+
+    #[test]
+    fn a_trace_without_a_sidecar_keeps_its_id_and_errors_are_not_retried() {
+        let dir = crate::workbench::fixture::scratch("library-taken");
+        let library = Library::open(&dir).unwrap();
+        // A trace whose sidecar is missing still holds its id.
+        fs::write(library.trace_path("u"), "kept\n").unwrap();
+        let meta = Meta::new("imported");
+        assert_eq!(library.add("u", b"new\n", &meta).unwrap(), "u-2");
+        assert_eq!(fs::read(library.trace_path("u")).unwrap(), b"kept\n");
+        // A sidecar that cannot be removed is an error, not a deletion.
+        fs::create_dir(library.meta_path("u")).unwrap();
+        assert!(library.delete("u").is_err());
+        // A library that is gone is reported as gone, not as out of ids.
+        let gone = Library::open(&dir.join("gone")).unwrap();
+        fs::remove_dir(gone.root()).unwrap();
+        let error = gone.add("v", b"", &meta).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::NotFound, "{error}");
+    }
+
+    #[test]
     fn an_unreadable_sidecar_is_reported_not_replaced() {
         let dir = scratch("sidecar");
         let library = Library::open(&dir).unwrap();

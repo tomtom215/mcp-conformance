@@ -165,3 +165,6 @@ fn retention(wb: &mut Workbench, body: &RetentionBody, now: &str) -> Result<Valu
     }
     Ok(json!({ "days": body.days, "applied": body.apply, "entries": selected }))
 }
+
+#[cfg(test)]
+mod tests;

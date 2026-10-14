@@ -265,3 +265,79 @@ fn a_body_past_the_budget_stops_there_and_gives_the_budget_back() {
     drop(whole);
     assert_eq!(budget.available_permits(), 1000);
 }
+
+/// What is held is what the buffer has allocated, chunk after chunk: a chunk
+/// that fits in the capacity already held takes nothing more, and a growing
+/// buffer holds exactly its new capacity.
+#[test]
+fn a_body_holds_exactly_its_buffers_capacity() {
+    let budget = Arc::new(tokio::sync::Semaphore::new(1 << 20));
+    let read = |chunks: &[usize]| {
+        let mut stream = futures::stream::iter(
+            chunks
+                .iter()
+                .map(|&len| Ok::<_, ()>(Bytes::from(vec![b'x'; len]))),
+        );
+        futures::executor::block_on(read_prefix(&mut stream, 1 << 16, &budget))
+    };
+    // An empty chunk at a full buffer grows nothing.
+    let full = read(&[512, 0]);
+    assert!(matches!(full.end, End::Complete));
+    assert_eq!((full.bytes.capacity(), full.held.bytes()), (512, 512));
+    drop(full);
+    // A second chunk doubles the buffer, and the hold with it.
+    let doubled = read(&[512, 512]);
+    assert_eq!(
+        (doubled.bytes.capacity(), doubled.held.bytes()),
+        (1024, 1024)
+    );
+    drop(doubled);
+    assert_eq!(budget.available_permits(), 1 << 20);
+}
+
+/// A hold grows from the budget, shrinks back into it, and — at the size it
+/// already is — needs nothing from it at all.
+#[test]
+fn a_hold_resizes_both_ways() {
+    let budget = Arc::new(tokio::sync::Semaphore::new(1000));
+    let mut held = super::body::Held::default();
+    assert!(held.resize(&budget, 100));
+    assert_eq!((held.bytes(), budget.available_permits()), (100, 900));
+    assert!(held.resize(&budget, 40));
+    assert_eq!((held.bytes(), budget.available_permits()), (40, 960));
+    // Unchanged needs no permit, so even a closed budget allows it.
+    budget.close();
+    assert!(held.resize(&budget, 40));
+    assert_eq!(held.bytes(), 40);
+    assert!(
+        !held.resize(&budget, 41),
+        "a closed budget gives nothing more"
+    );
+    assert!(held.resize(&budget, 0));
+    assert_eq!((held.bytes(), budget.available_permits()), (0, 1000));
+    drop(held);
+    let mut none = super::body::Held::default();
+    assert!(none.resize(&budget, 0));
+    assert_eq!(none.bytes(), 0);
+    drop(none);
+}
+
+/// A whole body is one frame of known length, and ends after it.
+#[test]
+fn a_whole_body_is_one_frame_then_its_end() {
+    use hyper::body::Body as _;
+    let mut body = super::body::whole(b"abc".to_vec(), super::body::Held::default());
+    assert!(!body.is_end_stream());
+    assert_eq!(body.size_hint().exact(), Some(3));
+    let waker = futures::task::noop_waker();
+    let mut context = std::task::Context::from_waker(&waker);
+    let std::task::Poll::Ready(Some(Ok(frame))) =
+        std::pin::Pin::new(&mut body).poll_frame(&mut context)
+    else {
+        panic!("one frame");
+    };
+    assert_eq!(frame.into_data().unwrap(), Bytes::from_static(b"abc"));
+    assert!(body.is_end_stream());
+    assert_eq!(body.size_hint().exact(), Some(0));
+    assert!(super::body::whole(Vec::new(), super::body::Held::default()).is_end_stream());
+}

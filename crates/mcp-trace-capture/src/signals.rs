@@ -251,8 +251,16 @@ mod tests {
         let copy = requests.clone();
         requests.request(Stop::Terminate);
         copy.request(Stop::Interrupt);
-        assert_eq!(signals.recv().await, Stop::Terminate);
-        assert_eq!(signals.recv().await, Stop::Interrupt);
+        // Bounded: a request that never arrives fails the test, not hangs it.
+        let delivered = std::time::Duration::from_secs(10);
+        assert_eq!(
+            tokio::time::timeout(delivered, signals.recv()).await,
+            Ok(Stop::Terminate)
+        );
+        assert_eq!(
+            tokio::time::timeout(delivered, signals.recv()).await,
+            Ok(Stop::Interrupt)
+        );
         drop((requests, copy));
         let waited =
             tokio::time::timeout(std::time::Duration::from_millis(50), signals.recv()).await;
