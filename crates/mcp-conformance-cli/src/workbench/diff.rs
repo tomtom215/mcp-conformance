@@ -177,7 +177,10 @@ fn align(a: &[(Message, &Value)], b: &[(Message, &Value)]) -> Vec<Row> {
             });
             i += 1;
             j += 1;
-        } else if j < m && (i == n || lengths[at(i, j + 1)] >= lengths[at(i + 1, j)]) {
+        // Keys differ here (or `a` is spent), so lengths[i][j] is the larger of
+        // its two neighbours: taking b[j] alone loses nothing exactly when it
+        // keeps that length. Ties go to `b`.
+        } else if j < m && (i == n || lengths[at(i, j + 1)] == lengths[at(i, j)]) {
             rows.push(Row {
                 status: "only-b",
                 a: None,
