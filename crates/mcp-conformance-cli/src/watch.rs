@@ -164,6 +164,11 @@ fn exported(
         );
         return;
     };
+    eprintln!("{}", export_summary(&exported, &shown, unattached));
+}
+
+/// The line saying how the export went.
+fn export_summary(exported: &export::Exported, shown: &str, unattached: u64) -> String {
     let mut line = format!(
         "{} exported {} span(s) to {shown}",
         print::PREFIX,
@@ -186,7 +191,7 @@ fn exported(
             "; {unattached} finding(s) came before any exchange and are in no span"
         );
     }
-    eprintln!("{line}");
+    line
 }
 
 #[cfg(test)]

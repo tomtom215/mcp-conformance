@@ -184,3 +184,64 @@ fn counts_read_as_the_suite_writes_them() {
     assert_eq!(counts(&by_status), "2 FAILURE, 38 SUCCESS");
     assert_eq!(counts(&BTreeMap::new()), "");
 }
+
+/// A writer whose every write fails with its error kind.
+struct Failing(std::io::ErrorKind);
+
+impl std::io::Write for Failing {
+    fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+        Err(self.0.into())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn a_reader_that_closed_the_pipe_has_the_report_and_any_other_failure_loses_it() {
+    let mut out = Vec::new();
+    assert!(emit_to(&mut out, "report\n"));
+    assert_eq!(out, b"report\n");
+    assert!(emit_to(
+        &mut Failing(std::io::ErrorKind::BrokenPipe),
+        "report\n"
+    ));
+    assert!(!emit_to(
+        &mut Failing(std::io::ErrorKind::PermissionDenied),
+        "report\n"
+    ));
+}
+
+#[test]
+fn a_clauses_findings_past_the_limit_are_counted_unless_all_are_asked_for() {
+    // Every ping reuses the initialize request's id: one finding each.
+    let mut trace = String::from(concat!(
+        r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"0"}}}}"#,
+        "\n",
+        r#"{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}"#,
+        "\n",
+        r#"{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}"#,
+        "\n"
+    ));
+    let pings = MAX_FINDINGS + 3;
+    for n in 0..pings {
+        let seq = 3 + 2 * n;
+        write!(
+            trace,
+            "{{\"seq\":{seq},\"direction\":\"client-to-server\",\"transport\":\"stdio\",\"kind\":\"message\",\"payload\":{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}}}}\n{{\"seq\":{},\"direction\":\"server-to-client\",\"transport\":\"stdio\",\"kind\":\"message\",\"payload\":{{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{{}}}}}}\n",
+            seq + 1
+        )
+        .unwrap();
+    }
+    let judgment = mcp_trace_validator::judge::judge(&trace).unwrap();
+    let mut outcome = run_outcome(true);
+    outcome.judging.judged[0].events = judgment.events;
+    outcome.judging.judged[0].reports = judgment.reports;
+    let last = r#"seq 47: request "ping" reuses id 1"#;
+    let limited = human(&outcome, false);
+    assert!(limited.contains("        … and 3 more\n"), "{limited}");
+    assert!(!limited.contains(last), "{limited}");
+    let all = human(&outcome, true);
+    assert!(all.contains(last), "{all}");
+    assert!(!all.contains("… and"), "{all}");
+}

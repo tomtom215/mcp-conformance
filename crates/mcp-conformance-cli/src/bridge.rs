@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::ffi::OsString;
 use std::io::BufWriter;
 use std::net::SocketAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
@@ -46,6 +46,10 @@ use session::Session;
 /// How long a server gets to exit after its stdin closes before it is
 /// stopped — the official SDKs' stdio clients wait the same.
 const CLOSE_GRACE: Duration = Duration::from_secs(2);
+
+/// The capacity of each in-process pipe between a session and its server's
+/// relay. A capacity, not a limit: a longer message waits for the relay to read.
+const PIPE_BYTES: usize = 65_536;
 
 /// The session header.
 const SESSION_ID: &str = "mcp-session-id";
@@ -68,8 +72,9 @@ struct State {
     /// The `Host` values the bridge answers to.
     hosts: [String; 2],
     sessions: Mutex<HashMap<String, Live>>,
-    /// Every session's relay, for the final wait.
-    relays: Mutex<Vec<JoinHandle<()>>>,
+    /// Every session's relay, for the final wait: each ends with its trace's
+    /// path when a write to it failed.
+    relays: Mutex<Vec<JoinHandle<Option<PathBuf>>>>,
     next: AtomicU64,
 }
 
@@ -139,7 +144,11 @@ pub(crate) async fn start(command: &str, dir: &Path) -> Result<Bridge, String> {
 impl Bridge {
     /// Ends every session as a `DELETE` would, waits for their servers, and
     /// stops listening.
-    pub(crate) async fn stop(self) {
+    ///
+    /// # Errors
+    ///
+    /// A trace is incomplete (a write to it failed).
+    pub(crate) async fn stop(self) -> Result<(), String> {
         let live: Vec<Live> = self
             .state
             .lock_sessions()
@@ -149,20 +158,31 @@ impl Bridge {
         for live in live {
             end(live).await;
         }
-        let relays: Vec<JoinHandle<()>> = self
+        let relays: Vec<JoinHandle<Option<PathBuf>>> = self
             .state
             .relays
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .drain(..)
             .collect();
+        let mut incomplete = Vec::new();
         for relay in relays {
-            let _ = relay.await;
+            if let Ok(Some(path)) = relay.await {
+                incomplete.push(path.display().to_string());
+            }
         }
         let _ = self.stop.send(());
         // Event streams still held open by the suite end with their sessions;
         // anything else gets a moment, not forever.
         let _ = tokio::time::timeout(Duration::from_secs(5), self.serving).await;
+        if incomplete.is_empty() {
+            Ok(())
+        } else {
+            Err(format!(
+                "a trace write failed, so these traces are incomplete: {}",
+                incomplete.join(", ")
+            ))
+        }
     }
 }
 
@@ -195,8 +215,8 @@ impl State {
             BufWriter::new(file),
             DEFAULT_MAX_LINE_BYTES,
         ));
-        let (writer, from_client) = tokio::io::duplex(64 * 1024);
-        let (to_client, answers) = tokio::io::duplex(64 * 1024);
+        let (writer, from_client) = tokio::io::duplex(PIPE_BYTES);
+        let (to_client, answers) = tokio::io::duplex(PIPE_BYTES);
         let (signals, stop) = Signals::requested();
         let session = Arc::new(Session::new(writer));
         tokio::spawn(session::route_output(Arc::clone(&session), answers));
@@ -213,12 +233,7 @@ impl State {
             if let Err(error) = outcome {
                 eprintln!("mcp-conformance: waiting for the stdio server failed: {error}");
             }
-            if !recorder.finish().is_complete() {
-                eprintln!(
-                    "mcp-conformance: a write to {} failed; the trace is incomplete",
-                    path.display()
-                );
-            }
+            (!recorder.finish().is_complete()).then_some(path)
         });
         self.relays
             .lock()

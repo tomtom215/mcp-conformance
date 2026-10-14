@@ -225,3 +225,25 @@ fn an_http_upstream_names_its_server_and_port() {
     assert_eq!(peer("http://[::1]/"), Some(Peer::new("::1", 80)));
     assert_eq!(peer("localhost:3000"), None, "refused by the recorder, too");
 }
+
+#[test]
+fn the_export_summary_names_only_what_went_wrong() {
+    let mut exported = export::Exported {
+        sent: 3,
+        ..export::Exported::default()
+    };
+    let shown = "http://c:4318/v1/traces";
+    assert_eq!(
+        export_summary(&exported, shown, 0),
+        "mcp-conformance watch: exported 3 span(s) to http://c:4318/v1/traces"
+    );
+    exported.failed = 1;
+    exported.dropped = 1;
+    exported.error = Some("the collector answered 503".to_owned());
+    assert_eq!(
+        export_summary(&exported, shown, 1),
+        "mcp-conformance watch: exported 3 span(s) to http://c:4318/v1/traces; 1 not accepted \
+         (the collector answered 503); 1 dropped, the queue being full; 1 finding(s) came \
+         before any exchange and are in no span"
+    );
+}

@@ -56,12 +56,12 @@ pub(crate) fn write(outcome: &Outcome, args: &ReportArgs) -> bool {
 /// Writes `text` to stdout. A reader that closed the pipe early has what it
 /// wanted; any other failure means the report is missing.
 fn emit(text: &str) -> bool {
-    use std::io::Write as _;
-    let mut stdout = std::io::stdout().lock();
-    match stdout
-        .write_all(text.as_bytes())
-        .and_then(|()| stdout.flush())
-    {
+    emit_to(&mut std::io::stdout().lock(), text)
+}
+
+/// [`emit`], to `out`.
+fn emit_to(out: &mut impl std::io::Write, text: &str) -> bool {
+    match out.write_all(text.as_bytes()).and_then(|()| out.flush()) {
         Ok(()) => true,
         Err(error) if error.kind() == std::io::ErrorKind::BrokenPipe => true,
         Err(error) => {

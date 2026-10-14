@@ -7,6 +7,8 @@
 //! writes `YYYY-MM-DDTHH:MM:SS.sssZ`, which is the form read here; anything
 //! else is not a time this module claims to read.
 
+use crate::calendar::{civil_from_days, days_from_civil};
+
 /// The milliseconds since 1970 of a `YYYY-MM-DDTHH:MM:SS[.fff…]Z` timestamp.
 pub(super) fn parse_millis(text: &str) -> Option<i64> {
     let bytes = text.as_bytes();
@@ -62,33 +64,6 @@ pub(super) fn format_millis(millis: i64) -> String {
     )
 }
 
-/// Days since 1970-01-01 (Howard Hinnant's algorithm, public domain).
-const fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
-    let year = if month <= 2 { year - 1 } else { year };
-    let era = year.div_euclid(400);
-    let year_of_era = year - era * 400;
-    let day_of_year = (153 * ((month + 9) % 12) + 2) / 5 + day - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    era * 146_097 + day_of_era - 719_468
-}
-
-const fn civil_from_days(days: i64) -> (i64, i64, i64) {
-    let shifted = days + 719_468;
-    let era = shifted.div_euclid(146_097);
-    let day_of_era = shifted - era * 146_097;
-    let year_of_era =
-        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let shifted_month = (5 * day_of_year + 2) / 153;
-    let day = day_of_year - (153 * shifted_month + 2) / 5 + 1;
-    let month = if shifted_month < 10 {
-        shifted_month + 3
-    } else {
-        shifted_month - 9
-    };
-    (year_of_era + era * 400 + (month <= 2) as i64, month, day)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -107,6 +82,11 @@ mod tests {
         assert_eq!(parse_millis("1970-01-01T00:00:01Z"), Some(1000));
         assert_eq!(parse_millis("1970-01-01T00:00:00.5Z"), Some(500));
         assert_eq!(parse_millis("1970-01-01T00:00:00.123456789Z"), Some(123));
+        // A leap second is a time the form allows.
+        assert_eq!(
+            parse_millis("2016-12-31T23:59:60Z"),
+            parse_millis("2017-01-01T00:00:00Z")
+        );
     }
 
     #[test]
@@ -123,6 +103,15 @@ mod tests {
             "2026/10/13T10:54:29Z",
             "2026-10-13T10-54:29Z",
             "x026-10-13T10:54:29Z",
+            // Each separator alone in the wrong place.
+            "2026/10-13T10:54:29Z",
+            "2026-10/13T10:54:29Z",
+            "2026-10-13T10:54-29Z",
+            // Each field one past its range.
+            "2026-10-13T10:60:00Z",
+            "2026-10-13T10:54:61Z",
+            // Something other than a fraction before the `Z`.
+            "2026-10-13T10:54:290Z",
         ] {
             assert_eq!(parse_millis(text), None, "{text}");
         }

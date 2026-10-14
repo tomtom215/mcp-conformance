@@ -280,3 +280,7 @@ impl Thread {
         self.setup.spans = None;
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests;

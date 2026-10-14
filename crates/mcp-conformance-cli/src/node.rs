@@ -61,17 +61,10 @@ pub(crate) async fn check() -> Result<(), String> {
         .output()
         .await
         .map_err(|error| format!("cannot run `node` ({error}). {}", install_hint()))?;
-    let version = String::from_utf8_lossy(&node.stdout).into_owned();
-    match node_major(&version) {
-        Some(major) if node.status.success() && major >= MIN_NODE_MAJOR => {}
-        _ => {
-            return Err(format!(
-                "`node --version` printed {:?}. {}",
-                version.trim(),
-                install_hint()
-            ));
-        }
-    }
+    node_usable(
+        node.status.success(),
+        &String::from_utf8_lossy(&node.stdout),
+    )?;
     let ran = Command::new(npx())
         .arg("--version")
         .stdin(Stdio::null())
@@ -82,6 +75,19 @@ pub(crate) async fn check() -> Result<(), String> {
         return Err(format!("`{} --version` failed. {}", npx(), install_hint()));
     }
     Ok(())
+}
+
+/// Whether `node --version`, which exited successfully or not and printed
+/// `version`, is a Node.js new enough to run the suite.
+fn node_usable(succeeded: bool, version: &str) -> Result<(), String> {
+    match node_major(version) {
+        Some(major) if succeeded && major >= MIN_NODE_MAJOR => Ok(()),
+        _ => Err(format!(
+            "`node --version` printed {:?}. {}",
+            version.trim(),
+            install_hint()
+        )),
+    }
 }
 
 /// The suite, as npx runs it from `work_dir`: `npx --yes <package>@<pin>`.
@@ -175,6 +181,25 @@ mod tests {
         assert_eq!(node_major("22.22.0"), None);
         assert_eq!(node_major("vX.1"), None);
         assert_eq!(node_major(""), None);
+    }
+
+    #[test]
+    fn node_counts_when_it_ran_and_is_new_enough() {
+        assert_eq!(node_usable(true, "v18.0.0\n"), Ok(()));
+        assert_eq!(node_usable(true, "v22.22.0\n"), Ok(()));
+        for (succeeded, version) in [(true, "v17.9.1\n"), (false, "v22.22.0\n"), (true, "")] {
+            let Err(error) = node_usable(succeeded, version) else {
+                panic!("{version:?} counted");
+            };
+            assert_eq!(
+                error,
+                format!(
+                    "`node --version` printed {:?}. {}",
+                    version.trim(),
+                    install_hint()
+                )
+            );
+        }
     }
 
     #[test]

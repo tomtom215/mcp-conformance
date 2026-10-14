@@ -60,13 +60,18 @@ impl Ids {
 
     /// A trace id: 16 random bytes, never all zeros (OTLP's "invalid").
     pub(super) fn trace_id(&self) -> [u8; 16] {
-        loop {
-            let id = self.bytes::<16>();
-            if id != [0; 16] {
-                return id;
-            }
-        }
+        nonzero(self.bytes())
     }
+}
+
+/// `id`, unless it is all zeros (OTLP's "invalid"): then one. A draw of all
+/// zeros is one in 2^128; mending it, rather than drawing again, keeps the
+/// call bounded whatever the generator does.
+fn nonzero<const N: usize>(mut id: [u8; N]) -> [u8; N] {
+    if id == [0; N] {
+        id[N - 1] = 1;
+    }
+    id
 }
 
 #[cfg(test)]
@@ -81,5 +86,14 @@ mod tests {
         let spans: std::collections::HashSet<[u8; 8]> = (0..64).map(|_| ids.bytes::<8>()).collect();
         assert_eq!(spans.len(), 64);
         assert_ne!(ids.fallback_word(), ids.fallback_word());
+    }
+
+    #[test]
+    fn only_an_all_zero_id_is_mended() {
+        let mut one = [0; 16];
+        one[15] = 1;
+        assert_eq!(nonzero([0; 16]), one);
+        assert_eq!(nonzero([7; 16]), [7; 16]);
+        assert_eq!(nonzero(one), one);
     }
 }

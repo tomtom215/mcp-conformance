@@ -91,16 +91,29 @@ impl Common {
             .output()
             .await
             .map_err(|error| format!("cannot run npx: {error}"))?;
-        let scenarios = listed(&String::from_utf8_lossy(&output.stdout));
-        if !output.status.success() || scenarios.is_empty() {
-            return Err(format!(
-                "`{} list --server` listed no scenario for {}",
-                suite::PACKAGE,
-                self.spec_version
-            ));
-        }
-        Ok(scenarios)
+        server_listing(
+            output.status.success(),
+            &String::from_utf8_lossy(&output.stdout),
+            &self.spec_version,
+        )
     }
+}
+
+/// The scenarios a `list --server` run printed: none when it failed, whatever
+/// it printed.
+fn server_listing(
+    succeeded: bool,
+    output: &str,
+    spec_version: &str,
+) -> Result<Vec<String>, String> {
+    let scenarios = listed(output);
+    if !succeeded || scenarios.is_empty() {
+        return Err(format!(
+            "`{} list --server` listed no scenario for {spec_version}",
+            suite::PACKAGE
+        ));
+    }
+    Ok(scenarios)
 }
 
 /// The scenario names in the suite's `list` output (`  - name [versions]`).
@@ -247,6 +260,21 @@ mod tests {
         let output = "Server scenarios (test against a server):\n  - server-initialize [2025-06-18,2025-11-25]\n  - ping [2025-11-25]\n\nnot a bullet\n";
         assert_eq!(listed(output), ["server-initialize", "ping"]);
         assert_eq!(listed("").len(), 0);
+    }
+
+    #[test]
+    fn a_listing_counts_only_when_the_run_succeeded_and_named_a_scenario() {
+        let output = "  - ping [2025-11-25]\n";
+        assert_eq!(
+            server_listing(true, output, "2025-11-25"),
+            Ok(vec!["ping".to_owned()])
+        );
+        let refused = Err(format!(
+            "`{} list --server` listed no scenario for 2025-11-25",
+            suite::PACKAGE
+        ));
+        assert_eq!(server_listing(false, output, "2025-11-25"), refused);
+        assert_eq!(server_listing(true, "", "2025-11-25"), refused);
     }
 
     #[test]

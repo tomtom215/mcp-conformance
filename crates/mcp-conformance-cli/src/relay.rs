@@ -82,9 +82,16 @@ async fn relay(command: Vec<String>) -> Result<u8, String> {
     };
     if let Err(message) = proxy.stop().await {
         eprintln!("mcp-conformance __client-relay: {message}");
-        return Ok(if code == 0 { EXIT_USAGE } else { code });
+        return Ok(with_incomplete_trace(code));
     }
     Ok(code)
+}
+
+/// The relay's code when a trace is incomplete: a client that passed did not
+/// pass a recorded session, so the run could not be made; a client's failure
+/// stands.
+const fn with_incomplete_trace(code: u8) -> u8 {
+    if code == 0 { EXIT_USAGE } else { code }
 }
 
 /// The scenario's trace directory: `auth/metadata-default` becomes
@@ -122,6 +129,13 @@ mod tests {
             EXIT_USAGE
         );
         assert_eq!(run(Vec::new()).await, EXIT_USAGE);
+    }
+
+    #[test]
+    fn an_incomplete_trace_fails_a_passing_client_and_keeps_a_failing_ones_code() {
+        assert_eq!(with_incomplete_trace(0), EXIT_USAGE);
+        assert_eq!(with_incomplete_trace(1), 1);
+        assert_eq!(with_incomplete_trace(130), 130);
     }
 
     #[cfg(unix)]
