@@ -133,6 +133,23 @@ fn pointers_reach_into_batches_and_through_wildcards() {
 }
 
 #[test]
+fn a_wildcard_reaches_every_member_of_an_object() {
+    let message = json!({"kind":"message","payload":{"result":{"a":{"k":"s4"},"b":{"k":"s5"},"*":{"k":"s6"}}}});
+    let redacted = redact(
+        &line(&message),
+        &Rules {
+            pointers: vec!["/result/*/k".into()],
+            ..Rules::default()
+        },
+    )
+    .unwrap();
+    for secret in ["s4", "s5", "s6"] {
+        assert!(!redacted.text.contains(secret), "{secret}");
+    }
+    assert_eq!(redacted.summary, ["pointer /result/*/k: 3 values"]);
+}
+
+#[test]
 fn meta_values_are_redacted_wherever_meta_is() {
     let message = json!({"kind":"message","payload":{"params":{"_meta":{"k":"m1"},"nested":[{"_meta":{"j":{"deep":"m2"}}}],"_meta2":"keep"}}});
     let redacted = redact(

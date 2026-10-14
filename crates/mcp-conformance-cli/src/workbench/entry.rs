@@ -35,9 +35,8 @@ pub(crate) fn sha256(bytes: &[u8]) -> String {
 /// the last line has no newline yet and is not yet a whole JSON value — a
 /// trace still being written — in which case everything before that line.
 pub(crate) fn complete(text: &str) -> &str {
-    if text.is_empty() || text.ends_with('\n') {
-        return text;
-    }
+    // An empty text, or one ending in a newline, has an empty last line,
+    // which is not a JSON value: everything before it — all of it — is kept.
     let start = text.rfind('\n').map_or(0, |at| at + 1);
     if serde_json::from_str::<Value>(&text[start..]).is_ok() {
         text

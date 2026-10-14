@@ -165,6 +165,8 @@ fn only_the_session_cookie_authenticates() {
 fn comparison_and_queries_are_exact() {
     assert!(same("abc", "abc"));
     assert!(!same("abc", "abd") && !same("abc", "ab") && !same("", "a"));
+    // Two differences that are equal bit patterns must not cancel out.
+    assert!(!same("ab", "ba") && !same("aabb", "bbaa"));
     let uri: Uri = "/x?a=1&token=t&b".parse().unwrap();
     assert_eq!(query(&uri, "token"), Some("t"));
     assert_eq!(query(&uri, "b"), None);

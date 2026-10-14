@@ -133,22 +133,27 @@ pub(crate) fn param(parts: &Parts, name: &str) -> Option<String> {
 pub(crate) fn decode(text: &str) -> String {
     let bytes = text.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
-    let mut at = 0;
-    while at < bytes.len() {
+    // The bytes of an escape already decoded. Every byte is visited once, in
+    // order, so the loop ends whatever `skip` holds.
+    let mut skip = 0_usize;
+    for (at, &byte) in bytes.iter().enumerate() {
+        if skip > 0 {
+            skip -= 1;
+            continue;
+        }
         let hex = |offset: usize| {
             bytes
                 .get(at + offset)
                 .and_then(|byte| char::from(*byte).to_digit(16))
         };
-        match (bytes[at], hex(1), hex(2)) {
+        match (byte, hex(1), hex(2)) {
             (b'+', ..) => out.push(b' '),
             (b'%', Some(high), Some(low)) => {
                 out.extend(u8::try_from(high * 16 + low));
-                at += 2;
+                skip = 2;
             }
             (byte, ..) => out.push(byte),
         }
-        at += 1;
     }
     String::from_utf8_lossy(&out).into_owned()
 }

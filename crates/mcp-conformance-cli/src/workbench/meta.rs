@@ -19,11 +19,12 @@ use serde_json::{Map, Value};
 /// The sidecar format's version.
 pub(crate) const FORMAT: u32 = 1;
 
-/// One recording's sidecar.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+/// One recording's sidecar. A member it lacks takes its value from
+/// [`Meta::default`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub(crate) struct Meta {
     /// [`FORMAT`].
-    #[serde(default = "format")]
     pub(crate) format: u32,
     /// Tags, sorted and without duplicates.
     #[serde(default)]
@@ -45,8 +46,19 @@ pub(crate) struct Meta {
     pub(crate) unknown: Map<String, Value>,
 }
 
-const fn format() -> u32 {
-    FORMAT
+impl Default for Meta {
+    /// An empty sidecar, of this build's [`FORMAT`].
+    fn default() -> Self {
+        Self {
+            format: FORMAT,
+            tags: Vec::new(),
+            source: Source::default(),
+            added_at: None,
+            recorded_at: None,
+            verdict_cache: None,
+            unknown: Map::new(),
+        }
+    }
 }
 
 /// Where a recording came from.
@@ -111,7 +123,6 @@ impl Meta {
     /// A sidecar for a recording of this kind.
     pub(crate) fn new(kind: &str) -> Self {
         Self {
-            format: FORMAT,
             source: Source {
                 kind: kind.to_owned(),
                 ..Source::default()
@@ -178,6 +189,8 @@ mod tests {
     fn an_empty_sidecar_is_a_recording_with_nothing_known() {
         let meta: Meta = serde_json::from_str("{}").unwrap();
         assert_eq!(meta.format, FORMAT);
+        assert_eq!(Meta::default().format, FORMAT);
+        assert_eq!(meta, Meta::default());
         assert_eq!(meta.source.kind, "recorded");
         assert_eq!(meta.tags.len(), 0);
         assert_eq!(Meta::new("imported").source.kind, "imported");
@@ -206,5 +219,22 @@ mod tests {
             cache.tool_version = "0.0.0-other".into();
         }
         assert!(meta.fresh_cache("abc").is_none());
+    }
+
+    #[test]
+    fn a_cache_from_a_build_that_named_another_version_or_none_is_stale() {
+        for other in ["", "xyzzy"] {
+            let meta = Meta {
+                verdict_cache: Some(Cache {
+                    sha256: "abc".into(),
+                    tool_version: other.into(),
+                    reports: Vec::new(),
+                    unjudged: None,
+                }),
+                ..Meta::default()
+            };
+            assert!(meta.fresh_cache("abc").is_none(), "{other:?}");
+        }
+        assert_eq!(tool_version(), env!("CARGO_PKG_VERSION"));
     }
 }
