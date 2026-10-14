@@ -667,7 +667,9 @@ not yet published to crates.io)
   client (`--client-command`) through `mcp-trace-capture`, and reports the suite's
   checks, the clause report of every recorded session
   (`--format human|json|junit|sarif`, `-o`) and whether the two agree against a
-  divergence baseline. Exit 0, 1 or 2. Needs Node.js 18+, installs nothing, and
+  divergence baseline. Exit 0, 1 or 2; a run whose recording is incomplete (a
+  write to a trace failed, through the proxy or the stdio bridge alike) exits 2
+  and names the traces. Needs Node.js 18+, installs nothing, and
   refuses any suite version other than the pin. `cargo xtask conformance` runs it
   against the everything server and the reference host and holds each report to
   its own results.
