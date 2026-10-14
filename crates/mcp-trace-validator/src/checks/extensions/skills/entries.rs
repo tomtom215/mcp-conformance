@@ -273,23 +273,23 @@ fn unreserved_or_sub_delim(byte: u8) -> bool {
 }
 
 /// Whether `text` is made of `allowed` characters and well-formed `%XX` escapes.
+///
+/// Each pass consumes a slice pattern's worth of bytes, so the walk always ends.
+/// `%` is in neither caller's `allowed` set, so a malformed escape fails.
 fn rfc3986_text(text: &str, allowed: fn(u8) -> bool) -> bool {
-    let bytes = text.as_bytes();
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'%' {
-            let escape = bytes.get(index + 1..index + 3);
-            if !escape.is_some_and(|hex| hex.iter().all(u8::is_ascii_hexdigit)) {
-                return false;
+    let mut rest = text.as_bytes();
+    loop {
+        rest = match rest {
+            [] => return true,
+            [b'%', high, low, after @ ..]
+                if high.is_ascii_hexdigit() && low.is_ascii_hexdigit() =>
+            {
+                after
             }
-            index += 3;
-        } else if allowed(bytes[index]) {
-            index += 1;
-        } else {
-            return false;
-        }
+            [byte, after @ ..] if allowed(*byte) => after,
+            _ => return false,
+        };
     }
-    true
 }
 
 /// The `/`-separated segments of a `skill://` root, authority first.

@@ -118,6 +118,40 @@ fn challenges_parse_with_parameters_quoted_strings_and_token68() {
 }
 
 #[test]
+fn challenges_parse_tabs_padding_and_unterminated_strings() {
+    // Tabs are whitespace around `=` and after a scheme; a padded token68
+    // with trailing whitespace still ends its element.
+    assert_eq!(
+        names(&parse("Basic\tab/c+==\t, Bearer\tscope\t=\tx\t,realm=r")),
+        [
+            ("Basic", vec![]),
+            ("Bearer", vec![("scope", "x"), ("realm", "r")])
+        ]
+    );
+    // A token68 followed by more than a comma is not one: the token is a
+    // parameter name.
+    assert_eq!(
+        names(&parse("Bearer abc= def")),
+        [("Bearer", vec![("abc", "def")])]
+    );
+    // An unterminated quoted string runs to the end; a trailing backslash
+    // escapes nothing.
+    assert_eq!(
+        names(&parse(r#"Bearer realm="a,b\"#)),
+        [("Bearer", vec![("realm", "a,b")])]
+    );
+    assert_eq!(
+        names(&parse(r#"Bearer realm="x\y", error="e""#)),
+        [("Bearer", vec![("realm", "xy"), ("error", "e")])]
+    );
+    // A stray non-token byte skips only to the next comma.
+    assert_eq!(
+        names(&parse("Bearer a=1, @junk x, error=e")),
+        [("Bearer", vec![("a", "1"), ("error", "e")])]
+    );
+}
+
+#[test]
 fn a_401_challenge_names_its_scope() {
     const CHECK: &str = "auth.challenge-scope";
     for (code, challenge, subjects, findings) in [
@@ -346,4 +380,17 @@ fn a_refusal_body_is_not_a_protocol_message() {
     let mut answered = vec![post(0), request(1, 1, "ping"), status(2, 200, None)];
     answered.push(lines[3].clone());
     assert_eq!(run("base.jsonrpc-version", &answered).0.len(), 1);
+}
+
+#[test]
+fn a_jsonrpc_answer_to_a_401_is_no_refusal_body() {
+    // A JSON-RPC error in the body of a 401 answers the request: the server
+    // read it, so its retry reuses the id like any other.
+    let mut lines = refused(0, 1, 401, Some(r#"Bearer error="invalid_token""#));
+    lines.push(
+        r#"{"seq":3,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32001,"message":"unauthorized"}}}"#
+            .to_owned(),
+    );
+    lines.extend([post(4), request(5, 1, "ping"), status(6, 200, None)]);
+    assert_eq!(run("base.request-id-unique", &lines).0.len(), 1);
 }

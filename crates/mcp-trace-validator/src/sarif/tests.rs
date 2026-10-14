@@ -279,3 +279,28 @@ fn an_extension_finding_is_an_unscored_note() {
         assert!(results.iter().all(|result| result["level"] != "error"));
     }
 }
+
+/// An extension clause this build cannot judge is a notification like any.
+#[test]
+fn an_unsupported_extension_clause_is_a_notification() {
+    let (mut reports, events) = crate::fixtures::undeclared_task();
+    let row = &mut reports[0].extensions[0].requirements[0];
+    row.outcome = Outcome::Unsupported;
+    row.findings.clear();
+    row.missing_checks = vec!["future.check".to_owned()];
+    let id = row.id.clone();
+    let log = log(&reports, Some("t.jsonl"), &events);
+    let notifications = log["runs"][0]["invocations"][0]["toolExecutionNotifications"]
+        .as_array()
+        .unwrap();
+    assert_eq!(
+        notifications
+            .iter()
+            .map(|notification| notification["message"]["text"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        [format!(
+            "{id} (2026-07-28): the registry references checks this build does not implement: \
+             future.check"
+        )]
+    );
+}

@@ -179,6 +179,21 @@ fn only_the_initialized_notification_makes_the_session_ready() {
     assert_eq!(context.final_phase(), Phase::AfterInitializeSuccess);
 }
 
+#[test]
+fn ids_alike_only_in_canonical_form_do_not_pair() {
+    // `1.0` and `1` share a canonical form (RFC 8785) but are different ids.
+    let pairs = |request_id: &str, response_id: &str| {
+        let doc = format!(
+            "{{\"seq\":0,\"direction\":\"client-to-server\",\"transport\":\"stdio\",\"kind\":\"message\",\"payload\":{{\"jsonrpc\":\"2.0\",\"id\":{request_id},\"method\":\"ping\"}}}}\n\
+             {{\"seq\":1,\"direction\":\"server-to-client\",\"transport\":\"stdio\",\"kind\":\"message\",\"payload\":{{\"jsonrpc\":\"2.0\",\"id\":{response_id},\"result\":{{}}}}}}"
+        );
+        let events = parse_trace(&doc, &Limits::default()).unwrap();
+        TraceContext::new(&events).exchanges().count()
+    };
+    assert_eq!(pairs("1", "1"), 1);
+    assert_eq!(pairs("1.0", "1"), 0);
+}
+
 /// Property coverage for the lifecycle state machine: arbitrary interleavings of
 /// a small message alphabet must never break the machine's invariants.
 mod state_machine_properties {

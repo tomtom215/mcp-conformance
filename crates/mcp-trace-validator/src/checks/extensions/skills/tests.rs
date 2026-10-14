@@ -125,3 +125,36 @@ fn a_directory_learned_from_a_directory_result_must_be_listable() {
     assert_eq!(subjects, 1);
     assert_eq!(findings.len(), 1, "{findings:?}");
 }
+
+#[test]
+fn a_null_or_false_declaration_declares_nothing() {
+    for settings in [Value::Null, json!(false)] {
+        let steps = discover(Some(settings), false);
+        assert_eq!(judge("skills.declares-resources", &steps), (0, vec![]));
+    }
+}
+
+#[test]
+fn a_null_or_false_resources_capability_is_no_declaration() {
+    for resources in [Value::Null, json!(false)] {
+        let steps = [
+            request(1, "server/discover", params(json!({}), &[])),
+            result(
+                1,
+                json!({"resultType": "complete", "capabilities": {
+                    "resources": resources, "extensions": {SKILLS: {}}}}),
+            ),
+        ];
+        assert_eq!(
+            judge("skills.declares-resources", &steps),
+            (
+                1,
+                vec![format!(
+                    "the server declares `{SKILLS}` without the `resources` capability"
+                )]
+            )
+        );
+    }
+    let steps = discover(Some(json!({})), true);
+    assert_eq!(judge("skills.declares-resources", &steps), (1, vec![]));
+}

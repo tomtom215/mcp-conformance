@@ -96,3 +96,15 @@ fn a_large_payload_is_cut_at_a_character_boundary_and_counted() {
     );
     assert_eq!(shown.len() + rest, large.len());
 }
+
+#[test]
+fn the_preview_is_16_kib() {
+    let at_limit = "x".repeat(16_384);
+    assert_eq!(preview(&at_limit), (at_limit.as_str(), 0));
+    let over = "x".repeat(16_385);
+    assert_eq!(preview(&over), (&over[..16_384], 1));
+    // A four-byte character straddling the limit is left out whole.
+    let straddling = format!("{}😀", "x".repeat(16_382));
+    assert_eq!(preview(&straddling), (&straddling[..16_382], 4));
+    assert_eq!(preview(""), ("", 0));
+}

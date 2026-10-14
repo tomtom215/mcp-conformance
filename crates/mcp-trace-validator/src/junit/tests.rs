@@ -301,3 +301,92 @@ fn an_extension_suite_shows_its_failure_and_fails_nothing() {
         );
     }
 }
+
+/// [`every_skip_variant`] with two failures counted and a wire-schema result
+/// of `outcome`, so an added count differs from a kept or doubled one.
+fn with_schema(outcome: Outcome) -> Report {
+    use crate::report::{ClauseSource, Finding, WireSchemaReport};
+    let mut report = every_skip_variant();
+    report.totals.fail = 2;
+    let findings = if outcome == Outcome::Fail {
+        vec![Finding {
+            check: "wire-schema".to_owned(),
+            seq: Some(4),
+            detail: "bad message".to_owned(),
+        }]
+    } else {
+        vec![]
+    };
+    report.wire_schema = Some(WireSchemaReport {
+        outcome,
+        messages: 3,
+        findings,
+        schema: "s".to_owned(),
+        source: ClauseSource {
+            section: "basic#schema".to_owned(),
+            quote: "q".to_owned(),
+            url: "u".to_owned(),
+        },
+    });
+    report
+}
+
+#[test]
+fn a_wire_schema_case_counts_as_one_test_failed_or_skipped_by_its_outcome() {
+    let xml = render(&with_schema(Outcome::Fail));
+    assert!(
+        xml.contains(r#"<testsuites tests="8" failures="3" skipped="5">"#),
+        "{xml}"
+    );
+    assert!(xml.contains(
+        "    <testcase classname=\"mcp.2025-11-25\" name=\"wire schema\">\n      \
+         <failure message=\"bad message\">[wire-schema] at seq 4\nspec: &quot;q&quot;\nsee: u\n\
+         schema: s</failure>\n    </testcase>\n"
+    ));
+    let xml = render(&with_schema(Outcome::NotObserved));
+    assert!(
+        xml.contains(r#"<testsuites tests="8" failures="2" skipped="6">"#),
+        "{xml}"
+    );
+    assert!(xml.contains(
+        "    <testcase classname=\"mcp.2025-11-25\" name=\"wire schema\"><skipped \
+         message=\"the trace holds no message\"/></testcase>\n"
+    ));
+    let xml = render(&with_schema(Outcome::Pass));
+    assert!(
+        xml.contains(r#"<testsuites tests="8" failures="2" skipped="5">"#),
+        "{xml}"
+    );
+    assert!(xml.contains("    <testcase classname=\"mcp.2025-11-25\" name=\"wire schema\"/>\n"));
+}
+
+#[test]
+fn an_extension_suite_counts_every_clause_and_skips_the_unjudged() {
+    use crate::report::{ExtensionReport, Totals};
+    let totals = Totals {
+        pass: 1,
+        fail: 2,
+        warn: 4,
+        excluded: 8,
+        unsupported: 16,
+        not_applicable: 32,
+        not_observed: 64,
+    };
+    let extension = ExtensionReport {
+        extension: "io.example/x".to_owned(),
+        totals,
+        requirements: vec![],
+    };
+    assert_eq!(extension::extension_counts(&extension), (127, 0, 120));
+    let mut report = every_skip_variant();
+    report.extensions = vec![extension];
+    let xml = render(&report);
+    // The report's 6 tests and 5 skipped, plus the extension's.
+    assert!(
+        xml.contains(r#"<testsuites tests="133" failures="1" skipped="125">"#),
+        "{xml}"
+    );
+    assert!(xml.contains(
+        r#"<testsuite name="mcp-trace-validator (2025-11-25, extension io.example/x, not scored)" tests="127" failures="0" skipped="120">"#
+    ));
+}

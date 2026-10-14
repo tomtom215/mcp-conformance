@@ -44,6 +44,21 @@ fn frontmatter_keys_and_plain_scalars() {
 }
 
 #[test]
+fn only_a_value_quoted_at_both_ends_is_a_quoted_scalar() {
+    let value = |text: &str| super::scalar(text);
+    assert_eq!(value(r#""a b""#), Some("a b".to_owned()));
+    assert_eq!(value("'a b'"), Some("a b".to_owned()));
+    // Quoted at one end only: a plain scalar, kept whole.
+    assert_eq!(value(r#""a b"#), Some(r#""a b"#.to_owned()));
+    assert_eq!(value(r#"a b""#), Some(r#"a b""#.to_owned()));
+    assert_eq!(value("'a b"), Some("'a b".to_owned()));
+    assert_eq!(value("a b'"), Some("a b'".to_owned()));
+    // Either escape form makes the value unreadable here.
+    assert_eq!(value(r#""a\nb""#), None);
+    assert_eq!(value("'it''s'"), None);
+}
+
+#[test]
 fn text_without_a_closed_frontmatter_block_has_none() {
     assert!(frontmatter("# Title\n").is_none());
     assert!(frontmatter("---\nname: pdf\n").is_none(), "never closed");
@@ -94,6 +109,96 @@ fn a_differing_frontmatter_is_judged_only_against_the_bytes_the_entry_digests() 
         ),
         (0, vec![])
     );
+}
+
+#[test]
+fn a_key_on_one_side_only_is_a_difference_named_by_side() {
+    // The file has `license`, which the entry lacks.
+    let file = "---\nname: pdf\ndescription: Fill forms\nlicense: MIT\n---\n";
+    assert_eq!(
+        judge(
+            "skills.frontmatter-identical",
+            &session(file, file, "Fill forms")
+        ),
+        (
+            1,
+            vec![format!(
+                "the entry's `frontmatter` for {URI:?} (from seq 1) is not the file's: \
+                 `license` is missing from the entry"
+            )]
+        )
+    );
+    // The entry has `description`, which the file lacks.
+    let file = "---\nname: pdf\n---\n";
+    assert_eq!(
+        judge(
+            "skills.frontmatter-identical",
+            &session(file, file, "Fill forms")
+        ),
+        (
+            1,
+            vec![format!(
+                "the entry's `frontmatter` for {URI:?} (from seq 1) is not the file's: \
+                 `description` is in the entry but not the file"
+            )]
+        )
+    );
+}
+
+#[test]
+fn a_frontmatter_lacking_a_key_names_that_key() {
+    let read = |text: &str| {
+        [
+            request(1, "resources/read", params(json!({"uri": URI}), &[])),
+            result(
+                1,
+                json!({"resultType": "complete", "contents": [{"uri": URI, "text": text}]}),
+            ),
+        ]
+    };
+    let judged = |text: &str| judge("skills.skill-md-frontmatter", &read(text));
+    assert_eq!(
+        judged("---\nname: pdf\n---\n"),
+        (
+            1,
+            vec![format!("the frontmatter of {URI:?} lacks description")]
+        )
+    );
+    assert_eq!(
+        judged("---\ndescription: d\n---\n"),
+        (1, vec![format!("the frontmatter of {URI:?} lacks name")])
+    );
+    assert_eq!(judged("---\nname: pdf\ndescription: d\n---\n"), (1, vec![]));
+}
+
+#[test]
+fn a_skill_md_is_one_under_skill_or_one_an_entry_names() {
+    let other = "https://cdn.example.com/pdf/SKILL.md";
+    let read = |id: u64, uri: &str| {
+        [
+            request(id, "resources/read", params(json!({"uri": uri}), &[])),
+            result(
+                id,
+                json!({"resultType": "complete", "contents": [{"uri": uri, "text": "# none\n"}]}),
+            ),
+        ]
+    };
+    // A `skill://` file that is no `SKILL.md`, and a `SKILL.md` outside
+    // `skill://` that no entry names, are not judged.
+    let mut steps = read(1, "skill://pdf/notes.md").to_vec();
+    steps.extend(read(2, other));
+    assert_eq!(judge("skills.skill-md-frontmatter", &steps), (0, vec![]));
+    // An entry naming it makes the outside `SKILL.md` one.
+    let mut steps = vec![
+        request(3, "skills/get", params(json!({"uri": other}), &[])),
+        result(
+            3,
+            json!({"resultType": "complete", "skill": {"uri": other, "resources": "dynamic"}}),
+        ),
+    ];
+    steps.extend(read(4, other));
+    let (subjects, findings) = judge("skills.skill-md-frontmatter", &steps);
+    assert_eq!((subjects, findings.len()), (1, 1), "{findings:?}");
 }
 
 #[test]
