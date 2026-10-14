@@ -829,11 +829,11 @@ not yet published to crates.io)
 
 ### Changed
 
-- **The PR mutation gate runs in eight shards**, as the scheduled sweep does:
-  `--shard k/8` over the same `--no-shuffle --in-diff` list (on this release's diff,
-  3,485 mutants in shards of 436, their union the whole list), with a final
+- **The PR mutation gate runs in sixteen shards**, as the scheduled sweep runs in
+  eight: `--shard k/16` over the same `--no-shuffle --in-diff` list, with a final
   `Mutants (PR diff)` job that passes only when every shard did, so the gate keeps
-  its name. Run serially, it took about three hours on this release's diff.
+  its name. This release's diff holds 3,485 mutants at about 33 s each; one job, or
+  eight shards of 436, could not finish it inside GitHub's job limits.
 - **Deprecation allows are narrowed to what uses them.** `mcp-everything-server`
   and `mcp-reference-host` allow rmcp's SEP-2577 deprecations (Roots, Sampling,
   Logging, which `2025-11-25` still requires) only on the items and statements that

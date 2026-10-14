@@ -31,19 +31,21 @@ env:
 
 jobs:
   incremental:
-    name: Mutants (PR diff, shard ${{ matrix.shard }}/8)
+    name: Mutants (PR diff, shard ${{ matrix.shard }}/16)
     runs-on: ubuntu-latest
     # Sharded like the scheduled full sweep, and for the same reason: one job ran
-    # the PR gate serially, and on a large diff (PR #64, 2026-10-13) that took
-    # about three hours. `--no-shuffle` makes the diff's mutant list
-    # deterministic, so `--shard k/8` partitions it and the eight shards together
-    # cover it exactly once. The timeout is a wedge-guard under GitHub's 6-hour
-    # cap: a stuck shard fails visibly while the others still report.
+    # the PR gate serially. `--no-shuffle` makes the diff's mutant list
+    # deterministic, so `--shard k/16` partitions it and the shards together
+    # cover it exactly once. Sixteen, not the sweep's eight: on PR #64's diff
+    # (3,485 mutants) a mutant took about 33 s (7 s build, 26 s test), so eight
+    # shards of 436 needed about four hours each; sixteen of about 218 fit in
+    # roughly two. The timeout is a wedge-guard under GitHub's 6-hour cap: a
+    # stuck shard fails visibly while the others still report.
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -71,7 +73,7 @@ jobs:
         # running — 45 such phantom misses on PR #8 exposed this.
         env:
           SHARD: ${{ matrix.shard }}
-        run: cargo mutants --workspace --no-shuffle --in-diff pr.diff --shard "${SHARD}/8" -- --all-features
+        run: cargo mutants --workspace --no-shuffle --in-diff pr.diff --shard "${SHARD}/16" -- --all-features
       - name: Upload this shard's outcomes
         # Missed, caught and timeout lists per shard: the evidence a red shard
         # is read from.
@@ -85,7 +87,7 @@ jobs:
 
   # One result under the gate's original name, so a branch-protection rule that
   # requires "Mutants (PR diff)" keeps meaning every shard passed. It fails
-  # unless all eight did (a skipped or cancelled shard is not a pass).
+  # unless all sixteen did (a skipped or cancelled shard is not a pass).
   gate:
     name: Mutants (PR diff)
     needs: incremental

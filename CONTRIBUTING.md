@@ -101,7 +101,7 @@ diff-scoped mutation testing
 summary, and the job fails below 95% of lines. The standard is **zero surviving mutants in every shipped crate**
 (xtask is excluded via `.cargo/mutants.toml`). Run it locally with
 `cargo xtask mutants`, which issues the invocation CI does, unsharded (CI splits the
-same deterministic mutant list across eight `--shard k/8` jobs);
+same deterministic mutant list across sixteen `--shard k/16` jobs);
 `--jobs N` is the only argument it accepts, and raising it spends the timeout
 headroom `.cargo/mutants.toml` reserves — a mutant merely slowed by
 contention is reported as a timeout, not as caught.

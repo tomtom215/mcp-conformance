@@ -133,12 +133,16 @@ fn key(message: &Message) -> (&str, &str, &str, Option<&str>) {
     )
 }
 
+/// The start of `payload`, pretty-printed: the whole characters that fit in
+/// [`PAYLOAD_LIMIT`] bytes.
 fn excerpt(payload: &Value) -> String {
     let pretty = serde_json::to_string_pretty(payload).unwrap_or_default();
-    let mut end = pretty.len().min(PAYLOAD_LIMIT);
-    while !pretty.is_char_boundary(end) {
-        end -= 1;
-    }
+    let end = pretty
+        .char_indices()
+        .map(|(at, character)| at + character.len_utf8())
+        .take_while(|&end| end <= PAYLOAD_LIMIT)
+        .last()
+        .unwrap_or(0);
     pretty[..end].to_owned()
 }
 

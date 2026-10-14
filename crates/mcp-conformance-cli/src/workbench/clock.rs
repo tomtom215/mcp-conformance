@@ -119,6 +119,38 @@ mod tests {
         }
     }
 
+    /// Every day of two whole 400-year cycles, so the era-boundary terms in
+    /// `civil` (day 36 524 of an era, and its last, 146 096) are reached: each
+    /// day is the one after the previous, by month lengths computed here, and
+    /// round-trips through `days_from_civil`.
+    #[test]
+    fn two_whole_eras_step_one_calendar_day_at_a_time() {
+        let leap = |year: u64| {
+            year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400))
+        };
+        let length = |year: u64, month: u64| match month {
+            2 if leap(year) => 29,
+            2 => 28,
+            4 | 6 | 9 | 11 => 30,
+            _ => 31,
+        };
+        let mut expected = (1970, 1, 1);
+        for days in 0..2 * 146_097_u64 {
+            let date = civil(days);
+            assert_eq!(date, expected, "day {days}");
+            let text = format!("{:04}-{:02}-{:02}", date.0, date.1, date.2);
+            assert_eq!(days_from_civil(&text), i64::try_from(days).ok(), "{text}");
+            let (year, month, day) = date;
+            expected = if day < length(year, month) {
+                (year, month, day + 1)
+            } else if month < 12 {
+                (year, month + 1, 1)
+            } else {
+                (year + 1, 1, 1)
+            };
+        }
+    }
+
     #[test]
     fn a_day_is_read_only_from_a_date() {
         assert_eq!(day("2026-10-13T10:54:29.018Z"), Some("2026-10-13"));
