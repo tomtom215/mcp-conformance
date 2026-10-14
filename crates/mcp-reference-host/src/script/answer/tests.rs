@@ -260,6 +260,27 @@ fn a_legacy_enum_takes_its_default_then_its_first_value() {
 }
 
 #[test]
+fn a_bound_that_is_not_a_number_declines_rather_than_panics() {
+    // Not reachable from JSON, but a schema built in code can hold one, and
+    // `f64::clamp` panics on it.
+    for (minimum, maximum) in [
+        (Some(f64::NAN), None),
+        (None, Some(f64::NAN)),
+        (Some(f64::NAN), Some(1.0)),
+        (Some(-1.0), Some(f64::NAN)),
+    ] {
+        let mut schema = NumberSchema::default();
+        schema.minimum = minimum;
+        schema.maximum = maximum;
+        assert_eq!(
+            number_placeholder(&schema),
+            None,
+            "{minimum:?}..{maximum:?}"
+        );
+    }
+}
+
+#[test]
 fn an_unsatisfiable_required_property_declines() {
     for requested in [
         // An enum with no values to choose from.
