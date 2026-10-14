@@ -39,10 +39,11 @@ fn command(dir: &Path) -> String {
     format!("sh {}", script.display())
 }
 
-async fn bounded(body: impl std::future::Future<Output = ()>) {
+/// `body`'s output, or a failed test after 30 s.
+async fn bounded<T>(body: impl std::future::Future<Output = T>) -> T {
     tokio::time::timeout(Duration::from_secs(30), body)
         .await
-        .expect("the test finished within 30 s");
+        .expect("the test finished within 30 s")
 }
 
 // One session's whole life, in order; splitting it would hide the sequence.
@@ -135,7 +136,7 @@ async fn a_session_runs_end_to_end_and_is_recorded_as_stdio() {
             .await
             .unwrap();
         assert_eq!(gone.status(), 404);
-        bridge.stop().await;
+        bridge.stop().await.unwrap();
 
         let trace = std::fs::read_to_string(traces.join("001.jsonl")).unwrap();
         let events: Vec<serde_json::Value> = trace
@@ -241,7 +242,7 @@ async fn what_is_not_the_suite_talking_to_its_session_is_refused() {
             400,
             "a loopback origin is let through to the session check"
         );
-        bridge.stop().await;
+        bridge.stop().await.unwrap();
         assert!(
             std::fs::read_dir(&dir).unwrap().all(|entry| {
                 !entry
@@ -287,13 +288,22 @@ async fn a_server_ignoring_end_of_input_is_stopped() {
             .unwrap();
         assert!(response.text().await.unwrap().contains("\"result\""));
         let started = std::time::Instant::now();
-        bridge.stop().await;
+        bridge.stop().await.unwrap();
         assert!(
             started.elapsed() < Duration::from_secs(10),
             "stopped within the grace periods, not after sleep 60"
         );
         let trace = std::fs::read_to_string(dir.join("001.jsonl")).unwrap();
         assert!(trace.lines().count() >= 3, "{trace}");
+        // Stopping waited for the relay, which closed the trace.
+        assert!(
+            trace
+                .lines()
+                .last()
+                .unwrap()
+                .ends_with(r#""kind":"lifecycle","event":"transport-close"}"#),
+            "{trace}"
+        );
         std::fs::remove_dir_all(&dir).ok();
     })
     .await;

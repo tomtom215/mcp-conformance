@@ -6,10 +6,13 @@
 //!
 //! Written here rather than taken from a date crate: the library needs "now"
 //! as text, a day from a timestamp's first ten characters, and the age of a
-//! day in whole days for retention — the civil-from-days conversion below
-//! (Howard Hinnant's, public domain) is the whole of it.
+//! day in whole days for retention — the calendar conversion
+//! ([`crate::calendar`], shared with the library's importers) is the whole of
+//! it.
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use crate::calendar::{civil_from_days, days_from_civil as days_of};
 
 /// Seconds in a day.
 const DAY: u64 = 86_400;
@@ -20,7 +23,8 @@ pub(crate) fn rfc3339(time: SystemTime) -> String {
         .duration_since(UNIX_EPOCH)
         .unwrap_or(Duration::ZERO)
         .as_secs();
-    let (year, month, day) = civil(seconds / DAY);
+    // At most `u64::MAX / DAY` days: well inside `i64`, so the cast is exact.
+    let (year, month, day) = civil_from_days((seconds / DAY).cast_signed());
     let rest = seconds % DAY;
     format!(
         "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
@@ -64,32 +68,7 @@ fn days_from_civil(day: &str) -> Option<i64> {
     if !(1..=12).contains(&month) || !(1..=31).contains(&date) {
         return None;
     }
-    let year = if month <= 2 { year - 1 } else { year };
-    let era = year.div_euclid(400);
-    let year_of_era = year - era * 400;
-    let shifted_month = (month + 9) % 12;
-    let day_of_year = (153 * shifted_month + 2) / 5 + date - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    Some(era * 146_097 + day_of_era - 719_468)
-}
-
-/// The (year, month, day) of `days` since 1970-01-01.
-fn civil(days: u64) -> (u64, u64, u64) {
-    let shifted = days + 719_468;
-    let era = shifted / 146_097;
-    let day_of_era = shifted - era * 146_097;
-    let year_of_era =
-        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let shifted_month = (5 * day_of_year + 2) / 153;
-    let date = day_of_year - (153 * shifted_month + 2) / 5 + 1;
-    let month = if shifted_month < 10 {
-        shifted_month + 3
-    } else {
-        shifted_month - 9
-    };
-    let year = year_of_era + era * 400 + u64::from(month <= 2);
-    (year, month, date)
+    Some(days_of(year, month, date))
 }
 
 #[cfg(test)]
@@ -112,17 +91,18 @@ mod tests {
 
     #[test]
     fn days_round_trip_through_the_calendar() {
-        for days in [0_u64, 59, 60, 365, 10_957, 11_016, 20_740, 2_932_896] {
-            let (year, month, date) = civil(days);
+        for days in [0_i64, 59, 60, 365, 10_957, 11_016, 20_740, 2_932_896] {
+            let (year, month, date) = civil_from_days(days);
             let text = format!("{year:04}-{month:02}-{date:02}");
-            assert_eq!(days_from_civil(&text), i64::try_from(days).ok(), "{text}");
+            assert_eq!(days_from_civil(&text), Some(days), "{text}");
         }
     }
 
-    /// Every day of two whole 400-year cycles, so the era-boundary terms in
-    /// `civil` (day 36 524 of an era, and its last, 146 096) are reached: each
-    /// day is the one after the previous, by month lengths computed here, and
-    /// round-trips through `days_from_civil`.
+    /// Every day of two whole 400-year cycles from 1970, through this module's
+    /// own text: each midnight `rfc3339` writes is the day after the previous
+    /// one, by month lengths computed here, and its date round-trips through
+    /// `days_from_civil`. (The conversion itself is stepped through four eras,
+    /// either side of 1970, in `crate::calendar`.)
     #[test]
     fn two_whole_eras_step_one_calendar_day_at_a_time() {
         let leap = |year: u64| {
@@ -134,12 +114,22 @@ mod tests {
             4 | 6 | 9 | 11 => 30,
             _ => 31,
         };
+        let number = |text: &str| text.parse::<u64>().unwrap_or(0);
         let mut expected = (1970, 1, 1);
         for days in 0..2 * 146_097_u64 {
-            let date = civil(days);
-            assert_eq!(date, expected, "day {days}");
-            let text = format!("{:04}-{:02}-{:02}", date.0, date.1, date.2);
-            assert_eq!(days_from_civil(&text), i64::try_from(days).ok(), "{text}");
+            let text = rfc3339(UNIX_EPOCH + Duration::from_secs(days * DAY));
+            let date = (
+                number(&text[..4]),
+                number(&text[5..7]),
+                number(&text[8..10]),
+            );
+            assert_eq!(date, expected, "day {days}: {text}");
+            assert!(text.ends_with("T00:00:00Z"), "{text}");
+            assert_eq!(
+                days_from_civil(&text[..10]),
+                i64::try_from(days).ok(),
+                "{text}"
+            );
             let (year, month, day) = date;
             expected = if day < length(year, month) {
                 (year, month, day + 1)

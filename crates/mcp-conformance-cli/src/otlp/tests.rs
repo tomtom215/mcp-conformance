@@ -219,6 +219,15 @@ fn errors_set_the_error_attributes_and_an_error_status() {
         attribute(&span, "error.type"),
         Some(json!({"stringValue": "tool_error"}))
     );
+    // `isError` is a tool result's: on any other method's result it is not one.
+    let mut answered = exchange("prompts/get", Some("1"));
+    answered.ending = Ending::Answered {
+        error: None,
+        tool_error: true,
+    };
+    let span = encoded(&super::span(&answered, TRACE, SPAN, None));
+    assert_eq!(attribute(&span, "error.type"), None);
+    assert_eq!(span.get("status"), None, "{span}");
 
     failed.ending = Ending::Unanswered;
     let span = encoded(&super::span(&failed, TRACE, SPAN, None));
@@ -402,6 +411,30 @@ fn spans_hold_the_latest_back_and_put_each_finding_on_its_exchange() {
         encoded(&sent[0])["traceId"],
         "4bf92f3577b34da6a3ce929d0e0e4736"
     );
+}
+
+#[test]
+fn each_span_takes_the_next_id_and_findings_without_one_are_counted() {
+    let mut next = 0_u8;
+    let ids = Box::new(move || {
+        next += 1;
+        [next; 8]
+    });
+    let mut spans = Spans::new(TRACE, None, ids);
+    assert_eq!(
+        format!("{spans:?}"),
+        "Spans { peer: None, held: None, unattached: 0, .. }"
+    );
+    let sent = spans.pass(&[], &[finding(None), finding(Some(4))], at(0));
+    assert!(sent.is_empty(), "{sent:?}");
+    assert_eq!(spans.unattached(), 2);
+    let pings = [exchange("ping", Some("1")), exchange("ping", Some("2"))];
+    let sent = spans.finish(&pings, &[], at(1));
+    let ids: Vec<Value> = sent
+        .iter()
+        .map(|span| encoded(span)["spanId"].clone())
+        .collect();
+    assert_eq!(ids, ["0101010101010101", "0202020202020202"]);
 }
 
 #[test]

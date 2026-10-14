@@ -26,6 +26,9 @@ use clap::Parser as _;
 
 mod args;
 mod bridge;
+// The library's own file too (its importers' timestamps), so the calendar is
+// written once.
+mod calendar;
 mod judging;
 mod library_cmd;
 mod node;

@@ -378,3 +378,89 @@ fn a_line_that_is_not_an_event_is_kept_for_the_final_judgment_only() {
     let ended = live.finish(at(2));
     assert!(matches!(ended.judgment, Err(JudgeError::Malformed(_))));
 }
+
+#[test]
+fn the_revision_is_the_one_initialize_declares_until_its_response_negotiates_another() {
+    let mut live = Live::new().unwrap();
+    // The revision each exchange a line completes carries.
+    let mut revisions = |seq: u64, direction: &str, payload: &str| -> Vec<Option<String>> {
+        live.push(line(seq, direction, payload).as_bytes(), at(0))
+            .completed
+            .into_iter()
+            .map(|exchange| exchange.protocol_version)
+            .collect()
+    };
+    let none: Vec<Option<String>> = Vec::new();
+    // Only initialize's own parameter declares a revision.
+    assert_eq!(
+        revisions(
+            0,
+            "client-to-server",
+            r#"{"jsonrpc":"2.0","method":"notifications/x","params":{"protocolVersion":"2024-11-05"}}"#,
+        ),
+        [None]
+    );
+    assert_eq!(
+        revisions(
+            1,
+            "client-to-server",
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}"#,
+        ),
+        none
+    );
+    let declared = || Some("2025-06-18".to_owned());
+    assert_eq!(
+        revisions(
+            2,
+            "client-to-server",
+            r#"{"jsonrpc":"2.0","method":"notifications/y"}"#
+        ),
+        [declared()]
+    );
+    // A result naming a revision negotiates only when it answers initialize.
+    assert_eq!(
+        revisions(
+            3,
+            "client-to-server",
+            r#"{"jsonrpc":"2.0","id":2,"method":"ping"}"#
+        ),
+        none
+    );
+    assert_eq!(
+        revisions(
+            4,
+            "server-to-client",
+            r#"{"jsonrpc":"2.0","id":2,"result":{"protocolVersion":"2024-11-05"}}"#,
+        ),
+        [declared()]
+    );
+    assert_eq!(
+        revisions(
+            5,
+            "server-to-client",
+            r#"{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-03-26"}}"#,
+        ),
+        [Some("2025-03-26".to_owned())]
+    );
+}
+
+#[test]
+fn only_a_jsonrpc_member_other_than_2_0_is_kept() {
+    let mut live = Live::new().unwrap();
+    let mut jsonrpc = |payload: &str| {
+        live.push(line(0, "client-to-server", payload).as_bytes(), at(0))
+            .completed[0]
+            .jsonrpc
+            .clone()
+    };
+    assert_eq!(jsonrpc(r#"{"jsonrpc":"2.0","method":"n"}"#), None);
+    assert_eq!(jsonrpc(r#"{"method":"n"}"#), None);
+    assert_eq!(
+        jsonrpc(r#"{"jsonrpc":"1.0","method":"n"}"#).as_deref(),
+        Some("1.0")
+    );
+    assert_eq!(
+        jsonrpc(r#"{"jsonrpc":2,"method":"n"}"#).as_deref(),
+        Some("2")
+    );
+}

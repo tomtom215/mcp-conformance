@@ -144,7 +144,6 @@ pub struct Live {
     reported: Vec<LiveFinding>,
     seen: HashSet<Key>,
     exchanges: u64,
-    unreadable: u64,
 }
 
 impl Live {
@@ -163,14 +162,12 @@ impl Live {
             reported: Vec::new(),
             seen: HashSet::new(),
             exchanges: 0,
-            unreadable: 0,
         })
     }
 
     /// Takes in the next line of the trace, recorded at `at`.
     pub fn push(&mut self, line: &[u8], at: SystemTime) -> Pushed {
         let Ok(text) = std::str::from_utf8(line) else {
-            self.unreadable += 1;
             return Pushed::default();
         };
         self.document.push_str(text);
@@ -178,7 +175,6 @@ impl Live {
         let Ok(event) = serde_json::from_str::<TraceEvent>(text) else {
             // Kept in the document, for the final judgment to refuse as the
             // validator would; not judged live.
-            self.unreadable += 1;
             return Pushed::default();
         };
         let step = self.pairing.push(&event, at);

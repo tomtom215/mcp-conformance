@@ -244,4 +244,116 @@ mod tests {
             assert!(!error.contains("s3cret"), "{error}");
         }
     }
+
+    #[test]
+    fn an_endpoint_is_shown_as_its_traces_url() {
+        for (given, shown) in [
+            ("http://localhost:4318", "http://localhost:4318/v1/traces"),
+            ("https://c/otel/?key=s3cret", "https://c/otel/v1/traces"),
+        ] {
+            assert_eq!(Endpoint::parse(given).unwrap().shown(), shown);
+        }
+    }
+
+    /// An error with a chain of sources.
+    #[derive(Debug)]
+    struct Chain(&'static str, Option<Box<Self>>);
+
+    impl std::fmt::Display for Chain {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str(self.0)
+        }
+    }
+
+    impl std::error::Error for Chain {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+            self.1
+                .as_deref()
+                .map(|cause| cause as &(dyn std::error::Error + 'static))
+        }
+    }
+
+    #[test]
+    fn an_error_is_told_with_each_of_its_causes() {
+        let error = Chain(
+            "client error",
+            Some(Box::new(Chain(
+                "tcp connect error",
+                Some(Box::new(Chain("refused", None))),
+            ))),
+        );
+        assert_eq!(causes(&error), "client error: tcp connect error: refused");
+        assert_eq!(causes(&Chain("alone", None)), "alone");
+    }
+
+    /// A collector on loopback answering `status`, noting how many spans each
+    /// request carried.
+    async fn collector(status: u16) -> (Endpoint, Arc<std::sync::Mutex<Vec<usize>>>) {
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let app = axum::Router::new().fallback({
+            let seen = Arc::clone(&seen);
+            move |body: axum::body::Bytes| async move {
+                let request: serde_json::Value = serde_json::from_slice(&body).unwrap();
+                let spans = request["resourceSpans"][0]["scopeSpans"][0]["spans"]
+                    .as_array()
+                    .map_or(0, Vec::len);
+                seen.lock().unwrap().push(spans);
+                axum::http::StatusCode::from_u16(status).unwrap()
+            }
+        });
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, app).await });
+        (Endpoint::parse(&format!("http://{address}")).unwrap(), seen)
+    }
+
+    /// One exchange's span.
+    fn a_span() -> Span {
+        let mut live = mcp_conformance_cli::live::Live::new().unwrap();
+        let notified = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}"#;
+        let pushed = live.push(notified.as_bytes(), std::time::SystemTime::now());
+        otlp::span(&pushed.completed[0], [1; 16], [1; 8], None)
+    }
+
+    #[tokio::test]
+    async fn queued_spans_go_in_batches_of_at_most_batch() {
+        let (endpoint, seen) = collector(200).await;
+        let (sink, task) = start(endpoint);
+        let span = a_span();
+        for _ in 0..=BATCH {
+            sink.send(span.clone());
+        }
+        drop(sink);
+        let exported = task.await.unwrap();
+        let all = u64::try_from(BATCH).unwrap() + 1;
+        assert_eq!(
+            exported,
+            Exported {
+                sent: all,
+                ..Exported::default()
+            }
+        );
+        assert_eq!(*seen.lock().unwrap(), [BATCH, 1]);
+    }
+
+    #[tokio::test]
+    async fn a_refused_batch_is_counted_with_the_first_reason() {
+        let (endpoint, seen) = collector(503).await;
+        let (sink, task) = start(endpoint);
+        sink.send(a_span());
+        sink.send(a_span());
+        drop(sink);
+        let exported = task.await.unwrap();
+        assert_eq!(
+            exported,
+            Exported {
+                failed: 2,
+                error: Some("the collector answered 503 Service Unavailable".to_owned()),
+                ..Exported::default()
+            }
+        );
+        assert_eq!(*seen.lock().unwrap(), [2]);
+    }
 }

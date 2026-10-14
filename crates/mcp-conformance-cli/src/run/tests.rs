@@ -138,6 +138,17 @@ fn a_url_is_shown_without_its_query() {
 }
 
 #[test]
+fn only_a_server_elsewhere_gets_the_host_note() {
+    assert_eq!(host_note(true), None);
+    let note = host_note(false).unwrap();
+    assert!(
+        note.starts_with("the recording proxy sends the server's own name as `Host`")
+            && note.contains("dns-rebinding-protection"),
+        "{note}"
+    );
+}
+
+#[test]
 fn the_work_dir_is_new_or_empty_and_absolute() {
     let dir = std::env::temp_dir().join(format!("mcp-conformance-work-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();

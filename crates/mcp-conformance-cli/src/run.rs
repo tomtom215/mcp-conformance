@@ -173,12 +173,8 @@ async fn drive(
     if let Some(url) = &subject.url {
         let (upstream, path) = proxy::split(url).map_err(|error| format!("--url: {error}"))?;
         let preserve_host = proxy::is_loopback(&upstream);
-        if !preserve_host {
-            eprintln!(
-                "mcp-conformance: the recording proxy sends the server's own name as `Host` \
-                 (it is not on this machine), so the suite's dns-rebinding-protection \
-                 scenario sees the proxy's Host, not the one it sent"
-            );
+        if let Some(note) = host_note(preserve_host) {
+            eprintln!("mcp-conformance: {note}");
         }
         let shown = shown(&upstream, &path);
         let proxy = proxy::start(upstream, preserve_host, traces).await?;
@@ -197,8 +193,10 @@ async fn drive(
         };
         let url = format!("http://{}/mcp", bridge.address);
         let ran = invoke::run_all(common.server(&url, &scenarios), signals).await;
-        bridge.stop().await;
-        Ok((command.clone(), finished(ran)?, not_run))
+        let stopped = bridge.stop().await;
+        let passed = finished(ran)?;
+        stopped?;
+        Ok((command.clone(), passed, not_run))
     } else if let Some(client) = &subject.client_command {
         let exe = std::env::current_exe()
             .map_err(|error| format!("cannot find this program's own path: {error}"))?;
@@ -218,6 +216,20 @@ async fn drive(
         Ok((client.clone(), finished(ran)?, Vec::new()))
     } else {
         Err("name the subject: --url, --command or --client-command".to_owned())
+    }
+}
+
+/// What the run says about `Host` when the proxy cannot preserve the suite's
+/// (the server is not on this machine).
+const fn host_note(preserve_host: bool) -> Option<&'static str> {
+    if preserve_host {
+        None
+    } else {
+        Some(
+            "the recording proxy sends the server's own name as `Host` (it is not on this \
+             machine), so the suite's dns-rebinding-protection scenario sees the proxy's \
+             Host, not the one it sent",
+        )
     }
 }
 

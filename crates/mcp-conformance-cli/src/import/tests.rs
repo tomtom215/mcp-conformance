@@ -56,6 +56,10 @@ fn formats_are_detected_by_their_first_record() {
         "[]",
         "[1]",
         "[{\"x\":1}]",
+        r#"[{"origin":"client","direction":"request"}]"#,
+        r#"[{"message":{},"direction":"request"}]"#,
+        r#"{"session_id":"s","ts":"2026-10-13T10:00:00Z"}"#,
+        r#"{"direction":"c2s","ts":"2026-10-13T10:00:00Z"}"#,
         "{\"a\":1}",
         "not json",
         "[not json",
@@ -352,4 +356,81 @@ fn an_inspector_export_needs_its_transport_stated_and_its_entries_whole() {
         assert!(error.0.contains(why), "{bad}: {error}");
     }
     assert_eq!(ImportError("x".into()).to_string(), "x");
+}
+
+#[test]
+fn an_http_capture_keeps_exactly_the_headers_it_recorded() {
+    // Each HTTP event's direction, status and headers.
+    type Shown = (Direction, Option<u16>, Vec<(String, String)>);
+    let capture = [
+        json!({"session_id":"s","seq":1,"direction":"meta","transport":"http","raw":{"target":"t"}}),
+        json!({"session_id":"s","seq":2,"direction":"c2s","transport":"http","conn_id":"c","exchange":1,
+            "raw":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"echo"}},
+            "mcp_protocol_version":"2025-11-25","mcp_method":"tools/call","mcp_name":"echo",
+            "mcp_param_headers":[{"name":"Mcp-Param-Region","value":"eu"}],
+            "transport_headers":{"accept":"application/json, text/event-stream","content_type":"application/json","origin":"http://localhost"}}),
+        json!({"session_id":"s","seq":3,"direction":"s2c","transport":"http","conn_id":"c","exchange":1,
+            "raw":{"jsonrpc":"2.0","id":1,"result":{}},"status":200,
+            "transport_headers":{"accept":"*/*","content_type":"text/event-stream","origin":"x"}}),
+    ]
+    .map(|envelope| envelope.to_string())
+    .join("\n");
+    let all = events(&mcpsnoop::import(&capture).unwrap().trace);
+    let headers: Vec<Shown> = all
+        .iter()
+        .filter_map(|event| match &event.body {
+            EventBody::Http {
+                status, headers, ..
+            } => Some((
+                event.direction,
+                *status,
+                headers.clone().into_iter().collect(),
+            )),
+            _ => None,
+        })
+        .collect();
+    let pairs = |pairs: &[(&str, &str)]| -> Vec<(String, String)> {
+        pairs
+            .iter()
+            .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
+            .collect()
+    };
+    assert_eq!(
+        headers,
+        [
+            (
+                Direction::ClientToServer,
+                None,
+                pairs(&[
+                    ("accept", "application/json, text/event-stream"),
+                    ("content-type", "application/json"),
+                    ("mcp-method", "tools/call"),
+                    ("mcp-name", "echo"),
+                    ("mcp-param-region", "eu"),
+                    ("mcp-protocol-version", "2025-11-25"),
+                    ("origin", "http://localhost"),
+                ])
+            ),
+            (
+                Direction::ServerToClient,
+                Some(200),
+                pairs(&[("content-type", "text/event-stream")])
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_stdio_capture_has_no_http_whatever_its_frames_carry() {
+    let capture = [
+        json!({"session_id":"s","seq":1,"direction":"meta","transport":"stdio","raw":{"command":["server"]}}),
+        json!({"session_id":"s","seq":2,"direction":"c2s","transport":"stdio","conn_id":"c","exchange":1,"status":200,
+            "raw":{"jsonrpc":"2.0","id":1,"method":"ping"}}),
+    ]
+    .map(|envelope| envelope.to_string())
+    .join("\n");
+    let all = events(&mcpsnoop::import(&capture).unwrap().trace);
+    assert_eq!(all.len(), 1, "{all:?}");
+    assert_eq!(all[0].transport, TransportKind::Stdio);
+    assert!(matches!(all[0].body, EventBody::Message { .. }));
 }

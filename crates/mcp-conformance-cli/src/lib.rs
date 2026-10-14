@@ -41,6 +41,8 @@
 pub struct ReadmeDoctests;
 
 pub mod agreement;
+// Shared with the binary's workbench clock, which compiles the same file.
+mod calendar;
 pub mod import;
 pub mod live;
 pub mod otlp;

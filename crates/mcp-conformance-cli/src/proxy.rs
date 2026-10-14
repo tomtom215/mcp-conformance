@@ -117,7 +117,9 @@ impl Proxy {
             .await
             .map_err(|error| format!("the recording proxy failed: {error}"))?
             .map_err(|error| format!("the recording proxy failed: {error}"))?;
-        note_unrecorded(unrecorded);
+        for note in unrecorded_notes(unrecorded) {
+            eprintln!("mcp-conformance: {note}");
+        }
         let mut incomplete = Vec::new();
         for finished in self.traces.finish() {
             if !finished.summary.is_complete() {
@@ -139,28 +141,29 @@ impl Proxy {
     }
 }
 
-/// What the proxy forwarded without recording, when anything: a finding of the
-/// recording, not of the subject, so it goes to stderr.
-fn note_unrecorded(unrecorded: http::Unrecorded) {
+/// What the proxy forwarded without recording, when anything: findings of the
+/// recording, not of the subject, which [`Proxy::stop`] puts on stderr.
+fn unrecorded_notes(unrecorded: http::Unrecorded) -> Vec<String> {
+    let mut notes = Vec::new();
     let left_out = unrecorded.not_json
         + unrecorded.altered
         + unrecorded.oversized
         + unrecorded.over_budget
         + unrecorded.other_events;
     if left_out > 0 {
-        eprintln!(
-            "mcp-conformance: {left_out} message(s) were forwarded but not recorded (not \
-             JSON, over the size limit, or not representable); see mcp-trace-capture's \
-             README"
-        );
+        notes.push(format!(
+            "{left_out} message(s) were forwarded but not recorded (not JSON, over the size \
+             limit, or not representable); see mcp-trace-capture's README"
+        ));
     }
     if unrecorded.upstream_failures > 0 {
-        eprintln!(
-            "mcp-conformance: {} request(s) could not reach the server and were answered 502 \
-             by the recording proxy",
+        notes.push(format!(
+            "{} request(s) could not reach the server and were answered 502 by the recording \
+             proxy",
             unrecorded.upstream_failures
-        );
+        ));
     }
+    notes
 }
 
 #[cfg(test)]
@@ -212,5 +215,92 @@ mod tests {
         ] {
             assert!(!is_loopback(&host.parse().unwrap()), "{host}");
         }
+    }
+
+    #[test]
+    fn what_was_not_recorded_is_counted_and_noted_once_each() {
+        let none: Vec<String> = Vec::new();
+        assert_eq!(unrecorded_notes(http::Unrecorded::default()), none);
+        let mut unrecorded = http::Unrecorded::default();
+        unrecorded.not_json = 1;
+        unrecorded.altered = 2;
+        unrecorded.oversized = 3;
+        unrecorded.over_budget = 4;
+        unrecorded.other_events = 5;
+        unrecorded.upstream_failures = 6;
+        assert_eq!(
+            unrecorded_notes(unrecorded),
+            [
+                "15 message(s) were forwarded but not recorded (not JSON, over the size limit, \
+                 or not representable); see mcp-trace-capture's README",
+                "6 request(s) could not reach the server and were answered 502 by the recording \
+                 proxy"
+            ]
+        );
+        let mut one = http::Unrecorded::default();
+        one.other_events = 1;
+        assert_eq!(unrecorded_notes(one).len(), 1);
+        assert!(unrecorded_notes(one)[0].starts_with("1 message(s)"));
+        let mut one = http::Unrecorded::default();
+        one.upstream_failures = 1;
+        assert_eq!(unrecorded_notes(one).len(), 1);
+        assert!(unrecorded_notes(one)[0].starts_with("1 request(s)"));
+    }
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "mcp-conformance-proxy-{name}-{}",
+            std::process::id()
+        ));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// An upstream nothing listens on: a loopback port just given back.
+    fn refusing() -> Uri {
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        format!("http://127.0.0.1:{port}").parse().unwrap()
+    }
+
+    const INITIALIZE: &str = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
+
+    #[tokio::test]
+    async fn stopping_flushes_the_traces_and_names_any_a_write_failed_on() {
+        let client = reqwest::Client::new();
+
+        let dir = scratch("complete");
+        let proxy = start(refusing(), true, &dir).await.unwrap();
+        let url = format!("http://{}/mcp", proxy.address);
+        let answered = client.post(&url).body(INITIALIZE).send().await.unwrap();
+        assert_eq!(answered.status(), 502);
+        proxy.stop().await.unwrap();
+        let trace = std::fs::read_to_string(dir.join("001.jsonl")).unwrap();
+        assert!(trace.contains(r#""method":"initialize""#), "{trace}");
+        std::fs::remove_dir_all(&dir).ok();
+
+        // The session's file goes away after its first write: the next write
+        // to it fails, and the trace is incomplete.
+        let dir = scratch("incomplete");
+        let proxy = start(refusing(), true, &dir).await.unwrap();
+        let url = format!("http://{}/mcp", proxy.address);
+        client.post(&url).body(INITIALIZE).send().await.unwrap();
+        let path = dir.join("001.jsonl");
+        std::fs::remove_file(&path).unwrap();
+        let ping = r#"{"jsonrpc":"2.0","id":2,"method":"ping"}"#;
+        client.post(&url).body(ping).send().await.unwrap();
+        let error = proxy.stop().await.unwrap_err();
+        assert_eq!(
+            error,
+            format!(
+                "a trace write failed, so these traces are incomplete: {}",
+                path.display()
+            )
+        );
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
