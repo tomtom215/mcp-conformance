@@ -5,12 +5,12 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.32.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@modelcontextprotocol/server-everything": "2026.8.31",
     "cors": "2.8.6",
-    "express": "5.2.1",
+    "express": "5.3.0",
     "sdk-2025-06-18": "npm:@modelcontextprotocol/sdk@1.13.0",
     "tsx": "4.23.15",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   }
 }
