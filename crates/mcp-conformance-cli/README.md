@@ -197,6 +197,22 @@ only the page itself and a link you open — browsers count every port of `127.0
 one site and send the cookie to all of them, so a request made by a page on another local
 port (`Sec-Fetch-Site: same-site`) is refused.
 
+Two costs the workbench cannot design away, so it states them. **The cookie goes to every
+local server.** Browsers scope a cookie to the host, never to the port: any other server on
+`127.0.0.1` that the same browser visits while the workbench runs is sent its session
+cookie (`HttpOnly`, so no page can read it — but that server receives it), and the startup
+banner says so. **A large trace line is judged in memory, at a multiple of its size that
+depends on its shape.** Measured on one five-event trace whose fifth line was 8 MiB (debug
+build, peak resident set from `wait4`'s `ru_maxrss`, the binary's own 30–37 MiB baseline
+subtracted): a line that is one 8 MiB string cost `mcp-trace-validator validate` about
+1× its bytes and the workbench's loader (`library list`, which parses, judges and caches
+the entry) about 3×; a line of 8 MiB of small JSON values — some 330,000 one-character
+text blocks — cost them 41× and 72× (360 MiB and 611 MiB), because each JSON value is
+parsed into a tree node and held for the whole judgment. The validator's
+`--max-line-bytes` (65 MiB by default) is the only bound on a line, so a hostile recording
+at that limit can cost the workbench several gigabytes: it is a library you administer,
+not an upload surface, and its import body limit (192 MiB) is not a memory bound.
+
 The same library from the command line, for scripts (`stats --format json` prints
 exactly what the dashboards read):
 
