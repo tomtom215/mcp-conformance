@@ -22,6 +22,22 @@ pub const PLACEHOLDER: &str = "{session}";
 /// real suite, and a bound on a file system that reports every name as taken.
 const MAX_NUMBER: u64 = 1_000_000;
 
+/// The options every trace file is created with: writable, and on Unix
+/// readable and writable by its owner alone (mode `0600`, less the umask). A
+/// trace holds whatever the session carried — credentials and secrets in
+/// payloads among it — so it is not left at the umask's usual `0644`.
+#[must_use]
+pub(crate) fn private_file() -> OpenOptions {
+    let mut options = OpenOptions::new();
+    options.write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.mode(0o600);
+    }
+    options
+}
+
 /// A trace path with [`PLACEHOLDER`] in its file name.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Numbered {
@@ -109,7 +125,7 @@ impl Numbered {
     fn claim_from(&self, start: u64) -> io::Result<(u64, PathBuf, File)> {
         for number in start..=MAX_NUMBER {
             let path = self.path(number);
-            match OpenOptions::new().write(true).create_new(true).open(&path) {
+            match private_file().create_new(true).open(&path) {
                 Ok(file) => return Ok((number, path, file)),
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
                 Err(error) => {
@@ -219,6 +235,12 @@ mod tests {
             std::fs::write(dir.join(other), "").unwrap();
         }
         let (first, path, _) = numbered.create_next(1).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode();
+            assert_eq!(mode & 0o077, 0, "owner-only, not {mode:o}");
+        }
         assert_eq!(
             (first, path),
             (4, numbered.path(4)),
@@ -261,6 +283,26 @@ mod tests {
         assert_eq!((number, path), (3, numbered.path(3)));
         assert_eq!(std::fs::read_to_string(numbered.path(1)).unwrap(), "keep\n");
         assert_eq!(std::fs::read_to_string(numbered.path(2)).unwrap(), "keep\n");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Whatever the umask, a file made with [`private_file`] gives group and
+    /// others nothing: the mode asked for is `0600`, and a umask only removes
+    /// bits.
+    #[cfg(unix)]
+    #[test]
+    fn a_private_file_is_its_owners_alone() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = std::env::temp_dir().join(format!(
+            "mcp-trace-capture-numbered-private-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("private");
+        drop(private_file().create_new(true).open(&path).unwrap());
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode();
+        assert_eq!(mode & 0o077, 0, "{mode:o}");
+        assert_eq!(mode & 0o600, 0o600, "{mode:o}");
         std::fs::remove_dir_all(&dir).ok();
     }
 
