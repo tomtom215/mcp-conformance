@@ -66,6 +66,69 @@ fn an_existing_file_is_refused_for_what_it_is_and_others_say_why() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+/// `--force` overwrote whatever the output path led to: a symbolic link
+/// planted there had its target truncated and filled with the trace. A link is
+/// now refused whether or not `--force` is given — by the check before the
+/// run starts and by the create itself — and nothing is written through it.
+#[cfg(unix)]
+#[test]
+fn a_symbolic_link_at_the_output_path_is_refused_even_with_force() {
+    let dir = scratch("symlink");
+    let target = dir.join("target.jsonl");
+    std::fs::write(&target, "keep\n").unwrap();
+    let link = dir.join("link.jsonl");
+    std::os::unix::fs::symlink(&target, &link).unwrap();
+    for force in [true, false] {
+        let refused = check(&link, force).unwrap_err();
+        assert!(refused.contains("symbolic link"), "{force}: {refused}");
+    }
+    let refused = create(&link, true).unwrap_err();
+    assert!(refused.contains("symbolic link"), "{refused}");
+    assert_eq!(
+        std::fs::read_to_string(&target).unwrap(),
+        "keep\n",
+        "the link's target is intact"
+    );
+    assert!(
+        link.symlink_metadata().unwrap().is_symlink(),
+        "the link itself is left in place"
+    );
+    // A dangling link is a link too: creating through it would create its target.
+    let dangling = dir.join("dangling.jsonl");
+    std::os::unix::fs::symlink(dir.join("nowhere"), &dangling).unwrap();
+    assert!(check(&dangling, true).unwrap_err().contains("symbolic link"));
+    assert!(create(&dangling, true).is_err());
+    assert!(!dir.join("nowhere").exists(), "nothing was created through the link");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// `--force` truncates the file that was checked, not whatever is at the path
+/// by the time it is opened: a file swapped in between — the window a planted
+/// link would need — is refused untouched. (`same_file` compares by device and
+/// inode on Unix; elsewhere it cannot tell, and the check before the open is
+/// the whole defence.)
+#[test]
+fn force_overwrites_the_file_it_checked_and_no_other() {
+    let dir = scratch("identity");
+    let checked = dir.join("checked.jsonl");
+    let other = dir.join("other.jsonl");
+    std::fs::write(&checked, "checked\n").unwrap();
+    std::fs::write(&other, "other\n").unwrap();
+    let checked_meta = checked.symlink_metadata().unwrap();
+    let other_meta = other.symlink_metadata().unwrap();
+    assert!(same_file(&checked_meta, &checked.metadata().unwrap()));
+    assert_eq!(same_file(&checked_meta, &other_meta), !cfg!(unix));
+    let swapped = overwrite(&other, &checked_meta);
+    if cfg!(unix) {
+        let error = swapped.unwrap_err();
+        assert!(error.contains("changed while"), "{error}");
+        assert_eq!(std::fs::read_to_string(&other).unwrap(), "other\n");
+    }
+    drop(overwrite(&checked, &checked_meta).unwrap());
+    assert_eq!(std::fs::read_to_string(&checked).unwrap(), "");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 /// A trace can hold credentials and secrets the session carried, so its file
 /// is made readable by its owner alone — created so, and narrowed so when
 /// `--force` overwrites a wider one.

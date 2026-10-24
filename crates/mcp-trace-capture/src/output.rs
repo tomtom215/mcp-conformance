@@ -39,9 +39,10 @@ pub enum Target {
 
 /// Refuses an output path before anything is started.
 ///
-/// Refused: `-` (which names a file, not stdout), an existing file without
-/// `--force`, a misplaced `{session}`, and a numbered path whose directory does
-/// not exist.
+/// Refused: `-` (which names a file, not stdout), a symbolic link (with or
+/// without `--force`: the trace is never written through one), an existing
+/// file without `--force`, a misplaced `{session}`, and a numbered path whose
+/// directory does not exist.
 ///
 /// # Errors
 ///
@@ -68,10 +69,24 @@ pub fn check(path: &Path, force: bool) -> Result<Target, String> {
     if let Some(warning) = stray_braces(path) {
         eprintln!("mcp-trace-capture: warning: {warning}");
     }
-    if !force && path.symlink_metadata().is_ok() {
+    let existing = path.symlink_metadata().ok();
+    if existing.as_ref().is_some_and(std::fs::Metadata::is_symlink) {
+        return Err(symbolic_link(path));
+    }
+    if !force && existing.is_some() {
         return Err(exists(path));
     }
     Ok(Target::File(path.to_path_buf()))
+}
+
+/// Why a symbolic link is refused: `--force` used to follow it and truncate
+/// whatever it pointed at, which is how a planted link redirects a trace.
+fn symbolic_link(path: &Path) -> String {
+    format!(
+        "{} is a symbolic link; a trace is not written through one, --force or not (give -o \
+         the file's own path, or remove the link)",
+        path.display()
+    )
 }
 
 /// A warning for a file name with a `{…}` in it that is not [`PLACEHOLDER`] —
@@ -159,49 +174,86 @@ pub fn traces(
     }
 }
 
-/// Creates the trace file at `path` — a new file, or under `force` an existing
-/// one truncated — readable by its owner alone either way.
+/// Creates the trace file at `path` — a new file, or under `force` what is
+/// there truncated — readable by its owner alone either way, and never through
+/// a symbolic link. [`check`] refuses a link before the run starts; this
+/// refuses one again at the moment of opening, since the run has started
+/// something (the stdio server) in between.
 fn create(path: &Path, force: bool) -> Result<File, String> {
-    let mut options = private_file();
-    if force {
-        options.create(true).truncate(true);
-    } else {
-        options.create_new(true);
+    if !force {
+        return create_new(path);
     }
-    let file = options.open(path).map_err(|error| {
+    match path.symlink_metadata() {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => create_new(path),
+        Err(error) => Err(format!("cannot create {}: {error}", path.display())),
+        Ok(existing) if existing.is_symlink() => Err(symbolic_link(path)),
+        Ok(existing) => overwrite(path, &existing),
+    }
+}
+
+/// A file that did not exist, created: `create_new` never follows a link, so a
+/// link planted in the meantime is an "exists" refusal, not a file made at its
+/// target.
+fn create_new(path: &Path) -> Result<File, String> {
+    private_file().create_new(true).open(path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::AlreadyExists {
             exists(path)
         } else {
             format!("cannot create {}: {error}", path.display())
         }
-    })?;
-    if force {
-        make_private(&file).map_err(|error| {
-            format!(
-                "cannot make {} readable by its owner alone ({error}); delete it, or choose \
-                 another path",
-                path.display()
-            )
-        })?;
+    })
+}
+
+/// `--force` over what `existing` describes at `path`: opened without
+/// creating or truncating, then checked to be the file that was examined
+/// (`existing`), then — for a regular file — emptied and narrowed to its owner
+/// alone, as a file made by [`private_file`] is, since the old mode may have
+/// shown the new recording to everyone. A device or a pipe (`/dev/full`) is
+/// neither emptied nor re-moded: it is not a trace file being kept. The
+/// identity check closes the window between the check and the open, where a
+/// link swapped in would otherwise be followed into its target.
+fn overwrite(path: &Path, existing: &std::fs::Metadata) -> Result<File, String> {
+    let cannot = |error: std::io::Error| format!("cannot overwrite {}: {error}", path.display());
+    let file = private_file().open(path).map_err(cannot)?;
+    let opened = file.metadata().map_err(cannot)?;
+    if !same_file(existing, &opened) {
+        return Err(format!(
+            "{} changed while it was being opened; refusing to overwrite it",
+            path.display()
+        ));
+    }
+    if opened.is_file() {
+        file.set_len(0).map_err(cannot)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            file.set_permissions(std::fs::Permissions::from_mode(0o600))
+                .map_err(|error| {
+                    format!(
+                        "cannot make {} readable by its owner alone ({error}); delete it, or \
+                         choose another path",
+                        path.display()
+                    )
+                })?;
+        }
     }
     Ok(file)
 }
 
-/// Narrows an existing regular file's mode to its owner alone, as a file made
-/// by [`private_file`] is: `--force` writes a new recording into it, and the
-/// old mode may have shown it to everyone. A file that is not a regular one
-/// (`/dev/full`, a pipe) keeps its mode: it is not a trace file being kept.
-fn make_private(file: &File) -> std::io::Result<()> {
+/// Whether two metadata describe one file: by device and inode on Unix.
+/// Elsewhere there is no stable identity to compare, so the check before the
+/// open is the whole defence there.
+fn same_file(checked: &std::fs::Metadata, opened: &std::fs::Metadata) -> bool {
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt as _;
-        if file.metadata()?.is_file() {
-            file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
-        }
+        use std::os::unix::fs::MetadataExt as _;
+        checked.dev() == opened.dev() && checked.ino() == opened.ino()
     }
     #[cfg(not(unix))]
-    let _ = file;
-    Ok(())
+    {
+        let _ = (checked, opened);
+        true
+    }
 }
 
 /// The line limit for `max_message`, saying so when the validator's default

@@ -233,6 +233,36 @@ fn an_existing_trace_is_not_overwritten_without_force() {
     std::fs::remove_file(&trace).ok();
 }
 
+/// `--force` followed a symbolic link at the output path and truncated its
+/// target. A link there is refused, `--force` or not, before the server starts.
+#[cfg(unix)]
+#[test]
+fn force_does_not_follow_a_symbolic_link_at_the_output_path() {
+    let dir = std::env::temp_dir().join(format!(
+        "mcp-trace-capture-force-link-{}",
+        std::process::id()
+    ));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    let target = dir.join("target.jsonl");
+    std::fs::write(&target, "keep me\n").unwrap();
+    let link = dir.join("link.jsonl");
+    std::os::unix::fs::symlink(&target, &link).unwrap();
+    let marker = dir.join("marker");
+    let output = binary()
+        .args(["--force", "-o", link.to_str().unwrap(), "stdio", "--", "touch"])
+        .arg(&marker)
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("symbolic link"), "{stderr}");
+    assert_eq!(std::fs::read_to_string(&target).unwrap(), "keep me\n");
+    assert!(!marker.exists(), "the server was started");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 /// A trace holds whatever the session carried — credentials in payloads among
 /// it — so its file is created readable by its owner alone, the plain file and
 /// the numbered one alike (`stat`, under the process's umask).
