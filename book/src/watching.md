@@ -29,7 +29,13 @@ For a streamable-HTTP server, point your client at the proxy instead of the serv
 
 ```text
 mcp-conformance watch http --upstream http://localhost:3000/mcp
+# the client connects to http://127.0.0.1:8080/   (the proxy's root is --upstream itself)
 ```
+
+The proxy's root path is the `--upstream` URL itself, and any other path is appended to
+it. With `--upstream http://localhost:3000` (no path), the client connects to
+`http://127.0.0.1:8080/mcp` instead; giving the path in both places reaches `/mcp/mcp`,
+which the server answers with a 404.
 
 The proxy listens on `127.0.0.1:8080` unless you say otherwise:
 
