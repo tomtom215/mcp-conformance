@@ -84,7 +84,7 @@ pub struct MultiRow {
     /// The requirement's RFC 2119 level, as registry text (`"MUST"`, …).
     pub level: String,
     /// The party the clause binds, as the registry states it
-    /// ([`RequirementReport::actor`]).
+    /// ([`RequirementReport::actor`](crate::report::RequirementReport::actor)).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actor: Option<Actor>,
     /// Outcome under each judged revision, aligned by index with
