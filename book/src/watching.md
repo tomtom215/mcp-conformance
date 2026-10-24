@@ -139,14 +139,18 @@ The spans follow the OpenTelemetry
   `2.0`; `network.transport` (`pipe` for stdio, `tcp` for HTTP) with
   `network.protocol.name` and `network.protocol.version` for HTTP; `server.address` and
   `server.port` (the upstream) for a client's request over HTTP; `gen_ai.tool.name` with
-  `gen_ai.operation.name = execute_tool`, `gen_ai.prompt.name`, `mcp.resource.uri`.
+  `gen_ai.operation.name = execute_tool`, `gen_ai.prompt.name`, `mcp.resource.uri` (the
+  URI up to its path: userinfo, query and fragment are dropped, since a presigned URI
+  keeps its credential there).
 - **Errors** set `error.type` and `rpc.response.status_code` to the JSON-RPC code and the
-  span status to `ERROR` with the error's message; a tool result with `isError: true` sets
+  span status to `ERROR`, described by the code and a fixed name for it
+  (`JSON-RPC error -32602 (invalid params)`), never by the server's own message, which can
+  echo what it was sent; a tool result with `isError: true` sets
   `error.type = tool_error`; a request the session ended before answering, `unanswered`.
 - **Findings** are span events named `mcp_conformance.finding`, with
   `mcp_conformance.requirement.id`, `.requirement.level`, `.outcome`, `.revision`,
-  `.spec.url`, `.check`, `.detail` and `.trace.seq` — this tool's own namespace, since the
-  conventions have none for conformance. A finding goes on the span of the exchange that
+  `.spec.url`, `.check`, `.detail` (cut at 512 characters, marked) and `.trace.seq` — this
+  tool's own namespace, since the conventions have none for conformance. A finding goes on the span of the exchange that
   holds its `seq`, or, when that span has already been sent, on the span of the exchange
   that surfaced it.
 
@@ -166,6 +170,6 @@ a corpus replay through a pinned OpenTelemetry Collector and reads back what it 
 address, since anyone who can reach the proxy can send requests through it. It sends
 nothing anywhere unless `--otlp` names a collector, and then only the span fields above.
 An `http://` collector that is not this machine gets a warning, because those fields —
-method and tool names, resource URIs, session ids, error messages, findings — would cross
-the network unencrypted. The trace file holds message bodies in full, as every recording
+method and tool names, resource URIs up to their path, session ids, error codes,
+findings — would cross the network unencrypted. The trace file holds message bodies in full, as every recording
 does: read it before you share it.

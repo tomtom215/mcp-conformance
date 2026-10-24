@@ -20,6 +20,7 @@ It prints the link to open:
 mcp-conformance serve: library ./recordings (12 recordings)
 mcp-conformance serve: open http://127.0.0.1:41245/?token=ae0c…4f71
 mcp-conformance serve: the link works once; Ctrl-C stops the workbench
+mcp-conformance serve: browsers scope the cookie to 127.0.0.1 as a whole, not to port 41245: any other server there that this browser visits is sent it
 ```
 
 Open the link (`--open` does it for you). It works **once**: the first visit trades the
@@ -119,12 +120,12 @@ Each action is a button in the page and a `library` subcommand:
 | Tag | **Edit tags** | `library tag ID --tag T…` |
 | Expire old recordings | **Retention…** | `library prune --retain-days N [--apply]` |
 | Delete | **Delete** | `library delete ID…` |
-| Export (tar of traces and sidecars) | **Export** | `library export ID… -o FILE` |
+| Export (tar of traces and sidecars; each recording once, at most 100 recordings and 192 MiB) | **Export** | `library export ID… -o FILE` |
 | Redact | **Redact…** | `library redact ID [--header H…] [--pointer P…] [--meta] [--string S…]` |
 
 **Redaction** makes a new recording and leaves the original alone. It replaces with
 `"[redacted]"` the values of headers named (by default `Authorization`, `Cookie`, `Set-Cookie`,
-`Proxy-Authorization`), of JSON pointers into every message (`/params/arguments/apiKey`; `*`
+`Proxy-Authorization` and `Mcp-Session-Id`), of JSON pointers into every message (`/params/arguments/apiKey`; `*`
 matches every member, as in `/result/content/*/text`), of every `_meta` member, and every
 occurrence of a literal string anywhere. A line that is not JSON stops the redaction rather
 than being copied. Member order within a line is not kept. Read the copy before sharing it:
@@ -153,7 +154,9 @@ The library can hold credentials, and a local web server is reachable by every p
 browser opens. So the workbench binds `127.0.0.1` (another address needs
 `--dangerously-listen-non-loopback`, and it warns); answers only requests whose `Host` is its
 own address — a DNS-rebound name is refused — and whose `Origin`, when present, is its own; needs
-the session cookie on every request; accepts a change only as a JSON body carrying its
+the session cookie on every request; answers `/api/…` only to a request whose
+`Sec-Fetch-Site` is absent, `same-origin` or `none` (a page on another port of the same
+host is `same-site` and is refused); accepts a change only as a JSON body carrying its
 `Origin`; sends a Content Security Policy that allows no inline script or style and no
 connection elsewhere; and puts every string from a recording on the page as text, with
 control and bidirectional characters shown as `\u{…}`. The
