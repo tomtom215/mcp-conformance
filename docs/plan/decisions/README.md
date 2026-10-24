@@ -40,6 +40,7 @@ or when the reasoning would otherwise live only in someone's head.
 | [0021](0021-a-workbench-people-keep-open.md) | A Workbench People Keep Open — `mcp-conformance` | Accepted (adds a sixth published crate) |
 | [0022](0022-judge-the-challenge-not-the-flow.md) | Judge the Challenge, Not the Flow — the Authorization Pages' Observable Subset | Accepted (implements review decision D4) |
 | [0023](0023-extensions-are-reported-never-scored.md) | Extensions Are Reported, Never Scored — the Tasks and Skills Registries | Accepted (implements review item 2.6) |
+| [0024](0024-check-an-exerciser-that-does-only-what-a-client-does.md) | `check` — an Exerciser That Does Only What a Conforming Client Does | Proposed (awaits the maintainer) |
 
 ## Process
 
