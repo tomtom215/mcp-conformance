@@ -105,10 +105,15 @@ A trace is not silent about which revision it belongs to — the handshake state
 it, a stateless session states it in every request's `_meta`, and the HTTP
 transport states it in a header. So by default the validator judges a trace
 against the revision it declares, and says so in the report's first line:
-`revision 2026-07-28 (declared by the trace)`. A trace declaring nothing is
-judged against the newest supported revision, with a note on stderr; a trace
-declaring only revisions this build cannot judge is refused (exit 2) rather
-than judged against the wrong rules.
+`revision 2026-07-28 (declared by the trace)`. Where there was a handshake, the
+server's `initialize` result is the authority: the session ran under the
+revision it names — that is what negotiation means — so it is judged under that
+one alone, and a note on stderr says when the client had proposed another
+(`--revision` judges the proposal instead). A negotiated revision this build
+cannot judge is refused (exit 2) rather than approximated by the proposal, and
+so is a trace declaring only revisions this build cannot judge. A trace
+declaring nothing is judged against the newest supported revision, with a note
+on stderr.
 
 Judging against the wrong rules is easy to do on purpose, with `--revision`.
 Force `2025-11-25` onto a `2026-07-28` recording and every clause the two
@@ -134,10 +139,11 @@ under the verdict:
 ```
 
 It is deliberately quiet. A session that proposed one revision and negotiated
-another has touched both, so judging it against either draws no note; a version
-a server *refused* states nothing, because the session never ran under it; and a
-recording that declares no revision at all gets no note, since there is nothing
-to disagree with.
+another is judged under the negotiated one by default, but the client did state
+the proposal, so asking for that revision with `--revision` draws no note; a
+version a server *refused* states nothing, because the session never ran under
+it; and a recording that declares no revision at all gets no note, since there
+is nothing to disagree with.
 
 ## The four ways a clause is not a pass
 

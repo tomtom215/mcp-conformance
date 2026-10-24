@@ -245,9 +245,9 @@ fn judge_in_set(
     events: &[TraceEvent],
     prefix: &str,
 ) -> Result<(Vec<Report>, Option<MultiReport>), Refusal> {
-    let (chosen, source) = if requested.is_empty() {
+    let (chosen, source, proposed) = if requested.is_empty() {
         declared::select(set.revisions(), events)
-            .map(|selection| (selection.revisions, selection.source))
+            .map(|selection| (selection.revisions, selection.source, selection.proposed))
             .map_err(|error| Refusal {
                 error: format!("{prefix}{error}"),
                 hints: vec![
@@ -257,7 +257,7 @@ fn judge_in_set(
                 code: EXIT_USAGE,
             })?
     } else {
-        (requested.to_vec(), RevisionSource::Requested)
+        (requested.to_vec(), RevisionSource::Requested, None)
     };
     // A trace with no messages is refused as contentless right after this; a
     // note about the revision it did not declare would only bury that.
@@ -266,6 +266,16 @@ fn judge_in_set(
         eprintln!(
             "note: {prefix}the trace declares no protocol revision; judging it against {}, \
              the newest supported (use --revision to choose)",
+            chosen[0]
+        );
+    }
+    // The session ran under what the server negotiated, not what the client
+    // asked for; the reader deserves to know the report is not of the latter.
+    if let Some(proposed) = proposed {
+        eprintln!(
+            "note: {prefix}the client proposed protocol revision {proposed}; the server's \
+             initialize result negotiated {}, which the session then ran under, so it is \
+             judged there (pass --revision {proposed} to judge it under the proposal instead)",
             chosen[0]
         );
     }

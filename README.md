@@ -175,11 +175,15 @@ verdict: fail
   transport close, an abort, or simply stopped — carried in every format, and the
   verdict it would otherwise have earned.
 - **The revision is the one the session declares** — in `initialize`, in each
-  request's `_meta`, or in the `MCP-Protocol-Version` header. A trace declaring no
-  revision is judged against the newest one (and says so); a trace declaring only a
-  revision this build does not know is refused rather than judged against the wrong
-  rules. `--revision` overrides; naming two judges the session under both, clause by
-  clause.
+  request's `_meta`, or in the `MCP-Protocol-Version` header. A session that
+  completed a handshake ran under the revision the server's `initialize` result
+  names — that is what negotiation means — so it is judged under that one, with a
+  note on stderr when the client had proposed another; a negotiated revision this
+  build does not know is refused rather than judged under the proposal. A trace
+  declaring no revision is judged against the newest one (and says so); a trace
+  declaring only a revision this build does not know is refused rather than judged
+  against the wrong rules. `--revision` overrides; naming two judges the session
+  under both, clause by clause.
 - **Not observed is not a pass.** A clause the session never came near is reported
   *not observed*; one gated on a capability nobody negotiated is *not applicable*;
   one no trace can judge is *excluded*, with the reason. The not-observed rows above are clauses

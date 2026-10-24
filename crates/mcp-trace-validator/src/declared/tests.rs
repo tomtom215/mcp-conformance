@@ -139,7 +139,10 @@ fn select_judges_the_revision_the_trace_declares() {
 }
 
 #[test]
-fn select_judges_every_supported_revision_a_session_touched() {
+fn select_judges_only_the_revision_the_handshake_negotiated() {
+    // A `2025-11-25` handshake, then a request stating `2026-07-28` in its
+    // `_meta`: the session negotiated the former and ran under it, so it is
+    // judged there alone — not beside every revision it touched.
     let document = format!(
         "{HANDSHAKE}\n{}",
         STATELESS
@@ -147,8 +150,84 @@ fn select_judges_every_supported_revision_a_session_touched() {
             .replace("\"id\":1", "\"id\":2")
     );
     let selection = select(BUILTIN_REVISIONS, &events(&document)).unwrap();
-    assert_eq!(selection.revisions, [rev("2025-11-25"), rev("2026-07-28")]);
+    assert_eq!(selection.revisions, [rev("2025-11-25")]);
     assert_eq!(selection.source, RevisionSource::Declared);
+    assert_eq!(selection.proposed, None);
+}
+
+/// [`HANDSHAKE`] with the server's result naming `version` instead.
+fn negotiated(version: &str) -> String {
+    let (head, tail) = HANDSHAKE.rsplit_once("2025-11-25").unwrap();
+    format!("{head}{version}{tail}")
+}
+
+#[test]
+fn select_judges_the_revision_the_server_negotiated_over_the_proposal() {
+    let selection = select(BUILTIN_REVISIONS, &events(&negotiated("2026-07-28"))).unwrap();
+    assert_eq!(selection.revisions, [rev("2026-07-28")]);
+    assert_eq!(selection.source, RevisionSource::Declared);
+    assert_eq!(selection.proposed, Some(rev("2025-11-25")));
+    // A proposal this build cannot judge, declined for one it can (`tran-018`).
+    let declined = HANDSHAKE.replacen("2025-11-25", "2025-06-18", 1);
+    let selection = select(BUILTIN_REVISIONS, &events(&declined)).unwrap();
+    assert_eq!(selection.revisions, [rev("2025-11-25")]);
+    assert_eq!(selection.proposed, Some(rev("2025-06-18")));
+    // Agreement is nothing to remark on.
+    let agreed = select(BUILTIN_REVISIONS, &events(HANDSHAKE)).unwrap();
+    assert_eq!(agreed.proposed, None);
+}
+
+#[test]
+fn select_refuses_a_negotiated_revision_it_cannot_judge() {
+    // The session ran under `2024-11-05` whatever the client asked for, so
+    // judging it under the proposal would judge rules it did not run under.
+    let error = select(BUILTIN_REVISIONS, &events(&negotiated("2024-11-05"))).unwrap_err();
+    assert_eq!(error.declared, [rev("2024-11-05")]);
+    assert!(error.negotiated);
+    assert_eq!(error.proposed, Some(rev("2025-11-25")));
+    let message = error.to_string();
+    assert!(
+        message.contains("negotiated protocol revision 2024-11-05"),
+        "{message}"
+    );
+    assert!(
+        message.contains("the client proposed 2025-11-25"),
+        "{message}"
+    );
+    assert!(
+        message.contains("supported: 2025-11-25, 2026-07-28"),
+        "{message}"
+    );
+}
+
+#[test]
+fn a_handshake_answered_with_an_error_negotiates_nothing() {
+    // Refused, then retried with another proposal: the retry is the handshake.
+    let refused = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2027-03-01","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"Unsupported protocol version","data":{"supported":["2025-11-25"]}}}}"#;
+    let retried = format!(
+        "{refused}\n{}",
+        HANDSHAKE
+            .replace("\"seq\":0", "\"seq\":2")
+            .replace("\"seq\":1", "\"seq\":3")
+            .replace("\"id\":1", "\"id\":2")
+    );
+    let selection = select(BUILTIN_REVISIONS, &events(&retried)).unwrap();
+    assert_eq!(selection.revisions, [rev("2025-11-25")]);
+    assert_eq!(selection.proposed, None);
+    // Refused and never retried, the trace declares nothing (`vers-008`).
+    let selection = select(BUILTIN_REVISIONS, &events(refused)).unwrap();
+    assert_eq!(selection.source, RevisionSource::Default);
+}
+
+#[test]
+fn a_malformed_negotiated_version_is_a_finding_not_a_revision() {
+    // `life-006`: the result names `1.0`. LIFE-006 judges that; the session
+    // is judged under the proposal, the one revision it declared.
+    let selection = select(BUILTIN_REVISIONS, &events(&negotiated("1.0"))).unwrap();
+    assert_eq!(selection.revisions, [rev("2025-11-25")]);
+    assert_eq!(selection.source, RevisionSource::Declared);
+    assert_eq!(selection.proposed, None);
 }
 
 #[test]
