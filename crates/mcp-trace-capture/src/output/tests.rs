@@ -96,9 +96,16 @@ fn a_symbolic_link_at_the_output_path_is_refused_even_with_force() {
     // A dangling link is a link too: creating through it would create its target.
     let dangling = dir.join("dangling.jsonl");
     std::os::unix::fs::symlink(dir.join("nowhere"), &dangling).unwrap();
-    assert!(check(&dangling, true).unwrap_err().contains("symbolic link"));
+    assert!(
+        check(&dangling, true)
+            .unwrap_err()
+            .contains("symbolic link")
+    );
     assert!(create(&dangling, true).is_err());
-    assert!(!dir.join("nowhere").exists(), "nothing was created through the link");
+    assert!(
+        !dir.join("nowhere").exists(),
+        "nothing was created through the link"
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 

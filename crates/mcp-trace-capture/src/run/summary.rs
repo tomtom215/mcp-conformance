@@ -118,6 +118,13 @@ fn http_gaps(unrecorded: &http::Unrecorded) -> Vec<String> {
             unrecorded.refused_connects
         ));
     }
+    if unrecorded.stalled_bodies > 0 {
+        lines.push(format!(
+            "{} request(s) sent no body byte within the body read timeout and were answered \
+             408 by the proxy, their connection closed (recorded as transport-abort)",
+            unrecorded.stalled_bodies
+        ));
+    }
     lines
 }
 
@@ -218,6 +225,9 @@ pub(super) fn announcement(bound: SocketAddr, upstream: &axum::http::Uri) -> Vec
 mod tests {
     use super::*;
 
+    // One table, with a row per gap the summary can name; splitting it would
+    // hide that every row is checked the same way.
+    #[allow(clippy::too_many_lines)]
     #[test]
     fn each_gap_that_occurred_is_named_once_and_no_other() {
         assert_eq!(
@@ -271,6 +281,13 @@ mod tests {
                     ..none
                 },
                 "2 CONNECT request(s) asked for a tunnel and were answered 405",
+            ),
+            (
+                http::Unrecorded {
+                    stalled_bodies: 2,
+                    ..none
+                },
+                "2 request(s) sent no body byte within the body read timeout",
             ),
         ] {
             let lines = http_gaps(&unrecorded);

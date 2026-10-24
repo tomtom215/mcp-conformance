@@ -250,7 +250,14 @@ fn force_does_not_follow_a_symbolic_link_at_the_output_path() {
     std::os::unix::fs::symlink(&target, &link).unwrap();
     let marker = dir.join("marker");
     let output = binary()
-        .args(["--force", "-o", link.to_str().unwrap(), "stdio", "--", "touch"])
+        .args([
+            "--force",
+            "-o",
+            link.to_str().unwrap(),
+            "stdio",
+            "--",
+            "touch",
+        ])
         .arg(&marker)
         .stdin(Stdio::null())
         .output()
@@ -275,7 +282,13 @@ fn a_trace_file_is_created_readable_by_its_owner_alone() {
     std::fs::create_dir_all(&dir).unwrap();
     for name in ["plain.jsonl", "{session}.jsonl"] {
         let output = binary()
-            .args(["-o", dir.join(name).to_str().unwrap(), "stdio", "--", "true"])
+            .args([
+                "-o",
+                dir.join(name).to_str().unwrap(),
+                "stdio",
+                "--",
+                "true",
+            ])
             .stdin(Stdio::null())
             .output()
             .unwrap();

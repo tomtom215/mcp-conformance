@@ -196,7 +196,15 @@ SSE streams are relayed as they arrive, event by event.
 A client gets 30 seconds to send each request's head, counted from when the proxy
 starts waiting for it, so one that opens connections and trickles header bytes into
 them cannot hold them open. The same bound closes a kept-alive connection left idle
-that long, as servers commonly do; clients open a new one.
+that long, as servers commonly do; clients open a new one. Once the head is in, each
+byte of the request's body must follow the last within 60 seconds, whether the
+body is being read whole or streamed on past `--max-message-bytes`; a request whose
+body stalls that long is answered `408` and its connection closed, counted at exit,
+and its exchange recorded as `transport-abort`. A body that keeps coming, however
+slowly, is never cut. Only the client's request body is bounded this way: the
+upstream's response is waited for as long as it takes (below), since an event stream
+or a long tool call is open-ended by design. (In the library, the bound is
+`Options::body_read_timeout`; the command line has no flag for it.)
 
 ### `Host`, and DNS rebinding
 

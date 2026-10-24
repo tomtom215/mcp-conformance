@@ -17,11 +17,77 @@ use std::convert::Infallible;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use axum::body::{Body, Bytes};
 use futures::{Stream, StreamExt as _};
 use hyper::body::{Frame, SizeHint};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+
+/// How a client's request body ends when [`idle_bounded`]'s bound passes: no
+/// byte of it arrived for that long.
+#[derive(Debug)]
+pub(super) struct Stalled(Duration);
+
+impl std::fmt::Display for Stalled {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "no byte of the request body arrived for {}s",
+            self.0.as_secs_f32()
+        )
+    }
+}
+
+impl std::error::Error for Stalled {}
+
+/// Whether `error`, or any error behind it, is a [`Stalled`]: a body that
+/// fails while hyper is sending it upstream comes back wrapped in hyper's own
+/// error, with the cause behind it.
+pub(super) fn is_stall(error: &(dyn std::error::Error + 'static)) -> bool {
+    let mut current = Some(error);
+    while let Some(error) = current {
+        if error.is::<Stalled>() {
+            return true;
+        }
+        current = error.source();
+    }
+    false
+}
+
+/// `stream` with a bound on how long any one chunk may take to arrive after
+/// the last: when `idle` passes with nothing read, the stream ends with a
+/// [`Stalled`] error. For the client's request body only — an upstream's
+/// response, an event stream above all, is open-ended by design.
+pub(super) fn idle_bounded<S>(
+    mut stream: S,
+    idle: Duration,
+) -> impl Stream<Item = Result<Bytes, axum::Error>> + Unpin
+where
+    S: Stream<Item = Result<Bytes, axum::Error>> + Unpin,
+{
+    let mut deadline = Box::pin(tokio::time::sleep(idle));
+    let mut ended = false;
+    futures::stream::poll_fn(move |context| {
+        if ended {
+            return Poll::Ready(None);
+        }
+        match stream.poll_next_unpin(context) {
+            Poll::Ready(item) => {
+                ended = item.is_none();
+                deadline.as_mut().reset(tokio::time::Instant::now() + idle);
+                Poll::Ready(item)
+            }
+            Poll::Pending => {
+                if deadline.as_mut().poll(context).is_ready() {
+                    ended = true;
+                    return Poll::Ready(Some(Err(axum::Error::new(Stalled(idle)))));
+                }
+                Poll::Pending
+            }
+        }
+    })
+}
 
 /// How a body read by [`read_prefix`] stopped.
 #[derive(Debug)]

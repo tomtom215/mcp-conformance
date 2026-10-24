@@ -43,6 +43,7 @@ use tokio::sync::watch;
 use crate::recorder::Recorder;
 use crate::traces::Traces;
 
+mod answers;
 mod body;
 mod connect;
 mod listen;
@@ -79,6 +80,13 @@ pub fn client(endpoint: &Uri, connect_timeout: std::time::Duration) -> Result<Cl
 /// [`Options::header_read_timeout`]'s default: hyper's own default for it,
 /// which takes effect only once a server sets a timer.
 pub const HEADER_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// [`Options::body_read_timeout`]'s default.
+///
+/// Generous for a client, since a body that keeps coming is never cut, and
+/// short enough that a client holding connections open with half-sent bodies
+/// gives them back within a minute.
+pub const BODY_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// [`Options::buffer_budget`]'s default, in messages of the largest size
 /// recorded.
@@ -127,6 +135,13 @@ pub struct Options {
     /// client that trickles header bytes (slowloris) cannot hold connections
     /// open, and an idle connection is closed after this long.
     pub header_read_timeout: std::time::Duration,
+    /// How long each byte of a client's request body may take to arrive after
+    /// the last — once the head is in, read whole or streamed past the message
+    /// limit alike — before the proxy answers the request `408` and closes
+    /// the connection. A body that keeps coming, however slowly, is never cut.
+    /// Only the client's request body is bounded by it: an upstream's response
+    /// is waited for as long as it takes.
+    pub body_read_timeout: std::time::Duration,
     /// How long connecting to the upstream may take — the TCP connection, and
     /// the TLS handshake for an `https` upstream — before the proxy gives up
     /// and answers the request `502` itself. Only connecting: once connected,
@@ -182,6 +197,7 @@ impl Options {
             preserve_host: false,
             grace: crate::STOP_GRACE,
             header_read_timeout: HEADER_READ_TIMEOUT,
+            body_read_timeout: BODY_READ_TIMEOUT,
             connect_timeout: CONNECT_TIMEOUT,
             connector,
         })
@@ -221,6 +237,10 @@ pub struct Unrecorded {
     /// `CONNECT` requests, which ask for a tunnel the proxy does not open:
     /// answered 405 by the proxy, not forwarded, not recorded.
     pub refused_connects: u64,
+    /// Requests whose body sent no byte for [`Options::body_read_timeout`]:
+    /// answered 408 by the proxy, their connection closed, and recorded as
+    /// `transport-abort` after the request's `http` event.
+    pub stalled_bodies: u64,
 }
 
 #[derive(Debug, Default)]
@@ -236,6 +256,7 @@ struct Counters {
     not_found: AtomicU64,
     refused_paths: AtomicU64,
     refused_connects: AtomicU64,
+    stalled_bodies: AtomicU64,
 }
 
 impl Counters {
@@ -252,6 +273,7 @@ impl Counters {
             not_found: self.not_found.load(Ordering::Relaxed),
             refused_paths: self.refused_paths.load(Ordering::Relaxed),
             refused_connects: self.refused_connects.load(Ordering::Relaxed),
+            stalled_bodies: self.stalled_bodies.load(Ordering::Relaxed),
         }
     }
 }
