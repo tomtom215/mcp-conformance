@@ -838,8 +838,8 @@ not yet published to crates.io)
   suite once per mutant, so the leftovers had filled CI runners' disks. Each
   mutation shard also frees unused toolchains first and runs under a 6 GiB
   data-segment cap, so a mutant that loops while allocating fails its own test.
-- **The PR mutation gate runs in sixteen shards**, as the scheduled sweep runs in
-  eight: `--shard k/16` over the same `--no-shuffle --in-diff` list, with a final
+- **The PR mutation gate runs in sixteen shards**, as the scheduled sweep now does
+  (below): `--shard k/16` over the same `--no-shuffle --in-diff` list, with a final
   `Mutants (PR diff)` job that passes only when every shard did, so the gate keeps
   its name. This release's diff holds 3,485 mutants at about 33 s each; one job, or
   eight shards of 436, could not finish it inside GitHub's job limits.
@@ -847,6 +847,10 @@ not yet published to crates.io)
   and `mcp-reference-host` allow rmcp's SEP-2577 deprecations (Roots, Sampling,
   Logging, which `2025-11-25` still requires) only on the items and statements that
   use them, not module-wide.
+- **The scheduled full mutation sweep runs in sixteen shards, not eight.** On
+  2026-10-19 five of the eight ran into the job's 180-minute timeout and were
+  cancelled, and the three that finished took 125, 175 and 175 minutes; at about 14
+  seconds a mutant, the tree had outgrown eight.
 - **Each crate's crates.io page links its docs.rs documentation**
   (`documentation` in every manifest).
 - **Table-row quotes have a documented form.** `SourceRef::quote` states how a
@@ -862,9 +866,15 @@ not yet published to crates.io)
   `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official suite's
   `2026-07-28` scenarios now pass 42 of 42 against the server serving `2025-11-25`
   too: rmcp 3.5.1 adds the cache hints `2026-07-28` peers need. The development
-  toolchain pin is Rust 1.99.0; the MSRV stays 1.88.
-- **Lockfile refresh within the declared ranges:** `schemars` 1.2.3 and `syn`
-  3.0.9.
+  toolchain pin is Rust 1.99.1; the MSRV stays 1.88.
+- **Advisory fixes in the dependency tree.** `rustls` 0.23.46 (RUSTSEC-2026-0346
+  to -0349), `rustls-webpki` 0.103.16 (RUSTSEC-2026-0382: certificate paths through
+  distrusted intermediates, which the recorder's `https://` upstream check relies
+  on) and `tokio` 1.54.1 (RUSTSEC-2026-0386, `AsyncFd`, which this workspace does
+  not call). `mcp-trace-capture`'s `rustls` floor is now 0.23.46.
+- **Lockfile refresh within the declared ranges:** `schemars` 1.2.3, `syn` 3.0.9,
+  and twenty more packages (among them `cc`, `libc`, `smallvec`,
+  `rustls-native-certs` and the `icu_*` family).
 
 ## [0.6.0] - 2026-10-06
 
