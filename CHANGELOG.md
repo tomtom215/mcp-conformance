@@ -34,8 +34,8 @@ below is stated again in its entry, with the reasoning.
 | `validate` flags | `--max-events 0` and `--max-line-bytes 0` exit `2` (bad invocation), not `3` | Pass a limit of at least 1 |
 | `validate` human output | At most 20 findings under a clause, then a count of the rest | `--all`, or a machine format, for every finding |
 | Rust API | `context::draft` removed (deprecated in 0.6.0) | `context::stateless` holds the same items |
-| Rust API, `mcp-trace-capture` | `traces::Traces::respond` takes a third argument, `succeeded`; `http::Options` is no longer `UnwindSafe` or `RefUnwindSafe`; `framing::Line` is `#[non_exhaustive]` and gains `Unterminated`; `signals::Stop` gains `Quit`; `http::Unrecorded` gains `over_budget` and `refused_paths`, `stdio::Unrecorded` gains `unterminated`; `http::Options` gains `buffer_budget`, `header_read_timeout` and `connect_timeout` | Pass whether the response was a 2xx; wrap `Options` in `AssertUnwindSafe` to move it into `catch_unwind`; match `Line` with a wildcard arm (the structs are `#[non_exhaustive]`) |
-| `mcp-trace-capture http` | A request path with a `.` or `..` segment is answered `400` by the proxy; a request head not complete within 30 s, or an idle kept-alive connection, is closed; an upstream not connected within 10 s is a `502`; ids the server has not assigned share one trace until it accepts one | Send normalized paths; nothing to do for a conforming client |
+| Rust API, `mcp-trace-capture` | `traces::Traces::respond` takes a third argument, `succeeded`; `http::Options` is no longer `UnwindSafe` or `RefUnwindSafe`; `framing::Line` is `#[non_exhaustive]` and gains `Unterminated`; `signals::Stop` gains `Quit`; `http::Unrecorded` gains `over_budget`, `refused_paths`, `refused_connects` and `stalled_bodies`, `stdio::Unrecorded` gains `unterminated`; `http::Options` gains `buffer_budget`, `header_read_timeout`, `connect_timeout` and `body_read_timeout`, and `http::Options::new` sets `preserve_host` for a loopback upstream; `run::http` takes `impl Into<HostHeader>` (a `bool` still compiles: `false` now means "by the upstream's address"), and `http::is_loopback` and `run::HostHeader` are new | Pass whether the response was a 2xx; wrap `Options` in `AssertUnwindSafe` to move it into `catch_unwind`; match `Line` with a wildcard arm (the structs are `#[non_exhaustive]`) |
+| `mcp-trace-capture http` | A request path with a `.` or `..` segment is answered `400` by the proxy; `CONNECT` is answered `405`, and a path that is not UTF-8 once percent-decoded, or has a `.` or `..` segment once decoded and shorn of `;parameters`, `400`; a request head not complete within 30 s, or an idle kept-alive connection, is closed, and a request body that stalls for 60 s is answered `408`; an upstream not connected within 10 s is a `502`; ids the server has not assigned share one trace until it accepts one | Send normalized paths; nothing to do for a conforming client |
 | `2026-07-28` verdict, new rows | `CANC-003`/`CANC-011`: a server `notifications/cancelled` naming anything but a `subscriptions/listen` request fails | Servers end only subscriptions this way |
 | `2026-07-28` verdict, new rows | `PROG-001`/`002`/`003`, and on stdio `PROG-005`/`008`: a progress token that is not a string or integer, one shared by two unanswered requests, a `progress` value that does not increase, progress after the answer | Fix the sender |
 | `2026-07-28` verdict, new rows | Over Streamable HTTP, `TRAN-132`–`TRAN-136`: an `Mcp-Param-*` header for a `null` or absent parameter, a `HeaderMismatch` for a POST that omitted one correctly, a result for a POST missing the header its body requires | Clients omit the header when there is no value; servers reject a missing header and accept an omitted one |
@@ -847,10 +847,57 @@ not yet published to crates.io)
   and `mcp-reference-host` allow rmcp's SEP-2577 deprecations (Roots, Sampling,
   Logging, which `2025-11-25` still requires) only on the items and statements that
   use them, not module-wide.
+- **`2026-07-28` extensions: the skills page's new clause** that a `resources/directory/read`
+  result carries `ttlMs` and `cacheScope` enters as `SKILL-100`, judged by
+  `skills.directory-cacheable` on `complete` results no retry produced (an error answer or
+  another result shape is no subject; `cacheScope` must be `public` or `private`); `SKILL-001`
+  quotes the page's reworded `_meta` sentence and stays excluded as `BASE-030`'s restatement.
+  The weekly `spec-drift` run had gone red on the page's edit of 2026-10-15.
 - **The scheduled full mutation sweep runs in sixteen shards, not eight.** On
   2026-10-19 five of the eight ran into the job's 180-minute timeout and were
   cancelled, and the three that finished took 125, 175 and 175 minutes; at about 14
   seconds a mutant, the tree had outgrown eight.
+- **`mcp-trace-capture http` passes the client's `Host` to an upstream on this
+  machine** (`localhost`, `127.0.0.0/8`, `::1`) by default, so the server's own
+  `Host`-based DNS-rebinding check judges what the client sent. `0.6.0` sent the
+  server's own name for every upstream, which made that check pass for every request
+  the proxy forwarded, a browser's under a rebound name included. A remote upstream
+  still gets its own name; `--no-preserve-host` restores the rewrite for a local server
+  that routes on its name, and the startup lines say which `Host` is sent.
+  `mcp-conformance watch http` gets the same default, without the new flag yet. A local
+  server that accepts only its own `host:port` now answers `403` through the proxy
+  until it is run with `--no-preserve-host`.
+- **Trace files are owner-only and never written through a link.** Every trace is
+  created with mode `0600` on Unix (`--force` over an existing regular file narrows it
+  too); a symbolic link at `-o` is refused with or without `--force` (it used to
+  truncate its target); a `{session}` file is written through the handle that created
+  it and never reopened by path, so a link planted after creation no longer redirects
+  later events.
+- **Recording uses less memory for object-heavy messages**: the faithfulness scan runs
+  before the parse. Peak resident memory for one 16 MiB message of small objects, debug
+  builds, three runs each (`crates/mcp-trace-capture/tools/measure-memory.py`): through
+  the proxy 302 MiB before, 215 after; through the stdio wrapper 531 before, 420 after.
+  A message of one long string or of one-digit numbers is unchanged (73 and 298 MiB through
+  the proxy). The README states the cost by message shape and the method, and drops the
+  `0.6.0` sentence "about twice its size again", which was wrong by a factor of up to 26.
+- **`watch --otlp` exports less of a session.** `mcp.resource.uri` is the URI up to
+  its path (userinfo, query and fragment removed: a presigned URI keeps its credential
+  there); the `ERROR` status is described by the JSON-RPC code and a fixed name, never
+  the server's own message; a finding's `mcp_conformance.detail` is cut at 512
+  characters, marked. The README lists exactly what a span carries.
+- **The workbench's API and export are bounded.** `/api/…` answers only a request whose
+  `Sec-Fetch-Site` is absent, `same-origin` or `none`: a page on another port of
+  `127.0.0.1` is `same-site`, is sent the cookie, and could otherwise drive the API
+  with an `<img>`. An export names each recording once and holds at most 100 recordings
+  and 192 MiB (one 21 KB recording named 2,000 times was a 261 MB in-memory response);
+  `library export` shares both limits. The parsed events of the four recordings viewed
+  last are kept, so fifty views of one parse it once (72 ms to 1.2 ms).
+- **Redaction removes `Mcp-Session-Id` by default**, with `Authorization`, `Cookie`,
+  `Set-Cookie` and `Proxy-Authorization`, in the page's dialog, the API and
+  `library redact`; the command now prints each rule applied and says that payload
+  values (arguments, results, `_meta`) stay unless `--pointer`, `--meta` or `--string`
+  names them. The `serve` banner says that browsers scope the cookie to the host, not
+  the port, so another local server the browser visits is sent it.
 - **Each crate's crates.io page links its docs.rs documentation**
   (`documentation` in every manifest).
 - **Table-row quotes have a documented form.** `SourceRef::quote` states how a
