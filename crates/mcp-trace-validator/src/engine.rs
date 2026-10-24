@@ -14,13 +14,15 @@
 //! totals — and so its verdict — never see (ADR-0023).
 
 use mcp_conformance_core::capability::{CapabilityGate, CapabilityParty};
-use mcp_conformance_core::requirement::{Registry, Requirement, Verification};
+use mcp_conformance_core::requirement::{Actor, Registry, Requirement, Verification};
 use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::TraceEvent;
 
 use crate::checks;
 use crate::context::TraceContext;
-use crate::report::{ClauseSource, ExtensionReport, Outcome, Report, RequirementReport, Totals};
+use crate::report::{
+    ClauseSource, ExtensionReport, Finding, Outcome, Party, Report, RequirementReport, Totals,
+};
 
 /// Validates a parsed trace against a requirement registry.
 ///
@@ -126,11 +128,39 @@ fn validate_ordered(registry: &Registry, events: &[TraceEvent]) -> Report {
         revision: registry.revision().to_string(),
         revision_mismatch: crate::declared::mismatch(registry.revision(), events),
         revision_source: None,
+        party_view: None,
         totals,
         requirements: rows,
         wire_schema: crate::wire_schema::check(registry.revision(), &context),
         extensions: extension_reports(registry, &context),
     }
+}
+
+/// Holds each of `findings` against a party: the clause's actor when it binds
+/// one party, else the sender of the message at the finding's `seq`.
+///
+/// For a clause binding both parties the event decides, because every such
+/// check points its finding at the offending message itself — the request
+/// with the reused id, the result with no `result`, the `logging/setLevel`
+/// sent to a server that never declared `logging` — so its sender is the one
+/// who broke the clause. A clause binding one party is that party's whatever
+/// the event: `LIFE-003` points at the server's `initialize` result, and the
+/// omission it reports — no `notifications/initialized` after it — is the
+/// client's. Where neither rule decides (no `seq`, or an HTTP or lifecycle
+/// event there) the finding is held against nobody rather than a guess.
+fn attribute(findings: &mut [Finding], actor: Actor, context: &TraceContext<'_>) {
+    for finding in findings {
+        finding.party = Party::of_actor(actor).or_else(|| sender_at(context, finding.seq?));
+    }
+}
+
+/// The party that sent the *message* at `seq`; `None` for any other event.
+fn sender_at(context: &TraceContext<'_>, seq: u64) -> Option<Party> {
+    let events = context.events();
+    let index = events.binary_search_by_key(&seq, |event| event.seq).ok()?;
+    let event = &events[index];
+    event.message_payload()?;
+    Some(Party::sender(event.direction))
 }
 
 /// One report per extension whose clauses the session exercised, in the order the
@@ -179,6 +209,7 @@ fn build_row(
     let mut row = RequirementReport {
         id: requirement.id.to_string(),
         level: requirement.level.keyword().to_owned(),
+        actor: Some(requirement.actor),
         outcome: Outcome::Unsupported,
         findings: vec![],
         exclusion: None,
@@ -218,6 +249,7 @@ fn build_row(
                     observed |= outcome.subjects > 0;
                     row.findings.extend(outcome.findings);
                 }
+                attribute(&mut row.findings, requirement.actor, context);
                 row.outcome = if row.findings.is_empty() && !observed {
                     Outcome::NotObserved
                 } else {

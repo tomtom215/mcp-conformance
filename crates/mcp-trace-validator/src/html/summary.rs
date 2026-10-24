@@ -172,11 +172,11 @@ pub(super) fn verdict(out: &mut String, scope: &Scope<'_>) {
                 out,
                 "<section class=\"revision v-{}\" aria-label=\"Revision {}\">\n<p class=\"revision-line\">\
                  <span class=\"revision-name\">{}</span>",
-                verdict_class(report.verdict()),
+                verdict_class(report.effective_verdict()),
                 Text(&report.revision),
                 Text(&report.revision)
             );
-            badge(out, report.verdict());
+            badge(out, report.effective_verdict());
             let _ = writeln!(out, "</p>\n<p class=\"verdict-why\">{}</p>", why(report));
             tally(out, &report.totals);
             schema_line(out, report);
@@ -187,8 +187,22 @@ pub(super) fn verdict(out: &mut String, scope: &Scope<'_>) {
     out.push_str("</section>\n");
 }
 
-/// Why the report reached its verdict, in a sentence.
+/// Why the report reached its verdict, in a sentence — and, under a party
+/// view, what the view set aside or counted unattributed.
 fn why(report: &Report) -> String {
+    let mut sentence = causes(report);
+    if let Some(party) = report.party_view {
+        let _ = write!(sentence, "; {party} findings only");
+        let what = report.party_tally(party).describe(party);
+        if !what.is_empty() {
+            let _ = write!(sentence, " ({what})");
+        }
+    }
+    sentence
+}
+
+/// What the rows and the schema say: the counts behind the trace's verdict.
+fn causes(report: &Report) -> String {
     let totals = report.totals;
     let mut parts = Vec::new();
     if totals.fail > 0 {

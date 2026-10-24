@@ -144,11 +144,11 @@ two are independent requests under `2026-07-28` and must not share one:
 $ mcp-trace-validator validate session.jsonl
 MCP trace validation — revision 2026-07-28 (declared by the trace)
   FAIL  MRTR-019 (MUST)
-        seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
+        [client] seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
         spec: "The JSON-RPC `id` MUST be different between the initial request and the retry, as they are independent requests."
         see:  https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#client-requirements-basic-workflow
   FAIL  TOOL-023 (MUST)
-        seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
+        [client] seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
         spec: "Note that the JSON-RPC `id` MUST be different between the initial request and the retry."
         see:  https://modelcontextprotocol.io/specification/2026-07-28/server/tools#input-required-tool-results
 totals: 46 pass, 2 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 133 not observed
@@ -156,9 +156,13 @@ wire schema: pass (3 messages valid)
 verdict: fail
 ```
 
-- **Every finding cites the clause it breaks** — the event (`seq`), what was wrong,
-  the clause verbatim, and a link to it in the published revision; JSON, JUnit and
-  SARIF output carry the same. The weekly spec-drift job re-verifies every quote against
+- **Every finding cites the clause it breaks** — the event (`seq`), the party it is
+  held against (`[client]`, `[server]`), what was wrong, the clause verbatim, and a
+  link to it in the published revision; JSON, JUnit and SARIF output carry the same.
+  `--party server` counts only the server's findings toward the verdict and exit
+  status — for a server the official suite's client drove, whose own slips (no
+  `notifications/initialized`, `logging/setLevel` without the capability) are not
+  the server author's to fix — and the verdict line says so. The weekly spec-drift job re-verifies every quote against
   the spec's source and every link's anchor against the published page.
 - **The revision is the one the session declares** — in `initialize`, in each
   request's `_meta`, or in the `MCP-Protocol-Version` header. A trace declaring no
@@ -327,7 +331,7 @@ event:
 
 ```text
   FAIL  BASE-003 (MUST NOT)
-        seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
+        [client] seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
 totals: 17 pass, 1 fail, 0 warn, 232 excluded, 0 unsupported, 6 not applicable, 65 not observed

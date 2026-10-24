@@ -11,9 +11,9 @@ use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TraceEve
 use serde_json::Value;
 
 use super::Scope;
-use super::clauses::{WIRE_SCHEMA, open_section, token};
+use super::clauses::{WIRE_SCHEMA, open_section, party_pill, token};
 use super::escape::Text;
-use crate::report::{Finding, Outcome};
+use crate::report::{Finding, Outcome, Party};
 use crate::timeline::{Pairs, Shape, pair, preview, shape};
 
 /// A finding as its event shows it.
@@ -22,7 +22,9 @@ struct Mark<'a> {
     clause: &'a str,
     revision: Option<&'a str>,
     outcome: Outcome,
-    detail: &'a str,
+    finding: &'a Finding,
+    /// The party view of the report the finding came from.
+    view: Option<Party>,
 }
 
 /// Every finding that names an event, by the event's `seq`, in report order.
@@ -40,7 +42,8 @@ fn marks<'a>(scope: &Scope<'a>) -> BTreeMap<u64, Vec<Mark<'a>>> {
                         clause,
                         revision,
                         outcome,
-                        detail: &finding.detail,
+                        finding,
+                        view: report.party_view,
                     });
                 }
             }
@@ -143,10 +146,11 @@ fn write_event(
             if let Some(revision) = mark.revision {
                 let _ = write!(out, "<span class=\"pill rev\">{}</span>", Text(revision));
             }
+            party_pill(out, mark.finding, mark.view);
             let _ = writeln!(
                 out,
                 "<span class=\"detail\">{}</span></li>",
-                Text(mark.detail)
+                Text(&mark.finding.detail)
             );
         }
         out.push_str("</ul>\n");

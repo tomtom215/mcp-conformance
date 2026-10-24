@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-K+QH8eGos92H7gyRSBNc4cpdOMZtDD5YIIuxlD4EoyY='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-FVKEnIfkYMEzLWgrX9rMV016fzS97ZwuEBsgEbqgGIQ='; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -278,6 +278,8 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 }
 .pill:is(.o-pass, .o-fail, .o-warn, .o-unsupported) { border-color: transparent; background: var(--tone-bg); color: var(--tone); }
 .pill.level, .pill.rev { font-family: var(--mono); }
+.pill.party { margin-right: 0.45rem; vertical-align: 0.1rem; }
+.pill.party.none { border-style: dashed; font-weight: 500; }
 .quote {
   margin: 0 0 0.45rem;
   padding: 0.7rem 0.95rem;
@@ -537,36 +539,36 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <h2 id="findings-h">Clauses to act on</h2>
 <h3 class="revision-heading">At revision 2025-11-25</h3>
 <article class="clause o-fail" id="2025-11-25-LIFE-001">
-<header class="clause-head"><h4 class="clause-id"><a href="#2025-11-25-LIFE-001">LIFE-001</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2025-11-25-LIFE-001">LIFE-001</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds client</span></header>
 <blockquote class="quote"><p>The initialization phase MUST be the first interaction between client and server.</p></blockquote>
 <p class="source"><span class="section-path">basic/lifecycle#initialization</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2025-11-25-LIFE-001-1"><a class="seq" href="#e0">seq 0</a><span class="detail">first message is a &quot;tools/list&quot; request, expected &quot;initialize&quot;</span><span class="check">lifecycle.first-interaction-initialize</span></li>
+<li id="2025-11-25-LIFE-001-1"><a class="seq" href="#e0">seq 0</a><span class="detail"><span class="pill party">client</span>first message is a &quot;tools/list&quot; request, expected &quot;initialize&quot;</span><span class="check">lifecycle.first-interaction-initialize</span></li>
 </ol>
 </article>
 <article class="clause o-warn" id="2025-11-25-LIFE-004">
-<header class="clause-head"><h4 class="clause-id"><a href="#2025-11-25-LIFE-004">LIFE-004</a></h4><span class="pill o-warn">warn</span><span class="pill level">SHOULD NOT</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2025-11-25-LIFE-004">LIFE-004</a></h4><span class="pill o-warn">warn</span><span class="pill level">SHOULD NOT</span><span class="pill actor">binds client</span></header>
 <blockquote class="quote"><p>The client SHOULD NOT send requests other than pings before the server has responded to the `initialize` request.</p></blockquote>
 <p class="source"><span class="section-path">basic/lifecycle#initialization</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2025-11-25-LIFE-004-1"><a class="seq" href="#e0">seq 0</a><span class="detail">client sent a &quot;tools/list&quot; request before the server responded to initialize</span><span class="check">lifecycle.client-requests-before-init-response</span></li>
+<li id="2025-11-25-LIFE-004-1"><a class="seq" href="#e0">seq 0</a><span class="detail"><span class="pill party">client</span>client sent a &quot;tools/list&quot; request before the server responded to initialize</span><span class="check">lifecycle.client-requests-before-init-response</span></li>
 </ol>
 </article>
 <h3 class="revision-heading">At revision 2026-07-28</h3>
 <article class="clause o-warn" id="2026-07-28-DISC-002">
-<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-DISC-002">DISC-002</a></h4><span class="pill o-warn">warn</span><span class="pill level">SHOULD</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-DISC-002">DISC-002</a></h4><span class="pill o-warn">warn</span><span class="pill level">SHOULD</span><span class="pill actor">binds client</span></header>
 <blockquote class="quote"><p>A client that supports both modern (per-request `meta`) and legacy (`initialize` handshake) servers SHOULD send `server/discover` first; see stdio: Backward Compatibility for the fallback rules.</p></blockquote>
 <p class="source"><span class="section-path">server/discover#when-to-call</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/server/discover#when-to-call" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2026-07-28-DISC-002-1"><a class="seq" href="#e0">seq 0</a><span class="detail">the client&#39;s first request is `tools/list`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first</span><span class="check">discover.dual-era-probe-first</span></li>
+<li id="2026-07-28-DISC-002-1"><a class="seq" href="#e0">seq 0</a><span class="detail"><span class="pill party">client</span>the client&#39;s first request is `tools/list`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first</span><span class="check">discover.dual-era-probe-first</span></li>
 </ol>
 </article>
 <article class="clause o-warn" id="2026-07-28-TRAN-128">
-<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-TRAN-128">TRAN-128</a></h4><span class="pill o-warn">warn</span><span class="pill level">SHOULD</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-TRAN-128">TRAN-128</a></h4><span class="pill o-warn">warn</span><span class="pill level">SHOULD</span><span class="pill actor">binds client</span></header>
 <blockquote class="quote"><p>A client that supports both modern (per-request-metadata) MCP versions and a legacy version that requires an `initialize` handshake SHOULD probe with [`server/discover`][server-discover] before sending any other request, setting its preferred modern version in `meta`.</p></blockquote>
 <p class="source"><span class="section-path">basic/transports/stdio#backward-compatibility</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2026-07-28-TRAN-128-1"><a class="seq" href="#e0">seq 0</a><span class="detail">the client&#39;s first request is `tools/list`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first</span><span class="check">discover.dual-era-probe-first</span></li>
+<li id="2026-07-28-TRAN-128-1"><a class="seq" href="#e0">seq 0</a><span class="detail"><span class="pill party">client</span>the client&#39;s first request is `tools/list`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first</span><span class="check">discover.dual-era-probe-first</span></li>
 </ol>
 </article>
 </section>
@@ -577,10 +579,10 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <ol class="timeline">
 <li class="ev c2s flagged" id="e0"><div class="ev-line"><a class="ev-seq" href="#e0" aria-label="event 0">0</a><span class="ev-dir">client → server</span><span class="kind k-request">request</span><code class="method">tools/list</code><span class="id">id <code>1</code></span><span class="pair">answered at <a href="#e1">seq 1</a></span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#2025-11-25-LIFE-001-1">LIFE-001</a><span class="pill rev">2025-11-25</span><span class="detail">first message is a &quot;tools/list&quot; request, expected &quot;initialize&quot;</span></li>
-<li class="o-warn"><a href="#2025-11-25-LIFE-004-1">LIFE-004</a><span class="pill rev">2025-11-25</span><span class="detail">client sent a &quot;tools/list&quot; request before the server responded to initialize</span></li>
-<li class="o-warn"><a href="#2026-07-28-DISC-002-1">DISC-002</a><span class="pill rev">2026-07-28</span><span class="detail">the client&#39;s first request is `tools/list`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first</span></li>
-<li class="o-warn"><a href="#2026-07-28-TRAN-128-1">TRAN-128</a><span class="pill rev">2026-07-28</span><span class="detail">the client&#39;s first request is `tools/list`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first</span></li>
+<li class="o-fail"><a href="#2025-11-25-LIFE-001-1">LIFE-001</a><span class="pill rev">2025-11-25</span><span class="pill party">client</span><span class="detail">first message is a &quot;tools/list&quot; request, expected &quot;initialize&quot;</span></li>
+<li class="o-warn"><a href="#2025-11-25-LIFE-004-1">LIFE-004</a><span class="pill rev">2025-11-25</span><span class="pill party">client</span><span class="detail">client sent a &quot;tools/list&quot; request before the server responded to initialize</span></li>
+<li class="o-warn"><a href="#2026-07-28-DISC-002-1">DISC-002</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">the client&#39;s first request is `tools/list`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first</span></li>
+<li class="o-warn"><a href="#2026-07-28-TRAN-128-1">TRAN-128</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">the client&#39;s first request is `tools/list`, but this session shows both eras (an `initialize` request and a modern `_meta` protocol version), so it should have probed with `server/discover` first</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: 1,

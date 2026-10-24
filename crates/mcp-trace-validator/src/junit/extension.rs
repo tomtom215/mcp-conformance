@@ -80,7 +80,7 @@ fn render_extension_row(out: &mut String, attrs: &str, row: &RequirementReport) 
                 let _ = writeln!(
                     out,
                     "{}: {}",
-                    escape(&location(finding.seq, &finding.check)),
+                    escape(&location(finding)),
                     escape(&finding.detail)
                 );
             }

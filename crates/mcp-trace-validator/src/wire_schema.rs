@@ -28,12 +28,11 @@ use std::sync::OnceLock;
 use jsonschema::error::ValidationErrorKind;
 use jsonschema::{Draft, ValidationError, Validator, ValidatorMap};
 use mcp_conformance_core::revision::ProtocolRevision;
-use mcp_conformance_core::trace::Direction;
 use mcp_conformance_core::wire_schema::{self, WIRE_SCHEMAS, WireSchema};
 use serde_json::Value;
 
 use crate::context::TraceContext;
-use crate::report::{ClauseSource, Finding, Outcome, WireSchemaReport};
+use crate::report::{ClauseSource, Finding, Outcome, Party, WireSchemaReport};
 
 /// The `check` every wire-schema finding names.
 pub const CHECK: &str = "wire-schema";
@@ -321,10 +320,9 @@ pub(crate) fn check(
         if errors.is_empty() {
             continue;
         }
-        let party = match event.direction {
-            Direction::ClientToServer => "client",
-            Direction::ServerToClient => "server",
-        };
+        // The schema binds whoever sent the message, so the sender is the
+        // party held to it.
+        let party = Party::sender(event.direction);
         let detail = format!(
             "the {party}'s message is not a valid {definition} under the {revision} schema: {}",
             summarize(&errors)
@@ -332,6 +330,7 @@ pub(crate) fn check(
         findings.push(Finding {
             check: CHECK.to_owned(),
             seq: Some(event.seq),
+            party: Some(party),
             detail,
         });
     }

@@ -128,3 +128,72 @@ fn a_long_payload_is_cut_and_says_how_much_more_there_is() {
         1
     );
 }
+
+#[test]
+fn each_clause_says_whom_it_binds_and_each_finding_whom_it_is_held_against() {
+    let page = page(SESSION);
+    assert!(
+        page.contains(
+            "<span class=\"pill level\">MUST NOT</span><span class=\"pill actor\">binds both</span>"
+        ),
+        "{page}"
+    );
+    // In the clause card and at the event on the timeline.
+    assert!(
+        page.contains("<span class=\"detail\"><span class=\"pill party\">client</span>request"),
+        "{page}"
+    );
+    assert!(
+        page.contains(
+            "<a href=\"#BASE-003-1\">BASE-003</a><span class=\"pill party\">client</span>"
+        ),
+        "{page}"
+    );
+    assert!(!page.contains("unattributed"), "{page}");
+}
+
+#[test]
+fn a_party_view_changes_the_badge_and_says_why() {
+    let (mut reports, events) = judged(SESSION);
+    reports[0].party_view = Some(crate::report::Party::Server);
+    let page = render(
+        &reports,
+        Trace {
+            name: Some("session.jsonl"),
+            events: &events,
+        },
+    );
+    assert!(
+        page.contains("<span class=\"badge v-pass\">Pass</span>"),
+        "{page}"
+    );
+    assert!(
+        page.contains("1 clause failed; server findings only (1 client finding set aside)"),
+        "{page}"
+    );
+    assert!(
+        page.contains("<title>Pass — session.jsonl — MCP trace validation</title>"),
+        "{page}"
+    );
+    // A finding held against nobody is labelled under the view.
+    reports[0].requirements[0]
+        .findings
+        .push(crate::report::Finding {
+            check: "x".to_owned(),
+            seq: None,
+            party: None,
+            detail: "nobody's".to_owned(),
+        });
+    reports[0].requirements[0].outcome = crate::report::Outcome::Fail;
+    let page = render(
+        &reports,
+        Trace {
+            name: Some("session.jsonl"),
+            events: &events,
+        },
+    );
+    assert!(
+        page.contains("<span class=\"pill party none\">unattributed</span>nobody&#39;s"),
+        "{page}"
+    );
+}

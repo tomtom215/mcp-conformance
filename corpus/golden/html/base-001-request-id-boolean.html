@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-K+QH8eGos92H7gyRSBNc4cpdOMZtDD5YIIuxlD4EoyY='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-FVKEnIfkYMEzLWgrX9rMV016fzS97ZwuEBsgEbqgGIQ='; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -278,6 +278,8 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 }
 .pill:is(.o-pass, .o-fail, .o-warn, .o-unsupported) { border-color: transparent; background: var(--tone-bg); color: var(--tone); }
 .pill.level, .pill.rev { font-family: var(--mono); }
+.pill.party { margin-right: 0.45rem; vertical-align: 0.1rem; }
+.pill.party.none { border-style: dashed; font-weight: 500; }
 .quote {
   margin: 0 0 0.45rem;
   padding: 0.7rem 0.95rem;
@@ -516,11 +518,11 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <section class="section" id="findings" aria-labelledby="findings-h">
 <h2 id="findings-h">Clauses to act on</h2>
 <article class="clause o-fail" id="BASE-001">
-<header class="clause-head"><h3 class="clause-id"><a href="#BASE-001">BASE-001</a></h3><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h3 class="clause-id"><a href="#BASE-001">BASE-001</a></h3><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds both</span></header>
 <blockquote class="quote"><p>Requests MUST include a string or integer ID.</p></blockquote>
 <p class="source"><span class="section-path">basic#requests</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2025-11-25/basic#requests" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="BASE-001-1"><a class="seq" href="#e3">seq 3</a><span class="detail">request &quot;ping&quot; carries a boolean as its id; the ID must be a string or an integer</span><span class="check">base.request-id-type</span></li>
+<li id="BASE-001-1"><a class="seq" href="#e3">seq 3</a><span class="detail"><span class="pill party">client</span>request &quot;ping&quot; carries a boolean as its id; the ID must be a string or an integer</span><span class="check">base.request-id-type</span></li>
 </ol>
 </article>
 <article class="clause o-fail" id="wire-schema">
@@ -529,7 +531,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <p class="source"><span class="section-path">basic#schema</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2025-11-25/basic#schema" rel="noreferrer">Read it in the specification</a></p>
 <p class="schema">1 of 4 messages are invalid against the revision's vendored schema: <a href="https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json" rel="noreferrer"><code>https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json</code></a></p>
 <ol class="findings">
-<li id="wire-schema-1"><a class="seq" href="#e3">seq 3</a><span class="detail">the client&#39;s message is not a valid PingRequest under the 2025-11-25 schema: /id: true is not of types &quot;integer&quot;, &quot;string&quot;</span><span class="check">wire-schema</span></li>
+<li id="wire-schema-1"><a class="seq" href="#e3">seq 3</a><span class="detail"><span class="pill party">client</span>the client&#39;s message is not a valid PingRequest under the 2025-11-25 schema: /id: true is not of types &quot;integer&quot;, &quot;string&quot;</span><span class="check">wire-schema</span></li>
 </ol>
 </article>
 </section>
@@ -575,8 +577,8 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev c2s flagged" id="e3"><div class="ev-line"><a class="ev-seq" href="#e3" aria-label="event 3">3</a><span class="ev-dir">client → server</span><span class="kind k-request">request</span><code class="method">ping</code><span class="id">id <code>true</code></span><span class="pair none">no answer recorded</span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#BASE-001-1">BASE-001</a><span class="detail">request &quot;ping&quot; carries a boolean as its id; the ID must be a string or an integer</span></li>
-<li class="o-fail"><a href="#wire-schema-1">wire schema</a><span class="detail">the client&#39;s message is not a valid PingRequest under the 2025-11-25 schema: /id: true is not of types &quot;integer&quot;, &quot;string&quot;</span></li>
+<li class="o-fail"><a href="#BASE-001-1">BASE-001</a><span class="pill party">client</span><span class="detail">request &quot;ping&quot; carries a boolean as its id; the ID must be a string or an integer</span></li>
+<li class="o-fail"><a href="#wire-schema-1">wire schema</a><span class="pill party">client</span><span class="detail">the client&#39;s message is not a valid PingRequest under the 2025-11-25 schema: /id: true is not of types &quot;integer&quot;, &quot;string&quot;</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: true,

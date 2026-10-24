@@ -203,9 +203,10 @@ fn page_title(verdict: Verdict, name: &str) -> String {
     )
 }
 
-/// The verdict over one trace's reports: the most severe.
+/// The verdict over one trace's reports: the most severe, each as its report
+/// is viewed ([`Report::effective_verdict`]).
 fn trace_verdict(reports: &[Report]) -> Verdict {
-    Verdict::most_severe(reports.iter().map(Report::verdict)).unwrap_or(Verdict::Pass)
+    Verdict::most_severe(reports.iter().map(Report::effective_verdict)).unwrap_or(Verdict::Pass)
 }
 
 /// The run's verdict: the most severe of the traces', or incomplete when one

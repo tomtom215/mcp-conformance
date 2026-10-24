@@ -290,3 +290,5 @@ fn try_validate_reports_events_out_of_order_instead_of_panicking() {
          strictly increasing seq"
     );
 }
+
+mod party;

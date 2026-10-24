@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-K+QH8eGos92H7gyRSBNc4cpdOMZtDD5YIIuxlD4EoyY='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-FVKEnIfkYMEzLWgrX9rMV016fzS97ZwuEBsgEbqgGIQ='; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -278,6 +278,8 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 }
 .pill:is(.o-pass, .o-fail, .o-warn, .o-unsupported) { border-color: transparent; background: var(--tone-bg); color: var(--tone); }
 .pill.level, .pill.rev { font-family: var(--mono); }
+.pill.party { margin-right: 0.45rem; vertical-align: 0.1rem; }
+.pill.party.none { border-style: dashed; font-weight: 500; }
 .quote {
   margin: 0 0 0.45rem;
   padding: 0.7rem 0.95rem;
@@ -934,11 +936,11 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <section class="section" id="t1-findings" aria-labelledby="t1-findings-h">
 <h3 id="t1-findings-h">Clauses to act on</h3>
 <article class="clause o-fail" id="t1-BASE-003">
-<header class="clause-head"><h4 class="clause-id"><a href="#t1-BASE-003">BASE-003</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST NOT</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#t1-BASE-003">BASE-003</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST NOT</span><span class="pill actor">binds both</span></header>
 <blockquote class="quote"><p>The request ID MUST NOT have been previously used by the requestor within the same session.</p></blockquote>
 <p class="source"><span class="section-path">basic#requests</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2025-11-25/basic#requests" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="t1-BASE-003-1"><a class="seq" href="#t1-e5">seq 5</a><span class="detail">request &quot;ping&quot; reuses id 2, already used by the same party at seq 3</span><span class="check">base.request-id-unique</span></li>
+<li id="t1-BASE-003-1"><a class="seq" href="#t1-e5">seq 5</a><span class="detail"><span class="pill party">client</span>request &quot;ping&quot; reuses id 2, already used by the same party at seq 3</span><span class="check">base.request-id-unique</span></li>
 </ol>
 </article>
 </section>
@@ -998,7 +1000,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev c2s flagged" id="t1-e5"><div class="ev-line"><a class="ev-seq" href="#t1-e5" aria-label="event 5">5</a><span class="ev-dir">client → server</span><span class="kind k-request">request</span><code class="method">ping</code><span class="id">id <code>2</code></span><span class="pair none">no answer recorded</span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#t1-BASE-003-1">BASE-003</a><span class="detail">request &quot;ping&quot; reuses id 2, already used by the same party at seq 3</span></li>
+<li class="o-fail"><a href="#t1-BASE-003-1">BASE-003</a><span class="pill party">client</span><span class="detail">request &quot;ping&quot; reuses id 2, already used by the same party at seq 3</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: 2,

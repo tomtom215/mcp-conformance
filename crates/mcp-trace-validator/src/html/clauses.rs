@@ -6,9 +6,37 @@
 
 use core::fmt::Write as _;
 
+use mcp_conformance_core::requirement::Actor;
+
 use super::Scope;
 use super::escape::{Text, href};
-use crate::report::{ClauseSource, Finding, Outcome, Report, RequirementReport, WireSchemaReport};
+use crate::report::{
+    ClauseSource, Finding, Outcome, Party, Report, RequirementReport, WireSchemaReport,
+};
+
+/// The actor pill's text: who the clause binds.
+pub(super) const fn binds(actor: Actor) -> &'static str {
+    match actor {
+        Actor::Client => "binds client",
+        Actor::Server => "binds server",
+        Actor::Both => "binds both",
+        // Foreign #[non_exhaustive] enum: a future party surfaces visibly.
+        _ => "binds an unknown party",
+    }
+}
+
+/// The party pill beside a finding: the party it is held against, or, under a
+/// party `view`, `unattributed` for one held against nobody (the view counts
+/// it, and the reader should see that it was counted rather than attributed).
+pub(super) fn party_pill(out: &mut String, finding: &Finding, view: Option<Party>) {
+    match (finding.party, view) {
+        (Some(party), _) => {
+            let _ = write!(out, "<span class=\"pill party\">{party}</span>");
+        }
+        (None, Some(_)) => out.push_str("<span class=\"pill party none\">unattributed</span>"),
+        (None, None) => {}
+    }
+}
 
 /// The anchor name of the wire schema's row, beside the requirement IDs.
 pub(super) const WIRE_SCHEMA: &str = "wire-schema";
@@ -109,13 +137,18 @@ pub(super) fn clause(
         out,
         "<article class=\"clause o-{outcome}\" id=\"{anchor}\">"
     );
-    card_head(
-        out,
-        &anchor,
-        &row.id,
-        &[(&format!("o-{outcome}"), outcome), ("level", &row.level)],
-        level,
-    );
+    let mut pills = vec![
+        (format!("o-{outcome}"), outcome),
+        ("level".to_owned(), &row.level),
+    ];
+    if let Some(actor) = row.actor {
+        pills.push(("actor".to_owned(), binds(actor)));
+    }
+    let pills: Vec<(&str, &str)> = pills
+        .iter()
+        .map(|(class, text)| (class.as_str(), *text))
+        .collect();
+    card_head(out, &anchor, &row.id, &pills, level);
     if let Some(source) = &row.source {
         quote(out, source);
     }
@@ -128,7 +161,7 @@ pub(super) fn clause(
         }
         out.push_str(".</p>\n");
     }
-    findings(out, scope, &anchor, &row.findings);
+    findings(out, scope, &anchor, &row.findings, report.party_view);
     out.push_str("</article>\n");
 }
 
@@ -169,7 +202,7 @@ fn wire_schema(
             let _ = writeln!(out, "<code>{}</code></p>", Text(&schema.schema));
         }
     }
-    findings(out, scope, &anchor, &schema.findings);
+    findings(out, scope, &anchor, &schema.findings, report.party_view);
     out.push_str("</article>\n");
 }
 
@@ -200,8 +233,15 @@ fn quote(out: &mut String, source: &ClauseSource) {
     }
 }
 
-/// A clause's findings, each linking to its event (which links back).
-fn findings(out: &mut String, scope: &Scope<'_>, anchor: &str, findings: &[Finding]) {
+/// A clause's findings, each linking to its event (which links back), with the
+/// party each is held against.
+fn findings(
+    out: &mut String,
+    scope: &Scope<'_>,
+    anchor: &str,
+    findings: &[Finding],
+    view: Option<Party>,
+) {
     if findings.is_empty() {
         return;
     }
@@ -218,9 +258,11 @@ fn findings(out: &mut String, scope: &Scope<'_>, anchor: &str, findings: &[Findi
             }
             None => out.push_str("<span class=\"seq none\">no single event</span>"),
         }
+        out.push_str("<span class=\"detail\">");
+        party_pill(out, finding, view);
         let _ = writeln!(
             out,
-            "<span class=\"detail\">{}</span><span class=\"check\">{}</span></li>",
+            "{}</span><span class=\"check\">{}</span></li>",
             Text(&finding.detail),
             Text(&finding.check)
         );

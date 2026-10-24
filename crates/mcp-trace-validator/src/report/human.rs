@@ -9,7 +9,7 @@
 
 use core::fmt::Write as _;
 
-use super::{ExtensionReport, Finding, Outcome, Report, WireSchemaReport};
+use super::{ExtensionReport, Finding, Outcome, Party, Report, WireSchemaReport};
 
 /// How the human renderers lay a report out: [`Report::render_with`] and
 /// [`MultiReport::render_with`](crate::multi::MultiReport::render_with).
@@ -109,17 +109,18 @@ impl Report {
             }
         }
         self.write_revision_mismatch(&mut out, options);
+        let view = self.party_view;
         for row in &self.requirements {
             if !options.all && !row.outcome.needs_attention() {
                 continue;
             }
-            write_row(&mut out, row, options);
+            write_row(&mut out, row, options, view);
         }
         if let Some(wire_schema) = &self.wire_schema {
-            wire_schema.write_human(&mut out, options, None);
+            wire_schema.write_human(&mut out, options, None, view);
         }
         for extension in &self.extensions {
-            extension.write_human(&mut out, options, None);
+            extension.write_human(&mut out, options, None, view);
         }
         // Every outcome is named, so the counts sum to the registry's size — a
         // reader can check the arithmetic, and `Totals`' own exhaustive
@@ -128,7 +129,26 @@ impl Report {
         if let Some(wire_schema) = &self.wire_schema {
             let _ = writeln!(out, "wire schema: {}", wire_schema.summary());
         }
-        let _ = writeln!(out, "verdict: {}", self.verdict());
+        match view {
+            // The totals above still count every finding; the line says which
+            // ones this verdict did not.
+            Some(party) => {
+                let _ = write!(
+                    out,
+                    "verdict ({party} findings only): {}",
+                    self.verdict_for(party)
+                );
+                let what = self.party_tally(party).describe(party);
+                if what.is_empty() {
+                    out.push('\n');
+                } else {
+                    let _ = writeln!(out, " — {what}");
+                }
+            }
+            None => {
+                let _ = writeln!(out, "verdict: {}", self.verdict());
+            }
+        }
         self.write_revision_mismatch(&mut out, options);
         out
     }
@@ -173,8 +193,14 @@ impl Report {
     }
 }
 
-/// One requirement's row and its detail lines.
-fn write_row(out: &mut String, row: &super::RequirementReport, options: &HumanOptions) {
+/// One requirement's row and its detail lines; `view` is the party the report
+/// is viewed for, which labels the findings held against nobody.
+fn write_row(
+    out: &mut String,
+    row: &super::RequirementReport,
+    options: &HumanOptions,
+    view: Option<Party>,
+) {
     let marker = match row.outcome {
         Outcome::Pass => "PASS",
         Outcome::Fail => "FAIL",
@@ -185,7 +211,7 @@ fn write_row(out: &mut String, row: &super::RequirementReport, options: &HumanOp
         Outcome::NotObserved => "NOBS",
     };
     let _ = writeln!(out, "  {marker:<5} {} ({})", row.id, row.level);
-    options.write_findings(out, &row.findings, None);
+    options.write_findings(out, &row.findings, None, view);
     if let Some(source) = &row.source {
         source.write_human(out);
     }
@@ -210,25 +236,39 @@ fn write_row(out: &mut String, row: &super::RequirementReport, options: &HumanOp
 }
 
 impl HumanOptions {
-    /// A row's findings, one line each — `seq 3: …`, or `2025-11-25 seq 3: …`
-    /// under a `revision` — up to [`Self::max_findings`], then one line
-    /// counting the rest. Shared with the multi-revision report.
+    /// A row's findings, one line each — `[client] seq 3: …`, or `[client]
+    /// 2025-11-25 seq 3: …` under a `revision` — up to [`Self::max_findings`],
+    /// then one line counting the rest. Shared with the multi-revision report.
+    ///
+    /// The tag leads the line, so the parties line up in a column (`[client]`
+    /// and `[server]` are the same width) and `seq N: …` reads as it always
+    /// has. It is the party the finding is held against; a finding held
+    /// against nobody carries none, except under a party `view`, where it is
+    /// tagged `[unattributed]`: the view counts it, and a reader deciding
+    /// what is theirs to fix should see that it was counted rather than
+    /// attributed.
     pub(crate) fn write_findings(
         &self,
         out: &mut String,
         findings: &[Finding],
         revision: Option<&str>,
+        view: Option<Party>,
     ) {
         let shown = self.max_findings.unwrap_or(usize::MAX);
         for finding in findings.iter().take(shown) {
             let detail = printable(&finding.detail);
+            let tag = match (finding.party, view) {
+                (Some(party), _) => format!("[{party}] "),
+                (None, Some(_)) => "[unattributed] ".to_owned(),
+                (None, None) => String::new(),
+            };
             let _ = match (revision, finding.seq) {
                 (Some(revision), Some(seq)) => {
-                    writeln!(out, "        {revision} seq {seq}: {detail}")
+                    writeln!(out, "        {tag}{revision} seq {seq}: {detail}")
                 }
-                (Some(revision), None) => writeln!(out, "        {revision}: {detail}"),
-                (None, Some(seq)) => writeln!(out, "        seq {seq}: {detail}"),
-                (None, None) => writeln!(out, "        {detail}"),
+                (Some(revision), None) => writeln!(out, "        {tag}{revision}: {detail}"),
+                (None, Some(seq)) => writeln!(out, "        {tag}seq {seq}: {detail}"),
+                (None, None) => writeln!(out, "        {tag}{detail}"),
             };
         }
         let rest = findings.len().saturating_sub(shown);
@@ -294,12 +334,13 @@ impl WireSchemaReport {
 
     /// The schema's row, shown when it failed or when every row is listed; its
     /// findings carry the revision they were judged at under `revision` (the
-    /// multi-revision report).
+    /// multi-revision report), labelled for the party `view`.
     pub(crate) fn write_human(
         &self,
         out: &mut String,
         options: &HumanOptions,
         revision: Option<&str>,
+        view: Option<Party>,
     ) {
         if !options.all && self.outcome != Outcome::Fail {
             return;
@@ -311,7 +352,7 @@ impl WireSchemaReport {
         };
         let label = revision.map_or_else(String::new, |revision| format!(" {revision}"));
         let _ = writeln!(out, "  {marker:<5} wire schema{label} — {}", self.summary());
-        options.write_findings(out, &self.findings, revision);
+        options.write_findings(out, &self.findings, revision, view);
         if self.outcome == Outcome::Fail {
             self.source.write_human(out);
             let _ = writeln!(out, "        schema: {}", self.schema);
@@ -330,6 +371,7 @@ impl ExtensionReport {
         out: &mut String,
         options: &HumanOptions,
         revision: Option<&str>,
+        view: Option<Party>,
     ) {
         let label = revision.map_or_else(String::new, |revision| format!(" at {revision}"));
         let _ = writeln!(
@@ -339,7 +381,7 @@ impl ExtensionReport {
         );
         for row in &self.requirements {
             if options.all || row.outcome.needs_attention() {
-                write_row(out, row, options);
+                write_row(out, row, options, view);
             }
         }
         let _ = writeln!(

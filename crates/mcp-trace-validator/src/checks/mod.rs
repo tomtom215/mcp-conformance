@@ -92,10 +92,15 @@ pub struct FindingSink {
 
 impl FindingSink {
     /// Records a finding at an event (`seq`) with an actionable detail sentence.
+    ///
+    /// The party the finding is held against is not the check's to say: the
+    /// engine settles it from the clause's actor and the event at `seq`
+    /// ([`crate::engine`]), the same way for every check.
     pub fn push(&mut self, seq: Option<u64>, detail: String) {
         self.findings.push(Finding {
             check: self.check.to_owned(),
             seq,
+            party: None,
             detail,
         });
     }

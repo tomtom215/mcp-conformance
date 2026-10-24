@@ -173,6 +173,9 @@ struct ExtensionLedger {
 struct ExcludedRow {
     id: String,
     level: String,
+    /// The party the clause binds: a registry fact like the rest of the row,
+    /// pinned here so the splice reproduces the report's `actor` member.
+    actor: mcp_conformance_core::requirement::Actor,
     exclusion: String,
 }
 
@@ -187,6 +190,7 @@ impl ExcludedRow {
         serde_json::from_value(serde_json::json!({
             "id": self.id,
             "level": self.level,
+            "actor": self.actor,
             "outcome": "excluded",
             "exclusion": self.exclusion,
         }))
@@ -222,6 +226,7 @@ fn excluded_rows<'r>(requirements: impl Iterator<Item = &'r Requirement>) -> Vec
             ExcludedRow {
                 id: requirement.id.to_string(),
                 level: requirement.level.keyword().to_owned(),
+                actor: requirement.actor,
                 exclusion: exclusion.clone(),
             }
         })

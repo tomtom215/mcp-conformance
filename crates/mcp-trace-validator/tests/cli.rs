@@ -564,7 +564,7 @@ fn multi_revision_reports_carry_each_findings_seq_and_reason() {
     assert_eq!(human.status.code(), Some(1), "{human:?}");
     let text = stdout(&human);
     assert!(
-        text.contains("2026-07-28 seq 2: the retry reuses id 1"),
+        text.contains("[client] 2026-07-28 seq 2: the retry reuses id 1"),
         "{text}"
     );
     assert!(text.contains("(requested)"), "{text}");

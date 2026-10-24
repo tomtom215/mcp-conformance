@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-K+QH8eGos92H7gyRSBNc4cpdOMZtDD5YIIuxlD4EoyY='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-FVKEnIfkYMEzLWgrX9rMV016fzS97ZwuEBsgEbqgGIQ='; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -278,6 +278,8 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 }
 .pill:is(.o-pass, .o-fail, .o-warn, .o-unsupported) { border-color: transparent; background: var(--tone-bg); color: var(--tone); }
 .pill.level, .pill.rev { font-family: var(--mono); }
+.pill.party { margin-right: 0.45rem; vertical-align: 0.1rem; }
+.pill.party.none { border-style: dashed; font-weight: 500; }
 .quote {
   margin: 0 0 0.45rem;
   padding: 0.7rem 0.95rem;
@@ -516,11 +518,11 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <section class="section" id="findings" aria-labelledby="findings-h">
 <h2 id="findings-h">Clauses to act on</h2>
 <article class="clause o-warn" id="TOOL-010">
-<header class="clause-head"><h3 class="clause-id"><a href="#TOOL-010">TOOL-010</a></h3><span class="pill o-warn">warn</span><span class="pill level">SHOULD</span></header>
+<header class="clause-head"><h3 class="clause-id"><a href="#TOOL-010">TOOL-010</a></h3><span class="pill o-warn">warn</span><span class="pill level">SHOULD</span><span class="pill actor">binds server</span></header>
 <blockquote class="quote"><p>For backwards compatibility, a tool that returns structured content SHOULD also return the serialized JSON in a TextContent block.</p></blockquote>
 <p class="source"><span class="section-path">server/tools#structured-content</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2025-11-25/server/tools#structured-content" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="TOOL-010-1"><a class="seq" href="#e4">seq 4</a><span class="detail">tool &quot;w&quot; returned structuredContent without a TextContent fallback block</span><span class="check">tools.structured-content-text</span></li>
+<li id="TOOL-010-1"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">server</span>tool &quot;w&quot; returned structuredContent without a TextContent fallback block</span><span class="check">tools.structured-content-text</span></li>
 </ol>
 </article>
 </section>
@@ -579,7 +581,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev s2c flagged" id="e4"><div class="ev-line"><a class="ev-seq" href="#e4" aria-label="event 4">4</a><span class="ev-dir">server → client</span><span class="kind k-result">result</span><code class="method">tools/call</code><span class="id">id <code>2</code></span><span class="pair">answers <a href="#e3">seq 3</a></span></div>
 <ul class="marks">
-<li class="o-warn"><a href="#TOOL-010-1">TOOL-010</a><span class="detail">tool &quot;w&quot; returned structuredContent without a TextContent fallback block</span></li>
+<li class="o-warn"><a href="#TOOL-010-1">TOOL-010</a><span class="pill party">server</span><span class="detail">tool &quot;w&quot; returned structuredContent without a TextContent fallback block</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: 2,

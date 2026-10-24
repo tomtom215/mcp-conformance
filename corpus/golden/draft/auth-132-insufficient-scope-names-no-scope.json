@@ -14,901 +14,1081 @@
     {
       "id": "BASE-042",
       "level": "MUST",
+      "actor": "both",
       "outcome": "pass"
     },
     {
       "id": "BASE-043",
       "level": "MUST",
+      "actor": "both",
       "outcome": "pass"
     },
     {
       "id": "BASE-044",
       "level": "MUST NOT",
+      "actor": "both",
       "outcome": "pass"
     },
     {
       "id": "BASE-045",
       "level": "MUST NOT",
+      "actor": "both",
       "outcome": "pass"
     },
     {
       "id": "BASE-046",
       "level": "MUST",
+      "actor": "both",
       "outcome": "pass"
     },
     {
       "id": "BASE-047",
       "level": "MUST",
+      "actor": "both",
       "outcome": "pass"
     },
     {
       "id": "BASE-048",
       "level": "MUST",
+      "actor": "both",
       "outcome": "pass"
     },
     {
       "id": "BASE-052",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-053",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-054",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-083",
       "level": "SHOULD NOT",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-057",
       "level": "MUST NOT",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-058",
       "level": "MUST NOT",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-060",
       "level": "SHOULD",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-062",
       "level": "MUST NOT",
+      "actor": "both",
       "outcome": "pass"
     },
     {
       "id": "BASE-073",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-088",
       "level": "SHOULD",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-026",
       "level": "MUST",
+      "actor": "both",
       "outcome": "pass"
     },
     {
       "id": "BASE-027",
       "level": "MUST",
+      "actor": "both",
       "outcome": "pass"
     },
     {
       "id": "BASE-029",
       "level": "MUST",
+      "actor": "both",
       "outcome": "pass"
     },
     {
       "id": "BASE-030",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "BASE-031",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-032",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-033",
       "level": "SHOULD",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "BASE-034",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-035",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-036",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-037",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "BASE-039",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-040",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "BASE-084",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "TRAN-056",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "TRAN-057",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "TRAN-058",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "TRAN-059",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "TRAN-060",
       "level": "MUST NOT",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "TRAN-061",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-063",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "TRAN-066",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "TRAN-068",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-070",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-071",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "TRAN-072",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "TRAN-073",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-074",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-075",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-077",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-079",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-080",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-081",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-082",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-083",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-084",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-086",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-087",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-089",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-092",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-137",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-141",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "TRAN-096",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-097",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "TRAN-098",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-130",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-131",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "TRAN-132",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-133",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-134",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-135",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-136",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-100",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "TRAN-102",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "DISC-001",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "DISC-002",
       "level": "SHOULD",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "DISC-003",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "VERS-001",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "VERS-002",
       "level": "SHOULD",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "VERS-003",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "VERS-004",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "VERS-008",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-117",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-118",
       "level": "MUST NOT",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-119",
       "level": "MUST NOT",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "TRAN-120",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "TRAN-123",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-124",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TRAN-128",
       "level": "SHOULD",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-001",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "MRTR-002",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "MRTR-003",
       "level": "MUST NOT",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-004",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-006",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-011",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-012",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-013",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-015",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-016",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-017",
       "level": "MUST NOT",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-018",
       "level": "MUST NOT",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-019",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-020",
       "level": "MUST NOT",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "MRTR-024",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "SUBS-001",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "SUBS-002",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "SUBS-005",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "SUBS-006",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "CANC-003",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "CANC-005",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "CANC-011",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-001",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-002",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-003",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-005",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-008",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "CACH-001",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "CACH-008",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "CACH-015",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "CACH-016",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "COMP-006",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "COMP-007",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "PAGE-006",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "LOG-007",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "LOG-008",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "LOG-009",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "LOG-010",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-016",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "TOOL-019",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "TOOL-020",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "TOOL-022",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-023",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-025",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-027",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-029",
       "level": "SHOULD NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-030",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-033",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-034",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-035",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-038",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-039",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-040",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-045",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "TOOL-046",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "RES-011",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "RES-012",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "RES-013",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "RES-018",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "RES-022",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "RES-023",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "PROM-011",
       "level": "MUST",
+      "actor": "client",
       "outcome": "pass"
     },
     {
       "id": "PROM-012",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "PROM-013",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "PROM-016",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "PROM-017",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "PROM-018",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "PROM-020",
       "level": "SHOULD",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "ELIC-057",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "ELIC-059",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "ELIC-060",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "ELIC-062",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "ELIC-064",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "ELIC-065",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "ELIC-095",
       "level": "SHOULD",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "SAMP-026",
       "level": "MUST NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "SAMP-027",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "SAMP-028",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "SAMP-029",
       "level": "SHOULD NOT",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "SAMP-030",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "SAMP-031",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "SAMP-032",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "SAMP-033",
       "level": "MUST NOT",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "SAMP-034",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "SAMP-042",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "ROOT-013",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "ROOT-014",
       "level": "MUST",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "ROOT-018",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "AUTH-097",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "AUTH-124",
       "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
       "id": "AUTH-129",
       "level": "SHOULD NOT",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "AUTH-130",
       "level": "MUST",
+      "actor": "server",
       "outcome": "pass"
     },
     {
       "id": "AUTH-131",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "warn",
       "findings": [
         {
           "check": "auth.insufficient-scope-response",
           "seq": 9,
+          "party": "server",
           "detail": "an insufficient_scope challenge has no `scope` parameter; the server should answer with 403, a Bearer challenge, `scope` and `resource_metadata`"
         }
       ],
@@ -921,11 +1101,13 @@
     {
       "id": "AUTH-132",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "warn",
       "findings": [
         {
           "check": "auth.insufficient-scope-names-scopes",
           "seq": 9,
+          "party": "server",
           "detail": "an insufficient_scope challenge names no scope; servers should include the scopes needed to satisfy the request in `scope`"
         }
       ],
@@ -938,6 +1120,7 @@
     {
       "id": "AUTH-133",
       "level": "SHOULD",
+      "actor": "server",
       "outcome": "pass"
     }
   ],

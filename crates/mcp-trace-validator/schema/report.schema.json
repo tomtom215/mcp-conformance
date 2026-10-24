@@ -76,6 +76,18 @@
       "items": { "$ref": "#/$defs/revision" },
       "minItems": 1
     },
+    "actor": {
+      "description": "The party a clause binds, as the registry states it (`mcp-trace-validator requirements --format json` prints the same member).",
+      "enum": ["client", "server", "both"]
+    },
+    "party": {
+      "description": "One end of the session.",
+      "enum": ["client", "server"]
+    },
+    "partyView": {
+      "description": "The party the report is viewed for (`validate --party`): only findings whose `party` is this one, or absent, count toward `verdict` and the exit status. The rows and totals are unchanged by the view. Absent by default, when every finding counts.",
+      "$ref": "#/$defs/party"
+    },
     "count": { "type": "integer", "minimum": 0 },
     "totals": {
       "description": "Requirements per outcome; they sum to the number of requirements judged.",
@@ -96,7 +108,7 @@
       "enum": ["pass", "fail", "warn", "excluded", "unsupported", "not-applicable", "not-observed"]
     },
     "verdict": {
-      "description": "Follows from the totals: unsupported if any clause is, else fail if any fails, else pass-with-warnings if any warns, else pass. The exit code maps it: fail is 1 (as is pass-with-warnings under --strict), unsupported is 2.",
+      "description": "Follows from the totals: unsupported if any clause is, else fail if any fails, else pass-with-warnings if any warns, else pass. Under a `party_view` the same ranking is applied to the findings that count — a failing or warning row, and a failed wire schema, counts only through a finding whose `party` is the viewed one or absent. The exit code maps it: fail is 1 (as is pass-with-warnings under --strict), unsupported is 2.",
       "enum": ["pass", "pass-with-warnings", "fail", "unsupported"]
     },
     "requirementId": {
@@ -108,13 +120,17 @@
       "enum": ["MUST", "MUST NOT", "SHOULD", "SHOULD NOT", "MAY"]
     },
     "finding": {
-      "description": "One violation: the check that found it, the event it points at when one is identifiable, and what was wrong.",
+      "description": "One violation: the check that found it, the event it points at when one is identifiable, the party it is held against when the trace can say, and what was wrong.",
       "type": "object",
       "required": ["check", "detail"],
       "additionalProperties": false,
       "properties": {
         "check": { "type": "string", "minLength": 1 },
         "seq": { "type": "integer", "minimum": 0 },
+        "party": {
+          "description": "The party the finding is held against: the clause's actor when it binds one party; for a clause binding both, the sender of the message at `seq`. Absent when neither decides it — no `seq`, or an event there that is not a message — rather than guessed.",
+          "$ref": "#/$defs/party"
+        },
         "detail": { "type": "string", "minLength": 1 }
       }
     },
@@ -140,11 +156,12 @@
     "row": {
       "description": "One requirement's outcome. `findings` and `source` accompany `fail` and `warn`; `exclusion` accompanies `excluded`; `missing_checks` accompanies `unsupported`; `capability` accompanies `not-applicable`.",
       "type": "object",
-      "required": ["id", "level", "outcome"],
+      "required": ["id", "level", "actor", "outcome"],
       "additionalProperties": false,
       "properties": {
         "id": { "$ref": "#/$defs/requirementId" },
         "level": { "$ref": "#/$defs/level" },
+        "actor": { "$ref": "#/$defs/actor" },
         "outcome": { "$ref": "#/$defs/outcome" },
         "findings": { "$ref": "#/$defs/findings" },
         "source": { "$ref": "#/$defs/source" },
@@ -204,6 +221,7 @@
         "revision": { "$ref": "#/$defs/revision" },
         "revision_mismatch": { "$ref": "#/$defs/revisionMismatch" },
         "revision_source": { "$ref": "#/$defs/revisionSource" },
+        "party_view": { "$ref": "#/$defs/partyView" },
         "verdict": { "$ref": "#/$defs/verdict" },
         "totals": { "$ref": "#/$defs/totals" },
         "requirements": { "type": "array", "items": { "$ref": "#/$defs/row" } },
@@ -239,11 +257,12 @@
     "multiRow": {
       "description": "One clause across the judged revisions; each array is aligned by index with `revisions`. A null outcome means the clause does not exist at that revision. `findings` and `sources` are omitted when no revision has any.",
       "type": "object",
-      "required": ["id", "level", "outcomes"],
+      "required": ["id", "level", "actor", "outcomes"],
       "additionalProperties": false,
       "properties": {
         "id": { "$ref": "#/$defs/requirementId" },
         "level": { "$ref": "#/$defs/level" },
+        "actor": { "$ref": "#/$defs/actor" },
         "outcomes": {
           "type": "array",
           "items": { "oneOf": [{ "$ref": "#/$defs/outcome" }, { "type": "null" }] }
@@ -271,8 +290,9 @@
         },
         "revision_mismatch": { "$ref": "#/$defs/revisionMismatch" },
         "revision_source": { "$ref": "#/$defs/revisionSource" },
+        "party_view": { "$ref": "#/$defs/partyView" },
         "verdict": {
-          "description": "The worst of the per-revision verdicts.",
+          "description": "The worst of the per-revision verdicts (each of which honours `party_view`).",
           "$ref": "#/$defs/verdict"
         },
         "summaries": {

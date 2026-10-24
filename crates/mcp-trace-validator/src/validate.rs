@@ -23,7 +23,7 @@ use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::declared::{self, RevisionSource};
 use mcp_trace_validator::multi::{self, MultiReport};
-use mcp_trace_validator::report::{HumanOptions, Report, Unjudged, Verdict};
+use mcp_trace_validator::report::{HumanOptions, Party, Report, Unjudged, Verdict};
 use mcp_trace_validator::{engine, html, junit, reader, sarif, sessions};
 
 use crate::emit::emit;
@@ -49,6 +49,9 @@ pub(crate) struct Output {
     pub(crate) strict: bool,
     /// Human output lists every clause, not only those needing attention.
     pub(crate) all: bool,
+    /// Only this party's findings (and findings held against nobody) count
+    /// toward the verdict and the exit status (`--party`).
+    pub(crate) party: Option<Party>,
 }
 
 /// Where the registries come from, resolved once for every trace in the run.
@@ -79,10 +82,11 @@ struct Judged {
 }
 
 impl Judged {
+    /// The verdict the exit status follows: the report's, as it is viewed.
     fn verdict(&self) -> Verdict {
         self.multi
             .as_ref()
-            .map_or_else(|| self.reports[0].verdict(), MultiReport::verdict)
+            .map_or_else(|| self.reports[0].effective_verdict(), MultiReport::verdict)
     }
 
     /// The human report: with `--all`, every clause and every finding;
@@ -130,7 +134,7 @@ pub(crate) fn run(
     let mut judged = Vec::new();
     let mut unjudged = Vec::new();
     for trace in traces {
-        match judge(trace, limits, &registries, many) {
+        match judge(trace, limits, &registries, many, output.party) {
             Ok(one) => judged.push(one),
             Err(refusal) => {
                 refusal.print();
@@ -185,12 +189,14 @@ fn resolve(sources: &Sources<'_>) -> Result<Registries, String> {
     Ok(Registries::Set { set, requested })
 }
 
-/// Reads and judges one trace, or says why it could not be.
+/// Reads and judges one trace, or says why it could not be; the reports are
+/// viewed for `party` when one was asked for.
 fn judge(
     trace: &str,
     limits: &reader::Limits,
     registries: &Registries,
     many: bool,
+    party: Option<Party>,
 ) -> Result<Judged, Refusal> {
     let prefix = if many {
         format!("{trace}: ")
@@ -202,10 +208,20 @@ fn judge(
         return Err(Refusal::from_diagnostic(&message, EXIT_USAGE));
     }
     judgeable::note_sessions(&prefix, sessions::recorded_sessions(&events));
-    let (reports, multi) = match registries {
+    let (mut reports, mut multi) = match registries {
         Registries::Custom(registry) => (vec![engine::validate(registry, &events)], None),
         Registries::Set { set, requested } => judge_in_set(set, requested, &events, &prefix)?,
     };
+    // The view is applied after judging, never during it: the rows and totals
+    // are the trace's facts, and only what counts toward the verdict changes.
+    if let Some(party) = party {
+        for report in &mut reports {
+            report.party_view = Some(party);
+        }
+        if let Some(multi) = &mut multi {
+            multi.view_party(party);
+        }
+    }
     let totals = multi
         .as_ref()
         .map_or(reports[0].totals, judgeable::combined);

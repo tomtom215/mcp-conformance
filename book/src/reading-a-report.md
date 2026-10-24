@@ -27,7 +27,7 @@ with its error, and the run's verdict is `incomplete`.
 
 ```text
   FAIL  BASE-003 (MUST NOT)
-        seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
+        [client] seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
 ```
@@ -36,11 +36,15 @@ with its error, and the run's verdict is `incomplete`.
    written by `mcp-trace-capture`, the line after `seq 2`. Many findings name a
    second event (`at seq 0`): the earlier one the offending event conflicts with.
    `--format sarif` puts each finding on its trace line in a SARIF viewer.
-2. **Find the party.** The event's `direction` says who sent it
-   (`client-to-server` or `server-to-client`). The clause says who it binds:
-   `mcp-trace-validator requirements BASE-003 --revision 2025-11-25` prints the level,
-   the party ("binding client and server"), the clause and its checks. Fix the side that sent the
-   offending event.
+2. **Find the party.** The tag before the event (`[client]`) is the party the finding
+   is held against: the party the clause binds, or, for a clause binding both, the
+   sender of the message at `seq` (JSON carries it as the finding's `party`, and each
+   row's `actor` is the party its clause binds). A finding the trace cannot pin on
+   either side carries no tag. `mcp-trace-validator requirements BASE-003 --revision
+   2025-11-25` prints the clause in full. When the other side of the session is not
+   yours to fix — the official suite's client, say — `--party server` counts only the
+   server's findings toward the verdict and exit status, and the verdict line says
+   `(server findings only)`.
 3. **Read the clause where it is published.** The `spec:` line is the registry's
    verbatim quote, and `see:` links the sentence in the revision the session was
    judged against. Read the surrounding section before changing code: the clause may
@@ -62,7 +66,7 @@ for all protocol messages and structures":
 
 ```text
   FAIL  wire schema — fail (1 of 5 messages invalid)
-        seq 4: the server's message is not a valid ListResourcesResult under the 2025-11-25 schema: /result/resources/0: "uri" is a required property
+        [server] seq 4: the server's message is not a valid ListResourcesResult under the 2025-11-25 schema: /result/resources/0: "uri" is a required property
         spec: "This is the source of truth for all protocol messages and structures."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#schema
         schema: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/<commit>/schema/2025-11-25/schema.json
@@ -91,7 +95,7 @@ breaks the tasks extension:
 MCP trace validation — revision 2026-07-28 (declared by the trace)
 extension io.modelcontextprotocol/tasks — not scored: its outcomes never change the verdict
   FAIL  TASK-001 (MUST NOT)
-        seq 3: a `resultType: "task"` result answered a `tools/call` request whose `_meta` client capabilities do not declare `io.modelcontextprotocol/tasks`
+        [server] seq 3: a `resultType: "task"` result answered a `tools/call` request whose `_meta` client capabilities do not declare `io.modelcontextprotocol/tasks`
         spec: "A server MUST NOT return `CreateTaskResult` to a client that did not include the extension capability on its request, regardless of prior declarations."
         see:  https://modelcontextprotocol.github.io/ext-tasks/specification/2026-07-28/tasks#capability-negotiation
   extension totals: 2 pass, 1 fail, 0 warn, 24 excluded, 0 unsupported, 0 not applicable, 22 not observed — extension verdict: fail
