@@ -1108,6 +1108,18 @@
       "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#schema"
     }
   },
+  "unanswered_requests": {
+    "count": 1,
+    "ending": "stopped",
+    "requests": [
+      {
+        "method": "subscriptions/listen",
+        "id": 3,
+        "seq": 4,
+        "sender": "client"
+      }
+    ]
+  },
   "extensions": [
     {
       "extension": "io.modelcontextprotocol/tasks",

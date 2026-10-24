@@ -9,7 +9,7 @@
 //!
 //! | Part | What it shows |
 //! |------|---------------|
-//! | verdict | the verdict and every outcome's count, per judged revision, and the wire-schema outcome |
+//! | verdict | the verdict and every outcome's count, per judged revision, and the wire-schema outcome; under it, the notes — a revision the session did not declare, and the requests the trace ended without answering, each linked to its event |
 //! | clauses to act on | each failing, warning or unsupported clause: ID, level, the quote, its published link, and every finding with its `seq` |
 //! | extensions | each extension the session used, never part of the verdict (ADR-0023): its own verdict and counts, its clauses to act on, and the rest accounted for |
 //! | message timeline | every event — direction, kind, method and id, which request a response answers, HTTP exchanges — with each finding at its event, linked both ways |
@@ -151,6 +151,7 @@ pub fn render_run(traces: &[(Trace<'_>, &[Report])], unjudged: &[Unjudged]) -> S
 fn trace_body(out: &mut String, scope: &Scope<'_>) {
     summary::verdict(out, scope);
     summary::mismatch_notes(out, scope);
+    summary::unanswered_note(out, scope);
     summary::contents(out, scope);
     clauses::attention(out, scope);
     extensions::write(out, scope);

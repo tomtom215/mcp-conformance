@@ -151,6 +151,9 @@ MCP trace validation — revision 2026-07-28 (declared by the trace)
         [client] seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
         spec: "Note that the JSON-RPC `id` MUST be different between the initial request and the retry."
         see:  https://modelcontextprotocol.io/specification/2026-07-28/server/tools#input-required-tool-results
+  NOTE  1 request had no response when the trace ended (the recording simply stopped).
+        JSON-RPC expects every request answered; no clause of this revision judges it, so the verdict is unchanged.
+        client "tools/call" id 1 at seq 2
 totals: 46 pass, 2 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 133 not observed
 wire schema: pass (3 messages valid)
 verdict: fail
@@ -162,8 +165,15 @@ verdict: fail
   `--party server` counts only the server's findings toward the verdict and exit
   status — for a server the official suite's client drove, whose own slips (no
   `notifications/initialized`, `logging/setLevel` without the capability) are not
-  the server author's to fix — and the verdict line says so. The weekly spec-drift job re-verifies every quote against
-  the spec's source and every link's anchor against the published page.
+  the server author's to fix — and the verdict line says so. The weekly spec-drift
+  job re-verifies every quote against the spec's source and every link's anchor
+  against the published page.
+- **A request left unanswered is noted, never judged.** JSON-RPC expects every
+  request answered, but no judgeable clause of either revision says so (`BASE-012`
+  is excluded), so a server that exits with a request pending gets a `NOTE` — how
+  many, up to ten by method, id and `seq`, and whether the trace ended with a
+  transport close, an abort, or simply stopped — carried in every format, and the
+  verdict it would otherwise have earned.
 - **The revision is the one the session declares** — in `initialize`, in each
   request's `_meta`, or in the `MCP-Protocol-Version` header. A trace declaring no
   revision is judged against the newest one (and says so); a trace declaring only a

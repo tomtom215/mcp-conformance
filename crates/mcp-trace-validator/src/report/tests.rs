@@ -62,6 +62,7 @@ fn sample() -> Report {
             row("PAGE-002", "MUST", Outcome::NotObserved),
         ],
         wire_schema: None,
+        unanswered_requests: None,
         extensions: vec![],
     }
 }

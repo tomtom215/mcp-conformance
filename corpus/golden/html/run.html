@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-FVKEnIfkYMEzLWgrX9rMV016fzS97ZwuEBsgEbqgGIQ='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-TvCmbAR7RPfcK3ta5Tq++Bewv4/+i8XUb3gtJ1v0OiQ='; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -198,6 +198,9 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
   background: var(--warn-bg);
 }
 .note code { font-weight: 600; }
+.note .unanswered { margin: 0.45rem 0 0; padding-left: 1.2rem; }
+.note .unanswered a { font-family: var(--mono); font-weight: 600; }
+.note p { margin: 0.35rem 0 0; }
 
 /* Section links. */
 .contents {
@@ -932,6 +935,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </dl>
 <p class="schema-line s-pass">Wire schema: pass (6 messages valid)</p>
 </section>
+<aside class="note" role="note"><strong>1 request had no response when the trace ended (the recording simply stopped).</strong> JSON-RPC expects every request answered; no clause of this revision judges it, so the verdict is unchanged.<ul class="unanswered"><li><a href="#t1-e5">seq 5</a> client <code>ping</code> id <code>2</code></li></ul></aside>
 <nav class="contents" aria-label="Sections"><a href="#t1-findings">Clauses to act on <span class="count">1</span></a><a href="#t1-timeline">Message timeline <span class="count">6</span></a><a href="#t1-accounting">Accounting</a></nav>
 <section class="section" id="t1-findings" aria-labelledby="t1-findings-h">
 <h3 id="t1-findings-h">Clauses to act on</h3>

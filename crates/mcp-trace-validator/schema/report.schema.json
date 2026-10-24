@@ -212,6 +212,39 @@
       "then": { "required": ["findings"] },
       "else": { "not": { "required": ["findings"] } }
     },
+    "traceEnding": {
+      "description": "What the recorder saw last: an orderly `transport-close`, a `transport-abort`, or a message or HTTP event (the recording simply stopped).",
+      "enum": ["transport-close", "transport-abort", "stopped"]
+    },
+    "unansweredRequest": {
+      "description": "One request the trace ended without answering.",
+      "type": "object",
+      "required": ["method", "id", "seq", "sender"],
+      "additionalProperties": false,
+      "properties": {
+        "method": { "type": "string", "minLength": 1 },
+        "id": { "description": "The request's `id`, as sent — whatever JSON value it was." },
+        "seq": { "type": "integer", "minimum": 0 },
+        "sender": { "description": "Who sent the request, and so who was owed the answer.", "$ref": "#/$defs/party" }
+      }
+    },
+    "unansweredRequests": {
+      "description": "The requests that had no response when the trace ended: a note. JSON-RPC expects every request answered, but no judgeable clause of either revision states it, so this moves neither the totals nor the verdict. A request its sender cancelled (`notifications/cancelled` naming its id) is not counted, nor is one answered later out of order; one the HTTP layer refused before reading it (401, 403) was never a message the protocol saw. Absent when every request was answered.",
+      "type": "object",
+      "required": ["count", "ending", "requests"],
+      "additionalProperties": false,
+      "properties": {
+        "count": { "type": "integer", "minimum": 1 },
+        "ending": { "$ref": "#/$defs/traceEnding" },
+        "requests": {
+          "description": "The first ten, in `seq` order; `count` says how many there were.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": { "$ref": "#/$defs/unansweredRequest" }
+        }
+      }
+    },
     "report": {
       "description": "One trace judged against one revision.",
       "type": "object",
@@ -226,6 +259,7 @@
         "totals": { "$ref": "#/$defs/totals" },
         "requirements": { "type": "array", "items": { "$ref": "#/$defs/row" } },
         "wire_schema": { "$ref": "#/$defs/wireSchema" },
+        "unanswered_requests": { "$ref": "#/$defs/unansweredRequests" },
         "extensions": { "$ref": "#/$defs/extensions" }
       }
     },
@@ -310,7 +344,11 @@
             }
           }
         },
-        "requirements": { "type": "array", "items": { "$ref": "#/$defs/multiRow" } }
+        "requirements": { "type": "array", "items": { "$ref": "#/$defs/multiRow" } },
+        "unanswered_requests": {
+          "description": "The trace's unanswered requests, the same under every revision, so carried once.",
+          "$ref": "#/$defs/unansweredRequests"
+        }
       }
     }
   }

@@ -590,5 +590,17 @@
       "quote": "This is the source of truth for all protocol messages and structures.",
       "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#schema"
     }
+  },
+  "unanswered_requests": {
+    "count": 1,
+    "ending": "stopped",
+    "requests": [
+      {
+        "method": "ping",
+        "id": 2,
+        "seq": 3,
+        "sender": "client"
+      }
+    ]
   }
 }

@@ -17,8 +17,12 @@ mod clause;
 mod human;
 mod party;
 mod serialize;
+mod unanswered;
 
 pub use party::{Party, PartyTally};
+pub use unanswered::{
+    LISTED_UNANSWERED, TraceEnding, UNANSWERED_WHY, UnansweredRequest, UnansweredRequests,
+};
 
 /// The JSON Schema (draft 2020-12) of `validate --format json` output.
 ///
@@ -273,6 +277,11 @@ pub struct Report {
     /// vendors no schema for [`Self::revision`] (an external registry's).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wire_schema: Option<WireSchemaReport>,
+    /// The requests the trace ended without answering, when there are any: a
+    /// note, listed in every format and moving neither [`Self::totals`] nor
+    /// [`Self::verdict`] ([`crate::report::UnansweredRequests`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unanswered_requests: Option<UnansweredRequests>,
     /// The clauses of each extension the session exercised, judged and never
     /// scored: nothing here moves [`Self::totals`] or [`Self::verdict`]
     /// (ADR-0023). An extension appears once one of its clauses judged

@@ -16,6 +16,7 @@
 //! | a party view ([`Report::party_view`]) | the run's `properties.party_view`; a result the view sets aside is at level `note` with `properties.counted: false`, every other result `counted: true` |
 //! | an `unsupported` row | an invocation notification, and `executionSuccessful: false` |
 //! | a trace that could not be judged ([`render_run`]) | an invocation notification located at the trace, and `executionSuccessful: false` |
+//! | the requests a trace ended without answering ([`Report::unanswered_requests`]) | an invocation notification at level `note`, located at the trace, with the requests in its `properties`; `executionSuccessful` is untouched |
 //! | pass / excluded / not-applicable / not-observed | nothing — SARIF records problems, not coverage |
 //!
 //! Every judged revision's findings are results of one run: code scanning
@@ -176,6 +177,7 @@ pub fn render_run(
         strict: options.strict,
         party_view: None,
         seen: BTreeMap::new(),
+        noted: std::collections::BTreeSet::new(),
     };
     for (artifact, reports) in traces {
         for report in *reports {
@@ -214,7 +216,8 @@ pub fn render_run(
                 },
             },
             "invocations": [{
-                "executionSuccessful": log.notifications.is_empty(),
+                // A note is information, not a failed execution.
+                "executionSuccessful": !log.notifications.iter().any(|note| note["level"] == "error"),
                 "toolExecutionNotifications": log.notifications,
             }],
             "results": log.results,
@@ -241,6 +244,8 @@ struct Log<'r> {
     party_view: Option<crate::report::Party>,
     /// How many results so far share each fingerprint stem, per trace.
     seen: BTreeMap<(String, String), usize>,
+    /// The unanswered-requests notes already written, per trace.
+    noted: std::collections::BTreeSet<(String, String)>,
 }
 
 impl Log<'_> {
@@ -248,6 +253,9 @@ impl Log<'_> {
     /// notifications, its failed wire schema, then its extensions'.
     fn report(&mut self, report: &Report, artifact: Artifact<'_>) {
         self.party_view = report.party_view;
+        if let Some(unanswered) = &report.unanswered_requests {
+            self.unanswered(unanswered, artifact);
+        }
         for row in &report.requirements {
             match row.outcome {
                 Outcome::Fail | Outcome::Warn => self.findings(row, &report.revision, artifact),
@@ -362,6 +370,32 @@ impl Log<'_> {
             }
             self.results.push(result);
         }
+    }
+
+    /// The requests a trace ended without answering: a `note`-level
+    /// notification located at the trace, once per trace — the reports of one
+    /// trace judged under several revisions all carry the same note.
+    fn unanswered(
+        &mut self,
+        unanswered: &crate::report::UnansweredRequests,
+        artifact: Artifact<'_>,
+    ) {
+        let text = unanswered.one_line();
+        let key = (artifact.uri.unwrap_or_default().to_owned(), text.clone());
+        if !self.noted.insert(key) {
+            return;
+        }
+        self.notifications.push(json!({
+            "level": "note",
+            "message": { "text": text },
+            "locations": location(artifact, None),
+            "properties": {
+                "kind": "unanswered-requests",
+                "count": unanswered.count,
+                "ending": unanswered.ending,
+                "requests": unanswered.requests,
+            },
+        }));
     }
 
     /// A trace the run could not judge at all, located at the trace.

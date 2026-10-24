@@ -49,9 +49,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 104 | 235 |
+| Goldens | 106 | 235 |
 | Excluded rows the ledger holds | 232 | 320 |
-| Distinct not-observed sets across them | 67 | 149 |
+| Distinct not-observed sets across them | 68 | 149 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -125,6 +125,8 @@ below: the implementations on both ends, the tool that recorded them, and when.
 | `stdio-client-features.jsonl` | Every client-feature page conformant in one session (added 2026-10-13, review item 2.5): a client declaring `elicitation` in both modes, `sampling.tools` and `roots`; a form elicitation accepted with `content` its `requestedSchema` admits; a URL mode elicitation carrying an `elicitationId` and an RFC 3986 URL, accepted, then completed by `notifications/elicitation/complete` naming that id; a two-round sampling tool loop — `toolChoice` `required` answered with a tool use, then the tool result sent back under `toolChoice` `none` and answered with text; `roots/list` answered with a `file://` root; and a `-32042` listing one URL mode elicitation, completed the same way |
 | `stdio-full-session.jsonl` | Handshake plus ping, tools/list, tools/call over stdio |
 | `stdio-minimal-init.jsonl` | Smallest conformant session: the three-message handshake |
+| `stdio-request-unanswered-at-close.jsonl` | A handshake, then a `tools/list` the server never answers before the transport closes (added 2026-10-24). No clause judges it — JSON-RPC expects every request answered, but `BASE-012` is excluded — so the verdict is `pass`; what the golden pins is the report's `unanswered_requests` note: one request, and that the trace ended with a `transport-close`. Until 2026-10-24 the report said nothing at all. |
+| `stdio-requests-partly-unanswered.jsonl` | The same handshake, then three requests of which the server answers one (`tools/list`) and leaves two (`ping`, `tools/call`) pending when the recording simply stops, with no close or abort (added 2026-10-24). The note counts two and says the trace stopped; the verdict is `pass`. |
 | `http-origin-refused-without-id.jsonl` | A Streamable HTTP `initialize` carrying `Host`/`Origin` `evil.example.com`, refused `403` with a JSON-RPC error that has no `id`, then the same handshake from `localhost` completing. The transport's security warning permits exactly that body ("If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`"), so BASE-009 passes. Until 2026-10-13 the framing tied the error to the refused request, whose id was readable, and BASE-009 failed it — the shape of the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`). Added 2026-10-13 |
 | `http-authorization.jsonl` | A protected Streamable HTTP server, conformant (added 2026-10-13, review item 2.8): `initialize` refused `401` with a Bearer challenge carrying `resource_metadata` and `scope` (AUTH-014's pass path), then sent again **with the same id**, as the official SDKs' clients retry, and answered; a `ping` refused `403` `insufficient_scope` naming `scope` and `resource_metadata` (AUTH-049/050/051), retried and answered; another refused `401` `invalid_token` (AUTH-045/049) whose `application/json` body is the resource server's own `{"error":"invalid_token",…}` object, retried and answered. That body is the HTTP layer's, not a JSON-RPC message; read as one it failed BASE-006/008/009 and the wire schema. The retries are why a request refused at the HTTP layer is *not delivered* (`context/refusal.rs`): judged as two deliveries, each retry failed BASE-003 and the trace counted two sessions. No metadata fetch appears, because none would: see `checks/auth.rs` for what a recording carries for authorization |
 

@@ -301,6 +301,41 @@ pub(super) fn mismatch_notes(out: &mut String, scope: &Scope<'_>) {
     }
 }
 
+/// The note for the requests the trace ended without answering: once, since
+/// every revision's report of one trace carries the same one.
+pub(super) fn unanswered_note(out: &mut String, scope: &Scope<'_>) {
+    let Some(unanswered) = scope
+        .reports
+        .iter()
+        .find_map(|report| report.unanswered_requests.as_ref())
+    else {
+        return;
+    };
+    let _ = write!(
+        out,
+        "<aside class=\"note\" role=\"note\"><strong>{}.</strong> {}<ul class=\"unanswered\">",
+        Text(&unanswered.summary()),
+        Text(crate::report::UNANSWERED_WHY)
+    );
+    for request in &unanswered.requests {
+        let _ = write!(
+            out,
+            "<li><a href=\"#{}\">seq {}</a> {} <code>{}</code> id <code>{}</code></li>",
+            scope.event(request.seq),
+            request.seq,
+            request.sender,
+            Text(&request.method),
+            Text(&serde_json::to_string(&request.id).unwrap_or_default())
+        );
+    }
+    out.push_str("</ul>");
+    let rest = unanswered.unlisted();
+    if rest > 0 {
+        let _ = write!(out, "<p>… and {rest} more.</p>");
+    }
+    out.push_str("</aside>\n");
+}
+
 /// The section links under the verdict.
 pub(super) fn contents(out: &mut String, scope: &Scope<'_>) {
     let attention: usize = scope

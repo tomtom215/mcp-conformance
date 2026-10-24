@@ -188,6 +188,9 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
   background: var(--warn-bg);
 }
 .note code { font-weight: 600; }
+.note .unanswered { margin: 0.45rem 0 0; padding-left: 1.2rem; }
+.note .unanswered a { font-family: var(--mono); font-weight: 600; }
+.note p { margin: 0.35rem 0 0; }
 
 /* Section links. */
 .contents {

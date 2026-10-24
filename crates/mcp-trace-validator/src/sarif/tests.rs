@@ -227,15 +227,28 @@ fn an_unjudged_trace_is_a_failed_invocation_located_at_the_trace() {
     .unwrap();
     let invocation = &log["runs"][0]["invocations"][0];
     assert_eq!(invocation["executionSuccessful"], false);
+    // The judged trace's `ping` was never answered, which is a note before
+    // it; the unjudged trace is the error after it.
+    let notifications = invocation["toolExecutionNotifications"].as_array().unwrap();
+    assert_eq!(notifications.len(), 2, "{notifications:#?}");
+    assert_eq!(notifications[0]["level"], "note");
     assert_eq!(
-        invocation["toolExecutionNotifications"],
-        json!([{
+        notifications[0]["properties"]["kind"],
+        "unanswered-requests"
+    );
+    assert_eq!(
+        notifications[0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"],
+        "a.jsonl"
+    );
+    assert_eq!(
+        notifications[1],
+        json!({
             "level": "error",
             "message": { "text": "malformed trace: line 2" },
             "locations": [{
                 "physicalLocation": { "artifactLocation": { "uri": "traces/b%20c.jsonl" } }
             }],
-        }])
+        })
     );
     // The judged trace's results are all still there.
     assert_eq!(log["runs"][0]["results"], judged["runs"][0]["results"]);

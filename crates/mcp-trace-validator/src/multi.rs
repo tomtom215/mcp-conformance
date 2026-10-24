@@ -26,11 +26,10 @@ use mcp_conformance_core::trace::TraceEvent;
 use serde::{Deserialize, Serialize};
 
 use crate::engine;
-use crate::report::{
-    ClauseSource, Finding, HumanOptions, Outcome, Party, RequirementReport, Totals, Verdict,
-};
+use crate::report::{ClauseSource, Finding, HumanOptions, Outcome, Party, Totals, Verdict};
 
 mod party;
+mod rows;
 
 /// Error produced by a multi-revision run.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -164,6 +163,11 @@ pub struct MultiReport {
     /// from the findings held against that party.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub party_view: Option<Party>,
+    /// The requests the trace ended without answering
+    /// ([`Report::unanswered_requests`](crate::report::Report::unanswered_requests)):
+    /// a fact of the trace, the same under every revision, so carried once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unanswered_requests: Option<crate::report::UnansweredRequests>,
     /// Per-revision aggregate results, aligned by index with `revisions`.
     pub summaries: Vec<RevisionSummary>,
     /// Union of clauses across the judged revisions, in registry-union order. A clause is
@@ -244,6 +248,9 @@ impl MultiReport {
             for extension in &summary.extensions {
                 extension.write_human(&mut out, options, Some(&summary.revision), self.party_view);
             }
+        }
+        if let Some(unanswered) = &self.unanswered_requests {
+            unanswered.write_human(&mut out);
         }
         self.write_summaries(&mut out);
         match self.party_view {
@@ -342,7 +349,7 @@ impl MultiReport {
 impl Serialize for MultiReport {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct as _;
-        let mut report = serializer.serialize_struct("MultiReport", 7)?;
+        let mut report = serializer.serialize_struct("MultiReport", 8)?;
         report.serialize_field("revisions", &self.revisions)?;
         if let Some(mismatch) = &self.revision_mismatch {
             report.serialize_field("revision_mismatch", mismatch)?;
@@ -362,6 +369,11 @@ impl Serialize for MultiReport {
         report.serialize_field("verdict", &self.verdict())?;
         report.serialize_field("summaries", &self.summaries)?;
         report.serialize_field("requirements", &self.requirements)?;
+        if let Some(unanswered) = &self.unanswered_requests {
+            report.serialize_field("unanswered_requests", unanswered)?;
+        } else {
+            report.skip_field("unanswered_requests")?;
+        }
         report.end()
     }
 }
@@ -441,50 +453,17 @@ pub fn validate_revisions(
         reports.push(report);
     }
 
-    // The union, in registry-union order: walk the set's requirements once and keep each
-    // clause that exists at one or more judged revisions. A projected report contains
-    // exactly the clauses in force at its revision, so a clause's outcome there is "found
-    // in that report" and its absence is "not found" — applicability needs no second
-    // source of truth.
-    let indexes: Vec<std::collections::HashMap<&str, &RequirementReport>> = reports
-        .iter()
-        .map(|report| {
-            report
-                .requirements
-                .iter()
-                .map(|row| (row.id.as_str(), row))
-                .collect()
-        })
-        .collect();
-    let mut rows = Vec::new();
-    for requirement in set.requirements() {
-        let id = requirement.id.as_str();
-        let found: Vec<Option<&RequirementReport>> =
-            indexes.iter().map(|index| index.get(id).copied()).collect();
-        if found.iter().all(Option::is_none) {
-            continue;
-        }
-        rows.push(MultiRow {
-            id: id.to_owned(),
-            level: requirement.level.keyword().to_owned(),
-            actor: Some(requirement.actor),
-            outcomes: found.iter().map(|row| row.map(|row| row.outcome)).collect(),
-            findings: found
-                .iter()
-                .map(|row| row.map(|row| row.findings.clone()).unwrap_or_default())
-                .collect(),
-            sources: found
-                .iter()
-                .map(|row| row.and_then(|row| row.source.clone()))
-                .collect(),
-        });
-    }
+    let rows = rows::align(set, &reports);
 
     Ok(MultiReport {
         revisions: revisions.iter().map(ProtocolRevision::to_string).collect(),
         revision_mismatch: crate::declared::mismatch_any(revisions, events),
         revision_source: None,
         party_view: None,
+        // The same under every revision: it reads the events, not the registry.
+        unanswered_requests: reports
+            .first()
+            .and_then(|report| report.unanswered_requests.clone()),
         summaries,
         requirements: rows,
     })

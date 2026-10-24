@@ -122,6 +122,9 @@ impl Report {
         for extension in &self.extensions {
             extension.write_human(&mut out, options, None, view);
         }
+        if let Some(unanswered) = &self.unanswered_requests {
+            unanswered.write_human(&mut out);
+        }
         // Every outcome is named, so the counts sum to the registry's size — a
         // reader can check the arithmetic, and `Totals`' own exhaustive
         // destructuring is what keeps that true as outcomes are added.
@@ -356,6 +359,23 @@ impl WireSchemaReport {
         if self.outcome == Outcome::Fail {
             self.source.write_human(out);
             let _ = writeln!(out, "        schema: {}", self.schema);
+        }
+    }
+}
+
+impl super::UnansweredRequests {
+    /// The note, above the totals: what went unanswered and how the trace
+    /// ended, why it is a note and not a finding, then each listed request on
+    /// its own line and the count of the rest.
+    pub(crate) fn write_human(&self, out: &mut String) {
+        let _ = writeln!(out, "  NOTE  {}.", self.summary());
+        let _ = writeln!(out, "        {}", super::UNANSWERED_WHY);
+        for request in &self.requests {
+            let _ = writeln!(out, "        {}", printable(&request.describe()));
+        }
+        let rest = self.unlisted();
+        if rest > 0 {
+            let _ = writeln!(out, "        … and {rest} more");
         }
     }
 }

@@ -14,6 +14,7 @@
 //! | `excluded` / `unsupported` / `not-applicable` | `<skipped>` with the reason as its message |
 //! | an extension's clauses ([`Report::extensions`]) | a suite of their own per extension, named `… (revision, extension ID, not scored)`, whose `fail` and `warn` rows are passing test cases with the findings in `<system-out>` — an extension never fails a run (ADR-0023), so no `<failure>` is written for one, `--strict` or not |
 //! | a trace that could not be judged ([`render_run`]) | a suite of one test case with an `<error>` giving the reason |
+//! | the requests the trace ended without answering ([`Report::unanswered_requests`]) | a suite `<property>` named `unanswered-requests`, failing nothing |
 //! | who broke it | a `fail` or `warn` case carries `<properties>`: `actor`, the party the clause binds, and `party`, the parties its findings are held against; each finding's location names its party (`[check] at seq 3 (client)`) |
 //! | a party view ([`Report::party_view`]) | a `fail` or `warn` row whose every finding is the other party's is a passing case with the findings in `<system-out>`, headed `set aside`, and is not counted in `failures` — so the document agrees with the exit status the view gives |
 //!
@@ -226,6 +227,15 @@ fn render_suite(out: &mut String, options: &Options, report: &Report, counts: (u
         escape(suite),
         escape(&report.revision)
     );
+    // A note on the suite, where `JUnit` keeps what is not a test case: the
+    // requests the trace ended without answering, failing nothing.
+    if let Some(unanswered) = &report.unanswered_requests {
+        let _ = writeln!(
+            out,
+            r#"    <properties><property name="unanswered-requests" value="{}"/></properties>"#,
+            escape(&unanswered.one_line())
+        );
+    }
     for row in &report.requirements {
         render_row(out, report, row, options);
     }

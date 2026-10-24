@@ -132,6 +132,7 @@ fn validate_ordered(registry: &Registry, events: &[TraceEvent]) -> Report {
         totals,
         requirements: rows,
         wire_schema: crate::wire_schema::check(registry.revision(), &context),
+        unanswered_requests: crate::unanswered::find(&context),
         extensions: extension_reports(registry, &context),
     }
 }

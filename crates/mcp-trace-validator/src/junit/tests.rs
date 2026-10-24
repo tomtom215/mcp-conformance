@@ -164,6 +164,7 @@ fn every_skip_variant() -> Report {
             bare_row("AAAA-006", Outcome::NotObserved),
         ],
         wire_schema: None,
+        unanswered_requests: None,
         extensions: vec![],
     }
 }
