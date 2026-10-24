@@ -17,7 +17,7 @@ use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, Transpor
 
 use super::Proxy;
 use super::body::{self, End, Held, cut_at_stop, read_prefix, then_rest};
-use super::target::{has_dot_segment, is_event_stream, location, target};
+use super::target::{is_event_stream, is_refused_path, location, target};
 use crate::framing::{Parsed, SseParser, parse_message};
 use crate::headers;
 use crate::recorder::{NotRecorded, Recorder};
@@ -31,7 +31,10 @@ pub(super) async fn forward(
     request: Request,
 ) -> Response {
     let (parts, body) = request.into_parts();
-    if has_dot_segment(parts.uri.path()) {
+    if parts.method == axum::http::Method::CONNECT {
+        return proxy.refuse_connect();
+    }
+    if is_refused_path(parts.uri.path()) {
         return proxy.refuse_path();
     }
     // An event stream answering a GET is the standalone stream a client holds
@@ -350,14 +353,27 @@ impl Proxy {
     }
 
     /// A request whose path would leave the upstream's once the server resolves
-    /// its `.` or `..` segments: answered 400 by the proxy, never forwarded, so
+    /// its `.` or `..` segments, or is not UTF-8 once decoded
+    /// ([`is_refused_path`]): answered 400 by the proxy, never forwarded, so
     /// not recorded — no server saw it.
     fn refuse_path(&self) -> Response {
-        let message = "mcp-trace-capture: the request path has a `.` or `..` segment, which \
-                       would leave the upstream's path; refused, not forwarded";
+        let message = "mcp-trace-capture: the request path has a `.` or `..` segment (once \
+                       percent-decoded, any `;parameters` aside), which would leave the \
+                       upstream's path, or is not UTF-8 once decoded; refused, not forwarded";
         eprintln!("{message}");
         self.counters.refused_paths.fetch_add(1, Ordering::Relaxed);
         (StatusCode::BAD_REQUEST, message).into_response()
+    }
+
+    /// `CONNECT` asks a proxy for a tunnel to whatever host the request names;
+    /// a recording tap in front of one server opens none: answered 405 by the
+    /// proxy, never forwarded, so not recorded.
+    fn refuse_connect(&self) -> Response {
+        let message = "mcp-trace-capture: CONNECT asks for a tunnel, which this proxy does not \
+                       open; refused, not forwarded";
+        eprintln!("{message}");
+        self.counters.refused_connects.fetch_add(1, Ordering::Relaxed);
+        (StatusCode::METHOD_NOT_ALLOWED, message).into_response()
     }
 
     /// The upstream failed mid-response, after its status and headers were

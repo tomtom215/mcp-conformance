@@ -213,9 +213,14 @@ pub struct Unrecorded {
     pub not_2xx: u64,
     /// Of those, `404 Not Found`: usually a client pointed at the wrong path.
     pub not_found: u64,
-    /// Requests whose path had a `.` or `..` segment, which would leave the
-    /// upstream's path: answered 400 by the proxy, not forwarded, not recorded.
+    /// Requests whose path had a `.` or `..` segment (once percent-decoded,
+    /// any `;parameters` aside), which would leave the upstream's path, or
+    /// was not UTF-8 once decoded: answered 400 by the proxy, not forwarded,
+    /// not recorded.
     pub refused_paths: u64,
+    /// `CONNECT` requests, which ask for a tunnel the proxy does not open:
+    /// answered 405 by the proxy, not forwarded, not recorded.
+    pub refused_connects: u64,
 }
 
 #[derive(Debug, Default)]
@@ -230,6 +235,7 @@ struct Counters {
     not_2xx: AtomicU64,
     not_found: AtomicU64,
     refused_paths: AtomicU64,
+    refused_connects: AtomicU64,
 }
 
 impl Counters {
@@ -245,6 +251,7 @@ impl Counters {
             not_2xx: self.not_2xx.load(Ordering::Relaxed),
             not_found: self.not_found.load(Ordering::Relaxed),
             refused_paths: self.refused_paths.load(Ordering::Relaxed),
+            refused_connects: self.refused_connects.load(Ordering::Relaxed),
         }
     }
 }

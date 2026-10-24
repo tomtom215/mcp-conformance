@@ -106,9 +106,16 @@ fn http_gaps(unrecorded: &http::Unrecorded) -> Vec<String> {
     }
     if unrecorded.refused_paths > 0 {
         lines.push(format!(
-            "{} request(s) had a `.` or `..` path segment and were answered 400 by the \
-             proxy, not forwarded (not in the trace)",
+            "{} request(s) had a `.` or `..` path segment, or a path not UTF-8 once decoded, \
+             and were answered 400 by the proxy, not forwarded (not in the trace)",
             unrecorded.refused_paths
+        ));
+    }
+    if unrecorded.refused_connects > 0 {
+        lines.push(format!(
+            "{} CONNECT request(s) asked for a tunnel and were answered 405 by the proxy, not \
+             forwarded (not in the trace)",
+            unrecorded.refused_connects
         ));
     }
     lines
@@ -256,7 +263,14 @@ mod tests {
                     refused_paths: 2,
                     ..none
                 },
-                "2 request(s) had a `.` or `..` path segment",
+                "2 request(s) had a `.` or `..` path segment, or a path not UTF-8",
+            ),
+            (
+                http::Unrecorded {
+                    refused_connects: 2,
+                    ..none
+                },
+                "2 CONNECT request(s) asked for a tunnel and were answered 405",
             ),
         ] {
             let lines = http_gaps(&unrecorded);

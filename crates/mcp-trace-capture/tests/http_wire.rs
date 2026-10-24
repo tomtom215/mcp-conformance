@@ -242,6 +242,14 @@ async fn dot_segments_are_refused_not_forwarded() {
             "/a/%2e%2E/b",
             "/%2e",
             "/a/.%2e",
+            // A `;parameters` suffix some servers strip before resolving, an
+            // overlong encoding of `..` some decoders accept, and a path that
+            // is not UTF-8 once decoded: each reached the upstream as sent.
+            "/..;/secret",
+            "/a/.;v=1/b",
+            "/%2e%2e;x/secret",
+            "/%c0%ae%c0%ae/secret",
+            "/a%ff/b",
         ] {
             let request =
                 format!("GET {path} HTTP/1.1\r\nhost: proxy\r\nconnection: close\r\n\r\n");
@@ -249,26 +257,66 @@ async fn dot_segments_are_refused_not_forwarded() {
             assert!(response.starts_with("http/1.1 400"), "{path}: {response}");
         }
         assert!(requests.try_recv().is_err(), "nothing was forwarded");
-        let response = exchange(
-            address,
-            b"GET /a/..b/.c/x..y HTTP/1.1\r\nhost: proxy\r\nconnection: close\r\n\r\n",
-        )
-        .await;
-        assert!(response.starts_with("http/1.1 200"), "{response}");
-        let forwarded = requests.recv().await.unwrap();
-        assert!(
-            forwarded.starts_with("GET /mcp/a/..b/.c/x..y HTTP/1.1"),
-            "{forwarded}"
-        );
-        stop().await.unwrap().unwrap();
-        // The refused requests reached no server, so the trace has only the one
-        // that did.
+        // Dots inside a name, an encoded space, a parameter on a name, a
+        // query: all paths a server may well serve, forwarded as sent.
+        for (path, upstream_path) in [
+            ("/a/..b/.c/x..y", "/mcp/a/..b/.c/x..y"),
+            ("/a%20b", "/mcp/a%20b"),
+            ("/mcp;v=1", "/mcp/mcp;v=1"),
+            ("/mcp/", "/mcp/mcp/"),
+            ("/?x=1", "/mcp?x=1"),
+            ("/%e2%9c%93", "/mcp/%e2%9c%93"),
+        ] {
+            let request =
+                format!("GET {path} HTTP/1.1\r\nhost: proxy\r\nconnection: close\r\n\r\n");
+            let response = exchange(address, request.as_bytes()).await;
+            assert!(response.starts_with("http/1.1 200"), "{path}: {response}");
+            let forwarded = requests.recv().await.unwrap();
+            assert!(
+                forwarded.starts_with(&format!("GET {upstream_path} HTTP/1.1")),
+                "{path}: {forwarded}"
+            );
+        }
+        let unrecorded = stop().await.unwrap().unwrap();
+        assert_eq!(unrecorded.refused_paths, 11, "{unrecorded:?}");
+        // The refused requests reached no server, so the trace has only the
+        // ones that did.
         let methods = sink
             .events()
             .iter()
             .filter(|event| event["method"] == "GET")
             .count();
-        assert_eq!(methods, 1);
+        assert_eq!(methods, 6);
+    })
+    .await;
+}
+
+/// `CONNECT` asks a proxy to open a tunnel to whatever host the request names,
+/// which a recording tap in front of one server is not: it is refused with a
+/// `405`, never forwarded, and so not recorded.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn connect_is_refused_not_forwarded() {
+    bounded(async {
+        let (upstream, mut requests) =
+            upstream(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\nconnection: close\r\n\r\n".to_vec())
+                .await;
+        let (address, sink, stop) = proxy(format!("http://{upstream}/mcp"), 1024).await;
+        let response = exchange(
+            address,
+            b"CONNECT example.com:443 HTTP/1.1\r\nhost: example.com:443\r\nconnection: close\r\n\r\n",
+        )
+        .await;
+        assert!(response.starts_with("http/1.1 405"), "{response}");
+        assert!(requests.try_recv().is_err(), "nothing was forwarded");
+        let unrecorded = stop().await.unwrap().unwrap();
+        assert_eq!(unrecorded.refused_connects, 1, "{unrecorded:?}");
+        assert_eq!(unrecorded.refused_paths, 0, "{unrecorded:?}");
+        // Nothing but the close the proxy ends every trace with.
+        let events = sink.events();
+        assert!(
+            events.iter().all(|event| event["kind"] == "lifecycle"),
+            "{events:?}"
+        );
     })
     .await;
 }
