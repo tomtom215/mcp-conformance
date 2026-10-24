@@ -22,12 +22,16 @@ use serde_json::{Map, Value};
 pub(crate) const REDACTED: &str = "[redacted]";
 
 /// The headers redacted unless the request names others: the ones that
-/// carry credentials.
-pub(crate) const DEFAULT_HEADERS: [&str; 4] = [
+/// carry credentials, and the session id, which is one for the session —
+/// whoever presents it to the server is that session. Every occurrence
+/// becomes the same [`REDACTED`], so a check that the client echoed the id
+/// the server assigned still holds on the copy.
+pub(crate) const DEFAULT_HEADERS: [&str; 5] = [
     "authorization",
     "cookie",
     "set-cookie",
     "proxy-authorization",
+    "mcp-session-id",
 ];
 
 /// What to replace.
