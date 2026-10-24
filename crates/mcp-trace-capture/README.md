@@ -370,9 +370,23 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   flight, not `--max-message-bytes` for each of them. A body or event that arrives
   while the budget is spent is not held up: it is streamed on as one over the limit
   is, left out of the trace, and counted in the summary. Ordinary MCP traffic, whose
-  messages are small, never comes near it. (Writing a message to the trace takes
-  about twice its size again for a moment, for its parsed value and its line; that
-  is outside the budget.)
+  messages are small, never comes near it.
+- **Writing a message costs far more than its size, for a moment.** Outside the
+  budget, recording a message holds its parsed value — 32 bytes per array element
+  or object member, however short their text — and its written line, beside the
+  bytes being relayed. Measured as the process's peak resident set (`VmHWM`) for
+  one 16 MiB message, release build, loopback: a message that is mostly one string
+  peaks at 69 MiB (×4.3 its size); an array of one-digit numbers at 293 MiB
+  (×18) through the proxy and 308 MiB through the stdio wrapper; an object of
+  short members at 210 MiB through the proxy (×13) and 400 MiB through the stdio
+  wrapper (×25 — the wrapper parses the two directions on two threads, whose
+  allocator arenas do not hand each other their freed memory). So at the default
+  `--max-message-bytes` of 64 MiB, one message can cost more than 1 GiB for a
+  moment. Where the client or the server is not trusted and memory is, lower
+  `--max-message-bytes`: a larger message is forwarded intact and left out of the
+  trace, and `mcp-trace-validator` reads such a trace with its defaults. The
+  figures come from `tools/measure-memory.py` in this crate's directory (Linux),
+  which says how it measures.
 - **An SSE event's data, and nothing else.** Only the `data` of events of type
   `message` is recorded; `id` and `retry` fields are forwarded but not recorded, so a
   trace does not show which event a client could resume from (the `Last-Event-ID`

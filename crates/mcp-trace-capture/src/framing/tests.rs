@@ -248,6 +248,84 @@ fn a_message_is_json_json_the_trace_would_alter_or_not_json() {
     assert_eq!(parse_message(b" "), Parsed::NotJson);
 }
 
+/// `parse_message` as it was before the faithfulness scan was moved ahead
+/// of the parse: the parse first, the scan only on what parsed.
+fn parse_message_value_first(bytes: &[u8]) -> Parsed {
+    match parse_json(bytes) {
+        Some(value) if faithful::is_faithful(bytes) => Parsed::Json(value),
+        Some(_) => Parsed::Altered,
+        None => Parsed::NotJson,
+    }
+}
+
+/// The scan runs on bytes that may not be JSON at all, so it must neither
+/// panic on them nor change what any message is recorded as: every input —
+/// JSON of each kind, near-JSON, fragments cut anywhere, and bytes drawn from
+/// a fixed generator — classifies as it did with the parse first.
+#[test]
+fn scanning_before_parsing_changes_no_classification() {
+    let samples: Vec<Vec<u8>> = [
+        &b""[..],
+        b" ",
+        b"{}",
+        b"[]",
+        b"\"\"",
+        b"1",
+        b"-",
+        b"1e",
+        b"\"",
+        b"\"\\",
+        b"{\"a\":",
+        b"{\"a\":1,\"a\":2}",
+        b"{\"id\":123456789012345678901234567890}",
+        b"[1e400]",
+        b"{\"a\":{\"b\":[1,{\"c\":\"\\\"d\"}]}}",
+        b"{\"\\ud800\":1}",
+        b"{\"a\":1}x",
+        b"not json {\"a\":1,\"a\":2}",
+        b"\xff\xfe{\"a\":1}",
+        b"{\"\xff\":1}",
+        b"[[[[[[[[[[1]]]]]]]]]]",
+        b"{\"k\":\"v\",\"k\":\"v\"}",
+        b"{\"k\":\"v\"},{\"k\":\"v\"}",
+        b"\"a\"\"b\"",
+        b"-0.0e-0",
+        b"\"unterminated",
+    ]
+    .iter()
+    .map(|sample| sample.to_vec())
+    .collect();
+    let mut inputs = samples.clone();
+    for sample in &samples {
+        for cut in 0..sample.len() {
+            inputs.push(sample[..cut].to_vec());
+            inputs.push(sample[cut..].to_vec());
+        }
+    }
+    // Bytes from a fixed generator, over the characters JSON is made of.
+    let alphabet = b"{}[]\":,.-+eE0123456789abn \\\xff";
+    let mut state: u64 = 0x2545_f491_4f6c_dd1d;
+    for length in 0..64 {
+        let mut bytes = Vec::with_capacity(length);
+        for _ in 0..length {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            let index = usize::try_from(state % alphabet.len() as u64).unwrap();
+            bytes.push(alphabet[index]);
+        }
+        inputs.push(bytes);
+    }
+    for input in &inputs {
+        assert_eq!(
+            parse_message(input),
+            parse_message_value_first(input),
+            "{}",
+            String::from_utf8_lossy(input)
+        );
+    }
+}
+
 /// What the parser holds is what the proxy's buffer budget pays for; an event
 /// the budget cannot cover is dropped, mid-line or between lines, and the
 /// parser picks up cleanly at the next event.

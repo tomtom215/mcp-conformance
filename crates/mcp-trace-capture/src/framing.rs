@@ -133,15 +133,25 @@ pub enum Parsed {
     NotJson,
 }
 
-/// Parses a message for recording: [`parse_json`], then whether the value it
+/// Parses a message for recording: [`parse_json`], and whether the value it
 /// gives is faithful to the bytes.
+///
+/// The faithfulness scan runs first, so what it holds — the member names of
+/// each open object — is gone before the parsed value exists: held together,
+/// the two were the peak of recording a large object (measured at 16 MiB of
+/// short members: 302 MiB with the value first, 190 MiB this way). The scan
+/// takes any bytes; a line that is not JSON is classified by the parse as
+/// before, and the outcome is the same for every input.
 #[must_use]
 pub fn parse_message(bytes: &[u8]) -> Parsed {
-    match parse_json(bytes) {
-        Some(value) if faithful::is_faithful(bytes) => Parsed::Json(value),
-        Some(_) => Parsed::Altered,
-        None => Parsed::NotJson,
+    if !faithful::is_faithful(bytes) {
+        return if parse_json(bytes).is_some() {
+            Parsed::Altered
+        } else {
+            Parsed::NotJson
+        };
     }
+    parse_json(bytes).map_or(Parsed::NotJson, Parsed::Json)
 }
 
 /// An incremental Server-Sent Events parser (WHATWG HTML §9.2.6).
