@@ -1,0 +1,130 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "CANC-018",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/cancellation#behavior-requirements",
+        "quote": "Cancellation notifications MUST only reference requests that: Were previously issued in the same direction; Are believed to still be in-progress"
+      },
+      "checks": [
+        "cancellation.references-issued-request"
+      ]
+    },
+    {
+      "id": "CANC-019",
+      "level": "MUST NOT",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/cancellation#behavior-requirements",
+        "quote": "The `initialize` request MUST NOT be cancelled by clients"
+      },
+      "checks": [
+        "cancellation.initialize-not-cancelled"
+      ]
+    },
+    {
+      "id": "CANC-020",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/cancellation#behavior-requirements",
+        "quote": "For task-augmented requests, the `tasks/cancel` request MUST be used instead of the `notifications/cancelled` notification."
+      },
+      "checks": [
+        "cancellation.task-cancelled-by-request"
+      ]
+    },
+    {
+      "id": "CANC-021",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/cancellation#behavior-requirements",
+        "quote": "Receivers of cancellation notifications SHOULD: Stop processing the cancelled request; Free associated resources; Not send a response for the cancelled request"
+      },
+      "checks": [
+        "cancellation.no-response-after-cancellation"
+      ]
+    },
+    {
+      "id": "CANC-022",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/cancellation#behavior-requirements",
+        "quote": "The sender of the cancellation notification SHOULD ignore any response to the request that arrives afterward"
+      },
+      "exclusion": "Ignoring a response is the absence of a reaction inside the sender. A recording would have to carry a message the sender sends because it acted on the late response, and the protocol defines none: nothing a party does with a response it received reaches the wire."
+    },
+    {
+      "id": "CANC-023",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/cancellation#timing-considerations",
+        "quote": "Both parties MUST handle these race conditions gracefully:"
+      },
+      "exclusion": "Graceful handling is internal; the race itself is what a recording shows, and the checks are built not to convict it — `cancellation.no-response-after-cancellation` reports an answer to a cancelled request only once the receiver has demonstrably read the cancellation, and the conforming `stdio-cancellation` trace pins the answer that crosses one. A recording would have to carry a message the specification defines as ungraceful handling, and it defines none; a party that failed to handle the race would show it through some other clause's violation, judged there."
+    },
+    {
+      "id": "CANC-024",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/cancellation#implementation-notes",
+        "quote": "Both parties SHOULD log cancellation reasons for debugging"
+      },
+      "exclusion": "Logging is local diagnostics with no wire footprint: nothing an implementation writes to its own log is a protocol message, so no recording contains it."
+    },
+    {
+      "id": "CANC-025",
+      "level": "SHOULD",
+      "actor": "client",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/cancellation#implementation-notes",
+        "quote": "Application UIs SHOULD indicate when cancellation is requested"
+      },
+      "exclusion": "User-interface presentation, out by strategy rule 2: what an application shows its user is not a protocol message, so no recording carries it."
+    },
+    {
+      "id": "CANC-026",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/cancellation#error-handling",
+        "quote": "Invalid cancellation notifications SHOULD be ignored: Unknown request IDs; Already completed requests; Malformed notifications"
+      },
+      "exclusion": "Ignoring a notification is the absence of a reaction, which a trace cannot tell apart from the notification never mattering: a recording would have to carry a message the receiver sends because it did not ignore the notification, and the protocol defines none (answering a notification is forbidden anyway, BASE-011). The party that sent the invalid notification is judged instead, where it can be: CANC-018 for a cancellation naming a request its sender never issued in the session, CANC-019 for one naming `initialize`."
+    }
+  ]
+}

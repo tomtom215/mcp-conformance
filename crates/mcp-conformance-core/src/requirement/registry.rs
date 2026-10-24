@@ -17,13 +17,17 @@ use super::{Requirement, Verification};
 use crate::revision::{ProtocolRevision, REVISION_2025_11_25};
 
 /// The embedded per-area registry documents for protocol revision `2025-11-25`, in
-/// report order: base protocol, lifecycle, transports, the capability-gated server
-/// feature areas, the client-feature pages, then authorization.
+/// report order: base protocol, lifecycle, transports, the basic utilities (ping,
+/// progress, cancellation), the capability-gated server feature areas, the
+/// client-feature pages, then authorization.
 const AREAS_2025_11_25: &[&str] = &[
     include_str!("../../registry/2025-11-25/base.json"),
     include_str!("../../registry/2025-11-25/lifecycle.json"),
     include_str!("../../registry/2025-11-25/transport.json"),
     include_str!("../../registry/2025-11-25/transport-streamable-http.json"),
+    include_str!("../../registry/2025-11-25/ping.json"),
+    include_str!("../../registry/2025-11-25/progress.json"),
+    include_str!("../../registry/2025-11-25/cancellation.json"),
     include_str!("../../registry/2025-11-25/tools.json"),
     include_str!("../../registry/2025-11-25/resources.json"),
     include_str!("../../registry/2025-11-25/prompts.json"),
