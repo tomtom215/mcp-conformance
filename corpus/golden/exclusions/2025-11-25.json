@@ -374,6 +374,76 @@
       "exclusion": "Binds a transport's documentation, not its messages: the artefact the clause asks for is a document, and no session can be evidence about whether one exists. Custom transports are outside the capture universe besides (TRAN-023)."
     },
     {
+      "id": "PING-002",
+      "level": "SHOULD",
+      "exclusion": "\"Periodically\" is a rate over wall-clock time, and checks may not consult time — the limit LIFE-015 records. A recording would have to show the interval between pings against the length of the session, and it carries neither: a session with no ping and one with few are both what a conforming implementation produces over a short enough connection."
+    },
+    {
+      "id": "PING-003",
+      "level": "SHOULD",
+      "exclusion": "Binds the implementation's configuration surface — what its operator can set — which has no protocol representation (LIFE-019's boundary). A recording shows the pings one configuration produced, never whether another was available."
+    },
+    {
+      "id": "PING-004",
+      "level": "SHOULD",
+      "exclusion": "A timeout is a duration held inside the sender, and checks may not consult time (LIFE-015). A recording would have to carry the deadline the sender held a ping to and the network it was chosen for; it shows a ping answered or not, and nothing of either."
+    },
+    {
+      "id": "PING-005",
+      "level": "SHOULD",
+      "exclusion": "\"Excessive\" is a rate — pings per unit of time — and checks may not consult time (LIFE-015). No count of pings alone separates a flood from a long session checking its connection, the same limit PROG-018 records for rate limiting."
+    },
+    {
+      "id": "PING-006",
+      "level": "SHOULD",
+      "exclusion": "The antecedent, a ping timing out, is the sender's own deadline expiring, which no message records and checks may not compute from timestamps (LIFE-015). The consequence, treating the connection as failed, is at most a `transport-close` lifecycle event, which says that a transport ended and not why; a recording cannot tell a connection dropped for a timeout from one closed at the end of a session."
+    },
+    {
+      "id": "PING-007",
+      "level": "SHOULD",
+      "exclusion": "Logging is local diagnostics with no wire footprint (CANC-024's boundary): nothing an implementation writes to its own log is a protocol message, so no recording contains it."
+    },
+    {
+      "id": "PROG-012",
+      "level": "SHOULD",
+      "exclusion": "Whether a message is relevant and human readable is a judgment about its meaning, not its shape; any string satisfies the schema, and no mechanical reading of one decides relevance. The same sentence is PROG-004 at 2026-07-28, excluded for the same reason."
+    },
+    {
+      "id": "PROG-017",
+      "level": "SHOULD",
+      "exclusion": "Tracking is bookkeeping inside each party, and a recording carries no message that shows a token being tracked or forgotten. Its wire consequences are the MUST rows beside it, which are judged: a token reused while its request is active (PROG-010), a token no request provided and progress for a finished request (PROG-013, PROG-016, PROG-019)."
+    },
+    {
+      "id": "PROG-018",
+      "level": "SHOULD",
+      "exclusion": "A rate is messages per unit of time, and checks may not consult time — the limit LIFE-015 records. No count of notifications alone separates a flood from a long operation reporting often."
+    },
+    {
+      "id": "CANC-022",
+      "level": "SHOULD",
+      "exclusion": "Ignoring a response is the absence of a reaction inside the sender. A recording would have to carry a message the sender sends because it acted on the late response, and the protocol defines none: nothing a party does with a response it received reaches the wire."
+    },
+    {
+      "id": "CANC-023",
+      "level": "MUST",
+      "exclusion": "Graceful handling is internal; the race itself is what a recording shows, and the checks are built not to convict it — `cancellation.no-response-after-cancellation` reports an answer to a cancelled request only once the receiver has demonstrably read the cancellation, and the conforming `stdio-cancellation` trace pins the answer that crosses one. A recording would have to carry a message the specification defines as ungraceful handling, and it defines none; a party that failed to handle the race would show it through some other clause's violation, judged there."
+    },
+    {
+      "id": "CANC-024",
+      "level": "SHOULD",
+      "exclusion": "Logging is local diagnostics with no wire footprint: nothing an implementation writes to its own log is a protocol message, so no recording contains it."
+    },
+    {
+      "id": "CANC-025",
+      "level": "SHOULD",
+      "exclusion": "User-interface presentation, out by strategy rule 2: what an application shows its user is not a protocol message, so no recording carries it."
+    },
+    {
+      "id": "CANC-026",
+      "level": "SHOULD",
+      "exclusion": "Ignoring a notification is the absence of a reaction, which a trace cannot tell apart from the notification never mattering: a recording would have to carry a message the receiver sends because it did not ignore the notification, and the protocol defines none (answering a notification is forbidden anyway, BASE-011). The party that sent the invalid notification is judged instead, where it can be: CANC-018 for a cancellation naming a request its sender never issued in the session, CANC-019 for one naming `initialize`."
+    },
+    {
       "id": "TOOL-002",
       "level": "SHOULD",
       "actor": "server",

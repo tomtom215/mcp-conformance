@@ -1,14 +1,14 @@
 {
   "revision": "2025-11-25",
-  "verdict": "pass-with-warnings",
+  "verdict": "fail",
   "totals": {
     "pass": 26,
-    "fail": 0,
+    "fail": 1,
     "warn": 1,
-    "excluded": 232,
+    "excluded": 246,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 48
+    "not_observed": 60
   },
   "requirements": [
     {
@@ -251,6 +251,83 @@
       "level": "MUST",
       "actor": "client",
       "outcome": "pass"
+    },
+    {
+      "id": "PING-001",
+      "level": "MUST",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "ping.empty-result",
+          "seq": 10,
+          "detail": "`ping` (seq 8) was answered with an error (-32600); the receiver must respond with an empty result"
+        }
+      ],
+      "source": {
+        "section": "basic/utilities/ping#behavior-requirements",
+        "quote": "The receiver MUST respond promptly with an empty response:",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/ping#behavior-requirements"
+      }
+    },
+    {
+      "id": "PROG-009",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-010",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-011",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-013",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-014",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-015",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-016",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-019",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-018",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-019",
+      "level": "MUST NOT",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-020",
+      "level": "MUST",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-021",
+      "level": "SHOULD",
+      "outcome": "not-observed"
     },
     {
       "id": "TOOL-001",
