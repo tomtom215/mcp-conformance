@@ -457,3 +457,5 @@ impl Span {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_bounds;
