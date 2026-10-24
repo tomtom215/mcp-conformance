@@ -103,10 +103,10 @@ const FALSIFIERS: &[Falsifier] = &[
         runner: Runner::Xtask,
         file: ".github/workflows/ci.yml",
         edit: Edit::Replace(
-            "rust: [\"1.99.0\", \"1.88\"]",
             "rust: [\"1.99.1\", \"1.88\"]",
+            "rust: [\"1.99.0\", \"1.88\"]",
         ),
-        expect: "1.99.1",
+        expect: "1.99.0",
     },
     Falsifier {
         gate: "page-set",
