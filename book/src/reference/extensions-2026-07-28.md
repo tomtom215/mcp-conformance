@@ -4,7 +4,7 @@
 
 # Extensions — `2026-07-28`
 
-The clauses of the official extensions attached to `2026-07-28` — 148 in all, 59 judged from a recorded trace and 89 excluded with the reason below. An extension is optional by definition, so its clauses never change a report's verdict or exit status: a report lists them under `extensions`, each extension with a verdict of its own, the way the official suite runs an extension's scenarios under `not_scored: extension` ([ADR-0023](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0023-extensions-are-reported-never-scored.md)). Each entry quotes the extension's own specification and links to where its repository publishes it.
+The clauses of the official extensions attached to `2026-07-28` — 149 in all, 60 judged from a recorded trace and 89 excluded with the reason below. An extension is optional by definition, so its clauses never change a report's verdict or exit status: a report lists them under `extensions`, each extension with a verdict of its own, the way the official suite runs an extension's scenarios under `not_scored: extension` ([ADR-0023](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0023-extensions-are-reported-never-scored.md)). Each entry quotes the extension's own specification and links to where its repository publishes it.
 
 ## `io.modelcontextprotocol/tasks`
 
@@ -504,7 +504,7 @@ Judged by `tasks.completed-carries-result`.
 
 **MUST** · binds the client
 
-> For brevity, request examples omit `_meta`. Every request MUST include the required request metadata.
+> Every request MUST include the required request metadata in `params._meta`.
 
 [`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
 
@@ -1159,6 +1159,16 @@ Judged by `skills.directory-result-complete`.
 [`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
 
 Judged by `skills.directory-read-invalid-params`.
+
+### SKILL-100
+
+**MUST** · binds the server
+
+> `ReadResourceDirectoryResult` extends `CacheableResult`, so `ttlMs` and `cacheScope` are REQUIRED, as they are on `resources/list`, and carry the same semantics.
+
+[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+
+Judged by `skills.directory-cacheable`.
 
 ### SKILL-067
 

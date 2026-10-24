@@ -188,6 +188,22 @@
       ]
     },
     {
+      "id": "SKILL-100",
+      "level": "MUST",
+      "actor": "server",
+      "applies": {
+        "introduced": "2026-07-28"
+      },
+      "extension": "io.modelcontextprotocol/skills",
+      "source": {
+        "section": "specification/stable/skills.mdx",
+        "quote": "`ReadResourceDirectoryResult` extends `CacheableResult`, so `ttlMs` and `cacheScope` are REQUIRED, as they are on `resources/list`, and carry the same semantics."
+      },
+      "checks": [
+        "skills.directory-cacheable"
+      ]
+    },
+    {
       "id": "SKILL-067",
       "level": "MUST",
       "actor": "server",

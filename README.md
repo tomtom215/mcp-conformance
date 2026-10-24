@@ -270,10 +270,10 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | Extension | Requirements | Checked | Excluded |
 |-----------|-------------:|--------:|---------:|
 | `io.modelcontextprotocol/tasks` | 49 | 25 | 24 |
-| `io.modelcontextprotocol/skills` | 99 | 34 | 65 |
-| **Total** | **148** | **59** | **89** |
+| `io.modelcontextprotocol/skills` | 100 | 35 | 65 |
+| **Total** | **149** | **60** | **89** |
 
-148 extension requirements: 59 judged by 49 distinct trace checks, 89 carrying a documented exclusion. A report lists an extension's outcomes under its `extensions`, with a verdict of its own that the report's verdict and exit status never read.
+149 extension requirements: 60 judged by 50 distinct trace checks, 89 carrying a documented exclusion. A report lists an extension's outcomes under its `extensions`, with a verdict of its own that the report's verdict and exit status never read.
 
 **`2025-11-25`**
 

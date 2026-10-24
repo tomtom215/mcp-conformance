@@ -269,7 +269,7 @@ fn builtin_extension_clauses_stay_apart_from_the_core() {
         per_extension,
         [
             ("io.modelcontextprotocol/tasks", 49),
-            ("io.modelcontextprotocol/skills", 99)
+            ("io.modelcontextprotocol/skills", 100)
         ]
     );
     assert!(

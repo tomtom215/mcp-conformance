@@ -49,7 +49,7 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 104 | 234 |
+| Goldens | 104 | 235 |
 | Excluded rows the ledger holds | 232 | 320 |
 | Distinct not-observed sets across them | 67 | 149 |
 
@@ -974,7 +974,7 @@ the extension block.
 | `task-042-failed-without-error.jsonl` | TASK-042: a `failed` task without `error`. TASK-015 (its fifth item) and TASK-045 state the same rule |
 | `task-043-tool-error-reported-failed.jsonl` | TASK-043: a tool result with `isError: true` carried by a `failed` task. TASK-008 and TASK-044 state the same rule |
 | `task-046-completed-without-result.jsonl` | TASK-046: a `completed` task without `result`. TASK-015 (its third item) and TASK-044 state the same rule |
-| `skills-session.jsonl` | Conformant skills session over **stdio**: `server/discover` declaring the extension with `directoryRead: true` and the `resources` capability; a two-page `skills/list` (`pdf-processing` with a manifest of its `SKILL.md` and `templates/invoice.md`, then the nested-prefix `acme/billing/refunds` as `"dynamic"`); `skills/get` of the second, and of an unknown skill refused `-32602`; `resources/list` describing the `SKILL.md` as `text/markdown` with its frontmatter's name and description; `resources/read` of the `SKILL.md`, whose SHA-256 is the manifest's digest and whose frontmatter is the entry's; `resources/directory/read` of the skill root and of `templates/`, and of the `SKILL.md` itself refused `-32602`. The pass path of every skills check |
+| `skills-session.jsonl` | Conformant skills session over **stdio**: `server/discover` declaring the extension with `directoryRead: true` and the `resources` capability; a two-page `skills/list` (`pdf-processing` with a manifest of its `SKILL.md` and `templates/invoice.md`, then the nested-prefix `acme/billing/refunds` as `"dynamic"`); `skills/get` of the second, and of an unknown skill refused `-32602`; `resources/list` describing the `SKILL.md` as `text/markdown` with its frontmatter's name and description; `resources/read` of the `SKILL.md`, whose SHA-256 is the manifest's digest and whose frontmatter is the entry's; `resources/directory/read` of the skill root and of `templates/`, each listing carrying its `ttlMs` and `cacheScope`, and of the `SKILL.md` itself refused `-32602`. The pass path of every skills check |
 | `skill-003-directory-read-not-implemented.jsonl` | SKILL-003: `directoryRead: true` declared, `resources/directory/read` answered `-32601` |
 | `skill-004-directory-read-undeclared.jsonl` | SKILL-004: the client calls `resources/directory/read` on a server that declared no `directoryRead` |
 | `skill-005-skills-without-resources.jsonl` | SKILL-005: the extension declared without the `resources` capability |
@@ -1006,3 +1006,4 @@ the extension block.
 | `skill-065-directory-result-type-not-complete.jsonl` | SKILL-065: a `resources/directory/read` result marked `resultType: "partial"` |
 | `skill-066-directory-read-of-a-file-answered.jsonl` | SKILL-066: `resources/directory/read` of a file the manifest lists, answered with an empty listing. SKILL-071 shares the check |
 | `skill-067-skill-directory-refused.jsonl` | SKILL-067: `resources/directory/read` of `templates/`, a directory the manifest puts a file under, refused |
+| `skill-100-directory-result-without-cache-fields.jsonl` | SKILL-100: a `resources/directory/read` result without `ttlMs` and `cacheScope` |

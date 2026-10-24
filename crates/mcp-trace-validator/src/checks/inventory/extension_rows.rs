@@ -152,6 +152,7 @@ pub(super) const ROWS: &[Check] = &[
         "skills.directory-result-complete",
         skills::directory_result_complete
     ),
+    check!("skills.directory-cacheable", skills::directory_cacheable),
     check!(
         "skills.directory-read-invalid-params",
         skills::directory_read_invalid_params

@@ -932,7 +932,7 @@
       "extension": "io.modelcontextprotocol/skills",
       "verdict": "pass",
       "totals": {
-        "pass": 34,
+        "pass": 35,
         "fail": 0,
         "warn": 0,
         "excluded": 65,
@@ -1098,6 +1098,11 @@
         },
         {
           "id": "SKILL-066",
+          "level": "MUST",
+          "outcome": "pass"
+        },
+        {
+          "id": "SKILL-100",
           "level": "MUST",
           "outcome": "pass"
         },

@@ -20,6 +20,7 @@ use mcp_conformance_core::trace::Direction;
 use serde_json::Value;
 
 use super::super::FindingSink;
+use super::super::stateless::caching;
 use super::error_code;
 use crate::context::{Exchange, TraceContext};
 
@@ -236,6 +237,47 @@ pub(in crate::checks) fn get_cacheable(context: &TraceContext<'_>, sink: &mut Fi
     cacheable(context, sink, "skills/get");
 }
 
+/// `SKILL-100`: `resources/directory/read` results carry `ttlMs` and `cacheScope`.
+///
+/// The clause requires them "as they are on `resources/list`", so they are
+/// judged as `CACH-001` judges that method's: on a `complete` result that no
+/// retry produced. A result of another shape is not cacheable and carries no
+/// hints (the base caching page, of `input_required` results), and `SKILL-065`
+/// reports that it is not the directory read's result shape; a retry's result —
+/// a request carrying `inputResponses` or `requestState` — must not be cached
+/// (`CACH-003`), so a hint on it would bind nobody. An error answer, the page's
+/// own for a non-directory, has no result and is no subject.
+///
+/// "The same semantics" includes the values: `cacheScope` is `"public"` or
+/// `"private"`, which nothing else reads on this method — the wire schema
+/// defines no `resources/directory/read` result. `ttlMs`'s type and sign are
+/// `CACH-008`'s, judged on every server result.
+pub(in crate::checks) fn directory_cacheable(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    for exchange in context.exchanges_for(DIRECTORY_READ) {
+        let Some(result) = exchange.result else {
+            continue;
+        };
+        if result.get("resultType").and_then(Value::as_str) != Some("complete")
+            || caching::produced_by_retry(exchange.params)
+        {
+            continue;
+        }
+        sink.examined();
+        missing_hints(sink, exchange.response.seq, DIRECTORY_READ, result);
+        if let Some(scope) = result.get("cacheScope")
+            && !matches!(scope.as_str(), Some("public" | "private"))
+        {
+            sink.push(
+                Some(exchange.response.seq),
+                format!(
+                    "the `{DIRECTORY_READ}` result's `cacheScope` is {scope}, neither \"public\" \
+                     nor \"private\""
+                ),
+            );
+        }
+    }
+}
+
 fn cacheable(context: &TraceContext<'_>, sink: &mut FindingSink, method: &str) {
     for exchange in context
         .exchanges()
@@ -245,23 +287,28 @@ fn cacheable(context: &TraceContext<'_>, sink: &mut FindingSink, method: &str) {
             continue;
         };
         sink.examined();
-        let missing: Vec<&str> = ["ttlMs", "cacheScope"]
-            .into_iter()
-            .filter(|key| result.get(key).is_none())
-            .collect();
-        if !missing.is_empty() {
-            sink.push(
-                Some(exchange.response.seq),
-                format!(
-                    "the `{method}` result lacks {}, which a cacheable result requires",
-                    missing
-                        .iter()
-                        .map(|key| format!("`{key}`"))
-                        .collect::<Vec<_>>()
-                        .join(" and ")
-                ),
-            );
-        }
+        missing_hints(sink, exchange.response.seq, method, result);
+    }
+}
+
+/// One finding naming each caching hint `result` lacks, when it lacks any.
+fn missing_hints(sink: &mut FindingSink, seq: u64, method: &str, result: &Value) {
+    let missing: Vec<&str> = ["ttlMs", "cacheScope"]
+        .into_iter()
+        .filter(|key| result.get(key).is_none())
+        .collect();
+    if !missing.is_empty() {
+        sink.push(
+            Some(seq),
+            format!(
+                "the `{method}` result lacks {}, which a cacheable result requires",
+                missing
+                    .iter()
+                    .map(|key| format!("`{key}`"))
+                    .collect::<Vec<_>>()
+                    .join(" and ")
+            ),
+        );
     }
 }
 

@@ -938,7 +938,7 @@
         "excluded": 65,
         "unsupported": 0,
         "not_applicable": 0,
-        "not_observed": 13
+        "not_observed": 14
       },
       "requirements": [
         {
@@ -1100,6 +1100,11 @@
           "id": "SKILL-066",
           "level": "MUST",
           "outcome": "pass"
+        },
+        {
+          "id": "SKILL-100",
+          "level": "MUST",
+          "outcome": "not-observed"
         },
         {
           "id": "SKILL-067",

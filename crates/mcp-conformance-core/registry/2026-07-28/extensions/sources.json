@@ -30,7 +30,7 @@
                 "specification/stable/skills.md": "A six-line include stub (`<!--@include: ./skills.mdx{5,}-->`) that renders `skills.mdx` for the documentation site; it carries no text of its own, so its clauses are `skills.mdx`'s, entered once under that page."
             },
             "must_census": {
-                "specification/stable/skills.mdx": 80
+                "specification/stable/skills.mdx": 81
             },
             "should_census": {
                 "specification/stable/skills.mdx": 22

@@ -63,10 +63,7 @@ pub(in crate::checks) fn hints_on_cacheable_results(
         if result.get("resultType").and_then(Value::as_str) != Some(COMPLETE) {
             continue;
         }
-        let from_retry = exchange.params.is_some_and(|params| {
-            params.get("inputResponses").is_some() || params.get("requestState").is_some()
-        });
-        if from_retry {
+        if produced_by_retry(exchange.params) {
             continue;
         }
         sink.examined();
@@ -82,6 +79,15 @@ pub(in crate::checks) fn hints_on_cacheable_results(
             }
         }
     }
+}
+
+/// Whether a request's `params` are a retry's through the multi round-trip
+/// mechanism — carrying `inputResponses` or `requestState` — whose result
+/// `CACH-003` says must not be cached, and which therefore needs no hint.
+pub(in crate::checks) fn produced_by_retry(params: Option<&Value>) -> bool {
+    params.is_some_and(|params| {
+        params.get("inputResponses").is_some() || params.get("requestState").is_some()
+    })
 }
 
 /// `CACH-008`: a server's `ttlMs` is a number, and not a negative one.

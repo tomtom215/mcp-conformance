@@ -158,3 +158,138 @@ fn a_null_or_false_resources_capability_is_no_declaration() {
     let steps = discover(Some(json!({})), true);
     assert_eq!(judge("skills.declares-resources", &steps), (1, vec![]));
 }
+
+const DIRECTORY_READ: &str = "resources/directory/read";
+
+/// `base` with `extra`'s members added.
+fn with(mut base: Value, extra: &Value) -> Value {
+    for (key, value) in extra.as_object().into_iter().flatten() {
+        base[key] = value.clone();
+    }
+    base
+}
+
+#[test]
+fn a_directory_result_carries_both_caching_hints_or_is_reported() {
+    let read = |hints: Value| {
+        let answer = with(json!({"resultType": "complete", "resources": []}), &hints);
+        [call(2, DIRECTORY_READ, "skill://a"), result(2, answer)]
+    };
+    let lacking = |hints: &str| {
+        vec![format!(
+            "the `{DIRECTORY_READ}` result lacks {hints}, which a cacheable result requires"
+        )]
+    };
+    assert_eq!(
+        judge(
+            "skills.directory-cacheable",
+            &read(json!({"ttlMs": 1000, "cacheScope": "public"}))
+        ),
+        (1, vec![])
+    );
+    assert_eq!(
+        judge(
+            "skills.directory-cacheable",
+            &read(json!({"cacheScope": "public"}))
+        ),
+        (1, lacking("`ttlMs`"))
+    );
+    assert_eq!(
+        judge("skills.directory-cacheable", &read(json!({"ttlMs": 1000}))),
+        (1, lacking("`cacheScope`"))
+    );
+    assert_eq!(
+        judge("skills.directory-cacheable", &read(json!({}))),
+        (1, lacking("`ttlMs` and `cacheScope`"))
+    );
+}
+
+#[test]
+fn a_directory_result_cache_scope_is_public_or_private() {
+    let read = |scope: Value| {
+        let answer = json!({"resultType": "complete", "resources": [], "ttlMs": 1000,
+                            "cacheScope": scope});
+        [call(2, DIRECTORY_READ, "skill://a"), result(2, answer)]
+    };
+    for scope in ["public", "private"] {
+        assert_eq!(
+            judge("skills.directory-cacheable", &read(json!(scope))),
+            (1, vec![]),
+            "{scope}"
+        );
+    }
+    for scope in [json!("shared"), json!(1), json!(null)] {
+        assert_eq!(
+            judge("skills.directory-cacheable", &read(scope.clone())),
+            (
+                1,
+                vec![format!(
+                    "the `{DIRECTORY_READ}` result's `cacheScope` is {scope}, neither \"public\" \
+                     nor \"private\""
+                )]
+            )
+        );
+    }
+}
+
+#[test]
+fn only_a_complete_directory_result_no_retry_produced_is_a_subject() {
+    // The page's own answer for a non-directory has no result to carry hints.
+    let steps = [
+        call(2, DIRECTORY_READ, "skill://a/SKILL.md"),
+        error(2, -32602),
+    ];
+    assert_eq!(judge("skills.directory-cacheable", &steps), (0, vec![]));
+    // A result of another shape is not cacheable; SKILL-065 judges the shape.
+    let steps = [
+        call(2, DIRECTORY_READ, "skill://a"),
+        result(
+            2,
+            json!({"resultType": "input_required", "inputRequests": {}, "requestState": "s"}),
+        ),
+    ];
+    assert_eq!(judge("skills.directory-cacheable", &steps), (0, vec![]));
+    // A retry's result must not be cached (CACH-003), so it needs no hint.
+    for marker in [json!({"inputResponses": {}}), json!({"requestState": "s"})] {
+        let steps = [
+            request(
+                2,
+                DIRECTORY_READ,
+                params(with(json!({"uri": "skill://a"}), &marker), &[]),
+            ),
+            result(2, json!({"resultType": "complete", "resources": []})),
+        ];
+        assert_eq!(
+            judge("skills.directory-cacheable", &steps),
+            (0, vec![]),
+            "{marker}"
+        );
+    }
+    // A session that never read a directory has nothing to judge.
+    let steps = [
+        call(2, "skills/list", "x"),
+        result(2, json!({"resultType": "complete", "skills": []})),
+    ];
+    assert_eq!(judge("skills.directory-cacheable", &steps), (0, vec![]));
+}
+
+#[test]
+fn every_page_of_a_directory_listing_is_judged() {
+    let steps = [
+        call(2, DIRECTORY_READ, "skill://a"),
+        result(
+            2,
+            json!({"resultType": "complete", "resources": [], "nextCursor": "p2",
+                   "ttlMs": 1000, "cacheScope": "public"}),
+        ),
+        request(
+            3,
+            DIRECTORY_READ,
+            params(json!({"uri": "skill://a", "cursor": "p2"}), &[]),
+        ),
+        result(3, json!({"resultType": "complete", "resources": []})),
+    ];
+    let (subjects, findings) = judge("skills.directory-cacheable", &steps);
+    assert_eq!(subjects, 2);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+}
