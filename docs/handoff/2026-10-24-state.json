@@ -1,0 +1,114 @@
+{
+  "branch": "claude/focused-thompson-jx6akj",
+  "date": "2026-10-24",
+  "ci_green_commit": "7d67852",
+  "local_tests_at_merged_tip": {
+    "passed": 1937,
+    "failed": 0,
+    "ignored": 2
+  },
+  "items": [
+    {
+      "id": "advisories",
+      "status": "done"
+    },
+    {
+      "id": "toolchain-1.99.1",
+      "status": "done"
+    },
+    {
+      "id": "rmcp-3.7.0",
+      "status": "done"
+    },
+    {
+      "id": "jsonschema-0.60.1",
+      "status": "done"
+    },
+    {
+      "id": "mutant-numbered-rs",
+      "status": "done"
+    },
+    {
+      "id": "sweep-16-shards",
+      "status": "done"
+    },
+    {
+      "id": "register-rows",
+      "status": "done"
+    },
+    {
+      "id": "skills-drift-SKILL-100",
+      "status": "done"
+    },
+    {
+      "id": "capture-hardening",
+      "status": "done",
+      "follow_up": [
+        "watch --no-preserve-host",
+        "403 hint",
+        "404 hint misfire on ping",
+        "connection cap"
+      ]
+    },
+    {
+      "id": "workbench-otlp-hardening",
+      "status": "done",
+      "follow_up": [
+        "cap gen_ai.tool.name",
+        "cookie redesign"
+      ]
+    },
+    {
+      "id": "V1-validator-report-model",
+      "status": "in_flight_at_pause",
+      "wip": "docs/handoff/wip/ if present"
+    },
+    {
+      "id": "R1-2025-11-25-ping-progress-cancel",
+      "status": "in_flight_at_pause",
+      "wip": "docs/handoff/wip/ if present"
+    },
+    {
+      "id": "V2-baseline-filters",
+      "status": "not_started"
+    },
+    {
+      "id": "C1-test-party-aware-and-watch-flags",
+      "status": "not_started",
+      "needs": [
+        "V1"
+      ]
+    },
+    {
+      "id": "check-command-ADR-0024",
+      "status": "not_started",
+      "needs": [
+        "maintainer accepts ADR-0024",
+        "V1"
+      ]
+    },
+    {
+      "id": "I1-interop-refresh-ts-v2-leg",
+      "status": "not_started"
+    },
+    {
+      "id": "stale-exclusion-rationales",
+      "status": "not_started"
+    },
+    {
+      "id": "prober",
+      "status": "blocked_on_maintainer_decision"
+    },
+    {
+      "id": "truth-pass-docs",
+      "status": "not_started"
+    }
+  ],
+  "run_first_next_session": [
+    "cargo xtask conformance",
+    "cargo xtask draft-readiness",
+    "cargo xtask falsify-gates",
+    "push and read CI",
+    "reconcile capture README memory table in release"
+  ]
+}
