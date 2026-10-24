@@ -30,8 +30,9 @@ Pre-1.0: the API and the verdicts may change between minor releases, and the
 > - release binaries built with `cargo auditable`, for `cargo audit bin`;
 > - the `requirements <ID>` view, its `--area`/`--level`/`--checked`/`--excluded`
 >   filters, and the `completions` subcommand;
-> - the `2026-07-28` registry rows added since, so the example totals and the
->   coverage table below are `main`'s, not `0.6.0`'s;
+> - the registry rows added since at both revisions — `2026-07-28`'s, and
+>   `2025-11-25`'s ping, progress and cancellation pages — so the example totals
+>   and the coverage table below are `main`'s, not `0.6.0`'s;
 > - the wire schema — every message validated against its revision's JSON Schema —
 >   and the five clauses it made judgeable;
 > - the container image (`ghcr.io/tomtom215/mcp-conformance`, first published by
@@ -301,6 +302,9 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | BASE | 28 | 14 | 14 | 0 |
 | LIFE | 20 | 10 | 10 | 0 |
 | TRAN | 52 | 14 | 38 | 0 |
+| PING | 7 | 1 | 6 | 0 |
+| PROG | 11 | 8 | 3 | 0 |
+| CANC | 9 | 4 | 5 | 0 |
 | TOOL | 18 | 9 | 9 | 13 |
 | RES | 10 | 3 | 7 | 6 |
 | PROM | 10 | 5 | 5 | 7 |
@@ -311,9 +315,9 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | SAMP | 20 | 10 | 10 | 0 |
 | ROOT | 10 | 4 | 6 | 0 |
 | AUTH | 85 | 5 | 80 | 0 |
-| **Total** | **321** | **89** | **232** | **33** |
+| **Total** | **348** | **102** | **246** | **33** |
 
-321 requirements: 89 judged by 85 distinct trace checks, 232 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+348 requirements: 102 judged by 96 distinct trace checks, 246 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 Every check is falsified by a committed violation trace and examines a real subject on at least one conforming one. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
 <!-- coverage:end -->
@@ -349,7 +353,7 @@ event:
         [client] seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
-totals: 17 pass, 1 fail, 0 warn, 232 excluded, 0 unsupported, 6 not applicable, 65 not observed
+totals: 17 pass, 1 fail, 0 warn, 246 excluded, 0 unsupported, 6 not applicable, 78 not observed
 wire schema: pass (4 messages valid)
 verdict: fail
 ```

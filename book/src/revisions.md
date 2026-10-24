@@ -19,9 +19,9 @@ changelog and becomes a measurement.
 
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Registry entries | 321 | 501 |
-| Judged by a named check | 89 | 181 |
-| Carrying a documented exclusion | 232 | 320 |
+| Registry entries | 348 | 501 |
+| Judged by a named check | 102 | 181 |
+| Carrying a documented exclusion | 246 | 320 |
 | Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -81,7 +81,7 @@ And the verdict splits:
 
 ```text
 per revision:
-  2025-11-25: 17 pass, 0 fail, 0 warn, 232 excluded, 0 unsupported, 14 not applicable, 58 not observed — verdict pass
+  2025-11-25: 17 pass, 0 fail, 0 warn, 246 excluded, 0 unsupported, 14 not applicable, 71 not observed — verdict pass
   2025-11-25: wire schema pass (3 messages valid)
   2026-07-28: 15 pass, 8 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 158 not observed — verdict fail
   2026-07-28: wire schema fail (1 of 3 messages invalid)
@@ -91,7 +91,7 @@ overall verdict: fail
 A conforming session today, and eight concrete failures tomorrow — nine, with
 the `2026-07-28` schema's own finding: the `initialize` result carries no
 `resultType`, which every result at that revision must. Both summary
-lines account for **every** clause in their revision — the counts add up to 321
+lines account for **every** clause in their revision — the counts add up to 348
 and 501 — because a line that quietly omits an outcome is a line that overstates
 what was measured.
 
