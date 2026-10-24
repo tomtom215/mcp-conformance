@@ -58,33 +58,37 @@ longer finish inside its timeout, and two Dependabot PRs. All of those are fixed
    (within about 5%; the stdio object-heavy figure differs by 16 MiB). Re-run
    `crates/mcp-trace-capture/tools/measure-memory.py` in release and reconcile the README.
 
-## In flight when the session paused
+## Finished by agents but unmerged (saved in `wip/`)
 
-Two agents were running in worktrees based on `main` (not on this branch). Their work is saved as
-patches in `docs/handoff/wip/` **if they committed in time; check that directory**. A patch there
-is unmerged, may not pass its tests, and was not reviewed.
+Two agents worked in worktrees based on `main`, not on this branch. Both committed before the
+session paused; their work is saved as patch series (goldens excluded) with each agent's own final
+report verbatim: [`wip/README.md`](wip/README.md), [`V1-final-report.md`](wip/V1-final-report.md),
+[`R1-final-report.md`](wip/R1-final-report.md). Each series was checked here only to apply cleanly to
+its base. They are unreviewed and have not been run on this branch's tip; what the reports say they
+ran is the agents' claim.
 
-- **V1 (validator report model)**, items: (1) `actor` on report rows and `party` on findings
-  (clause actor; for `both`, the sender of the event at `seq`; absent when undecidable), in every
-  format, plus an opt-in `validate --party`; (2) a report note (no verdict change) listing
-  requests unanswered when the trace ended; (3) one rule for the negotiated revision (the version
-  the server's `initialize` result names; refuse an unknown one); (4) assert `format: byte`
-  (base64) in the wire-schema check, aligned with the suite's ajv. Reason: `mcp-conformance test`
-  blames servers for the official suite's own client violations (`LIFE-009`, `LIFE-003`);
-  reproduced here from a kept recording (the event at the finding's `seq` is a client-to-server
-  `logging/setLevel`).
-- **R1 (2025-11-25 ping, progress, cancellation)**: the registry records these pages as
-  "unclaimed surface, wire-checkable"; a server sending progress for a token never issued passes
-  clean at that revision. Needs the ID convention versus the 2026-07-28 PROG/CANC entries
-  (`xtask/src/registry_continuity.rs`).
+- **V1 (validator report model).** Items 1 to 3 DONE per its report (party attribution with an
+  opt-in `validate --party`; a note for requests unanswered at the end of a trace; one rule for the
+  negotiated revision, a **behavior change**), each reproduced failing first and mutation-checked.
+  Item 4 (assert `format: byte`) is **PARTIAL** (WIP commit): clippy, fmt, doc, gates, mutations and
+  `falsify-gates` were not run on it. It also found that the official runner never asserts `byte`
+  (it asserts `uri` and `uri-template`), so this validator would be stricter than the suite there.
+  Reason for the work: `mcp-conformance test` blames servers for the official suite's own client
+  violations (`LIFE-009`, `LIFE-003`); reproduced here from a kept recording.
+- **R1 (2025-11-25 ping, progress, cancellation).** Done per its report: 27 entries (13 judged by 11
+  checks, 14 excluded), IDs PING-001..007, PROG-009..019, CANC-018..026 (no 2026-07-28 ID reused),
+  15 corpus traces; the revision goes to 348 entries / 102 judged / 246 excluded. Gates, tests,
+  clippy, fmt, doc, `spec-drift` and `bless` ran green on its tree; `falsify-gates` and
+  `conformance` were not run. It asks whether task-related MUSTs (PROG-014/015/016, CANC-020) belong
+  at a revision where the tasks page is out of scope.
 
-Merge note for both: golden reports will conflict by construction (both change every golden).
-Take either side for `corpus/golden/**`, re-run `cargo xtask bless`, review the diff by class.
-V1 was built against jsonschema 0.58; re-check its `byte` format registration against 0.60.
+Merge both: V1 first, then R1. Goldens will conflict by construction (both change every golden):
+take either side for `corpus/golden/**`, re-run `cargo xtask bless`, review the diff by class. V1
+was built against jsonschema 0.58; this branch has 0.60, so re-check its `byte` registration.
 
 ## Next, in order
 
-1. Finish V1 and R1 as above. Then **V2**: a baseline/ignore file for `validate` (accepted
+1. Review and merge V1, then R1 (above), finishing V1 item 4. Then **V2**: a baseline/ignore file for `validate` (accepted
    findings with reasons; stale entries reported), `--level`/`--area` filters, grouped repeats
    (BASE-086 appears once per tool schema).
 2. **C1** (`crates/mcp-conformance-cli`, after V1): `test` judges agreement by party; say when a

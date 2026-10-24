@@ -60,13 +60,13 @@
     },
     {
       "id": "V1-validator-report-model",
-      "status": "in_flight_at_pause",
-      "wip": "docs/handoff/wip/ if present"
+      "status": "done_items_1_to_3_item_4_partial_unmerged",
+      "wip": "docs/handoff/wip/V1"
     },
     {
       "id": "R1-2025-11-25-ping-progress-cancel",
-      "status": "in_flight_at_pause",
-      "wip": "docs/handoff/wip/ if present"
+      "status": "done_unmerged_falsify_gates_not_run",
+      "wip": "docs/handoff/wip/R1"
     },
     {
       "id": "V2-baseline-filters",

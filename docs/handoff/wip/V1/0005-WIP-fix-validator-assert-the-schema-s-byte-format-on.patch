@@ -1,0 +1,357 @@
+From 79803bd802932da3655dfd763f0e1c87bfe42824 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 24 Oct 2026 08:26:53 +0000
+Subject: [PATCH 5/5] WIP: fix(validator): assert the schema's `byte` format on
+ the wire
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A `tools/call` result whose image `data` was `not base64!` passed the wire
+schema and drew no finding at all: the specification's `schema.json` marks
+image and audio `data` and resource `blob` with `format: byte`, and format
+assertion was off. The wire-schema check now asserts `byte` with the base64
+rule the resource and prompt checks already apply (RFC 4648 §4 alphabet,
+groups of four, `=`/`==` padding, the empty string included); `uri` and
+`uri-template` stay annotations as ADR-0020 decided. Both vendored schemas use
+exactly those three formats. The official suite
+(`@modelcontextprotocol/conformance@0.2.0-alpha.12`) loads `ajv-formats` and
+then `addFormat("byte", true)`, so it asserts the two URI formats and never
+`byte`: the engines disagree on exactly those three, in opposite directions.
+
+Three corpus traces pin it (a 2025-11-25 and a 2026-07-28 tool result with a
+non-base64 image, failing the wire schema and nothing else; a conforming
+session with every padding length and an empty `data`), with goldens and
+ledger rows; the three existing goldens whose traces carry `not base64!`
+(prom-003, prom-004, res-006) now also fail the wire schema on the same
+message. Unit tests under `wire_schema/tests/formats.rs` failed before the
+change (3 of 4) and pass after.
+
+WIP: the focused tests, `cargo xtask bless` and `cargo xtask coverage --check`
+ran green; the full workspace test run was still in flight, and clippy, fmt,
+doc, gates and the mutation runs for this change have not been run yet.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Sdg4tfY3zMjTpYqmDkiuqW
+---
+ README.md                                     |   7 +-
+ book/src/reading-a-report.md                  |   5 +-
+ corpus/README.md                              |  11 +-
+ ...re-schema-tool-image-data-not-base64.jsonl |   2 +
+ .../stdio-tool-image-base64-padding.jsonl     |   7 ++
+ ...re-schema-tool-image-data-not-base64.jsonl |   5 +
+ crates/mcp-trace-validator/src/checks/mod.rs  |   2 +-
+ .../mcp-trace-validator/src/checks/support.rs |   2 +-
+ crates/mcp-trace-validator/src/wire_schema.rs |  17 ++-
+ .../src/wire_schema/tests.rs                  |   2 +
+ .../src/wire_schema/tests/formats.rs          | 108 ++++++++++++++++++
+ 11 files changed, 154 insertions(+), 14 deletions(-)
+ create mode 100644 corpus/draft/violations/wire-schema-tool-image-data-not-base64.jsonl
+ create mode 100644 corpus/good/stdio-tool-image-base64-padding.jsonl
+ create mode 100644 corpus/violations/wire-schema-tool-image-data-not-base64.jsonl
+ create mode 100644 crates/mcp-trace-validator/src/wire_schema/tests/formats.rs
+
+diff --git a/README.md b/README.md
+index 14d4fd1..5cbd681 100644
+--- a/README.md
++++ b/README.md
+@@ -191,9 +191,10 @@ verdict: fail
+   a verdict.
+ - **Every message is also held to the revision's own JSON Schema** — the
+   specification's `schema.json`, vendored at a pinned commit and re-verified weekly —
+-  so a missing required member, a wrong type or a value outside an enumeration fails
+-  the report even where no sentence of the prose names it. It is reported beside the
+-  clause rows as the wire schema, not counted in their totals
++  so a missing required member, a wrong type, a value outside an enumeration or image
++  `data` that is not base64 (the schema's `byte` format, the one format it asserts)
++  fails the report even where no sentence of the prose names it. It is reported beside
++  the clause rows as the wire schema, not counted in their totals
+   ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)).
+ - **An empty recording is a bad invocation**, not a pass: the shape a broken capture
+   step produces should fail the build.
+diff --git a/book/src/reading-a-report.md b/book/src/reading-a-report.md
+index 77f441c..21e1a7d 100644
+--- a/book/src/reading-a-report.md
++++ b/book/src/reading-a-report.md
+@@ -76,7 +76,10 @@ The finding names the definition the message was held to and the path of the mem
+ at fault; a member that matched none of several alternatives (a content block, an
+ input request) names the closest alternative's defect. The schema catches what no
+ sentence of the prose states on its own — a missing required member, a wrong type, a
+-value outside an enumeration — so it is reported beside the clauses rather than as one,
++value outside an enumeration, image or audio `data` or a resource `blob` that is not
++base64 (the schema's `byte` format; its `uri` and `uri-template` formats stay
++annotations, because asserting RFC 3986 would fail URIs the prose permits) — so it is
++reported beside the clauses rather than as one,
+ has no requirement ID, and is not counted in the totals; a failure still fails the
+ verdict. Where the published schema is stricter than `schema.ts`, the validator
+ corrects it and says where
+diff --git a/corpus/README.md b/corpus/README.md
+index ed48775..561b593 100644
+--- a/corpus/README.md
++++ b/corpus/README.md
+@@ -49,7 +49,7 @@ corpus's lines.
+ 
+ |  | `2025-11-25` | `2026-07-28` |
+ |---|---:|---:|
+-| Goldens | 107 | 235 |
++| Goldens | 109 | 236 |
+ | Excluded rows the ledger holds | 232 | 320 |
+ | Distinct not-observed sets across them | 68 | 150 |
+ 
+@@ -128,6 +128,7 @@ below: the implementations on both ends, the tool that recorded them, and when.
+ | `stdio-request-unanswered-at-close.jsonl` | A handshake, then a `tools/list` the server never answers before the transport closes (added 2026-10-24). No clause judges it — JSON-RPC expects every request answered, but `BASE-012` is excluded — so the verdict is `pass`; what the golden pins is the report's `unanswered_requests` note: one request, and that the trace ended with a `transport-close`. Until 2026-10-24 the report said nothing at all. |
+ | `stdio-requests-partly-unanswered.jsonl` | The same handshake, then three requests of which the server answers one (`tools/list`) and leaves two (`ping`, `tools/call`) pending when the recording simply stops, with no close or abort (added 2026-10-24). The note counts two and says the trace stopped; the verdict is `pass`. |
+ | `stdio-server-negotiates-2024-11-05.jsonl` | A `2025-11-25` client whose server answers `initialize` with `protocolVersion` `2024-11-05`, a revision this build has no registry for; the client goes on under it (`notifications/initialized`, `tools/list`) and closes (added 2026-10-24). The session ran under what the server named — that is what negotiation means — so `validate` refuses to judge it by default (exit 2, naming both revisions) rather than judging it under the proposal, which until 2026-10-24 it did silently, as a `pass`. This golden is that judgment asked for explicitly: `--revision 2025-11-25` judges the session under the proposal, and it passes, because nothing in it breaks a clause a `2025-11-25` registry can see. |
++| `stdio-tool-image-base64-padding.jsonl` | Two `tools/call` results carrying image and audio content whose `data` is well-formed base64 at every padding length — a PNG ending `==`, a WAV and a GIF ending `=`, a JPEG fragment with none — and one image whose `data` is the empty string, which encodes nothing and is well-formed under RFC 4648 §4 (the `format: byte` rule the schema marks `data` and `blob` with accepts it, as `ajv-formats` does; added 2026-10-24). The wire schema passes all five and no clause judges a tool result's encoding, so the verdict is `pass`; the trace exists so that asserting `byte` cannot drift into rejecting padding or emptiness. |
+ | `http-origin-refused-without-id.jsonl` | A Streamable HTTP `initialize` carrying `Host`/`Origin` `evil.example.com`, refused `403` with a JSON-RPC error that has no `id`, then the same handshake from `localhost` completing. The transport's security warning permits exactly that body ("If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`"), so BASE-009 passes. Until 2026-10-13 the framing tied the error to the refused request, whose id was readable, and BASE-009 failed it — the shape of the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`). Added 2026-10-13 |
+ | `http-authorization.jsonl` | A protected Streamable HTTP server, conformant (added 2026-10-13, review item 2.8): `initialize` refused `401` with a Bearer challenge carrying `resource_metadata` and `scope` (AUTH-014's pass path), then sent again **with the same id**, as the official SDKs' clients retry, and answered; a `ping` refused `403` `insufficient_scope` naming `scope` and `resource_metadata` (AUTH-049/050/051), retried and answered; another refused `401` `invalid_token` (AUTH-045/049) whose `application/json` body is the resource server's own `{"error":"invalid_token",…}` object, retried and answered. That body is the HTTP layer's, not a JSON-RPC message; read as one it failed BASE-006/008/009 and the wire schema. The retries are why a request refused at the HTTP layer is *not delivered* (`context/refusal.rs`): judged as two deliveries, each retry failed BASE-003 and the trace counted two sessions. No metadata fetch appears, because none would: see `checks/auth.rs` for what a recording carries for authorization |
+ 
+@@ -166,13 +167,13 @@ example).
+ | `page-002-cursor-never-issued.jsonl` | PAGE-002 |
+ | `page-002-fabricated-cursor-rejected.jsonl` | PAGE-002, and with it PAGE-003's pass path: the client fabricates a cursor and the server answers `-32602` rather than honouring it. The two halves of one event belong to different parties, so the trace falsifies the client's clause and evidences the server's. |
+ | `prom-001-capability-undeclared.jsonl` | PROM-001 |
+-| `prom-003-image-data-invalid.jsonl` | PROM-003 |
+-| `prom-004-audio-data-invalid.jsonl` | PROM-004 |
++| `prom-003-image-data-invalid.jsonl` | PROM-003 (and, since 2026-10-24, the wire schema's `byte` format on the same message) |
++| `prom-004-audio-data-invalid.jsonl` | PROM-004 (and, since 2026-10-24, the wire schema's `byte` format on the same message) |
+ | `prom-005-embedded-resource-malformed.jsonl` | PROM-005 |
+ | `prom-008-required-argument-unvalidated.jsonl` | PROM-008 |
+ | `res-001-capability-undeclared.jsonl` | RES-001 |
+ | `res-004-uri-bad-scheme.jsonl` | RES-004 |
+-| `res-006-blob-not-base64.jsonl` | RES-006 |
++| `res-006-blob-not-base64.jsonl` | RES-006 (and, since 2026-10-24, the wire schema's `byte` format on the same message) |
+ | `tool-001-capability-undeclared.jsonl` | TOOL-001 |
+ | `tool-003-input-schema-null.jsonl` | TOOL-003 |
+ | `tool-005-name-length.jsonl` | TOOL-005 |
+@@ -204,6 +205,7 @@ example).
+ | `wire-schema-resource-missing-uri.jsonl` | Wire schema: a `resources/list` result whose resource has no `uri`, which `Resource` requires |
+ | `wire-schema-log-level-not-in-enum.jsonl` | Wire schema: a `notifications/message` at level `chatty`, outside `LoggingLevel` |
+ | `wire-schema-content-block-unknown-type.jsonl` | Wire schema: a `tools/call` result whose content block has `type: "txt"`, matching no `ContentBlock` member |
++| `wire-schema-tool-image-data-not-base64.jsonl` | Wire schema: a `tools/call` result whose image `data` is `not base64!`. `ImageContent.data` carries `format: byte` in the specification's schema, which the validator asserts since 2026-10-24; no clause of this revision judges a tool result's encoding (the prompt-content and resource-blob checks read their own members), so until then this message passed the wire schema and drew nothing at all. The official suite does not catch it either: it loads `ajv-formats` and then registers `byte` as always valid (`addFormat("byte", true)`). |
+ | `elic-004-answered-without-capability.jsonl` | ELIC-004: a client declaring only `sampling` answers a form elicitation with a result. Also LIFE-009 and ELIC-006 for the server's request — a client can only show support it never declared by answering something it should not have been sent |
+ | `elic-006-url-mode-undeclared.jsonl` | ELIC-006: a URL mode elicitation sent to a client declaring `elicitation: {}`, which is form mode only (LIFE-009 reads the same sub-capability). The client refuses with `-32602` — ELIC-021's pass path |
+ | `elic-007-request-without-message.jsonl` | ELIC-007: a form elicitation with no `message`. The wire schema rejects the same request |
+@@ -916,6 +918,7 @@ outcome moved.
+ | `wire-schema-resource-missing-uri.jsonl` | Wire schema: a `resources/list` result whose resource has no `uri`, which `Resource` requires; the result carries both caching hints so the trace isolates the schema defect |
+ | `wire-schema-cache-scope-not-in-enum.jsonl` | Wire schema: `cacheScope: "shared"`, which is neither `public` nor `private` |
+ | `wire-schema-content-block-unknown-type.jsonl` | Wire schema: a `tools/call` result whose content block has `type: "txt"`, matching no `ContentBlock` member |
++| `wire-schema-tool-image-data-not-base64.jsonl` | Wire schema: the same image whose `data` is `not base64!`, in a `2026-07-28` `tools/call` result (added 2026-10-24); this revision's schema marks `ImageContent.data` with `format: byte` as `2025-11-25`'s does, and both are compiled with the same assertion |
+ | `vers-008-initialize-error-without-versions.jsonl` | A modern-only server refuses a legacy `initialize` with a bare `Method not found`, naming none of the versions it does speak (VERS-008). Necessarily also falsifies BASE-030: a legacy handshake carries no `_meta` envelope — that is what makes it legacy — so the antecedent of this clause is a client that cannot satisfy BASE-030. BASE-031 is *not* also reported, and this trace is why the check was narrowed: `basic/versioning`'s compatibility matrix makes the rejection code implementation-defined for exactly this exchange. |
+ | `elic-057-answered-without-capability.jsonl` | ELIC-057: the call declares `elicitation`, but its retry — the request carrying the accepted form — declares only `sampling`; the page asks for the declaration "on each request" |
+ | `elic-059-url-mode-undeclared.jsonl` | ELIC-059: URL mode asked of a request declaring form mode only. BASE-034, MRTR-012 and MRTR-013 make the same observation through `meta.no-undeclared-capability-reliance` |
+diff --git a/corpus/draft/violations/wire-schema-tool-image-data-not-base64.jsonl b/corpus/draft/violations/wire-schema-tool-image-data-not-base64.jsonl
+new file mode 100644
+index 0000000..529a296
+--- /dev/null
++++ b/corpus/draft/violations/wire-schema-tool-image-data-not-base64.jsonl
+@@ -0,0 +1,2 @@
++{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"corpus-client","version":"0.1.0"}},"name":"render","arguments":{}}}}
++{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"_meta":{"io.modelcontextprotocol/serverInfo":{"name":"corpus-server","version":"0.1.0"}},"resultType":"complete","content":[{"type":"image","data":"not base64!","mimeType":"image/png"}]}}}
+diff --git a/corpus/good/stdio-tool-image-base64-padding.jsonl b/corpus/good/stdio-tool-image-base64-padding.jsonl
+new file mode 100644
+index 0000000..060a1fd
+--- /dev/null
++++ b/corpus/good/stdio-tool-image-base64-padding.jsonl
+@@ -0,0 +1,7 @@
++{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"corpus-client","version":"0.1.0"}}}}
++{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"corpus-server","version":"0.1.0"}}}}
++{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}
++{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"render","arguments":{"padding":0}}}}
++{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"image","data":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==","mimeType":"image/png"},{"type":"audio","data":"UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=","mimeType":"audio/wav"},{"type":"image","data":"R0lGODlhAQABAAAAACw=","mimeType":"image/gif"}]}}}
++{"seq":5,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"render","arguments":{"padding":"none"}}}}
++{"seq":6,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"image","data":"/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a","mimeType":"image/jpeg"},{"type":"image","data":"","mimeType":"image/png"}]}}}
+diff --git a/corpus/violations/wire-schema-tool-image-data-not-base64.jsonl b/corpus/violations/wire-schema-tool-image-data-not-base64.jsonl
+new file mode 100644
+index 0000000..2ba72c1
+--- /dev/null
++++ b/corpus/violations/wire-schema-tool-image-data-not-base64.jsonl
+@@ -0,0 +1,5 @@
++{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"corpus-client","version":"0.1.0"}}}}
++{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"corpus-server","version":"0.1.0"}}}}
++{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}
++{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"render","arguments":{}}}}
++{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"image","data":"not base64!","mimeType":"image/png"}]}}}
+diff --git a/crates/mcp-trace-validator/src/checks/mod.rs b/crates/mcp-trace-validator/src/checks/mod.rs
+index 25de52c..c9e1788 100644
+--- a/crates/mcp-trace-validator/src/checks/mod.rs
++++ b/crates/mcp-trace-validator/src/checks/mod.rs
+@@ -29,7 +29,7 @@ mod negotiation;
+ mod prompts;
+ mod resources;
+ mod stateless;
+-mod support;
++pub(crate) mod support;
+ mod tools;
+ mod transport;
+ mod utilities;
+diff --git a/crates/mcp-trace-validator/src/checks/support.rs b/crates/mcp-trace-validator/src/checks/support.rs
+index 4e7a65f..c5dfe20 100644
+--- a/crates/mcp-trace-validator/src/checks/support.rs
++++ b/crates/mcp-trace-validator/src/checks/support.rs
+@@ -89,7 +89,7 @@ fn capability_in(
+ /// content-completeness judgment the spec does not make here (and one the
+ /// official suite does not make, which the agreement check would surface as a
+ /// divergence). Empty-but-present content is thus a pass at this layer.
+-pub(super) fn is_base64(text: &str) -> bool {
++pub(crate) fn is_base64(text: &str) -> bool {
+     let bytes = text.as_bytes();
+     if !bytes.len().is_multiple_of(4) {
+         return false;
+diff --git a/crates/mcp-trace-validator/src/wire_schema.rs b/crates/mcp-trace-validator/src/wire_schema.rs
+index 032bb1f..9a423d1 100644
+--- a/crates/mcp-trace-validator/src/wire_schema.rs
++++ b/crates/mcp-trace-validator/src/wire_schema.rs
+@@ -225,10 +225,19 @@ fn compile(schema: &WireSchema) -> Compiled {
+     }
+     let validators = jsonschema::options()
+         .with_draft(Draft::Draft202012)
+-        // Format assertion is off by default in 2020-12, and the schema's
+-        // formats (`uri`, `uri-template`, `byte`) are annotations there; the
+-        // suite asserts them, which this deliberately does not (ADR-0020).
+-        .should_validate_formats(false)
++        // In 2020-12 `format` is an annotation unless asserted, and the schema
++        // uses three. `byte` is asserted: the prose says the same thing of
++        // every such member ("base64-encoded"), the alphabet has one
++        // definition, and no clause judges a tool result's encoding, so this
++        // is the only place a malformed image could be caught. `uri` and
++        // `uri-template` stay annotations (ADR-0020): asserting RFC 3986 would
++        // fail URIs the prose permits. The official suite does the opposite —
++        // `ajv-formats` asserts both URI formats and `addFormat("byte", true)`
++        // accepts any string — which the agreement check records.
++        .should_validate_formats(true)
++        .with_format("byte", crate::checks::support::is_base64)
++        .with_format("uri", |_: &str| true)
++        .with_format("uri-template", |_: &str| true)
+         .build_map(&document)
+         .expect("the vendored schema compiles");
+     let mut compiled = Compiled {
+diff --git a/crates/mcp-trace-validator/src/wire_schema/tests.rs b/crates/mcp-trace-validator/src/wire_schema/tests.rs
+index 9350bad..bb37a98 100644
+--- a/crates/mcp-trace-validator/src/wire_schema/tests.rs
++++ b/crates/mcp-trace-validator/src/wire_schema/tests.rs
+@@ -12,6 +12,8 @@ use crate::context::TraceContext;
+ use crate::reader::{Limits, parse_trace};
+ use crate::report::{Outcome, WireSchemaReport};
+ 
++mod formats;
++
+ /// One trace line per `(direction, payload)`, numbered from 0.
+ fn trace(messages: &[(&str, Value)]) -> String {
+     messages
+diff --git a/crates/mcp-trace-validator/src/wire_schema/tests/formats.rs b/crates/mcp-trace-validator/src/wire_schema/tests/formats.rs
+new file mode 100644
+index 0000000..fc6dcb0
+--- /dev/null
++++ b/crates/mcp-trace-validator/src/wire_schema/tests/formats.rs
+@@ -0,0 +1,108 @@
++// SPDX-License-Identifier: MIT
++// Copyright 2026 Tom F. (https://github.com/tomtom215)
++
++//! The schema's `format` annotations: which this engine asserts.
++//!
++//! Both vendored schemas use three formats — `byte` (image and audio `data`,
++//! resource `blob`), `uri` and `uri-template`. `byte` is asserted: the spec's
++//! prose says the same thing ("base64-encoded") and the alphabet has one
++//! definition, so a value failing it is a wire defect and nothing else. `uri`
++//! and `uri-template` stay annotations (ADR-0020): asserting RFC 3986 would
++//! fail URIs the prose permits, and the official suite's `uri` check is a
++//! regex of its own that the prose does not name.
++
++use mcp_conformance_core::revision::{REVISION_2025_11_25, REVISION_2026_07_28};
++use serde_json::json;
++
++use super::{C, S, initialize, judge};
++use crate::report::Outcome;
++
++/// A `tools/call` answered with one image whose `data` is `data`.
++fn image_result(data: &str) -> Vec<(&'static str, serde_json::Value)> {
++    let mut messages = initialize();
++    messages.push((
++        C,
++        json!({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
++               "params": {"name": "render", "arguments": {}}}),
++    ));
++    messages.push((
++        S,
++        json!({"jsonrpc": "2.0", "id": 2, "result": {"content": [
++            {"type": "image", "data": data, "mimeType": "image/png"}]}}),
++    ));
++    messages
++}
++
++#[test]
++fn an_image_whose_data_is_not_base64_fails_the_byte_format() {
++    let report = judge(REVISION_2025_11_25, &image_result("not base64!"));
++    assert_eq!(report.outcome, Outcome::Fail, "{:#?}", report.findings);
++    assert_eq!(report.findings.len(), 1);
++    let detail = &report.findings[0].detail;
++    assert!(detail.contains("/content/0/data"), "{detail}");
++    assert!(detail.contains("byte"), "{detail}");
++    assert_eq!(report.findings[0].seq, Some(4));
++}
++
++#[test]
++fn the_draft_schema_asserts_byte_too() {
++    let call = [
++        (
++            C,
++            json!({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {
++                "_meta": {"io.modelcontextprotocol/protocolVersion": "2026-07-28",
++                          "io.modelcontextprotocol/clientCapabilities": {}},
++                "name": "render", "arguments": {}}}),
++        ),
++        (
++            S,
++            json!({"jsonrpc": "2.0", "id": 1, "result": {"resultType": "complete", "content": [
++                {"type": "image", "data": "not base64!", "mimeType": "image/png"}]}}),
++        ),
++    ];
++    let report = judge(REVISION_2026_07_28, &call);
++    assert_eq!(report.outcome, Outcome::Fail, "{:#?}", report.findings);
++    assert!(report.findings[0].detail.contains("byte"), "{report:#?}");
++}
++
++#[test]
++fn base64_with_every_padding_and_the_empty_string_is_valid() {
++    // RFC 4648 §4: groups of four, the last padded with `=` or `==`; the
++    // empty string encodes nothing and is well-formed (ajv-formats agrees).
++    for data in ["AAAA", "AAA=", "AA==", "", "iVBORw0KGgo="] {
++        let report = judge(REVISION_2025_11_25, &image_result(data));
++        assert_eq!(report.outcome, Outcome::Pass, "{data:?}: {:#?}", report.findings);
++    }
++    // Mis-padding and characters outside the alphabet are not.
++    for data in ["A===", "AAA", "AA=A", "AAAA\n!!!!", "AAAA AAAA"] {
++        let report = judge(REVISION_2025_11_25, &image_result(data));
++        assert_eq!(report.outcome, Outcome::Fail, "{data:?} should fail");
++    }
++}
++
++#[test]
++fn uri_and_uri_template_remain_annotations() {
++    // Deliberate, and pinned so that asserting them is a decision rather than
++    // a side effect of asserting `byte`.
++    let mut messages = initialize();
++    messages.push((
++        C,
++        json!({"jsonrpc": "2.0", "id": 2, "method": "resources/templates/list"}),
++    ));
++    messages.push((
++        S,
++        json!({"jsonrpc": "2.0", "id": 2, "result": {"resourceTemplates": [
++            {"name": "t", "uriTemplate": "not a template {"}]}}),
++    ));
++    messages.push((
++        C,
++        json!({"jsonrpc": "2.0", "id": 3, "method": "resources/list"}),
++    ));
++    messages.push((
++        S,
++        json!({"jsonrpc": "2.0", "id": 3, "result": {"resources": [
++            {"name": "r", "uri": "not a uri"}]}}),
++    ));
++    let report = judge(REVISION_2025_11_25, &messages);
++    assert_eq!(report.outcome, Outcome::Pass, "{:#?}", report.findings);
++}
+-- 
+2.43.0
+

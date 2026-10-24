@@ -1,0 +1,931 @@
+From cd5b86ad17710d9d399e6f73626d68b497e78ac9 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 24 Oct 2026 08:19:44 +0000
+Subject: [PATCH 4/5] fix(validator): judge a session under the revision its
+ server negotiated
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A session that completed an `initialize` handshake runs under the revision
+the server's result names — that is what negotiation means. `declared::select`
+judged every supported revision the session touched instead, so a client
+proposing `2025-11-25` to a server answering `2026-07-28` drew a side-by-side
+report, with a `2025-11-25` `LIFE-003` failure for an `initialized` the
+session never owed; and a server answering `2024-11-05`, which this build
+cannot judge, was silently dropped from the set and the session judged under
+the proposal as a `pass`.
+
+One rule now. With a completed handshake, the negotiated revision is the one
+judged, alone; when the client proposed another, `validate` says so on stderr
+(`note: the client proposed protocol revision …; the server's initialize
+result negotiated …`), and `--revision` still judges the proposal on request.
+A negotiated revision no registry describes is the unknown-revision refusal
+(exit 2), now naming the negotiation and the proposal, never an approximation
+under the proposal. A handshake answered with an error negotiated nothing (the
+retry is the handshake), one a protected resource refused before reading it
+neither, and a malformed `protocolVersion` is `LIFE-006`'s finding, not a
+revision. Without a handshake the per-request `_meta` and header
+declarations are judged as before, so `2026-07-28` sessions are unchanged:
+no existing golden moved.
+
+`Selection` gains `proposed`; `UnjudgeableRevisions` gains `negotiated` and
+`proposed` (both `#[non_exhaustive]`). Two corpus traces pin the rule — a
+`2025-11-25` client negotiated down to `2024-11-05` (refused by default,
+passing under `--revision 2025-11-25`, which its golden is) and one
+negotiated up to `2026-07-28` (one report, under which the legacy
+`initialize` is a request without its `_meta`, BASE-030) — with ledger rows.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Sdg4tfY3zMjTpYqmDkiuqW
+---
+ README.md                                     |  14 +-
+ book/src/revisions.md                         |  22 +-
+ corpus/README.md                              |   6 +-
+ ...acy-initialize-negotiated-2026-07-28.jsonl |   5 +
+ .../stdio-server-negotiates-2024-11-05.jsonl  |   6 +
+ crates/mcp-trace-validator/src/declared.rs    | 161 +++---------
+ .../src/declared/selection.rs                 | 243 ++++++++++++++++++
+ .../mcp-trace-validator/src/declared/tests.rs |  83 +++++-
+ crates/mcp-trace-validator/src/validate.rs    |  16 +-
+ .../tests/cli_negotiated.rs                   | 149 +++++++++++
+ 10 files changed, 555 insertions(+), 150 deletions(-)
+ create mode 100644 corpus/draft/violations/base-030-legacy-initialize-negotiated-2026-07-28.jsonl
+ create mode 100644 corpus/good/stdio-server-negotiates-2024-11-05.jsonl
+ create mode 100644 crates/mcp-trace-validator/src/declared/selection.rs
+ create mode 100644 crates/mcp-trace-validator/tests/cli_negotiated.rs
+
+diff --git a/README.md b/README.md
+index 3485931..14d4fd1 100644
+--- a/README.md
++++ b/README.md
+@@ -175,11 +175,15 @@ verdict: fail
+   transport close, an abort, or simply stopped — carried in every format, and the
+   verdict it would otherwise have earned.
+ - **The revision is the one the session declares** — in `initialize`, in each
+-  request's `_meta`, or in the `MCP-Protocol-Version` header. A trace declaring no
+-  revision is judged against the newest one (and says so); a trace declaring only a
+-  revision this build does not know is refused rather than judged against the wrong
+-  rules. `--revision` overrides; naming two judges the session under both, clause by
+-  clause.
++  request's `_meta`, or in the `MCP-Protocol-Version` header. A session that
++  completed a handshake ran under the revision the server's `initialize` result
++  names — that is what negotiation means — so it is judged under that one, with a
++  note on stderr when the client had proposed another; a negotiated revision this
++  build does not know is refused rather than judged under the proposal. A trace
++  declaring no revision is judged against the newest one (and says so); a trace
++  declaring only a revision this build does not know is refused rather than judged
++  against the wrong rules. `--revision` overrides; naming two judges the session
++  under both, clause by clause.
+ - **Not observed is not a pass.** A clause the session never came near is reported
+   *not observed*; one gated on a capability nobody negotiated is *not applicable*;
+   one no trace can judge is *excluded*, with the reason. The not-observed rows above are clauses
+diff --git a/book/src/revisions.md b/book/src/revisions.md
+index 5322d2c..b83675a 100644
+--- a/book/src/revisions.md
++++ b/book/src/revisions.md
+@@ -105,10 +105,15 @@ A trace is not silent about which revision it belongs to — the handshake state
+ it, a stateless session states it in every request's `_meta`, and the HTTP
+ transport states it in a header. So by default the validator judges a trace
+ against the revision it declares, and says so in the report's first line:
+-`revision 2026-07-28 (declared by the trace)`. A trace declaring nothing is
+-judged against the newest supported revision, with a note on stderr; a trace
+-declaring only revisions this build cannot judge is refused (exit 2) rather
+-than judged against the wrong rules.
++`revision 2026-07-28 (declared by the trace)`. Where there was a handshake, the
++server's `initialize` result is the authority: the session ran under the
++revision it names — that is what negotiation means — so it is judged under that
++one alone, and a note on stderr says when the client had proposed another
++(`--revision` judges the proposal instead). A negotiated revision this build
++cannot judge is refused (exit 2) rather than approximated by the proposal, and
++so is a trace declaring only revisions this build cannot judge. A trace
++declaring nothing is judged against the newest supported revision, with a note
++on stderr.
+ 
+ Judging against the wrong rules is easy to do on purpose, with `--revision`.
+ Force `2025-11-25` onto a `2026-07-28` recording and every clause the two
+@@ -134,10 +139,11 @@ under the verdict:
+ ```
+ 
+ It is deliberately quiet. A session that proposed one revision and negotiated
+-another has touched both, so judging it against either draws no note; a version
+-a server *refused* states nothing, because the session never ran under it; and a
+-recording that declares no revision at all gets no note, since there is nothing
+-to disagree with.
++another is judged under the negotiated one by default, but the client did state
++the proposal, so asking for that revision with `--revision` draws no note; a
++version a server *refused* states nothing, because the session never ran under
++it; and a recording that declares no revision at all gets no note, since there
++is nothing to disagree with.
+ 
+ ## The four ways a clause is not a pass
+ 
+diff --git a/corpus/README.md b/corpus/README.md
+index 10fcb91..ed48775 100644
+--- a/corpus/README.md
++++ b/corpus/README.md
+@@ -49,9 +49,9 @@ corpus's lines.
+ 
+ |  | `2025-11-25` | `2026-07-28` |
+ |---|---:|---:|
+-| Goldens | 106 | 234 |
++| Goldens | 107 | 235 |
+ | Excluded rows the ledger holds | 232 | 320 |
+-| Distinct not-observed sets across them | 68 | 149 |
++| Distinct not-observed sets across them | 68 | 150 |
+ 
+ Every cell is verified against the corpus by `cargo xtask ci`
+ (`xtask::coverage::corpus`). It is checked rather than trusted because it had
+@@ -127,6 +127,7 @@ below: the implementations on both ends, the tool that recorded them, and when.
+ | `stdio-minimal-init.jsonl` | Smallest conformant session: the three-message handshake |
+ | `stdio-request-unanswered-at-close.jsonl` | A handshake, then a `tools/list` the server never answers before the transport closes (added 2026-10-24). No clause judges it — JSON-RPC expects every request answered, but `BASE-012` is excluded — so the verdict is `pass`; what the golden pins is the report's `unanswered_requests` note: one request, and that the trace ended with a `transport-close`. Until 2026-10-24 the report said nothing at all. |
+ | `stdio-requests-partly-unanswered.jsonl` | The same handshake, then three requests of which the server answers one (`tools/list`) and leaves two (`ping`, `tools/call`) pending when the recording simply stops, with no close or abort (added 2026-10-24). The note counts two and says the trace stopped; the verdict is `pass`. |
++| `stdio-server-negotiates-2024-11-05.jsonl` | A `2025-11-25` client whose server answers `initialize` with `protocolVersion` `2024-11-05`, a revision this build has no registry for; the client goes on under it (`notifications/initialized`, `tools/list`) and closes (added 2026-10-24). The session ran under what the server named — that is what negotiation means — so `validate` refuses to judge it by default (exit 2, naming both revisions) rather than judging it under the proposal, which until 2026-10-24 it did silently, as a `pass`. This golden is that judgment asked for explicitly: `--revision 2025-11-25` judges the session under the proposal, and it passes, because nothing in it breaks a clause a `2025-11-25` registry can see. |
+ | `http-origin-refused-without-id.jsonl` | A Streamable HTTP `initialize` carrying `Host`/`Origin` `evil.example.com`, refused `403` with a JSON-RPC error that has no `id`, then the same handshake from `localhost` completing. The transport's security warning permits exactly that body ("If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`"), so BASE-009 passes. Until 2026-10-13 the framing tied the error to the refused request, whose id was readable, and BASE-009 failed it — the shape of the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`). Added 2026-10-13 |
+ | `http-authorization.jsonl` | A protected Streamable HTTP server, conformant (added 2026-10-13, review item 2.8): `initialize` refused `401` with a Bearer challenge carrying `resource_metadata` and `scope` (AUTH-014's pass path), then sent again **with the same id**, as the official SDKs' clients retry, and answered; a `ping` refused `403` `insufficient_scope` naming `scope` and `resource_metadata` (AUTH-049/050/051), retried and answered; another refused `401` `invalid_token` (AUTH-045/049) whose `application/json` body is the resource server's own `{"error":"invalid_token",…}` object, retried and answered. That body is the HTTP layer's, not a JSON-RPC message; read as one it failed BASE-006/008/009 and the wire schema. The retries are why a request refused at the HTTP layer is *not delivered* (`context/refusal.rs`): judged as two deliveries, each retry failed BASE-003 and the trace counted two sessions. No metadata fetch appears, because none would: see `checks/auth.rs` for what a recording carries for authorization |
+ 
+@@ -782,6 +783,7 @@ outcome moved.
+ | `base-030-unsupported-version-refused-as-invalid-params.jsonl` | Over stdio, a `tools/list` whose `_meta` omits `clientCapabilities` *and* names `2099-01-01`, which the server's `server/discover` result omits; the server answers `-32602` (BASE-030, with MRTR-002, COMP-006, PAGE-006, TOOL-016, RES-011 and PROM-011 — the same envelope rule restated per feature, sharing its check). Both `-32602` and `-32022` are defined for this request and one answer carries one code, so the golden pins VERS-001 *passing*; until 2026-10-12 it and TRAN-074 failed it. TRAN-074, the Streamable HTTP statement of the rule, is *not observed* on this stdio trace. |
+ | `input-required-id-reused.jsonl` | A `tools/call` declaring `elicitation` draws an `input_required` asking for `elicitation/create`, is retried and served under id 2, and then id 1 — answered, so free again (BASE-045) — is reused for an unrelated call declaring no capabilities. Until 2026-10-12 capabilities were looked up by request id across the whole trace, so the `input_required` was held against the *last* request with id 1, and this conforming session failed BASE-034, MRTR-012 and MRTR-013. |
+ | `base-030-malformed-request-refused-without-id.jsonl` | The same malformed `tools/list` over Streamable HTTP, rejected `400` with a `-32602` whose id is null, then retried well-formed under id 1 and served (BASE-030 for the client's envelope; BASE-052 for the null id, since the framing names a request whose id could be read). The golden pins BASE-031, BASE-032 and BASE-045 *passing*: until 2026-10-12 the null-id rejection answered nothing, the malformed request stayed open, and the retry's result was held against it. |
++| `base-030-legacy-initialize-negotiated-2026-07-28.jsonl` | A `2025-11-25` client's `initialize`, answered by a server whose result names `protocolVersion` `2026-07-28` (and carries `resultType`); the client then continues under it with a well-formed modern `tools/list` (added 2026-10-24). The session ran under the revision the server negotiated, so `validate` judges it under `2026-07-28` alone — one report, with a note on stderr naming the proposal — where the legacy `initialize` is a client request without its required `_meta` fields (BASE-030; MRTR-002, COMP-006, PAGE-006, TOOL-016, RES-011 and PROM-011 restate that one envelope rule per feature page and share the check) sent by a dual-era client that skipped the `server/discover` probe (DISC-002 and TRAN-128, warnings, one check). Until 2026-10-24 the same trace was judged side by side under both revisions, with a `2025-11-25` `LIFE-003` failure for an `initialized` notification a `2026-07-28` session never owed. |
+ | `base-031-malformed-meta-answered-with-result.jsonl` | Server answers a `_meta`-incomplete request with a result instead of `-32602` (BASE-031) |
+ | `base-031-reused-id-malformed-answered.jsonl` | The reverse order: a well-formed `tools/list` id 1 is served, then a `_meta`-incomplete request reusing id 1 is *also* served (BASE-031; BASE-030 for the client's envelope). Exactly one BASE-031 finding, on the second answer — keyed by id alone, the first, legitimate answer was reported too, for a request sent after it. |
+ | `base-032-invalid-params-not-http-400.jsonl` | `-32602` returned with HTTP 200 rather than 400 (BASE-032) |
+diff --git a/corpus/draft/violations/base-030-legacy-initialize-negotiated-2026-07-28.jsonl b/corpus/draft/violations/base-030-legacy-initialize-negotiated-2026-07-28.jsonl
+new file mode 100644
+index 0000000..0c5696f
+--- /dev/null
++++ b/corpus/draft/violations/base-030-legacy-initialize-negotiated-2026-07-28.jsonl
+@@ -0,0 +1,5 @@
++{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"corpus-client","version":"0.1.0"}}}}
++{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2026-07-28","resultType":"complete","capabilities":{"tools":{}},"serverInfo":{"name":"corpus-server","version":"0.1.0"}}}}
++{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"corpus-client","version":"0.1.0"}}}}}
++{"seq":3,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"_meta":{"io.modelcontextprotocol/serverInfo":{"name":"corpus-server","version":"0.1.0"}},"resultType":"complete","tools":[],"ttlMs":0,"cacheScope":"public"}}}
++{"seq":4,"direction":"client-to-server","transport":"stdio","kind":"lifecycle","event":"transport-close"}
+diff --git a/corpus/good/stdio-server-negotiates-2024-11-05.jsonl b/corpus/good/stdio-server-negotiates-2024-11-05.jsonl
+new file mode 100644
+index 0000000..3be7260
+--- /dev/null
++++ b/corpus/good/stdio-server-negotiates-2024-11-05.jsonl
+@@ -0,0 +1,6 @@
++{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"corpus-client","version":"0.1.0"}}}}
++{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"corpus-server","version":"0.1.0"}}}}
++{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}
++{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/list"}}
++{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"tools":[]}}}
++{"seq":5,"direction":"client-to-server","transport":"stdio","kind":"lifecycle","event":"transport-close"}
+diff --git a/crates/mcp-trace-validator/src/declared.rs b/crates/mcp-trace-validator/src/declared.rs
+index f679497..fafee6c 100644
+--- a/crates/mcp-trace-validator/src/declared.rs
++++ b/crates/mcp-trace-validator/src/declared.rs
+@@ -30,8 +30,9 @@
+ //!
+ //! A mismatch is reported only when the session declared at least one revision
+ //! and *none* of them is the registry's. A session that proposes one revision
+-//! and negotiates another has touched both, so judging it against either is a
+-//! question worth asking and draws no note.
++//! and negotiates another ran under the negotiated one, and [`select`] judges it
++//! there, saying so; but the client did state the proposal, so a caller who asks
++//! for that revision instead (`--revision`) draws no note either.
+ //!
+ //! A session that declares nothing at all — a message-level capture of a
+ //! handshake that never happened — gets no note either: there is nothing to
+@@ -52,14 +53,12 @@
+ //! [`Report::revision_mismatch`]: crate::report::Report::revision_mismatch
+ 
+ use std::collections::BTreeSet;
+-use std::fmt;
+ use std::str::FromStr as _;
+ 
+ use mcp_conformance_core::canonical::to_canonical_string;
+ use mcp_conformance_core::requirement::BUILTIN_REVISIONS;
+ use mcp_conformance_core::revision::ProtocolRevision;
+ use mcp_conformance_core::trace::{Direction, EventBody, TraceEvent, TransportKind};
+-use serde::{Deserialize, Serialize};
+ use serde_json::Value;
+ 
+ /// How `2026-07-28` states the revision on each request, having no handshake.
+@@ -271,26 +270,35 @@ impl Responses {
+     /// id: the first response from the other party with that id, after it, so
+     /// a later request reusing the id cannot vouch for it.
+     pub(crate) fn answered_by_result(&self, events: &[TraceEvent], index: usize) -> bool {
++        self.result_for(events, index).is_some()
++    }
++
++    /// The `result` that answers the request at `index`, by the rule of
++    /// [`Self::answered_by_result`]; `None` when nothing did, or an error did.
++    pub(crate) fn result_for<'e>(
++        &self,
++        events: &'e [TraceEvent],
++        index: usize,
++    ) -> Option<&'e Value> {
+         let request = &events[index];
+-        let Some(id) = request
++        let id = request
+             .message_payload()
+-            .and_then(|payload| payload.get("id"))
+-        else {
+-            return false;
+-        };
++            .and_then(|payload| payload.get("id"))?;
+         let responder_is_client = request.direction != Direction::ClientToServer;
+-        self.by_id
+-            .get(&(responder_is_client, to_canonical_string(id)))
+-            .and_then(|responses| {
+-                let after = responses.partition_point(|&(at, _)| at <= index);
+-                responses[after..].iter().find(|&&(at, _)| {
+-                    events[at]
+-                        .message_payload()
+-                        .and_then(|payload| payload.get("id"))
+-                        == Some(id)
+-                })
+-            })
+-            .is_some_and(|&(_, result)| result)
++        let responses = self
++            .by_id
++            .get(&(responder_is_client, to_canonical_string(id)))?;
++        let after = responses.partition_point(|&(at, _)| at <= index);
++        let &(at, is_result) = responses[after..].iter().find(|&&(at, _)| {
++            events[at]
++                .message_payload()
++                .and_then(|payload| payload.get("id"))
++                == Some(id)
++        })?;
++        if !is_result {
++            return None;
++        }
++        events[at].message_payload()?.get("result")
+     }
+ }
+ 
+@@ -378,116 +386,9 @@ fn is_known(revision: ProtocolRevision) -> bool {
+     BUILTIN_REVISIONS.contains(&revision)
+ }
+ 
+-/// How the revision a report judges against was chosen.
+-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+-#[serde(rename_all = "kebab-case")]
+-#[non_exhaustive]
+-pub enum RevisionSource {
+-    /// The caller named it (`--revision`).
+-    Requested,
+-    /// The trace declared it: see [`declared_revisions`] for what counts.
+-    Declared,
+-    /// The trace declared nothing, so the newest supported revision was used.
+-    Default,
+-}
+-
+-impl fmt::Display for RevisionSource {
+-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+-        f.write_str(match self {
+-            Self::Requested => "requested",
+-            Self::Declared => "declared by the trace",
+-            Self::Default => "the trace declares none; newest supported",
+-        })
+-    }
+-}
+-
+-/// The revisions to judge a trace against, and why those.
+-#[derive(Debug, Clone, PartialEq, Eq)]
+-#[non_exhaustive]
+-pub struct Selection {
+-    /// Ascending; never empty.
+-    pub revisions: Vec<ProtocolRevision>,
+-    /// How they were chosen.
+-    pub source: RevisionSource,
+-}
+-
+-/// The trace declares only revisions no available registry describes.
+-///
+-/// Judging it anyway would report every clause the revisions disagree about as a
+-/// violation, against an implementation that may have violated nothing — so this
+-/// is an error the caller must resolve (a newer build, or an explicit revision),
+-/// never a silent fallback.
+-#[derive(Debug, Clone, PartialEq, Eq)]
+-#[non_exhaustive]
+-pub struct UnjudgeableRevisions {
+-    /// What the trace declared, ascending.
+-    pub declared: Vec<ProtocolRevision>,
+-    /// What the available registries describe, ascending.
+-    pub supported: Vec<ProtocolRevision>,
+-}
+-
+-impl fmt::Display for UnjudgeableRevisions {
+-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+-        let join = |revisions: &[ProtocolRevision]| {
+-            revisions
+-                .iter()
+-                .map(ToString::to_string)
+-                .collect::<Vec<_>>()
+-                .join(", ")
+-        };
+-        write!(
+-            f,
+-            "the trace declares protocol revision(s) {}, which no available registry \
+-             describes (supported: {}); judging it against another revision would \
+-             report that revision's rules as violations",
+-            join(&self.declared),
+-            join(&self.supported)
+-        )
+-    }
+-}
++mod selection;
+ 
+-impl std::error::Error for UnjudgeableRevisions {}
+-
+-/// Chooses the revisions to judge `events` against, from those `supported`.
+-///
+-/// 1. Declared revisions that are supported are judged — all of them, so a session
+-///    that proposed one revision and negotiated another is judged under both.
+-/// 2. A trace declaring only unsupported revisions is an error.
+-/// 3. A trace declaring nothing is judged against the newest supported revision.
+-///
+-/// # Errors
+-///
+-/// [`UnjudgeableRevisions`] in case 2, or when `supported` is empty.
+-pub fn select(
+-    supported: &[ProtocolRevision],
+-    events: &[TraceEvent],
+-) -> Result<Selection, UnjudgeableRevisions> {
+-    let declared = collect_all(events);
+-    let mut supported_sorted = supported.to_vec();
+-    supported_sorted.sort_unstable();
+-    supported_sorted.dedup();
+-    let judgeable: Vec<ProtocolRevision> = declared
+-        .iter()
+-        .copied()
+-        .filter(|revision| supported_sorted.contains(revision))
+-        .collect();
+-    if !judgeable.is_empty() {
+-        return Ok(Selection {
+-            revisions: judgeable,
+-            source: RevisionSource::Declared,
+-        });
+-    }
+-    match (declared.is_empty(), supported_sorted.last()) {
+-        (true, Some(&newest)) => Ok(Selection {
+-            revisions: vec![newest],
+-            source: RevisionSource::Default,
+-        }),
+-        _ => Err(UnjudgeableRevisions {
+-            declared: declared.into_iter().collect(),
+-            supported: supported_sorted,
+-        }),
+-    }
+-}
++pub use selection::{RevisionSource, Selection, UnjudgeableRevisions, select};
+ 
+ #[cfg(test)]
+ mod tests;
+diff --git a/crates/mcp-trace-validator/src/declared/selection.rs b/crates/mcp-trace-validator/src/declared/selection.rs
+new file mode 100644
+index 0000000..afc9669
+--- /dev/null
++++ b/crates/mcp-trace-validator/src/declared/selection.rs
+@@ -0,0 +1,243 @@
++// SPDX-License-Identifier: MIT
++// Copyright 2026 Tom F. (https://github.com/tomtom215)
++
++//! Which revision(s) to judge a trace against, and why ([`select`]).
++//!
++//! The rule has one authority. A session that completed an `initialize`
++//! handshake runs under the revision the server's result names — that is what
++//! negotiation *means* — so it is judged under that one alone, whatever the
++//! client proposed and whatever its later requests state. A negotiated
++//! revision this build has no registry for is refused, not approximated by the
++//! proposal: the session did not run under the proposal. Only a session with no
++//! completed handshake is judged by what it declares elsewhere.
++
++use std::fmt;
++use std::str::FromStr as _;
++
++use mcp_conformance_core::revision::ProtocolRevision;
++use mcp_conformance_core::trace::{Direction, TraceEvent};
++use serde::{Deserialize, Serialize};
++use serde_json::Value;
++
++use super::{Responses, collect_all};
++
++/// How the revision a report judges against was chosen.
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
++#[serde(rename_all = "kebab-case")]
++#[non_exhaustive]
++pub enum RevisionSource {
++    /// The caller named it (`--revision`).
++    Requested,
++    /// The trace declared it: see [`declared_revisions`] for what counts.
++    ///
++    /// [`declared_revisions`]: super::declared_revisions
++    Declared,
++    /// The trace declared nothing, so the newest supported revision was used.
++    Default,
++}
++
++impl fmt::Display for RevisionSource {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        f.write_str(match self {
++            Self::Requested => "requested",
++            Self::Declared => "declared by the trace",
++            Self::Default => "the trace declares none; newest supported",
++        })
++    }
++}
++
++/// The revisions to judge a trace against, and why those.
++#[derive(Debug, Clone, PartialEq, Eq)]
++#[non_exhaustive]
++pub struct Selection {
++    /// Ascending; never empty.
++    pub revisions: Vec<ProtocolRevision>,
++    /// How they were chosen.
++    pub source: RevisionSource,
++    /// The revision the client proposed in `initialize`, when the server's
++    /// result negotiated a different one — the one in
++    /// [`Self::revisions`]. `None` when they agree, or there was no handshake.
++    pub proposed: Option<ProtocolRevision>,
++}
++
++/// The trace declares only revisions no available registry describes.
++///
++/// Judging it anyway would report every clause the revisions disagree about as a
++/// violation, against an implementation that may have violated nothing — so this
++/// is an error the caller must resolve (a newer build, or an explicit revision),
++/// never a silent fallback.
++#[derive(Debug, Clone, PartialEq, Eq)]
++#[non_exhaustive]
++pub struct UnjudgeableRevisions {
++    /// What the trace declared, ascending — the one revision the server's
++    /// `initialize` result negotiated, when [`Self::negotiated`].
++    pub declared: Vec<ProtocolRevision>,
++    /// What the available registries describe, ascending.
++    pub supported: Vec<ProtocolRevision>,
++    /// Whether [`Self::declared`] is the revision a completed handshake
++    /// negotiated, which the session then ran under whatever else it stated.
++    pub negotiated: bool,
++    /// What the client proposed in that handshake, when it was well-formed.
++    pub proposed: Option<ProtocolRevision>,
++}
++
++impl fmt::Display for UnjudgeableRevisions {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        let join = |revisions: &[ProtocolRevision]| {
++            revisions
++                .iter()
++                .map(ToString::to_string)
++                .collect::<Vec<_>>()
++                .join(", ")
++        };
++        if self.negotiated {
++            write!(
++                f,
++                "the server's initialize result negotiated protocol revision {}",
++                join(&self.declared)
++            )?;
++            if let Some(proposed) = self.proposed {
++                write!(f, " (the client proposed {proposed})")?;
++            }
++            return write!(
++                f,
++                ", which no available registry describes (supported: {}); the session ran \
++                 under it, so judging it against another revision would report that \
++                 revision's rules as violations",
++                join(&self.supported)
++            );
++        }
++        write!(
++            f,
++            "the trace declares protocol revision(s) {}, which no available registry \
++             describes (supported: {}); judging it against another revision would \
++             report that revision's rules as violations",
++            join(&self.declared),
++            join(&self.supported)
++        )
++    }
++}
++
++impl std::error::Error for UnjudgeableRevisions {}
++
++/// Chooses the revisions to judge `events` against, from those `supported`.
++///
++/// 1. A session that completed an `initialize` handshake runs under the revision
++///    the server's result names — that is what negotiation means — and is
++///    judged under that one alone. [`Selection::proposed`] carries the client's
++///    proposal when it differed, for the caller to say so. A negotiated
++///    revision no registry describes is an error, whatever the client proposed:
++///    judging the session under the proposal would judge rules it did not run
++///    under.
++/// 2. Without a handshake, every declared revision that is supported is judged:
++///    the per-request `_meta` and the `MCP-Protocol-Version` header, which a
++///    `2026-07-28` session states on each request, and an `initialize` no
++///    result answered.
++/// 3. A trace declaring only unsupported revisions is an error.
++/// 4. A trace declaring nothing is judged against the newest supported revision.
++///
++/// # Errors
++///
++/// [`UnjudgeableRevisions`] in cases 1 and 3, or when `supported` is empty.
++pub fn select(
++    supported: &[ProtocolRevision],
++    events: &[TraceEvent],
++) -> Result<Selection, UnjudgeableRevisions> {
++    let mut supported_sorted = supported.to_vec();
++    supported_sorted.sort_unstable();
++    supported_sorted.dedup();
++    if let Some(negotiated) = negotiated_revision(events) {
++        if !supported_sorted.contains(&negotiated.negotiated) {
++            return Err(UnjudgeableRevisions {
++                declared: vec![negotiated.negotiated],
++                supported: supported_sorted,
++                negotiated: true,
++                proposed: negotiated.proposed,
++            });
++        }
++        return Ok(Selection {
++            revisions: vec![negotiated.negotiated],
++            source: RevisionSource::Declared,
++            proposed: negotiated
++                .proposed
++                .filter(|proposed| *proposed != negotiated.negotiated),
++        });
++    }
++    let declared = collect_all(events);
++    let judgeable: Vec<ProtocolRevision> = declared
++        .iter()
++        .copied()
++        .filter(|revision| supported_sorted.contains(revision))
++        .collect();
++    if !judgeable.is_empty() {
++        return Ok(Selection {
++            revisions: judgeable,
++            source: RevisionSource::Declared,
++            proposed: None,
++        });
++    }
++    match (declared.is_empty(), supported_sorted.last()) {
++        (true, Some(&newest)) => Ok(Selection {
++            revisions: vec![newest],
++            source: RevisionSource::Default,
++            proposed: None,
++        }),
++        _ => Err(UnjudgeableRevisions {
++            declared: declared.into_iter().collect(),
++            supported: supported_sorted,
++            negotiated: false,
++            proposed: None,
++        }),
++    }
++}
++
++/// The revision a completed handshake negotiated: what the server's
++/// `initialize` result names, with what the client proposed.
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++struct Negotiated {
++    /// The `initialize` result's `protocolVersion`.
++    negotiated: ProtocolRevision,
++    /// The `initialize` request's `protocolVersion`, when it is well-formed.
++    proposed: Option<ProtocolRevision>,
++}
++
++/// The first `initialize` the server answered with a result naming a
++/// well-formed revision, read the way the lifecycle tracker reads a handshake:
++/// a client request with an id, answered by the first server result carrying
++/// that id after it. An `initialize` answered with an error (an unsupported
++/// version, which the client meets by proposing another) negotiated nothing,
++/// and neither did one a protected resource refused before reading it — the
++/// retry is the handshake. A result whose `protocolVersion` is missing or
++/// malformed is `LIFE-006`'s finding, not a revision.
++fn negotiated_revision(events: &[TraceEvent]) -> Option<Negotiated> {
++    let responses = Responses::of(events);
++    let refused = crate::context::refused_requests(events);
++    events
++        .iter()
++        .enumerate()
++        .filter(|(_, event)| event.direction == Direction::ClientToServer)
++        .filter(|(_, event)| !refused.contains(&event.seq))
++        .filter(|(_, event)| {
++            event.message_payload().is_some_and(|payload| {
++                payload.get("method").and_then(Value::as_str) == Some("initialize")
++                    && payload.get("id").is_some()
++            })
++        })
++        .find_map(|(index, event)| {
++            let result = responses.result_for(events, index)?;
++            let negotiated = result
++                .get("protocolVersion")
++                .and_then(Value::as_str)
++                .and_then(|version| ProtocolRevision::from_str(version).ok())?;
++            let proposed = event
++                .message_payload()
++                .and_then(|payload| payload.get("params"))
++                .and_then(|params| params.get("protocolVersion"))
++                .and_then(Value::as_str)
++                .and_then(|version| ProtocolRevision::from_str(version).ok());
++            Some(Negotiated {
++                negotiated,
++                proposed,
++            })
++        })
++}
+diff --git a/crates/mcp-trace-validator/src/declared/tests.rs b/crates/mcp-trace-validator/src/declared/tests.rs
+index d994166..17ccd04 100644
+--- a/crates/mcp-trace-validator/src/declared/tests.rs
++++ b/crates/mcp-trace-validator/src/declared/tests.rs
+@@ -139,7 +139,10 @@ fn select_judges_the_revision_the_trace_declares() {
+ }
+ 
+ #[test]
+-fn select_judges_every_supported_revision_a_session_touched() {
++fn select_judges_only_the_revision_the_handshake_negotiated() {
++    // A `2025-11-25` handshake, then a request stating `2026-07-28` in its
++    // `_meta`: the session negotiated the former and ran under it, so it is
++    // judged there alone — not beside every revision it touched.
+     let document = format!(
+         "{HANDSHAKE}\n{}",
+         STATELESS
+@@ -147,8 +150,84 @@ fn select_judges_every_supported_revision_a_session_touched() {
+             .replace("\"id\":1", "\"id\":2")
+     );
+     let selection = select(BUILTIN_REVISIONS, &events(&document)).unwrap();
+-    assert_eq!(selection.revisions, [rev("2025-11-25"), rev("2026-07-28")]);
++    assert_eq!(selection.revisions, [rev("2025-11-25")]);
++    assert_eq!(selection.source, RevisionSource::Declared);
++    assert_eq!(selection.proposed, None);
++}
++
++/// [`HANDSHAKE`] with the server's result naming `version` instead.
++fn negotiated(version: &str) -> String {
++    let (head, tail) = HANDSHAKE.rsplit_once("2025-11-25").unwrap();
++    format!("{head}{version}{tail}")
++}
++
++#[test]
++fn select_judges_the_revision_the_server_negotiated_over_the_proposal() {
++    let selection = select(BUILTIN_REVISIONS, &events(&negotiated("2026-07-28"))).unwrap();
++    assert_eq!(selection.revisions, [rev("2026-07-28")]);
++    assert_eq!(selection.source, RevisionSource::Declared);
++    assert_eq!(selection.proposed, Some(rev("2025-11-25")));
++    // A proposal this build cannot judge, declined for one it can (`tran-018`).
++    let declined = HANDSHAKE.replacen("2025-11-25", "2025-06-18", 1);
++    let selection = select(BUILTIN_REVISIONS, &events(&declined)).unwrap();
++    assert_eq!(selection.revisions, [rev("2025-11-25")]);
++    assert_eq!(selection.proposed, Some(rev("2025-06-18")));
++    // Agreement is nothing to remark on.
++    let agreed = select(BUILTIN_REVISIONS, &events(HANDSHAKE)).unwrap();
++    assert_eq!(agreed.proposed, None);
++}
++
++#[test]
++fn select_refuses_a_negotiated_revision_it_cannot_judge() {
++    // The session ran under `2024-11-05` whatever the client asked for, so
++    // judging it under the proposal would judge rules it did not run under.
++    let error = select(BUILTIN_REVISIONS, &events(&negotiated("2024-11-05"))).unwrap_err();
++    assert_eq!(error.declared, [rev("2024-11-05")]);
++    assert!(error.negotiated);
++    assert_eq!(error.proposed, Some(rev("2025-11-25")));
++    let message = error.to_string();
++    assert!(
++        message.contains("negotiated protocol revision 2024-11-05"),
++        "{message}"
++    );
++    assert!(
++        message.contains("the client proposed 2025-11-25"),
++        "{message}"
++    );
++    assert!(
++        message.contains("supported: 2025-11-25, 2026-07-28"),
++        "{message}"
++    );
++}
++
++#[test]
++fn a_handshake_answered_with_an_error_negotiates_nothing() {
++    // Refused, then retried with another proposal: the retry is the handshake.
++    let refused = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2027-03-01","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}}
++{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"Unsupported protocol version","data":{"supported":["2025-11-25"]}}}}"#;
++    let retried = format!(
++        "{refused}\n{}",
++        HANDSHAKE
++            .replace("\"seq\":0", "\"seq\":2")
++            .replace("\"seq\":1", "\"seq\":3")
++            .replace("\"id\":1", "\"id\":2")
++    );
++    let selection = select(BUILTIN_REVISIONS, &events(&retried)).unwrap();
++    assert_eq!(selection.revisions, [rev("2025-11-25")]);
++    assert_eq!(selection.proposed, None);
++    // Refused and never retried, the trace declares nothing (`vers-008`).
++    let selection = select(BUILTIN_REVISIONS, &events(refused)).unwrap();
++    assert_eq!(selection.source, RevisionSource::Default);
++}
++
++#[test]
++fn a_malformed_negotiated_version_is_a_finding_not_a_revision() {
++    // `life-006`: the result names `1.0`. LIFE-006 judges that; the session
++    // is judged under the proposal, the one revision it declared.
++    let selection = select(BUILTIN_REVISIONS, &events(&negotiated("1.0"))).unwrap();
++    assert_eq!(selection.revisions, [rev("2025-11-25")]);
+     assert_eq!(selection.source, RevisionSource::Declared);
++    assert_eq!(selection.proposed, None);
+ }
+ 
+ #[test]
+diff --git a/crates/mcp-trace-validator/src/validate.rs b/crates/mcp-trace-validator/src/validate.rs
+index 36584e4..a98fcc4 100644
+--- a/crates/mcp-trace-validator/src/validate.rs
++++ b/crates/mcp-trace-validator/src/validate.rs
+@@ -245,9 +245,9 @@ fn judge_in_set(
+     events: &[TraceEvent],
+     prefix: &str,
+ ) -> Result<(Vec<Report>, Option<MultiReport>), Refusal> {
+-    let (chosen, source) = if requested.is_empty() {
++    let (chosen, source, proposed) = if requested.is_empty() {
+         declared::select(set.revisions(), events)
+-            .map(|selection| (selection.revisions, selection.source))
++            .map(|selection| (selection.revisions, selection.source, selection.proposed))
+             .map_err(|error| Refusal {
+                 error: format!("{prefix}{error}"),
+                 hints: vec![
+@@ -257,7 +257,7 @@ fn judge_in_set(
+                 code: EXIT_USAGE,
+             })?
+     } else {
+-        (requested.to_vec(), RevisionSource::Requested)
++        (requested.to_vec(), RevisionSource::Requested, None)
+     };
+     // A trace with no messages is refused as contentless right after this; a
+     // note about the revision it did not declare would only bury that.
+@@ -269,6 +269,16 @@ fn judge_in_set(
+             chosen[0]
+         );
+     }
++    // The session ran under what the server negotiated, not what the client
++    // asked for; the reader deserves to know the report is not of the latter.
++    if let Some(proposed) = proposed {
++        eprintln!(
++            "note: {prefix}the client proposed protocol revision {proposed}; the server's \
++             initialize result negotiated {}, which the session then ran under, so it is \
++             judged there (pass --revision {proposed} to judge it under the proposal instead)",
++            chosen[0]
++        );
++    }
+     let mut reports: Vec<Report> = chosen
+         .iter()
+         .filter_map(|revision| set.registry(*revision))
+diff --git a/crates/mcp-trace-validator/tests/cli_negotiated.rs b/crates/mcp-trace-validator/tests/cli_negotiated.rs
+new file mode 100644
+index 0000000..6ecb872
+--- /dev/null
++++ b/crates/mcp-trace-validator/tests/cli_negotiated.rs
+@@ -0,0 +1,149 @@
++// SPDX-License-Identifier: MIT
++// Copyright 2026 Tom F. (https://github.com/tomtom215)
++
++//! A session that completed an `initialize` handshake runs under the revision
++//! the server's result names — that is what negotiation means. The validator
++//! judges it there, says so when the client proposed something else, and
++//! refuses (exit 2) when the negotiated revision is one it cannot judge,
++//! rather than judging the session under the proposal it did not run under.
++
++#![cfg(feature = "cli")]
++#![allow(clippy::unwrap_used, clippy::expect_used)]
++
++use std::path::Path;
++use std::process::{Command, Output};
++
++fn run(args: &[&str]) -> Output {
++    Command::new(env!("CARGO_BIN_EXE_mcp-trace-validator"))
++        .args(args)
++        .output()
++        .expect("binary runs")
++}
++
++fn stdout(output: &Output) -> String {
++    String::from_utf8(output.stdout.clone()).unwrap()
++}
++
++fn stderr(output: &Output) -> String {
++    String::from_utf8(output.stderr.clone()).unwrap()
++}
++
++fn corpus(relative: &str) -> String {
++    Path::new(env!("CARGO_MANIFEST_DIR"))
++        .join("../../corpus")
++        .join(relative)
++        .to_str()
++        .unwrap()
++        .to_owned()
++}
++
++/// Client `2025-11-25`, server `2026-07-28`: judgeable, under the server's —
++/// where the legacy `initialize` is a request without its `_meta` (BASE-030).
++const NEWER: &str = "draft/violations/base-030-legacy-initialize-negotiated-2026-07-28.jsonl";
++/// Client `2025-11-25`, server `2024-11-05`: not judgeable by this build.
++const OLDER: &str = "good/stdio-server-negotiates-2024-11-05.jsonl";
++/// Client `2025-06-18`, server `2025-11-25`: judgeable, under the server's.
++const DECLINED: &str = "violations/tran-018-declined-version-header-refused-400.jsonl";
++
++fn note(proposed: &str, negotiated: &str) -> String {
++    format!(
++        "note: the client proposed protocol revision {proposed}; the server's initialize \
++         result negotiated {negotiated}, which the session then ran under, so it is judged \
++         there (pass --revision {proposed} to judge it under the proposal instead)\n"
++    )
++}
++
++#[test]
++fn a_session_is_judged_under_the_revision_the_server_negotiated() {
++    let output = run(&["validate", &corpus(NEWER)]);
++    assert_eq!(output.status.code(), Some(1), "{output:?}");
++    let text = stdout(&output);
++    assert!(
++        text.starts_with("MCP trace validation — revision 2026-07-28 (declared by the trace)\n"),
++        "{text}"
++    );
++    // One report, not a side-by-side of the proposal and the negotiation: the
++    // `2025-11-25` rules (LIFE-003, for the `initialized` that never came)
++    // are not this session's, and the negotiated revision's are.
++    assert!(!text.contains("2025-11-25"), "{text}");
++    assert!(!text.contains("overall verdict"), "{text}");
++    assert!(text.contains("  FAIL  BASE-030 (MUST)\n"), "{text}");
++    assert!(text.ends_with("verdict: fail\n"), "{text}");
++    assert_eq!(stderr(&output), note("2025-11-25", "2026-07-28"));
++
++    let json = run(&["validate", "--format", "json", &corpus(NEWER)]);
++    let report: serde_json::Value = serde_json::from_str(&stdout(&json)).unwrap();
++    assert_eq!(report["revision"], "2026-07-28");
++    assert_eq!(report["revision_source"], "declared");
++    assert!(report.get("revisions").is_none(), "{report}");
++    assert_eq!(stderr(&json), note("2025-11-25", "2026-07-28"));
++}
++
++#[test]
++fn a_negotiated_revision_this_build_cannot_judge_is_refused() {
++    let output = run(&["validate", &corpus(OLDER)]);
++    assert_eq!(output.status.code(), Some(2), "{output:?}");
++    assert!(stdout(&output).is_empty(), "{output:?}");
++    let message = stderr(&output);
++    assert!(
++        message.contains(
++            "error: the server's initialize result negotiated protocol revision 2024-11-05 \
++             (the client proposed 2025-11-25), which no available registry describes \
++             (supported: 2025-11-25, 2026-07-28); the session ran under it"
++        ),
++        "{message}"
++    );
++    assert!(message.contains("hint: pass --revision"), "{message}");
++    // The same refusal from the JSON path: no report is invented.
++    let json = run(&["validate", "--format", "json", &corpus(OLDER)]);
++    assert_eq!(json.status.code(), Some(2), "{json:?}");
++    assert!(stdout(&json).is_empty(), "{json:?}");
++}
++
++#[test]
++fn the_proposal_is_still_a_question_the_caller_can_ask() {
++    // `--revision` names the proposal: judged there, and the mismatch note
++    // stays quiet, because the client did state that revision.
++    let output = run(&["validate", "--revision", "2025-11-25", &corpus(OLDER)]);
++    assert_eq!(output.status.code(), Some(0), "{output:?}");
++    let text = stdout(&output);
++    assert!(text.contains("revision 2025-11-25 (requested)"), "{text}");
++    assert!(!text.contains("NOTE  this session declares"), "{text}");
++    assert!(stderr(&output).is_empty(), "{output:?}");
++}
++
++#[test]
++fn a_declined_proposal_is_noted_and_the_negotiated_revision_judged_alone() {
++    // The client asked for a revision this build does not know and the server
++    // declined it: judged under what the server named, with the note.
++    let output = run(&["validate", &corpus(DECLINED)]);
++    assert_eq!(output.status.code(), Some(0), "{output:?}");
++    let text = stdout(&output);
++    assert!(
++        text.contains("revision 2025-11-25 (declared by the trace)"),
++        "{text}"
++    );
++    assert!(text.contains("WARN  TRAN-018"), "{text}");
++    assert_eq!(stderr(&output), note("2025-06-18", "2025-11-25"));
++}
++
++#[test]
++fn an_agreed_handshake_draws_no_note() {
++    let output = run(&["validate", &corpus("good/stdio-minimal-init.jsonl")]);
++    assert_eq!(output.status.code(), Some(0), "{output:?}");
++    assert!(stderr(&output).is_empty(), "{output:?}");
++}
++
++#[test]
++fn several_traces_name_the_trace_the_note_is_about() {
++    let newer = corpus(NEWER);
++    let output = run(&["validate", &corpus("good/stdio-minimal-init.jsonl"), &newer]);
++    assert_eq!(output.status.code(), Some(1), "{output:?}");
++    assert_eq!(
++        stderr(&output),
++        format!(
++            "note: {newer}: {}",
++            note("2025-11-25", "2026-07-28").trim_start_matches("note: ")
++        )
++    );
++}
+-- 
+2.43.0
+

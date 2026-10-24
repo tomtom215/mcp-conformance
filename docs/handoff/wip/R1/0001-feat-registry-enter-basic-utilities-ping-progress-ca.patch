@@ -1,0 +1,598 @@
+From 83864afcee4337b21682513f5efe2fe670802624 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 24 Oct 2026 08:27:09 +0000
+Subject: [PATCH 1/4] feat(registry): enter
+ basic/utilities/{ping,progress,cancellation} at 2025-11-25
+
+The three pages sat in `out_of_scope` as an "unclaimed surface, wire-checkable,
+expansion candidate", so a server sending progress for a token nobody issued, or
+a cancellation naming a request nobody sent, judged clean at this revision while
+the same traffic failed at 2026-07-28. They now enter by the registry's own
+method: every MUST-family and SHOULD-family keyword instance on each page is
+entered (27 entries: 13 judged by 11 checks, 14 excluded with a reason that says
+what a recording would have to carry and why it does not), the MAY-family ones
+counted. The census: ping 1/6/2, progress 8/3/3, cancellation 4/5/1.
+
+Ids are new (PING-001..007, PROG-009..019, CANC-018..026): an id names one
+clause at one revision, forever, and ids are unique across the whole set, so a
+sentence 2026-07-28 also carries (PROG-001/PROG-009, PROG-005/PROG-013, ...)
+gets a second entry under a second id, as BASE-001/BASE-043 do. The continuity
+gate keys on page section as well as quote, so none of the pairs is compared;
+each 2025-11-25 entry binds `both` where 2026-07-28's binds one party, because
+either party issues requests at this revision. CANC-018 is judged where its
+2026-07-28 twin (CANC-010) is excluded, on purpose: a 2025-11-25 session begins
+with `initialize`, so a recording that holds the handshake holds every request
+the session issued, the witness the stateless revision lacks (PAGE-003/PAGE-011
+is the precedent).
+
+The core embeds the three area files after the transport ones; its two pinned
+entry counts move from 321 to 348, the area-order test learns the three
+prefixes, and xtask's pinned in-scope page count moves from 13 to 16.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Sdg4tfY3zMjTpYqmDkiuqW
+---
+ .../registry/2025-11-25/cancellation.json     | 130 ++++++++++++++
+ .../registry/2025-11-25/ping.json             |  98 +++++++++++
+ .../registry/2025-11-25/progress.json         | 165 ++++++++++++++++++
+ .../registry/2025-11-25/sources.json          |  15 +-
+ .../src/requirement/registry.rs               |   8 +-
+ .../src/requirement/registry/tests.rs         |   6 +-
+ .../src/requirement/set.rs                    |   4 +-
+ xtask/src/spec_drift/tests.rs                 |   2 +-
+ 8 files changed, 417 insertions(+), 11 deletions(-)
+ create mode 100644 crates/mcp-conformance-core/registry/2025-11-25/cancellation.json
+ create mode 100644 crates/mcp-conformance-core/registry/2025-11-25/ping.json
+ create mode 100644 crates/mcp-conformance-core/registry/2025-11-25/progress.json
+
+diff --git a/crates/mcp-conformance-core/registry/2025-11-25/cancellation.json b/crates/mcp-conformance-core/registry/2025-11-25/cancellation.json
+new file mode 100644
+index 0000000..ef61080
+--- /dev/null
++++ b/crates/mcp-conformance-core/registry/2025-11-25/cancellation.json
+@@ -0,0 +1,130 @@
++{
++  "revision": "2025-11-25",
++  "requirements": [
++    {
++      "id": "CANC-018",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/cancellation#behavior-requirements",
++        "quote": "Cancellation notifications MUST only reference requests that: Were previously issued in the same direction; Are believed to still be in-progress"
++      },
++      "checks": [
++        "cancellation.references-issued-request"
++      ]
++    },
++    {
++      "id": "CANC-019",
++      "level": "MUST NOT",
++      "actor": "client",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/cancellation#behavior-requirements",
++        "quote": "The `initialize` request MUST NOT be cancelled by clients"
++      },
++      "checks": [
++        "cancellation.initialize-not-cancelled"
++      ]
++    },
++    {
++      "id": "CANC-020",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/cancellation#behavior-requirements",
++        "quote": "For task-augmented requests, the `tasks/cancel` request MUST be used instead of the `notifications/cancelled` notification."
++      },
++      "checks": [
++        "cancellation.task-cancelled-by-request"
++      ]
++    },
++    {
++      "id": "CANC-021",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/cancellation#behavior-requirements",
++        "quote": "Receivers of cancellation notifications SHOULD: Stop processing the cancelled request; Free associated resources; Not send a response for the cancelled request"
++      },
++      "checks": [
++        "cancellation.no-response-after-cancellation"
++      ]
++    },
++    {
++      "id": "CANC-022",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/cancellation#behavior-requirements",
++        "quote": "The sender of the cancellation notification SHOULD ignore any response to the request that arrives afterward"
++      },
++      "exclusion": "Ignoring a response is the absence of a reaction inside the sender. A recording would have to carry a message the sender sends because it acted on the late response, and the protocol defines none: nothing a party does with a response it received reaches the wire."
++    },
++    {
++      "id": "CANC-023",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/cancellation#timing-considerations",
++        "quote": "Both parties MUST handle these race conditions gracefully:"
++      },
++      "exclusion": "Graceful handling is internal; the race itself is what a recording shows, and the checks are built not to convict it — `cancellation.no-response-after-cancellation` reports an answer to a cancelled request only once the receiver has demonstrably read the cancellation, and the conforming `stdio-cancellation` trace pins the answer that crosses one. A recording would have to carry a message the specification defines as ungraceful handling, and it defines none; a party that failed to handle the race would show it through some other clause's violation, judged there."
++    },
++    {
++      "id": "CANC-024",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/cancellation#implementation-notes",
++        "quote": "Both parties SHOULD log cancellation reasons for debugging"
++      },
++      "exclusion": "Logging is local diagnostics with no wire footprint: nothing an implementation writes to its own log is a protocol message, so no recording contains it."
++    },
++    {
++      "id": "CANC-025",
++      "level": "SHOULD",
++      "actor": "client",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/cancellation#implementation-notes",
++        "quote": "Application UIs SHOULD indicate when cancellation is requested"
++      },
++      "exclusion": "User-interface presentation, out by strategy rule 2: what an application shows its user is not a protocol message, so no recording carries it."
++    },
++    {
++      "id": "CANC-026",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/cancellation#error-handling",
++        "quote": "Invalid cancellation notifications SHOULD be ignored: Unknown request IDs; Already completed requests; Malformed notifications"
++      },
++      "exclusion": "Ignoring a notification is the absence of a reaction, which a trace cannot tell apart from the notification never mattering: a recording would have to carry a message the receiver sends because it did not ignore the notification, and the protocol defines none (answering a notification is forbidden anyway, BASE-011). The party that sent the invalid notification is judged instead, where it can be: CANC-018 for a cancellation naming a request its sender never issued in the session, CANC-019 for one naming `initialize`."
++    }
++  ]
++}
+diff --git a/crates/mcp-conformance-core/registry/2025-11-25/ping.json b/crates/mcp-conformance-core/registry/2025-11-25/ping.json
+new file mode 100644
+index 0000000..169dad9
+--- /dev/null
++++ b/crates/mcp-conformance-core/registry/2025-11-25/ping.json
+@@ -0,0 +1,98 @@
++{
++  "revision": "2025-11-25",
++  "requirements": [
++    {
++      "id": "PING-001",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/ping#behavior-requirements",
++        "quote": "The receiver MUST respond promptly with an empty response:"
++      },
++      "checks": [
++        "ping.empty-result"
++      ]
++    },
++    {
++      "id": "PING-002",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/ping#implementation-considerations",
++        "quote": "Implementations SHOULD periodically issue pings to detect connection health"
++      },
++      "exclusion": "\"Periodically\" is a rate over wall-clock time, and checks may not consult time — the limit LIFE-015 records. A recording would have to show the interval between pings against the length of the session, and it carries neither: a session with no ping and one with few are both what a conforming implementation produces over a short enough connection."
++    },
++    {
++      "id": "PING-003",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/ping#implementation-considerations",
++        "quote": "The frequency of pings SHOULD be configurable"
++      },
++      "exclusion": "Binds the implementation's configuration surface — what its operator can set — which has no protocol representation (LIFE-019's boundary). A recording shows the pings one configuration produced, never whether another was available."
++    },
++    {
++      "id": "PING-004",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/ping#implementation-considerations",
++        "quote": "Timeouts SHOULD be appropriate for the network environment"
++      },
++      "exclusion": "A timeout is a duration held inside the sender, and checks may not consult time (LIFE-015). A recording would have to carry the deadline the sender held a ping to and the network it was chosen for; it shows a ping answered or not, and nothing of either."
++    },
++    {
++      "id": "PING-005",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/ping#implementation-considerations",
++        "quote": "Excessive pinging SHOULD be avoided to reduce network overhead"
++      },
++      "exclusion": "\"Excessive\" is a rate — pings per unit of time — and checks may not consult time (LIFE-015). No count of pings alone separates a flood from a long session checking its connection, the same limit PROG-018 records for rate limiting."
++    },
++    {
++      "id": "PING-006",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/ping#error-handling",
++        "quote": "Timeouts SHOULD be treated as connection failures"
++      },
++      "exclusion": "The antecedent, a ping timing out, is the sender's own deadline expiring, which no message records and checks may not compute from timestamps (LIFE-015). The consequence, treating the connection as failed, is at most a `transport-close` lifecycle event, which says that a transport ended and not why; a recording cannot tell a connection dropped for a timeout from one closed at the end of a session."
++    },
++    {
++      "id": "PING-007",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/ping#error-handling",
++        "quote": "Implementations SHOULD log ping failures for diagnostics"
++      },
++      "exclusion": "Logging is local diagnostics with no wire footprint (CANC-024's boundary): nothing an implementation writes to its own log is a protocol message, so no recording contains it."
++    }
++  ]
++}
+diff --git a/crates/mcp-conformance-core/registry/2025-11-25/progress.json b/crates/mcp-conformance-core/registry/2025-11-25/progress.json
+new file mode 100644
+index 0000000..2ddbaa6
+--- /dev/null
++++ b/crates/mcp-conformance-core/registry/2025-11-25/progress.json
+@@ -0,0 +1,165 @@
++{
++  "revision": "2025-11-25",
++  "requirements": [
++    {
++      "id": "PROG-009",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/progress#progress-flow",
++        "quote": "Progress tokens MUST be a string or integer value"
++      },
++      "checks": [
++        "progress.token-string-or-integer"
++      ]
++    },
++    {
++      "id": "PROG-010",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/progress#progress-flow",
++        "quote": "Progress tokens can be chosen by the sender using any means, but MUST be unique across all active requests."
++      },
++      "checks": [
++        "progress.token-unique-among-active-requests"
++      ]
++    },
++    {
++      "id": "PROG-011",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/progress#progress-flow",
++        "quote": "The `progress` value MUST increase with each notification, even if the total is unknown."
++      },
++      "checks": [
++        "progress.value-strictly-increases"
++      ]
++    },
++    {
++      "id": "PROG-012",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/progress#progress-flow",
++        "quote": "The `message` field SHOULD provide relevant human readable progress information."
++      },
++      "exclusion": "Whether a message is relevant and human readable is a judgment about its meaning, not its shape; any string satisfies the schema, and no mechanical reading of one decides relevance. The same sentence is PROG-004 at 2026-07-28, excluded for the same reason."
++    },
++    {
++      "id": "PROG-013",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/progress#behavior-requirements",
++        "quote": "Progress notifications MUST only reference tokens that: Were provided in an active request; Are associated with an in-progress operation"
++      },
++      "checks": [
++        "progress.token-issued-in-session",
++        "progress.stops-after-completion"
++      ]
++    },
++    {
++      "id": "PROG-014",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/progress#behavior-requirements",
++        "quote": "For task-augmented requests, the `progressToken` provided in the original request MUST continue to be used for progress notifications throughout the task's lifetime, even after the `CreateTaskResult` has been returned."
++      },
++      "checks": [
++        "progress.task-token-unchanged"
++      ]
++    },
++    {
++      "id": "PROG-015",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/progress#behavior-requirements",
++        "quote": "Progress notifications for tasks MUST use the same `progressToken` that was provided in the initial task-augmented request"
++      },
++      "checks": [
++        "progress.task-token-unchanged"
++      ]
++    },
++    {
++      "id": "PROG-016",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/progress#behavior-requirements",
++        "quote": "Progress notifications for tasks MUST stop after the task reaches a terminal status (`completed`, `failed`, or `cancelled`)"
++      },
++      "checks": [
++        "progress.stops-after-completion"
++      ]
++    },
++    {
++      "id": "PROG-017",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/progress#implementation-notes",
++        "quote": "Senders and receivers SHOULD track active progress tokens"
++      },
++      "exclusion": "Tracking is bookkeeping inside each party, and a recording carries no message that shows a token being tracked or forgotten. Its wire consequences are the MUST rows beside it, which are judged: a token reused while its request is active (PROG-010), a token no request provided and progress for a finished request (PROG-013, PROG-016, PROG-019)."
++    },
++    {
++      "id": "PROG-018",
++      "level": "SHOULD",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/progress#implementation-notes",
++        "quote": "Both parties SHOULD implement rate limiting to prevent flooding"
++      },
++      "exclusion": "A rate is messages per unit of time, and checks may not consult time — the limit LIFE-015 records. No count of notifications alone separates a flood from a long operation reporting often."
++    },
++    {
++      "id": "PROG-019",
++      "level": "MUST",
++      "actor": "both",
++      "applies": {
++        "removed": "2026-07-28"
++      },
++      "source": {
++        "section": "basic/utilities/progress#implementation-notes",
++        "quote": "Progress notifications MUST stop after completion"
++      },
++      "checks": [
++        "progress.stops-after-completion"
++      ]
++    }
++  ]
++}
+diff --git a/crates/mcp-conformance-core/registry/2025-11-25/sources.json b/crates/mcp-conformance-core/registry/2025-11-25/sources.json
+index 5f254e4..be17602 100644
+--- a/crates/mcp-conformance-core/registry/2025-11-25/sources.json
++++ b/crates/mcp-conformance-core/registry/2025-11-25/sources.json
+@@ -5,6 +5,9 @@
+         "basic/authorization": "basic/authorization.mdx",
+         "basic/lifecycle": "basic/lifecycle.mdx",
+         "basic/transports": "basic/transports.mdx",
++        "basic/utilities/cancellation": "basic/utilities/cancellation.mdx",
++        "basic/utilities/ping": "basic/utilities/ping.mdx",
++        "basic/utilities/progress": "basic/utilities/progress.mdx",
+         "client/elicitation": "client/elicitation.mdx",
+         "client/roots": "client/roots.mdx",
+         "client/sampling": "client/sampling.mdx",
+@@ -17,9 +20,6 @@
+     },
+     "out_of_scope": {
+         "architecture": "No RFC 2119 keyword instances on the page (verified at spec 1304c8fe).",
+-        "basic/utilities/cancellation": "Never claimed in the registry's surface (M1 DoD names lifecycle, tools, resources, prompts, logging, completion, pagination, transport security). Wire-checkable; expansion candidate alongside M2.5's multi-revision work.",
+-        "basic/utilities/ping": "Same as cancellation: unclaimed surface, wire-checkable, M2.5-window expansion candidate — and `2026-07-28` removes ping (register 1.5a), so expansion value is shrinking.",
+-        "basic/utilities/progress": "Same as cancellation: unclaimed surface, wire-checkable, M2.5-window expansion candidate.",
+         "basic/utilities/tasks": "Experimental at this revision (the page: \"currently considered **experimental**\"), and unscored by everything that scores conformance: SEP-1730 says \"Experimental features and protocol extensions (such as Tasks and MCP Apps) are not required for any tier\", and the official suite's `requirements/2025-11-25.yaml` (0.2.0-alpha.12) records that \"the tasks extension suite attaches to 2026-07-28 only and has no entries here\". SEP-2663 then moved tasks out of core into the `io.modelcontextprotocol/tasks` extension, whose clauses are entered beside `2026-07-28` and reported without being scored (ADR-0023). Re-decided 2026-10-13; the earlier reason was that entering them would build surface the next revision deletes.",
+         "changelog": "Non-normative revision history (zero RFC 2119 keyword instances, verified at spec 1304c8fe).",
+         "index": "Landing page: its keyword instances are the BCP 14 definition boilerplate plus one security-principles `implementors SHOULD` about consent/authorization flows — UI and internal policy, out by strategy rule 2 (03-conformance-strategy.md §What enters the registry); verified at spec 1304c8fe.",
+@@ -32,6 +32,9 @@
+         "basic/authorization": 70,
+         "basic/lifecycle": 9,
+         "basic/transports": 31,
++        "basic/utilities/cancellation": 4,
++        "basic/utilities/ping": 1,
++        "basic/utilities/progress": 8,
+         "client/elicitation": 42,
+         "client/roots": 4,
+         "client/sampling": 9,
+@@ -47,6 +50,9 @@
+         "basic/authorization": 31,
+         "basic/lifecycle": 11,
+         "basic/transports": 22,
++        "basic/utilities/cancellation": 5,
++        "basic/utilities/ping": 6,
++        "basic/utilities/progress": 3,
+         "client/elicitation": 14,
+         "client/roots": 4,
+         "client/sampling": 10,
+@@ -62,6 +68,9 @@
+         "basic/authorization": 10,
+         "basic/lifecycle": 2,
+         "basic/transports": 21,
++        "basic/utilities/cancellation": 1,
++        "basic/utilities/ping": 2,
++        "basic/utilities/progress": 3,
+         "client/elicitation": 4,
+         "client/roots": 0,
+         "client/sampling": 2,
+diff --git a/crates/mcp-conformance-core/src/requirement/registry.rs b/crates/mcp-conformance-core/src/requirement/registry.rs
+index c1f7c4d..742bc5e 100644
+--- a/crates/mcp-conformance-core/src/requirement/registry.rs
++++ b/crates/mcp-conformance-core/src/requirement/registry.rs
+@@ -17,13 +17,17 @@ use super::{Requirement, Verification};
+ use crate::revision::{ProtocolRevision, REVISION_2025_11_25};
+ 
+ /// The embedded per-area registry documents for protocol revision `2025-11-25`, in
+-/// report order: base protocol, lifecycle, transports, the capability-gated server
+-/// feature areas, the client-feature pages, then authorization.
++/// report order: base protocol, lifecycle, transports, the basic utilities (ping,
++/// progress, cancellation), the capability-gated server feature areas, the
++/// client-feature pages, then authorization.
+ const AREAS_2025_11_25: &[&str] = &[
+     include_str!("../../registry/2025-11-25/base.json"),
+     include_str!("../../registry/2025-11-25/lifecycle.json"),
+     include_str!("../../registry/2025-11-25/transport.json"),
+     include_str!("../../registry/2025-11-25/transport-streamable-http.json"),
++    include_str!("../../registry/2025-11-25/ping.json"),
++    include_str!("../../registry/2025-11-25/progress.json"),
++    include_str!("../../registry/2025-11-25/cancellation.json"),
+     include_str!("../../registry/2025-11-25/tools.json"),
+     include_str!("../../registry/2025-11-25/resources.json"),
+     include_str!("../../registry/2025-11-25/prompts.json"),
+diff --git a/crates/mcp-conformance-core/src/requirement/registry/tests.rs b/crates/mcp-conformance-core/src/requirement/registry/tests.rs
+index 6b5d32c..b77514a 100644
+--- a/crates/mcp-conformance-core/src/requirement/registry/tests.rs
++++ b/crates/mcp-conformance-core/src/requirement/registry/tests.rs
+@@ -73,7 +73,7 @@ fn builtin_registry_parses_and_validates() {
+     // dropped from the embed (a forgotten include, a bad merge) shrinks
+     // the count without failing any floor check. The README coverage
+     // gate pins the same number from the other direction.
+-    assert_eq!(registry.requirements().len(), 321);
++    assert_eq!(registry.requirements().len(), 348);
+     assert!(registry.get("LIFE-001").is_some());
+     assert!(registry.get("NOPE-999").is_none());
+ }
+@@ -134,8 +134,8 @@ fn builtin_registry_areas_merge_in_report_order() {
+ 
+ /// Area prefixes in their report order, for the order test above.
+ const AREA_ORDER: &[&str] = &[
+-    "BASE-", "LIFE-", "TRAN-", "TOOL-", "RES-", "PROM-", "LOG-", "COMP-", "PAGE-", "ELIC-",
+-    "SAMP-", "ROOT-", "AUTH-",
++    "BASE-", "LIFE-", "TRAN-", "PING-", "PROG-", "CANC-", "TOOL-", "RES-", "PROM-", "LOG-",
++    "COMP-", "PAGE-", "ELIC-", "SAMP-", "ROOT-", "AUTH-",
+ ];
+ 
+ #[test]
+diff --git a/crates/mcp-conformance-core/src/requirement/set.rs b/crates/mcp-conformance-core/src/requirement/set.rs
+index 585f709..32cf02f 100644
+--- a/crates/mcp-conformance-core/src/requirement/set.rs
++++ b/crates/mcp-conformance-core/src/requirement/set.rs
+@@ -319,7 +319,7 @@ mod tests {
+     /// The invariant the `removed = 2026-07-28` bound exists to protect, and the one
+     /// that would fail silently if it were missing: describing a second revision must
+     /// not change what the first one requires. An absent `applies` range means *every*
+-    /// revision, so without the bound all 321 entries — every quote citing a
++    /// revision, so without the bound all 348 entries — every quote citing a
+     /// `2025-11-25` page — would leak into `2026-07-28` and read as if that revision
+     /// had been extracted.
+     #[test]
+@@ -327,7 +327,7 @@ mod tests {
+         let set = RegistrySet::builtin().unwrap();
+         let projected = set.registry(rev("2025-11-25")).unwrap();
+         assert_eq!(projected, Registry::builtin_2025_11_25().unwrap());
+-        assert_eq!(projected.requirements().len(), 321);
++        assert_eq!(projected.requirements().len(), 348);
+     }
+ 
+     /// No entry serves both revisions. Each revision's entries quote its own pages, so
+diff --git a/xtask/src/spec_drift/tests.rs b/xtask/src/spec_drift/tests.rs
+index 6484549..d810204 100644
+--- a/xtask/src/spec_drift/tests.rs
++++ b/xtask/src/spec_drift/tests.rs
+@@ -134,7 +134,7 @@ fn the_committed_sources_file_parses_and_matches_the_registry() {
+     let registry = Registry::builtin_2025_11_25().unwrap();
+     let by_page = requirements_by_page(&registry);
+     assert!(sets_agree(&sources, &by_page));
+-    assert_eq!(sources.in_scope.len(), 13, "the thirteen in-scope pages");
++    assert_eq!(sources.in_scope.len(), 16, "the sixteen in-scope pages");
+     assert!(!sources.out_of_scope.is_empty());
+ }
+ 
+-- 
+2.43.0
+

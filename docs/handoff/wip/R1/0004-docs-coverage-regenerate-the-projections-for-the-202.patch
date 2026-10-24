@@ -1,0 +1,425 @@
+From 73c715fd168625099f7324453a956b7c908dbf6e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 24 Oct 2026 08:27:09 +0000
+Subject: [PATCH 4/4] docs(coverage): regenerate the projections for the
+ 2025-11-25 utilities pages
+
+`cargo xtask coverage` (README table: 348 requirements, 102 judged by 96
+checks, 246 excluded; the book's requirement reference), `cargo xtask sdk-matrix`
+(the four 2025-11-25 SDK rows' not-observed counts), and the hand-kept counts the
+gates verify: the book's revisions table and its multi-revision example totals,
+the README's example totals, and the README bullet that attributed main's
+changed totals to 2026-07-28 rows alone.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Sdg4tfY3zMjTpYqmDkiuqW
+---
+ README.md                                     |  14 +-
+ book/src/reference/requirements-2025-11-25.md | 278 +++++++++++++++++-
+ book/src/revisions.md                         |  10 +-
+ book/src/sdk-matrix.md                        |   8 +-
+ 4 files changed, 295 insertions(+), 15 deletions(-)
+
+diff --git a/README.md b/README.md
+index 676a63f..085f7e3 100644
+--- a/README.md
++++ b/README.md
+@@ -30,8 +30,9 @@ Pre-1.0: the API and the verdicts may change between minor releases, and the
+ > - release binaries built with `cargo auditable`, for `cargo audit bin`;
+ > - the `requirements <ID>` view, its `--area`/`--level`/`--checked`/`--excluded`
+ >   filters, and the `completions` subcommand;
+-> - the `2026-07-28` registry rows added since, so the example totals and the
+->   coverage table below are `main`'s, not `0.6.0`'s;
++> - the registry rows added since at both revisions — `2026-07-28`'s, and
++>   `2025-11-25`'s ping, progress and cancellation pages — so the example totals
++>   and the coverage table below are `main`'s, not `0.6.0`'s;
+ > - the wire schema — every message validated against its revision's JSON Schema —
+ >   and the five clauses it made judgeable;
+ > - the container image (`ghcr.io/tomtom215/mcp-conformance`, first published by
+@@ -282,6 +283,9 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
+ | BASE | 28 | 14 | 14 | 0 |
+ | LIFE | 20 | 10 | 10 | 0 |
+ | TRAN | 52 | 14 | 38 | 0 |
++| PING | 7 | 1 | 6 | 0 |
++| PROG | 11 | 8 | 3 | 0 |
++| CANC | 9 | 4 | 5 | 0 |
+ | TOOL | 18 | 9 | 9 | 13 |
+ | RES | 10 | 3 | 7 | 6 |
+ | PROM | 10 | 5 | 5 | 7 |
+@@ -292,9 +296,9 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
+ | SAMP | 20 | 10 | 10 | 0 |
+ | ROOT | 10 | 4 | 6 | 0 |
+ | AUTH | 85 | 5 | 80 | 0 |
+-| **Total** | **321** | **89** | **232** | **33** |
++| **Total** | **348** | **102** | **246** | **33** |
+ 
+-321 requirements: 89 judged by 85 distinct trace checks, 232 carrying a documented exclusion that explains why a recorded trace cannot judge them.
++348 requirements: 102 judged by 96 distinct trace checks, 246 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+ 
+ Every check is falsified by a committed violation trace and examines a real subject on at least one conforming one. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
+ <!-- coverage:end -->
+@@ -330,7 +334,7 @@ event:
+         seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
+         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
+         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
+-totals: 17 pass, 1 fail, 0 warn, 232 excluded, 0 unsupported, 6 not applicable, 65 not observed
++totals: 17 pass, 1 fail, 0 warn, 246 excluded, 0 unsupported, 6 not applicable, 78 not observed
+ wire schema: pass (4 messages valid)
+ verdict: fail
+ ```
+diff --git a/book/src/reference/requirements-2025-11-25.md b/book/src/reference/requirements-2025-11-25.md
+index fa0696d..e5478a0 100644
+--- a/book/src/reference/requirements-2025-11-25.md
++++ b/book/src/reference/requirements-2025-11-25.md
+@@ -4,7 +4,7 @@
+ 
+ # Requirements — `2025-11-25`
+ 
+-Every normative clause of the `2025-11-25` specification that the validator's registry carries — 321 in all, 89 judged from a recorded trace and 232 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
++Every normative clause of the `2025-11-25` specification that the validator's registry carries — 348 in all, 102 judged from a recorded trace and 246 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
+ 
+ ## BASE
+ 
+@@ -1012,6 +1012,282 @@ Judged by `transport.client-messages-use-post`.
+ 
+ **Excluded.** Binds a transport's documentation, not its messages: the artefact the clause asks for is a document, and no session can be evidence about whether one exists. Custom transports are outside the capture universe besides (TRAN-023).
+ 
++## PING
++
++### PING-001
++
++**MUST** · binds the client and server
++
++> The receiver MUST respond promptly with an empty response:
++
++[`basic/utilities/ping#behavior-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/ping#behavior-requirements)
++
++Judged by `ping.empty-result`.
++
++### PING-002
++
++**SHOULD** · binds the client and server
++
++> Implementations SHOULD periodically issue pings to detect connection health
++
++[`basic/utilities/ping#implementation-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/ping#implementation-considerations)
++
++**Excluded.** "Periodically" is a rate over wall-clock time, and checks may not consult time — the limit LIFE-015 records. A recording would have to show the interval between pings against the length of the session, and it carries neither: a session with no ping and one with few are both what a conforming implementation produces over a short enough connection.
++
++### PING-003
++
++**SHOULD** · binds the client and server
++
++> The frequency of pings SHOULD be configurable
++
++[`basic/utilities/ping#implementation-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/ping#implementation-considerations)
++
++**Excluded.** Binds the implementation's configuration surface — what its operator can set — which has no protocol representation (LIFE-019's boundary). A recording shows the pings one configuration produced, never whether another was available.
++
++### PING-004
++
++**SHOULD** · binds the client and server
++
++> Timeouts SHOULD be appropriate for the network environment
++
++[`basic/utilities/ping#implementation-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/ping#implementation-considerations)
++
++**Excluded.** A timeout is a duration held inside the sender, and checks may not consult time (LIFE-015). A recording would have to carry the deadline the sender held a ping to and the network it was chosen for; it shows a ping answered or not, and nothing of either.
++
++### PING-005
++
++**SHOULD** · binds the client and server
++
++> Excessive pinging SHOULD be avoided to reduce network overhead
++
++[`basic/utilities/ping#implementation-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/ping#implementation-considerations)
++
++**Excluded.** "Excessive" is a rate — pings per unit of time — and checks may not consult time (LIFE-015). No count of pings alone separates a flood from a long session checking its connection, the same limit PROG-018 records for rate limiting.
++
++### PING-006
++
++**SHOULD** · binds the client and server
++
++> Timeouts SHOULD be treated as connection failures
++
++[`basic/utilities/ping#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/ping#error-handling)
++
++**Excluded.** The antecedent, a ping timing out, is the sender's own deadline expiring, which no message records and checks may not compute from timestamps (LIFE-015). The consequence, treating the connection as failed, is at most a `transport-close` lifecycle event, which says that a transport ended and not why; a recording cannot tell a connection dropped for a timeout from one closed at the end of a session.
++
++### PING-007
++
++**SHOULD** · binds the client and server
++
++> Implementations SHOULD log ping failures for diagnostics
++
++[`basic/utilities/ping#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/ping#error-handling)
++
++**Excluded.** Logging is local diagnostics with no wire footprint (CANC-024's boundary): nothing an implementation writes to its own log is a protocol message, so no recording contains it.
++
++## PROG
++
++### PROG-009
++
++**MUST** · binds the client and server
++
++> Progress tokens MUST be a string or integer value
++
++[`basic/utilities/progress#progress-flow`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#progress-flow)
++
++Judged by `progress.token-string-or-integer`.
++
++### PROG-010
++
++**MUST** · binds the client and server
++
++> Progress tokens can be chosen by the sender using any means, but MUST be unique across all active requests.
++
++[`basic/utilities/progress#progress-flow`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#progress-flow)
++
++Judged by `progress.token-unique-among-active-requests`.
++
++### PROG-011
++
++**MUST** · binds the client and server
++
++> The `progress` value MUST increase with each notification, even if the total is unknown.
++
++[`basic/utilities/progress#progress-flow`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#progress-flow)
++
++Judged by `progress.value-strictly-increases`.
++
++### PROG-012
++
++**SHOULD** · binds the client and server
++
++> The `message` field SHOULD provide relevant human readable progress information.
++
++[`basic/utilities/progress#progress-flow`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#progress-flow)
++
++**Excluded.** Whether a message is relevant and human readable is a judgment about its meaning, not its shape; any string satisfies the schema, and no mechanical reading of one decides relevance. The same sentence is PROG-004 at 2026-07-28, excluded for the same reason.
++
++### PROG-013
++
++**MUST** · binds the client and server
++
++> Progress notifications MUST only reference tokens that: Were provided in an active request; Are associated with an in-progress operation
++
++[`basic/utilities/progress#behavior-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#behavior-requirements)
++
++Judged by `progress.token-issued-in-session`, `progress.stops-after-completion`.
++
++### PROG-014
++
++**MUST** · binds the client and server
++
++> For task-augmented requests, the `progressToken` provided in the original request MUST continue to be used for progress notifications throughout the task's lifetime, even after the `CreateTaskResult` has been returned.
++
++[`basic/utilities/progress#behavior-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#behavior-requirements)
++
++Judged by `progress.task-token-unchanged`.
++
++### PROG-015
++
++**MUST** · binds the client and server
++
++> Progress notifications for tasks MUST use the same `progressToken` that was provided in the initial task-augmented request
++
++[`basic/utilities/progress#behavior-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#behavior-requirements)
++
++Judged by `progress.task-token-unchanged`.
++
++### PROG-016
++
++**MUST** · binds the client and server
++
++> Progress notifications for tasks MUST stop after the task reaches a terminal status (`completed`, `failed`, or `cancelled`)
++
++[`basic/utilities/progress#behavior-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#behavior-requirements)
++
++Judged by `progress.stops-after-completion`.
++
++### PROG-017
++
++**SHOULD** · binds the client and server
++
++> Senders and receivers SHOULD track active progress tokens
++
++[`basic/utilities/progress#implementation-notes`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#implementation-notes)
++
++**Excluded.** Tracking is bookkeeping inside each party, and a recording carries no message that shows a token being tracked or forgotten. Its wire consequences are the MUST rows beside it, which are judged: a token reused while its request is active (PROG-010), a token no request provided and progress for a finished request (PROG-013, PROG-016, PROG-019).
++
++### PROG-018
++
++**SHOULD** · binds the client and server
++
++> Both parties SHOULD implement rate limiting to prevent flooding
++
++[`basic/utilities/progress#implementation-notes`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#implementation-notes)
++
++**Excluded.** A rate is messages per unit of time, and checks may not consult time — the limit LIFE-015 records. No count of notifications alone separates a flood from a long operation reporting often.
++
++### PROG-019
++
++**MUST** · binds the client and server
++
++> Progress notifications MUST stop after completion
++
++[`basic/utilities/progress#implementation-notes`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#implementation-notes)
++
++Judged by `progress.stops-after-completion`.
++
++## CANC
++
++### CANC-018
++
++**MUST** · binds the client and server
++
++> Cancellation notifications MUST only reference requests that: Were previously issued in the same direction; Are believed to still be in-progress
++
++[`basic/utilities/cancellation#behavior-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation#behavior-requirements)
++
++Judged by `cancellation.references-issued-request`.
++
++### CANC-019
++
++**MUST NOT** · binds the client
++
++> The `initialize` request MUST NOT be cancelled by clients
++
++[`basic/utilities/cancellation#behavior-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation#behavior-requirements)
++
++Judged by `cancellation.initialize-not-cancelled`.
++
++### CANC-020
++
++**MUST** · binds the client and server
++
++> For task-augmented requests, the `tasks/cancel` request MUST be used instead of the `notifications/cancelled` notification.
++
++[`basic/utilities/cancellation#behavior-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation#behavior-requirements)
++
++Judged by `cancellation.task-cancelled-by-request`.
++
++### CANC-021
++
++**SHOULD** · binds the client and server
++
++> Receivers of cancellation notifications SHOULD: Stop processing the cancelled request; Free associated resources; Not send a response for the cancelled request
++
++[`basic/utilities/cancellation#behavior-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation#behavior-requirements)
++
++Judged by `cancellation.no-response-after-cancellation`.
++
++### CANC-022
++
++**SHOULD** · binds the client and server
++
++> The sender of the cancellation notification SHOULD ignore any response to the request that arrives afterward
++
++[`basic/utilities/cancellation#behavior-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation#behavior-requirements)
++
++**Excluded.** Ignoring a response is the absence of a reaction inside the sender. A recording would have to carry a message the sender sends because it acted on the late response, and the protocol defines none: nothing a party does with a response it received reaches the wire.
++
++### CANC-023
++
++**MUST** · binds the client and server
++
++> Both parties MUST handle these race conditions gracefully:
++
++[`basic/utilities/cancellation#timing-considerations`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation#timing-considerations)
++
++**Excluded.** Graceful handling is internal; the race itself is what a recording shows, and the checks are built not to convict it — `cancellation.no-response-after-cancellation` reports an answer to a cancelled request only once the receiver has demonstrably read the cancellation, and the conforming `stdio-cancellation` trace pins the answer that crosses one. A recording would have to carry a message the specification defines as ungraceful handling, and it defines none; a party that failed to handle the race would show it through some other clause's violation, judged there.
++
++### CANC-024
++
++**SHOULD** · binds the client and server
++
++> Both parties SHOULD log cancellation reasons for debugging
++
++[`basic/utilities/cancellation#implementation-notes`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation#implementation-notes)
++
++**Excluded.** Logging is local diagnostics with no wire footprint: nothing an implementation writes to its own log is a protocol message, so no recording contains it.
++
++### CANC-025
++
++**SHOULD** · binds the client
++
++> Application UIs SHOULD indicate when cancellation is requested
++
++[`basic/utilities/cancellation#implementation-notes`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation#implementation-notes)
++
++**Excluded.** User-interface presentation, out by strategy rule 2: what an application shows its user is not a protocol message, so no recording carries it.
++
++### CANC-026
++
++**SHOULD** · binds the client and server
++
++> Invalid cancellation notifications SHOULD be ignored: Unknown request IDs; Already completed requests; Malformed notifications
++
++[`basic/utilities/cancellation#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation#error-handling)
++
++**Excluded.** Ignoring a notification is the absence of a reaction, which a trace cannot tell apart from the notification never mattering: a recording would have to carry a message the receiver sends because it did not ignore the notification, and the protocol defines none (answering a notification is forbidden anyway, BASE-011). The party that sent the invalid notification is judged instead, where it can be: CANC-018 for a cancellation naming a request its sender never issued in the session, CANC-019 for one naming `initialize`.
++
+ ## TOOL
+ 
+ ### TOOL-001
+diff --git a/book/src/revisions.md b/book/src/revisions.md
+index 5322d2c..0fe33fe 100644
+--- a/book/src/revisions.md
++++ b/book/src/revisions.md
+@@ -19,9 +19,9 @@ changelog and becomes a measurement.
+ 
+ | | `2025-11-25` | `2026-07-28` |
+ |---|---:|---:|
+-| Registry entries | 321 | 501 |
+-| Judged by a named check | 89 | 181 |
+-| Carrying a documented exclusion | 232 | 320 |
++| Registry entries | 348 | 501 |
++| Judged by a named check | 102 | 181 |
++| Carrying a documented exclusion | 246 | 320 |
+ | Shipped in every build | yes | yes |
+ 
+ The two registries are extracted **per revision** rather than sharing entries:
+@@ -81,7 +81,7 @@ And the verdict splits:
+ 
+ ```text
+ per revision:
+-  2025-11-25: 17 pass, 0 fail, 0 warn, 232 excluded, 0 unsupported, 14 not applicable, 58 not observed — verdict pass
++  2025-11-25: 17 pass, 0 fail, 0 warn, 246 excluded, 0 unsupported, 14 not applicable, 71 not observed — verdict pass
+   2025-11-25: wire schema pass (3 messages valid)
+   2026-07-28: 15 pass, 8 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 158 not observed — verdict fail
+   2026-07-28: wire schema fail (1 of 3 messages invalid)
+@@ -91,7 +91,7 @@ overall verdict: fail
+ A conforming session today, and eight concrete failures tomorrow — nine, with
+ the `2026-07-28` schema's own finding: the `initialize` result carries no
+ `resultType`, which every result at that revision must. Both summary
+-lines account for **every** clause in their revision — the counts add up to 321
++lines account for **every** clause in their revision — the counts add up to 348
+ and 501 — because a line that quietly omits an outcome is a line that overstates
+ what was measured.
+ 
+diff --git a/book/src/sdk-matrix.md b/book/src/sdk-matrix.md
+index be1c76f..be0187c 100644
+--- a/book/src/sdk-matrix.md
++++ b/book/src/sdk-matrix.md
+@@ -21,13 +21,13 @@ once. How each session is recorded, with the exact commands, is
+ <!-- sdk-matrix:begin (generated by `cargo xtask sdk-matrix`; do not edit by hand) -->
+ | SDK | Pinned release | Revision | Verdict | pass | fail | warn | not observed | Wire schema | Evidence |
+ |-----|----------------|----------|---------|-----:|-----:|-----:|-------------:|-------------|----------|
+-| TypeScript | `@modelcontextprotocol/sdk` 1.32.0 | `2025-11-25` | **pass-with-warnings** | 39 | 0 | 1 | 49 | pass (18 messages) | [report](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/golden/sdk-typescript-2025-11-25.json) · [trace](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/captured/sdk-typescript-2025-11-25.jsonl) |
++| TypeScript | `@modelcontextprotocol/sdk` 1.32.0 | `2025-11-25` | **pass-with-warnings** | 39 | 0 | 1 | 62 | pass (18 messages) | [report](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/golden/sdk-typescript-2025-11-25.json) · [trace](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/captured/sdk-typescript-2025-11-25.jsonl) |
+ | TypeScript | `@modelcontextprotocol/sdk` 1.32.0 | `2026-07-28` | not served | — | — | — | — | — | — |
+-| Python | `mcp` 2.3.0 | `2025-11-25` | pass | 39 | 0 | 0 | 50 | pass (17 messages) | [report](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/golden/sdk-python-2025-11-25.json) · [trace](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/captured/sdk-python-2025-11-25.jsonl) |
++| Python | `mcp` 2.3.0 | `2025-11-25` | pass | 39 | 0 | 0 | 63 | pass (17 messages) | [report](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/golden/sdk-python-2025-11-25.json) · [trace](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/captured/sdk-python-2025-11-25.jsonl) |
+ | Python | `mcp` 2.3.0 | `2026-07-28` | pass | 65 | 0 | 0 | 116 | pass (14 messages) | [report](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/golden/draft/sdk-python-2026-07-28.json) · [trace](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/draft/captured/sdk-python-2026-07-28.jsonl) |
+-| Go | `go-sdk` v1.8.0 | `2025-11-25` | pass | 43 | 0 | 0 | 46 | pass (17 messages) | [report](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/golden/sdk-go-2025-11-25.json) · [trace](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/captured/sdk-go-2025-11-25.jsonl) |
++| Go | `go-sdk` v1.8.0 | `2025-11-25` | pass | 43 | 0 | 0 | 59 | pass (17 messages) | [report](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/golden/sdk-go-2025-11-25.json) · [trace](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/captured/sdk-go-2025-11-25.jsonl) |
+ | Go | `go-sdk` v1.8.0 | `2026-07-28` | **fail** | 78 | 4 | 1 | 98 | pass (14 messages) | [report](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/golden/draft/sdk-go-2026-07-28.json) · [trace](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/draft/captured/sdk-go-2026-07-28.jsonl) |
+-| Rust | `rmcp` 3.5.1 | `2025-11-25` | pass | 42 | 0 | 0 | 47 | pass (17 messages) | [report](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/golden/sdk-rust-2025-11-25.json) · [trace](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/captured/sdk-rust-2025-11-25.jsonl) |
++| Rust | `rmcp` 3.5.1 | `2025-11-25` | pass | 42 | 0 | 0 | 60 | pass (17 messages) | [report](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/golden/sdk-rust-2025-11-25.json) · [trace](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/captured/sdk-rust-2025-11-25.jsonl) |
+ | Rust | `rmcp` 3.5.1 | `2026-07-28` | **pass-with-warnings** | 73 | 0 | 1 | 107 | pass (14 messages) | [report](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/golden/draft/sdk-rust-2026-07-28.json) · [trace](https://github.com/tomtom215/mcp-conformance/blob/main/corpus/draft/captured/sdk-rust-2026-07-28.jsonl) |
+ 
+ At `2025-11-25` every server is driven by the same TypeScript SDK client (`ts-client.mjs`).
+-- 
+2.43.0
+
