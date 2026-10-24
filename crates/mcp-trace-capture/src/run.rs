@@ -60,6 +60,45 @@ impl<'a> Recording<'a> {
     }
 }
 
+/// What the proxy sends the server as `Host`: the binary's `--preserve-host`
+/// and `--no-preserve-host`, or neither.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum HostHeader {
+    /// The client's for an upstream on this machine (`localhost`,
+    /// `127.0.0.0/8`, `::1`), whose DNS-rebinding check should judge what the
+    /// client sent; the upstream's own name for any other, which may route on
+    /// it. [`http::Options::new`]'s default.
+    #[default]
+    Auto,
+    /// The client's, wherever the upstream is (`--preserve-host`).
+    Client,
+    /// The upstream's own name, wherever the upstream is (`--no-preserve-host`).
+    Upstream,
+}
+
+impl HostHeader {
+    /// Whether the client's `Host` is passed through, for an upstream that is
+    /// (`loopback`) or is not on this machine.
+    #[must_use]
+    pub const fn preserves(self, loopback: bool) -> bool {
+        match self {
+            Self::Auto => loopback,
+            Self::Client => true,
+            Self::Upstream => false,
+        }
+    }
+}
+
+/// `true` is `--preserve-host`; `false` is the flag not given, which leaves
+/// the choice to the upstream's address ([`HostHeader::Auto`]) — what a caller
+/// passing the flag's plain value, as `mcp-conformance watch http` does, means.
+impl From<bool> for HostHeader {
+    fn from(preserve: bool) -> Self {
+        if preserve { Self::Client } else { Self::Auto }
+    }
+}
+
 /// The process's exit status for `code`.
 ///
 /// Windows keeps a process's whole exit code, which `ExitCode` (a `u8`) cannot
@@ -142,17 +181,21 @@ pub async fn stdio(recording: Recording<'_>, command: &[OsString]) -> i32 {
 
 /// `mcp-trace-capture http`: checks the upstream and binds, then creates the
 /// trace, then serves until a request to stop; returns the exit code.
+///
+/// `host` is what the server sees as `Host` (a `bool` is `--preserve-host`'s
+/// value: [`HostHeader::from`]), and the startup lines say which it is.
 pub async fn http(
     recording: Recording<'_>,
     upstream: &str,
     listen: SocketAddr,
-    preserve_host: bool,
+    host: impl Into<HostHeader>,
 ) -> i32 {
+    let host = host.into();
     let checked = values::upstream(upstream)
         .and_then(|upstream| http::Options::new(upstream, recording.max_message));
     let options = match checked {
         Ok(mut options) => {
-            options.preserve_host = preserve_host;
+            options.preserve_host = host.preserves(http::is_loopback(&options.upstream));
             options
         }
         Err(message) => {
@@ -190,7 +233,7 @@ pub async fn http(
             return EXIT_USAGE;
         }
     };
-    for line in summary::announcement(bound, upstream) {
+    for line in summary::announcement(bound, upstream, host) {
         eprintln!("mcp-trace-capture: {line}");
     }
     let served = serve_until_stopped(listener, &traces, options, signals).await;
@@ -271,6 +314,19 @@ const fn passed_through(code: i32, whole: bool) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_host_header_follows_the_flag_or_else_the_upstreams_address() {
+        assert!(HostHeader::Auto.preserves(true));
+        assert!(!HostHeader::Auto.preserves(false));
+        assert!(HostHeader::Client.preserves(true));
+        assert!(HostHeader::Client.preserves(false));
+        assert!(!HostHeader::Upstream.preserves(true));
+        assert!(!HostHeader::Upstream.preserves(false));
+        assert_eq!(HostHeader::from(true), HostHeader::Client);
+        assert_eq!(HostHeader::from(false), HostHeader::Auto);
+        assert_eq!(HostHeader::default(), HostHeader::Auto);
+    }
 
     #[test]
     fn an_exit_code_is_passed_whole_where_the_platform_keeps_it_whole() {

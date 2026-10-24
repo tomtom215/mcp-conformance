@@ -10,9 +10,11 @@
 //! the method or status) and a `message` event per JSON-RPC payload.
 //!
 //! **What changes on the wire, and why.** Hop-by-hop headers (RFC 9110 §7.6.1) are the
-//! proxy's by definition. `Host` names the upstream, since that is where the request
-//! now goes — unless [`Options::preserve_host`] is set, in which case the server sees
-//! the `Host` the client sent.
+//! proxy's by definition. `Host` is the client's for an upstream on this machine
+//! ([`is_loopback`]), so a server's DNS-rebinding check judges what the client
+//! sent, and names the upstream for any other, since that is where the request
+//! now goes and a virtually hosted server routes on it — [`Options::preserve_host`]
+//! decides, and [`Options::new`] sets it so.
 //! `Accept-Encoding` is removed from requests, so the server answers
 //! uncompressed and the recording can read the body; everything else, `Origin` and
 //! credentials included, passes through as sent.
@@ -119,8 +121,11 @@ pub struct Options {
     pub buffer_budget: usize,
     /// Forward the client's `Host` header instead of naming the upstream, so a
     /// server's own `Host` validation judges what the client sent rather than what
-    /// the proxy sent. Wrong for a virtually hosted remote server, which routes on
-    /// `Host`.
+    /// the proxy sent. [`Options::new`] sets it for an upstream on this machine
+    /// ([`is_loopback`]), where a server's DNS-rebinding check should see the
+    /// client's `Host` — a rewrite to the server's own name made that check
+    /// pass for every request the proxy forwarded — and clears it for any
+    /// other, since a virtually hosted remote server routes on `Host`.
     pub preserve_host: bool,
     /// How long open connections get to finish once [`serve`]'s `shutdown`
     /// resolves, before the proxy stops without them. A standalone event stream
@@ -191,10 +196,10 @@ impl Options {
                 )
             })?;
         Ok(Self {
+            preserve_host: is_loopback(&upstream),
             upstream,
             max_message,
             buffer_budget: max_message.saturating_mul(BUFFER_BUDGET_MESSAGES),
-            preserve_host: false,
             grace: crate::STOP_GRACE,
             header_read_timeout: HEADER_READ_TIMEOUT,
             body_read_timeout: BODY_READ_TIMEOUT,
@@ -202,6 +207,22 @@ impl Options {
             connector,
         })
     }
+}
+
+/// Whether `upstream` names this machine: `localhost`, an address in
+/// `127.0.0.0/8`, or `::1`. [`Options::new`] passes the client's `Host`
+/// through to such an upstream ([`Options::preserve_host`]).
+#[must_use]
+pub fn is_loopback(upstream: &Uri) -> bool {
+    let host = upstream
+        .host()
+        .unwrap_or_default()
+        .trim_start_matches('[')
+        .trim_end_matches(']');
+    host.eq_ignore_ascii_case("localhost")
+        || host
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|ip| ip.is_loopback())
 }
 
 /// What the proxy forwarded without recording.

@@ -144,6 +144,39 @@ fn a_redirect_into_the_upstream_comes_back_through_the_proxy() {
     assert_eq!(back("/mcp"), None);
 }
 
+/// The client's `Host` goes through to an upstream on this machine, whose
+/// DNS-rebinding check should judge it; any other upstream gets its own name.
+#[test]
+fn the_clients_host_is_kept_for_a_loopback_upstream_by_default() {
+    let uri = |text: &str| text.parse::<Uri>().unwrap();
+    for loopback in [
+        "http://localhost:1",
+        "http://LOCALHOST/mcp",
+        "http://127.0.0.1:2",
+        "http://127.8.0.1",
+        "http://[::1]:3/mcp",
+    ] {
+        assert!(is_loopback(&uri(loopback)), "{loopback}");
+        assert!(
+            Options::new(uri(loopback), 1).unwrap().preserve_host,
+            "{loopback}"
+        );
+    }
+    for elsewhere in [
+        "http://example.com",
+        "http://10.0.0.1",
+        "http://[::2]",
+        "http://localhost.example",
+        "http://127.0.0.1.example",
+    ] {
+        assert!(!is_loopback(&uri(elsewhere)), "{elsewhere}");
+        assert!(
+            !Options::new(uri(elsewhere), 1).unwrap().preserve_host,
+            "{elsewhere}"
+        );
+    }
+}
+
 #[test]
 fn only_absolute_http_upstreams_are_accepted() {
     let uri = |text: &str| text.parse::<Uri>().unwrap();

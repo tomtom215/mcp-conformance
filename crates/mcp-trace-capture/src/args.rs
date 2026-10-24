@@ -11,6 +11,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use mcp_trace_capture::DEFAULT_MAX_MESSAGE;
+use mcp_trace_capture::run::HostHeader;
 use mcp_trace_capture::run::values::listen_address;
 
 /// The exit codes, for `--help`; the README's table says the same.
@@ -72,8 +73,27 @@ pub(crate) enum Mode {
         #[arg(long, value_name = "IP:PORT", default_value = "127.0.0.1:8080", value_parser = listen_address)]
         listen: SocketAddr,
         /// Forward the client's `Host` header unchanged instead of naming the
-        /// upstream, so the server's own `Host` validation sees the client's.
-        #[arg(long)]
+        /// upstream, so the server's own `Host` validation sees the client's: the
+        /// default for an upstream on this machine (`localhost`, `127.0.0.0/8`,
+        /// `::1`), not for any other, which may route on its name.
+        #[arg(long, conflicts_with = "no_preserve_host")]
         preserve_host: bool,
+        /// Name the upstream in `Host` even for an upstream on this machine (the
+        /// default for any other); a server's `Host`-based DNS-rebinding check
+        /// then passes for every request the proxy forwards.
+        #[arg(long)]
+        no_preserve_host: bool,
     },
+}
+
+impl Mode {
+    /// What the server sees as `Host`, from the two flags (clap refuses both
+    /// at once).
+    pub(crate) const fn host_header(preserve: bool, no_preserve: bool) -> HostHeader {
+        match (preserve, no_preserve) {
+            (true, _) => HostHeader::Client,
+            (false, true) => HostHeader::Upstream,
+            (false, false) => HostHeader::Auto,
+        }
+    }
 }

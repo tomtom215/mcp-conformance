@@ -33,9 +33,17 @@ cargo install mcp-trace-capture mcp-trace-validator
 > - `SIGQUIT` relayed as a stop; a last stdio line without its newline recorded as a
 >   string;
 > - over HTTP: one buffer budget for all exchanges, a 30-second request-head timeout,
->   a 10-second upstream connect timeout, `Content-Length` kept, dot-segment paths
->   refused, redirects pointed at the proxy's own address, and unseen session ids
->   sharing one trace until the server accepts one.
+>   a 60-second bound between the bytes of a request body (`408` past it), a
+>   10-second upstream connect timeout, `Content-Length` kept, dot-segment paths
+>   refused however they are spelled (`;parameters` and overlong encodings
+>   included), `CONNECT` refused, redirects pointed at the proxy's own address, and
+>   unseen session ids sharing one trace until the server accepts one;
+> - the client's `Host` passed through to an upstream on this machine by default
+>   (`--no-preserve-host` to send the server's own name instead), with the startup
+>   lines saying which;
+> - every trace file created readable by its owner alone (`0600` on Unix), a
+>   symbolic link at `-o` refused even with `--force`, and a `{session}` file
+>   written through the handle that created it rather than by its path.
 > - in the library, `stdio::relay` (the stdio wrapper with the client on streams the
 >   caller supplies) and `Signals::requested` (stops a program asks for, not the
 >   operating system) — what `mcp-conformance test` runs a stdio server with;
@@ -208,21 +216,33 @@ or a long tool call is open-ended by design. (In the library, the bound is
 
 ### `Host`, and DNS rebinding
 
-By default the proxy sends the upstream's own name in `Host`, as a reverse proxy must
-for a virtually hosted server, which routes on it; the trace records the `Host` the
-client sent. The cost: a server that defends against DNS rebinding by checking
-`Host` — the MCP specification's transport security advice — sees its own name on
-every request the proxy forwards, so its check passes for all of them, including one
-a web page has a browser send to the proxy's loopback address under a rebound domain
-name. The proxy checks no `Host` itself. (`Origin` is forwarded unchanged, so a
-server that checks `Origin` still sees the page's.)
+What the server sees as `Host` depends on where it is, and the proxy says which it
+is doing in its startup lines.
 
-When that matters — you are testing the server's `Host` check, or a browser you do
-not trust can reach the proxy — run with `--preserve-host`: the server then sees, and
-judges, the `Host` the client sent. Not in front of a virtually hosted remote server,
-which needs its own name. This repository's CI runs the official conformance suite
-through the proxy with `--preserve-host` (`xtask/src/conformance/capture.rs`), so the
-suite's `dns-rebinding-protection` scenario exercises the server's own check.
+For an upstream on this machine — `localhost`, an address in `127.0.0.0/8`, or
+`::1` — the proxy passes the client's `Host` through by default. A server that
+defends against DNS rebinding by checking `Host` — the MCP specification's transport
+security advice — then judges what the client sent, including a request a web page
+has a browser send to the proxy's loopback address under a rebound domain name.
+(`0.6.0` rewrote `Host` to the server's own name for every upstream, so that check
+passed for every request the proxy forwarded.) `--no-preserve-host` turns this off,
+for a local server that routes on its own name.
+
+For any other upstream the proxy sends the upstream's own name in `Host`, as a
+reverse proxy must for a virtually hosted server, which routes on it. The cost is the
+one above: such a server's `Host` check sees its own name on every request the proxy
+forwards. `--preserve-host` passes the client's `Host` through there too — right when
+you are testing the server's `Host` check, wrong in front of a virtually hosted
+remote server, which needs its own name.
+
+Either way the trace records the `Host` the client sent, and the proxy checks no
+`Host` itself: a client may send any `Host`, and it reaches the server (or is
+replaced) as above, since a recording tap forwards and does not filter. `Origin` is
+forwarded unchanged, so a server that checks `Origin` sees the page's. This
+repository's CI runs the official conformance suite through the proxy with
+`--preserve-host` (`xtask/src/conformance/capture.rs`), so the suite's
+`dns-rebinding-protection` scenario exercises the server's own check whatever the
+server's address.
 
 ## Windows
 
@@ -250,8 +270,9 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 - **Transparent.** Bytes are forwarded unchanged. Over HTTP, the only changes are the
   ones a proxy must make: hop-by-hop headers (RFC 9110 §7.6.1, and the
   non-standard `Proxy-Connection`), a request's `Expect` (the proxy answers
-  `100-continue` itself), `Host` (names the
-  upstream — `--preserve-host` keeps the client's instead), `Accept-Encoding`
+  `100-continue` itself), `Host` (the client's for an upstream on this machine, the
+  upstream's own name for any other; `--preserve-host` and `--no-preserve-host`
+  decide it outright), `Accept-Encoding`
   (removed, so the server answers uncompressed and the body can be recorded), and a
   redirect's `Location` that points into the upstream (pointed back at the proxy, at
   the address the client's connection reached — not at the client's `Host` header,

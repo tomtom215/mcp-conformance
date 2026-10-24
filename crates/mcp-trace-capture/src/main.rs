@@ -56,7 +56,13 @@ fn main() -> ExitCode {
             upstream,
             listen,
             preserve_host,
-        } => runtime.block_on(run::http(recording, upstream, *listen, *preserve_host)),
+            no_preserve_host,
+        } => runtime.block_on(run::http(
+            recording,
+            upstream,
+            *listen,
+            Mode::host_header(*preserve_host, *no_preserve_host),
+        )),
     };
     // A client blocked on this process's stdin would otherwise hold the runtime open.
     runtime.shutdown_background();

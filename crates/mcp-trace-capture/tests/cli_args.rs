@@ -101,6 +101,26 @@ fn a_misspelt_session_placeholder_is_warned_about() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+/// The two `Host` flags contradict each other, so both at once is refused
+/// before anything starts.
+#[test]
+fn both_host_flags_at_once_are_refused() {
+    let trace = scratch("host-flags.jsonl");
+    let output = binary()
+        .args(["-o", trace.to_str().unwrap(), "http", "--upstream"])
+        .args([
+            "http://127.0.0.1:9/mcp",
+            "--preserve-host",
+            "--no-preserve-host",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--no-preserve-host"), "{stderr}");
+    assert!(!trace.exists());
+}
+
 /// `--help` carries the exit codes, for the top level and each subcommand.
 #[test]
 fn help_lists_the_exit_codes() {

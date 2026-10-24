@@ -6,7 +6,7 @@
 
 use std::net::SocketAddr;
 
-use super::EXIT_USAGE;
+use super::{EXIT_USAGE, HostHeader};
 use crate::{http, stdio};
 
 /// The upstream as announced: without its query, which can carry credentials.
@@ -202,9 +202,13 @@ fn unrecorded_lines(side: &str, not_json: u64, oversized: u64) -> Vec<String> {
     lines
 }
 
-/// Where the proxy listens and what to point the client at, warning first
-/// when that is not loopback.
-pub(super) fn announcement(bound: SocketAddr, upstream: &axum::http::Uri) -> Vec<String> {
+/// Where the proxy listens, what to point the client at, and what the server
+/// sees as `Host` — warning first when the address is not loopback.
+pub(super) fn announcement(
+    bound: SocketAddr,
+    upstream: &axum::http::Uri,
+    host: HostHeader,
+) -> Vec<String> {
     let mut lines = Vec::new();
     if !bound.ip().is_loopback() {
         lines.push(format!(
@@ -217,7 +221,33 @@ pub(super) fn announcement(bound: SocketAddr, upstream: &axum::http::Uri) -> Vec
         shown(upstream)
     ));
     lines.push(client_url(bound, upstream));
+    lines.push(host_line(host, http::is_loopback(upstream)).to_owned());
     lines
+}
+
+/// What the server sees as `Host`, and why: a server that checks `Host`
+/// against DNS rebinding judges whatever the proxy sends it.
+const fn host_line(host: HostHeader, loopback: bool) -> &'static str {
+    match host {
+        HostHeader::Client => {
+            "sending the client's Host header through to the server (--preserve-host), so its \
+             DNS-rebinding check judges what the client sent"
+        }
+        HostHeader::Upstream => {
+            "sending the server's own name as Host (--no-preserve-host); its DNS-rebinding \
+             check sees that, not what the client sent"
+        }
+        HostHeader::Auto if loopback => {
+            "sending the client's Host header through to the server, which is on this \
+             machine, so its DNS-rebinding check judges what the client sent \
+             (--no-preserve-host sends the server's own name instead)"
+        }
+        HostHeader::Auto => {
+            "sending the server's own name as Host, since it is not on this machine and may \
+             route on it; its DNS-rebinding check sees that, not what the client sent \
+             (--preserve-host passes the client's through)"
+        }
+    }
 }
 
 #[cfg(test)]
@@ -361,21 +391,44 @@ mod tests {
         let upstream: axum::http::Uri = "http://upstream.test/mcp?key=secret".parse().unwrap();
         let local: SocketAddr = "127.0.0.1:4100".parse().unwrap();
         assert_eq!(
-            announcement(local, &upstream),
+            announcement(local, &upstream, HostHeader::Auto),
             [
                 "listening on http://127.0.0.1:4100, forwarding to http://upstream.test/mcp?… \
                  (Ctrl-C to stop)"
                     .to_owned(),
                 client_url(local, &upstream),
+                host_line(HostHeader::Auto, false).to_owned(),
             ]
         );
         let open: SocketAddr = "0.0.0.0:4100".parse().unwrap();
-        let lines = announcement(open, &upstream);
-        assert_eq!(lines.len(), 3, "{lines:?}");
+        let lines = announcement(open, &upstream, HostHeader::Auto);
+        assert_eq!(lines.len(), 4, "{lines:?}");
         assert!(
             lines[0].starts_with("warning: 0.0.0.0:4100 is not a loopback address"),
             "{lines:?}"
         );
         assert!(lines[1].starts_with("listening on http://0.0.0.0:4100,"));
+    }
+
+    /// The `Host` line says what the server sees, by the flag given or else by
+    /// where the upstream is, and names the flag that would change it.
+    #[test]
+    fn the_host_line_says_what_the_server_sees_and_why() {
+        let loopback: axum::http::Uri = "http://127.0.0.1:3000/mcp".parse().unwrap();
+        let local: SocketAddr = "127.0.0.1:4100".parse().unwrap();
+        let last = |host| announcement(local, &loopback, host).pop().unwrap();
+        assert!(last(HostHeader::Auto).starts_with("sending the client's Host header through"));
+        assert!(last(HostHeader::Auto).contains("--no-preserve-host"));
+        assert!(last(HostHeader::Client).starts_with("sending the client's Host header through"));
+        assert!(last(HostHeader::Client).contains("(--preserve-host)"));
+        assert!(last(HostHeader::Upstream).starts_with("sending the server's own name as Host"));
+        assert!(last(HostHeader::Upstream).contains("(--no-preserve-host)"));
+        let remote = host_line(HostHeader::Auto, false);
+        assert!(
+            remote.starts_with("sending the server's own name as Host"),
+            "{remote}"
+        );
+        assert!(remote.contains("--preserve-host passes"), "{remote}");
+        assert_ne!(host_line(HostHeader::Auto, true), remote);
     }
 }

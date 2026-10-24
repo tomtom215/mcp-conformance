@@ -143,8 +143,8 @@ fn root_certificates_are_loaded_for_an_https_upstream_only_and_before_the_trace(
     std::fs::remove_dir_all(&dir).ok();
 }
 
-/// An upstream answering every request with `respond(own address, path)`;
-/// returns its address.
+/// An upstream answering every request with `respond(own address, request
+/// head)`; returns its address.
 fn upstream(respond: fn(&str, &str) -> String) -> String {
     use std::io::{Read as _, Write as _};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -162,25 +162,89 @@ fn upstream(respond: fn(&str, &str) -> String) -> String {
                 head.push(byte[0]);
             }
             let head = String::from_utf8_lossy(&head).into_owned();
-            let path = head.split(' ').nth(1).unwrap_or_default().to_owned();
-            let _ = stream.write_all(respond(&own, &path).as_bytes());
+            let _ = stream.write_all(respond(&own, &head).as_bytes());
         }
     });
     address
 }
 
+/// The request target of the request `head`.
+fn path_of(head: &str) -> &str {
+    head.split(' ').nth(1).unwrap_or_default()
+}
+
+/// The value of the header `name` (lowercase) in the request `head`, if any.
+fn header_of<'a>(head: &'a str, name: &str) -> Option<&'a str> {
+    head.lines().find_map(|line| {
+        let (field, value) = line.split_once(':')?;
+        field.eq_ignore_ascii_case(name).then(|| value.trim())
+    })
+}
+
 /// Sends `GET path` through the proxy at `address`; returns the response.
 fn get(address: &str, path: &str) -> String {
+    get_as(address, path, address)
+}
+
+/// [`get`], with `host` as the request's `Host`.
+fn get_as(address: &str, path: &str, host: &str) -> String {
     use std::io::{Read as _, Write as _};
     let mut stream = std::net::TcpStream::connect(address).unwrap();
     write!(
         stream,
-        "GET {path} HTTP/1.1\r\nhost: {address}\r\nconnection: close\r\n\r\n"
+        "GET {path} HTTP/1.1\r\nhost: {host}\r\nconnection: close\r\n\r\n"
     )
     .unwrap();
     let mut response = String::new();
     stream.read_to_string(&mut response).unwrap();
     response
+}
+
+/// A 200 whose body is `text`, on a connection the upstream then closes.
+fn ok(text: &str) -> String {
+    format!(
+        "HTTP/1.1 200 OK\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{text}",
+        text.len()
+    )
+}
+
+/// The upstream is on this machine, so the proxy passes the client's `Host`
+/// through by default: a server's DNS-rebinding check then judges what the
+/// client sent, where the proxy's rewrite to the server's own name made that
+/// check pass for every request. `--no-preserve-host` restores the rewrite,
+/// `--preserve-host` asks for the default in so many words, and the startup
+/// lines say which is in force.
+#[test]
+fn a_loopback_upstream_sees_the_clients_host_unless_told_otherwise() {
+    let server = upstream(|_, head| ok(&format!("host={}", header_of(head, "host").unwrap_or(""))));
+    let cases = [
+        (None, "evil.example", "client's Host"),
+        (Some("--no-preserve-host"), server.as_str(), "own name"),
+        (Some("--preserve-host"), "evil.example", "client's Host"),
+    ];
+    for (flag, expected_host, announced) in cases {
+        let trace = scratch(&format!("host-{}.jsonl", flag.unwrap_or("default")));
+        let mut command = http(&trace, &format!("http://{server}/mcp"));
+        if let Some(flag) = flag {
+            command.arg(flag);
+        }
+        let (mut proxy, address, lines) = Proxy::start(command);
+        let response = get_as(&address, "/", "evil.example");
+        assert!(
+            response.ends_with(&format!("host={expected_host}")),
+            "{flag:?}: {response}"
+        );
+        assert_eq!(proxy.interrupt().code(), Some(0));
+        std::thread::sleep(Duration::from_millis(100));
+        let stderr: Vec<String> = lines.try_iter().collect();
+        assert!(
+            stderr
+                .iter()
+                .any(|line| line.contains("Host") && line.contains(announced)),
+            "{flag:?}: {stderr:?}"
+        );
+        std::fs::remove_file(&trace).ok();
+    }
 }
 
 /// With `--upstream http://h/mcp`, the proxy's root is `/mcp` itself, a redirect
@@ -189,7 +253,7 @@ fn get(address: &str, path: &str) -> String {
 /// exit instead of nothing at all. The startup lines name the client URL.
 #[test]
 fn the_client_url_redirects_and_404s_are_spelled_out() {
-    let server = upstream(|own, path| match path {
+    let server = upstream(|own, head| match path_of(head) {
         "/mcp" => format!(
             "HTTP/1.1 307 Temporary Redirect\r\nlocation: http://{own}/mcp/next\r\n\
              content-length: 0\r\nconnection: close\r\n\r\n"
@@ -250,7 +314,7 @@ fn the_client_url_redirects_and_404s_are_spelled_out() {
 /// MCP clients do not read as messages.
 #[test]
 fn json_the_trace_cannot_hold_and_typed_events_are_reported() {
-    let server = upstream(|_, _| {
+    let server = upstream(|_, _head| {
         let body = "event: ping\ndata: {}\n\ndata: {\"id\":1,\"id\":2}\n\n";
         format!(
             "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\n\
