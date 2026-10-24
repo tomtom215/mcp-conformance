@@ -17,7 +17,15 @@
 //!    state-changing request (anything but `GET` and `HEAD`) must carry it,
 //!    and a JSON body must say it is JSON — so neither a form nor a
 //!    cross-site `fetch` can change the library.
-//! 3. **The token.** The launch URL carries a random single-use token; the
+//! 3. **`Sec-Fetch-Site`**, for the API. Browsers do not separate cookies
+//!    by port, and a page on another port of this host is *same-site*, not
+//!    cross-site: its `<img>` or link sends a `GET` with the workbench's
+//!    cookie and no `Origin`, which the two checks above let through. So
+//!    `/api/…` answers only when the header is absent (`curl`),
+//!    `same-origin` (the workbench's own page) or `none` (a navigation the
+//!    user makes — the printed link); the page and its assets, which show
+//!    nothing the API does not answer, are not held to it.
+//! 4. **The token.** The launch URL carries a random single-use token; the
 //!    first request with it gets the session secret as a cookie
 //!    (`HttpOnly`, `SameSite=Strict`) and a redirect to a URL without it.
 //!    Every other request needs that cookie. Secrets are 32 bytes from the
@@ -169,6 +177,20 @@ impl Keys {
             return Err((StatusCode::FORBIDDEN, "forbidden: cross-site request\n"));
         }
         Ok(())
+    }
+
+    /// The API's `Sec-Fetch-Site` check: answered only to the workbench's
+    /// own page (`same-origin`), to a navigation the user makes (`none`) or
+    /// to a client that sends no such header. A page on another port of
+    /// this host is `same-site`, and is refused like `cross-site`.
+    pub(crate) fn check_api_fetch_site(headers: &HeaderMap) -> Result<(), Refusal> {
+        match headers.get("sec-fetch-site").map(HeaderValue::as_bytes) {
+            None | Some(b"same-origin" | b"none") => Ok(()),
+            Some(_) => Err((
+                StatusCode::FORBIDDEN,
+                "forbidden: the API answers only the workbench's own page\n",
+            )),
+        }
     }
 
     /// Whether the request carries the session cookie.

@@ -191,7 +191,11 @@ coverage and findings, and administration — import (traces, `mcpsnoop` capture
 Inspector exports, each with what its source does not record), tags, retention, delete,
 export, and redacted copies. It listens on `127.0.0.1` and prints a link with a single-use
 token; it sends nothing anywhere. [The workbench](../../book/src/workbench.md) chapter has
-the details.
+the details. An export names each recording once and holds at most 100 of them and
+192 MiB of traces, since the archive is built in memory; and the page's JSON API answers
+only the page itself and a link you open — browsers count every port of `127.0.0.1` as
+one site and send the cookie to all of them, so a request made by a page on another local
+port (`Sec-Fetch-Site: same-site`) is refused.
 
 The same library from the command line, for scripts (`stats --format json` prints
 exactly what the dashboards read):
