@@ -66,8 +66,11 @@ mcp-trace-capture -o session.jsonl stdio -- python my_server.py --its-flags
 
 `-o` names the trace (without it, `mcp-trace.jsonl` in the working directory) and
 may come before or after the mode. The client and the server see each other's bytes
-unchanged; the server's stderr is passed through untouched. When the session ends, the server's exit code is the
-wrapper's exit code. Then:
+unchanged; the server's stderr is passed through untouched. The server is started
+with the wrapper's whole environment, as the client would have started it: every
+variable the client sets for the server — an API key among them — reaches it, and
+so does everything else in the wrapper's environment. When the session ends, the
+server's exit code is the wrapper's exit code. Then:
 
 ```text
 mcp-trace-validator validate session.jsonl
@@ -317,16 +320,25 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   default, is exactly the longest line `mcp-trace-validator` accepts by default. With
   a larger `--max-message-bytes`, the capture prints the `--max-line-bytes` value to
   validate with.
-- **No credentials in the trace.** Only an allowlist of headers is recorded — the same
-  list every capture in this project uses (`RECORDED_HEADERS` in
+- **No credential headers in the trace — but treat a trace as sensitive.** Only an
+  allowlist of headers is recorded — the same list every capture in this project
+  uses (`RECORDED_HEADERS` and `RECORDED_HEADER_PREFIXES` in
   `mcp-conformance-core`). `Authorization` and cookies are forwarded, never written.
   A server's `WWW-Authenticate` challenge is on the list (since 2026-10-13): it asks
-  for a credential and carries none, and the authorization checks read it. The
-  proxy records every path it relays but not the path itself, so a request to a
-  well-known metadata URI cannot be told from an MCP one in the trace.
+  for a credential and carries none, and the authorization checks read it. Every
+  `Mcp-Param-*` request header is on the list by design — `2026-07-28` mirrors
+  request parameters into them, and the checks compare the two — so a client that
+  puts a secret in one records it. The proxy records every path it relays but not
+  the path itself, so a request to a well-known metadata URI cannot be told from
+  an MCP one in the trace.
   **Message content is recorded in full** — as parsed JSON, so whitespace, member
   order (written sorted) and number spelling (`1E2` as `100.0`) are not kept, but
-  every value is: review a trace before sharing it. JSON whose parsed value would
+  every value is. Tool arguments, `_meta`, results and resource contents are
+  values like any other, and sessions put secrets in them (a token in an argument,
+  a file's contents in a result): treat a trace file as you would the credentials
+  it may hold. It is created readable by its owner alone (mode `0600` on Unix; a
+  file `--force` overwrites is narrowed to the same), and the output path is never
+  a symbolic link; review a trace before sharing it. JSON whose parsed value would
   differ from what was sent — a number a double cannot hold exactly (an id past 64
   bits, which would come back as a non-integer), or a member name repeated in one
   object (only the last would remain) — is never recorded as parsed JSON: the
