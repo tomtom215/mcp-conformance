@@ -862,11 +862,17 @@ not yet published to crates.io)
 
 ### Dependencies
 
-- **rmcp 3.5.1** (from 3.4.1) for `mcp-everything-server` and
+- **rmcp 3.7.0** (from 3.4.1) for `mcp-everything-server` and
   `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official suite's
-  `2026-07-28` scenarios now pass 42 of 42 against the server serving `2025-11-25`
-  too: rmcp 3.5.1 adds the cache hints `2026-07-28` peers need. The development
-  toolchain pin is Rust 1.99.1; the MSRV stays 1.88.
+  `2026-07-28` scenarios pass 42 of 42 against the server serving `2025-11-25`
+  too (since 3.5.1, which adds the cache hints `2026-07-28` peers need). 3.6.0 fixes
+  GHSA-4432-vg92-fqh6, an unauthenticated memory-growth denial of service in the
+  streamable-HTTP server that affects `3.0.0` to `3.5.x`; RustSec does not list it,
+  so `cargo audit` could not have said so. The development toolchain pin is Rust
+  1.99.1; the MSRV stays 1.88.
+- **jsonschema 0.60.1** (from 0.58.6), the engine behind the wire-schema check. Every
+  committed golden report is byte-identical under it, and its verdicts on the official
+  suite's traffic still agree with the runner's (zero messages flagged on either side).
 - **Advisory fixes in the dependency tree.** `rustls` 0.23.46 (RUSTSEC-2026-0346
   to -0349), `rustls-webpki` 0.103.16 (RUSTSEC-2026-0382: certificate paths through
   distrusted intermediates, which the recorder's `https://` upstream check relies
