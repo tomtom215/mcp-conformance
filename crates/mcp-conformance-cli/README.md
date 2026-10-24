@@ -136,8 +136,18 @@ level and spec URL. Every span is `CLIENT`: a tap sees the request leave and the
 return, the initiator's view, never the receiver's processing. Spans go in batches off
 the session's path through a bounded queue; a collector that is down or slow costs only
 the spans it was sent, and the summary at the end counts them. CI runs this against a
-pinned OpenTelemetry Collector. No message payload is ever exported: no arguments, no
-results.
+pinned OpenTelemetry Collector.
+
+What a span carries is exactly this, and nothing else from a message: the method; the
+request id; the session id and the protocol version; the transport, and for HTTP the
+upstream's host and port; the tool or prompt name; the resource URI **up to its path** —
+its userinfo, query and fragment are removed, because a presigned or tokenised URI
+carries its credential there; on a JSON-RPC error, the numeric code and a fixed name for
+it (`JSON-RPC error -32602 (invalid params)`), **never the server's message**, which is
+free text; and, per finding, the requirement ID, level, outcome, revision, check, spec
+URL, `seq` and detail. A finding's detail quotes the value it is about — the tool name
+that broke `TOOL-006`, say — and is cut at 512 characters, with the cut marked. No
+arguments, no results, no `_meta`, no headers, no error message.
 
 | Exit code (`watch`) | Meaning |
 |-----------|---------|
@@ -160,10 +170,11 @@ trace before you share it ([the security model](../../docs/plan/05-security-mode
 `watch` runs what you give it (the stdio server's command, without a shell) and listens
 only where `mcp-trace-capture` would: nowhere in `stdio` mode, and on `--listen` in
 `http` mode (`127.0.0.1:8080` by default, with the recorder's warning for any other
-address). It sends nothing anywhere unless `--otlp` names a collector, and then only span
-fields — method, tool and prompt names, resource URIs, request and session IDs, error
-codes and messages, findings — never a payload; an `http://` collector that is not this
-machine is warned about, since those fields would cross the network unencrypted.
+address). It sends nothing anywhere unless `--otlp` names a collector, and then only the
+span fields [listed above](#exporting-spans) — method, tool and prompt names, resource
+URIs up to their path, request and session IDs, error codes (not messages), findings —
+never a payload; an `http://` collector that is not this machine is warned about, since
+those fields would cross the network unencrypted.
 
 ## The workbench
 

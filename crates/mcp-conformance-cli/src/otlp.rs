@@ -16,10 +16,20 @@
 //! for a client-initiated exchange over HTTP, `gen_ai.tool.name` with
 //! `gen_ai.operation.name = execute_tool` for `tools/call`,
 //! `gen_ai.prompt.name`, `mcp.resource.uri`, and on error `error.type`,
-//! `rpc.response.status_code` and an `ERROR` status whose description is the
-//! JSON-RPC error's message. No opt-in attribute (arguments, results, prompt
-//! variables) is ever set: `watch` exports what the conventions require or
-//! recommend, never payloads.
+//! `rpc.response.status_code` and an `ERROR` status. No opt-in attribute
+//! (arguments, results, prompt variables) is ever set: `watch` exports what
+//! the conventions require or recommend, never payloads.
+//!
+//! **Less than the conventions allow, where a field could carry a secret.**
+//! Three of the conventions' fields are free text from the session, and each
+//! is bounded here rather than copied: `mcp.resource.uri` is exported without
+//! its userinfo, query and fragment (`exported_uri`), since a presigned or
+//! tokenised URI carries its credential there; the `ERROR` status's
+//! description is the JSON-RPC error's numeric code and a fixed name for it
+//! (`error_descriptor`), never the server's message, which can quote a
+//! path, a payload or a key; and a finding's detail, which quotes the value
+//! it is about (a tool name, an id), is cut at [`DETAIL_LIMIT`] characters
+//! with the cut marked. The crate README lists what a span carries.
 //!
 //! **Span kind: `CLIENT`, for every exchange.** The conventions define the
 //! client span as the initiator's view — "reported by the MCP client when it
@@ -63,6 +73,13 @@ pub const SEMCONV_COMMIT: &str = "5293effb97f18ddb0602da884dadee6119d67679";
 
 /// The span event name a finding is exported under.
 pub const FINDING_EVENT: &str = "mcp_conformance.finding";
+
+/// The most characters of a finding's detail a span event carries.
+///
+/// Longer than any detail the committed golden reports hold (326
+/// characters), so a real finding is never cut; a hostile value a detail
+/// quotes — a tool name the size of a message — is.
+pub const DETAIL_LIMIT: usize = 512;
 
 /// `SPAN_KIND_CLIENT`.
 pub const SPAN_KIND_CLIENT: i32 = 3;
@@ -208,6 +225,59 @@ fn nanos(at: SystemTime) -> String {
         .to_string()
 }
 
+/// `uri` up to its path: without its fragment, its query (where a presigned
+/// URL's signature and a tokenised one's token sit) and, when it has an
+/// authority, the userinfo before the host.
+fn exported_uri(uri: &str) -> String {
+    let end = uri.find(['?', '#']).unwrap_or(uri.len());
+    let kept = &uri[..end];
+    let Some(authority_start) = kept.find("://").map(|at| at + 3) else {
+        return kept.to_owned();
+    };
+    let authority_end = kept[authority_start..]
+        .find('/')
+        .map_or(kept.len(), |at| authority_start + at);
+    kept[authority_start..authority_end].rfind('@').map_or_else(
+        || kept.to_owned(),
+        |at| {
+            format!(
+                "{}{}",
+                &kept[..authority_start],
+                &kept[authority_start + at + 1..]
+            )
+        },
+    )
+}
+
+/// The span status's description for a JSON-RPC error: its code, with the
+/// name JSON-RPC 2.0 (or MCP, for `-32002`) gives it. The server's `message`
+/// is free text that can quote anything, so it is not exported.
+fn error_descriptor(code: Option<&str>) -> String {
+    let Some(code) = code else {
+        return "JSON-RPC error without a code".to_owned();
+    };
+    let name = match code {
+        "-32700" => " (parse error)",
+        "-32600" => " (invalid request)",
+        "-32601" => " (method not found)",
+        "-32602" => " (invalid params)",
+        "-32603" => " (internal error)",
+        "-32002" => " (resource not found)",
+        _ => "",
+    };
+    format!("JSON-RPC error {code}{name}")
+}
+
+/// `detail`, cut at [`DETAIL_LIMIT`] characters with the cut marked.
+fn cut(detail: &str) -> String {
+    let total = detail.chars().count();
+    if total <= DETAIL_LIMIT {
+        return detail.to_owned();
+    }
+    let kept: String = detail.chars().take(DETAIL_LIMIT).collect();
+    format!("{kept}… [cut at {DETAIL_LIMIT} of {total} chars]")
+}
+
 /// Where an HTTP session's server is, for `server.address` and `server.port`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -298,7 +368,7 @@ fn attributes(exchange: &Exchange, peer: Option<&Peer>) -> Vec<KeyValue> {
         attributes.push(KeyValue::string("gen_ai.prompt.name", &**prompt));
     }
     if let Some(uri) = &exchange.resource_uri {
-        attributes.push(KeyValue::string("mcp.resource.uri", &**uri));
+        attributes.push(KeyValue::string("mcp.resource.uri", exported_uri(uri)));
     }
     attributes
 }
@@ -308,7 +378,7 @@ fn attributes(exchange: &Exchange, peer: Option<&Peer>) -> Vec<KeyValue> {
 fn status(exchange: &Exchange, attributes: &mut Vec<KeyValue>) -> Option<Status> {
     match &exchange.ending {
         Ending::Answered {
-            error: Some((code, message)),
+            error: Some((code, _message)),
             ..
         } => {
             // A JSON-RPC error without a code gets the conventions' fallback.
@@ -321,7 +391,7 @@ fn status(exchange: &Exchange, attributes: &mut Vec<KeyValue>) -> Option<Status>
             }
             Some(Status {
                 code: STATUS_CODE_ERROR,
-                message: message.clone().unwrap_or_default(),
+                message: error_descriptor(code.as_deref()),
             })
         }
         Ending::Answered {
@@ -360,7 +430,7 @@ impl Span {
             ),
             KeyValue::string("mcp_conformance.revision", &*finding.revision),
             KeyValue::string("mcp_conformance.check", &*finding.check),
-            KeyValue::string("mcp_conformance.detail", &*finding.detail),
+            KeyValue::string("mcp_conformance.detail", cut(&finding.detail)),
         ];
         if let Some(url) = &finding.url {
             attributes.push(KeyValue::string("mcp_conformance.spec.url", &**url));
