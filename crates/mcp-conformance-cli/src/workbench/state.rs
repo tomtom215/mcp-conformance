@@ -8,18 +8,31 @@
 //! when its trace's size or modification time moved, so a recorder writing
 //! into the library (a running `watch`, a capture) shows up on the next
 //! request, and an unchanged library costs a directory listing.
+//!
+//! The parsed events of the [`EVENTS_CACHED`] traces most recently viewed
+//! are kept, keyed by the SHA-256 of the bytes they were parsed from — the
+//! same key the sidecar's verdict cache uses — so following a session (the
+//! page polls it), comparing two, or downloading a report does not parse
+//! the whole trace again, and a trace that changed (another hash) is never
+//! served stale. A large line is parsed into a tree many times its size
+//! (the crate README gives the measurement), which is why the cache is
+//! small.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::fs;
 use std::io;
 use std::path::Path;
+use std::sync::Arc;
 
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::reader::{self, Limits};
 
-use super::entry::Entry;
+use super::entry::{self, Entry};
 use super::library::{Library, Skipped, valid_id};
 use super::meta::Meta;
+
+/// How many traces' parsed events are kept, most recently viewed first.
+pub(crate) const EVENTS_CACHED: usize = 4;
 
 /// The library and its entries.
 #[derive(Debug)]
@@ -27,6 +40,8 @@ pub(crate) struct Workbench {
     pub(crate) library: Library,
     pub(crate) entries: BTreeMap<String, Entry>,
     pub(crate) skipped: Vec<Skipped>,
+    /// Parsed events by the SHA-256 of their bytes, most recently used first.
+    events: VecDeque<(String, Arc<Vec<TraceEvent>>)>,
 }
 
 /// A request about an entry that cannot be answered.
@@ -53,6 +68,7 @@ impl Workbench {
             library: Library::open(root)?,
             entries: BTreeMap::new(),
             skipped: Vec::new(),
+            events: VecDeque::new(),
         };
         workbench.refresh()?;
         Ok(workbench)
@@ -110,13 +126,27 @@ impl Workbench {
         Ok(String::from_utf8_lossy(&bytes).into_owned())
     }
 
-    /// Entry `id`'s events, as far as they parse.
-    pub(crate) fn events(&self, id: &str) -> Result<Vec<TraceEvent>, Failure> {
-        let text = self.text(id)?;
-        Ok(
-            reader::parse_trace(super::entry::complete(&text), &Limits::default())
-                .unwrap_or_default(),
-        )
+    /// Entry `id`'s events, as far as they parse: from the cache when it
+    /// holds the events of the bytes the entry was loaded from, else parsed
+    /// from the file and cached under the hash of the bytes actually read.
+    pub(crate) fn events(&mut self, id: &str) -> Result<Arc<Vec<TraceEvent>>, Failure> {
+        let sha256 = self.entry(id)?.sha256.clone();
+        if let Some(at) = self.events.iter().position(|(key, _)| *key == sha256)
+            && let Some(hit) = self.events.remove(at)
+        {
+            let events = Arc::clone(&hit.1);
+            self.events.push_front(hit);
+            return Ok(events);
+        }
+        let bytes = fs::read(self.library.trace_path(id))?;
+        let text = String::from_utf8_lossy(&bytes);
+        let events = Arc::new(
+            reader::parse_trace(entry::complete(&text), &Limits::default()).unwrap_or_default(),
+        );
+        self.events
+            .push_front((entry::sha256(&bytes), Arc::clone(&events)));
+        self.events.truncate(EVENTS_CACHED);
+        Ok(events)
     }
 
     /// Adds a recording; returns its id.

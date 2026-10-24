@@ -7,7 +7,7 @@ use super::*;
 use crate::workbench::fixture;
 
 fn compare(a: &str, b: &str) -> Diff {
-    let (workbench, _dir) = fixture::workbench("diff");
+    let (mut workbench, _dir) = fixture::workbench("diff");
     let (left, right) = (workbench.events(a).unwrap(), workbench.events(b).unwrap());
     diff(
         (workbench.entry(a).unwrap(), &left),

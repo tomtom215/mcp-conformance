@@ -8,7 +8,7 @@ use crate::workbench::fixture;
 
 #[test]
 fn a_session_puts_each_finding_at_its_event() {
-    let (workbench, _dir) = fixture::workbench("view");
+    let (mut workbench, _dir) = fixture::workbench("view");
     let id = "base-001-request-id-boolean";
     let events = workbench.events(id).unwrap();
     let view = session(workbench.entry(id).unwrap(), &events, 0);
@@ -40,7 +40,7 @@ fn a_session_puts_each_finding_at_its_event() {
 
 #[test]
 fn every_kind_of_event_reads_as_the_report_reads_it() {
-    let (workbench, _dir) = fixture::workbench("kinds");
+    let (mut workbench, _dir) = fixture::workbench("kinds");
     let id = "everything-http";
     let events = workbench.events(id).unwrap();
     let view = session(workbench.entry(id).unwrap(), &events, 0);
@@ -89,7 +89,7 @@ fn every_kind_of_event_reads_as_the_report_reads_it() {
 
 #[test]
 fn pages_start_where_asked() {
-    let (workbench, _dir) = fixture::workbench("pages");
+    let (mut workbench, _dir) = fixture::workbench("pages");
     let id = "sdk-go-2025-11-25";
     let events = workbench.events(id).unwrap();
     let view = session(workbench.entry(id).unwrap(), &events, 38);

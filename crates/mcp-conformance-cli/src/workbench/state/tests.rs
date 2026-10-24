@@ -210,3 +210,59 @@ fn delete_removes_both_files_and_refuses_what_is_not_an_entry() {
         Failure::Io("x".into())
     );
 }
+
+/// Viewing a session again costs no parse; a trace whose bytes changed is
+/// parsed again; the cache holds the few most recently viewed, and viewing
+/// one keeps it.
+#[test]
+fn events_are_parsed_once_per_bytes_and_the_cache_is_small_and_recent() {
+    let (mut workbench, dir) = fixture::workbench("events-cache");
+    let id = "everything-stdio";
+    let first = workbench.events(id).unwrap();
+    let again = workbench.events(id).unwrap();
+    assert!(Arc::ptr_eq(&first, &again), "the same parse, not a new one");
+    // The trace grows (a recorder appending): another hash, a new parse,
+    // and the new line in it.
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .open(dir.join(format!("{id}.jsonl")))
+        .unwrap();
+    writeln!(
+        file,
+        "{{\"seq\":{},\"direction\":\"client-to-server\",\"transport\":\"stdio\",\"kind\":\"message\",\"payload\":{{\"jsonrpc\":\"2.0\",\"id\":99,\"method\":\"ping\"}}}}",
+        first.len()
+    )
+    .unwrap();
+    workbench.refresh().unwrap();
+    let grown = workbench.events(id).unwrap();
+    assert!(
+        !Arc::ptr_eq(&first, &grown),
+        "changed bytes are not served stale"
+    );
+    assert_eq!(grown.len(), first.len() + 1);
+    // Most recently viewed first: viewing `id` after EVENTS_CACHED - 1
+    // others keeps it, and one more other then evicts the oldest, not it.
+    let others: Vec<String> = workbench
+        .entries
+        .keys()
+        .filter(|other| *other != id)
+        .take(EVENTS_CACHED)
+        .cloned()
+        .collect();
+    assert_eq!(others.len(), EVENTS_CACHED);
+    let oldest = workbench.events(&others[0]).unwrap();
+    for other in &others[1..EVENTS_CACHED - 1] {
+        workbench.events(other).unwrap();
+    }
+    assert!(Arc::ptr_eq(&grown, &workbench.events(id).unwrap()));
+    workbench.events(&others[EVENTS_CACHED - 1]).unwrap();
+    assert!(
+        Arc::ptr_eq(&grown, &workbench.events(id).unwrap()),
+        "viewed more recently than the others"
+    );
+    assert!(
+        !Arc::ptr_eq(&oldest, &workbench.events(&others[0]).unwrap()),
+        "the least recently viewed was evicted"
+    );
+    assert!(workbench.events.len() <= EVENTS_CACHED);
+}
