@@ -8,7 +8,10 @@
 //! contract while the list — which grows with every extracted area — lives on
 //! its own.
 
-use super::{Check, base, lifecycle, negotiation, prompts, resources, tools, transport, utilities};
+use super::{
+    Check, base, basic_utilities, lifecycle, negotiation, prompts, resources, tools, transport,
+    utilities,
+};
 
 /// One registration row. The list is long and perfectly uniform, so the literal
 /// `Check { id: …, run: … }` form cost four lines each and pushed the file past
@@ -175,6 +178,47 @@ const SHIPPED: &[Check] = &[
     check!(
         "pagination.invalid-cursor-rejected",
         utilities::invalid_cursor_rejected
+    ),
+    check!("ping.empty-result", basic_utilities::ping::empty_result),
+    check!(
+        "progress.token-string-or-integer",
+        basic_utilities::progress::token_string_or_integer
+    ),
+    check!(
+        "progress.token-unique-among-active-requests",
+        basic_utilities::progress::token_unique_among_active_requests
+    ),
+    check!(
+        "progress.value-strictly-increases",
+        basic_utilities::progress::value_strictly_increases
+    ),
+    check!(
+        "progress.token-issued-in-session",
+        basic_utilities::progress::token_issued_in_session
+    ),
+    check!(
+        "progress.stops-after-completion",
+        basic_utilities::progress::stops_after_completion
+    ),
+    check!(
+        "progress.task-token-unchanged",
+        basic_utilities::progress::task_token_unchanged
+    ),
+    check!(
+        "cancellation.references-issued-request",
+        basic_utilities::cancellation::references_issued_request
+    ),
+    check!(
+        "cancellation.initialize-not-cancelled",
+        basic_utilities::cancellation::initialize_not_cancelled
+    ),
+    check!(
+        "cancellation.task-cancelled-by-request",
+        basic_utilities::cancellation::task_cancelled_by_request
+    ),
+    check!(
+        "cancellation.no-response-after-cancellation",
+        basic_utilities::cancellation::no_response_after_cancellation
     ),
 ];
 

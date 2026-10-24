@@ -21,6 +21,7 @@
 
 mod auth;
 mod base;
+mod basic_utilities;
 mod client_features;
 mod extensions;
 mod inventory;
