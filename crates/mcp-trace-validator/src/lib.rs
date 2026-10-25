@@ -64,6 +64,7 @@ pub mod checks;
 pub mod context;
 pub mod declared;
 pub mod engine;
+pub mod fingerprint;
 #[cfg(test)]
 mod fixtures;
 pub mod html;

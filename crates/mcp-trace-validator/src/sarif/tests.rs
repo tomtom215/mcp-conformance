@@ -169,13 +169,6 @@ fn paths_become_uri_references() {
 }
 
 #[test]
-fn numbers_fold_to_one_mark_and_text_stays() {
-    assert_eq!(fold_numbers("seq 12: id 3a, 007"), "seq #: id #a, #");
-    assert_eq!(fold_numbers("no digits"), "no digits");
-    assert_eq!(fold_numbers(""), "");
-}
-
-#[test]
 fn identical_findings_in_one_trace_get_distinct_fingerprints() {
     // Two messages break the same clause the same way; folded, their details
     // are equal, so only the per-trace occurrence count tells them apart.

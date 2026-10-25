@@ -29,11 +29,10 @@
 //! registry and finding order, no timestamps or environment — like every other
 //! report format.
 
-use std::collections::BTreeMap;
-
 use mcp_conformance_core::trace::TraceEvent;
 use serde_json::{Value, json};
 
+use crate::fingerprint::{Fingerprints, KEY, Place, Slot, WIRE_SCHEMA_RULE};
 use crate::report::{Outcome, Report, RequirementReport, Unjudged};
 
 mod location;
@@ -42,7 +41,7 @@ mod rule;
 use location::location;
 #[cfg(test)]
 use location::uri_reference;
-use rule::{fold_numbers, level, rule};
+use rule::{level, rule};
 
 /// Where the findings point.
 ///
@@ -168,19 +167,26 @@ pub fn render_run(
     options: &Options,
 ) -> String {
     let all_reports = || traces.iter().flat_map(|(_, reports)| reports.iter());
+    // A finding's fingerprint is the baseline's key as well ([`crate::fingerprint`]),
+    // so both are computed in one place, in one order.
+    let named: Vec<_> = traces
+        .iter()
+        .map(|(artifact, reports)| (artifact.uri, *reports))
+        .collect();
     let mut log = Log {
-        rule_ids: rule_ids(all_reports()),
-        index_of: BTreeMap::new(),
+        fingerprints: Fingerprints::of(&named),
+        index_of: std::collections::BTreeMap::new(),
         rules: Vec::new(),
         results: Vec::new(),
         notifications: Vec::new(),
         strict: options.strict,
         party_view: None,
-        seen: BTreeMap::new(),
         noted: std::collections::BTreeSet::new(),
+        at: (0, 0),
     };
-    for (artifact, reports) in traces {
-        for report in *reports {
+    for (trace, (artifact, reports)) in traces.iter().enumerate() {
+        for (index, report) in reports.iter().enumerate() {
+            log.at = (trace, index);
             log.report(report, *artifact);
         }
     }
@@ -232,8 +238,10 @@ pub fn render_run(
 /// The run as it is assembled: rules in order of first finding, their results,
 /// and the notifications for clauses this build cannot judge.
 struct Log<'r> {
-    rule_ids: BTreeMap<(&'r str, &'r str), String>,
-    index_of: BTreeMap<String, usize>,
+    /// Every finding's fingerprint, and the rule each requirement's findings
+    /// are reported under.
+    fingerprints: Fingerprints<'r>,
+    index_of: std::collections::BTreeMap<String, usize>,
     rules: Vec<Value>,
     results: Vec<Value>,
     notifications: Vec<Value>,
@@ -242,10 +250,10 @@ struct Log<'r> {
     /// The party the report being added is viewed for
     /// ([`Report::party_view`]): a finding it sets aside is a `note`.
     party_view: Option<crate::report::Party>,
-    /// How many results so far share each fingerprint stem, per trace.
-    seen: BTreeMap<(String, String), usize>,
     /// The unanswered-requests notes already written, per trace.
     noted: std::collections::BTreeSet<(String, String)>,
+    /// The trace and report (of that trace) being added.
+    at: (usize, usize),
 }
 
 impl Log<'_> {
@@ -256,25 +264,35 @@ impl Log<'_> {
         if let Some(unanswered) = &report.unanswered_requests {
             self.unanswered(unanswered, artifact);
         }
-        for row in &report.requirements {
+        for (index, row) in report.requirements.iter().enumerate() {
             match row.outcome {
-                Outcome::Fail | Outcome::Warn => self.findings(row, &report.revision, artifact),
+                Outcome::Fail | Outcome::Warn => {
+                    self.results_for(row, Place::Row(index), &report.revision, artifact, None);
+                }
                 Outcome::Unsupported => self.unsupported(row, &report.revision),
                 _ => {}
             }
         }
         if let Some(row) = wire_schema_row(report) {
-            self.findings(&row, &report.revision, artifact);
+            self.results_for(&row, Place::WireSchema, &report.revision, artifact, None);
         }
-        for extension in &report.extensions {
-            for row in &extension.requirements {
+        for (extension_index, extension) in report.extensions.iter().enumerate() {
+            for (index, row) in extension.requirements.iter().enumerate() {
                 match row.outcome {
-                    Outcome::Fail | Outcome::Warn => self.extension_findings(
-                        row,
-                        &report.revision,
-                        artifact,
-                        &extension.extension,
-                    ),
+                    // At level `note`: reported, never scored.
+                    Outcome::Fail | Outcome::Warn => {
+                        let place = Place::Extension {
+                            extension: extension_index,
+                            row: index,
+                        };
+                        self.results_for(
+                            row,
+                            place,
+                            &report.revision,
+                            artifact,
+                            Some(&extension.extension),
+                        );
+                    }
                     Outcome::Unsupported => self.unsupported(row, &report.revision),
                     _ => {}
                 }
@@ -283,54 +301,32 @@ impl Log<'_> {
     }
 
     /// A result per finding on a `fail` / `warn` row, under the row's rule.
-    fn findings(&mut self, row: &RequirementReport, revision: &str, artifact: Artifact<'_>) {
-        self.results_for(row, revision, artifact, None);
-    }
-
-    /// A result per finding on an extension's `fail` / `warn` row, at level
-    /// `note`: reported, never scored.
-    fn extension_findings(
-        &mut self,
-        row: &RequirementReport,
-        revision: &str,
-        artifact: Artifact<'_>,
-        extension: &str,
-    ) {
-        self.results_for(row, revision, artifact, Some(extension));
-    }
-
     fn results_for(
         &mut self,
         row: &RequirementReport,
+        place: Place,
         revision: &str,
         artifact: Artifact<'_>,
         extension: Option<&str>,
     ) {
-        let rule_id = self.rule_ids[&(row.id.as_str(), revision)].clone();
+        let rule_id = self.fingerprints.rule_id(&row.id, revision);
         let rules = &mut self.rules;
         let rule_index = *self.index_of.entry(rule_id.clone()).or_insert_with(|| {
             rules.push(rule(&rule_id, row, revision, extension));
             rules.len() - 1
         });
-        for finding in &row.findings {
-            // Stable across recordings of the same behaviour: a re-recorded
-            // trace moves every `seq`, and a fingerprint keyed on it would
-            // close and reopen every alert on each run. The detail with its
-            // numbers folded identifies the defect; the occurrence index keeps
-            // repeated identical findings distinct.
-            // Counted per trace: code scanning already tells traces apart by
-            // their location, so the trace's path stays out of the fingerprint
-            // and a renamed trace keeps its alerts.
-            let stem = format!(
-                "{rule_id}:{}:{}",
-                finding.check,
-                fold_numbers(&finding.detail)
-            );
-            let occurrence = self
-                .seen
-                .entry((artifact.uri.unwrap_or_default().to_owned(), stem.clone()))
-                .or_insert(0);
-            *occurrence += 1;
+        for (position, finding) in row.findings.iter().enumerate() {
+            // Stable across recordings of the same behaviour, and shared with
+            // the baseline: see [`crate::fingerprint`] for what it is made of.
+            let fingerprint = self
+                .fingerprints
+                .get(Slot {
+                    trace: self.at.0,
+                    report: self.at.1,
+                    place,
+                    finding: position,
+                })
+                .unwrap_or_default();
             // A finding the party view sets aside is shown at level `note`,
             // like an extension's: reported, and failing nothing.
             let set_aside = self
@@ -349,9 +345,7 @@ impl Log<'_> {
                 "level": level,
                 "message": { "text": finding.detail },
                 "locations": location(artifact, finding.seq),
-                "partialFingerprints": {
-                    "mcpConformanceFinding/v2": format!("{stem}:{occurrence}"),
-                },
+                "partialFingerprints": { KEY: fingerprint },
                 "properties": {
                     "revision": revision,
                     "check": finding.check,
@@ -425,49 +419,6 @@ impl Log<'_> {
         }));
     }
 }
-
-/// The SARIF rule ID of each `(requirement ID, revision)` with a finding: the
-/// requirement ID, suffixed with its revision only where the same ID has
-/// findings under more than one.
-fn rule_ids<'r>(reports: impl Iterator<Item = &'r Report>) -> BTreeMap<(&'r str, &'r str), String> {
-    let mut revisions_of: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    for report in reports {
-        let schema = report.wire_schema_failed().then_some(WIRE_SCHEMA_RULE);
-        let extension_rows = report
-            .extensions
-            .iter()
-            .flat_map(|extension| &extension.requirements);
-        let failing = report
-            .requirements
-            .iter()
-            .chain(extension_rows)
-            .filter(|row| matches!(row.outcome, Outcome::Fail | Outcome::Warn))
-            .map(|row| row.id.as_str());
-        for id in failing.chain(schema) {
-            let revisions = revisions_of.entry(id).or_default();
-            // Several traces judged at one revision are still one revision.
-            if !revisions.contains(&report.revision.as_str()) {
-                revisions.push(report.revision.as_str());
-            }
-        }
-    }
-    let mut ids = BTreeMap::new();
-    for (id, revisions) in revisions_of {
-        for revision in &revisions {
-            let rule_id = if revisions.len() > 1 {
-                format!("{id}@{revision}")
-            } else {
-                id.to_owned()
-            };
-            ids.insert((id, *revision), rule_id);
-        }
-    }
-    ids
-}
-
-/// The rule ID of wire-schema results: lower case, so it can never collide
-/// with a requirement ID.
-const WIRE_SCHEMA_RULE: &str = "wire-schema";
 
 /// A failed wire schema as a row the result path already knows how to render;
 /// `None` unless it failed.
