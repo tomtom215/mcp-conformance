@@ -18,8 +18,22 @@ mod tests;
 /// answer. What is judged is every ping that *was* answered, by either party:
 /// the answer must be a result, and the result must be empty. `_meta` is the
 /// one member allowed, since `EmptyResult` is `Result`, which carries it.
+///
+/// An error that rode an HTTP error status is not that answer. It is the
+/// transport refusing the request, which other clauses require: a request with
+/// an invalid or unsupported `MCP-Protocol-Version` "MUST" be answered `400`, and
+/// a session the server no longer knows `404`. The ping handler never saw it, so
+/// the receiver is not failing to respond with an empty result, and the exchange
+/// is not a subject. An error over stdio, or one that rode a `2xx`, is judged.
 pub(in crate::checks) fn empty_result(context: &TraceContext<'_>, sink: &mut FindingSink) {
     for exchange in context.exchanges_for("ping") {
+        let refused_by_transport = exchange.result.is_none()
+            && context
+                .http_status(exchange.response.seq)
+                .is_some_and(|status| !(200..300).contains(&status));
+        if refused_by_transport {
+            continue;
+        }
         // The subject is an answered ping, whichever party sent it.
         sink.examined();
         let Some(result) = exchange.result else {

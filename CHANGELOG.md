@@ -15,7 +15,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 records, and removes one deprecated module**, as pre-1.0 SemVer permits in a minor release
 ([STABILITY.md](STABILITY.md) says what counts as breaking). A session that
 passed under 0.6.0 can fail now with nothing in it changed: a `2025-11-25` report
-carries 179 more rows than under 0.6.0 (33 judged, 146 excluded with a reason) and a
+carries 206 more rows than under 0.6.0 (46 judged, 160 excluded with a reason) and a
 `2026-07-28` report 228 more (57 judged, 171 excluded), some clauses once excluded are judged, every message is now held to its revision's own JSON Schema, and
 several checks now catch what they missed. Other checks stop failing conforming sessions. Every change
 below is stated again in its entry, with the reasoning.
@@ -51,7 +51,7 @@ below is stated again in its entry, with the reasoning.
 | SARIF | Findings against `TRAN-074` name a new check, so their fingerprints change | An open alert for one closes and reopens once |
 | `mcp-trace-capture` traces | A message whose parsed value would differ from its text (an integer past 64 bits, a repeated member name) is recorded as its raw line over stdio and left out over HTTP; SSE events whose type is not `message` are not recorded; a forced HTTP stop ends the trace with `transport-abort` | None for a conforming peer; the summary counts what was left out |
 | `mcp-trace-capture stdio` | A stop gives the server 1 s (was 3 s) before its process group is killed, inside the official SDKs' 2 s; on Windows the exit code is the server's whole code, not its low eight bits | A server needing longer to shut down should finish on stdin closing |
-| Report totals | Against 0.6.0, every change in this release together (the wire-schema row above included): a `2025-11-25` report has 321 rows (was 142) and `excluded` 232 (was 86); a `2026-07-28` report has 501 (was 273) and `excluded` 320 (was 149) | Re-baseline any comparison of totals across versions |
+| Report totals | Against 0.6.0, every change in this release together (the wire-schema row above included): a `2025-11-25` report has 348 rows (was 142) and `excluded` 246 (was 86); a `2026-07-28` report has 501 (was 273) and `excluded` 320 (was 149) | Re-baseline any comparison of totals across versions |
 | Verdict, new rows | `AUTH-045`/`AUTH-049`/`AUTH-124`/`AUTH-130`: a protected server's challenge with the wrong status for its declared error (`invalid_token` not 401, `insufficient_scope` not 403); with the others of the 12 judged `AUTH` rows, from the `WWW-Authenticate` header ([ADR-0022](docs/plan/decisions/0022-judge-the-challenge-not-the-flow.md)) | Answer each error with the status the authorization page names |
 | Rust API | `mcp_conformance_core::trace::RECORDED_HEADERS` and `mcp_everything_server::tap::RECORDED_HEADERS` are `[&str; 11]` (were `[&str; 10]`): `WWW-Authenticate` is recorded | Iterate the array or take it as a slice, not by its length |
 | JSON report | A report, and each summary of a multi-revision one, gains `extensions` when the session exercised an extension ([ADR-0023](docs/plan/decisions/0023-extensions-are-reported-never-scored.md)); `report.schema.json` describes it, and its `source.url` pattern also admits an extension's own publication | Accept the member; the verdict never reads it |
@@ -64,6 +64,7 @@ below is stated again in its entry, with the reasoning.
 | JUnit, SARIF, HTML | Each carries the party a finding is held against, and the unanswered-requests note | None |
 | `validate --party` | New: `--party client\|server` counts only that party's findings (and those held against nobody, which the verdict line says it counted) toward the verdict and exit status | None; without it the verdict and exit status are unchanged |
 | Rust API | `report::{Party, PartyTally, TraceEnding, UnansweredRequest, UnansweredRequests}` are new; `Report` gains `party_view` and `unanswered_requests`, `RequirementReport` gains `actor`, `Finding` gains `party` (a report written before them still deserialises, with `None`); `declared::Selection` gains `proposed`, `UnjudgeableRevisions` gains `negotiated` and `proposed` (each is `#[non_exhaustive]`) | None for callers that read; construct through the crate's functions |
+| `2025-11-25` verdict, new rows | `PING-001`, `PROG-009`–`PROG-011`, `PROG-013`–`PROG-016`, `PROG-019` and `CANC-018`–`CANC-020` are judged, in both directions: a ping answered with content or with an error (unless the error rode an HTTP error status, which is the transport refusing the request, as the `400` an unsupported `MCP-Protocol-Version` requires), a progress token that is not a string or integer, shared by two unanswered requests of one party, or never issued in the session, progress that does not strictly increase or continues after completion (`PROG-019` on stdio only) or after a task's terminal status, a task whose progress token changes, a cancellation naming a request its sender never issued, a cancelled `initialize`, and a task cancelled by notification now fail; `CANC-021` warns (stdio only) on an answer to a cancelled request once the receiver demonstrably read the cancellation | Stop doing those; re-baseline totals (every `2025-11-25` report gains 27 rows: 13 for judged clauses, 14 excluded) |
 
 ### Removed
 
@@ -653,6 +654,24 @@ below is stated again in its entry, with the reasoning.
   `not_scored: extension`. Tasks at `2025-11-25` stays out of scope (experimental
   there; SEP-1730 and the suite score none of it), and MCP Apps is deferred
   (`mcp-apps-extension`). `spec-drift` holds the extension pages and both censuses.
+- **The `2025-11-25` ping, progress and cancellation pages are entered** (`basic/utilities/ping`,
+  `progress`, `cancellation`), which the registry had left out as an "unclaimed surface".
+  Entered by the census method: 27 entries (`PING-001`–`007`, `PROG-009`–`019`,
+  `CANC-018`–`026`), 13 judged by 11 new checks and 14 carrying a documented exclusion
+  (for reasons such as a rate over time, a timeout, a configuration surface, logging, or
+  the absence of a reaction, which no message in a trace shows), so the revision has 348 entries, 102 judged by 96 checks and
+  246 excluded. No `2026-07-28` ID is reused: an unchanged sentence at a new revision gets a
+  new entry, as `BASE-043` does. The clauses bind both parties here (either issues requests),
+  where the `2026-07-28` pages bind one. The task-related clauses (`PROG-014`–`016`,
+  `CANC-020`) are judged although the tasks page is out of scope at this revision, because a
+  recording carries every element they need; the checks abstain on any task whose creation
+  the recording did not see. Fifteen corpus traces pin them: three good (`stdio-progress`,
+  `stdio-task-progress`, `stdio-cancellation`) and twelve violations, each failing its named
+  clause (the progress and task ones also fail the rows that share their check).
+  `PING-001` first failed a ping the server refused with HTTP `400` for an unsupported
+  `MCP-Protocol-Version` (`tran-018-declined-version-header-refused-400`), a refusal the
+  transport requires; an error that rode an HTTP error status is now not a ping answer.
+
 
 **Calibration and captures**
 

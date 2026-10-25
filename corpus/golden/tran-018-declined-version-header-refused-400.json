@@ -1,14 +1,14 @@
 {
   "revision": "2025-11-25",
-  "verdict": "fail",
+  "verdict": "pass-with-warnings",
   "totals": {
     "pass": 26,
-    "fail": 1,
+    "fail": 0,
     "warn": 1,
     "excluded": 246,
     "unsupported": 0,
     "not_applicable": 14,
-    "not_observed": 60
+    "not_observed": 61
   },
   "requirements": [
     {
@@ -256,20 +256,7 @@
       "id": "PING-001",
       "level": "MUST",
       "actor": "both",
-      "outcome": "fail",
-      "findings": [
-        {
-          "check": "ping.empty-result",
-          "seq": 10,
-          "party": "server",
-          "detail": "`ping` (seq 8) was answered with an error (-32600); the receiver must respond with an empty result"
-        }
-      ],
-      "source": {
-        "section": "basic/utilities/ping#behavior-requirements",
-        "quote": "The receiver MUST respond promptly with an empty response:",
-        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/ping#behavior-requirements"
-      }
+      "outcome": "not-observed"
     },
     {
       "id": "PROG-009",

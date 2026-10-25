@@ -196,8 +196,8 @@ fn party_applies_to_a_multi_revision_run_and_to_several_traces() {
     let text = stdout(&multi);
     assert!(
         text.contains(
-            "  2025-11-25: 19 pass, 2 fail, 0 warn, 232 excluded, 0 unsupported, 6 not \
-             applicable, 62 not observed — verdict pass (server findings only: 2 client \
+            "  2025-11-25: 19 pass, 2 fail, 0 warn, 246 excluded, 0 unsupported, 6 not \
+             applicable, 75 not observed — verdict pass (server findings only: 2 client \
              findings set aside)\n"
         ),
         "{text}"
