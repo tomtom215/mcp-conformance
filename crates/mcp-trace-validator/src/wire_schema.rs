@@ -225,10 +225,19 @@ fn compile(schema: &WireSchema) -> Compiled {
     }
     let validators = jsonschema::options()
         .with_draft(Draft::Draft202012)
-        // Format assertion is off by default in 2020-12, and the schema's
-        // formats (`uri`, `uri-template`, `byte`) are annotations there; the
-        // suite asserts them, which this deliberately does not (ADR-0020).
-        .should_validate_formats(false)
+        // In 2020-12 `format` is an annotation unless asserted, and the schema
+        // uses three. `byte` is asserted: the prose says the same thing of
+        // every such member ("base64-encoded"), the alphabet has one
+        // definition, and no clause judges a tool result's encoding, so this
+        // is the only place a malformed image could be caught. `uri` and
+        // `uri-template` stay annotations (ADR-0020): asserting RFC 3986 would
+        // fail URIs the prose permits. The official suite does the opposite —
+        // `ajv-formats` asserts both URI formats and `addFormat("byte", true)`
+        // accepts any string — which the agreement check records.
+        .should_validate_formats(true)
+        .with_format("byte", crate::checks::is_base64)
+        .with_format("uri", |_: &str| true)
+        .with_format("uri-template", |_: &str| true)
         .build_map(&document)
         .expect("the vendored schema compiles");
     let mut compiled = Compiled {

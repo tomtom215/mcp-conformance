@@ -37,6 +37,12 @@ mod utilities;
 use crate::context::TraceContext;
 use crate::report::Finding;
 
+/// Whether `text` is standard base64 (RFC 4648 §4) with its padding: the one
+/// definition the content checks and the wire schema's `byte` format share.
+pub(crate) fn is_base64(text: &str) -> bool {
+    support::is_base64(text)
+}
+
 /// A check function: examines the trace, pushes findings into the sink.
 type CheckFn = fn(&TraceContext<'_>, &mut FindingSink);
 

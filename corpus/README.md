@@ -49,7 +49,7 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 107 | 236 |
+| Goldens | 109 | 237 |
 | Excluded rows the ledger holds | 232 | 320 |
 | Distinct not-observed sets across them | 68 | 150 |
 
@@ -128,6 +128,7 @@ below: the implementations on both ends, the tool that recorded them, and when.
 | `stdio-request-unanswered-at-close.jsonl` | A handshake, then a `tools/list` the server never answers before the transport closes (added 2026-10-24). No clause judges it — JSON-RPC expects every request answered, but `BASE-012` is excluded — so the verdict is `pass`; what the golden pins is the report's `unanswered_requests` note: one request, and that the trace ended with a `transport-close`. Until 2026-10-24 the report said nothing at all. |
 | `stdio-requests-partly-unanswered.jsonl` | The same handshake, then three requests of which the server answers one (`tools/list`) and leaves two (`ping`, `tools/call`) pending when the recording simply stops, with no close or abort (added 2026-10-24). The note counts two and says the trace stopped; the verdict is `pass`. |
 | `stdio-server-negotiates-2024-11-05.jsonl` | A `2025-11-25` client whose server answers `initialize` with `protocolVersion` `2024-11-05`, a revision this build has no registry for; the client goes on under it (`notifications/initialized`, `tools/list`) and closes (added 2026-10-24). The session ran under what the server named — that is what negotiation means — so `validate` refuses to judge it by default (exit 2, naming both revisions) rather than judging it under the proposal, which until 2026-10-24 it did silently, as a `pass`. This golden is that judgment asked for explicitly: `--revision 2025-11-25` judges the session under the proposal, and it passes, because nothing in it breaks a clause a `2025-11-25` registry can see. |
+| `stdio-tool-image-base64-padding.jsonl` | Two `tools/call` results carrying image and audio content whose `data` is well-formed base64 at every padding length — a PNG ending `==`, a WAV and a GIF ending `=`, a JPEG fragment with none — and one image whose `data` is the empty string, which encodes nothing and is well-formed under RFC 4648 §4 (the `format: byte` rule the schema marks `data` and `blob` with accepts it, as `ajv-formats` does; added 2026-10-24). The wire schema passes all five and no clause judges a tool result's encoding, so the verdict is `pass`; the trace exists so that asserting `byte` cannot drift into rejecting padding or emptiness. |
 | `http-origin-refused-without-id.jsonl` | A Streamable HTTP `initialize` carrying `Host`/`Origin` `evil.example.com`, refused `403` with a JSON-RPC error that has no `id`, then the same handshake from `localhost` completing. The transport's security warning permits exactly that body ("If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`"), so BASE-009 passes. Until 2026-10-13 the framing tied the error to the refused request, whose id was readable, and BASE-009 failed it — the shape of the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`). Added 2026-10-13 |
 | `http-authorization.jsonl` | A protected Streamable HTTP server, conformant (added 2026-10-13, review item 2.8): `initialize` refused `401` with a Bearer challenge carrying `resource_metadata` and `scope` (AUTH-014's pass path), then sent again **with the same id**, as the official SDKs' clients retry, and answered; a `ping` refused `403` `insufficient_scope` naming `scope` and `resource_metadata` (AUTH-049/050/051), retried and answered; another refused `401` `invalid_token` (AUTH-045/049) whose `application/json` body is the resource server's own `{"error":"invalid_token",…}` object, retried and answered. That body is the HTTP layer's, not a JSON-RPC message; read as one it failed BASE-006/008/009 and the wire schema. The retries are why a request refused at the HTTP layer is *not delivered* (`context/refusal.rs`): judged as two deliveries, each retry failed BASE-003 and the trace counted two sessions. No metadata fetch appears, because none would: see `checks/auth.rs` for what a recording carries for authorization |
 
@@ -166,13 +167,13 @@ example).
 | `page-002-cursor-never-issued.jsonl` | PAGE-002 |
 | `page-002-fabricated-cursor-rejected.jsonl` | PAGE-002, and with it PAGE-003's pass path: the client fabricates a cursor and the server answers `-32602` rather than honouring it. The two halves of one event belong to different parties, so the trace falsifies the client's clause and evidences the server's. |
 | `prom-001-capability-undeclared.jsonl` | PROM-001 |
-| `prom-003-image-data-invalid.jsonl` | PROM-003 |
-| `prom-004-audio-data-invalid.jsonl` | PROM-004 |
+| `prom-003-image-data-invalid.jsonl` | PROM-003 (and, since 2026-10-24, the wire schema's `byte` format on the same message) |
+| `prom-004-audio-data-invalid.jsonl` | PROM-004 (and, since 2026-10-24, the wire schema's `byte` format on the same message) |
 | `prom-005-embedded-resource-malformed.jsonl` | PROM-005 |
 | `prom-008-required-argument-unvalidated.jsonl` | PROM-008 |
 | `res-001-capability-undeclared.jsonl` | RES-001 |
 | `res-004-uri-bad-scheme.jsonl` | RES-004 |
-| `res-006-blob-not-base64.jsonl` | RES-006 |
+| `res-006-blob-not-base64.jsonl` | RES-006 (and, since 2026-10-24, the wire schema's `byte` format on the same message) |
 | `tool-001-capability-undeclared.jsonl` | TOOL-001 |
 | `tool-003-input-schema-null.jsonl` | TOOL-003 |
 | `tool-005-name-length.jsonl` | TOOL-005 |
@@ -204,6 +205,7 @@ example).
 | `wire-schema-resource-missing-uri.jsonl` | Wire schema: a `resources/list` result whose resource has no `uri`, which `Resource` requires |
 | `wire-schema-log-level-not-in-enum.jsonl` | Wire schema: a `notifications/message` at level `chatty`, outside `LoggingLevel` |
 | `wire-schema-content-block-unknown-type.jsonl` | Wire schema: a `tools/call` result whose content block has `type: "txt"`, matching no `ContentBlock` member |
+| `wire-schema-tool-image-data-not-base64.jsonl` | Wire schema: a `tools/call` result whose image `data` is `not base64!`. `ImageContent.data` carries `format: byte` in the specification's schema, which the validator asserts since 2026-10-24; no clause of this revision judges a tool result's encoding (the prompt-content and resource-blob checks read their own members), so until then this message passed the wire schema and drew nothing at all. The official suite does not catch it either: it loads `ajv-formats` and then registers `byte` as always valid (`addFormat("byte", true)`). |
 | `elic-004-answered-without-capability.jsonl` | ELIC-004: a client declaring only `sampling` answers a form elicitation with a result. Also LIFE-009 and ELIC-006 for the server's request — a client can only show support it never declared by answering something it should not have been sent |
 | `elic-006-url-mode-undeclared.jsonl` | ELIC-006: a URL mode elicitation sent to a client declaring `elicitation: {}`, which is form mode only (LIFE-009 reads the same sub-capability). The client refuses with `-32602` — ELIC-021's pass path |
 | `elic-007-request-without-message.jsonl` | ELIC-007: a form elicitation with no `message`. The wire schema rejects the same request |
@@ -916,6 +918,7 @@ outcome moved.
 | `wire-schema-resource-missing-uri.jsonl` | Wire schema: a `resources/list` result whose resource has no `uri`, which `Resource` requires; the result carries both caching hints so the trace isolates the schema defect |
 | `wire-schema-cache-scope-not-in-enum.jsonl` | Wire schema: `cacheScope: "shared"`, which is neither `public` nor `private` |
 | `wire-schema-content-block-unknown-type.jsonl` | Wire schema: a `tools/call` result whose content block has `type: "txt"`, matching no `ContentBlock` member |
+| `wire-schema-tool-image-data-not-base64.jsonl` | Wire schema: the same image whose `data` is `not base64!`, in a `2026-07-28` `tools/call` result (added 2026-10-24); this revision's schema marks `ImageContent.data` with `format: byte` as `2025-11-25`'s does, and both are compiled with the same assertion |
 | `vers-008-initialize-error-without-versions.jsonl` | A modern-only server refuses a legacy `initialize` with a bare `Method not found`, naming none of the versions it does speak (VERS-008). Necessarily also falsifies BASE-030: a legacy handshake carries no `_meta` envelope — that is what makes it legacy — so the antecedent of this clause is a client that cannot satisfy BASE-030. BASE-031 is *not* also reported, and this trace is why the check was narrowed: `basic/versioning`'s compatibility matrix makes the rejection code implementation-defined for exactly this exchange. |
 | `elic-057-answered-without-capability.jsonl` | ELIC-057: the call declares `elicitation`, but its retry — the request carrying the accepted form — declares only `sampling`; the page asks for the declaration "on each request" |
 | `elic-059-url-mode-undeclared.jsonl` | ELIC-059: URL mode asked of a request declaring form mode only. BASE-034, MRTR-012 and MRTR-013 make the same observation through `meta.no-undeclared-capability-reliance` |

@@ -1,0 +1,565 @@
+{
+  "revision": "2025-11-25",
+  "verdict": "pass",
+  "totals": {
+    "pass": 19,
+    "fail": 0,
+    "warn": 0,
+    "excluded": 232,
+    "unsupported": 0,
+    "not_applicable": 6,
+    "not_observed": 64
+  },
+  "requirements": [
+    {
+      "id": "BASE-001",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-002",
+      "level": "MUST NOT",
+      "actor": "both",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-003",
+      "level": "MUST NOT",
+      "actor": "both",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-004",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-005",
+      "level": "MUST NOT",
+      "actor": "both",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-006",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-007",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-008",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-009",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-010",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-017",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-019",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-020",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-086",
+      "level": "SHOULD",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "LIFE-001",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-002",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-003",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-004",
+      "level": "SHOULD NOT",
+      "actor": "client",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-005",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-006",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-007",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-009",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-010",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "pass"
+    },
+    {
+      "id": "LIFE-018",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-004",
+      "level": "MUST NOT",
+      "actor": "server",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-005",
+      "level": "MUST NOT",
+      "actor": "client",
+      "outcome": "pass"
+    },
+    {
+      "id": "TRAN-011",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-013",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-017",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-018",
+      "level": "SHOULD",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-020",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-025",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-026",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-027",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-029",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-039",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-040",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-049",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-001",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "pass"
+    },
+    {
+      "id": "TOOL-003",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-005",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-006",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-007",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-009",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-010",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TOOL-011",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-001",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "RES-004",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.resources"
+    },
+    {
+      "id": "RES-006",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.resources"
+    },
+    {
+      "id": "PROM-001",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-003",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-004",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-005",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "PROM-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
+      "id": "LOG-001",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "COMP-001",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PAGE-002",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PAGE-003",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-004",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-006",
+      "level": "MUST NOT",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-007",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-009",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-011",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-012",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-014",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-018",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-019",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-021",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-049",
+      "level": "SHOULD",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-004",
+      "level": "MUST NOT",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-005",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-006",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-007",
+      "level": "SHOULD NOT",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-008",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-009",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-010",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-011",
+      "level": "MUST NOT",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-012",
+      "level": "SHOULD",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "SAMP-019",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-001",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-003",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-004",
+      "level": "SHOULD",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-009",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-014",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-045",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-049",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-050",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-051",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    }
+  ],
+  "wire_schema": {
+    "outcome": "pass",
+    "messages": 7,
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json",
+    "source": {
+      "section": "basic#schema",
+      "quote": "This is the source of truth for all protocol messages and structures.",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic#schema"
+    }
+  }
+}

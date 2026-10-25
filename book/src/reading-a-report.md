@@ -76,7 +76,10 @@ The finding names the definition the message was held to and the path of the mem
 at fault; a member that matched none of several alternatives (a content block, an
 input request) names the closest alternative's defect. The schema catches what no
 sentence of the prose states on its own — a missing required member, a wrong type, a
-value outside an enumeration — so it is reported beside the clauses rather than as one,
+value outside an enumeration, image or audio `data` or a resource `blob` that is not
+base64 (the schema's `byte` format; its `uri` and `uri-template` formats stay
+annotations, because asserting RFC 3986 would fail URIs the prose permits) — so it is
+reported beside the clauses rather than as one,
 has no requirement ID, and is not counted in the totals; a failure still fails the
 verdict. Where the published schema is stricter than `schema.ts`, the validator
 corrects it and says where

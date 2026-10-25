@@ -191,9 +191,10 @@ verdict: fail
   a verdict.
 - **Every message is also held to the revision's own JSON Schema** — the
   specification's `schema.json`, vendored at a pinned commit and re-verified weekly —
-  so a missing required member, a wrong type or a value outside an enumeration fails
-  the report even where no sentence of the prose names it. It is reported beside the
-  clause rows as the wire schema, not counted in their totals
+  so a missing required member, a wrong type, a value outside an enumeration or image
+  `data` that is not base64 (the schema's `byte` format, the one format it asserts)
+  fails the report even where no sentence of the prose names it. It is reported beside
+  the clause rows as the wire schema, not counted in their totals
   ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)).
 - **An empty recording is a bad invocation**, not a pass: the shape a broken capture
   step produces should fail the build.

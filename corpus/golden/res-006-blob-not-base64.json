@@ -572,8 +572,16 @@
     }
   ],
   "wire_schema": {
-    "outcome": "pass",
+    "outcome": "fail",
     "messages": 5,
+    "findings": [
+      {
+        "check": "wire-schema",
+        "seq": 4,
+        "party": "server",
+        "detail": "the server's message is not a valid ReadResourceResult under the 2025-11-25 schema: /result/contents/0: matches none of 2 alternatives; closest: /result/contents/0/blob: \"not base64!\" is not a \"byte\""
+      }
+    ],
     "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json",
     "source": {
       "section": "basic#schema",
