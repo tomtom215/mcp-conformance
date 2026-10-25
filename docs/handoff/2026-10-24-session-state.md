@@ -11,9 +11,9 @@ it when its items are done or moved there. A machine-readable copy of the checkl
 Branch: `claude/focused-thompson-jx6akj` (never merged to `main`; no PR opened). Everything below
 that says "pushed" is on that branch at `origin`.
 
-**Second pause, 2026-10-25.** V1 is merged on the branch; R1 is not. The sections "Verified on the
-V1-merged tip", "Finished by agents but unmerged" and "Next, in order" were rewritten in place; the
-rest is as of 2026-10-24.
+**Updated 2026-10-25.** V1 and R1 are both merged on the branch. The sections "CI on the branch",
+"Verified on the V1-merged tip", "Verified on the R1-merged tip", "Finished by agents" and "Next, in
+order" were rewritten in place; the rest is as of 2026-10-24.
 
 ## What was asked, and what was found
 
@@ -43,12 +43,11 @@ longer finish inside its timeout, and two Dependabot PRs. All of those are fixed
 | Workbench/OTLP hardening (span content, `/api` `Sec-Fetch-Site` rule, export bounds, session-id redaction, events cache) | same; the `Sec-Fetch-Site` rule and its position before authentication read by hand |
 | Memory figures for the capture change | **reproduced here** with the agent's script, frozen old binary vs merged build, debug, 3 runs: proxy 302 to 215 MiB, stdio 531 to 420 (the agent reported 404 for the latter) |
 
-**CI on the branch:** run 493 on `7d67852` passed all 34 jobs (Linux/macOS/Windows, 1.99.1 and MSRV
-1.88, deny, docs, packages, visual, interop). Commits after it are **not yet CI-tested**.
-
-**Local, on the merged tree before the last docs commits:** `fmt`, `clippy -D warnings`,
-`cargo test --workspace --all-features --locked` (1,937 passed, 0 failed, 2 ignored), rustdoc with
-`-D warnings`, `cargo xtask gates`, `cargo deny`.
+**CI on the branch:** run 498 on `8e30c01` (V1 merged, plus the fixes for what run 497 found) passed
+all 34 jobs: Linux, macOS and Windows at 1.99.1 and MSRV 1.88, deny, docs, packages, the Action, the
+image, visual and interop. The mcpsnoop re-measure (`bbdefbc`) was pushed after it; the R1 merge and
+the commits after `bbdefbc` were **not CI-tested** when this was written. Local verification of
+each merge is recorded in the two sections below.
 
 ## Verified on the V1-merged tip, and what is still to do
 
@@ -79,27 +78,59 @@ file). Every result below is from a command run in this session, not carried ove
   of each. Lesson: a change to the validator's defaults or to the HTML report needs the Action, image
   and `visual` jobs run (or simulated: `action/validate.sh` can be run by hand) before the push.
 
+## Verified on the R1-merged tip
+
+R1's four commits were cherry-picked onto the V1-merged branch and checked on 2026-10-25. Everything
+below is from a command run in this session:
+
+- **Merge:** only `corpus/README.md` conflicted (the accounting table and the list of good traces).
+  `cargo xtask bless` over the merged tree changed 125 goldens; classified by JSON path, the changes are
+  `actor` on R1's new rows (120 files), `party` on its findings, and, in V1's five new `2025-11-25`
+  traces, R1's 13 not-observed rows and 14 excluded clauses (pass counts unchanged). The accounting
+  table was set to the gate's figures (124 and 237 goldens; 85 and 150 distinct not-observed sets).
+- **A false positive in R1's `PING-001`, found by V1's tests and fixed.** `tran-018-declined-version-header-refused-400`
+  went from `pass-with-warnings` to `fail`: its server answers a ping carrying an unsupported
+  `MCP-Protocol-Version` with HTTP `400`, which the transport requires, and the check convicted it of not
+  answering with an empty result. R1's own golden had recorded the fail, and its report's "no pre-existing
+  row's outcome moved" missed it because the violations harness asserts only "not pass". An error that
+  rode an HTTP error status is now not a ping answer (`TraceContext::http_status`); three unit tests pin
+  the cases, and with the abstention disabled the 400/404 test fails. Against the 346 goldens that
+  existed before R1, no verdict and no pre-existing row's outcome changes after the fix. Lesson: the
+  violations harness cannot see a new failure on an old violation trace; compare verdicts against the
+  pre-merge goldens, as this session did.
+- `cargo fmt --check`; clippy `-D warnings` in both feature sets; `cargo test --workspace`: 2021 passed
+  with `--all-features` and 1984 without, 0 failed, 2 ignored in each; rustdoc `-D warnings`;
+  `cargo xtask gates` after `git add`.
+- `cargo xtask spec-drift` exit 0 (the `2025-11-25` census matches); `conformance` green with zero
+  unexplained divergence (30 and 4 sessions) and the product leg green; `draft-readiness` 42/0 at both
+  served revisions, equal to the baseline; `draft-capture` exit 0; `falsify-gates` 17/17 on `937389f`.
+- **mcpsnoop:** `cargo xtask mcpsnoop` measured 357 traces (342 + R1's fifteen). R1 made two mappings
+  in `rules.json` stale ("the `2025-11-25` registry carries no progress clauses"); both were updated by
+  reading the clause texts. One real divergence remains, triaged as an mcpsnoop defect: it warns on the
+  conforming task session `good/stdio-task-progress` because it takes the `CreateTaskResult` for the
+  request's completion, which the `2025-11-25` tasks page contradicts (PROG-014). Whether to report it
+  upstream is the maintainer's call.
+- The shipped Action and image jobs, simulated by hand against the 14 good traces: the image's three
+  validator commands exit 0, 0 and 2, and `action/validate.sh` under the three Action step
+  configurations satisfies the job's own assertions. **Not run:** the `visual` job (R1 changes the
+  totals the report pages show, so the `pass`, `fail` and `two-revisions` screenshots will differ; take
+  the new baselines from the runner's `visual-diffs` artifact, as `visual/README.md` says, and look at them).
+
 Still to do, in order:
 
-1. **Read CI on the pushed tip.** Then dispatch the `Scheduled` workflow with `only=claims` (if the
-   input still exists); **issue #50** closes only on a green scheduled run.
-2. ~~Re-measure mcpsnoop~~ **Done 2026-10-25.** The pinned binary comes from npm (`npm pack
-   @mcpsnoop/linux-x64@0.26.1`; the tarball sha512 and the binary's SHA-256 both matched the pins in
-   `book/src/mcpsnoop.md`). `cargo xtask mcpsnoop` measured 342 traces: 8 added, none removed,
-   mcpsnoop's own findings unchanged, and exactly `prom-003`, `prom-004` and `res-006` gained
-   `wire-schema` in our flags. The three untriaged divergences on V1's `base-030-legacy-initialize-
-   negotiated-2026-07-28` (`BASE-030`, `MRTR-002`, `TOOL-016`) joined the existing open
-   `spec-ambiguity` entries for `vers-008` (the same question: is a legacy-era `initialize` inside a
-   `2026-07-28` session held to that revision's `_meta` clauses?). Measured on edited copies of the
-   converted capture: mcpsnoop applies its missing-`_meta` rule only to a request whose own `_meta`
-   names `2026-07-28`; the earlier note's claim that it reads `params.protocolVersion` was **not
-   supported** and was corrected in the triage. The question itself is still **open for the
-   maintainer**.
-3. The capture README's memory table quotes the agent's *release-build* numbers; mine are debug
+1. **Read CI on the pushed tip**, fix what it finds (expect the `visual` baselines), then dispatch the
+   `Scheduled` workflow with `only=claims` (if the input still exists); **issue #50** closes only on a
+   green scheduled run.
+2. The capture README's memory table quotes the agent's *release-build* numbers; mine are debug
    (within about 5%; the stdio object-heavy figure differs by 16 MiB). Re-run
    `crates/mcp-trace-capture/tools/measure-memory.py` in release and reconcile the README.
+3. **Maintainer decisions:** is a legacy-era `initialize` inside a `2026-07-28` session held to that
+   revision's `_meta` clauses (BASE-030, MRTR-002, TOOL-016, TRAN-071; open `spec-ambiguity` entries in
+   the mcpsnoop triage); should the task-related MUSTs (PROG-014/015/016, CANC-020) be judged at a
+   revision where the tasks page is out of scope (R1 judged them, abstaining on any task whose creation
+   the recording did not see).
 
-## Finished by agents but unmerged (saved in `wip/`)
+## Finished by agents (saved in `wip/`; both merged)
 
 Two agents worked in worktrees based on `main`, not on this branch. Both committed before the first
 pause; their commits are saved in one git bundle, `wip/wip.bundle`, as branches `wip/V1` and
@@ -112,23 +143,16 @@ pause; their commits are saved in one git bundle, `wip/wip.bundle`, as branches 
   runner does not do). The merge was reviewed and re-verified (above); ADR-0018 and ADR-0020 carry
   amendments, the strategy doc's calibration paragraph and the CHANGELOG are updated. Not done:
   `mcp-conformance test` does not use the party view yet (that is C1).
-- **R1 (2025-11-25 ping, progress, cancellation): not merged.** Done per its report: 27 entries (13
-  judged by 11 checks, 14 excluded), IDs PING-001..007, PROG-009..019, CANC-018..026 (no 2026-07-28 ID
-  reused), 15 corpus traces; the revision goes to 348 entries / 102 judged / 246 excluded. Gates,
-  tests, clippy, fmt, doc, `spec-drift` and `bless` ran green on its tree; `falsify-gates` and
-  `conformance` were not run, and the report's claims have not been re-run on this branch. It asks
-  whether task-related MUSTs (PROG-014/015/016, CANC-020) belong at a revision where the tasks page
-  is out of scope.
-
-Merge R1 the way V1 was: cherry-pick `a64fa94..refs/remotes/wip/R1` onto a local branch off the
-pushed tip, resolve by file ownership, take either side for `corpus/golden/**`, re-run
-`cargo xtask bless` and review the diff by class (V1's goldens now carry `actor`/`party`), then the
-full chain below, with `git add` before `gates`.
+- **R1 (2025-11-25 ping, progress, cancellation): merged 2026-10-25.** 27 entries (13 judged by 11
+  checks, 14 excluded), IDs PING-001..007, PROG-009..019, CANC-018..026 (no 2026-07-28 ID reused),
+  15 corpus traces; the revision is at 348 entries / 102 judged / 246 excluded (the README's registry
+  table, verified by a gate). The merge needed one fix to R1's `PING-001` (above); the agent's
+  claims were otherwise re-run, not trusted (the section above). CHANGELOG, the README's and book's
+  counts are updated. Both agents' branches remain in `wip.bundle` as the record.
 
 ## Next, in order
 
-1. Merge R1 (above); CHANGELOG entry (its agent proposed a paragraph, saved in its report); then **V2**:
-   a baseline/ignore file for `validate` (accepted findings with reasons; stale entries reported),
+1. **V2**: a baseline/ignore file for `validate` (accepted findings with reasons; stale entries reported),
    `--level`/`--area` filters, grouped repeats (BASE-086 appears once per tool schema).
 2. **C1** (`crates/mcp-conformance-cli`; V1's party view exists, the CLI does not use it yet): `test` judges agreement by party; say when a
    subject is not the suite's fixture server (the Node reference server gets 18 of 28 FAILURE,

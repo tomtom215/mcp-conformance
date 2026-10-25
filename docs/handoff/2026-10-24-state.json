@@ -69,8 +69,13 @@
     },
     {
       "id": "R1-2025-11-25-ping-progress-cancel",
-      "status": "done_unmerged_falsify_gates_not_run",
-      "wip": "docs/handoff/wip/R1"
+      "status": "merged_2026-10-25_with_PING-001_fix",
+      "wip_reference": "docs/handoff/wip/R1",
+      "follow_up": [
+        "visual baselines for the pass/fail/two-revisions report pages (take from the CI visual-diffs artifact)",
+        "maintainer decision: judge task-related MUSTs (PROG-014/015/016, CANC-020) at a revision where the tasks page is out of scope?",
+        "maintainer: report the mcpsnoop progress-after-completion defect upstream?"
+      ]
     },
     {
       "id": "V2-baseline-filters",
@@ -107,9 +112,9 @@
     }
   ],
   "run_first_next_session": [
-    "read CI on the pushed tip",
-    "merge R1 from docs/handoff/wip/wip.bundle, bless, review goldens by class, then gates (after git add), falsify-gates, spec-drift, conformance; also run the Action, image and visual jobs or simulate them (V1 broke all three in CI)",
+    "read CI on the pushed tip; expect the visual job to need new baselines (R1 changed the totals on the report pages)",
     "dispatch Scheduled with only=claims; issue #50 closes only on green",
+    "then V2 (baseline/ignore file, --level/--area filters), then C1",
     "reconcile capture README memory table in release"
   ]
 }

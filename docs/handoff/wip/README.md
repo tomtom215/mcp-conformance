@@ -9,7 +9,7 @@ their hashes; it is binary, so the SPDX gate skips it. (Patch files from `git fo
 tried first and rejected by that gate: a patch must begin `From <hash>`, so it cannot carry the
 licence header, and the gate's exemptions are argued one by one.)
 
-**Status 2026-10-25: `wip/V1` is merged onto the branch (reviewed and re-verified; see the session handoff) and is kept here for reference. `wip/R1` has not been reviewed or run on this repository's tip.**
+**Status 2026-10-25: both branches are merged onto the branch (reviewed and re-verified; see the session handoff) and are kept here for reference. `wip/R1` needed one fix on merge: its `PING-001` convicted a server for an HTTP `400` the transport requires.**
 Checked: the bundle verifies against `a64fa94` (the base both were made on), and fetching it into a
 clone yields the two original branch tips with identical hashes: `wip/V1` at `79803bd` (5 commits)
 and `wip/R1` at `73c715f` (4 commits).
@@ -17,9 +17,9 @@ and `wip/R1` at `73c715f` (4 commits).
 | Branch | What | State |
 |---|---|---|
 | `wip/V1` | Validator report model: `party` on findings and `actor` on rows with an opt-in `validate --party` view; a note for requests unanswered when a trace ends; one rule for the negotiated revision; `format: byte` asserted in the wire schema | merged 2026-10-25 (the fifth commit was completed in the merge); the agent's own account is in [`V1-final-report.md`](V1-final-report.md) |
-| `wip/R1` | 2025-11-25 `ping`, `progress` and `cancellation` entered in the registry, with checks, corpus traces and regenerated projections | four commits; the agent's own account is in [`R1-final-report.md`](R1-final-report.md) |
+| `wip/R1` | 2025-11-25 `ping`, `progress` and `cancellation` entered in the registry, with checks, corpus traces and regenerated projections | merged 2026-10-25, with a fix to `PING-001`; the agent's own account is in [`R1-final-report.md`](R1-final-report.md) |
 
-To use `wip/R1` on the branch tip (`wip/V1` is already in):
+To redo a merge from the bundle (both branches are already in):
 
 ```text
 git fetch docs/handoff/wip/wip.bundle 'refs/heads/wip/*:refs/remotes/wip/*'

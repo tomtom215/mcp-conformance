@@ -7,6 +7,8 @@ The agent's own report, saved verbatim in substance when the 2026-10-24 session 
 what was run are the agent's; this session did not re-run them. The commits are
 branch `wip/R1` in [`wip.bundle`](wip.bundle) (see [`README.md`](README.md)).
 
+**Status 2026-10-25:** merged onto the branch with one fix: `PING-001` (`ping.empty-result`) failed `tran-018-declined-version-header-refused-400`, whose server answers a ping carrying an unsupported `MCP-Protocol-Version` with the HTTP `400` the transport requires. The report's "no pre-existing row's outcome moved" is false for that trace's verdict, and the `falsify-gates` and `conformance` runs it lists as not run have since been run (green).
+
 **Original branch (lost with the container; `wip/R1` in the bundle is the record):** `worktree-agent-a06259b185c3bcb34`, tree clean, nothing pushed.
 
 **Commits on top of `a64fa94`:**
