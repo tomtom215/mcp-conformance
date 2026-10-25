@@ -25,6 +25,7 @@ mod emit;
 mod input;
 mod judgeable;
 mod requirements;
+mod selection;
 mod validate;
 
 const EXIT_OK: u8 = 0;
@@ -73,6 +74,26 @@ enum Command {
         /// suite's client tested.
         #[arg(long, value_enum, value_name = "PARTY")]
         party: Option<PartyArg>,
+        /// Accept the findings a baseline file lists: they stay in the report,
+        /// marked and counted apart, and only the findings it does not list
+        /// decide the verdict and the exit status. An entry that matches no
+        /// finding is stale and fails the run (`--allow-stale-baseline`), and
+        /// one whose `expires` day has passed accepts nothing. Write one with
+        /// `--write-baseline`.
+        #[arg(long, value_name = "FILE")]
+        baseline: Option<PathBuf>,
+        /// Write the findings of this run, those that count toward its verdict,
+        /// as a baseline to FILE, and report as if `--baseline FILE` had been
+        /// given. Each entry's reason says it was recorded and not reviewed.
+        /// FILE may exist only if it is also the `--baseline` in use, in which
+        /// case the entries that still match keep their reasons and expiry.
+        #[arg(long, value_name = "FILE")]
+        write_baseline: Option<PathBuf>,
+        /// List the baseline's stale entries without failing the run for them.
+        #[arg(long, requires = "baseline")]
+        allow_stale_baseline: bool,
+        #[command(flatten)]
+        selection: selection::Selection,
         /// Human output: list every clause with its outcome, every finding,
         /// and the reason for each exclusion. By default only failing, warning
         /// and unsupported clauses are listed, each with its first 20 findings
@@ -173,6 +194,10 @@ fn main() -> ExitCode {
             format,
             strict,
             party,
+            baseline,
+            write_baseline,
+            allow_stale_baseline,
+            selection,
             all,
             quiet: _,
             registry,
@@ -180,21 +205,33 @@ fn main() -> ExitCode {
             registry_set,
             max_line_bytes,
             max_events,
-        } => validate::run(
-            &traces,
-            &reader::Limits::new(max_events, max_line_bytes),
-            validate::Output {
-                format,
-                strict,
-                all,
-                party: party.map(PartyArg::party),
-            },
-            &validate::Sources {
-                registry: registry.as_deref(),
-                registry_set: registry_set.as_deref(),
-                revisions: &revisions,
-            },
-        ),
+        } => {
+            let filter = mcp_trace_validator::report::Filter::new(
+                selection.areas(),
+                selection.level_keywords(),
+            );
+            validate::run(
+                &traces,
+                &reader::Limits::new(max_events, max_line_bytes),
+                validate::Output {
+                    format,
+                    strict,
+                    all,
+                    party: party.map(PartyArg::party),
+                    filter: &filter,
+                },
+                &validate::Sources {
+                    registry: registry.as_deref(),
+                    registry_set: registry_set.as_deref(),
+                    revisions: &revisions,
+                },
+                &validate::baseline::Settings {
+                    read: baseline.as_deref(),
+                    write: write_baseline.as_deref(),
+                    allow_stale: allow_stale_baseline,
+                },
+            )
+        }
         Command::Requirements(args) => requirements::run(&args),
         Command::Completions { shell } => completions(shell),
     };

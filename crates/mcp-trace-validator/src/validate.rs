@@ -23,7 +23,7 @@ use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::declared::{self, RevisionSource};
 use mcp_trace_validator::multi::{self, MultiReport};
-use mcp_trace_validator::report::{HumanOptions, Party, Report, Unjudged, Verdict};
+use mcp_trace_validator::report::{Filter, HumanOptions, Party, Report, Unjudged, Verdict};
 use mcp_trace_validator::{engine, html, junit, reader, sarif, sessions};
 
 use crate::emit::emit;
@@ -33,6 +33,7 @@ use crate::{
     parse_revisions,
 };
 
+pub(crate) mod baseline;
 mod many;
 
 /// The most findings the default human report lists under one clause. A
@@ -43,7 +44,7 @@ const MAX_FINDINGS: usize = 20;
 
 /// How `validate` presents its report.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct Output {
+pub(crate) struct Output<'a> {
     pub(crate) format: Format,
     /// SHOULD-level findings fail the run.
     pub(crate) strict: bool,
@@ -52,6 +53,9 @@ pub(crate) struct Output {
     /// Only this party's findings (and findings held against nobody) count
     /// toward the verdict and the exit status (`--party`).
     pub(crate) party: Option<Party>,
+    /// Human output lists only these clauses (`--area`, `--level`); nothing a
+    /// report decides depends on it.
+    pub(crate) filter: &'a Filter,
 }
 
 /// Where the registries come from, resolved once for every trace in the run.
@@ -72,7 +76,7 @@ enum Registries {
 }
 
 /// One trace, judged.
-struct Judged {
+pub(crate) struct Judged {
     trace: String,
     events: Vec<TraceEvent>,
     /// One report per judged revision, in order.
@@ -92,14 +96,14 @@ impl Judged {
     /// The human report: with `--all`, every clause and every finding;
     /// otherwise the clauses needing attention, each with its first
     /// [`MAX_FINDINGS`] findings.
-    fn render_human(&self, output: Output) -> String {
+    fn render_human(&self, output: Output<'_>) -> String {
         let options = HumanOptions::default()
             .all(output.all)
             .max_findings((!output.all).then_some(MAX_FINDINGS))
             .cli(true);
         self.multi.as_ref().map_or_else(
-            || self.reports[0].render_with(&options),
-            |multi| multi.render_with(&options),
+            || self.reports[0].render_with_filter(&options, output.filter),
+            |multi| multi.render_with_filter(&options, output.filter),
         )
     }
 
@@ -115,13 +119,23 @@ impl Judged {
 pub(crate) fn run(
     traces: &[String],
     limits: &reader::Limits,
-    output: Output,
+    output: Output<'_>,
     sources: &Sources<'_>,
+    settings: &baseline::Settings<'_>,
 ) -> u8 {
     if traces.len() > 1 && traces.iter().any(|trace| trace == "-") {
         eprintln!("error: `-` (stdin) can only be validated on its own, not with other traces");
         return EXIT_USAGE;
     }
+    let previous = match baseline::check(settings, output.format, !output.filter.is_empty())
+        .and_then(|()| baseline::load(settings))
+    {
+        Ok(previous) => previous,
+        Err(message) => {
+            eprintln!("error: {message}");
+            return EXIT_USAGE;
+        }
+    };
     let registries = match resolve(sources) {
         Ok(registries) => registries,
         Err(message) => {
@@ -130,11 +144,49 @@ pub(crate) fn run(
         }
     };
     let many = traces.len() > 1;
+    let (mut judged, unjudged, code) = judge_all(traces, limits, &registries, output.party);
+    if judged.is_empty() {
+        return code; // Nothing was judged; each error is printed.
+    }
+    if let Some(unknown) = unknown_area(&judged, output.filter) {
+        eprintln!("error: no judged revision has an area {unknown} (`requirements` lists them)");
+        return EXIT_USAGE;
+    }
+    let run = match baseline::finish(
+        &mut judged,
+        !unjudged.is_empty(),
+        settings,
+        previous,
+        output.party,
+    ) {
+        Ok(run) => run,
+        Err(message) => {
+            eprintln!("error: {message}");
+            return EXIT_USAGE;
+        }
+    };
+    let rendered = match judged.as_slice() {
+        [one] if !many => render_one(one, output, &run),
+        _ => many::render(&judged, &unjudged, output, &run),
+    };
+    rendered.map_or(EXIT_USAGE, |rendered| code.max(rendered))
+}
+
+/// Judges each trace on its own: those that could be, those that could not
+/// (printed as they happen, and kept for the report), and the worst exit code
+/// of the refusals.
+fn judge_all(
+    traces: &[String],
+    limits: &reader::Limits,
+    registries: &Registries,
+    party: Option<Party>,
+) -> (Vec<Judged>, Vec<Unjudged>, u8) {
+    let many = traces.len() > 1;
     let mut code = EXIT_OK;
     let mut judged = Vec::new();
     let mut unjudged = Vec::new();
     for trace in traces {
-        match judge(trace, limits, &registries, many, output.party) {
+        match judge(trace, limits, registries, many, party) {
             Ok(one) => judged.push(one),
             Err(refusal) => {
                 refusal.print();
@@ -143,14 +195,24 @@ pub(crate) fn run(
             }
         }
     }
-    let rendered = if many {
-        many::render(&judged, &unjudged, output)
-    } else if let [one] = judged.as_slice() {
-        render_one(one, output)
-    } else {
-        return code; // The one trace could not be judged; its error is printed.
-    };
-    rendered.map_or(EXIT_USAGE, |rendered| code.max(rendered))
+    (judged, unjudged, code)
+}
+
+/// The first area `filter` names that no judged report has a clause in: almost
+/// always a typo, which would otherwise list nothing and read as a clean trace.
+fn unknown_area(judged: &[Judged], filter: &Filter) -> Option<String> {
+    filter
+        .areas
+        .iter()
+        .find(|area| {
+            !judged.iter().flat_map(|one| &one.reports).any(|report| {
+                report
+                    .requirements
+                    .iter()
+                    .any(|row| mcp_trace_validator::report::area_of(&row.id) == area.as_str())
+            })
+        })
+        .cloned()
 }
 
 fn resolve(sources: &Sources<'_>) -> Result<Registries, String> {
@@ -304,39 +366,52 @@ fn judge_in_set(
 
 /// One trace's report, exactly as `validate` has always rendered it; `None`
 /// when it could not be written.
-fn render_one(one: &Judged, output: Output) -> Option<u8> {
+fn render_one(one: &Judged, output: Output<'_>, run: &baseline::Run) -> Option<u8> {
     let written = match output.format {
-        Format::Human => emit(&one.render_human(output)),
-        Format::Json => match one
-            .to_json()
-            .and_then(|json| serde_json::to_string_pretty(&json))
-        {
+        Format::Human => emit(&format!("{}{}", one.render_human(output), run.human())),
+        Format::Json => match one.to_json().and_then(|mut json| {
+            run.annotate(&mut json);
+            serde_json::to_string_pretty(&json)
+        }) {
             Ok(json) => emit(&format!("{json}\n")),
             Err(error) => {
                 eprintln!("error: cannot serialize report: {error}");
                 return None;
             }
         },
-        Format::Junit => emit(&junit::render_with(
-            &one.reports,
-            &junit_options(&one.trace, output.strict),
+        Format::Junit => emit(&junit::render_run_with_baseline(
+            &[(junit_options(&one.trace, output.strict), &one.reports[..])],
+            &[],
+            &run.notes,
         )),
-        Format::Sarif => emit(&sarif::render_with(
-            &one.reports,
-            artifact(&one.trace, &one.events),
+        Format::Sarif => emit(&sarif::render_run_with_baseline(
+            &[(artifact(&one.trace, &one.events), &one.reports[..])],
+            &[],
             &sarif::Options::default().strict(output.strict),
+            &run.notes,
         )),
-        Format::Html => emit(&html::render(
-            &one.reports,
-            page_trace(&one.trace, &one.events),
+        Format::Html => emit(&html::render_run_with_baseline(
+            &[(page_trace(&one.trace, &one.events), &one.reports[..])],
+            &[],
+            &run.notes,
         )),
     };
     written.then(|| {
         if promoted(one.verdict(), output.strict) {
             note_strict("");
         }
-        verdict_to_code(one.verdict(), output.strict)
+        run.note_failure();
+        run_code(verdict_to_code(one.verdict(), output.strict), run)
     })
+}
+
+/// A verdict's exit code, raised to `1` when the baseline alone fails the run.
+const fn run_code(code: u8, run: &baseline::Run) -> u8 {
+    if run.fails() && code < EXIT_FINDINGS {
+        EXIT_FINDINGS
+    } else {
+        code
+    }
 }
 
 /// Whether `--strict` is what fails a trace of this verdict.

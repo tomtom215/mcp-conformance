@@ -13,11 +13,12 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 
 use clap::ValueEnum;
-use mcp_conformance_core::requirement::{Actor, Level, Registry, Requirement, Verification};
+use mcp_conformance_core::requirement::{Actor, Registry, Requirement, Verification};
 use mcp_conformance_core::revision::ProtocolRevision;
 use serde::Serialize;
 
 use crate::emit::emit;
+use crate::selection::Selection;
 use crate::{EXIT_OK, EXIT_USAGE, load_registry, load_registry_set};
 
 /// The `requirements` subcommand's arguments.
@@ -38,13 +39,8 @@ pub(crate) struct Args {
     /// Which built-in revision to print; defaults to the newest.
     #[arg(long, value_name = "YYYY-MM-DD", conflicts_with = "registry")]
     revision: Option<String>,
-    /// Only requirements in this area — the ID's prefix, as `LIFE` in
-    /// `LIFE-001`; repeatable.
-    #[arg(long, value_name = "AREA")]
-    area: Vec<String>,
-    /// Only requirements at this RFC 2119 level; repeatable.
-    #[arg(long, value_enum)]
-    level: Vec<LevelArg>,
+    #[command(flatten)]
+    selection: Selection,
     /// Only requirements a trace check judges.
     #[arg(long, conflicts_with = "excluded")]
     checked: bool,
@@ -61,28 +57,6 @@ enum Format {
     Human,
     /// Pretty-printed JSON, in the registry document's shape.
     Json,
-}
-
-/// An RFC 2119 level, as `--level` spells it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum LevelArg {
-    Must,
-    MustNot,
-    Should,
-    ShouldNot,
-    May,
-}
-
-impl LevelArg {
-    const fn level(self) -> Level {
-        match self {
-            Self::Must => Level::Must,
-            Self::MustNot => Level::MustNot,
-            Self::Should => Level::Should,
-            Self::ShouldNot => Level::ShouldNot,
-            Self::May => Level::May,
-        }
-    }
 }
 
 /// The registry document's shape, holding only the requirements selected —
@@ -150,11 +124,7 @@ fn select<'a>(registry: &'a Registry, args: &Args) -> Result<Selected<'a>, Strin
         }
         named
     };
-    let areas: Vec<String> = args
-        .area
-        .iter()
-        .map(|area| area.to_ascii_uppercase())
-        .collect();
+    let areas = args.selection.areas();
     if let Some(unknown) = areas.iter().find(|area| {
         !registry
             .requirements()
@@ -167,8 +137,9 @@ fn select<'a>(registry: &'a Registry, args: &Args) -> Result<Selected<'a>, Strin
         .into_iter()
         .filter(|requirement| {
             (areas.is_empty() || areas.iter().any(|area| requirement.id.area() == area))
-                && (args.level.is_empty()
+                && (args.selection.level.is_empty()
                     || args
+                        .selection
                         .level
                         .iter()
                         .any(|level| level.level() == requirement.level))

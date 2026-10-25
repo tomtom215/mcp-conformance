@@ -17,17 +17,23 @@ use mcp_trace_validator::{html, junit, sarif};
 use serde_json::json;
 
 use super::{
-    Judged, Output, artifact, junit_options, note_strict, page_trace, promoted, verdict_to_code,
+    Judged, Output, artifact, baseline, junit_options, note_strict, page_trace, promoted, run_code,
+    verdict_to_code,
 };
 use crate::emit::emit;
 use crate::{EXIT_OK, Format};
 
 /// Renders the run; `None` when it could not be written.
-pub(super) fn render(judged: &[Judged], unjudged: &[Unjudged], output: Output) -> Option<u8> {
+pub(super) fn render(
+    judged: &[Judged],
+    unjudged: &[Unjudged],
+    output: Output<'_>,
+    run: &baseline::Run,
+) -> Option<u8> {
     let overall = overall(judged, unjudged);
     let written = match output.format {
-        Format::Human => emit(&human(judged, unjudged, overall, output)),
-        Format::Json => emit(&json(judged, unjudged, overall)?),
+        Format::Human => emit(&human(judged, unjudged, overall, output, run)),
+        Format::Json => emit(&json(judged, unjudged, overall, run)?),
         Format::Junit => {
             let suites: Vec<(junit::Options, &[Report])> = judged
                 .iter()
@@ -38,17 +44,20 @@ pub(super) fn render(judged: &[Judged], unjudged: &[Unjudged], output: Output) -
                     )
                 })
                 .collect();
-            emit(&junit::render_run(&suites, unjudged))
+            emit(&junit::render_run_with_baseline(
+                &suites, unjudged, &run.notes,
+            ))
         }
         Format::Sarif => {
             let traces: Vec<(sarif::Artifact<'_>, &[Report])> = judged
                 .iter()
                 .map(|one| (artifact(&one.trace, &one.events), one.reports.as_slice()))
                 .collect();
-            emit(&sarif::render_run(
+            emit(&sarif::render_run_with_baseline(
                 &traces,
                 unjudged,
                 &sarif::Options::default().strict(output.strict),
+                &run.notes,
             ))
         }
         Format::Html => {
@@ -56,7 +65,9 @@ pub(super) fn render(judged: &[Judged], unjudged: &[Unjudged], output: Output) -
                 .iter()
                 .map(|one| (page_trace(&one.trace, &one.events), one.reports.as_slice()))
                 .collect();
-            emit(&html::render_run(&traces, unjudged))
+            emit(&html::render_run_with_baseline(
+                &traces, unjudged, &run.notes,
+            ))
         }
     };
     written.then(|| {
@@ -68,11 +79,13 @@ pub(super) fn render(judged: &[Judged], unjudged: &[Unjudged], output: Output) -
         if !promoted.is_empty() {
             note_strict(&format!(" for {}", promoted.join(", ")));
         }
-        judged
+        run.note_failure();
+        let code = judged
             .iter()
             .map(|one| verdict_to_code(one.verdict(), output.strict))
             .max()
-            .unwrap_or(EXIT_OK)
+            .unwrap_or(EXIT_OK);
+        run_code(code, run)
     })
 }
 
@@ -87,7 +100,13 @@ fn overall(judged: &[Judged], unjudged: &[Unjudged]) -> Verdict {
 /// Each judged trace's human report under a `==> trace <==` header, then each
 /// unjudged trace's reason under its own, then how many reached each verdict
 /// and the overall one.
-fn human(judged: &[Judged], unjudged: &[Unjudged], overall: Verdict, output: Output) -> String {
+fn human(
+    judged: &[Judged],
+    unjudged: &[Unjudged],
+    overall: Verdict,
+    output: Output<'_>,
+    run: &baseline::Run,
+) -> String {
     let mut text = String::new();
     for one in judged {
         let _ = writeln!(text, "==> {} <==", one.trace);
@@ -99,6 +118,7 @@ fn human(judged: &[Judged], unjudged: &[Unjudged], overall: Verdict, output: Out
         let _ = writeln!(text, "not judged: {}", trace.error);
         text.push('\n');
     }
+    text.push_str(&run.human());
     text.push_str(&summary(judged, unjudged.len()));
     let _ = writeln!(text, "overall verdict: {overall}");
     text
@@ -109,7 +129,12 @@ fn human(judged: &[Judged], unjudged: &[Unjudged], overall: Verdict, output: Out
 /// (`report.schema.json`'s third shape). `unjudged_traces` lists each trace
 /// that could not be judged with its reason, and is absent when there is
 /// none. `None` when a report could not be serialized.
-fn json(judged: &[Judged], unjudged: &[Unjudged], overall: Verdict) -> Option<String> {
+fn json(
+    judged: &[Judged],
+    unjudged: &[Unjudged],
+    overall: Verdict,
+    run: &baseline::Run,
+) -> Option<String> {
     let mut traces = Vec::new();
     for one in judged {
         match one.to_json() {
@@ -121,6 +146,9 @@ fn json(judged: &[Judged], unjudged: &[Unjudged], overall: Verdict) -> Option<St
         }
     }
     let mut document = json!({ "verdict": overall, "traces": traces, "unjudged": unjudged.len() });
+    if let Some(baseline) = run.envelope() {
+        document["baseline"] = baseline;
+    }
     if !unjudged.is_empty() {
         document["unjudged_traces"] = json!(unjudged);
     }

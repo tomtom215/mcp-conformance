@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 mod baseline;
 mod clause;
+mod filter;
 mod human;
 mod party;
 mod serialize;
@@ -37,6 +38,7 @@ pub use verdict::Verdict;
 pub const JSON_SCHEMA: &str = include_str!("../schema/report.schema.json");
 
 pub use clause::ClauseSource;
+pub use filter::{Filter, area_of};
 pub use human::{HumanOptions, printable};
 
 /// Reads a report's `baseline` member as the fact that a baseline was applied;

@@ -116,9 +116,9 @@ alert closes and reopens once" ([STABILITY.md](../../../STABILITY.md), SARIF row
    every trace where its fingerprint occurs, because the fingerprint carries no path.
    `--revision`/several revisions: the fingerprint carries the requirement ID, so a
    baseline fits the revision selection it was written for; run it under another and the
-   entries for the other revision's IDs are stale (the message names the revisions
-   judged), and `wire-schema` entries do not carry across a change in how many revisions
-   fail the schema (the inherited limit above).
+   entries for the other revision's IDs are stale, and `wire-schema` entries do not
+   carry across a change in how many revisions fail the schema (the inherited limit
+   above). Keep one file per selection.
 
 6. **Filters are display-only.** `--area BASE,TOOL` and `--level MUST,SHOULD` choose
    which clause rows and findings the **human** report lists; they never change a
@@ -128,6 +128,20 @@ alert closes and reopens once" ([STABILITY.md](../../../STABILITY.md), SARIF row
    with one of them is refused (exit `2`) instead of silently ignored. A verdict computed
    on a subset would need a different name, and nothing in the audit asks for one: the
    level case is `--strict`'s default, and what readers asked for is a shorter report.
+
+7. **Repeats share a line group in the default human listing only when that loses
+   nothing.** Consecutive findings of one clause collapse when they are held against
+   the same party, point at the same `seq`, are accepted (or not) by the same entry,
+   and their text differs in exactly one quoted value (a double-quoted string or a
+   backtick span) — the shape of a defect repeated for each item of one message — and
+   there are at least three, since a group costs two lines. The group prints the party,
+   the `seq`, the text with `<…>` where the value was, and every value; each original
+   finding is recoverable from it, which a test checks. `--all` lists every finding on
+   its own line, as before, and the cap of 20 findings counts findings, not lines.
+   Measured over the 363 committed golden reports (606 findings), the rule collapses
+   exactly one run: the eight `BASE-086` findings of the TypeScript SDK capture. Folding
+   findings at different `seq`s (11 `BASE-033` findings in the probe capture) would need
+   each value paired with its `seq` in a notation of its own, so they are not folded.
 
 ## Consequences
 
@@ -175,5 +189,9 @@ alert closes and reopens once" ([STABILITY.md](../../../STABILITY.md), SARIF row
   without the entry.
 - **Filters that change the verdict.** Rejected above; if a use for a subset verdict
   appears it is its own decision, worded like `--party`'s.
+- **Group findings by text template across different `seq`s.** Rejected: it shortens
+  the probe capture's `BASE-033` run, but the reader then has to pair each value with
+  its event in a notation the report does not otherwise use; the cap already bounds
+  that run.
 - **YAML or TOML.** Rejected: `serde_json` is already a dependency, and this crate
   validates JSON against schemas already.

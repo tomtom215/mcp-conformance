@@ -448,6 +448,7 @@ fn an_extension_failure_leaves_the_verdict_alone() {
 }
 
 mod baseline;
+mod filter;
 mod party;
 mod schema;
 

@@ -14,6 +14,7 @@ use mcp_conformance_core::requirement::Actor;
 
 use super::*;
 use crate::reader::{Limits, parse_trace};
+use crate::report::HumanOptions;
 
 /// A two-revision set: BASE-001 throughout, LIFE-009 removed at 2026-07-28, DISC-001
 /// introduced at 2026-07-28. All use a real check so outcomes are meaningful.
