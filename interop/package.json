@@ -1,16 +1,19 @@
 {
   "name": "mcp-conformance-interop",
   "private": true,
-  "description": "Pinned official MCP SDKs for the cross-SDK interop check (run.sh)",
+  "description": "Pinned official MCP SDKs for the cross-SDK interop check (run.sh) and matrix (matrix.sh)",
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.32.0",
+    "@modelcontextprotocol/express": "2.0.2",
+    "@modelcontextprotocol/node": "2.1.1",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@modelcontextprotocol/server": "2.3.1",
     "@modelcontextprotocol/server-everything": "2026.8.31",
     "cors": "2.8.6",
-    "express": "5.2.1",
+    "express": "5.3.0",
     "sdk-2025-06-18": "npm:@modelcontextprotocol/sdk@1.13.0",
     "tsx": "4.23.15",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   }
 }

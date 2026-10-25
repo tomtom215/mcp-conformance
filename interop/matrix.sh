@@ -6,10 +6,10 @@
 # through mcp-trace-capture's HTTP proxy while an official SDK client drives
 # it, then judged by mcp-trace-validator. Two clients, one per revision:
 #
-#   2025-11-25  ts-client.mjs (TypeScript SDK), the handshake era
+#   2025-11-25  ts-client.mjs (TypeScript SDK v1), the handshake era
 #   2026-07-28  py-client.py (Python SDK), the stateless era
 #
-# The same client drives all four servers at a revision, so the difference
+# The same client drives all five servers at a revision, so the difference
 # between two rows of the matrix is the server and nothing else.
 #
 #   ./matrix.sh [BIN_DIR]   BIN_DIR holds both binaries (default ../target/debug)
@@ -116,6 +116,12 @@ judge() {
 record sdk-typescript-2025-11-25 2025-11-25 38301 -- env PORT=38301 node_modules/.bin/tsx upstream/ts-everything-server.ts
 record sdk-typescript-2026-07-28 2026-07-28 38301 -- env PORT=38301 node_modules/.bin/tsx upstream/ts-everything-server.ts
 # ANCHOR_END: typescript
+# ANCHOR: typescript-v2
+# The v2 line's server answers both revisions from one process: the initialize
+# handshake for 2025-11-25 and server/discover for 2026-07-28.
+record sdk-typescript-v2-2025-11-25 2025-11-25 38305 -- env PORT=38305 node_modules/.bin/tsx upstream/ts2-everything-server.ts
+record sdk-typescript-v2-2026-07-28 2026-07-28 38305 -- env PORT=38305 node_modules/.bin/tsx upstream/ts2-everything-server.ts
+# ANCHOR_END: typescript-v2
 # ANCHOR: python
 record sdk-python-2025-11-25 2025-11-25 38302 -- "$PYTHON" upstream/py_everything_server.py --port 38302
 record sdk-python-2026-07-28 2026-07-28 38302 -- "$PYTHON" upstream/py_everything_server.py --port 38302

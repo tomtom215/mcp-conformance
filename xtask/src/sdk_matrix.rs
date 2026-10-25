@@ -63,13 +63,22 @@ pub(crate) struct Sdk {
     pin: &'static str,
 }
 
-/// The four Tier 1 SDKs the matrix covers, in the order the page lists them.
-pub(crate) const SDKS: [Sdk; 4] = [
+/// The Tier 1 SDKs the matrix covers, in the order the page lists them. The
+/// TypeScript SDK has two lines, each a row: v1 (`@modelcontextprotocol/sdk`,
+/// maintenance, `2025-11-25` at most) and v2 (`@modelcontextprotocol/server`
+/// and its companions, which also serve `2026-07-28`).
+pub(crate) const SDKS: [Sdk; 5] = [
     Sdk {
         key: "typescript",
-        name: "TypeScript",
+        name: "TypeScript v1",
         package: "@modelcontextprotocol/sdk",
         pin: "TS_SDK_VERSION",
+    },
+    Sdk {
+        key: "typescript-v2",
+        name: "TypeScript v2",
+        package: "@modelcontextprotocol/server",
+        pin: "TS2_SDK_VERSION",
     },
     Sdk {
         key: "python",
@@ -105,7 +114,7 @@ pub(crate) const REVISIONS: [Revision; 2] = [
         id: "2025-11-25",
         traces: "corpus/captured",
         goldens: "corpus/golden",
-        client: "TypeScript SDK client (`ts-client.mjs`)",
+        client: "TypeScript SDK (v1) client (`ts-client.mjs`)",
     },
     Revision {
         id: "2026-07-28",
@@ -277,6 +286,12 @@ mod tests {
         let spliced = splice(&page, "new\n").unwrap();
         assert_eq!(spliced, format!("before\n{BEGIN}\nnew\n{END}\nafter\n"));
         assert!(splice("no markers", "x").is_none());
+    }
+
+    #[test]
+    fn every_row_has_its_own_trace_stem() {
+        let stems: std::collections::BTreeSet<_> = SDKS.iter().map(|sdk| sdk.key).collect();
+        assert_eq!(stems.len(), SDKS.len(), "two SDKs share a trace stem");
     }
 
     #[test]

@@ -53,9 +53,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 124 | 237 |
+| Goldens | 125 | 238 |
 | Excluded rows the ledger holds | 246 | 320 |
-| Distinct not-observed sets across them | 85 | 150 |
+| Distinct not-observed sets across them | 86 | 151 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -593,9 +593,10 @@ read as a specimen instead.
 | `sdk-go-2026-07-28` | 83 | 78 | 4 | 1 | 98 |
 | `sdk-python-2026-07-28` | 65 | 65 | 0 | 0 | 116 |
 | `sdk-rust-2026-07-28` | 74 | 73 | 0 | 1 | 107 |
+| `sdk-typescript-v2-2026-07-28` | 72 | 72 | 0 | 0 | 109 |
 | **Union** | **148** | | | | **33** |
 
-Across all 8 captures, **148 of the 181 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 9 captures, **148 of the 181 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
 The 33 clauses no capture reaches: `AUTH-097`, `AUTH-124`, `AUTH-129`, `AUTH-130`, `AUTH-131`, `AUTH-132`, `AUTH-133`, `CANC-003`, `CANC-011`, `DISC-002`, `ELIC-064`, `ELIC-065`, `MRTR-024`, `ROOT-013`, `ROOT-014`, `ROOT-018`, `SAMP-026`, `SAMP-029`, `SAMP-030`, `SAMP-031`, `SAMP-032`, `SAMP-033`, `SAMP-042`, `TOOL-035`, `TOOL-046`, `TRAN-061`, `TRAN-070`, `TRAN-083`, `TRAN-084`, `TRAN-096`, `TRAN-128`, `TRAN-132`, `TRAN-133`.
 <!-- draft-coverage:end -->
@@ -702,9 +703,9 @@ judge about a session that had carried dozens of them.
 
 ### The official SDKs' conformance servers (`captured/`, `draft/captured/`)
 
-Seven recordings of **each Tier 1 SDK's own conformance server** — the server
-its maintainers run the official suite against — driven over Streamable HTTP
-by an official SDK client. Neither end is ours: this repository supplies only
+Nine recordings of **the Tier 1 SDKs' own conformance servers** (the TypeScript
+SDK's two lines are two servers) — the server its maintainers run the official
+suite against — driven over Streamable HTTP by an official SDK client. Neither end is ours: this repository supplies only
 the recorder and the judge. They are the evidence behind the book's
 [cross-SDK matrix](https://github.com/tomtom215/mcp-conformance/blob/main/book/src/sdk-matrix.md), which `cargo xtask sdk-matrix`
 generates from their goldens; the verdicts and counts live there, once, and
@@ -712,17 +713,19 @@ are not restated here.
 
 | Field | Value |
 |---|---|
-| Servers | TypeScript: `test/conformance/src/everythingServer.ts` at SDK tag `1.32.0`, its `../../../src/` imports rewritten to the published `@modelcontextprotocol/sdk` 1.32.0 and nothing else. Python: `examples/servers/everything-server` at tag `v2.3.0`, on `mcp` 2.3.0. Go: `conformance/everything-server` from the `go-sdk` v1.8.0 module, stateful at `2025-11-25` and stateless at `2026-07-28`, as the Go SDK's own conformance workflow runs it. Rust: `conformance/src/bin/server.rs` at tag `rmcp-v3.5.1`, compiled against `rmcp` 3.5.1 from crates.io with upstream's feature set. Every pin, commit and file hash is in [`interop/sdk-pins.env`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/sdk-pins.env) |
-| Clients | `2025-11-25`: the TypeScript SDK 1.32.0 client ([`ts-client.mjs`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/ts-client.mjs)). `2026-07-28`: the Python SDK 2.3.0 client ([`py-client.py`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/py-client.py)). One client per revision for every server, so two rows of a revision differ by the server alone |
-| Recorded by | `mcp-trace-capture http`, in front of each server on fixed loopback ports, by [`interop/matrix.sh`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/matrix.sh), 2026-10-13 |
+| Servers | TypeScript v1: `test/conformance/src/everythingServer.ts` at SDK tag `1.32.1`, its `../../../src/` imports rewritten to the published `@modelcontextprotocol/sdk` 1.32.1 and nothing else. TypeScript v2: the same path at tag `v2.3.1`, unmodified, on the published `@modelcontextprotocol/server` 2.3.1 with `node` 2.1.1 and `express` 2.0.2 (one process serves both revisions: the `initialize` handshake for `2025-11-25`, `server/discover` for `2026-07-28`). Python: `examples/servers/everything-server` at tag `v2.3.0`, on `mcp` 2.3.0. Go: `conformance/everything-server` from the `go-sdk` v1.8.0 module, stateful at `2025-11-25` and stateless at `2026-07-28`, as the Go SDK's own conformance workflow runs it. Rust: `conformance/src/bin/server.rs` at tag `rmcp-v3.7.0`, compiled against `rmcp` 3.7.0 from crates.io with upstream's feature set. Every pin, commit and file hash is in [`interop/sdk-pins.env`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/sdk-pins.env) |
+| Clients | `2025-11-25`: the TypeScript SDK (v1) 1.32.1 client ([`ts-client.mjs`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/ts-client.mjs)). `2026-07-28`: the Python SDK 2.3.0 client ([`py-client.py`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/py-client.py)). One client per revision for every server, so two rows of a revision differ by the server alone |
+| Recorded by | `mcp-trace-capture http`, in front of each server on fixed loopback ports, by [`interop/matrix.sh`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/matrix.sh), 2026-10-25 (every cell re-recorded that day; the three `2026-07-28` traces that existed before are byte-identical to the 2026-10-13 ones, because a stateless session carries no value that changes between runs) |
 | Re-verified | Weekly: the scheduled `sdk-matrix` job re-records every session with the same pins and runs `cargo xtask sdk-matrix --recaptured`, which fails if any re-judged report differs from its golden |
 
 | Trace | Session |
 |-------|---------|
-| `sdk-typescript-2025-11-25.jsonl` | The TypeScript server at `2025-11-25`: handshake, the standalone `GET` stream, tools, resources, prompts, `logging/setLevel`, an unknown tool, and the `DELETE` teardown. The TypeScript SDK's 1.x line does not serve `2026-07-28`; the Python client's discovery falls back to `initialize` against it, so there is no `2026-07-28` trace for it |
+| `sdk-typescript-2025-11-25.jsonl` | The TypeScript v1 server at `2025-11-25`: handshake, the standalone `GET` stream, tools, resources, prompts, `logging/setLevel`, an unknown tool, and the `DELETE` teardown. The TypeScript SDK's 1.x line does not serve `2026-07-28`; the Python client's discovery falls back to `initialize` against it, so there is no `2026-07-28` trace for it |
+| `sdk-typescript-v2-2025-11-25.jsonl` | The TypeScript v2 server, the same session, answered through its legacy (handshake) path |
 | `sdk-python-2025-11-25.jsonl` | The Python server, the same session |
 | `sdk-go-2025-11-25.jsonl` | The Go server, the same session. Its first prompt is an MRTR fixture, which it answers to this `2025-11-25` client with a JSON-RPC error |
 | `sdk-rust-2025-11-25.jsonl` | The Rust server, the same session |
+| `sdk-typescript-v2-2026-07-28.jsonl` | The TypeScript v2 server at `2026-07-28`, the same session as the Python server's: `server/discover` (answered with `supportedVersions` `["2026-07-28"]`), then tools, resources and prompts with the per-request `_meta` envelope |
 | `sdk-python-2026-07-28.jsonl` | The Python server at `2026-07-28`: `server/discover`, then tools, resources and prompts with the per-request `_meta` envelope |
 | `sdk-go-2026-07-28.jsonl` | The Go server, the same session. Its first prompt answers with an `input_required` result asking for `elicitation/create` from a client that declared no `elicitation` capability — the findings the matrix reports against it |
 | `sdk-rust-2026-07-28.jsonl` | The Rust server, the same session |
