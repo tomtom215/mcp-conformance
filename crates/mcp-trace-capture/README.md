@@ -189,7 +189,12 @@ one upstream and opens no tunnel. The
 proxy prints the client URL when it starts. At exit
 it says how many responses had a status outside 2xx, and, when the server answered
 404, asks whether the endpoint path is right — a client at `http://127.0.0.1:8080/mcp`
-in front of `--upstream http://localhost:3000/mcp` reaches `/mcp/mcp`.
+in front of `--upstream http://localhost:3000/mcp` reaches `/mcp/mcp`. A `404` that is
+the MCP server speaking (an event stream, or a body that is a JSON-RPC message — the
+specification has a server answer `ping`'s method-not-found, and a session it has ended,
+with `404`) draws no question about the path. When the server answered `403` to a request
+whose `Host`, passed through unchanged, named another host than the server's own, it
+names `--no-preserve-host`, in case that is the server's `Host` or `Origin` check.
 
 An upstream URL's own query (`https://host/mcp?key=…`) is kept, and each request's
 query is appended to it. Credentials in the URL (`user:password@`) are refused: the

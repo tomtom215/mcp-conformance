@@ -66,7 +66,9 @@ server judges what the client sent, `localhost:8080` included: a server that acc
 its own `host:port` refuses it. `--no-preserve-host` sends the server its own name
 instead, which makes its `Host` check pass for every request the proxy forwards, a
 browser's under a rebound name included, so use it for the recording and not as a
-default. For a server on another machine the proxy sends the upstream's own name, as a
+default; both `mcp-trace-capture http` and `mcp-conformance watch http` take it, and
+when the server answered `403` to a request whose `Host` named another host than its own,
+their summary at the end says so. For a server on another machine the proxy sends the upstream's own name, as a
 virtually hosted server needs, and `--preserve-host` passes the client's instead. [`mcp-trace-capture`'s README](https://github.com/tomtom215/mcp-conformance/blob/main/crates/mcp-trace-capture/README.md#host-and-dns-rebinding)
 explains the trade-off, including what the default rewrite does to a server's
 DNS-rebinding check.
@@ -80,6 +82,21 @@ stdio transport violation, and the same line fails `BASE-008` at `2025-11-25`
 **A client configuration cannot find `mcp-trace-capture`.** Desktop applications often
 start without your shell's `PATH`. Use the absolute path to the binary as the
 `command`, for example the output of `which mcp-trace-capture`.
+
+## `mcp-conformance test`
+
+**Many suite scenarios fail on a server of mine, with messages like `Unknown prompt:
+test_simple_prompt` or `No image content found`.** The pinned suite asks a server for
+tools, prompts and resources by fixed names, which only a server built to match defines.
+When the traffic shows the suite asking for names your server's own listings do not
+include, the report ends the suite's part with a note that says so, and lists them; see
+[a server that is not the suite's own](testing.md#a-server-that-is-not-the-suites-own).
+The suite's verdict is still `fail`, and the exit code `1`: that is the suite's finding,
+reported as it is. Whether your server conforms is the clause report's.
+
+**Findings tagged `[client]` (for a server) or `[server]` (for a client) that are not
+counted.** They are held against the suite's own end of the session, shown and set aside;
+see [whose finding it is](testing.md#whose-finding-it-is).
 
 ## Still stuck
 

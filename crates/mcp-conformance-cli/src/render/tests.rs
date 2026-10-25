@@ -169,6 +169,25 @@ fn the_suites_own_ends_findings_are_shown_labelled_and_not_counted() {
     );
 }
 
+/// The validator's renderings follow the view: a failure set aside is a passing
+/// case in `JUnit` and a note that is not counted in SARIF.
+#[test]
+fn junit_and_sarif_set_the_other_ends_findings_aside() {
+    let server = outcome(true, vec![judged_client_fault()], &Baseline::default());
+    let xml = junit_report(&server);
+    assert!(xml.contains(r#"failures="0""#), "{xml}");
+    assert!(xml.contains("set aside"), "{xml}");
+    let log: serde_json::Value = serde_json::from_str(&sarif_report(&server)).unwrap();
+    let aside = log["runs"][0]["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|result| result["ruleId"] == "BASE-003")
+        .unwrap();
+    assert_eq!(aside["level"], "note", "{aside}");
+    assert_eq!(aside["properties"]["counted"], false, "{aside}");
+}
+
 #[test]
 fn the_fixture_note_names_a_few_of_each_kind_and_counts_the_rest() {
     let mut run = run_outcome(false);
