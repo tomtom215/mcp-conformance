@@ -33,6 +33,10 @@ Pre-1.0: the API and the verdicts may change between minor releases, and the
 > - the registry rows added since at both revisions — `2026-07-28`'s, and
 >   `2025-11-25`'s ping, progress and cancellation pages — so the example totals
 >   and the coverage table below are `main`'s, not `0.6.0`'s;
+> - findings that say which party they are held against (`validate --party
+>   client|server` views a report for one), a note for the requests a trace ends
+>   without answering, and a session judged under the revision its server negotiated
+>   (a behaviour change; see the changelog's `Unreleased` section);
 > - the wire schema — every message validated against its revision's JSON Schema —
 >   and the five clauses it made judgeable;
 > - the container image (`ghcr.io/tomtom215/mcp-conformance`, first published by
