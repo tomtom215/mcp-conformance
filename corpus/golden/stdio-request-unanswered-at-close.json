@@ -5,10 +5,10 @@
     "pass": 18,
     "fail": 0,
     "warn": 0,
-    "excluded": 232,
+    "excluded": 246,
     "unsupported": 0,
     "not_applicable": 6,
-    "not_observed": 65
+    "not_observed": 78
   },
   "requirements": [
     {
@@ -237,6 +237,84 @@
       "id": "TRAN-049",
       "level": "MUST",
       "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PING-001",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-009",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-010",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-011",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-013",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-014",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-015",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-016",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROG-019",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-018",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-019",
+      "level": "MUST NOT",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-020",
+      "level": "MUST",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "CANC-021",
+      "level": "SHOULD",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {

@@ -255,11 +255,13 @@
     {
       "id": "PING-001",
       "level": "MUST",
+      "actor": "both",
       "outcome": "fail",
       "findings": [
         {
           "check": "ping.empty-result",
           "seq": 4,
+          "party": "server",
           "detail": "`ping` (seq 3) was answered with an error (-32000); the receiver must respond with an empty result"
         }
       ],
@@ -272,61 +274,73 @@
     {
       "id": "PROG-009",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-010",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-011",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-013",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-014",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-015",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-016",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "PROG-019",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "CANC-018",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "CANC-019",
       "level": "MUST NOT",
+      "actor": "client",
       "outcome": "not-observed"
     },
     {
       "id": "CANC-020",
       "level": "MUST",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {
       "id": "CANC-021",
       "level": "SHOULD",
+      "actor": "both",
       "outcome": "not-observed"
     },
     {

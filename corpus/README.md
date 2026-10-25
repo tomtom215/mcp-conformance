@@ -53,9 +53,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 119 | 234 |
+| Goldens | 124 | 237 |
 | Excluded rows the ledger holds | 246 | 320 |
-| Distinct not-observed sets across them | 84 | 149 |
+| Distinct not-observed sets across them | 85 | 150 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
