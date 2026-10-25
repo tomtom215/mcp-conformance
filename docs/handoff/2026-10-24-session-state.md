@@ -43,11 +43,11 @@ longer finish inside its timeout, and two Dependabot PRs. All of those are fixed
 | Workbench/OTLP hardening (span content, `/api` `Sec-Fetch-Site` rule, export bounds, session-id redaction, events cache) | same; the `Sec-Fetch-Site` rule and its position before authentication read by hand |
 | Memory figures for the capture change | **reproduced here** with the agent's script, frozen old binary vs merged build, debug, 3 runs: proxy 302 to 215 MiB, stdio 531 to 420 (the agent reported 404 for the latter) |
 
-**CI on the branch:** run 498 on `8e30c01` (V1 merged, plus the fixes for what run 497 found) passed
+**CI on the branch:** run 501 on `28dac2c` (V1 and R1 merged, with the new visual baselines) passed
 all 34 jobs: Linux, macOS and Windows at 1.99.1 and MSRV 1.88, deny, docs, packages, the Action, the
-image, visual and interop. The mcpsnoop re-measure (`bbdefbc`) was pushed after it; the R1 merge and
-the commits after `bbdefbc` were **not CI-tested** when this was written. Local verification of
-each merge is recorded in the two sections below.
+image, visual and interop. Earlier: run 497 (V1 merged) failed 3 jobs, fixed and green in run 498;
+run 500 (R1 merged) failed only `Visual`, as expected, fixed in run 501. Local verification of each
+merge is recorded in the two sections below.
 
 ## Verified on the V1-merged tip, and what is still to do
 
@@ -112,15 +112,18 @@ below is from a command run in this session:
   upstream is the maintainer's call.
 - The shipped Action and image jobs, simulated by hand against the 14 good traces: the image's three
   validator commands exit 0, 0 and 2, and `action/validate.sh` under the three Action step
-  configurations satisfies the job's own assertions. **Not run:** the `visual` job (R1 changes the
-  totals the report pages show, so the `pass`, `fail` and `two-revisions` screenshots will differ; take
-  the new baselines from the runner's `visual-diffs` artifact, as `visual/README.md` says, and look at them).
+  configurations satisfies the job's own assertions (CI run 500 and 501 then agreed).
+- **The `visual` job failed in run 500, as predicted**: R1 changes the totals every `2025-11-25` report
+  shows. The 24 new baselines (12 report pages, 12 workbench views) are the runner's own renders from that
+  run's artifact, whose SHA-256 equals the digest GitHub lists. Measured against the old baselines, the
+  report pages and the workbench session and hostile views keep their size and change only digits; the
+  four dashboards grow by three rows (CANC 0/9, PING 1/7, PROG 2/11 in the `2025-11-25` coverage
+  chart). Looked at as images: the dashboards chart, a session header, the passing report's tiles.
 
 Still to do, in order:
 
-1. **Read CI on the pushed tip**, fix what it finds (expect the `visual` baselines), then dispatch the
-   `Scheduled` workflow with `only=claims` (if the input still exists); **issue #50** closes only on a
-   green scheduled run.
+1. Dispatch the `Scheduled` workflow with `only=claims` (if the input still exists): **issue #50**
+   closes only on a green scheduled run. (CI on the branch is green, run 501.)
 2. The capture README's memory table quotes the agent's *release-build* numbers; mine are debug
    (within about 5%; the stdio object-heavy figure differs by 16 MiB). Re-run
    `crates/mcp-trace-capture/tools/measure-memory.py` in release and reconcile the README.

@@ -1,7 +1,7 @@
 {
   "branch": "claude/focused-thompson-jx6akj",
   "date": "2026-10-24 (updated 2026-10-25)",
-  "ci_green_commit": "913d8e6",
+  "ci_green_commit": "28dac2c",
   "local_tests_at_merged_tip": {
     "passed": 1989,
     "failed": 0,
@@ -72,7 +72,6 @@
       "status": "merged_2026-10-25_with_PING-001_fix",
       "wip_reference": "docs/handoff/wip/R1",
       "follow_up": [
-        "visual baselines for the pass/fail/two-revisions report pages (take from the CI visual-diffs artifact)",
         "maintainer decision: judge task-related MUSTs (PROG-014/015/016, CANC-020) at a revision where the tasks page is out of scope?",
         "maintainer: report the mcpsnoop progress-after-completion defect upstream?"
       ]
@@ -112,9 +111,8 @@
     }
   ],
   "run_first_next_session": [
-    "read CI on the pushed tip; expect the visual job to need new baselines (R1 changed the totals on the report pages)",
     "dispatch Scheduled with only=claims; issue #50 closes only on green",
-    "then V2 (baseline/ignore file, --level/--area filters), then C1",
+    "review and merge the V2, C1 and I1 agents' worktree branches (file-disjoint; re-run the full chain and the Action/image/visual simulations after each merge)",
     "reconcile capture README memory table in release"
   ]
 }
