@@ -119,5 +119,6 @@
     "dispatch Scheduled with only=claims; issue #50 closes only on green",
     "review and merge the V2, C1 and I1 agents' worktree branches (file-disjoint; re-run the full chain and the Action/image/visual simulations after each merge)",
     "reconcile capture README memory table in release"
-  ]
+  ],
+  "release_status": "on hold by the maintainer on 2026-10-25; do not bump versions, branch, rehearse, tag or publish until told"
 }

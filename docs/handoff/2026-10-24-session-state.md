@@ -223,6 +223,14 @@ pause; their commits are saved in one git bundle, `wip/wip.bundle`, as branches 
 
 ## Owner-only actions (not done, not attempted)
 
+- **Releases are on hold (maintainer, 2026-10-25: "let's hold off on any releases").** No version bump,
+  release branch, rehearsal run, tag or publish until the maintainer says otherwise. What a release
+  would need is in `RELEASING.md`; what stood between this branch and one on 2026-10-25: the
+  version-bump commit (still 0.6.0), a local `cargo xtask semver` read (`cargo-semver-checks` was not
+  installed), the unreviewed C1 and V2 work, the owner-only first-time setup for the npm and PyPI
+  packages and the container image, and the register-currency gate, whose oldest row (3.16) falls due
+  on 2026-11-05 and 34 more on 2026-11-23.
+
 - Accept or reject ADR-0024; decide the prober question.
 - Merge the branch; close Dependabot #66 and #67 (the interop pins now include #67's set) and issue #50
   as above; issues #7 and #9 are old.
