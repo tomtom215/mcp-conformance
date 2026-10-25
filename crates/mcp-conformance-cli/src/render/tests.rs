@@ -5,7 +5,11 @@ use mcp_conformance_cli::agreement::Baseline;
 use mcp_conformance_cli::suite::Check;
 
 use super::*;
-use crate::run::tests::{judged, outcome};
+use crate::fixtures::{Fixtures, Unlisted};
+use crate::run::tests::{
+    CLIENT_BREAKS_BASE_003, SERVER_BREAKS_PING_001, judged, judged_client_fault, outcome,
+    outcome_for, session,
+};
 
 fn scenario(name: &str, statuses: &[(&str, Option<&str>)]) -> Scenario {
     let checks: Vec<Check> = statuses
@@ -70,13 +74,21 @@ fn the_human_report_has_all_three_parts() {
         "not run: why",
         "2 scenarios, 4 checks: 1 INFO, 2 SUCCESS, 1 WARNING; suite verdict: pass",
         "== The clause report: 2 recorded session(s) ==",
+        "Viewed for the server: a finding tagged [client] is held against the suite's own \
+         client and does not count toward a verdict; one tagged [unattributed] is counted.",
         "==> /w/traces/001.jsonl <==",
-        "BASE-003",
+        "PING-001",
+        "        [server] seq 4: ",
+        "verdict (server findings only): fail\n",
         "==> /w/traces/002.jsonl <==\nnot judged: the server sent no message",
-        "2 sessions: 0 pass, 0 pass-with-warnings, 1 fail, 1 not judged; clause verdict: fail",
+        "2 sessions: 0 pass, 0 pass-with-warnings, 1 fail, 1 not judged; clause verdict (server \
+         findings only): fail",
         "== Agreement ==",
+        "subject: the server; the suite's own client is the other end.",
         "divergence baseline: none",
+        "failing clauses: 1 (0 explained, 1 unexplained, 0 set aside); stale baseline entries: 0",
         "agreement: does not hold",
+        "1 unexplained validator-vs-runner divergence(s):\n  PING-001 on 001.jsonl [server]: ",
         "record explained ones in a baseline (--divergences)",
         "\nverdict: fail\n",
     ] {
@@ -88,6 +100,154 @@ fn the_human_report_has_all_three_parts() {
     assert!(
         clean.contains("PASS "),
         "--all lists passing clauses: {clean}"
+    );
+}
+
+/// What is held against the suite's own end is in the report, labelled as
+/// that end's, and moves neither a verdict nor the agreement.
+#[test]
+fn the_suites_own_ends_findings_are_shown_labelled_and_not_counted() {
+    let mut server = outcome(true, vec![judged_client_fault()], &Baseline::default());
+    server.scenarios = vec![scenario("ping", &[("SUCCESS", None)])];
+    let text = human(&server, false);
+    for needle in [
+        "        [client] seq 3: ",
+        "verdict (server findings only): pass \u{2014} 1 client finding set aside\n",
+        "; clause verdict (server findings only): pass \u{2014} 1 client finding set aside\n",
+        "failing clauses: 1 (0 explained, 0 unexplained, 1 set aside); stale baseline entries: 0",
+        "agreement: holds\n",
+        "failing clauses held against the suite's own client (shown, and not counted):\n  \
+         BASE-003 on 001.jsonl [client]: ",
+        "\nverdict: pass\n",
+    ] {
+        assert!(text.contains(needle), "missing {needle:?} in:\n{text}");
+    }
+    let json: serde_json::Value = serde_json::from_str(&json_report(&server).unwrap()).unwrap();
+    assert_eq!(json["sessions"]["verdict"], "pass");
+    assert_eq!(json["sessions"]["findings"]["set_aside"], 1);
+    assert_eq!(json["agreement"]["holds"], true);
+    assert_eq!(
+        json["agreement"]["divergences"]["set_aside"][0],
+        serde_json::json!({
+            "trace": "001.jsonl",
+            "requirement": "BASE-003",
+            "detail": json["agreement"]["divergences"]["set_aside"][0]["detail"],
+            "party": "client",
+        })
+    );
+
+    // A client under test: the same words with the ends the other way round.
+    let client = outcome_for(
+        Party::Client,
+        true,
+        vec![session(Party::Client, SERVER_BREAKS_PING_001)],
+        &Baseline::default(),
+    );
+    let text = human(&client, false);
+    for needle in [
+        "Viewed for the client: a finding tagged [server] is held against the suite's own test \
+         server and does not count",
+        "subject: the client; the suite's own test server is the other end.",
+        "failing clauses held against the suite's own test server (shown, and not counted):\n  \
+         PING-001 on 001.jsonl [server]: ",
+        "agreement: holds\n",
+    ] {
+        assert!(text.contains(needle), "missing {needle:?} in:\n{text}");
+    }
+    // The same session read for the client whose finding it is.
+    let own = outcome_for(
+        Party::Client,
+        true,
+        vec![session(Party::Client, CLIENT_BREAKS_BASE_003)],
+        &Baseline::default(),
+    );
+    let text = human(&own, false);
+    assert!(text.contains("agreement: does not hold"), "{text}");
+    assert!(
+        text.contains("  BASE-003 on 001.jsonl [client]: "),
+        "{text}"
+    );
+}
+
+#[test]
+fn the_fixture_note_names_a_few_of_each_kind_and_counts_the_rest() {
+    let mut run = run_outcome(false);
+    run.scenarios = vec![
+        scenario("a", &[("FAILURE", Some("x"))]),
+        scenario("b", &[("SUCCESS", None)]),
+    ];
+    assert!(
+        !human(&run, false).contains("note: "),
+        "none without evidence"
+    );
+    run.fixtures = Some(Fixtures {
+        unlisted: Unlisted {
+            tools: (1..=6).map(|n| format!("t{n}")).collect(),
+            prompts: vec!["p".to_owned()],
+            resources: vec![],
+        },
+        sessions: 3,
+        judged_sessions: 7,
+    });
+    let text = human(&run, false);
+    let note = "note: 1 of the suite's 2 scenario(s) failed. In 3 of the 7 recorded sessions the \
+                suite asked for a tool, prompt or resource that none of this server's own list \
+                answers in this run includes:\n  tools (6): t1, t2, t3, t4 and 2 more\n  \
+                prompts (1): p\nThe pinned suite asks for these by fixed names";
+    assert!(text.contains(note), "{text}");
+    assert!(
+        !text.contains("  resources ("),
+        "a kind with none is left out: {text}"
+    );
+    let json: serde_json::Value = serde_json::from_str(&json_report(&run).unwrap()).unwrap();
+    assert_eq!(
+        json["suite"]["fixtures"]["unlisted"]["tools"],
+        serde_json::json!(["t1", "t2", "t3", "t4", "t5", "t6"]),
+        "the report has every name"
+    );
+    assert_eq!(json["suite"]["fixtures"]["failed_scenarios"], 1);
+    assert_eq!(note::some_names(&["a".to_owned(), "b".to_owned()]), "a, b");
+    assert_eq!(note::some_names(&[]), "");
+}
+
+#[test]
+fn stderr_says_the_verdicts_where_the_report_on_stdout_holds_the_rest() {
+    let args = |format, output: Option<&str>| ReportArgs {
+        format,
+        output: output.map(std::path::PathBuf::from),
+        all: false,
+    };
+    assert!(report_on_stdout_carries_all(&args(Format::Human, None)));
+    assert!(report_on_stdout_carries_all(&args(Format::Json, None)));
+    assert!(!report_on_stdout_carries_all(&args(Format::Junit, None)));
+    assert!(!report_on_stdout_carries_all(&args(Format::Sarif, None)));
+    assert!(!report_on_stdout_carries_all(&args(
+        Format::Human,
+        Some("r")
+    )));
+    assert!(!report_on_stdout_carries_all(&args(
+        Format::Json,
+        Some("r")
+    )));
+
+    let mut text = String::new();
+    let run = run_outcome(true);
+    clause_verdict(&mut text, &run);
+    agreement_verdict(&mut text, &run);
+    assert_eq!(
+        text,
+        "clause verdict (server findings only) over 1 judged session(s): fail\n\
+         agreement: does not hold (1 unexplained, 0 stale baseline entries; the report says \
+         which)\n"
+    );
+    let mut text = String::new();
+    let client_fault = outcome(true, vec![judged_client_fault()], &Baseline::default());
+    clause_verdict(&mut text, &client_fault);
+    agreement_verdict(&mut text, &client_fault);
+    assert_eq!(
+        text,
+        "clause verdict (server findings only) over 1 judged session(s): pass \u{2014} 1 client \
+         finding set aside\nagreement: holds\n"
     );
 }
 
@@ -111,6 +271,12 @@ fn the_json_report_carries_every_part() {
         "dns-rebinding-protection"
     );
     assert_eq!(report["sessions"]["verdict"], "fail");
+    assert_eq!(report["sessions"]["party"], "server");
+    assert_eq!(
+        report["sessions"]["findings"],
+        serde_json::json!({"counted": 1, "set_aside": 0, "unattributed": 0})
+    );
+    assert_eq!(report["agreement"]["party"], "server");
     assert_eq!(
         report["sessions"]["traces"][0]["trace"],
         "/w/traces/001.jsonl"
@@ -148,7 +314,7 @@ fn junit_and_sarif_are_the_validators_renderings_of_the_sessions() {
     let log: serde_json::Value = serde_json::from_str(&sarif_report(&outcome)).unwrap();
     let results = log["runs"][0]["results"].as_array().unwrap();
     assert!(
-        results.iter().any(|result| result["ruleId"] == "BASE-003"),
+        results.iter().any(|result| result["ruleId"] == "PING-001"),
         "{log:#}"
     );
     assert_eq!(

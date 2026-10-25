@@ -29,6 +29,7 @@ mod bridge;
 // The library's own file too (its importers' timestamps), so the calendar is
 // written once.
 mod calendar;
+mod fixtures;
 mod judging;
 mod library_cmd;
 mod node;

@@ -15,12 +15,16 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use mcp_conformance_cli::suite::{self, Scenario, Summary};
-use mcp_trace_validator::report::{HumanOptions, Report, Verdict};
+use mcp_trace_validator::report::{HumanOptions, Party, Report, Verdict};
 use mcp_trace_validator::{junit, sarif};
 use serde_json::json;
 
 use crate::args::{Format, ReportArgs};
 use crate::run::Outcome;
+
+mod note;
+
+use note::{failed_scenarios, fixtures_note};
 
 /// The most findings the default human report lists under one clause, as the
 /// validator's own default.
@@ -115,6 +119,12 @@ fn suite_part(text: &mut String, outcome: &Outcome) {
     for (scenario, why) in &outcome.not_run {
         let _ = writeln!(text, "  --    {scenario:<40} not run: {why}");
     }
+    suite_verdict(text, outcome);
+    fixtures_note(text, outcome);
+}
+
+/// The suite's one-line count and verdict.
+fn suite_verdict(text: &mut String, outcome: &Outcome) {
     let summary = Summary::of(&outcome.scenarios);
     let _ = writeln!(
         text,
@@ -126,20 +136,40 @@ fn suite_part(text: &mut String, outcome: &Outcome) {
     );
 }
 
+/// The other end of the session, as the report names it: the suite's own.
+const fn other_end(subject: Party) -> &'static str {
+    match subject {
+        Party::Server => "the suite's own client",
+        Party::Client => "the suite's own test server",
+        _ => "the other end",
+    }
+}
+
 /// The agreement's part of the human report, also the stderr summary's.
 fn agreement_part(text: &mut String, outcome: &Outcome) {
     let reconciliation = &outcome.reconciliation;
+    let (party, other) = (outcome.party, outcome.party.other());
     let baseline = outcome
         .baseline
         .as_deref()
         .map_or_else(|| "none".to_owned(), |path| path.display().to_string());
+    let _ = writeln!(
+        text,
+        "subject: the {party}; {} is the other end. What is held against it is set aside; what \
+         is held against nobody is counted",
+        other_end(party)
+    );
     let _ = writeln!(text, "divergence baseline: {baseline}");
     let _ = writeln!(
         text,
-        "failing clauses: {} ({} explained, {} unexplained); stale baseline entries: {}",
-        reconciliation.explained.len() + reconciliation.unexplained.len(),
+        "failing clauses: {} ({} explained, {} unexplained, {} set aside); stale baseline \
+         entries: {}",
+        reconciliation.explained.len()
+            + reconciliation.unexplained.len()
+            + reconciliation.set_aside.len(),
         reconciliation.explained.len(),
         reconciliation.unexplained.len(),
+        reconciliation.set_aside.len(),
         reconciliation.stale.len()
     );
     let name = outcome.baseline.as_deref().map_or_else(
@@ -152,6 +182,20 @@ fn agreement_part(text: &mut String, outcome: &Outcome) {
         }
         Some(why) => {
             let _ = writeln!(text, "agreement: does not hold\n{why}");
+        }
+    }
+    if !reconciliation.set_aside.is_empty() {
+        let _ = writeln!(
+            text,
+            "failing clauses held against {} (shown, and not counted):",
+            other_end(party)
+        );
+        for failure in &reconciliation.set_aside {
+            let _ = writeln!(
+                text,
+                "  {} on {} [{other}]: {}",
+                failure.requirement, failure.trace, failure.detail
+            );
         }
     }
 }
@@ -169,10 +213,17 @@ pub(crate) fn human(outcome: &Outcome, all: bool) -> String {
     );
     suite_part(&mut text, outcome);
     let judging = &outcome.judging;
+    let (party, other) = (outcome.party, outcome.party.other());
     let _ = writeln!(
         text,
         "\n== The clause report: {} recorded session(s) ==",
         judging.judged.len() + judging.unjudged.len()
+    );
+    let _ = writeln!(
+        text,
+        "Viewed for the {party}: a finding tagged [{other}] is held against {} and does not \
+         count toward a verdict; one tagged [unattributed] is counted.\n",
+        other_end(party)
     );
     let options = HumanOptions::default()
         .all(all)
@@ -191,6 +242,28 @@ pub(crate) fn human(outcome: &Outcome, all: bool) -> String {
             trace.trace, trace.error
         );
     }
+    sessions_line(&mut text, outcome);
+    let _ = writeln!(text, "\n== Agreement ==");
+    agreement_part(&mut text, outcome);
+    let _ = writeln!(text, "\nverdict: {}", verdict(outcome));
+    text
+}
+
+/// ` — 6 client findings set aside`, or nothing when the view set none aside
+/// and counted no finding held against nobody.
+fn what_the_view_did(outcome: &Outcome) -> String {
+    let what = outcome.judging.tally(outcome.party).describe(outcome.party);
+    if what.is_empty() {
+        String::new()
+    } else {
+        format!(" \u{2014} {what}")
+    }
+}
+
+/// The sessions by verdict, and the clause verdict they add up to for the
+/// subject's party.
+fn sessions_line(text: &mut String, outcome: &Outcome) {
+    let judging = &outcome.judging;
     let count = |verdict: Verdict| {
         judging
             .judged
@@ -200,18 +273,17 @@ pub(crate) fn human(outcome: &Outcome, all: bool) -> String {
     };
     let _ = writeln!(
         text,
-        "{} sessions: {} pass, {} pass-with-warnings, {} fail, {} not judged; clause verdict: {}",
+        "{} sessions: {} pass, {} pass-with-warnings, {} fail, {} not judged; clause verdict \
+         ({} findings only): {}{}",
         judging.judged.len() + judging.unjudged.len(),
         count(Verdict::Pass),
         count(Verdict::PassWithWarnings),
         count(Verdict::Fail),
         judging.unjudged.len(),
-        judging.verdict()
+        outcome.party,
+        judging.verdict(),
+        what_the_view_did(outcome)
     );
-    let _ = writeln!(text, "\n== Agreement ==");
-    agreement_part(&mut text, outcome);
-    let _ = writeln!(text, "\nverdict: {}", verdict(outcome));
-    text
 }
 
 /// The JSON report.
@@ -228,6 +300,7 @@ pub(crate) fn json_report(outcome: &Outcome) -> serde_json::Result<String> {
         .iter()
         .map(|(scenario, reason)| json!({"scenario": scenario, "reason": reason}))
         .collect();
+    let tally = outcome.judging.tally(outcome.party);
     let document = json!({
         "subject": outcome.subject,
         "work_dir": outcome.work_dir.display().to_string(),
@@ -239,15 +312,35 @@ pub(crate) fn json_report(outcome: &Outcome) -> serde_json::Result<String> {
             "summary": Summary::of(&outcome.scenarios),
             "scenarios": outcome.scenarios,
             "not_run": not_run,
+            // The names the suite asked the server for that its own listings
+            // do not include (a server's fixtures are not the suite's), when
+            // the suite failed scenarios and the traffic shows any.
+            "fixtures": outcome.fixtures.as_ref().map(|fixtures| json!({
+                "failed_scenarios": failed_scenarios(outcome),
+                "scenarios": outcome.scenarios.len(),
+                "sessions": fixtures.sessions,
+                "judged_sessions": fixtures.judged_sessions,
+                "unlisted": fixtures.unlisted,
+            })),
         },
         "sessions": {
+            // Each session's reports are viewed for the subject's party, and
+            // so is this: what is held against the suite's own end does not
+            // move it (`findings.set_aside` counts what that was).
+            "party": outcome.party,
             "verdict": outcome.judging.verdict(),
+            "findings": {
+                "counted": tally.counted,
+                "set_aside": tally.set_aside,
+                "unattributed": tally.unattributed,
+            },
             "totals": outcome.judging.totals(),
             "traces": traces,
             "unjudged": outcome.judging.unjudged,
         },
         "agreement": {
             "baseline": outcome.baseline.as_deref().map(|path| path.display().to_string()),
+            "party": outcome.party,
             "holds": outcome.reconciliation.holds(),
             "divergences": outcome.reconciliation,
         },
@@ -299,19 +392,57 @@ fn sarif_report(outcome: &Outcome) -> String {
     )
 }
 
-/// The run in a few lines on stderr: the suite's checks when the report does
-/// not carry them, then the two verdicts, the agreement, and where everything
-/// is kept.
-pub(crate) fn summary(outcome: &Outcome) {
-    let mut text = String::new();
-    suite_part(&mut text, outcome);
+/// Whether the report as written already holds the suite's checks and the
+/// agreement in full *where a reader of the terminal has it*: the human and
+/// JSON reports, on stdout. Written to a file, or as `junit` or `sarif` (which
+/// carry only the clause report), they are not, and stderr has them.
+const fn report_on_stdout_carries_all(report: &ReportArgs) -> bool {
+    report.output.is_none() && matches!(report.format, Format::Human | Format::Json)
+}
+
+/// The clause verdict, for the subject's party, in one line.
+fn clause_verdict(text: &mut String, outcome: &Outcome) {
     let _ = writeln!(
         text,
-        "clause verdict over {} judged session(s): {}",
+        "clause verdict ({} findings only) over {} judged session(s): {}{}",
+        outcome.party,
         outcome.judging.judged.len(),
-        outcome.judging.verdict()
+        outcome.judging.verdict(),
+        what_the_view_did(outcome)
     );
-    agreement_part(&mut text, outcome);
+}
+
+/// Whether the agreement holds, in one line, for a reader who has the report.
+fn agreement_verdict(text: &mut String, outcome: &Outcome) {
+    let reconciliation = &outcome.reconciliation;
+    if reconciliation.holds() {
+        let _ = writeln!(text, "agreement: holds");
+    } else {
+        let _ = writeln!(
+            text,
+            "agreement: does not hold ({} unexplained, {} stale baseline entries; the report \
+             says which)",
+            reconciliation.unexplained.len(),
+            reconciliation.stale.len()
+        );
+    }
+}
+
+/// The run in a few lines on stderr: the suite's checks and the agreement in
+/// full when the report does not carry them where the terminal shows it, in a
+/// line each when it does (the same block twice, one after the other, was the
+/// fault); the two verdicts; and where everything is kept.
+pub(crate) fn summary(outcome: &Outcome, report: &ReportArgs) {
+    let mut text = String::new();
+    if report_on_stdout_carries_all(report) {
+        suite_verdict(&mut text, outcome);
+        clause_verdict(&mut text, outcome);
+        agreement_verdict(&mut text, outcome);
+    } else {
+        suite_part(&mut text, outcome);
+        clause_verdict(&mut text, outcome);
+        agreement_part(&mut text, outcome);
+    }
     let _ = writeln!(
         text,
         "verdict: {}; suite results and traces kept in {}",
