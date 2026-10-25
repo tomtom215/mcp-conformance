@@ -3,12 +3,14 @@
 
 #![allow(clippy::unwrap_used)]
 
-use super::body::{End, read_prefix};
+use super::body::{End, idle_bounded, is_stall, read_prefix};
 use super::target::{is_event_stream, is_refused_path, location, target};
 use super::*;
 use axum::body::Bytes;
 use axum::http::uri::PathAndQuery;
 use axum::http::{HeaderMap, header};
+use futures::StreamExt as _;
+use std::time::Duration;
 
 /// A buffer budget no test here reaches.
 fn unlimited() -> Arc<tokio::sync::Semaphore> {
@@ -38,6 +40,21 @@ fn a_body_that_fails_keeps_what_was_read() {
     assert_eq!(prefix.bytes, b"{\"a\":");
     assert!(matches!(prefix.end, End::Failed("cut")));
     drop(prefix);
+}
+
+#[tokio::test]
+async fn a_body_that_stalls_ends_with_an_error_saying_how_long_it_waited() {
+    let mut stream = idle_bounded(
+        futures::stream::pending::<Result<Bytes, axum::Error>>(),
+        Duration::from_millis(250),
+    );
+    let error = stream.next().await.unwrap().unwrap_err();
+    assert!(is_stall(&error));
+    assert_eq!(
+        error.to_string(),
+        "no byte of the request body arrived for 0.25s"
+    );
+    assert!(stream.next().await.is_none());
 }
 
 #[test]

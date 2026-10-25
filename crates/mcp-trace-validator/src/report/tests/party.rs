@@ -71,6 +71,11 @@ fn the_view_recomputes_the_verdict_from_the_findings_that_count() {
     );
     assert_eq!(schema_attributed.verdict_for(Party::Client), Verdict::Fail);
 
+    // A warning held against the client warns nobody else.
+    let mut client_warning = schema_attributed.clone();
+    client_warning.requirements.last_mut().unwrap().findings[0].party = Some(Party::Client);
+    assert_eq!(client_warning.verdict_for(Party::Server), Verdict::Pass);
+
     let mut nothing_for_server = schema_attributed.clone();
     nothing_for_server.requirements.pop();
     nothing_for_server.totals.warn = 0;

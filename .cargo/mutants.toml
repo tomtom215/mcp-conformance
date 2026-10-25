@@ -51,6 +51,35 @@ exclude_re = [
     # against a retry's (client request) seq.
     "replace < with <= in mark_read",
     "replace < with <= in retries_with_rounds",
+    # Equivalent mutant, the same argument again: is_cancelled compares the seq
+    # of a `notifications/cancelled` with the seq of the request it names. They
+    # are different events (a notification is never a request), so equality
+    # cannot occur and `>` and `>=` are observably identical.
+    "replace > with >= in is_cancelled",
+    # Likewise references_issued_request: a cancellation's seq against the seq
+    # of the client's first `initialize` request, a different event (the loop
+    # sets a request aside before it looks at cancellations), so `<` and `<=`
+    # are observably identical.
+    "replace < with <= in references_issued_request",
+    # And the same again, in two more checks: judge_receiver compares a
+    # cancellation's seq with the seq of the request the receiver's answer
+    # answers, and token_issued_in_session a progress notification's seq with
+    # the seq of the client's first `initialize` request. Each pair is two
+    # different events, so equality cannot occur and `<` and `<=` are
+    # observably identical.
+    "replace < with <= in judge_receiver",
+    "replace < with <= in token_issued_in_session",
+    # Equivalent mutant: hex_pair joins two nibbles as `(high << 4) | low`. The
+    # shifted high nibble has its low four bits clear and `low` is at most 0xF,
+    # so the operands share no set bit and `|` and `^` give the same byte; no
+    # input separates them.
+    "replace \\| with \\^ in hex_pair",
+    # Equivalent mutant: Appender::flush forwards to `File::flush`, which the
+    # standard library documents as a no-op (a `File` is unbuffered; every
+    # `write` reaches the operating system), so replacing it with `Ok(())`
+    # changes nothing observable. (Re-check if `Appender::file` ever becomes a
+    # buffered writer.)
+    "Appender>::flush -> io::Result<\\(\\)> with Ok\\(\\(\\)\\)",
     # Equivalent mutants: `events[index + 1..]` becoming `events[index * 1..]`
     # only adds the event at `index` itself to the scan, and the next filter
     # drops it — answered_by_result (which failed probes and failed modern

@@ -372,8 +372,11 @@ async fn a_client_body_cut_off_is_recorded_as_an_abort() {
         stream.shutdown().await.unwrap();
         let mut rest = Vec::new();
         stream.read_to_end(&mut rest).await.ok();
-        stop().await.unwrap().unwrap();
+        let unrecorded = stop().await.unwrap().unwrap();
         assert!(requests.try_recv().is_err(), "nothing was forwarded");
+        // Gone, not stalled: the stall path (408) records the same abort, and
+        // counts itself.
+        assert_eq!(unrecorded.stalled_bodies, 0, "{unrecorded:?}");
         let events = sink.events();
         let kinds: Vec<(&str, &str)> = events
             .iter()

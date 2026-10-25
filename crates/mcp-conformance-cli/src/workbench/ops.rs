@@ -239,6 +239,32 @@ mod tests {
         ));
     }
 
+    /// The entry bound counts the entries named once each, and an export at
+    /// it goes through.
+    #[test]
+    fn an_export_at_the_entry_bound_goes_through_and_one_past_it_is_refused() {
+        let (wb, _dir) = fixture::workbench("export-entries");
+        let ids = ["everything-http", "tool-005-name-length"];
+        let refused = export_within(&wb, &ids, 1, EXPORT_MAX_BYTES).unwrap_err();
+        assert_eq!(
+            refused,
+            Failure::Invalid("an export holds at most 1 entries; 2 were named".to_owned())
+        );
+        assert_eq!(
+            export_within(&wb, &ids, 2, EXPORT_MAX_BYTES)
+                .unwrap()
+                .entries,
+            2
+        );
+        let twice = ["everything-http", "everything-http"];
+        assert_eq!(
+            export_within(&wb, &twice, 1, EXPORT_MAX_BYTES)
+                .unwrap()
+                .entries,
+            1
+        );
+    }
+
     #[test]
     fn retention_keeps_what_is_exactly_as_old_as_the_limit() {
         let (wb, _dir) = fixture::workbench("retention-edge");

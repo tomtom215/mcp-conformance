@@ -326,6 +326,29 @@ const TWO_PARTIES: &str = r#"{"seq":0,"direction":"client-to-server","transport"
 {"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"ping"}}
 {"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{}}}"#;
 
+/// The clause a request before `initialize` breaks binds the client.
+#[test]
+fn a_rule_the_client_binds_names_the_client() {
+    let registry = Registry::builtin_2025_11_25().unwrap();
+    let early = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}}"#;
+    let early_events = parse_trace(early, &Limits::default()).unwrap();
+    let early_report = crate::engine::validate(&registry, &early_events);
+    let early_log = log(
+        core::slice::from_ref(&early_report),
+        Some("t.jsonl"),
+        &early_events,
+    );
+    let early_rules = early_log["runs"][0]["tool"]["driver"]["rules"]
+        .as_array()
+        .unwrap();
+    let early_rule = early_rules
+        .iter()
+        .find(|rule| rule["id"] == "LIFE-001")
+        .unwrap();
+    assert_eq!(early_rule["properties"]["actor"], "client");
+}
+
 #[test]
 fn rules_name_their_actor_and_results_their_party() {
     let registry = Registry::builtin_2025_11_25().unwrap();

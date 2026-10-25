@@ -5,10 +5,13 @@
 //! extension section's empty state, the wire-schema line, and the timeline's
 //! switch and truncation note.
 
+use std::fmt::Write as _;
+
 use super::{SESSION, judged, page};
 use crate::fixtures::UNDECLARED_TASK;
 use crate::html::{Trace, render, render_run};
 use crate::judge::{self, Options};
+use crate::report::LISTED_UNANSWERED;
 
 #[test]
 fn a_run_of_several_revision_traces_nests_its_headings_one_level_deeper() {
@@ -90,6 +93,30 @@ fn a_wire_schema_with_no_message_is_not_observed() {
     assert!(page.contains("<p class=\"schema-line s-not-observed\">Wire schema: "));
     let page = page_of(SESSION);
     assert!(page.contains("<p class=\"schema-line s-pass\">Wire schema: "));
+}
+
+/// [`SESSION`] and then `extra` `ping` requests nobody answers.
+fn session_then_unanswered(extra: usize) -> String {
+    let mut document = SESSION.to_owned();
+    for n in 0..extra {
+        let _ = writeln!(
+            document,
+            "{{\"seq\":{},\"direction\":\"client-to-server\",\"transport\":\"stdio\",\"kind\":\"message\",\"payload\":{{\"jsonrpc\":\"2.0\",\"id\":{},\"method\":\"ping\"}}}}",
+            5 + n,
+            100 + n
+        );
+    }
+    document
+}
+
+#[test]
+fn the_unanswered_note_counts_the_requests_it_does_not_list() {
+    let page = page_of(&session_then_unanswered(LISTED_UNANSWERED + 2));
+    assert!(page.contains("<p>… and 2 more.</p>"), "{page}");
+    // Exactly the listed number: the note, and nothing left over.
+    let page = page_of(&session_then_unanswered(LISTED_UNANSWERED));
+    assert!(page.contains("<ul class=\"unanswered\">"), "{page}");
+    assert!(!page.contains(" more.</p>"), "{page}");
 }
 
 fn page_of(document: &str) -> String {

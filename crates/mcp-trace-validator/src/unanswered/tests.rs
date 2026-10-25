@@ -226,6 +226,23 @@ fn a_cancelled_request_is_not_listed() {
     );
 }
 
+/// Only `notifications/cancelled` withdraws a request: another notification
+/// whose params happen to carry a matching `requestId` does not.
+#[test]
+fn only_a_cancellation_withdraws_a_request() {
+    let other = message(
+        1,
+        C,
+        json!({"jsonrpc": "2.0", "method": "notifications/message", "params": {"requestId": 7}}),
+    );
+    assert_eq!(
+        note(&[request(0, C, json!(7), "tools/call"), other])
+            .unwrap()
+            .count,
+        1
+    );
+}
+
 /// A Streamable HTTP record.
 fn http(seq: u64, direction: &str, rest: serde_json::Value) -> String {
     let mut record = json!({"seq": seq, "direction": direction, "transport": "streamable-http"});

@@ -184,8 +184,9 @@ fn create(path: &Path, force: bool) -> Result<File, String> {
         return create_new(path);
     }
     match path.symlink_metadata() {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => create_new(path),
-        Err(error) => Err(format!("cannot create {}: {error}", path.display())),
+        // Nothing there to look at: `create_new` makes the file, or fails with
+        // the reason the path cannot be made.
+        Err(_) => create_new(path),
         Ok(existing) if existing.is_symlink() => Err(symbolic_link(path)),
         Ok(existing) => overwrite(path, &existing),
     }
@@ -241,17 +242,21 @@ fn overwrite(path: &Path, existing: &std::fs::Metadata) -> Result<File, String> 
 }
 
 /// Whether two metadata describe one file: by device and inode on Unix.
-#[cfg(unix)]
-fn same_file(checked: &std::fs::Metadata, opened: &std::fs::Metadata) -> bool {
-    use std::os::unix::fs::MetadataExt as _;
-    checked.dev() == opened.dev() && checked.ino() == opened.ino()
-}
-
 /// Elsewhere there is no stable identity to compare, so the check before the
-/// open is the whole defence there.
-#[cfg(not(unix))]
-const fn same_file(_checked: &std::fs::Metadata, _opened: &std::fs::Metadata) -> bool {
-    true
+/// open is the whole defence there. One function with the platform in its body,
+/// so that what the Unix build compiles is all that a Unix build mutates.
+#[cfg_attr(not(unix), allow(clippy::missing_const_for_fn))]
+fn same_file(checked: &std::fs::Metadata, opened: &std::fs::Metadata) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt as _;
+        checked.dev() == opened.dev() && checked.ino() == opened.ino()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (checked, opened);
+        true
+    }
 }
 
 /// The line limit for `max_message`, saying so when the validator's default

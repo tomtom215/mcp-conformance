@@ -6,6 +6,28 @@ use mcp_conformance_core::requirement::Actor;
 
 use super::*;
 
+#[test]
+fn the_unanswered_note_counts_the_requests_it_does_not_list_in_text() {
+    let note = |count: u32, listed: usize| UnansweredRequests {
+        count,
+        ending: TraceEnding::Stopped,
+        requests: (0..listed)
+            .map(|n| UnansweredRequest {
+                method: "ping".to_owned(),
+                id: serde_json::json!(n),
+                seq: n as u64,
+                sender: Party::Client,
+            })
+            .collect(),
+    };
+    let mut text = String::new();
+    note(12, LISTED_UNANSWERED).write_human(&mut text);
+    assert!(text.ends_with("        … and 2 more\n"), "{text}");
+    let mut text = String::new();
+    note(10, LISTED_UNANSWERED).write_human(&mut text);
+    assert!(!text.contains("more"), "{text}");
+}
+
 fn row(id: &str, level: &str, outcome: Outcome) -> RequirementReport {
     RequirementReport {
         id: id.to_owned(),

@@ -221,6 +221,19 @@ fn a_handshake_answered_with_an_error_negotiates_nothing() {
 }
 
 #[test]
+fn only_an_initialize_result_negotiates() {
+    // A result naming a `protocolVersion` answers `tools/list` here, not
+    // `initialize`: no handshake happened, so the refusal is of a declared
+    // revision, not of a negotiated one.
+    let document = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","tools":[]}}}"#;
+    let error = select(BUILTIN_REVISIONS, &events(document)).unwrap_err();
+    assert_eq!(error.declared, [rev("2024-11-05")]);
+    assert!(!error.negotiated);
+    assert_eq!(error.proposed, None);
+}
+
+#[test]
 fn a_malformed_negotiated_version_is_a_finding_not_a_revision() {
     // `life-006`: the result names `1.0`. LIFE-006 judges that; the session
     // is judged under the proposal, the one revision it declared.
