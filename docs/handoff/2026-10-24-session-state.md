@@ -52,6 +52,15 @@ image, visual and interop. Earlier: run 497 (V1 merged) failed 3 jobs, fixed and
 run 500 (R1 merged) failed only `Visual`, as expected, fixed in run 501. Local verification of each
 merge is recorded in the two sections below.
 
+**Mutation testing on the pull request.** The `Mutants (PR diff)` workflow runs only on a pull request,
+and PR 68 was opened at the end, so its first run (run 103, on `04a88ab`) covered the whole branch
+diff against `main` at once and failed 10 of its 16 shards: 21 surviving mutants, across the validator,
+capture and workbench code. `f8f1ca0` fixed them: 13 killed by new tests, 6 equivalent mutants excluded
+in `.cargo/mutants.toml` with the argument for each, and 2 dead-code removals in capture's `output.rs`.
+On `f8f1ca0`, CI run 511 and Mutants run 104 both passed (2026-10-25); the pull request is
+`mergeable_state: clean`, with no review yet. Next time, run `cargo mutants --in-diff` locally on the
+branch diff before opening the PR, and do not push while a Mutants run is in progress (it cancels).
+
 ## Verified on the V1-merged tip, and what is still to do
 
 Run on 2026-10-25 on `50569fc` (V1 merged; the commits after it change documentation and one data
@@ -126,7 +135,7 @@ below is from a command run in this session:
 Still to do, in order:
 
 1. Dispatch the `Scheduled` workflow with `only=claims` (if the input still exists): **issue #50**
-   closes only on a green scheduled run. (CI on the branch is green, run 501.)
+   closes only on a green scheduled run. (CI on the branch is green: CI run 511 and Mutants run 104, on `f8f1ca0`.)
 2. The capture README's memory table quotes the agent's *release-build* numbers; mine are debug
    (within about 5%; the stdio object-heavy figure differs by 16 MiB). Re-run
    `crates/mcp-trace-capture/tools/measure-memory.py` in release and reconcile the README.
@@ -305,4 +314,8 @@ for GHSA-4432's mechanism; RustSec's rmcp entries; Rust, crates.io and npm versi
   hashed artifacts reach 13 GB). Agent worktrees each build their own `target/` (4 to 5 GB).
 - Agent worktrees were created from `main`, not from this branch; expect Cargo.lock/toolchain
   differences and golden conflicts at merge.
-- `cargo-deny` 0.20.2 is installed locally; `cargo-audit`, `cargo-mutants`, `mdbook` are not.
+- `cargo-deny` 0.20.2 and `cargo-mutants` 27.1.0 (the version `mutants.yml` pins) are installed
+  locally; `cargo-audit` and `mdbook` are not. A `cargo mutants` run builds a private copy of the tree;
+  with a 17 GB `target/debug` the disk allowance ran out and 12 mutants were reported "unviable"
+  (their logs say "No space left on device"): `rm -rf target/debug` first, and read the per-mutant
+  log before believing "unviable".

@@ -1,12 +1,12 @@
 {
   "branch": "claude/focused-thompson-jx6akj",
   "date": "2026-10-24 (updated 2026-10-25)",
-  "ci_green_commit": "28dac2c",
+  "ci_green_commit": "f8f1ca0",
   "local_tests_at_merged_tip": {
-    "passed": 1989,
+    "passed": 2032,
     "failed": 0,
     "ignored": null,
-    "note": "--all-features at the V1 merge, 2026-10-25; 1952 passed without --all-features; ignored count not recorded"
+    "note": "--all-features at f8f1ca0 (the mutant-fix commit), 2026-10-25; the run without --all-features and the ignored count were not repeated at this commit"
   },
   "items": [
     {
