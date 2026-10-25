@@ -271,13 +271,13 @@
     {
       "id": "progress-not-increasing",
       "match": ["progress for token * went from * requires it to increase"],
-      "maps": { "2025-11-25": [], "2026-07-28": ["PROG-003"] },
-      "reading": "A progress value that does not increase. The `2025-11-25` registry carries no progress clauses."
+      "maps": { "2025-11-25": ["PROG-011"], "2026-07-28": ["PROG-003"] },
+      "reading": "A progress value that does not increase."
     },
     {
       "id": "progress-after-completion",
       "match": ["progress notification for token * arrived after its request completed"],
-      "maps": { "2025-11-25": [], "2026-07-28": ["PROG-008"] },
+      "maps": { "2025-11-25": ["PROG-019"], "2026-07-28": ["PROG-008"] },
       "reading": "A progress notification after its request was answered."
     },
     {

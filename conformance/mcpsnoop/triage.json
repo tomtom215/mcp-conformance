@@ -132,6 +132,16 @@
       "quote": ["BASE-009", "BASE-052"],
       "note": "A POST carrying `Host` and `Origin` `evil.example.com` is refused with HTTP 403 and a JSON-RPC error that has no `id`; the session then proceeds from `localhost`. The transport's security warning, at both revisions, describes exactly that answer: \"If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`.\" The refusal happens before the request is read, so there is no id to echo, and BASE-009/BASE-052's id rule does not reach a body the transport clause permits to have none. mcpsnoop reports the id-less error as matching no request. We did the same, as BASE-009, until 2026-10-13 — on the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`) — and these two traces are the regression pair for that fix.",
       "resolution": "upstream: mcpsnoop-origin-refusal-unmatched"
+    },
+    {
+      "kind": "mcpsnoop-only",
+      "subject": "progress-after-completion",
+      "traces": ["good/stdio-task-progress"],
+      "class": "mcpsnoop-defect",
+      "right": "ours",
+      "quote": ["PROG-014", "PROG-016"],
+      "note": "A conforming `2025-11-25` task session: the server answers a task-augmented `tools/call` with a `CreateTaskResult` (seq 4) and sends progress under the request's token while the task is `working` (seq 5, and seq 10 after a `tasks/get` that still says `working`); the task is `completed` only at seq 12. The tasks page has the token \"continue to be used for progress notifications throughout the task's lifetime, even after the `CreateTaskResult` has been returned\" (PROG-014) and stops progress at the task's terminal status (PROG-016), which this session respects; our validator passes it. mcpsnoop 0.26.1 warns on both notifications as arriving \"after its request completed\", with the text \"2026-07-28 requires them to stop\": it takes the `CreateTaskResult` for the request's completion and applies that revision's rule to a `2025-11-25` session. The same rule fires, correctly, on prog-019 (progress after an ordinary response) and, for the earlier of its two notifications, wrongly on prog-016 for the same reason as here; both traces agree with us at the trace level.",
+      "resolution": "open: whether to report it upstream is the maintainer's call; the reproduction is `corpus/good/stdio-task-progress.jsonl`, whose task handling the `2025-11-25` tasks page defines (PROG-014)"
     }
   ],
   "recorded": [

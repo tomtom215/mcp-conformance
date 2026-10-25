@@ -92,6 +92,27 @@
       }
     },
     {
+      "trace": "good/stdio-cancellation",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 1,
+          "deprecated": 1,
+          "duplicate": 1,
+          "late-result": 1
+        }
+      }
+    },
+    {
       "trace": "good/stdio-client-features",
       "revision": "2025-11-25",
       "transport": "stdio",
@@ -164,6 +185,24 @@
       }
     },
     {
+      "trace": "good/stdio-progress",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 20,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
       "trace": "good/stdio-request-unanswered-at-close",
       "revision": "2025-11-25",
       "transport": "stdio",
@@ -212,6 +251,35 @@
       "mcpsnoop": {
         "exit": 0,
         "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "good/stdio-task-progress",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 16,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "progress notification for token \"deploy-1\" arrived after its request completed, and 2026-07-28 requires them to stop"
+          },
+          {
+            "signal": "warn",
+            "seq": 10,
+            "framed": true,
+            "message": "progress notification for token \"deploy-1\" arrived after its request completed, and 2026-07-28 requires them to stop"
+          }
+        ],
         "other": {}
       }
     },
@@ -420,7 +488,8 @@
       "ours": {
         "verdict": "fail",
         "flagged": [
-          "BASE-004"
+          "BASE-004",
+          "PING-001"
         ]
       },
       "mcpsnoop": {
@@ -675,6 +744,83 @@
         "other": {
           "annotations": 1,
           "schema": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/canc-018-cancellation-of-unknown-request",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CANC-018"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/canc-019-initialize-cancelled",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CANC-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "late-result": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/canc-020-task-cancelled-by-notification",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CANC-020"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/canc-021-response-after-cancellation-read",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "CANC-021"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 1,
+          "late-result": 1
         }
       }
     },
@@ -1143,6 +1289,184 @@
         "other": {
           "error": 1
         }
+      }
+    },
+    {
+      "trace": "violations/ping-001-ping-answered-with-content",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PING-001"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-009-progress-token-float",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-009",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-010-progress-token-reused-in-flight",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-010"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-011-progress-value-decreases",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "progress for token \"job-1\" went from 50 to 10, and 2026-07-28 requires it to increase with each notification"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-013-progress-token-never-issued",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-013"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-015-task-progress-token-differs",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-013",
+          "PROG-014",
+          "PROG-015"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-016-task-progress-after-terminal-status",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 10,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-013",
+          "PROG-016",
+          "PROG-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "progress notification for token \"deploy-1\" arrived after its request completed, and 2026-07-28 requires them to stop"
+          },
+          {
+            "signal": "warn",
+            "seq": 8,
+            "framed": true,
+            "message": "progress notification for token \"deploy-1\" arrived after its request completed, and 2026-07-28 requires them to stop"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-019-progress-after-completion",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-013",
+          "PROG-016",
+          "PROG-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 6,
+            "framed": true,
+            "message": "progress notification for token \"t1\" arrived after its request completed, and 2026-07-28 requires them to stop"
+          }
+        ],
+        "other": {}
       }
     },
     {
