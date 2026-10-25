@@ -203,7 +203,7 @@ impl Thread {
             let pass = (self.setup.judge)(live);
             self.judged.passes += 1;
             for finding in &pass.new {
-                self.tally.count(finding);
+                self.tally.count(*trace, finding);
                 printed.push_str(&print::finding(finding, numbered.then_some(*trace)));
             }
             self.judged.findings += u64::try_from(pass.new.len()).unwrap_or(0);
@@ -247,7 +247,7 @@ impl Thread {
             };
             let ended = live.finish(now);
             for finding in &ended.new {
-                self.tally.count(finding);
+                self.tally.count(*trace, finding);
                 text.push_str(&print::finding(finding, numbered.then_some(*trace)));
             }
             self.judged.findings += u64::try_from(ended.new.len()).unwrap_or(0);

@@ -8,6 +8,7 @@
 //! [`printable`]: a recording is untrusted input, and an `ESC` in a method name
 //! must not reach the terminal raw.
 
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use mcp_conformance_cli::live::LiveFinding;
@@ -48,20 +49,59 @@ pub(super) fn finding(finding: &LiveFinding, session: Option<u64>) -> String {
 }
 
 /// The counts behind the tally.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+///
+/// It counts *findings* — one per tool schema that declares the wrong
+/// `$schema`, say — where the report's `totals` count *clauses*, one per
+/// requirement however many findings it has. The tally names both, so the two
+/// can be read against each other: `14 warn in 1 clause(s)` is the report's
+/// `1 warn`.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(super) struct Tally {
     pub(super) sessions: usize,
     pub(super) exchanges: u64,
     pub(super) fail: u64,
     pub(super) warn: u64,
+    /// The clauses with a finding, one per session, revision and requirement
+    /// (a report's rows are per session and revision too).
+    clauses: BTreeSet<(u64, String, String)>,
+    /// Whether the revision's wire schema has a finding: reported beside the
+    /// clauses, not as one of them.
+    schema: bool,
 }
 
+/// The requirement ID a finding of the wire schema carries.
+const WIRE_SCHEMA: &str = "wire-schema";
+
 impl Tally {
-    pub(super) fn count(&mut self, finding: &LiveFinding) {
+    /// Counts `finding`, found in session `trace`.
+    pub(super) fn count(&mut self, trace: u64, finding: &LiveFinding) {
         if finding.outcome == Outcome::Warn {
             self.warn += 1;
         } else {
             self.fail += 1;
+        }
+        if finding.requirement == WIRE_SCHEMA {
+            self.schema = true;
+        } else {
+            self.clauses
+                .insert((trace, finding.revision.clone(), finding.requirement.clone()));
+        }
+    }
+
+    /// ` in 1 clause(s)`, ` in 2 clause(s) and the wire schema`, or nothing
+    /// before the first finding.
+    fn spread(&self) -> String {
+        let mut parts = Vec::new();
+        if !self.clauses.is_empty() {
+            parts.push(format!("{} clause(s)", self.clauses.len()));
+        }
+        if self.schema {
+            parts.push("the wire schema".to_owned());
+        }
+        if parts.is_empty() {
+            String::new()
+        } else {
+            format!(" in {}", parts.join(" and "))
         }
     }
 
@@ -73,8 +113,11 @@ impl Tally {
             format!(" in {} sessions", self.sessions)
         };
         format!(
-            "{PREFIX} {} exchange(s){sessions}; findings so far: {} fail, {} warn",
-            self.exchanges, self.fail, self.warn
+            "{PREFIX} {} exchange(s){sessions}; findings so far: {} fail, {} warn{}",
+            self.exchanges,
+            self.fail,
+            self.warn,
+            self.spread()
         )
     }
 }
@@ -160,13 +203,83 @@ mod tests {
             exchanges: 3,
             ..Tally::default()
         };
-        tally.count(&sample("x"));
         assert_eq!(
             tally.line(),
-            "mcp-conformance watch: 3 exchange(s); findings so far: 1 fail, 0 warn"
+            "mcp-conformance watch: 3 exchange(s); findings so far: 0 fail, 0 warn",
+            "before a finding there is nothing to spread over clauses"
+        );
+        tally.count(1, &sample("x"));
+        assert_eq!(
+            tally.line(),
+            "mcp-conformance watch: 3 exchange(s); findings so far: 1 fail, 0 warn in 1 clause(s)"
         );
         tally.sessions = 2;
         assert!(tally.line().contains(" in 2 sessions;"));
         assert!(!tally.line().contains('\n'));
+    }
+
+    /// The audit's finding 3.9: `findings so far: 0 fail, 14 warn` beside a
+    /// report whose totals read `1 warn`. The tally counts findings and the
+    /// totals count clauses; the tally now says how many clauses its findings
+    /// are, so the two read against each other.
+    #[test]
+    fn many_findings_of_one_clause_are_one_clause() {
+        let mut tally = Tally {
+            sessions: 1,
+            exchanges: 4,
+            ..Tally::default()
+        };
+        let mut warning = sample("one tool's schema");
+        warning.outcome = Outcome::Warn;
+        for _ in 0..14 {
+            tally.count(1, &warning);
+        }
+        assert_eq!(
+            tally.line(),
+            "mcp-conformance watch: 4 exchange(s); findings so far: 0 fail, 14 warn in 1 clause(s)"
+        );
+        // Another clause; the same clause in another session and in another
+        // revision (a report's rows are per session and revision) are each
+        // their own row there, so each is its own here.
+        let mut other = warning.clone();
+        other.requirement = "BASE-007".to_owned();
+        tally.count(1, &other);
+        tally.count(2, &warning);
+        let mut later = warning.clone();
+        later.revision = "2026-07-28".to_owned();
+        tally.count(1, &later);
+        tally.sessions = 2;
+        assert!(
+            tally
+                .line()
+                .ends_with("findings so far: 0 fail, 17 warn in 4 clause(s)"),
+            "{}",
+            tally.line()
+        );
+    }
+
+    /// The wire schema is reported beside the clauses, not as one of them.
+    #[test]
+    fn the_wire_schema_is_not_a_clause() {
+        let mut tally = Tally::default();
+        let mut schema = sample("x");
+        schema.requirement = "wire-schema".to_owned();
+        tally.count(1, &schema);
+        tally.count(1, &schema);
+        assert!(
+            tally
+                .line()
+                .ends_with("findings so far: 2 fail, 0 warn in the wire schema"),
+            "{}",
+            tally.line()
+        );
+        tally.count(1, &sample("x"));
+        assert!(
+            tally
+                .line()
+                .ends_with("3 fail, 0 warn in 1 clause(s) and the wire schema"),
+            "{}",
+            tally.line()
+        );
     }
 }

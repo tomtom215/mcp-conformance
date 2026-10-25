@@ -237,7 +237,7 @@ fn a_corpus_violation_prints_before_the_client_sends_its_next_message() {
     assert!(report.contains("  WARN  TOOL-006 (SHOULD)"), "{report}");
     assert!(report.contains("verdict: pass-with-warnings"), "{report}");
     assert!(
-        stderr.ends_with("4 exchange(s); findings so far: 0 fail, 2 warn"),
+        stderr.ends_with("4 exchange(s); findings so far: 0 fail, 2 warn in 2 clause(s)"),
         "the tally last: {stderr}"
     );
     assert!(!stderr.contains("withdrawn"), "{stderr}");
@@ -503,6 +503,58 @@ fn a_collector_is_sent_no_query_no_error_message_and_no_whole_hostile_name() {
     for detail in &details {
         assert!(detail.contains("[cut at 512 of "), "{detail}");
     }
+    std::fs::remove_dir_all(&replay.dir).ok();
+}
+
+/// The dogfood audit's finding 3.9: the live tally counts findings and the
+/// report's totals count clauses, so `findings so far: 0 fail, 14 warn` sat
+/// beside `totals: … 1 warn`. Three tools with bad names make each of two
+/// clauses fail three times; the tally says so, and the report's totals are the
+/// two clauses it names.
+#[test]
+fn the_tally_says_how_many_clauses_its_findings_are() {
+    let client = |text: &str| ("client-to-server".to_owned(), text.to_owned());
+    let server = |text: &str| ("server-to-client".to_owned(), text.to_owned());
+    let replay = replay_of(
+        "watch-spread",
+        vec![
+            client(
+                r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"0"}}}"#,
+            ),
+            server(
+                r#"{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"s","version":"0"}}}"#,
+            ),
+            client(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#),
+            client(r#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#),
+            server(
+                r#"{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"bad name one","inputSchema":{"type":"object"}},{"name":"bad name two","inputSchema":{"type":"object"}},{"name":"bad name three","inputSchema":{"type":"object"}}]}}"#,
+            ),
+        ],
+    );
+    let mut running = start(&replay, &[]);
+    play(&mut running, &replay);
+    let (code, stderr) = running.end();
+    assert_eq!(code, Some(0), "{stderr}");
+    assert_eq!(
+        stderr
+            .matches("mcp-conformance watch: WARN TOOL-006")
+            .count(),
+        3
+    );
+    assert_eq!(
+        stderr
+            .matches("mcp-conformance watch: WARN TOOL-007")
+            .count(),
+        3
+    );
+    assert!(
+        stderr.contains(" 0 fail, 2 warn, "),
+        "the report's totals are clauses: {stderr}"
+    );
+    assert!(
+        stderr.ends_with("findings so far: 0 fail, 6 warn in 2 clause(s)"),
+        "{stderr}"
+    );
     std::fs::remove_dir_all(&replay.dir).ok();
 }
 
