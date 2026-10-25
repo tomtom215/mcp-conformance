@@ -133,6 +133,39 @@ Still to do, in order:
    revision where the tasks page is out of scope (R1 judged them, abstaining on any task whose creation
    the recording did not see).
 
+## Interop matrix (I1), merged 2026-10-25
+
+An agent refreshed the cross-SDK matrix in a worktree; the lead reviewed it and squash-merged it
+(`bcbc17b`). What was decided and checked:
+
+- **The seven-day rule applies to the interop pins.** `.github/dependabot.yml` adopts a release only
+  after a week in public. The agent first pinned three two-day-old npm releases (1.32.2, `server`
+  2.4.0, `node` 2.1.2); the lead checked the registry times, **sent it back, and the maintainer
+  confirmed "stick with the compliant versions"**. Now: TypeScript v1 1.32.1 (with express 5.3.0, zod
+  4.6.7: the set Dependabot #67 proposes), TypeScript v2 `server` 2.3.1 / `node` 2.1.1 / `express`
+  2.0.2, Python 2.3.0 and Go v1.8.0 (already the latest). **rmcp 3.7.0 is the stated exception**
+  (the workspace builds against it for the security fix; `interop/README.md` says so).
+- **Independently re-checked by the lead:** the ten packages the npm lock adds or moves, each against
+  the registry's publish time (none under seven days); the TypeScript v2 server file's SHA-256 at the
+  pinned commit over `raw.githubusercontent.com` (equal to `sdk-pins.env`); that no existing golden
+  changed in the diff (only two new ones); `cargo xtask gates` including `sdk-matrix --check` and
+  `draft-coverage --check` on the squashed tree; and that the 2.4.0-era trace carried the skills
+  extension and the 2.3.1-era one does not. CI's interop runner has Node 22.23.3, which the v2
+  packages (Node 20+) need.
+- **Re-recorded by the agent, not by the lead:** clean-room `setup.sh`, `run.sh` (5 of 5),
+  `matrix.sh` and `sdk-matrix --recaptured`, all cells "same result" bar the new rows.
+  `ts-stdio` and `ts-http` are `pass-with-warnings` (`BASE-086`, draft-07 `$schema`), which the
+  README had misstated as `pass`; it now says what `run.sh` has always enforced.
+- **mcpsnoop re-measured** with the pinned binary: 358 traces; the only addition is the TypeScript v2
+  `2026-07-28` capture (ours: pass, no flags), no divergence to triage.
+- **Process lessons from this agent.** (1) It sent the maintainer's email address to crates.io in a
+  `User-Agent` header, once (crates.io rejects an anonymous UA with 403); nothing in any file, diff or
+  commit carries it. Use `mcp-conformance currency check (https://github.com/tomtom215/mcp-conformance)`
+  and never personal data. (2) `xtask` bakes its workspace path in at compile time, so agents sharing
+  one `CARGO_TARGET_DIR` can run each other's binary: copy it privately and check with `strings`.
+  (3) It overwrote a few of the lead's scratchpad files from earlier in the session
+  (`msg1.txt` to `msg3.txt`, possibly some logs); nothing in the repository.
+
 ## Finished by agents (saved in `wip/`; both merged)
 
 Two agents worked in worktrees based on `main`, not on this branch. Both committed before the first
@@ -167,10 +200,11 @@ pause; their commits are saved in one git bundle, `wip/wip.bundle`, as branches 
 3. **`mcp-conformance check`**, per [ADR-0024](../plan/decisions/0024-check-an-exerciser-that-does-only-what-a-client-does.md)
    (**Proposed**: the maintainer must accept it first). A read-only-by-default exerciser, so an
    author with a server and no client gets a clause report in one command.
-4. **I1** (`interop/`): TS v1 1.32.2 with express/zod per the pin procedure (supersedes
-   Dependabot #67), a **TypeScript v2 leg** (`@modelcontextprotocol/server` 2.4.0 serves
-   2026-07-28; v1 never will), the Rust leg to rmcp 3.7.0, re-record, regenerate
-   `book/src/sdk-matrix.md`. Also `xtask/src/mcpsnoop.rs` `PINNED` 0.26.1 vs 0.28.0.
+4. `xtask/src/mcpsnoop.rs` `PINNED` 0.26.1 vs 0.28.0 (needs the binary, a re-measure and a re-triage).
+   When 2026-10-30 passes, TypeScript 1.32.2 and `@modelcontextprotocol/server` 2.4.0 (with `node`
+   2.1.2) are eligible under the seven-day rule; 2.4.0's conformance server declares the skills
+   extension, so re-recording it adds evidence. `@modelcontextprotocol/server-everything` 2.0.1 needs
+   Node 24 (`run.sh` pins 2026.8.31).
 5. Registry: the dogfood and probe reports flag exclusion rationales that are false today
    (TRAN-028, TRAN-062, TRAN-052, TRAN-006, TRAN-001/TRAN-115; PROM-010 duplicates a checked
    sentence). Convert, with corpus pairs, the passive ones the probe report ranks highest:
@@ -190,7 +224,8 @@ pause; their commits are saved in one git bundle, `wip/wip.bundle`, as branches 
 ## Owner-only actions (not done, not attempted)
 
 - Accept or reject ADR-0024; decide the prober question.
-- Merge the branch; close Dependabot #66 and #67 and issue #50 as above; issues #7 and #9 are old.
+- Merge the branch; close Dependabot #66 and #67 (the interop pins now include #67's set) and issue #50
+  as above; issues #7 and #9 are old.
 - Register the npm `mcp-conformance` and PyPI `mcp-conformance` names before release: both
   returned 404 today (squatting risk). Cut a release, set up GHCR visibility.
 - Consider filing the six rmcp GHSAs absent from RustSec with the advisory database.

@@ -850,6 +850,21 @@ not yet published to crates.io)
   `--protocol-version`, the validator's spelling), and **`--listen`** on the server
   (an alias of `--bind`, the capture proxy's). The HTTP server prints its endpoint
   URL after its readiness line.
+- **The cross-SDK matrix has a TypeScript v2 row, and moves its pins to releases at least a
+  week old** (the cooldown in `.github/dependabot.yml`; the one exception is stated in
+  `interop/README.md`). `interop/` now records `@modelcontextprotocol/server` 2.3.1 (with
+  `node` 2.1.1 and `express` 2.0.2; the conformance server taken unmodified from tag
+  `v2.3.1`, hash-checked) at both `2025-11-25` and `2026-07-28`: it answers `server/discover`
+  with `supportedVersions ["2026-07-28"]` and judges `pass` at both. The TypeScript v1 pin
+  moves to 1.32.1 (with express 5.3.0 and zod 4.6.7, the set Dependabot #67 proposes) and the
+  Rust pin to rmcp 3.7.0, the one release inside the cooldown, because the workspace builds
+  against it (the 3.5.x it replaces is in the range of GHSA-4432-vg92-fqh6, fixed in 3.6.0).
+  Python (2.3.0) and Go (v1.8.0) are already the latest. No existing row's golden changed:
+  the corpus gains two captured sessions and their goldens, and `sdk-matrix --check` now holds
+  the three v2 packages to `sdk-pins.env`. TypeScript 1.32.2 and `server` 2.4.0 (published
+  2026-10-23) become eligible on 2026-10-30; 2.4.0's conformance server also declares the
+  skills extension, which 2.3.1's does not.
+
 
 **Releases, documentation and gates**
 

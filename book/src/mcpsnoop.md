@@ -6,7 +6,7 @@
 
 # A second opinion: mcpsnoop
 
-[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 357 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
+[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 358 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
 
 ## How the comparison is made
 
@@ -29,20 +29,20 @@ The binary inside, `package/bin/mcpsnoop`, has SHA-256 `81c3636fa5a371833ab4558d
 | `corpus/violations/` | 106 |
 | `corpus/draft/good/` | 28 |
 | `corpus/draft/violations/` | 201 |
-| `corpus/draft/captured/` | 8 |
+| `corpus/draft/captured/` | 9 |
 
 Verdicts, ours against mcpsnoop's conformance signals:
 
 | | mcpsnoop flags the trace | mcpsnoop does not |
 |---|---:|---:|
 | our verdict `fail` | 83 | 139 |
-| our verdict `pass` or `pass-with-warnings` | 4 | 131 |
+| our verdict `pass` or `pass-with-warnings` | 4 | 132 |
 
 Traces by how the two readings relate:
 
 | Relation | Traces |
 |---|---:|
-| both clean | 43 |
+| both clean | 44 |
 | agree | 79 |
 | beyond mcpsnoop | 222 |
 | **divergent** | 13 |
@@ -688,3 +688,4 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/captured/sdk-go-2026-07-28` | 2026-07-28 | fail | `BASE-034`, `ELIC-059`, `MRTR-012`, `MRTR-013`, `TRAN-068` | flags | `input-request-undeclared` | — | agree |
 | `draft/captured/sdk-python-2026-07-28` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/captured/sdk-rust-2026-07-28` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
+| `draft/captured/sdk-typescript-v2-2026-07-28` | 2026-07-28 | pass | — | silent | — | — | both clean |

@@ -95,7 +95,12 @@
     },
     {
       "id": "I1-interop-refresh-ts-v2-leg",
-      "status": "not_started"
+      "status": "merged_2026-10-25_week_old_pins",
+      "follow_up": [
+        "2026-10-30: TypeScript 1.32.2 and server 2.4.0 (node 2.1.2) become eligible under the seven-day rule",
+        "owner: close Dependabot #67 (its set is now in the pins)",
+        "xtask mcpsnoop PINNED 0.26.1 vs 0.28.0"
+      ]
     },
     {
       "id": "stale-exclusion-rationales",

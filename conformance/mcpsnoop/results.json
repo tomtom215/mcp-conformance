@@ -8152,6 +8152,26 @@
           "schema": 4
         }
       }
+    },
+    {
+      "trace": "draft/captured/sdk-typescript-v2-2026-07-28",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 28,
+          "error": 1,
+          "schema": 3
+        }
+      }
     }
   ]
 }
