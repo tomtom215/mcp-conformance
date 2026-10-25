@@ -92,7 +92,7 @@ impl Endpoint {
 
     /// Whether spans to it cross the network in the clear.
     pub(super) fn is_plaintext_remote(&self) -> bool {
-        self.uri.scheme_str() == Some("http") && !crate::proxy::is_loopback(&self.uri)
+        self.uri.scheme_str() == Some("http") && !mcp_trace_capture::http::is_loopback(&self.uri)
     }
 }
 

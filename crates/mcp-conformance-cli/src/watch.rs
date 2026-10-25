@@ -21,7 +21,7 @@ use std::time::Duration;
 use mcp_conformance_cli::live::Live;
 use mcp_conformance_cli::otlp::Peer;
 use mcp_trace_capture::output::{self, Target};
-use mcp_trace_capture::run::{self, EXIT_USAGE, Recording};
+use mcp_trace_capture::run::{self, EXIT_USAGE, HostHeader, Recording};
 use mcp_trace_validator::report::printable;
 use tokio::runtime::Runtime;
 
@@ -82,20 +82,33 @@ pub(crate) fn main(runtime: &Runtime, args: &WatchArgs) -> ExitCode {
     recording.force = args.force;
     recording.max_message = args.max_message_bytes;
     recording.observer = Some(Arc::new(tap));
-    let code = match &args.mode {
-        WatchMode::Stdio { command } => runtime.block_on(run::stdio(recording, command)),
-        WatchMode::Http {
-            upstream,
-            listen,
-            preserve_host,
-        } => runtime.block_on(run::http(recording, upstream, *listen, *preserve_host)),
-    };
+    let code = record(runtime, recording, &args.mode);
     let _ = notes.send(judging::Note::End);
     let judged = thread.join().unwrap_or_default();
     if let (Some(task), Some(endpoint)) = (exporting, &endpoint) {
         exported(runtime, task, endpoint, judged.unattached);
     }
     run::exit(code)
+}
+
+/// Records the session in `mode` as the recorder does; returns its exit code.
+fn record(runtime: &Runtime, recording: Recording<'_>, mode: &WatchMode) -> i32 {
+    match mode {
+        WatchMode::Stdio { command } => runtime.block_on(run::stdio(recording, command)),
+        WatchMode::Http {
+            upstream,
+            listen,
+            preserve_host,
+            no_preserve_host,
+        } => runtime.block_on(run::http(
+            recording,
+            upstream,
+            *listen,
+            // The recorder's own mapping of the two flags, so `watch http` and
+            // `mcp-trace-capture http` read them alike.
+            HostHeader::from_flags(*preserve_host, *no_preserve_host),
+        )),
+    }
 }
 
 /// Announces the export and starts it on `runtime`.

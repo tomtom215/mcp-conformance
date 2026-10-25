@@ -97,10 +97,6 @@ impl Mode {
     /// What the server sees as `Host`, from the two flags (clap refuses both
     /// at once).
     pub(crate) const fn host_header(preserve: bool, no_preserve: bool) -> HostHeader {
-        match (preserve, no_preserve) {
-            (true, _) => HostHeader::Client,
-            (false, true) => HostHeader::Upstream,
-            (false, false) => HostHeader::Auto,
-        }
+        HostHeader::from_flags(preserve, no_preserve)
     }
 }

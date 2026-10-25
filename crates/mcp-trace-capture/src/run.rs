@@ -82,6 +82,21 @@ pub enum HostHeader {
 }
 
 impl HostHeader {
+    /// What the flags `--preserve-host` and `--no-preserve-host` ask for. The
+    /// two are mutually exclusive, which the caller's parser enforces (given
+    /// both, the client's `Host` wins); neither leaves it to the upstream's
+    /// address ([`Self::Auto`]). The one place the mapping is written, so
+    /// `mcp-trace-capture http` and `mcp-conformance watch http` cannot read
+    /// the same flags differently.
+    #[must_use]
+    pub const fn from_flags(preserve: bool, no_preserve: bool) -> Self {
+        match (preserve, no_preserve) {
+            (true, _) => Self::Client,
+            (false, true) => Self::Upstream,
+            (false, false) => Self::Auto,
+        }
+    }
+
     /// Whether the client's `Host` is passed through, for an upstream that is
     /// (`loopback`) or is not on this machine.
     #[must_use]
@@ -335,6 +350,24 @@ mod tests {
         assert_eq!(HostHeader::from(true), HostHeader::Client);
         assert_eq!(HostHeader::from(false), HostHeader::Auto);
         assert_eq!(HostHeader::default(), HostHeader::Auto);
+    }
+
+    /// The flags' meaning, once: `--preserve-host` is the client's, the
+    /// default and `--no-preserve-host` are the upstream's address and its own
+    /// name, and `from(bool)` is the first flag alone.
+    #[test]
+    fn the_two_flags_map_to_one_choice_by_one_rule() {
+        assert_eq!(HostHeader::from_flags(false, false), HostHeader::Auto);
+        assert_eq!(HostHeader::from_flags(true, false), HostHeader::Client);
+        assert_eq!(HostHeader::from_flags(false, true), HostHeader::Upstream);
+        // Both at once is a usage error the parser refuses; the client's wins.
+        assert_eq!(HostHeader::from_flags(true, true), HostHeader::Client);
+        for preserve in [false, true] {
+            assert_eq!(
+                HostHeader::from_flags(preserve, false),
+                HostHeader::from(preserve)
+            );
+        }
     }
 
     #[test]

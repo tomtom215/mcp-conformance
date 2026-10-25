@@ -145,9 +145,16 @@ pub(crate) enum WatchMode {
         #[arg(long, value_name = "IP:PORT", default_value = "127.0.0.1:8080", value_parser = listen_address)]
         listen: SocketAddr,
         /// Forward the client's `Host` header unchanged instead of naming the
-        /// upstream, so the server's own `Host` validation sees the client's.
-        #[arg(long)]
+        /// upstream, so the server's own `Host` validation sees the client's: the
+        /// default for an upstream on this machine (`localhost`, `127.0.0.0/8`,
+        /// `::1`), not for any other, which may route on its name.
+        #[arg(long, conflicts_with = "no_preserve_host")]
         preserve_host: bool,
+        /// Name the upstream in `Host` even for an upstream on this machine (the
+        /// default for any other); a server's `Host`-based DNS-rebinding check
+        /// then passes for every request the proxy forwards.
+        #[arg(long)]
+        no_preserve_host: bool,
     },
 }
 
