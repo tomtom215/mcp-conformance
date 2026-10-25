@@ -129,19 +129,21 @@ alert closes and reopens once" ([STABILITY.md](../../../STABILITY.md), SARIF row
    on a subset would need a different name, and nothing in the audit asks for one: the
    level case is `--strict`'s default, and what readers asked for is a shorter report.
 
-7. **Repeats share a line group in the default human listing only when that loses
-   nothing.** Consecutive findings of one clause collapse when they are held against
-   the same party, point at the same `seq`, are accepted (or not) by the same entry,
-   and their text differs in exactly one quoted value (a double-quoted string or a
-   backtick span) — the shape of a defect repeated for each item of one message — and
-   there are at least three, since a group costs two lines. The group prints the party,
-   the `seq`, the text with `<…>` where the value was, and every value; each original
-   finding is recoverable from it, which a test checks. `--all` lists every finding on
-   its own line, as before, and the cap of 20 findings counts findings, not lines.
-   Measured over the 363 committed golden reports (606 findings), the rule collapses
-   exactly one run: the eight `BASE-086` findings of the TypeScript SDK capture. Folding
-   findings at different `seq`s (11 `BASE-033` findings in the probe capture) would need
-   each value paired with its `seq` in a notation of its own, so they are not folded.
+7. **Grouped repeats are not shipped by this change.** The audit asked for repeated
+   findings (`BASE-086` once per tool schema) to be listed once in the human report,
+   but only if nothing is lost. The rule considered is narrow: consecutive findings of
+   one clause share a group only when they are held against the same party, point at
+   the same `seq`, are accepted (or not) by the same entry, and their text differs in
+   exactly one quoted value (a double-quoted string or a backtick span), at least three
+   of them; the group would print the party, the `seq`, the text with `<…>` where the
+   value was, and every value, so each finding stays recoverable; `--all` would list
+   every finding on its own line, as before; the cap of 20 would count findings. That
+   rule has not been implemented, tested or measured against the corpus here, so this
+   ADR makes no claim about how many reports it would change, and the default human
+   listing is unchanged. Folding findings at different `seq`s is rejected below. A
+   baseline already answers the adopter's need (accepted findings are marked and
+   counted separately); the grouping only shortens a listing, and a lossy one would
+   cost more than the lines it saves.
 
 ## Consequences
 
@@ -189,9 +191,9 @@ alert closes and reopens once" ([STABILITY.md](../../../STABILITY.md), SARIF row
   without the entry.
 - **Filters that change the verdict.** Rejected above; if a use for a subset verdict
   appears it is its own decision, worded like `--party`'s.
-- **Group findings by text template across different `seq`s.** Rejected: it shortens
-  the probe capture's `BASE-033` run, but the reader then has to pair each value with
-  its event in a notation the report does not otherwise use; the cap already bounds
-  that run.
+- **Group findings by text template across different `seq`s.** Rejected: it would
+  shorten a run of one defect spread over several events, but the reader then has to
+  pair each value with its event in a notation the report does not otherwise use; the
+  cap already bounds such a run.
 - **YAML or TOML.** Rejected: `serde_json` is already a dependency, and this crate
   validates JSON against schemas already.
