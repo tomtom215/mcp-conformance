@@ -62,7 +62,7 @@ The search box takes terms separated by spaces; every term must match.
 | `session:3f2a…` | carried that `Mcp-Session-Id` (or are that library entry) |
 | `code:-32602` | hold a JSON-RPC error with that code |
 | `req:BASE-003` | have a finding against that requirement |
-| `server:everything`, `tag:nightly` | were recorded against that server, or carry that tag |
+| `server:everything`, `tag:nightly` | were recorded against that server (named in its `initialize` result or, at `2026-07-28`, in `_meta`), or carry that tag |
 | `verdict:fail` | have that verdict: `pass`, `warn`, `fail`, `unsupported`, `unjudged` |
 | `timeout`, `"two words"` | hold the text in a finding, a name, a tag or any value above |
 

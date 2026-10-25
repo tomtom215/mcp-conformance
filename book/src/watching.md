@@ -37,6 +37,18 @@ it. With `--upstream http://localhost:3000` (no path), the client connects to
 `http://127.0.0.1:8080/mcp` instead; giving the path in both places reaches `/mcp/mcp`,
 which the server answers with a 404.
 
+`watch http` takes the recorder's `Host` flags, by the same names, and reads them by the same
+rule. For a server on this machine (`localhost`, `127.0.0.0/8`, `::1`) the client's `Host`
+header goes through to it, so the server's own DNS-rebinding check judges what the client
+sent; `--no-preserve-host` sends the server's own name instead, which makes that check pass
+for every request the proxy forwards (use it for a recording, not as a default), and
+`--preserve-host` asks for the client's wherever the server is. The startup lines say which
+is in force.
+
+```text
+mcp-conformance watch http --upstream http://localhost:3000/mcp --no-preserve-host
+```
+
 The proxy listens on `127.0.0.1:8080` unless you say otherwise:
 
 ```text
@@ -69,6 +81,20 @@ That is the corpus's `tool-006-name-charset` session replayed through `watch std
 On a terminal the tally is one line rewritten in place; in a log it follows each batch of
 new findings. When the session ends, `watch` prints `mcp-trace-validator`'s report of the
 whole trace — the same report `validate` prints — and the tally once more.
+
+The tally counts findings, and the report's `totals` count clauses: a server that declares
+the wrong `$schema` on fourteen tools has fourteen findings of one clause. The tally says
+how many clauses its findings fall in (`14 warn in 1 clause(s)`), once per session, so it
+reads against the totals (`1 warn`); a finding of the wire schema, which the totals do not
+count, is named beside them (`in 2 clause(s) and the wire schema`).
+
+In `http` mode, the recorder's summary when you stop also remarks on two statuses. A `404`
+that is not the MCP server speaking draws "is the endpoint path right?" (a client pointed
+at `/mcp/mcp` gets these); a `404` that carries a JSON-RPC message does not — it is how a
+server answers `ping`'s method-not-found, or a session it has ended. A `403` to a request
+whose `Host` named another host than the server's, passed through unchanged, draws the
+suggestion of `--no-preserve-host`, since that is what a server's `Host` or `Origin` check
+refuses; the proxy cannot tell that this is the cause, so the line says "if".
 
 Text quoted from the session (a method name, a tool name, an error message) is printed
 with control characters escaped as `\u{…}`, as the validator's own report prints it: a
