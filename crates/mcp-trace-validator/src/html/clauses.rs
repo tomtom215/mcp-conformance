@@ -36,6 +36,32 @@ pub(super) fn party_pill(out: &mut String, finding: &Finding, view: Option<Party
         (None, Some(_)) => out.push_str("<span class=\"pill party none\">unattributed</span>"),
         (None, None) => {}
     }
+    // A finding a baseline accepts is marked in the page's own vocabulary, with
+    // the reason on hover and in the list beside the finding; it keeps its
+    // place, because it is still in the trace.
+    if let Some(acceptance) = &finding.baselined {
+        let _ = write!(
+            out,
+            "<span class=\"pill party none\" title=\"accepted by baseline: {}\">accepted</span>",
+            Text(&acceptance.reason)
+        );
+    }
+}
+
+/// The reason a baseline accepts a finding, as a line of the finding's item.
+fn acceptance_line(out: &mut String, finding: &Finding) {
+    if let Some(acceptance) = &finding.baselined {
+        let until = acceptance
+            .expires
+            .as_deref()
+            .map_or_else(String::new, |day| format!(" (through {day})"));
+        let _ = write!(
+            out,
+            "<span class=\"check\">accepted by baseline: {}{}</span>",
+            Text(&acceptance.reason),
+            Text(&until)
+        );
+    }
 }
 
 /// The anchor name of the wire schema's row, beside the requirement IDs.
@@ -260,12 +286,14 @@ fn findings(
         }
         out.push_str("<span class=\"detail\">");
         party_pill(out, finding, view);
-        let _ = writeln!(
+        let _ = write!(
             out,
-            "{}</span><span class=\"check\">{}</span></li>",
+            "{}</span><span class=\"check\">{}</span>",
             Text(&finding.detail),
             Text(&finding.check)
         );
+        acceptance_line(out, finding);
+        out.push_str("</li>\n");
     }
     out.push_str("</ol>\n");
 }

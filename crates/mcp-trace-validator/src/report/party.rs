@@ -20,7 +20,7 @@ use mcp_conformance_core::requirement::Actor;
 use mcp_conformance_core::trace::Direction;
 use serde::{Deserialize, Serialize};
 
-use super::{Finding, Outcome, Report, Verdict};
+use super::{Finding, Report, Verdict};
 
 /// One end of a session: who sent a message, and who a finding is held against.
 ///
@@ -150,41 +150,16 @@ const fn plural(count: u32) -> &'static str {
     if count == 1 { "finding" } else { "findings" }
 }
 
-/// Whether a `fail` or `warn` row still fails or warns when viewed for
-/// `party`: one of its findings counts.
-fn row_counts(findings: &[Finding], party: Party) -> bool {
-    findings.iter().any(|finding| finding.counts_for(party))
-}
-
 impl Report {
     /// The verdict counting only the findings held against `party`, and those
     /// held against nobody: unsupported over fail over warnings over pass, as
     /// [`Self::verdict`] ranks them, where a `fail` or `warn` row — and a failed
-    /// wire schema — counts only through a finding that counts.
+    /// wire schema — counts only through a finding that counts. A baseline
+    /// ([`Self::effective_verdict`]) is not consulted: this is the party view
+    /// alone.
     #[must_use]
     pub fn verdict_for(&self, party: Party) -> Verdict {
-        if self.totals.unsupported > 0 {
-            return Verdict::Unsupported;
-        }
-        let schema_failed = self.wire_schema.as_ref().is_some_and(|schema| {
-            schema.outcome == Outcome::Fail && row_counts(&schema.findings, party)
-        });
-        let mut failed = schema_failed;
-        let mut warned = false;
-        for row in &self.requirements {
-            match row.outcome {
-                Outcome::Fail if row_counts(&row.findings, party) => failed = true,
-                Outcome::Warn if row_counts(&row.findings, party) => warned = true,
-                _ => {}
-            }
-        }
-        if failed {
-            Verdict::Fail
-        } else if warned {
-            Verdict::PassWithWarnings
-        } else {
-            Verdict::Pass
-        }
+        self.verdict_counting(|finding| finding.counts_for(party))
     }
 
     /// How this report's findings — the rows' and the wire schema's — fall when

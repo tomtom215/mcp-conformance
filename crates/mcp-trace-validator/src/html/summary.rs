@@ -7,6 +7,7 @@ use core::fmt::Write as _;
 
 use super::escape::Text;
 use super::{Scope, Trace, trace_verdict};
+use crate::baseline::{Entry, Notes};
 use crate::report::{Outcome, Report, Totals, Unjudged, Verdict};
 
 /// The verdict as a heading reads it.
@@ -188,9 +189,17 @@ pub(super) fn verdict(out: &mut String, scope: &Scope<'_>) {
 }
 
 /// Why the report reached its verdict, in a sentence — and, under a party
-/// view, what the view set aside or counted unattributed.
+/// view, what the view set aside or counted unattributed; under a baseline,
+/// how many findings it accepted, which are still on the page.
 fn why(report: &Report) -> String {
     let mut sentence = causes(report);
+    if report.baseline_applied {
+        let _ = write!(
+            sentence,
+            "; baseline applied: {}",
+            report.baseline_tally().describe()
+        );
+    }
     if let Some(party) = report.party_view {
         let _ = write!(sentence, "; {party} findings only");
         let what = report.party_tally(party).describe(party);
@@ -334,6 +343,73 @@ pub(super) fn unanswered_note(out: &mut String, scope: &Scope<'_>) {
         let _ = write!(out, "<p>… and {rest} more.</p>");
     }
     out.push_str("</aside>\n");
+}
+
+/// What a baseline said about the run itself: the entries that match no
+/// finding, which fail the run unless allowed, and the ones whose day has
+/// passed, whose findings count again.
+pub(super) fn baseline_note(out: &mut String, notes: &Notes) {
+    if notes.is_empty() {
+        return;
+    }
+    out.push_str(
+        "<aside class=\"note\" role=\"note\"><strong>Baseline entries that did not do their \
+         job.</strong>",
+    );
+    let few = notes.stale.len() == 1;
+    if !notes.stale.is_empty() {
+        let _ = write!(
+            out,
+            "<p>{} {} no finding of this run, so what {} accepted no longer occurs{}:</p>",
+            notes.stale.len(),
+            if few { "matches" } else { "match" },
+            if few { "it" } else { "they" },
+            if notes.allow_stale {
+                " (stale entries are allowed for this run)"
+            } else {
+                "; the run exits 1 until they are removed"
+            }
+        );
+        entry_list(out, &notes.stale, false);
+    }
+    if !notes.lapsed.is_empty() {
+        let few = notes.lapsed.len() == 1;
+        let _ = write!(
+            out,
+            "<p>{} {} expired, so {} accept{} nothing and {} counts again:</p>",
+            notes.lapsed.len(),
+            if few { "entry has" } else { "entries have" },
+            if few { "it" } else { "they" },
+            if few { "s" } else { "" },
+            if few {
+                "the finding it matched"
+            } else {
+                "each finding they matched"
+            }
+        );
+        entry_list(out, &notes.lapsed, true);
+    }
+    out.push_str("</aside>\n");
+}
+
+/// Baseline entries as a list: the fingerprint, the reason, and, for a lapsed
+/// entry, the day it expired.
+fn entry_list(out: &mut String, entries: &[Entry], with_day: bool) {
+    out.push_str("<ul>");
+    for entry in entries {
+        let day = entry
+            .expires
+            .filter(|_| with_day)
+            .map_or_else(String::new, |day| format!(" (expired {day})"));
+        let _ = write!(
+            out,
+            "<li><code>{}</code> — {}{}</li>",
+            Text(&entry.fingerprint),
+            Text(&entry.reason),
+            Text(&day)
+        );
+    }
+    out.push_str("</ul>");
 }
 
 /// The section links under the verdict.

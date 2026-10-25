@@ -437,3 +437,5 @@ fn a_run_of_reports_under_different_views_names_no_view() {
     .unwrap();
     assert_eq!(same["runs"][0]["properties"]["party_view"], "server");
 }
+
+mod baseline;

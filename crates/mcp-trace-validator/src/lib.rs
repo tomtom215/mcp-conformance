@@ -60,6 +60,7 @@
 #[doc = include_str!("../README.md")]
 pub struct ReadmeDoctests;
 
+pub mod baseline;
 pub mod checks;
 pub mod context;
 pub mod declared;

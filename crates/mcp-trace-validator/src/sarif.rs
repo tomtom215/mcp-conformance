@@ -17,6 +17,7 @@
 //! | an `unsupported` row | an invocation notification, and `executionSuccessful: false` |
 //! | a trace that could not be judged ([`render_run`]) | an invocation notification located at the trace, and `executionSuccessful: false` |
 //! | the requests a trace ended without answering ([`Report::unanswered_requests`]) | an invocation notification at level `note`, located at the trace, with the requests in its `properties`; `executionSuccessful` is untouched |
+//! | a finding a baseline accepts ([`Finding::baselined`](crate::report::Finding::baselined)) | a result at level `note` with `properties.counted: false` and SARIF's own `suppressions` (`kind: external`, `status: accepted`, the entry's reason as `justification`); a baseline entry that matches no finding is a `warning` notification, an expired one a `note` ([`render_run_with_baseline`]) |
 //! | pass / excluded / not-applicable / not-observed | nothing — SARIF records problems, not coverage |
 //!
 //! Every judged revision's findings are results of one run: code scanning
@@ -32,10 +33,13 @@
 use mcp_conformance_core::trace::TraceEvent;
 use serde_json::{Value, json};
 
+use crate::baseline::Notes;
 use crate::fingerprint::{Fingerprints, KEY, Place, Slot, WIRE_SCHEMA_RULE};
-use crate::report::{Outcome, Report, RequirementReport, Unjudged};
+use crate::report::{BaselineTally, Outcome, Report, RequirementReport, Unjudged};
 
+mod baseline;
 mod location;
+mod notify;
 mod rule;
 
 use location::location;
@@ -166,7 +170,44 @@ pub fn render_run(
     unjudged: &[Unjudged],
     options: &Options,
 ) -> String {
-    let all_reports = || traces.iter().flat_map(|(_, reports)| reports.iter());
+    render_run_with_baseline(traces, unjudged, options, &Notes::default())
+}
+
+/// Renders a run as [`render_run`] does, with what its baseline said about it
+/// ([`crate::baseline`]).
+///
+/// A finding a baseline accepts is a result with a `suppressions` entry —
+/// SARIF's own: `kind: external`, `status: accepted`, the entry's reason as the
+/// `justification` — at level `note`, so a consumer that ignores suppressions
+/// still does not fail on it. `notes` carries what no result can: a stale
+/// entry is a `warning` notification and a lapsed one a `note`, and the run's
+/// `properties.baseline` counts the findings accepted and not. No baseline, no
+/// such members: the log is [`render_run`]'s.
+///
+/// ```
+/// use mcp_trace_validator::baseline::{Entry, Notes};
+/// use mcp_trace_validator::sarif;
+///
+/// let mut notes = Notes::default();
+/// notes.stale.push(Entry::new("BASE-086:check:gone:1", "was fixed"));
+/// let log: serde_json::Value = serde_json::from_str(&sarif::render_run_with_baseline(
+///     &[],
+///     &[],
+///     &sarif::Options::default(),
+///     &notes,
+/// ))?;
+/// let note = &log["runs"][0]["invocations"][0]["toolExecutionNotifications"][0];
+/// assert_eq!(note["level"], "warning");
+/// assert_eq!(note["properties"]["kind"], "baseline-stale");
+/// # Ok::<(), serde_json::Error>(())
+/// ```
+#[must_use]
+pub fn render_run_with_baseline(
+    traces: &[(Artifact<'_>, &[Report])],
+    unjudged: &[Unjudged],
+    options: &Options,
+    notes: &Notes,
+) -> String {
     // A finding's fingerprint is the baseline's key as well ([`crate::fingerprint`]),
     // so both are computed in one place, in one order.
     let named: Vec<_> = traces
@@ -181,6 +222,7 @@ pub fn render_run(
         notifications: Vec::new(),
         strict: options.strict,
         party_view: None,
+        baseline_applied: false,
         noted: std::collections::BTreeSet::new(),
         at: (0, 0),
     };
@@ -193,22 +235,8 @@ pub fn render_run(
     for trace in unjudged {
         log.unjudged(trace);
     }
-    let mut revisions: Vec<&str> = Vec::new();
-    for report in all_reports() {
-        if !revisions.contains(&report.revision.as_str()) {
-            revisions.push(&report.revision);
-        }
-    }
-    // The view every report of the run was rendered under, when they agree
-    // (one `validate` invocation gives every report the same one).
-    let party_view = all_reports()
-        .map(|report| report.party_view)
-        .reduce(|first, next| if first == next { first } else { None })
-        .flatten();
-    let mut properties = json!({ "revisions": revisions });
-    if let Some(party) = party_view {
-        properties["party_view"] = json!(party);
-    }
+    log.notifications.extend(baseline::notifications(notes));
+    let properties = run_properties(traces);
     let log = json!({
         "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
         "version": "2.1.0",
@@ -235,6 +263,35 @@ pub fn render_run(
     out
 }
 
+/// The run's `properties`: the revisions judged, the party view every report
+/// was rendered under (when they agree — one `validate` invocation gives every
+/// report the same one), and how the findings fell under a baseline, when one
+/// was applied.
+fn run_properties(traces: &[(Artifact<'_>, &[Report])]) -> Value {
+    let all_reports = || traces.iter().flat_map(|(_, reports)| reports.iter());
+    let mut revisions: Vec<&str> = Vec::new();
+    for report in all_reports() {
+        if !revisions.contains(&report.revision.as_str()) {
+            revisions.push(&report.revision);
+        }
+    }
+    let party_view = all_reports()
+        .map(|report| report.party_view)
+        .reduce(|first, next| if first == next { first } else { None })
+        .flatten();
+    let mut properties = json!({ "revisions": revisions });
+    if let Some(party) = party_view {
+        properties["party_view"] = json!(party);
+    }
+    if all_reports().any(|report| report.baseline_applied) {
+        let tally = all_reports().fold(BaselineTally::default(), |sum, report| {
+            sum.plus(report.baseline_tally())
+        });
+        properties["baseline"] = json!(tally);
+    }
+    properties
+}
+
 /// The run as it is assembled: rules in order of first finding, their results,
 /// and the notifications for clauses this build cannot judge.
 struct Log<'r> {
@@ -250,6 +307,9 @@ struct Log<'r> {
     /// The party the report being added is viewed for
     /// ([`Report::party_view`]): a finding it sets aside is a `note`.
     party_view: Option<crate::report::Party>,
+    /// Whether a baseline was applied to the report being added: a finding it
+    /// accepts is a suppressed `note`.
+    baseline_applied: bool,
     /// The unanswered-requests notes already written, per trace.
     noted: std::collections::BTreeSet<(String, String)>,
     /// The trace and report (of that trace) being added.
@@ -261,6 +321,7 @@ impl Log<'_> {
     /// notifications, its failed wire schema, then its extensions'.
     fn report(&mut self, report: &Report, artifact: Artifact<'_>) {
         self.party_view = report.party_view;
+        self.baseline_applied = report.baseline_applied;
         if let Some(unanswered) = &report.unanswered_requests {
             self.unanswered(unanswered, artifact);
         }
@@ -332,7 +393,10 @@ impl Log<'_> {
             let set_aside = self
                 .party_view
                 .is_some_and(|party| !finding.counts_for(party));
-            let level = if extension.is_some() || set_aside {
+            // So is a finding a baseline accepts, which also carries SARIF's own
+            // `suppression` saying so and why.
+            let accepted = finding.baselined.as_ref();
+            let level = if extension.is_some() || set_aside || accepted.is_some() {
                 NOT_SCORED
             } else if self.strict && row.outcome == Outcome::Warn {
                 "error"
@@ -355,8 +419,11 @@ impl Log<'_> {
             if let Some(party) = finding.party {
                 result["properties"]["party"] = json!(party);
             }
-            if self.party_view.is_some() {
-                result["properties"]["counted"] = json!(!set_aside);
+            if self.party_view.is_some() || self.baseline_applied {
+                result["properties"]["counted"] = json!(!set_aside && accepted.is_none());
+            }
+            if let Some(acceptance) = accepted {
+                result["suppressions"] = baseline::suppressions(acceptance);
             }
             if let Some(extension) = extension {
                 result["properties"]["extension"] = json!(extension);
@@ -364,59 +431,6 @@ impl Log<'_> {
             }
             self.results.push(result);
         }
-    }
-
-    /// The requests a trace ended without answering: a `note`-level
-    /// notification located at the trace, once per trace — the reports of one
-    /// trace judged under several revisions all carry the same note.
-    fn unanswered(
-        &mut self,
-        unanswered: &crate::report::UnansweredRequests,
-        artifact: Artifact<'_>,
-    ) {
-        let text = unanswered.one_line();
-        let key = (artifact.uri.unwrap_or_default().to_owned(), text.clone());
-        if !self.noted.insert(key) {
-            return;
-        }
-        self.notifications.push(json!({
-            "level": "note",
-            "message": { "text": text },
-            "locations": location(artifact, None),
-            "properties": {
-                "kind": "unanswered-requests",
-                "count": unanswered.count,
-                "ending": unanswered.ending,
-                "requests": unanswered.requests,
-            },
-        }));
-    }
-
-    /// A trace the run could not judge at all, located at the trace.
-    fn unjudged(&mut self, trace: &Unjudged) {
-        let at = Artifact {
-            uri: Some(&trace.trace),
-            events: &[],
-        };
-        self.notifications.push(json!({
-            "level": "error",
-            "message": { "text": trace.error },
-            "locations": location(at, None),
-        }));
-    }
-
-    /// An `unsupported` row: the run could not judge this clause.
-    fn unsupported(&mut self, row: &RequirementReport, revision: &str) {
-        self.notifications.push(json!({
-            "level": "error",
-            "message": {
-                "text": format!(
-                    "{} ({revision}): the registry references checks this build does not implement: {}",
-                    row.id,
-                    row.missing_checks.join(", ")
-                ),
-            },
-        }));
     }
 }
 

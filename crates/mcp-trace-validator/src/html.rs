@@ -36,6 +36,7 @@ use core::fmt::Write as _;
 
 use mcp_conformance_core::trace::{TraceEvent, TransportKind};
 
+use crate::baseline::Notes;
 use crate::report::{Report, Unjudged, Verdict};
 
 mod clauses;
@@ -114,6 +115,33 @@ pub fn render(reports: &[Report], trace: Trace<'_>) -> String {
 /// ```
 #[must_use]
 pub fn render_run(traces: &[(Trace<'_>, &[Report])], unjudged: &[Unjudged]) -> String {
+    render_run_with_baseline(traces, unjudged, &Notes::default())
+}
+
+/// Renders a run as [`render_run`] does, with what its baseline said about it
+/// ([`crate::baseline`]).
+///
+/// The reports carry the findings a baseline accepts, shown on the page marked
+/// `accepted` with their reasons; `notes` carries what no finding can — the
+/// entries that match nothing and the ones whose day has passed — in a note
+/// under the verdict. No notes, and the page is [`render_run`]'s.
+///
+/// ```
+/// use mcp_trace_validator::baseline::{Entry, Notes};
+/// use mcp_trace_validator::html;
+///
+/// let mut notes = Notes::default();
+/// notes.stale.push(Entry::new("BASE-086:check:gone:1", "was fixed"));
+/// let page = html::render_run_with_baseline(&[], &[], &notes);
+/// assert!(page.contains("Baseline entries that did not do their job"));
+/// assert!(page.contains("BASE-086:check:gone:1"));
+/// ```
+#[must_use]
+pub fn render_run_with_baseline(
+    traces: &[(Trace<'_>, &[Report])],
+    unjudged: &[Unjudged],
+    notes: &Notes,
+) -> String {
     let mut out = String::with_capacity(64 * 1024);
     if let ([(trace, reports)], []) = (traces, unjudged) {
         let scope = Scope::new(*trace, reports, "", 2);
@@ -121,7 +149,7 @@ pub fn render_run(traces: &[(Trace<'_>, &[Report])], unjudged: &[Unjudged]) -> S
         out.push_str("<body>\n");
         summary::masthead(&mut out, &scope, "MCP trace validation report");
         out.push_str("<main id=\"main\" class=\"wrap\">\n");
-        trace_body(&mut out, &scope);
+        trace_body(&mut out, &scope, notes);
     } else {
         let overall = run_verdict(traces, unjudged);
         let name = format!("{} traces", traces.len() + unjudged.len());
@@ -130,6 +158,7 @@ pub fn render_run(traces: &[(Trace<'_>, &[Report])], unjudged: &[Unjudged]) -> S
         summary::run_masthead(&mut out, traces.len() + unjudged.len());
         out.push_str("<main id=\"main\" class=\"wrap\">\n");
         summary::run_summary(&mut out, traces, unjudged, overall);
+        summary::baseline_note(&mut out, notes);
         for (index, (trace, reports)) in traces.iter().enumerate() {
             let scope = Scope::new(*trace, reports, &format!("t{index}-"), 3);
             let _ = writeln!(
@@ -137,7 +166,7 @@ pub fn render_run(traces: &[(Trace<'_>, &[Report])], unjudged: &[Unjudged]) -> S
                 "<section class=\"trace\" id=\"t{index}\" aria-labelledby=\"t{index}-title\">"
             );
             summary::trace_heading(&mut out, &scope, index);
-            trace_body(&mut out, &scope);
+            trace_body(&mut out, &scope, &Notes::default());
             out.push_str("</section>\n");
         }
     }
@@ -147,9 +176,11 @@ pub fn render_run(traces: &[(Trace<'_>, &[Report])], unjudged: &[Unjudged]) -> S
     out
 }
 
-/// One trace's verdict, sections and accounting, under its header.
-fn trace_body(out: &mut String, scope: &Scope<'_>) {
+/// One trace's verdict, sections and accounting, under its header. `notes` is
+/// the run's baseline notes, shown here only when the page is of one trace.
+fn trace_body(out: &mut String, scope: &Scope<'_>, notes: &Notes) {
     summary::verdict(out, scope);
+    summary::baseline_note(out, notes);
     summary::mismatch_notes(out, scope);
     summary::unanswered_note(out, scope);
     summary::contents(out, scope);

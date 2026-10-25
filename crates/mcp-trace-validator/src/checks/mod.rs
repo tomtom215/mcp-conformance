@@ -109,6 +109,7 @@ impl FindingSink {
             seq,
             party: None,
             detail,
+            baselined: None,
         });
     }
 

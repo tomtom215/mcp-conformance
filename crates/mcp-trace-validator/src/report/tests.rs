@@ -52,6 +52,7 @@ fn sample() -> Report {
         seq: Some(3),
         party: Some(Party::Client),
         detail: "first message is \"tools/list\", expected \"initialize\"".to_owned(),
+        baselined: None,
     }];
     failed.source = Some(ClauseSource {
         section: "basic/lifecycle#initialization".to_owned(),
@@ -66,6 +67,7 @@ fn sample() -> Report {
         revision_mismatch: None,
         revision_source: None,
         party_view: None,
+        baseline_applied: false,
         revision: "2025-11-25".to_owned(),
         totals: Totals {
             pass: 1,
@@ -319,6 +321,7 @@ fn with_findings(count: u64) -> Report {
             seq: Some(seq),
             party: Some(Party::Client),
             detail: format!("defect {seq}"),
+            baselined: None,
         })
         .collect();
     failed.findings.push(Finding {
@@ -326,6 +329,7 @@ fn with_findings(count: u64) -> Report {
         seq: None,
         party: None,
         detail: "defect without a seq".to_owned(),
+        baselined: None,
     });
     report
 }
@@ -443,6 +447,7 @@ fn an_extension_failure_leaves_the_verdict_alone() {
     assert!(human.trim_end().ends_with("verdict: pass"), "{human}");
 }
 
+mod baseline;
 mod party;
 mod schema;
 

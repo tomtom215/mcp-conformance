@@ -27,9 +27,11 @@ use std::collections::{BTreeMap, HashMap};
 use crate::report::{Finding, Outcome, Report};
 
 /// The fingerprint's key in a SARIF result's `partialFingerprints`, and the
-/// scheme a baseline file names. The version suffix moves with any change to
-/// how a fingerprint is formed, so a consumer's alerts (or a baseline) reopen
-/// once rather than silently mismatch.
+/// scheme a baseline file names.
+///
+/// The version suffix moves with any change to how a fingerprint is formed, so
+/// a consumer's alerts (or a baseline) reopen once rather than silently
+/// mismatch.
 pub const KEY: &str = "mcpConformanceFinding/v2";
 
 /// The rule of wire-schema findings: lower case, so it can never collide with a
@@ -101,6 +103,49 @@ pub(crate) struct Found {
     pub(crate) scored: bool,
 }
 
+/// The fingerprints taken so far, and how many findings of each stem each trace
+/// has had: the count that ends a fingerprint.
+#[derive(Default)]
+struct Counter {
+    seen: BTreeMap<(String, String), usize>,
+    found: Vec<Found>,
+}
+
+impl Counter {
+    /// Fingerprints `findings`, a list of the report at `(trace, report, place)`
+    /// of the trace named `name`, under `rule_id`, in order.
+    fn list(
+        &mut self,
+        (name, rule_id): (&str, &str),
+        (trace, report, place): (usize, usize, Place),
+        findings: &[Finding],
+        scored: bool,
+    ) {
+        for (finding_index, finding) in findings.iter().enumerate() {
+            let stem = format!(
+                "{rule_id}:{}:{}",
+                finding.check,
+                fold_numbers(&finding.detail)
+            );
+            let n = self
+                .seen
+                .entry((name.to_owned(), stem.clone()))
+                .or_insert(0);
+            *n += 1;
+            self.found.push(Found {
+                slot: Slot {
+                    trace,
+                    report,
+                    place,
+                    finding: finding_index,
+                },
+                fingerprint: format!("{stem}:{n}"),
+                scored,
+            });
+        }
+    }
+}
+
 /// Every fingerprint of a run, computed once and addressed by [`Slot`].
 pub(crate) struct Fingerprints<'r> {
     rule_ids: BTreeMap<(&'r str, &'r str), String>,
@@ -117,33 +162,17 @@ impl<'r> Fingerprints<'r> {
     /// warning rows — the order SARIF writes its results in.
     pub(crate) fn of(traces: &[(Option<&str>, &'r [Report])]) -> Self {
         let rule_ids = rule_ids(traces.iter().flat_map(|(_, reports)| reports.iter()));
-        let mut found = Vec::new();
-        let mut seen: BTreeMap<(&str, String), usize> = BTreeMap::new();
+        let mut counter = Counter::default();
         for (trace, (name, reports)) in traces.iter().enumerate() {
             for (report_index, report) in reports.iter().enumerate() {
                 let mut visit = |place: Place, id: &str, findings: &[Finding], scored: bool| {
                     let rule_id = &rule_ids[&(id, report.revision.as_str())];
-                    for (finding_index, finding) in findings.iter().enumerate() {
-                        let stem = format!(
-                            "{rule_id}:{}:{}",
-                            finding.check,
-                            fold_numbers(&finding.detail)
-                        );
-                        let n = seen
-                            .entry((name.unwrap_or_default(), stem.clone()))
-                            .or_insert(0);
-                        *n += 1;
-                        found.push(Found {
-                            slot: Slot {
-                                trace,
-                                report: report_index,
-                                place,
-                                finding: finding_index,
-                            },
-                            fingerprint: format!("{stem}:{n}"),
-                            scored,
-                        });
-                    }
+                    counter.list(
+                        (name.unwrap_or_default(), rule_id),
+                        (trace, report_index, place),
+                        findings,
+                        scored,
+                    );
                 };
                 for (row_index, row) in report.requirements.iter().enumerate() {
                     if matches!(row.outcome, Outcome::Fail | Outcome::Warn) {
@@ -170,6 +199,7 @@ impl<'r> Fingerprints<'r> {
                 }
             }
         }
+        let found = counter.found;
         let index = found
             .iter()
             .enumerate()

@@ -6,7 +6,8 @@
 
 use core::fmt::Write as _;
 
-use super::{Options, clause_lines, escape, location, skip_reason};
+use super::Options;
+use super::text::{clause_lines, escape, location, skip_reason};
 use crate::report::{ExtensionReport, Outcome, Report, RequirementReport};
 
 /// `(tests, failures, skipped)` for one extension's suite: never a failure.

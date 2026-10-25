@@ -13,16 +13,20 @@ use core::fmt;
 use mcp_conformance_core::requirement::Actor;
 use serde::{Deserialize, Serialize};
 
+mod baseline;
 mod clause;
 mod human;
 mod party;
 mod serialize;
 mod unanswered;
+mod verdict;
 
+pub use baseline::{Acceptance, BaselineTally};
 pub use party::{Party, PartyTally};
 pub use unanswered::{
     LISTED_UNANSWERED, TraceEnding, UNANSWERED_WHY, UnansweredRequest, UnansweredRequests,
 };
+pub use verdict::Verdict;
 
 /// The JSON Schema (draft 2020-12) of `validate --format json` output.
 ///
@@ -34,6 +38,14 @@ pub const JSON_SCHEMA: &str = include_str!("../schema/report.schema.json");
 
 pub use clause::ClauseSource;
 pub use human::{HumanOptions, printable};
+
+/// Reads a report's `baseline` member as the fact that a baseline was applied;
+/// the counts in it are derived from the findings, so none is read back.
+pub(crate) fn baseline_present<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<bool, D::Error> {
+    <serde::de::IgnoredAny as Deserialize>::deserialize(deserializer).map(|_| true)
+}
 
 /// One concrete violation, addressed to a requirement and (where possible) an event.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -52,6 +64,11 @@ pub struct Finding {
     pub party: Option<Party>,
     /// What was observed and what was expected, in one actionable sentence.
     pub detail: String,
+    /// The baseline entry that accepts this finding, when a baseline was applied
+    /// and one matched ([`crate::baseline`]): the finding stays in the report,
+    /// and the verdict does not count it. Absent by default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub baselined: Option<Acceptance>,
 }
 
 /// The outcome of evaluating one requirement against one trace.
@@ -269,6 +286,12 @@ pub struct Report {
     /// Absent by default, when every finding counts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub party_view: Option<Party>,
+    /// Whether a baseline was applied to this report ([`crate::baseline`]):
+    /// findings it accepts carry their [`Finding::baselined`], and do not count
+    /// toward [`Self::effective_verdict`]. Serialized as the `baseline` member,
+    /// whose counts are derived ([`Self::baseline_tally`]); absent by default.
+    #[serde(default, rename = "baseline", deserialize_with = "baseline_present")]
+    pub baseline_applied: bool,
     /// Aggregate counts.
     pub totals: Totals,
     /// Per-requirement outcomes, in registry order.
@@ -379,72 +402,16 @@ impl Report {
         }
     }
 
-    /// The verdict as the report is viewed: [`Self::verdict`], or
-    /// [`Self::verdict_for`] its [`Self::party_view`] when one is set. What the
-    /// JSON's `verdict` member carries and the exit status follows.
+    /// The verdict as the report is viewed: [`Self::verdict`], or, under a
+    /// [`Self::party_view`] or an applied baseline, the verdict of the
+    /// findings that [`count`](Self::counts). What the JSON's `verdict` member
+    /// carries and the exit status follows.
     #[must_use]
     pub fn effective_verdict(&self) -> Verdict {
-        self.party_view
-            .map_or_else(|| self.verdict(), |party| self.verdict_for(party))
-    }
-}
-
-/// Overall verdict of a validation run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[non_exhaustive]
-pub enum Verdict {
-    /// No findings at all.
-    Pass,
-    /// Only SHOULD-level findings.
-    PassWithWarnings,
-    /// At least one MUST-level violation, or a message invalid against the
-    /// revision's JSON Schema.
-    Fail,
-    /// The registry and this build disagree about available checks.
-    Unsupported,
-    /// A run over several traces could not judge at least one of them — it was
-    /// unreadable, malformed, of an unsupported revision, or judged nothing —
-    /// so no verdict covers the whole run. Never the verdict of one report: a
-    /// trace that cannot be judged has no report.
-    ///
-    /// Ranked above every other verdict, as its exit status (`2` or `3`) ranks
-    /// above theirs: whatever the judged traces say, a run that left one out
-    /// must not read as passing.
-    Incomplete,
-}
-
-impl Verdict {
-    /// The most severe of `verdicts` — incomplete over unsupported over fail
-    /// over warnings over pass, the order a report derives its own — or `None`
-    /// when there are none.
-    pub fn most_severe(verdicts: impl IntoIterator<Item = Self>) -> Option<Self> {
-        verdicts
-            .into_iter()
-            .max_by_key(|verdict| verdict.severity())
-    }
-
-    const fn severity(self) -> u8 {
-        match self {
-            Self::Pass => 0,
-            Self::PassWithWarnings => 1,
-            Self::Fail => 2,
-            Self::Unsupported => 3,
-            Self::Incomplete => 4,
+        if self.party_view.is_none() && !self.baseline_applied {
+            return self.verdict();
         }
-    }
-}
-
-impl fmt::Display for Verdict {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let text = match self {
-            Self::Pass => "pass",
-            Self::PassWithWarnings => "pass-with-warnings",
-            Self::Fail => "fail",
-            Self::Unsupported => "unsupported",
-            Self::Incomplete => "incomplete",
-        };
-        f.write_str(text)
+        self.verdict_counting(|finding| self.counts(finding))
     }
 }
 

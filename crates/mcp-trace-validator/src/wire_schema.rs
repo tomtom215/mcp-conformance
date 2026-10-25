@@ -341,6 +341,7 @@ pub(crate) fn check(
             seq: Some(event.seq),
             party: Some(party),
             detail,
+            baselined: None,
         });
     }
     let outcome = if messages == 0 {

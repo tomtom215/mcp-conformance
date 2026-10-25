@@ -210,6 +210,7 @@ fn a_party_view_changes_the_badge_and_says_why() {
             seq: None,
             party: None,
             detail: "nobody's".to_owned(),
+            baselined: None,
         });
     reports[0].requirements[0].outcome = crate::report::Outcome::Fail;
     let page = render(

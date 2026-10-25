@@ -28,6 +28,7 @@ use serde::{Deserialize, Serialize};
 use crate::engine;
 use crate::report::{ClauseSource, Finding, HumanOptions, Outcome, Party, Totals, Verdict};
 
+mod baseline;
 mod party;
 mod rows;
 
@@ -163,6 +164,16 @@ pub struct MultiReport {
     /// from the findings held against that party.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub party_view: Option<Party>,
+    /// Whether a baseline was applied ([`Self::adopt_baseline`]): findings it
+    /// accepts carry their [`Finding::baselined`], and no revision's verdict
+    /// counts them. Serialized as the `baseline` member, whose counts are
+    /// derived ([`Self::baseline_tally`]); absent by default.
+    #[serde(
+        default,
+        rename = "baseline",
+        deserialize_with = "crate::report::baseline_present"
+    )]
+    pub baseline_applied: bool,
     /// The requests the trace ended without answering
     /// ([`Report::unanswered_requests`](crate::report::Report::unanswered_requests)):
     /// a fact of the trace, the same under every revision, so carried once.
@@ -253,18 +264,12 @@ impl MultiReport {
             unanswered.write_human(&mut out);
         }
         self.write_summaries(&mut out);
-        match self.party_view {
-            Some(party) => {
-                let _ = writeln!(
-                    out,
-                    "overall verdict ({party} findings only): {}",
-                    self.verdict()
-                );
-            }
-            None => {
-                let _ = writeln!(out, "overall verdict: {}", self.verdict());
-            }
+        if self.baseline_applied {
+            let _ = writeln!(out, "baseline: {}", self.baseline_tally().describe());
         }
+        let label =
+            HumanOptions::verdict_label("overall verdict", self.party_view, self.baseline_applied);
+        let _ = writeln!(out, "{label}: {}", self.verdict());
         self.write_revision_mismatch(&mut out);
         out
     }
@@ -282,16 +287,22 @@ impl MultiReport {
                 "  {}: {} — verdict {}",
                 summary.revision, summary.totals, summary.verdict
             );
-            match self.party_view {
-                Some(party) => {
-                    let _ = write!(out, " ({party} findings only");
-                    let what = self.party_tally(index, party).describe(party);
-                    if !what.is_empty() {
-                        let _ = write!(out, ": {what}");
-                    }
-                    out.push_str(")\n");
-                }
-                None => out.push('\n'),
+            let mut views = Vec::new();
+            if let Some(party) = self.party_view {
+                let what = self.party_tally(index, party).describe(party);
+                views.push(if what.is_empty() {
+                    format!("{party} findings only")
+                } else {
+                    format!("{party} findings only: {what}")
+                });
+            }
+            if self.baseline_applied {
+                views.push("baseline applied".to_owned());
+            }
+            if views.is_empty() {
+                out.push('\n');
+            } else {
+                let _ = writeln!(out, " ({})", views.join(", "));
             }
             if let Some(wire_schema) = &summary.wire_schema {
                 let _ = writeln!(
@@ -349,7 +360,7 @@ impl MultiReport {
 impl Serialize for MultiReport {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct as _;
-        let mut report = serializer.serialize_struct("MultiReport", 8)?;
+        let mut report = serializer.serialize_struct("MultiReport", 9)?;
         report.serialize_field("revisions", &self.revisions)?;
         if let Some(mismatch) = &self.revision_mismatch {
             report.serialize_field("revision_mismatch", mismatch)?;
@@ -365,6 +376,11 @@ impl Serialize for MultiReport {
             report.serialize_field("party_view", party)?;
         } else {
             report.skip_field("party_view")?;
+        }
+        if self.baseline_applied {
+            report.serialize_field("baseline", &self.baseline_tally())?;
+        } else {
+            report.skip_field("baseline")?;
         }
         report.serialize_field("verdict", &self.verdict())?;
         report.serialize_field("summaries", &self.summaries)?;
@@ -460,6 +476,7 @@ pub fn validate_revisions(
         revision_mismatch: crate::declared::mismatch_any(revisions, events),
         revision_source: None,
         party_view: None,
+        baseline_applied: false,
         // The same under every revision: it reads the events, not the registry.
         unanswered_requests: reports
             .first()
