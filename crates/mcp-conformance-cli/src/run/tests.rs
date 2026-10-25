@@ -4,34 +4,83 @@
 use super::*;
 use crate::judging::Judged;
 
-/// A judged session: a clean handshake, plus a reused id when it should fail.
-pub(crate) fn judged(fail: bool) -> Judged {
-    let mut trace = String::from(concat!(
-        r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"0"}}}}"#,
-        "\n",
-        r#"{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}"#,
-        "\n",
-        r#"{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}"#,
-        "\n"
-    ));
-    if fail {
-        trace.push_str(concat!(
-            r#"{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"ping"}}"#,
-            "\n",
-            r#"{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{}}}"#,
-            "\n"
-        ));
-    }
-    let judgment = mcp_trace_validator::judge::judge(&trace).unwrap();
+/// No failures, as a typed value to compare a list against.
+fn no_failures() -> Vec<mcp_conformance_cli::agreement::ValidatorFailure> {
+    Vec::new()
+}
+
+/// A clean handshake.
+const HANDSHAKE: &str = concat!(
+    r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"0"}}}}"#,
+    "\n",
+    r#"{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"s","version":"0"}}}}"#,
+    "\n",
+    r#"{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}"#,
+    "\n"
+);
+
+/// A `ping` the server answers with a result that is not empty: PING-001 and
+/// nothing else, held against the server that sent it.
+pub(crate) const SERVER_BREAKS_PING_001: &str = concat!(
+    r#"{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"ping"}}"#,
+    "\n",
+    r#"{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"extra":1}}}"#,
+    "\n"
+);
+
+/// A `ping` that reuses the `initialize` request's id: BASE-003, held against
+/// the client that sent it.
+pub(crate) const CLIENT_BREAKS_BASE_003: &str = concat!(
+    r#"{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"ping"}}"#,
+    "\n",
+    r#"{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{}}}"#,
+    "\n"
+);
+
+/// A session judged and viewed for `party`.
+pub(crate) fn session(party: Party, body: &str) -> Judged {
+    let judgment = mcp_trace_validator::judge::judge(&format!("{HANDSHAKE}{body}")).unwrap();
     Judged {
         name: "001.jsonl".to_owned(),
         path: PathBuf::from("/w/traces/001.jsonl"),
         events: judgment.events,
-        reports: judgment.reports,
+        reports: judgment
+            .reports
+            .into_iter()
+            .map(|mut report| {
+                report.party_view = Some(party);
+                report
+            })
+            .collect(),
     }
 }
 
+/// A judged session of a server under test: a clean handshake, plus (when it
+/// should fail) a `ping` answered with a non-empty result, which breaks
+/// PING-001, the server's own.
+pub(crate) fn judged(fail: bool) -> Judged {
+    session(
+        Party::Server,
+        if fail { SERVER_BREAKS_PING_001 } else { "" },
+    )
+}
+
+/// A judged session of a server under test whose *suite's client* breaks
+/// BASE-003: the finding is the client's.
+pub(crate) fn judged_client_fault() -> Judged {
+    session(Party::Server, CLIENT_BREAKS_BASE_003)
+}
+
 pub(crate) fn outcome(suite_passed: bool, judged: Vec<Judged>, baseline: &Baseline) -> Outcome {
+    outcome_for(Party::Server, suite_passed, judged, baseline)
+}
+
+pub(crate) fn outcome_for(
+    party: Party,
+    suite_passed: bool,
+    judged: Vec<Judged>,
+    baseline: &Baseline,
+) -> Outcome {
     let judging = Judging {
         judged,
         unjudged: vec![mcp_trace_validator::report::Unjudged::new(
@@ -39,15 +88,17 @@ pub(crate) fn outcome(suite_passed: bool, judged: Vec<Judged>, baseline: &Baseli
             "the server sent no message",
         )],
     };
-    let reconciliation = agreement::reconcile(baseline, &judging.failures());
+    let reconciliation = agreement::reconcile_for(baseline, &judging.failures(), party);
     Outcome {
         subject: "http://localhost:3000/mcp".to_owned(),
         spec_version: "2025-11-25".to_owned(),
+        party,
         suite_passed,
         scenarios: vec![],
         not_run: vec![("dns-rebinding-protection".to_owned(), "why")],
         judging,
         reconciliation,
+        fixtures: None,
         baseline: None,
         work_dir: PathBuf::from("/w"),
     }
@@ -70,7 +121,7 @@ fn the_exit_code_is_the_suite_and_the_agreement() {
         "an unexplained failing clause is a disagreement"
     );
     let explains = Baseline::parse(
-        r#"{"policy":"p","divergences":[{"requirement":"BASE-003","class":"our-bug","upstream":"https://e.example/1"}]}"#,
+        r#"{"policy":"p","divergences":[{"requirement":"PING-001","class":"our-bug","upstream":"https://e.example/1"}]}"#,
     )
     .unwrap();
     let explained = outcome(true, vec![judged(true)], &explains);
@@ -95,6 +146,82 @@ fn the_exit_code_is_the_suite_and_the_agreement() {
         EXIT_USAGE,
         "a build that cannot judge"
     );
+}
+
+/// The audit's finding 1.1: the suite's own client breaks a clause (here
+/// BASE-003, a reused request id) in a session with a conforming server. The
+/// finding is the client's; a server under test is not held to it, and a client
+/// under test, whose finding it is, is.
+#[test]
+fn the_other_ends_failure_is_set_aside_and_the_subjects_own_breaks_agreement() {
+    let none = Baseline::default();
+    let server = outcome(true, vec![judged_client_fault()], &none);
+    let set_aside = &server.reconciliation.set_aside;
+    assert_eq!(set_aside.len(), 1, "{:?}", server.reconciliation);
+    assert_eq!(set_aside[0].requirement, "BASE-003");
+    assert_eq!(set_aside[0].party, Some(Party::Client));
+    assert_eq!(server.reconciliation.unexplained, no_failures());
+    assert_eq!(server.exit_code(), EXIT_OK, "not the server's to fix");
+    assert_eq!(
+        server.judging.verdict(),
+        Verdict::Pass,
+        "the session reads clean for the server"
+    );
+
+    let client = outcome_for(
+        Party::Client,
+        true,
+        vec![session(Party::Client, CLIENT_BREAKS_BASE_003)],
+        &none,
+    );
+    assert_eq!(client.reconciliation.unexplained.len(), 1);
+    assert_eq!(client.reconciliation.set_aside, no_failures());
+    assert_eq!(client.exit_code(), EXIT_FINDINGS, "the client's own");
+    assert_eq!(client.judging.verdict(), Verdict::Fail);
+
+    // And the server's own failure is the server's, whichever way it is read.
+    let own = outcome(true, vec![judged(true)], &none);
+    assert_eq!(own.reconciliation.unexplained[0].party, Some(Party::Server));
+    assert_eq!(own.exit_code(), EXIT_FINDINGS);
+    let suites = outcome_for(
+        Party::Client,
+        true,
+        vec![session(Party::Client, SERVER_BREAKS_PING_001)],
+        &none,
+    );
+    assert_eq!(suites.reconciliation.set_aside[0].requirement, "PING-001");
+    assert_eq!(suites.exit_code(), EXIT_OK, "the suite's own server's");
+}
+
+/// The baseline still explains a failure held against either end, and an entry
+/// that explains only the suite's own end's failure is live, not stale.
+#[test]
+fn a_baseline_entry_for_the_suites_own_failure_stays_live() {
+    let explains = Baseline::parse(
+        r#"{"policy":"p","divergences":[{"requirement":"BASE-003","class":"suite-bug","upstream":"https://e.example/1"}]}"#,
+    )
+    .unwrap();
+    let run = outcome(true, vec![judged_client_fault()], &explains);
+    assert_eq!(run.reconciliation.explained.len(), 1);
+    assert_eq!(run.reconciliation.set_aside, no_failures());
+    assert!(
+        run.reconciliation.stale.is_empty(),
+        "{:?}",
+        run.reconciliation
+    );
+    assert_eq!(run.exit_code(), EXIT_OK);
+}
+
+#[test]
+fn the_subject_is_the_end_of_the_session_its_flag_names() {
+    let subject = |url: bool, command: bool, client: bool| Subject {
+        url: url.then(|| "http://x/mcp".to_owned()),
+        command: command.then(|| "server".to_owned()),
+        client_command: client.then(|| "client".to_owned()),
+    };
+    assert_eq!(subject_party(&subject(true, false, false)), Party::Server);
+    assert_eq!(subject_party(&subject(false, true, false)), Party::Server);
+    assert_eq!(subject_party(&subject(false, false, true)), Party::Client);
 }
 
 #[test]

@@ -15,10 +15,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use mcp_conformance_cli::agreement::{self, Baseline, Reconciliation};
 use mcp_conformance_cli::suite::{self, Scenario};
+use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_capture::Signals;
-use mcp_trace_validator::report::Verdict;
+use mcp_trace_validator::report::{Party, Verdict};
 
 use crate::args::{Subject, TestArgs};
+use crate::fixtures::{self, Fixtures};
 use crate::judging::{self, Judging};
 use crate::{EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, bridge, node, proxy, relay, render};
 
@@ -32,6 +34,9 @@ pub(crate) struct Outcome {
     /// The subject as the report names it (a URL without its query).
     pub(crate) subject: String,
     pub(crate) spec_version: String,
+    /// Which end of the session the subject is. Every report is viewed for it,
+    /// and the agreement holds the run to it: the other end is the suite's own.
+    pub(crate) party: Party,
     /// Whether every suite invocation exited successfully.
     pub(crate) suite_passed: bool,
     pub(crate) scenarios: Vec<Scenario>,
@@ -39,6 +44,9 @@ pub(crate) struct Outcome {
     pub(crate) not_run: Vec<(String, &'static str)>,
     pub(crate) judging: Judging,
     pub(crate) reconciliation: Reconciliation,
+    /// The names the suite asked a server for that its own listings do not
+    /// include, when the suite failed scenarios and the traffic shows any.
+    pub(crate) fixtures: Option<Fixtures>,
     /// The divergence baseline's path, or `None` without one.
     pub(crate) baseline: Option<PathBuf>,
     pub(crate) work_dir: PathBuf,
@@ -67,7 +75,7 @@ pub(crate) async fn test(args: TestArgs) -> u8 {
             if !render::write(&outcome, &report) {
                 return EXIT_USAGE;
             }
-            render::summary(&outcome);
+            render::summary(&outcome, &report);
             outcome.exit_code()
         }
         Err(message) => {
@@ -113,7 +121,32 @@ async fn outcome(args: TestArgs) -> Result<Outcome, String> {
             results.display()
         ));
     }
-    let judging = judging::judge_dir(&traces)?;
+    let party = subject_party(&args.subject);
+    let (judging, reconciliation) = judge_and_reconcile(&traces, &baseline, party)?;
+    let fixtures = missing_fixtures(party, &scenarios, &judging);
+    Ok(Outcome {
+        subject,
+        spec_version: args.spec_version,
+        party,
+        suite_passed,
+        scenarios,
+        not_run,
+        judging,
+        reconciliation,
+        fixtures,
+        baseline: args.divergences,
+        work_dir,
+    })
+}
+
+/// Every recorded session judged and viewed for `party`, and the failures held
+/// to the baseline for it.
+fn judge_and_reconcile(
+    traces: &Path,
+    baseline: &Baseline,
+    party: Party,
+) -> Result<(Judging, Reconciliation), String> {
+    let judging = judging::judge_dir(traces, party)?;
     if judging.judged.is_empty() {
         return Err(format!(
             "no recorded session under {} could be judged ({} recorded); the recording \
@@ -122,18 +155,34 @@ async fn outcome(args: TestArgs) -> Result<Outcome, String> {
             judging.unjudged.len()
         ));
     }
-    let reconciliation = agreement::reconcile(&baseline, &judging.failures());
-    Ok(Outcome {
-        subject,
-        spec_version: args.spec_version,
-        suite_passed,
-        scenarios,
-        not_run,
-        judging,
-        reconciliation,
-        baseline: args.divergences,
-        work_dir,
-    })
+    let reconciliation = agreement::reconcile_for(baseline, &judging.failures(), party);
+    Ok((judging, reconciliation))
+}
+
+/// What the traffic shows of the suite asking a server for names it does not
+/// list, when the suite failed a scenario. A client under test is not asked
+/// for fixtures: it is the suite's server that has them.
+fn missing_fixtures(party: Party, scenarios: &[Scenario], judging: &Judging) -> Option<Fixtures> {
+    if party != Party::Server || !scenarios.iter().any(Scenario::failed) {
+        return None;
+    }
+    let sessions: Vec<&[TraceEvent]> = judging
+        .judged
+        .iter()
+        .map(|one| one.events.as_slice())
+        .collect();
+    fixtures::find(&sessions)
+}
+
+/// The end of the session the subject is: a client under test
+/// (`--client-command`) is the client; a server (`--url`, `--command`) is the
+/// server. The other end is the suite's own.
+const fn subject_party(subject: &Subject) -> Party {
+    if subject.client_command.is_some() {
+        Party::Client
+    } else {
+        Party::Server
+    }
 }
 
 /// The divergence baseline (empty without one) and the suite's

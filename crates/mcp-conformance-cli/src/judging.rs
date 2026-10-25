@@ -9,13 +9,20 @@
 //! A refused session is not by itself a failure of the run: the suite's
 //! `dns-rebinding-protection` scenario, for one, sends requests a correct
 //! server refuses, and their recording holds nothing to judge.
+//!
+//! **Viewed for the subject.** The suite's own client (or, for a client under
+//! test, its own server) breaks clauses of its own, so every report is viewed
+//! for the subject's party, as `mcp-trace-validator validate --party` views
+//! it: the rows and totals stay the trace's facts, each finding keeps the
+//! party it is held against, and the verdict counts the subject's findings and
+//! those held against nobody.
 
 use std::path::{Path, PathBuf};
 
 use mcp_conformance_cli::agreement::{self, Totals, ValidatorFailure};
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::judge;
-use mcp_trace_validator::report::{Report, Unjudged, Verdict};
+use mcp_trace_validator::report::{Party, PartyTally, Report, Unjudged, Verdict};
 
 /// One judged session.
 #[derive(Debug)]
@@ -31,8 +38,11 @@ pub(crate) struct Judged {
 }
 
 impl Judged {
+    /// The session's verdict as its reports are viewed ([`Report::effective_verdict`]):
+    /// for the subject's party, when the session was judged with one.
     pub(crate) fn verdict(&self) -> Verdict {
-        Verdict::most_severe(self.reports.iter().map(Report::verdict)).unwrap_or(Verdict::Pass)
+        Verdict::most_severe(self.reports.iter().map(Report::effective_verdict))
+            .unwrap_or(Verdict::Pass)
     }
 }
 
@@ -45,21 +55,36 @@ pub(crate) struct Judging {
 }
 
 impl Judging {
-    /// The most severe verdict across the judged sessions.
+    /// The most severe verdict across the judged sessions, each as its
+    /// reports are viewed.
     pub(crate) fn verdict(&self) -> Verdict {
         Verdict::most_severe(self.judged.iter().map(Judged::verdict)).unwrap_or(Verdict::Pass)
     }
 
-    /// Every failing clause, as the agreement check counts them.
+    /// Every failing clause, once for each party its findings are held
+    /// against: what the agreement check splits between the subject and the
+    /// suite's own end ([`agreement::reconcile_for`]).
     pub(crate) fn failures(&self) -> Vec<ValidatorFailure> {
         self.judged
             .iter()
             .flat_map(|one| {
                 one.reports
                     .iter()
-                    .flat_map(|report| agreement::failures(&one.name, report))
+                    .flat_map(|report| agreement::failures_by_party(&one.name, report))
             })
             .collect()
+    }
+
+    /// How every report's findings fall when viewed for `party`, summed.
+    pub(crate) fn tally(&self, party: Party) -> PartyTally {
+        let mut sum = PartyTally::default();
+        for report in self.judged.iter().flat_map(|one| &one.reports) {
+            let tally = report.party_tally(party);
+            sum.counted += tally.counted;
+            sum.set_aside += tally.set_aside;
+            sum.unattributed += tally.unattributed;
+        }
+        sum
     }
 
     /// Outcome counts across every report.
@@ -73,12 +98,12 @@ impl Judging {
 }
 
 /// Judges every `*.jsonl` in `dir` and the directories directly under it, in
-/// name order.
+/// name order, each report viewed for `subject`.
 ///
 /// # Errors
 ///
 /// A directory cannot be listed.
-pub(crate) fn judge_dir(dir: &Path) -> Result<Judging, String> {
+pub(crate) fn judge_dir(dir: &Path, subject: Party) -> Result<Judging, String> {
     let mut judging = Judging::default();
     for (name, path) in traces(dir)? {
         match std::fs::read_to_string(&path) {
@@ -91,7 +116,13 @@ pub(crate) fn judge_dir(dir: &Path) -> Result<Judging, String> {
                     name,
                     path,
                     events: judgment.events,
-                    reports: judgment.reports,
+                    // The view is applied after judging, as `validate --party`
+                    // does: it changes what counts, never what was found.
+                    reports: judgment
+                        .reports
+                        .into_iter()
+                        .map(|report| viewed_for(report, subject))
+                        .collect(),
                 }),
                 Err(error) => judging
                     .unjudged
@@ -100,6 +131,12 @@ pub(crate) fn judge_dir(dir: &Path) -> Result<Judging, String> {
         }
     }
     Ok(judging)
+}
+
+/// `report`, viewed for `party` (`validate --party`).
+const fn viewed_for(mut report: Report, party: Party) -> Report {
+    report.party_view = Some(party);
+    report
 }
 
 /// The traces under `dir`, one level of subdirectories deep, sorted by name.
@@ -176,12 +213,22 @@ mod tests {
         std::fs::create_dir_all(dir.join("initialize/deeper")).unwrap();
         std::fs::write(dir.join("initialize/deeper/001.jsonl"), CLEAN).unwrap();
 
-        let judging = judge_dir(&dir).unwrap();
+        // BASE-003 is the client's finding, so it is a client under test whose
+        // verdict it moves.
+        let judging = judge_dir(&dir, Party::Client).unwrap();
         let names: Vec<&str> = judging.judged.iter().map(|one| one.name.as_str()).collect();
         assert_eq!(names, ["001.jsonl", "002.jsonl"]);
         assert_eq!(judging.judged[0].verdict(), Verdict::Pass);
         assert_eq!(judging.judged[1].verdict(), Verdict::Fail);
         assert_eq!(judging.verdict(), Verdict::Fail);
+        assert!(
+            judging
+                .judged
+                .iter()
+                .flat_map(|one| &one.reports)
+                .all(|report| report.party_view == Some(Party::Client)),
+            "every report is viewed for the subject"
+        );
         assert_eq!(judging.unjudged.len(), 1);
         assert!(judging.unjudged[0].trace.ends_with("001.jsonl"));
         assert!(
@@ -191,19 +238,33 @@ mod tests {
         );
         let failures = judging.failures();
         assert!(failures.iter().all(|failure| failure.trace == "002.jsonl"));
-        assert!(
-            failures
-                .iter()
-                .any(|failure| failure.requirement == "BASE-003")
-        );
+        assert!(failures.iter().any(
+            |failure| failure.requirement == "BASE-003" && failure.party == Some(Party::Client)
+        ));
         let totals = judging.totals();
         assert_eq!(
             totals.fail,
             judging.judged[1].reports[0].totals.fail + judging.judged[0].reports[0].totals.fail
         );
         assert!(totals.pass > judging.judged[0].reports[0].totals.pass);
+
+        // The same traces for a server under test: the clause row is still
+        // the trace's fact, and the verdict is not moved by the client's id.
+        let server = judge_dir(&dir, Party::Server).unwrap();
+        assert_eq!(server.judged[1].verdict(), Verdict::Pass);
+        assert_eq!(server.verdict(), Verdict::Pass);
+        assert_eq!(server.judged[1].reports[0].totals.fail, 1);
+        assert_eq!(server.failures(), judging.failures());
+        let tally = server.tally(Party::Server);
+        assert_eq!((tally.counted, tally.set_aside), (0, 1), "{tally:?}");
+        let tally = judging.tally(Party::Client);
+        assert_eq!((tally.counted, tally.set_aside), (1, 0), "{tally:?}");
         std::fs::remove_dir_all(&dir).unwrap();
-        assert!(judge_dir(&dir).unwrap_err().starts_with("cannot read "));
+        assert!(
+            judge_dir(&dir, Party::Server)
+                .unwrap_err()
+                .starts_with("cannot read ")
+        );
     }
 
     #[test]
