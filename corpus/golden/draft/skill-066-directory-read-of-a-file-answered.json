@@ -1330,6 +1330,7 @@
         {
           "id": "SKILL-100",
           "level": "MUST",
+          "actor": "server",
           "outcome": "pass"
         },
         {
