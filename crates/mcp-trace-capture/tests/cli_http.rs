@@ -309,6 +309,176 @@ fn the_client_url_redirects_and_404s_are_spelled_out() {
     std::fs::remove_file(&trace).ok();
 }
 
+/// A response with `status`, a `content-type` and `body`, on a connection the
+/// upstream then closes.
+fn answer(status: &str, content_type: &str, body: &str) -> String {
+    format!(
+        "HTTP/1.1 {status}\r\ncontent-type: {content_type}\r\ncontent-length: {}\r\n\
+         connection: close\r\n\r\n{body}",
+        body.len()
+    )
+}
+
+/// An upstream whose paths answer 404 in four ways: `/rpc` with a JSON-RPC
+/// error (`ping`'s method-not-found), `/framework` with a web framework's own
+/// JSON, `/html` with a page, `/empty` with nothing; any other path is a 200.
+fn upstream_answering_404s() -> String {
+    upstream(|_, head| match path_of(head) {
+        "/rpc" => answer(
+            "404 Not Found",
+            "application/json",
+            r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"Method not found","data":"ping"}}"#,
+        ),
+        "/framework" => answer(
+            "404 Not Found",
+            "application/json",
+            r#"{"detail":"Not Found"}"#,
+        ),
+        "/html" => answer(
+            "404 Not Found",
+            "text/html",
+            "<h1>Cannot POST /mcp/mcp</h1>",
+        ),
+        "/empty" => {
+            "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n".to_owned()
+        }
+        _ => ok(""),
+    })
+}
+
+/// The proxy's stderr after a run in front of `server` (a root upstream) that
+/// got each of `paths` and was answered with `status`.
+fn stderr_after_gets(server: &str, paths: &[&str], status: &str) -> Vec<String> {
+    let trace = scratch("hints.jsonl");
+    let (mut proxy, address, lines) = Proxy::start(http(&trace, &format!("http://{server}")));
+    for path in paths {
+        let response = get(&address, path);
+        assert!(
+            response.starts_with(&format!("HTTP/1.1 {status}")),
+            "{path}: {response}"
+        );
+    }
+    assert_eq!(proxy.interrupt().code(), Some(0));
+    std::fs::remove_file(&trace).ok();
+    drained(&lines)
+}
+
+/// Every stderr line the proxy wrote: read until its stderr closes, which it
+/// does when the process has exited, so a loaded machine cannot cut it short.
+fn drained(lines: &Receiver<String>) -> Vec<String> {
+    let mut all = Vec::new();
+    while let Ok(line) = lines.recv_timeout(Duration::from_secs(20)) {
+        all.push(line);
+    }
+    all
+}
+
+/// The path hint is for a client pointed at the wrong path. A 404 that carries a
+/// JSON-RPC message is the MCP server speaking — the specification has a server
+/// answer `ping`'s method-not-found with `404`, and a session it ended with
+/// `404` — so it counts as a status outside 2xx and draws no remark about the
+/// path (the dogfood audit's finding 3.3). One that does not (HTML, a framework's
+/// JSON of its own, nothing) still does.
+#[test]
+fn a_404_the_mcp_server_sent_is_not_a_wrong_path() {
+    let server = upstream_answering_404s();
+    let run = |paths: &[&str]| stderr_after_gets(&server, paths, "404");
+    let has = |stderr: &[String], text: &str| stderr.iter().any(|line| line.contains(text));
+
+    let spoke = run(&["/rpc"]);
+    assert!(
+        has(&spoke, "1 response(s) had a status outside 2xx"),
+        "{spoke:?}"
+    );
+    assert!(!has(&spoke, "answered 404"), "{spoke:?}");
+
+    for path in ["/framework", "/html", "/empty"] {
+        let wrong = run(&[path]);
+        assert!(
+            has(
+                &wrong,
+                "the server answered 404 to 1 request(s) — is the endpoint path right?"
+            ),
+            "{path}: {wrong:?}"
+        );
+    }
+
+    // Counted by what each was: of four 404s, the one that spoke MCP is not.
+    let mixed = run(&["/rpc", "/html", "/framework", "/rpc", "/empty"]);
+    assert!(
+        has(&mixed, "5 response(s) had a status outside 2xx"),
+        "{mixed:?}"
+    );
+    assert!(
+        has(
+            &mixed,
+            "the server answered 404 to 3 request(s) — is the endpoint path right?"
+        ),
+        "{mixed:?}"
+    );
+}
+
+/// A server's `Host`/`Origin` check refuses with `403`. With the client's `Host`
+/// passed through — the default for a server on this machine — a client that
+/// reached the proxy by a name the server does not allow gets that refusal, and
+/// the proxy is the one place that can say how to see the server without it
+/// (the audit's missing 403 hint): `--no-preserve-host`. It says so only when
+/// it could be the cause: the `Host` was the client's, and named a host other
+/// than the server's.
+#[test]
+fn a_403_to_a_forwarded_foreign_host_names_the_flag_that_stops_forwarding_it() {
+    let server = upstream(|_, head| match path_of(head) {
+        "/mcp/refused" => answer(
+            "403 Forbidden",
+            "application/json",
+            r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Forbidden: Host or Origin header rejected by security policy"}}"#,
+        ),
+        _ => ok(""),
+    });
+    let server_name = server.split(':').next().unwrap().to_owned();
+    let run = |flag: Option<&str>, host: &str| -> Vec<String> {
+        let trace = scratch("hint403.jsonl");
+        let mut command = http(&trace, &format!("http://{server}/mcp"));
+        if let Some(flag) = flag {
+            command.arg(flag);
+        }
+        let (mut proxy, address, lines) = Proxy::start(command);
+        let response = get_as(&address, "/refused", host);
+        assert!(
+            response.starts_with("HTTP/1.1 403"),
+            "{flag:?} {host}: {response}"
+        );
+        assert_eq!(proxy.interrupt().code(), Some(0));
+        std::fs::remove_file(&trace).ok();
+        drained(&lines)
+    };
+    let has = |stderr: &[String], text: &str| stderr.iter().any(|line| line.contains(text));
+    let hint = "the server answered 403 to 1 request(s) whose Host header (a name other than the \
+                server's own) was passed through to it; if that is its Host/Origin check, \
+                --no-preserve-host sends the server's own name instead";
+
+    // The default for a server on this machine, and the flag that asks for it.
+    for flag in [None, Some("--preserve-host")] {
+        let stderr = run(flag, "box.internal:8080");
+        assert!(
+            has(&stderr, "1 response(s) had a status outside 2xx"),
+            "{stderr:?}"
+        );
+        assert!(has(&stderr, hint), "{flag:?}: {stderr:?}");
+    }
+    // The server's own name was sent: its Host check cannot be what refused.
+    let stderr = run(Some("--no-preserve-host"), "box.internal:8080");
+    assert!(
+        has(&stderr, "1 response(s) had a status outside 2xx"),
+        "{stderr:?}"
+    );
+    assert!(!has(&stderr, "answered 403"), "{stderr:?}");
+    // The client's Host names the server's own host (only the port differs):
+    // not a name the server's check could object to, so no remark.
+    let stderr = run(None, &format!("{server_name}:8080"));
+    assert!(!has(&stderr, "answered 403"), "{stderr:?}");
+}
+
 /// What the proxy forwarded but left out of the trace rather than record wrongly
 /// is named at exit: JSON the trace cannot hold as sent, and SSE events of a type
 /// MCP clients do not read as messages.

@@ -17,11 +17,34 @@ use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, Transpor
 
 use super::Proxy;
 use super::body::{self, End, Held, cut_at_stop, idle_bounded, is_stall, read_prefix, then_rest};
-use super::target::{claims_json, is_event_stream, is_refused_path, location, target};
+use super::target::{
+    claims_json, is_event_stream, is_foreign_host, is_refused_path, location, target,
+};
 use crate::framing::{Parsed, SseParser, parse_message};
 use crate::headers;
 use crate::recorder::{Loss, NotRecorded, Recorder};
 use crate::traces::Route;
+
+/// The `http` event that records an upstream response's status and headers.
+fn status_event(response: &axum::http::response::Parts) -> EventBody {
+    EventBody::Http {
+        method: None,
+        status: Some(response.status.as_u16()),
+        headers: headers::recorded(&response.headers),
+    }
+}
+
+/// Whether a recorded message is a JSON-RPC message: an object whose `jsonrpc`
+/// is `"2.0"`. Any JSON a server answers with is a message to the trace; only
+/// this is the MCP server speaking, as opposed to a web framework's own
+/// `{"detail": "Not Found"}`.
+fn is_json_rpc(message: &EventBody) -> bool {
+    matches!(
+        message,
+        EventBody::Message { payload }
+            if payload.get("jsonrpc").and_then(serde_json::Value::as_str) == Some("2.0")
+    )
+}
 
 /// Records `request`, forwards it upstream, and records and relays the
 /// response; `local` is the proxy's address the client's connection reached.
@@ -46,6 +69,23 @@ pub(super) async fn forward(
         .then(|| parts.headers.get("mcp-session-id")?.to_str().ok())
         .flatten()
         .map(str::to_owned);
+    // Whether the `Host` the upstream will judge is the client's, and names a
+    // host other than the upstream's: what a `403` can then be the upstream's
+    // `Host`/`Origin` check refusing, which the summary says how to get past.
+    let foreign_host = proxy.options.preserve_host
+        && is_foreign_host(
+            parts
+                .headers
+                .get(header::HOST)
+                .and_then(|host| host.to_str().ok())
+                .or_else(|| {
+                    parts
+                        .uri
+                        .authority()
+                        .map(axum::http::uri::Authority::as_str)
+                }),
+            &proxy.options.upstream,
+        );
     let (route, upstream_body) = proxy.record_request(&parts, body).await;
     let upstream_body = match upstream_body {
         Ok(body) => body,
@@ -76,7 +116,7 @@ pub(super) async fn forward(
                 proxy.traces.end(&id);
             }
             proxy
-                .relay_response(upstream, route, host.as_deref(), standalone)
+                .relay_response(upstream, route, host.as_deref(), standalone, foreign_host)
                 .await
         }
         // A body streamed past the message limit stalled while hyper was
@@ -174,6 +214,7 @@ impl Proxy {
         route: Route,
         host: Option<&str>,
         standalone: bool,
+        foreign_host: bool,
     ) -> Response {
         let (parts, incoming) = upstream.into_parts();
         self.count_status(parts.status);
@@ -186,13 +227,10 @@ impl Proxy {
             parts.status.is_success(),
         );
         let recorder = route.recorder();
-        let http = EventBody::Http {
-            method: None,
-            status: Some(parts.status.as_u16()),
-            headers: headers::recorded(&parts.headers),
-        };
+        let http = status_event(&parts);
         let mut stream = Body::new(incoming).into_data_stream();
-        let body = if is_event_stream(&parts.headers) {
+        let mut spoke_mcp = is_event_stream(&parts.headers);
+        let body = if spoke_mcp {
             self.record_together(recorder, Direction::ServerToClient, http, None);
             let events = Arc::clone(self).record_events(route.clone(), stream);
             if standalone {
@@ -208,6 +246,7 @@ impl Proxy {
                     // answered, or when it says it is JSON; an error page is not.
                     let text = parts.status.is_success() || claims_json(&parts.headers);
                     let message = self.message_of(&prefix.bytes, text);
+                    spoke_mcp = message.as_ref().is_some_and(is_json_rpc);
                     self.record_together(recorder, Direction::ServerToClient, http, message);
                     body::whole(prefix.bytes, prefix.held)
                 }
@@ -236,6 +275,7 @@ impl Proxy {
                 }
             }
         };
+        self.count_remarked_status(parts.status, spoke_mcp, foreign_host);
         let mut response = Response::new(body);
         *response.status_mut() = parts.status;
         *response.headers_mut() = self.response_headers(&parts.headers, host);
@@ -259,14 +299,28 @@ impl Proxy {
         relayed
     }
 
-    /// Counts a status outside 2xx, and a 404 apart: the summary asks about
-    /// the endpoint path when there were any.
+    /// Counts a status outside 2xx, as soon as it is known.
     fn count_status(&self, status: StatusCode) {
         if !status.is_success() {
             self.counters.not_2xx.fetch_add(1, Ordering::Relaxed);
         }
-        if status == StatusCode::NOT_FOUND {
+    }
+
+    /// Counts the two statuses the summary remarks on, once the body says what
+    /// they were. A `404` is a client pointed at the wrong path unless the
+    /// response is the MCP server speaking (`spoke_mcp`: an event stream or a
+    /// JSON-RPC message): `ping`'s method-not-found rides one, and so does a
+    /// session the server ended. A `403` is counted when
+    /// the `Host` it refused was the client's, passed through, and named
+    /// another host than the server's (`foreign_host`).
+    fn count_remarked_status(&self, status: StatusCode, spoke_mcp: bool, foreign_host: bool) {
+        if status == StatusCode::NOT_FOUND && !spoke_mcp {
             self.counters.not_found.fetch_add(1, Ordering::Relaxed);
+        }
+        if status == StatusCode::FORBIDDEN && foreign_host {
+            self.counters
+                .forbidden_foreign_host
+                .fetch_add(1, Ordering::Relaxed);
         }
     }
 

@@ -150,9 +150,11 @@ fn refused_requests_code(unrecorded: &http::Unrecorded, fail_on_unrecorded: bool
     0
 }
 
-/// Says how many responses were not 2xx, and asks about the path when the
-/// server answered 404: a client pointed at the wrong path gets 404s, recorded
-/// faithfully and otherwise unremarked.
+/// Says how many responses were not 2xx, asks about the path when the server
+/// answered 404 (a client pointed at the wrong path gets 404s, recorded
+/// faithfully and otherwise unremarked — but not one the MCP server itself
+/// sent), and names the flag that stops forwarding a foreign `Host` when the
+/// server refused one with 403.
 fn report_statuses(unrecorded: http::Unrecorded, bound: SocketAddr, upstream: &axum::http::Uri) {
     if unrecorded.not_2xx > 0 {
         eprintln!(
@@ -167,6 +169,14 @@ fn report_statuses(unrecorded: http::Unrecorded, bound: SocketAddr, upstream: &a
              <upstream>/<path>",
             unrecorded.not_found,
             shown(upstream)
+        );
+    }
+    if unrecorded.forbidden_foreign_host > 0 {
+        eprintln!(
+            "mcp-trace-capture: the server answered 403 to {} request(s) whose Host header \
+             (a name other than the server's own) was passed through to it; if that is its \
+             Host/Origin check, --no-preserve-host sends the server's own name instead",
+            unrecorded.forbidden_foreign_host
         );
     }
 }
@@ -352,6 +362,7 @@ mod tests {
             oversized: 1,
             not_2xx: 1,
             not_found: 1,
+            forbidden_foreign_host: 1,
             ..http::Unrecorded::default()
         };
         assert_eq!(http_gaps(&reported_elsewhere), Vec::<String>::new());

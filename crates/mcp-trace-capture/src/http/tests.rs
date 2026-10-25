@@ -4,7 +4,9 @@
 #![allow(clippy::unwrap_used)]
 
 use super::body::{End, idle_bounded, is_stall, read_prefix};
-use super::target::{claims_json, is_event_stream, is_refused_path, location, target};
+use super::target::{
+    claims_json, is_event_stream, is_foreign_host, is_refused_path, location, target,
+};
 use super::*;
 use axum::body::Bytes;
 use axum::http::uri::PathAndQuery;
@@ -159,6 +161,48 @@ fn a_redirect_into_the_upstream_comes_back_through_the_proxy() {
     assert_eq!(back("/mcp?key=other"), None);
     assert_eq!(back("/mcp?key=kk"), None);
     assert_eq!(back("/mcp"), None);
+}
+
+/// A client's `Host` is foreign when it names a host other than the
+/// upstream's: the port, the case and an IPv6 address's brackets are not part of
+/// the name, and a request with no `Host` names nothing.
+#[test]
+fn a_host_is_foreign_when_it_names_another_host_than_the_upstream() {
+    let upstream = |text: &str| text.parse::<Uri>().unwrap();
+    let local = upstream("http://127.0.0.1:3000/mcp");
+    assert!(
+        !is_foreign_host(Some("127.0.0.1:8080"), &local),
+        "another port"
+    );
+    assert!(!is_foreign_host(Some("127.0.0.1"), &local), "no port");
+    assert!(
+        is_foreign_host(Some("localhost:8080"), &local),
+        "another name"
+    );
+    assert!(is_foreign_host(Some("box.internal:8080"), &local));
+    assert!(
+        is_foreign_host(Some("127.0.0.2"), &local),
+        "another address"
+    );
+    assert!(!is_foreign_host(None, &local), "no Host names nothing");
+
+    let named = upstream("http://Server.Example:9000/");
+    assert!(!is_foreign_host(Some("server.example:1"), &named), "case");
+    assert!(!is_foreign_host(Some("SERVER.EXAMPLE"), &named));
+    assert!(is_foreign_host(Some("evil.example"), &named));
+    assert!(
+        is_foreign_host(Some("server.example.evil"), &named),
+        "a suffix is another name"
+    );
+
+    let v6 = upstream("http://[::1]:3000/mcp");
+    assert!(
+        !is_foreign_host(Some("[::1]:8080"), &v6),
+        "brackets and port"
+    );
+    assert!(!is_foreign_host(Some("[::1]"), &v6));
+    assert!(is_foreign_host(Some("[::2]:8080"), &v6));
+    assert!(is_foreign_host(Some("localhost"), &v6));
 }
 
 /// The client's `Host` goes through to an upstream on this machine, whose

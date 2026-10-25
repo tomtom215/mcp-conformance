@@ -157,6 +157,28 @@ pub(super) fn claims_json(headers: &HeaderMap) -> bool {
         })
 }
 
+/// Whether a request's `Host` (`client`, as sent: a name or address, with a
+/// port perhaps) names a host other than `upstream`'s. The port is not part of
+/// the name — a client reaches the proxy on one port and the server listens
+/// on another — and case and the brackets of an IPv6 address are not either.
+/// A request with no `Host` names nothing else.
+pub(super) fn is_foreign_host(client: Option<&str>, upstream: &Uri) -> bool {
+    let Some(client) = client else {
+        return false;
+    };
+    // `[::1]:8080` is the address inside the brackets; `name:80` the name.
+    let name = client.strip_prefix('[').map_or_else(
+        || client.rsplit_once(':').map_or(client, |(name, _port)| name),
+        |rest| rest.split(']').next().unwrap_or(rest),
+    );
+    let own = upstream
+        .host()
+        .unwrap_or_default()
+        .trim_start_matches('[')
+        .trim_end_matches(']');
+    !name.eq_ignore_ascii_case(own)
+}
+
 pub(super) fn is_event_stream(headers: &HeaderMap) -> bool {
     headers
         .get(header::CONTENT_TYPE)
