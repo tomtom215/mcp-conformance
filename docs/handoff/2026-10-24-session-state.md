@@ -11,9 +11,12 @@ it when its items are done or moved there. A machine-readable copy of the checkl
 Branch: `claude/focused-thompson-jx6akj` (never merged to `main`; no PR opened). Everything below
 that says "pushed" is on that branch at `origin`.
 
-**Updated 2026-10-25.** V1 and R1 are both merged on the branch. The sections "CI on the branch",
-"Verified on the V1-merged tip", "Verified on the R1-merged tip", "Finished by agents" and "Next, in
-order" were rewritten in place; the rest is as of 2026-10-24.
+**Updated 2026-10-25.** V1, R1 and the interop refresh (I1) are merged on the branch, which is PR 68
+(`tomtom215/mcp-conformance#68`, opened that day; nothing else is merged to `main`). Two more agents' work,
+C1 and V2, is finished but **not merged**: it is saved in git bundles under `wip/` with their reports. The
+sections "CI on the branch", "Verified on the V1-merged tip", "Verified on the R1-merged tip", "Interop
+matrix (I1)", "Finished by agents" and "Next, in order" were rewritten in place; the rest is as of
+2026-10-24.
 
 ## What was asked, and what was found
 
@@ -166,7 +169,7 @@ An agent refreshed the cross-SDK matrix in a worktree; the lead reviewed it and 
   (3) It overwrote a few of the lead's scratchpad files from earlier in the session
   (`msg1.txt` to `msg3.txt`, possibly some logs); nothing in the repository.
 
-## Finished by agents (saved in `wip/`; both merged)
+## Finished by agents (saved in `wip/`)
 
 Two agents worked in worktrees based on `main`, not on this branch. Both committed before the first
 pause; their commits are saved in one git bundle, `wip/wip.bundle`, as branches `wip/V1` and
@@ -177,26 +180,50 @@ pause; their commits are saved in one git bundle, `wip/wip.bundle`, as branches 
   `validate --party`; a note for requests unanswered at the end of a trace; one rule for the negotiated
   revision, a **behavior change**; `format: byte` asserted in the wire schema, which the official
   runner does not do). The merge was reviewed and re-verified (above); ADR-0018 and ADR-0020 carry
-  amendments, the strategy doc's calibration paragraph and the CHANGELOG are updated. Not done:
-  `mcp-conformance test` does not use the party view yet (that is C1).
+  amendments, the strategy doc's calibration paragraph and the CHANGELOG are updated. The CLI's use of
+  the party view is C1, below (finished, not merged).
 - **R1 (2025-11-25 ping, progress, cancellation): merged 2026-10-25.** 27 entries (13 judged by 11
   checks, 14 excluded), IDs PING-001..007, PROG-009..019, CANC-018..026 (no 2026-07-28 ID reused),
   15 corpus traces; the revision is at 348 entries / 102 judged / 246 excluded (the README's registry
   table, verified by a gate). The merge needed one fix to R1's `PING-001` (above); the agent's
   claims were otherwise re-run, not trusted (the section above). CHANGELOG, the README's and book's
   counts are updated. Both agents' branches remain in `wip.bundle` as the record.
+- **C1 (`mcp-conformance` CLI fixes): finished, NOT merged.** `wip/C1`, tip `19cb7ea`, six commits on
+  `cec63bb`, in `wip/wip-c1.bundle`; report [`C1-final-report.md`](wip/C1-final-report.md). Per the agent,
+  all six items are done and each was reproduced first and mutation-checked: `test` judges its subject by
+  party (a conforming FastMCP server no longer fails the agreement; the suite's own client's and test
+  server's findings are listed, labelled and set aside), a note when the suite asks a server for names it
+  does not list, `watch http` takes `--no-preserve-host`, two proxy hints, `serverInfo` from `_meta` in the
+  library, one printing of `test`'s report, the `watch` tally. The lead checked the branch mechanically
+  (base, scope, clean tree, no personal data) and **did not review the diff or re-run its checks**.
+  **To merge:** review the diff; it edits `conformance/wire-findings.json` (removes the two `client` entries
+  the party view now sets aside) and `mcp-trace-capture` (additive `HostHeader::from_flags`), so re-run
+  `cargo xtask conformance` on a quiet machine; the workbench now names the server of
+  `sdk-rust-2026-07-28`, so the `visual` baselines for the library and dashboards will change (take them
+  from the CI runner's artifact and look at them); CHANGELOG entries (its report has them; one is a
+  **behaviour change**: `sessions.verdict` in `test`'s JSON is now party-scoped); consider an ADR for the
+  party semantics (a baseline entry explains either end; a held-against-nobody finding counts). The agent
+  did not run `falsify-gates`, `cargo doc`, `cargo test` on 1.88, or the workspace-wide clippy and test
+  variants.
+- **V2 (a baseline file and filters for `validate`): finished in part, NOT merged.** `wip/V2`, tip
+  `397b5c0`, five commits on `cec63bb`, in `wip/wip-v2.bundle`; report
+  [`V2-final-report.md`](wip/V2-final-report.md). Per the agent: ADR-0025 (**Proposed**: the maintainer
+  decides), `--baseline` / `--write-baseline` / `--allow-stale-baseline` keyed by the SARIF fingerprint,
+  accepted findings kept visible in every format (SARIF `suppressions`, JUnit skipped, HTML pill), and
+  `--area` / `--level` as human-only display filters; default output and all goldens are unchanged
+  (nothing under `corpus/` changed; the lead checked that). **Not done:** grouped repeats (undecided; the
+  unfinished draft was lost with the scratchpad) and all docs. **To merge:** merge after C1 (V2 adds public
+  fields to `Report` and `Finding`); review the ADR first; write the book pages and crate README; note the
+  baseline contract: rewording a finding's detail text changes its fingerprint and reopens entries; the
+  agent did not run `cargo +1.88 clippy` or any workspace-wide check.
 
 ## Next, in order
 
-1. **V2**: a baseline/ignore file for `validate` (accepted findings with reasons; stale entries reported),
-   `--level`/`--area` filters, grouped repeats (BASE-086 appears once per tool schema).
-2. **C1** (`crates/mcp-conformance-cli`; V1's party view exists, the CLI does not use it yet): `test` judges agreement by party; say when a
-   subject is not the suite's fixture server (the Node reference server gets 18 of 28 FAILURE,
-   reproduced); `watch http` needs `--no-preserve-host` and the new `HostHeader` (it silently
-   gained the loopback default); use `mcp_trace_capture::http::is_loopback` in `proxy.rs`; the
-   proxy's 404 hint misfires on a conformant `ping` 404 (`-32601`); add a 403 hint naming
-   `--no-preserve-host`; show `serverInfo` from `_meta` at 2026-07-28 in the library; dedupe the
-   repeated block in `test` output; `watch` counts findings, totals count clauses.
+1. **Review and merge C1, then V2** (above), each by cherry-picking from its bundle onto a local branch of
+   the PR branch, then the full chain with `git add` before `gates`, on a machine where no other build
+   shares the target directory; the Action, image and `visual` jobs run or simulated; CHANGELOG entries
+   from the reports; new `visual` baselines from the CI artifact. V2's ADR-0025 needs the maintainer's
+   decision, and its docs and the grouped-repeats question remain.
 3. **`mcp-conformance check`**, per [ADR-0024](../plan/decisions/0024-check-an-exerciser-that-does-only-what-a-client-does.md)
    (**Proposed**: the maintainer must accept it first). A read-only-by-default exerciser, so an
    author with a server and no client gets a clause report in one command.

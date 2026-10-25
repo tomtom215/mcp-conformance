@@ -78,12 +78,27 @@
     },
     {
       "id": "V2-baseline-filters",
-      "status": "not_started"
+      "status": "finished_in_part_unmerged_saved_in_bundle",
+      "wip_reference": "docs/handoff/wip/wip-v2.bundle (wip/V2, tip 397b5c0)",
+      "not_done": [
+        "grouped repeats (undecided; draft lost)",
+        "docs (book pages, crate README)"
+      ],
+      "needs": [
+        "maintainer decision on ADR-0025 (Proposed)",
+        "merge after C1"
+      ]
     },
     {
       "id": "C1-test-party-aware-and-watch-flags",
-      "status": "not_started",
-      "needs": []
+      "status": "finished_unmerged_saved_in_bundle",
+      "needs": [
+        "review the diff",
+        "visual baselines from the CI artifact",
+        "CHANGELOG (behaviour change: sessions.verdict is party-scoped)",
+        "cargo xtask conformance on a quiet machine (wire-findings.json edited)"
+      ],
+      "wip_reference": "docs/handoff/wip/wip-c1.bundle (wip/C1, tip 19cb7ea)"
     },
     {
       "id": "check-command-ADR-0024",
@@ -116,9 +131,11 @@
     }
   ],
   "run_first_next_session": [
-    "dispatch Scheduled with only=claims; issue #50 closes only on green",
-    "review and merge the V2, C1 and I1 agents' worktree branches (file-disjoint; re-run the full chain and the Action/image/visual simulations after each merge)",
+    "read PR 68: CI, reviews",
+    "dispatch Scheduled with only=claims; issue #50 closes only on green (not done)",
+    "review and merge C1 then V2 from docs/handoff/wip/*.bundle (see the handoff); releases are on hold",
     "reconcile capture README memory table in release"
   ],
-  "release_status": "on hold by the maintainer on 2026-10-25; do not bump versions, branch, rehearse, tag or publish until told"
+  "release_status": "on hold by the maintainer on 2026-10-25; do not bump versions, branch, rehearse, tag or publish until told",
+  "pull_request": "tomtom215/mcp-conformance#68"
 }
