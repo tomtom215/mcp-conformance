@@ -124,14 +124,36 @@ pub(crate) struct Facts {
     pub(crate) first_ts: Option<String>,
 }
 
-/// `name version` of an `Implementation` object.
+/// `name version` of an `Implementation` object; the name alone when the
+/// version is absent or empty.
 fn implementation(info: &Value) -> Option<String> {
     let name = info.get("name")?.as_str()?;
     Some(
         info.get("version")
             .and_then(Value::as_str)
+            .filter(|version| !version.is_empty())
             .map_or_else(|| name.to_owned(), |version| format!("{name} {version}")),
     )
+}
+
+/// Where `2026-07-28` puts what `initialize` carried before it: the server's
+/// name in a result's `_meta`, the client's in a request's.
+const SERVER_INFO_META: &str = "io.modelcontextprotocol/serverInfo";
+const CLIENT_INFO_META: &str = "io.modelcontextprotocol/clientInfo";
+
+/// The `Implementation` a message names itself with: `member` of its result or
+/// params (the `initialize` handshake), else `meta_key` of the `_meta` of
+/// either (a `2026-07-28` message, which has no handshake).
+fn named_in<'a>(payload: &'a Value, member: &str, meta_key: &str) -> Option<&'a Value> {
+    let carriers = ["result", "params"];
+    carriers
+        .iter()
+        .find_map(|carrier| payload.get(*carrier)?.get(member))
+        .or_else(|| {
+            carriers
+                .iter()
+                .find_map(|carrier| payload.get(*carrier)?.get("_meta")?.get(meta_key))
+        })
 }
 
 /// The facts of a trace's events.
@@ -156,16 +178,12 @@ pub(crate) fn facts(events: &[TraceEvent]) -> Facts {
             continue;
         };
         facts.messages += 1;
-        let (role, member) = match event.direction {
-            Direction::ServerToClient => (&mut facts.server, "serverInfo"),
-            Direction::ClientToServer => (&mut facts.client, "clientInfo"),
+        let (role, member, meta_key) = match event.direction {
+            Direction::ServerToClient => (&mut facts.server, "serverInfo", SERVER_INFO_META),
+            Direction::ClientToServer => (&mut facts.client, "clientInfo", CLIENT_INFO_META),
         };
         if role.is_none() {
-            let info = payload
-                .get("result")
-                .and_then(|result| result.get(member))
-                .or_else(|| payload.get("params").and_then(|params| params.get(member)));
-            *role = info.and_then(implementation);
+            *role = named_in(payload, member, meta_key).and_then(implementation);
         }
     }
     facts

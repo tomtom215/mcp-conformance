@@ -3,6 +3,7 @@
 
 #![allow(clippy::unwrap_used)]
 
+use std::path::Path;
 use std::time::{Duration, UNIX_EPOCH};
 
 use super::*;
@@ -155,6 +156,79 @@ fn facts_name_the_implementations_and_the_transport() {
         Some("n")
     );
     assert_eq!(implementation(&serde_json::json!({"version": "1"})), None);
+}
+
+/// At `2026-07-28` there is no `initialize`: the server names itself in
+/// `_meta["io.modelcontextprotocol/serverInfo"]` of every result and the client
+/// in `_meta["io.modelcontextprotocol/clientInfo"]` of every request, so the
+/// library showed neither for such a session (the dogfood audit's finding 3.5).
+#[test]
+fn a_stateless_session_names_its_server_and_client_from_meta() {
+    let draft = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../corpus/draft/good");
+    let (entry, _) = Entry::load(
+        "s",
+        &std::fs::read(draft.join("stateless-session.jsonl")).unwrap(),
+        Meta::default(),
+        None,
+        None,
+    );
+    assert_eq!(entry.facts.server.as_deref(), Some("corpus-server 0.1.0"));
+    assert_eq!(entry.facts.client.as_deref(), Some("corpus-client 0.1.0"));
+
+    // The first message that names an implementation names it, whichever era:
+    // a legacy `initialize` first, then a request carrying `_meta`, keeps the
+    // handshake's names.
+    let message = |seq: u32, direction: &str, payload: &str| {
+        format!(
+            r#"{{"seq":{seq},"direction":"{direction}","transport":"stdio","kind":"message","payload":{payload}}}"#
+        )
+    };
+    let mixed = [
+        message(
+            0,
+            "server-to-client",
+            r#"{"jsonrpc":"2.0","id":1,"result":{"serverInfo":{"name":"first","version":"1"}}}"#,
+        ),
+        message(
+            1,
+            "server-to-client",
+            r#"{"jsonrpc":"2.0","id":2,"result":{"_meta":{"io.modelcontextprotocol/serverInfo":{"name":"second","version":"2"}}}}"#,
+        ),
+    ]
+    .join("\n");
+    let (entry, _) = Entry::load("m", mixed.as_bytes(), Meta::default(), None, None);
+    assert_eq!(entry.facts.server.as_deref(), Some("first 1"));
+
+    // A `_meta` name that is not an `Implementation` names nothing, and a
+    // server's `_meta` is not a client's.
+    let odd = [
+        message(
+            0,
+            "server-to-client",
+            r#"{"jsonrpc":"2.0","id":1,"result":{"_meta":{"io.modelcontextprotocol/serverInfo":"nope","io.modelcontextprotocol/clientInfo":{"name":"c","version":"1"}}}}"#,
+        ),
+        message(
+            1,
+            "client-to-server",
+            r#"{"jsonrpc":"2.0","id":2,"method":"ping","params":{"_meta":{"io.modelcontextprotocol/serverInfo":{"name":"s","version":"1"}}}}"#,
+        ),
+    ]
+    .join("\n");
+    let (entry, _) = Entry::load("o", odd.as_bytes(), Meta::default(), None, None);
+    assert_eq!(entry.facts.server, None);
+    assert_eq!(entry.facts.client, None);
+}
+
+#[test]
+fn an_implementation_with_an_empty_version_is_its_name_alone() {
+    let named =
+        |version: &str| implementation(&serde_json::json!({"name": "n", "version": version}));
+    assert_eq!(named("1.0").as_deref(), Some("n 1.0"));
+    assert_eq!(named("").as_deref(), Some("n"), "no trailing space");
+    assert_eq!(
+        implementation(&serde_json::json!({"name": "n", "version": 3})).as_deref(),
+        Some("n")
+    );
 }
 
 #[test]
