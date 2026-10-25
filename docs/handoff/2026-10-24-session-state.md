@@ -83,19 +83,18 @@ Still to do, in order:
 
 1. **Read CI on the pushed tip.** Then dispatch the `Scheduled` workflow with `only=claims` (if the
    input still exists); **issue #50** closes only on a green scheduled run.
-2. **Re-measure mcpsnoop** (its results predate V1). The pinned binary comes from npm: `npm pack
-   @mcpsnoop/linux-x64@0.26.1 --pack-destination <a new empty directory>`, check the tarball's sha512
-   and the binary's SHA-256 against `book/src/mcpsnoop.md` (both matched on 2026-10-25), extract, then
-   `MCPSNOOP=<dir>/package/bin/mcpsnoop cargo xtask mcpsnoop`. That run measured 342 traces and stopped
-   on **three untriaged ours-only divergences**: `BASE-030`, `MRTR-002` and `TOOL-016` on
-   `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` (V1's new trace: a legacy
-   `initialize` proposing `2025-11-25`, negotiated to `2026-07-28`; mcpsnoop exited 0 with no
-   findings). The likely class is `revision-attribution`, like the existing `BASE-030` entries in
-   `conformance/mcpsnoop/triage.json`, **but that is unverified**: run `mcpsnoop check` on the
-   converted capture and read what revision it infers before writing the note. The run's rewritten
-   `results.json` was discarded unreviewed; expect `prom-003`, `prom-004` and `res-006` to gain
-   `wire-schema` in `ours.flagged` (also unverified). Then `cargo xtask mcpsnoop --render` and commit
-   results, triage and `book/src/mcpsnoop.md` together.
+2. ~~Re-measure mcpsnoop~~ **Done 2026-10-25.** The pinned binary comes from npm (`npm pack
+   @mcpsnoop/linux-x64@0.26.1`; the tarball sha512 and the binary's SHA-256 both matched the pins in
+   `book/src/mcpsnoop.md`). `cargo xtask mcpsnoop` measured 342 traces: 8 added, none removed,
+   mcpsnoop's own findings unchanged, and exactly `prom-003`, `prom-004` and `res-006` gained
+   `wire-schema` in our flags. The three untriaged divergences on V1's `base-030-legacy-initialize-
+   negotiated-2026-07-28` (`BASE-030`, `MRTR-002`, `TOOL-016`) joined the existing open
+   `spec-ambiguity` entries for `vers-008` (the same question: is a legacy-era `initialize` inside a
+   `2026-07-28` session held to that revision's `_meta` clauses?). Measured on edited copies of the
+   converted capture: mcpsnoop applies its missing-`_meta` rule only to a request whose own `_meta`
+   names `2026-07-28`; the earlier note's claim that it reads `params.protocolVersion` was **not
+   supported** and was corrected in the triage. The question itself is still **open for the
+   maintainer**.
 3. The capture README's memory table quotes the agent's *release-build* numbers; mine are debug
    (within about 5%; the stdio object-heavy figure differs by 16 MiB). Re-run
    `crates/mcp-trace-capture/tools/measure-memory.py` in release and reconcile the README.
@@ -112,8 +111,7 @@ pause; their commits are saved in one git bundle, `wip/wip.bundle`, as branches 
   revision, a **behavior change**; `format: byte` asserted in the wire schema, which the official
   runner does not do). The merge was reviewed and re-verified (above); ADR-0018 and ADR-0020 carry
   amendments, the strategy doc's calibration paragraph and the CHANGELOG are updated. Not done:
-  the mcpsnoop re-measure (still to do, item 2), and `mcp-conformance test` does not use the party
-  view yet (that is C1).
+  `mcp-conformance test` does not use the party view yet (that is C1).
 - **R1 (2025-11-25 ping, progress, cancellation): not merged.** Done per its report: 27 entries (13
   judged by 11 checks, 14 excluded), IDs PING-001..007, PROG-009..019, CANC-018..026 (no 2026-07-28 ID
   reused), 15 corpus traces; the revision goes to 348 entries / 102 judged / 246 excluded. Gates,

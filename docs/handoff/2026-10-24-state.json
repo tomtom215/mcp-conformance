@@ -61,11 +61,10 @@
     },
     {
       "id": "V1-validator-report-model",
-      "status": "merged_2026-10-25_mcpsnoop_remeasure_pending",
+      "status": "merged_2026-10-25",
       "wip_reference": "docs/handoff/wip/V1",
       "follow_up": [
-        "mcpsnoop re-measure and triage of BASE-030/MRTR-002/TOOL-016 on base-030-legacy-initialize-negotiated-2026-07-28",
-        "read CI for the pushed tip (1.88 and Windows not run locally)"
+        "maintainer decision: is a legacy-era initialize inside a 2026-07-28 session held to that revision's _meta clauses (BASE-030, MRTR-002, TOOL-016, TRAN-071)"
       ]
     },
     {
@@ -109,8 +108,7 @@
   ],
   "run_first_next_session": [
     "read CI on the pushed tip",
-    "cargo xtask mcpsnoop (pinned 0.26.1 binary from npm, hashes in book/src/mcpsnoop.md): triage three divergences, then --render",
-    "merge R1 from docs/handoff/wip/wip.bundle, bless, review goldens by class, then gates (after git add), falsify-gates, spec-drift, conformance",
+    "merge R1 from docs/handoff/wip/wip.bundle, bless, review goldens by class, then gates (after git add), falsify-gates, spec-drift, conformance; also run the Action, image and visual jobs or simulate them (V1 broke all three in CI)",
     "dispatch Scheduled with only=claims; issue #50 closes only on green",
     "reconcile capture README memory table in release"
   ]

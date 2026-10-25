@@ -76,32 +76,32 @@
     {
       "kind": "ours-only",
       "subject": "BASE-030",
-      "traces": ["draft/violations/vers-008-initialize-error-without-versions"],
+      "traces": ["draft/violations/vers-008-initialize-error-without-versions", "draft/violations/base-030-legacy-initialize-negotiated-2026-07-28"],
       "class": "spec-ambiguity",
       "right": "undecided",
       "quote": ["BASE-030", "VERS-008"],
-      "note": "A legacy client sends `initialize` naming `2025-11-25` to a server that speaks only `2026-07-28`. Judging the whole trace at `2026-07-28`, we report the `initialize` as a request missing the required `_meta` fields — deliberately: `checks/stateless/meta.rs` exempts this request from BASE-031, citing `basic/versioning`'s compatibility matrix (which says of exactly this request that it \"also lacks the required `_meta` fields\"), and states that the client's own defect is still reported, by BASE-030. mcpsnoop reads the request's own `protocolVersion` and judges it at `2025-11-25`, where it is conforming. Whether a `2026-07-28` clause binds a request that is itself speaking `2025-11-25` is not settled by the text: the matrix describes the request as lacking the fields without saying the legacy client is non-conformant for it, and nothing makes a `2025-11-25` client subject to `2026-07-28`. The same question sits under our TRAN-071 finding on the probe capture's legacy `initialize`.",
+      "note": "A legacy client sends `initialize` naming `2025-11-25`. In vers-008 the server speaks only `2026-07-28` and refuses; in base-030-legacy-initialize-negotiated-2026-07-28 it answers naming `2026-07-28` and the session goes on under it. Judging the whole trace at `2026-07-28` (the corpus's `draft/` assignment for the first; the server's `initialize` result, which is the session's revision, for the second), we report the `initialize` as a request missing the required `_meta` fields — deliberately: `checks/stateless/meta.rs` exempts this request from BASE-031, citing `basic/versioning`'s compatibility matrix (which says of exactly this request that it \"also lacks the required `_meta` fields\"), and states that the client's own defect is still reported, by BASE-030. mcpsnoop 0.26.1 draws nothing on either trace. Measured 2026-10-25 on edited copies of the second trace's converted capture: it applies `request-meta-missing` to a request only when that request's own `_meta` carries `io.modelcontextprotocol/protocolVersion` `2026-07-28` (an `initialize` whose `_meta` names it and lacks the other fields is flagged, so `initialize` is not exempt); a request with no `_meta`, an empty one, or one naming `2025-11-25` draws nothing, and setting the `initialize` params' `protocolVersion` to `2026-07-28` changes nothing. So its per-request revision is the one the request states in `_meta`, not `params.protocolVersion` and not the server's answer; an earlier version of this note said it reads the request's own `protocolVersion`, which that measurement does not support. Whether a `2026-07-28` clause binds a request that is itself speaking `2025-11-25` is not settled by the text: the matrix describes the request as lacking the fields without saying the legacy client is non-conformant for it, and nothing makes a `2025-11-25` client subject to `2026-07-28`. The same question sits under our TRAN-071 finding on the probe capture's legacy `initialize`.",
       "resolution": "open: decide whether a legacy-era request inside a 2026-07-28 trace is held to that revision's request-envelope clauses (BASE-030 and its restatements, TRAN-071); the current reading is recorded in `checks/stateless/meta.rs`"
     },
     {
       "kind": "ours-only",
       "subject": "MRTR-002",
-      "traces": ["draft/violations/vers-008-initialize-error-without-versions"],
+      "traces": ["draft/violations/vers-008-initialize-error-without-versions", "draft/violations/base-030-legacy-initialize-negotiated-2026-07-28"],
       "class": "spec-ambiguity",
       "right": "undecided",
       "quote": ["MRTR-002"],
-      "note": "The legacy `initialize` above, under MRTR-002's restatement of the same rule.",
-      "resolution": "open: the same decision as BASE-030 on this trace"
+      "note": "The legacy `initialize` of either trace above, under MRTR-002's restatement of the same rule.",
+      "resolution": "open: the same decision as BASE-030 on these traces"
     },
     {
       "kind": "ours-only",
       "subject": "TOOL-016",
-      "traces": ["draft/violations/vers-008-initialize-error-without-versions"],
+      "traces": ["draft/violations/vers-008-initialize-error-without-versions", "draft/violations/base-030-legacy-initialize-negotiated-2026-07-28"],
       "class": "spec-ambiguity",
       "right": "undecided",
       "quote": ["TOOL-016"],
-      "note": "The legacy `initialize` above, under TOOL-016's restatement of the same rule.",
-      "resolution": "open: the same decision as BASE-030 on this trace"
+      "note": "The legacy `initialize` of either trace above, under TOOL-016's restatement of the same rule.",
+      "resolution": "open: the same decision as BASE-030 on these traces"
     },
     {
       "kind": "ours-only",

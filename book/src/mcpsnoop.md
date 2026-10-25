@@ -6,7 +6,7 @@
 
 # A second opinion: mcpsnoop
 
-[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 334 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
+[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 342 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
 
 ## How the comparison is made
 
@@ -25,29 +25,29 @@ The binary inside, `package/bin/mcpsnoop`, has SHA-256 `81c3636fa5a371833ab4558d
 
 | Corpus directory | Traces |
 |---|---:|
-| `corpus/good/` | 7 |
-| `corpus/violations/` | 93 |
+| `corpus/good/` | 11 |
+| `corpus/violations/` | 94 |
 | `corpus/draft/good/` | 28 |
-| `corpus/draft/violations/` | 198 |
+| `corpus/draft/violations/` | 201 |
 | `corpus/draft/captured/` | 8 |
 
 Verdicts, ours against mcpsnoop's conformance signals:
 
 | | mcpsnoop flags the trace | mcpsnoop does not |
 |---|---:|---:|
-| our verdict `fail` | 80 | 128 |
-| our verdict `pass` or `pass-with-warnings` | 3 | 123 |
+| our verdict `fail` | 80 | 131 |
+| our verdict `pass` or `pass-with-warnings` | 3 | 128 |
 
 Traces by how the two readings relate:
 
 | Relation | Traces |
 |---|---:|
-| both clean | 37 |
+| both clean | 41 |
 | agree | 76 |
-| beyond mcpsnoop | 210 |
-| **divergent** | 11 |
+| beyond mcpsnoop | 213 |
+| **divergent** | 12 |
 
-mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 256 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
+mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 257 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
 
 ## Divergences
 
@@ -61,9 +61,9 @@ Every divergence the run shows, and its triage (`conformance/mcpsnoop/triage.jso
 | 4 | ours-only | `BASE-030` | `draft/violations/base-031-malformed-meta-answered-with-result`, `draft/violations/base-032-invalid-params-not-http-400` | revision-attribution | both | none: the revision is stated to our validator out of band and is absent from the trace |
 | 5 | ours-only | `MRTR-002` | `draft/violations/base-031-malformed-meta-answered-with-result`, `draft/violations/base-032-invalid-params-not-http-400` | revision-attribution | both | none: the revision is stated to our validator out of band and is absent from the trace |
 | 6 | ours-only | `TOOL-016` | `draft/violations/base-031-malformed-meta-answered-with-result`, `draft/violations/base-032-invalid-params-not-http-400` | revision-attribution | both | none: the revision is stated to our validator out of band and is absent from the trace |
-| 7 | ours-only | `BASE-030` | `draft/violations/vers-008-initialize-error-without-versions` | spec-ambiguity | undecided | open: decide whether a legacy-era request inside a 2026-07-28 trace is held to that revision's request-envelope clauses (BASE-030 and its restatements, TRAN-071); the current reading is recorded in `checks/stateless/meta.rs` |
-| 8 | ours-only | `MRTR-002` | `draft/violations/vers-008-initialize-error-without-versions` | spec-ambiguity | undecided | open: the same decision as BASE-030 on this trace |
-| 9 | ours-only | `TOOL-016` | `draft/violations/vers-008-initialize-error-without-versions` | spec-ambiguity | undecided | open: the same decision as BASE-030 on this trace |
+| 7 | ours-only | `BASE-030` | `draft/violations/vers-008-initialize-error-without-versions`, `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | spec-ambiguity | undecided | open: decide whether a legacy-era request inside a 2026-07-28 trace is held to that revision's request-envelope clauses (BASE-030 and its restatements, TRAN-071); the current reading is recorded in `checks/stateless/meta.rs` |
+| 8 | ours-only | `MRTR-002` | `draft/violations/vers-008-initialize-error-without-versions`, `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | spec-ambiguity | undecided | open: the same decision as BASE-030 on these traces |
+| 9 | ours-only | `TOOL-016` | `draft/violations/vers-008-initialize-error-without-versions`, `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | spec-ambiguity | undecided | open: the same decision as BASE-030 on these traces |
 | 10 | ours-only | `LIFE-018` | `violations/tran-017-protocol-version-header-missing` | mcpsnoop-defect | ours | upstream: mcpsnoop-version-header-2025-11-25 |
 | 11 | ours-only | `TRAN-017` | `violations/tran-017-protocol-version-header-missing` | mcpsnoop-defect | ours | upstream: mcpsnoop-version-header-2025-11-25 |
 | 12 | mcpsnoop-only | `response-unmatched` | `good/http-origin-refused-without-id`, `draft/good/http-origin-refused-without-id` | mcpsnoop-defect | ours | upstream: mcpsnoop-origin-refusal-unmatched |
@@ -126,7 +126,7 @@ Resolution: none: the revision is stated to our validator out of band and is abs
 
 ### 7. `BASE-030` (ours-only)
 
-A legacy client sends `initialize` naming `2025-11-25` to a server that speaks only `2026-07-28`. Judging the whole trace at `2026-07-28`, we report the `initialize` as a request missing the required `_meta` fields — deliberately: `checks/stateless/meta.rs` exempts this request from BASE-031, citing `basic/versioning`'s compatibility matrix (which says of exactly this request that it "also lacks the required `_meta` fields"), and states that the client's own defect is still reported, by BASE-030. mcpsnoop reads the request's own `protocolVersion` and judges it at `2025-11-25`, where it is conforming. Whether a `2026-07-28` clause binds a request that is itself speaking `2025-11-25` is not settled by the text: the matrix describes the request as lacking the fields without saying the legacy client is non-conformant for it, and nothing makes a `2025-11-25` client subject to `2026-07-28`. The same question sits under our TRAN-071 finding on the probe capture's legacy `initialize`.
+A legacy client sends `initialize` naming `2025-11-25`. In vers-008 the server speaks only `2026-07-28` and refuses; in base-030-legacy-initialize-negotiated-2026-07-28 it answers naming `2026-07-28` and the session goes on under it. Judging the whole trace at `2026-07-28` (the corpus's `draft/` assignment for the first; the server's `initialize` result, which is the session's revision, for the second), we report the `initialize` as a request missing the required `_meta` fields — deliberately: `checks/stateless/meta.rs` exempts this request from BASE-031, citing `basic/versioning`'s compatibility matrix (which says of exactly this request that it "also lacks the required `_meta` fields"), and states that the client's own defect is still reported, by BASE-030. mcpsnoop 0.26.1 draws nothing on either trace. Measured 2026-10-25 on edited copies of the second trace's converted capture: it applies `request-meta-missing` to a request only when that request's own `_meta` carries `io.modelcontextprotocol/protocolVersion` `2026-07-28` (an `initialize` whose `_meta` names it and lacks the other fields is flagged, so `initialize` is not exempt); a request with no `_meta`, an empty one, or one naming `2025-11-25` draws nothing, and setting the `initialize` params' `protocolVersion` to `2026-07-28` changes nothing. So its per-request revision is the one the request states in `_meta`, not `params.protocolVersion` and not the server's answer; an earlier version of this note said it reads the request's own `protocolVersion`, which that measurement does not support. Whether a `2026-07-28` clause binds a request that is itself speaking `2025-11-25` is not settled by the text: the matrix describes the request as lacking the fields without saying the legacy client is non-conformant for it, and nothing makes a `2025-11-25` client subject to `2026-07-28`. The same question sits under our TRAN-071 finding on the probe capture's legacy `initialize`.
 
 > **BASE-030** (MUST): Client requests carry the following `io.modelcontextprotocol/*` fields in `meta`; fields marked as required MUST be included on every request. — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta)
 
@@ -136,19 +136,19 @@ Resolution: open: decide whether a legacy-era request inside a 2026-07-28 trace 
 
 ### 8. `MRTR-002` (ours-only)
 
-The legacy `initialize` above, under MRTR-002's restatement of the same rule.
+The legacy `initialize` of either trace above, under MRTR-002's restatement of the same rule.
 
 > **MRTR-002** (MUST): Every request MUST include the required `meta` fields; see `meta`. — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr)
 
-Resolution: open: the same decision as BASE-030 on this trace
+Resolution: open: the same decision as BASE-030 on these traces
 
 ### 9. `TOOL-016` (ours-only)
 
-The legacy `initialize` above, under TOOL-016's restatement of the same rule.
+The legacy `initialize` of either trace above, under TOOL-016's restatement of the same rule.
 
 > **TOOL-016** (MUST): Every request MUST include the required `meta` fields; see `meta`. — [source](https://modelcontextprotocol.io/specification/2026-07-28/server/tools)
 
-Resolution: open: the same decision as BASE-030 on this trace
+Resolution: open: the same decision as BASE-030 on these traces
 
 ### 10. `LIFE-018` (ours-only)
 
@@ -327,6 +327,10 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `good/stdio-feature-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-full-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-minimal-init` | 2025-11-25 | pass | — | silent | — | — | both clean |
+| `good/stdio-request-unanswered-at-close` | 2025-11-25 | pass | — | silent | — | — | both clean |
+| `good/stdio-requests-partly-unanswered` | 2025-11-25 | pass | — | silent | — | — | both clean |
+| `good/stdio-server-negotiates-2024-11-05` | 2025-11-25 | pass | — | silent | — | — | both clean |
+| `good/stdio-tool-image-base64-padding` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `violations/auth-014-challenge-without-scope` | 2025-11-25 | pass-with-warnings | `AUTH-014` | silent | — | — | beyond mcpsnoop |
 | `violations/auth-045-invalid-token-answered-403` | 2025-11-25 | fail | `AUTH-045`, `AUTH-049` | silent | — | — | beyond mcpsnoop |
 | `violations/auth-049-insufficient-scope-answered-401` | 2025-11-25 | fail | `AUTH-049`, `AUTH-050` | silent | — | — | beyond mcpsnoop |
@@ -371,13 +375,13 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/page-002-cursor-never-issued` | 2025-11-25 | fail | `PAGE-002`, `PAGE-003` | silent | — | — | beyond mcpsnoop |
 | `violations/page-002-fabricated-cursor-rejected` | 2025-11-25 | fail | `PAGE-002` | silent | — | — | beyond mcpsnoop |
 | `violations/prom-001-capability-undeclared` | 2025-11-25 | fail | `LIFE-009`, `PROM-001` | silent | — | — | beyond mcpsnoop |
-| `violations/prom-003-image-data-invalid` | 2025-11-25 | fail | `PROM-003` | silent | — | — | beyond mcpsnoop |
-| `violations/prom-004-audio-data-invalid` | 2025-11-25 | fail | `PROM-004` | silent | — | — | beyond mcpsnoop |
+| `violations/prom-003-image-data-invalid` | 2025-11-25 | fail | `PROM-003`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `violations/prom-004-audio-data-invalid` | 2025-11-25 | fail | `PROM-004`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/prom-005-embedded-resource-malformed` | 2025-11-25 | fail | `PROM-005`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/prom-008-required-argument-unvalidated` | 2025-11-25 | pass-with-warnings | `PROM-008` | silent | — | — | beyond mcpsnoop |
 | `violations/res-001-capability-undeclared` | 2025-11-25 | fail | `LIFE-009`, `RES-001` | silent | — | — | beyond mcpsnoop |
 | `violations/res-004-uri-bad-scheme` | 2025-11-25 | fail | `RES-004` | silent | — | — | beyond mcpsnoop |
-| `violations/res-006-blob-not-base64` | 2025-11-25 | fail | `RES-006` | silent | — | — | beyond mcpsnoop |
+| `violations/res-006-blob-not-base64` | 2025-11-25 | fail | `RES-006`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/root-001-answered-without-capability` | 2025-11-25 | fail | `LIFE-009`, `ROOT-001`, `ROOT-004`, `ROOT-009` | silent | — | — | beyond mcpsnoop |
 | `violations/root-003-root-not-file-uri` | 2025-11-25 | fail | `ROOT-003` | silent | — | — | beyond mcpsnoop |
 | `violations/root-004-unsupported-answered-internal-error` | 2025-11-25 | fail | `LIFE-009`, `ROOT-004`, `ROOT-009` | silent | — | — | beyond mcpsnoop |
@@ -420,6 +424,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/wire-schema-content-block-unknown-type` | 2025-11-25 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/wire-schema-log-level-not-in-enum` | 2025-11-25 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/wire-schema-resource-missing-uri` | 2025-11-25 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `violations/wire-schema-tool-image-data-not-base64` | 2025-11-25 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/good/caching-ttl-written-as-float` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/client-features-mrtr` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-authorization` | 2026-07-28 | pass | — | silent | — | — | both clean |
@@ -455,6 +460,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/auth-131-insufficient-scope-without-resource-metadata` | 2026-07-28 | pass-with-warnings | `AUTH-131` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/auth-132-insufficient-scope-names-no-scope` | 2026-07-28 | pass-with-warnings | `AUTH-131`, `AUTH-132` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/auth-133-scope-challenged-incrementally` | 2026-07-28 | pass-with-warnings | `AUTH-133` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | 2026-07-28 | fail | `BASE-030`, `COMP-006`, `DISC-002`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `TRAN-128` | silent | — | — | **divergent** |
 | `draft/violations/base-030-malformed-request-id-reused-correctly` | 2026-07-28 | fail | `BASE-030`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `request-meta-missing` | — | agree |
 | `draft/violations/base-030-malformed-request-refused-without-id` | 2026-07-28 | fail | `BASE-030`, `BASE-052`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `request-meta-missing`, `response-unmatched` | — | agree |
 | `draft/violations/base-030-request-meta-missing-required-field` | 2026-07-28 | fail | `BASE-030`, `BASE-031`, `CACH-001`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `cacheable-without-ttl`, `request-meta-missing` | — | agree |
@@ -565,6 +571,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/skill-065-directory-result-type-not-complete` | 2026-07-28 | pass | `SKILL-065` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/skill-066-directory-read-of-a-file-answered` | 2026-07-28 | pass | `SKILL-066`, `SKILL-071` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/skill-067-skill-directory-refused` | 2026-07-28 | pass | `SKILL-067` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/skill-100-directory-result-without-cache-fields` | 2026-07-28 | pass | `SKILL-100` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/subs-001-cancelled-for-another-request` | 2026-07-28 | fail | `CANC-003`, `CANC-011`, `SUBS-001` | flags | `server-cancellation` | — | agree |
 | `draft/violations/subs-001-unrequested-notification-type` | 2026-07-28 | fail | `SUBS-001`, `wire-schema` | flags | `subscription-unrequested` | — | agree |
 | `draft/violations/subs-002-notification-before-acknowledgment` | 2026-07-28 | fail | `SUBS-002`, `wire-schema` | flags | `subscription-before-ack` | — | agree |
@@ -646,6 +653,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/wire-schema-cache-scope-not-in-enum` | 2026-07-28 | fail | `wire-schema` | flags | `cache-scope-value` | — | agree |
 | `draft/violations/wire-schema-content-block-unknown-type` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/wire-schema-resource-missing-uri` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/wire-schema-tool-image-data-not-base64` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/captured/official-suite-2026-07-28-scenarios` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |
 | `draft/captured/official-suite-2026-07-28-stateless` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/captured/probe-2026-07-28-http` | 2026-07-28 | fail | `BASE-030`, `BASE-033`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `TRAN-071`, `TRAN-072`, `TRAN-079`, `TRAN-130`, `wire-schema` | flags | `param-header-missing`, `protocol-version-header-disagrees`, `request-meta-missing`, `server-rejected-header-mismatch` | — | agree |
