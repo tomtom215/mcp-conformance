@@ -5,7 +5,11 @@
 
 Fixtures for the golden-corpus tests (`crates/mcp-trace-validator/tests/golden.rs`):
 
-- **`good/`** — sessions that must validate with verdict `pass`.
+- **`good/`** — sessions that must validate with verdict `pass`, at the revision each
+  declares: `validate` with no flags passes all of them but one, the session whose server
+  answers `initialize` with `2024-11-05` (`stdio-server-negotiates-2024-11-05`), which `validate`
+  refuses by default (exit 2) and passes with `--revision 2025-11-25`. The CI jobs that run
+  the shipped Action and image over this directory name that exception.
 - **`violations/`** — single-issue sessions, each falsifying at least one check;
   named after the requirement whose check they exist to kill.
 - **`draft/{good,violations}/`** — the same two kinds for revision `2026-07-28`,

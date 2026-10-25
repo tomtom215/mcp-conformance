@@ -67,8 +67,17 @@ file). Every result below is from a command run in this session, not carried ove
 - Before that, on identical code: fmt, clippy in both feature sets, `cargo test --workspace`
   (1989 passed with `--all-features`, 1952 without, 0 failed), rustdoc, and three mutations of the
   `byte` format check, all killed.
-- Not run locally on V1's code: the 1.88 (MSRV) build and Windows-target clippy. CI covers both;
-  read the run for the pushed tip.
+- Not run locally on V1's code: the 1.88 (MSRV) build and Windows-target clippy. CI covers both.
+- **CI run 497 on the pushed tip `19a508d` failed 3 of 34 jobs, all V1 fallout that the local chain
+  could not see because it never ran those jobs**: the shipped Action and the container image judge
+  every `corpus/good/*.jsonl` with no flags, and V1's new good trace
+  `stdio-server-negotiates-2024-11-05` is refused (exit 2) by the rule V1 added; and the `visual` job's
+  8 screenshots of the failing and two-revision reports (V1 added party pills and the
+  unanswered-requests note, so the pages are taller). Fixed in the commit after `19a508d`: the CI jobs now
+  name the exception and assert the refusal; the 8 baselines are the runner's own `-actual.png` from
+  the `visual-diffs` artifact (zip SHA-256 matched the digest CI logged), reviewed as images at the top
+  of each. Lesson: a change to the validator's defaults or to the HTML report needs the Action, image
+  and `visual` jobs run (or simulated: `action/validate.sh` can be run by hand) before the push.
 
 Still to do, in order:
 
