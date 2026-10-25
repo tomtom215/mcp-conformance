@@ -6,7 +6,8 @@
 **Date:** 2026-10-13
 **Status:** Accepted (reverses the "no JSON Schema engine" boundary that
 [02-architecture.md](../02-architecture.md) and several registry exclusions relied on;
-decision D2 of the [2026-09-24 review](../../reports/project-review-2026-09-24.md))
+decision D2 of the [2026-09-24 review](../../reports/project-review-2026-09-24.md);
+amended 2026-10-25 — see §Amendment)
 **Author:** Tom F.
 
 ---
@@ -44,7 +45,8 @@ the engine's absence rather than on anything about the wire.
    against the definition the suite's dispatch picks: a request or notification by
    `method`, an error by `code`, a result by the method of the request it answers, the
    JSON-RPC envelope otherwise. Format assertion stays off: in 2020-12 `format` is an
-   annotation, and asserting `uri` would fail URIs the prose permits.
+   annotation, and asserting `uri` would fail URIs the prose permits. *(Amended 2026-10-25:
+   `byte` alone is asserted — see §Amendment.)*
 3. **Report it beside the rows, not as one.** The authority sentence carries no RFC 2119
    keyword, and inventing a `MUST` row for it would misquote the specification. The report
    gains `wire_schema` — outcome, messages checked, one finding per invalid message, the
@@ -109,3 +111,26 @@ recorded as class `schema-pin-skew`.
 - The schema is an independent second reading of the same session; where it and a clause
   check both fire (`CACH-001` and a missing `ttlMs`), the report says so twice, which is
   the honest accounting of two rules broken by one message.
+
+## Amendment (2026-10-25): `byte` is asserted; `uri` and `uri-template` are not
+
+Decision 2 left format assertion off. Both vendored schemas use three formats — `byte`
+(`ImageContent.data`, `AudioContent.data` and `BlobResourceContents.blob`, the same three in
+each), `uri` (14 places at `2025-11-25`, 12 at `2026-07-28`) and `uri-template` (2 in each) —
+and the validator now asserts one of them. `byte` is base64, and a value that is not base64
+is a `wire_schema` finding at its message. The predicate is the one the clause checks already
+use (`checks::is_base64`), so the schema and the clauses cannot disagree about what base64
+is. `uri` and `uri-template` are registered as always valid, so decision 2's reason stands
+for them.
+
+The official runner does not do this. Its `0.2.0-alpha.12` bundle imports `ajv-formats`
+(which asserts `uri` and `uri-template`) and then registers `byte` as always valid
+(`addFormat("byte", true)` in its `dist/index.js`), so a non-base64 `data` that this validator
+fails, the runner passes. The pinned stable `0.1.16` has no wire-schema check at all, and no
+agreement leg exercises the difference today; if one does, it is reconciled in
+`conformance/wire-schema-divergences.json` like any other disagreement.
+
+Effect on the corpus: `prom-003`, `prom-004` and `res-006` gain one `wire_schema` finding each
+at the message their clause already convicts, with no other outcome changed; two traces
+(`wire-schema-tool-image-data-not-base64` at both revisions) and one good trace
+(`stdio-tool-image-base64-padding`) pin the predicate.

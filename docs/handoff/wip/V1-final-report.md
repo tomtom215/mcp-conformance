@@ -7,6 +7,8 @@ The agent's own report, saved when the 2026-10-24 session paused. Its claims of 
 the agent's; this session did not re-run them. The commits are branch `wip/V1` in [`wip.bundle`](wip.bundle)
 (see [`README.md`](README.md)).
 
+**Status 2026-10-25:** merged onto the branch. "The next person, first" items 1, 3 and 4 are done (checks, mutations, CHANGELOG, the ADR and strategy-doc corrections); item 2 (the mcpsnoop re-measure) is not.
+
 **Original branch (lost with the container; `wip/V1` in the bundle is the record):** `worktree-agent-a05e997c5d0cdeb6a`, base `a64fa94`, tree clean, nothing pushed.
 
 **Commits, oldest first:**

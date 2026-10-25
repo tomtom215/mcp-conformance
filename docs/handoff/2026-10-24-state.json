@@ -1,11 +1,12 @@
 {
   "branch": "claude/focused-thompson-jx6akj",
-  "date": "2026-10-24",
-  "ci_green_commit": "7d67852",
+  "date": "2026-10-24 (updated 2026-10-25)",
+  "ci_green_commit": "913d8e6",
   "local_tests_at_merged_tip": {
-    "passed": 1937,
+    "passed": 1989,
     "failed": 0,
-    "ignored": 2
+    "ignored": null,
+    "note": "--all-features at the V1 merge, 2026-10-25; 1952 passed without --all-features; ignored count not recorded"
   },
   "items": [
     {
@@ -60,8 +61,12 @@
     },
     {
       "id": "V1-validator-report-model",
-      "status": "done_items_1_to_3_item_4_partial_unmerged",
-      "wip": "docs/handoff/wip/V1"
+      "status": "merged_2026-10-25_mcpsnoop_remeasure_pending",
+      "wip_reference": "docs/handoff/wip/V1",
+      "follow_up": [
+        "mcpsnoop re-measure and triage of BASE-030/MRTR-002/TOOL-016 on base-030-legacy-initialize-negotiated-2026-07-28",
+        "read CI for the pushed tip (1.88 and Windows not run locally)"
+      ]
     },
     {
       "id": "R1-2025-11-25-ping-progress-cancel",
@@ -75,9 +80,7 @@
     {
       "id": "C1-test-party-aware-and-watch-flags",
       "status": "not_started",
-      "needs": [
-        "V1"
-      ]
+      "needs": []
     },
     {
       "id": "check-command-ADR-0024",
@@ -105,10 +108,10 @@
     }
   ],
   "run_first_next_session": [
-    "cargo xtask conformance",
-    "cargo xtask draft-readiness",
-    "cargo xtask falsify-gates",
-    "push and read CI",
+    "read CI on the pushed tip",
+    "cargo xtask mcpsnoop (pinned 0.26.1 binary from npm, hashes in book/src/mcpsnoop.md): triage three divergences, then --render",
+    "merge R1 from docs/handoff/wip/wip.bundle, bless, review goldens by class, then gates (after git add), falsify-gates, spec-drift, conformance",
+    "dispatch Scheduled with only=claims; issue #50 closes only on green",
     "reconcile capture README memory table in release"
   ]
 }

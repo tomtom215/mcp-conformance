@@ -58,6 +58,12 @@ below is stated again in its entry, with the reasoning.
 | SARIF | Findings against an extension's clauses are results at level `note`, with `properties.extension` and `properties.scored: false` | A consumer treating every result as an error filters on the level or on `scored` |
 | JUnit | One more suite per exercised extension, named `… (revision, extension ID, not scored)`; its findings sit in passing cases' `<system-out>`, never a `<failure>` | None: those suites hold no failures |
 | Registry data | `TOOL-033` and `TRAN-080` quotes rewritten in the flattened-list form (`; ` between items), the clauses unchanged. `TOOL-034` and `TRAN-081` each bundled clauses binding different parties: both now name only the safe-integer bound (binding the client), and the reachability and client-rejection clauses are `TOOL-045`, `TOOL-046` and `TRAN-137` | Key on the requirement ID; gate on the new IDs for the clauses that moved |
+| Verdict | A session with a completed `initialize` handshake is judged under the revision the server's result negotiated, alone: one that proposes X and negotiates Y is no longer also judged at X, and one that negotiates a revision with no registry (such as `2025-03-26`) exits `2`, naming both, where it was judged at what else it declared ([ADR-0018](docs/plan/decisions/0018-judge-the-declared-revision.md) §Amendment) | `--revision X` judges the proposal; a trace with no completed handshake is judged as before |
+| Verdict, now failing | `data` of image and audio content and `blob` of binary resource contents that is not base64 also fails the report's `wire_schema`: the schema's `format: "byte"` is now asserted (`uri` and `uri-template` are not; [ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md) §Amendment) | Send base64; the clause checks for these fields already failed them |
+| JSON report | Every row gains `actor` (required by `report.schema.json`, so a report from an earlier version no longer validates against that schema; the Rust types still read one) and every finding `party`; a report gains `party_view` when `--party` was given and `unanswered_requests` when the trace ended with requests unanswered | Accept the members; validate old reports against the old schema |
+| JUnit, SARIF, HTML | Each carries the party a finding is held against, and the unanswered-requests note | None |
+| `validate --party` | New: `--party client\|server` counts only that party's findings (and those held against nobody, which the verdict line says it counted) toward the verdict and exit status | None; without it the verdict and exit status are unchanged |
+| Rust API | `report::{Party, PartyTally, TraceEnding, UnansweredRequest, UnansweredRequests}` are new; `Report` gains `party_view` and `unanswered_requests`, `RequirementReport` gains `actor`, `Finding` gains `party` (a report written before them still deserialises, with `None`); `declared::Selection` gains `proposed`, `UnjudgeableRevisions` gains `negotiated` and `proposed` (each is `#[non_exhaustive]`) | None for callers that read; construct through the crate's functions |
 
 ### Removed
 
@@ -116,6 +122,14 @@ below is stated again in its entry, with the reasoning.
 - **`TRAN-068`** recognized only a lowercase `text/event-stream`; media types are
   case-insensitive (RFC 9110 §8.3.1), so a `Text/Event-Stream` response without
   `X-Accel-Buffering: no` now warns too.
+- **Base64 in image, audio and blob data** was held only by the clause checks on
+  prompts and resources: the schema's `format: "byte"` was an annotation the engine
+  ignored, so an image `data` in a tool result that was not base64 passed every check
+  (`corpus/violations/wire-schema-tool-image-data-not-base64.jsonl`). The engine now
+  asserts `byte` with the same predicate the clause checks use, and nothing else
+  ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md) §Amendment). The
+  official runner registers `byte` as always valid (`addFormat("byte", true)` in the
+  `0.2.0-alpha.12` bundle), so a non-base64 value this fails, the runner passes.
 
 **Checks that failed conforming sessions**
 
@@ -177,6 +191,17 @@ below is stated again in its entry, with the reasoning.
   `"ttlMs": 60000.0` failed, though the schema's JSON Schema `integer` admits any
   number with a zero fractional part. It now accepts any non-negative number with
   no fractional part, and still fails a negative or fractional one.
+- **A session whose server negotiated another revision was judged at the client's
+  proposal.** The official suite's `sse-retry` scenario answers a `2025-11-25`
+  `initialize` with `2025-03-26`; the client then sends POSTs without
+  `MCP-Protocol-Version`, which `2025-03-26` does not define, and `LIFE-018` and
+  `TRAN-017` failed it against a correct client (recorded as `our-bug (revision
+  attribution)` in `conformance/wire-findings.json` until now). A completed handshake
+  is now judged under the revision the server's result names, alone; the client's
+  proposal, when it differs, is noted on stderr, and a negotiated revision with no
+  registry is refused (exit `2`) rather than approximated by the proposal
+  ([ADR-0018](docs/plan/decisions/0018-judge-the-declared-revision.md) §Amendment).
+  `mcp-conformance test` lists such a session as unjudged, with that reason.
 
 **Which clauses a check judges**
 
@@ -511,6 +536,26 @@ below is stated again in its entry, with the reasoning.
   to `2026-07-28` on purpose) warn on `BASE-037`; the Go and Python SDK servers pass
   it, and the everything server at `2026-07-28` does since it names itself on every
   result (see Fixed).
+- **Every finding says which party it is held against**, and `validate --party
+  client|server` views a report for one. `mcp-conformance test` drives a server with the
+  suite's client, which breaks clauses of its own (calling `logging/setLevel` on a server
+  that declared no `logging`, closing a session it never sent `notifications/initialized`
+  on); those findings are real and are not the server author's to fix. Each row names the
+  actor the registry binds (`actor`) and each finding the party it is held against
+  (`party`): the clause's actor when it names one, else the sender of the message at the
+  finding's `seq`. Under `--party` only that party's findings, and those held against
+  nobody (which the verdict line says it counted), reach the verdict and exit status; the
+  rows and totals stay the trace's facts. The default verdict and exit status are
+  unchanged. Human output prefixes a finding with `[client]` or `[server]`; JUnit and
+  SARIF carry the party as a property and HTML as a pill. `mcp-conformance test` does not
+  use the view yet.
+- **A report says which requests the trace ended without answering**
+  (`unanswered_requests`: the count, up to ten with method, id, `seq` and sender, and how
+  the trace ended: `transport-close`, `transport-abort` or stopped), in human, JSON, JUnit,
+  SARIF and HTML output. It is a note, not a finding: the verdict is unchanged. A request
+  answered later or out of order, answered over SSE, cancelled by its sender after it was
+  sent, or refused by the HTTP layer before the protocol saw it (`401`, `403`) is not
+  listed; a request a server met with `202` and nothing else is.
 
 **The registry**
 

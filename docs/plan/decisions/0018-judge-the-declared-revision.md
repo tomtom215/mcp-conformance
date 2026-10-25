@@ -5,7 +5,7 @@
 
 **Date:** 2026-09-24
 **Status:** Accepted (replaces the feature-gate condition in [02-architecture.md](../02-architecture.md)
-§Protocol-revision strategy and roadmap M5's last DoD line)
+§Protocol-revision strategy and roadmap M5's last DoD line; amended 2026-10-25 — see §Amendment)
 **Author:** Tom F.
 
 ---
@@ -33,6 +33,8 @@ was mentioned nowhere a user would look. See the
    or the `MCP-Protocol-Version` header). A trace declaring nothing is judged against the newest
    supported revision and says so on stderr. A trace declaring only unsupported revisions is
    refused with exit 2. `--revision` overrides; the report records how the revision was chosen.
+   *(Amended 2026-10-25: a completed `initialize` handshake is judged under the revision the
+   server negotiated, alone — see §Amendment.)*
 3. The suite-stability condition is dropped as a gate on *shipping the registry*. It still gates
    what it actually governs: the blocking agreement check at `2026-07-28`, which waits for a stable
    suite `0.2.0` (deferral `suite-0-2-0-stable-pin-bump`).
@@ -70,3 +72,36 @@ was mentioned nowhere a user would look. See the
   legitimate inputs, and `--revision` already exists for the case where the default is wrong.
 - **Wait for suite `0.2.0`.** Rejected: its release date is unknown, and the registry's
   correctness rests on the published text, not on the runner's release state.
+
+## Amendment (2026-10-25): a completed handshake is judged under the revision the server negotiated
+
+Decision 2 read every declaration as equal evidence, so a session whose client proposed one
+revision in `initialize` and whose server answered with another was judged under both. That
+is wrong for the revision the server chose: negotiation means the session ran under the
+server's answer, and the other revision's rules are not the session's.
+
+The rule is now one authority. A session with a completed handshake — a client `initialize`
+request answered by a server result naming a well-formed `protocolVersion` — is judged under
+that revision alone, whatever the client proposed and whatever its later requests state. When
+the proposal differed, stderr says so (`note: the client proposed protocol revision X; the
+server's initialize result negotiated Y, which the session then ran under, …`) and
+`--revision X` still asks the other question. A
+negotiated revision this build has no registry for is refused with exit 2, naming both
+revisions, not approximated by the proposal. A session with no completed handshake —
+fragments, an `initialize` nothing answered, an `initialize` answered with an error or
+refused by a protected resource — is judged as decision 2 says.
+
+The case that showed it: the official suite's `sse-retry` scenario answers a client that
+proposes `2025-11-25` with `2025-03-26`, and the client then sends POSTs without
+`MCP-Protocol-Version`, a header `2025-03-26` does not define. Judged at the proposal, the validator failed `LIFE-018` and `TRAN-017`
+against a correct client; those two findings sat in `conformance/wire-findings.json` as
+`our-bug (revision attribution)` until this change. The session is now listed as unjudged,
+with the reason.
+
+**Consequences.** A behaviour change for any trace with a completed handshake whose
+declarations are not all the negotiated revision: one that proposes X and negotiates Y, or
+whose later requests state another revision, is judged at Y only; and one that negotiates a
+revision with no registry exits 2 where it used to be judged at what else it declared. A
+trace with no completed handshake judges as before. `Selection` gains `proposed`, and
+`UnjudgeableRevisions` gains `negotiated` and `proposed`; both types are `#[non_exhaustive]`,
+so the additions are compatible.
