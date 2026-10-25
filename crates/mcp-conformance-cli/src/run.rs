@@ -17,6 +17,8 @@ use mcp_conformance_cli::agreement::{self, Baseline, Reconciliation};
 use mcp_conformance_cli::suite::{self, Scenario};
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_capture::Signals;
+use mcp_trace_capture::http;
+use mcp_trace_capture::run::HostHeader;
 use mcp_trace_validator::report::{Party, Verdict};
 
 use crate::args::{Subject, TestArgs};
@@ -221,7 +223,9 @@ async fn drive(
 ) -> Result<Driven, String> {
     if let Some(url) = &subject.url {
         let (upstream, path) = proxy::split(url).map_err(|error| format!("--url: {error}"))?;
-        let preserve_host = proxy::is_loopback(&upstream);
+        // The recorder's own default: the client's `Host` for a server on this
+        // machine, the server's own name for any other.
+        let preserve_host = HostHeader::Auto.preserves(http::is_loopback(&upstream));
         if let Some(note) = host_note(preserve_host) {
             eprintln!("mcp-conformance: {note}");
         }

@@ -545,3 +545,124 @@ fn spans_are_accepted_by_a_real_collector() {
     );
     std::fs::remove_dir_all(&replay.dir).ok();
 }
+
+/// Runs `watch http` in front of a stand-in upstream with `flags`, sends one
+/// request through it carrying `Host: client_host`, and returns the `Host` the
+/// upstream received, the upstream's own `host:port`, and what `watch` said on
+/// stderr.
+fn host_through_watch_http(flags: &[&str], client_host: &str) -> (String, String, String) {
+    let (url, requests) = collector();
+    let own = url.trim_start_matches("http://").to_owned();
+    let dir = scratch("watch-host");
+    let mut child = binary()
+        .arg("watch")
+        .arg("-o")
+        .arg(dir.join("trace.jsonl"))
+        .args(["http", "--upstream", &format!("{url}/mcp")])
+        .args(["--listen", "127.0.0.1:0"])
+        .args(flags)
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stderr = BufReader::new(child.stderr.take().unwrap());
+    let mut said = String::new();
+    let address = loop {
+        let mut line = String::new();
+        assert!(stderr.read_line(&mut line).unwrap() > 0, "{said}");
+        said.push_str(&line);
+        if let Some(rest) = line.split("listening on http://").nth(1) {
+            break rest.split(',').next().unwrap().to_owned();
+        }
+    };
+    let mut stream = std::net::TcpStream::connect(&address).unwrap();
+    write!(
+        stream,
+        "POST /x HTTP/1.1\r\nHost: {client_host}\r\nContent-Length: 2\r\n\
+         Connection: close\r\n\r\n{{}}"
+    )
+    .unwrap();
+    let mut answer = String::new();
+    stream.read_to_string(&mut answer).unwrap();
+    assert!(answer.starts_with("HTTP/1.1 200"), "{answer}");
+    let interrupted = Command::new("kill")
+        .args(["-INT", &child.id().to_string()])
+        .status()
+        .unwrap();
+    assert!(interrupted.success());
+    stderr.read_to_string(&mut said).unwrap();
+    child.wait().unwrap();
+    let head = requests.lock().unwrap()[0].0.clone();
+    let seen = head
+        .lines()
+        .find_map(|line| {
+            line.strip_prefix("host: ")
+                .or_else(|| line.strip_prefix("Host: "))
+        })
+        .unwrap_or_else(|| panic!("no Host in {head}"))
+        .to_owned();
+    std::fs::remove_dir_all(&dir).ok();
+    (seen, own, said)
+}
+
+/// `watch http` takes `mcp-trace-capture http`'s Host flags by the same names
+/// and reads them alike (the dogfood audit's `watch http` finding): for a
+/// server on this machine the client's `Host` goes through unless
+/// `--no-preserve-host` names the server's own, and `--preserve-host` asks for
+/// the default outright. Its startup line names only flags it has.
+#[test]
+fn watch_http_reads_the_hosts_flags_as_the_recorder_does() {
+    let client = "box.internal:8080";
+    let (seen, _, said) = host_through_watch_http(&[], client);
+    assert_eq!(seen, client, "a loopback upstream keeps the client's Host");
+    assert!(
+        said.contains(
+            "sending the client's Host header through to the server, which is on this machine"
+        ) && said.contains("(--no-preserve-host sends the server's own name instead)"),
+        "{said}"
+    );
+
+    let (seen, own, said) = host_through_watch_http(&["--no-preserve-host"], client);
+    assert_eq!(
+        seen, own,
+        "the server's own name, though it is on this machine"
+    );
+    assert!(
+        said.contains("sending the server's own name as Host (--no-preserve-host)"),
+        "{said}"
+    );
+
+    let (seen, _, said) = host_through_watch_http(&["--preserve-host"], client);
+    assert_eq!(seen, client);
+    assert!(
+        said.contains("through to the server (--preserve-host)"),
+        "{said}"
+    );
+
+    // Both at once is a usage error, as it is for the recorder.
+    let both = binary()
+        .args(["watch", "http", "--upstream", "http://127.0.0.1:1/mcp"])
+        .args(["--preserve-host", "--no-preserve-host"])
+        .output()
+        .unwrap();
+    assert_eq!(both.status.code(), Some(2));
+    assert!(
+        String::from_utf8_lossy(&both.stderr).contains("cannot be used with"),
+        "{}",
+        String::from_utf8_lossy(&both.stderr)
+    );
+
+    let help = binary().args(["watch", "http", "--help"]).output().unwrap();
+    // Words, not lines: clap wraps its help to the terminal.
+    let help = String::from_utf8_lossy(&help.stdout)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for needle in [
+        "--preserve-host",
+        "--no-preserve-host",
+        "the default for an upstream on this machine",
+        "(the default for any other)",
+    ] {
+        assert!(help.contains(needle), "{needle}: {help}");
+    }
+}
