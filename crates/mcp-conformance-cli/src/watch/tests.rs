@@ -161,11 +161,15 @@ fn findings_are_printed_with_the_tally_and_the_report_at_the_end() {
         "a tally after the findings: {written}"
     );
     assert!(written.contains("verdict: fail"), "{written}");
+    // Three findings: BASE-006 and PING-001 and the wire schema's. The report's
+    // totals count the two clauses; the tally says its three findings are
+    // those two clauses and the schema.
+    assert_eq!(judged.findings, 3);
+    assert!(written.contains(" 2 fail, 0 warn, "), "totals: {written}");
     assert!(
-        written.ends_with(&format!(
-            "3 exchange(s); findings so far: {} fail, 0 warn\n",
-            judged.findings
-        )),
+        written.ends_with(
+            "3 exchange(s); findings so far: 3 fail, 0 warn in 2 clause(s) and the wire schema\n"
+        ),
         "{written}"
     );
     assert_eq!((judged.lines, judged.withdrawn), (5, 0));

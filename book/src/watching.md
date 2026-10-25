@@ -60,7 +60,7 @@ mcp-conformance watch: WARN TOOL-006 (SHOULD) seq 5: tool name "weather lookup,v
 mcp-conformance watch: WARN TOOL-007 (SHOULD NOT) seq 5: tool name "weather lookup,v2!" contains characters outside A-Z, a-z, 0-9, underscore, hyphen, and dot: " ,!"
     spec: "Tool names SHOULD NOT contain spaces, commas, or other special characters."
     see:  https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool-names
-mcp-conformance watch: 3 exchange(s); findings so far: 0 fail, 2 warn
+mcp-conformance watch: 3 exchange(s); findings so far: 0 fail, 2 warn in 2 clause(s)
 ```
 
 That is the corpus's `tool-006-name-charset` session replayed through `watch stdio`
