@@ -61,11 +61,12 @@ longer finish inside its timeout, and two Dependabot PRs. All of those are fixed
 ## Finished by agents but unmerged (saved in `wip/`)
 
 Two agents worked in worktrees based on `main`, not on this branch. Both committed before the
-session paused; their work is saved as patch series (goldens excluded) with each agent's own final
-report verbatim: [`wip/README.md`](wip/README.md), [`V1-final-report.md`](wip/V1-final-report.md),
-[`R1-final-report.md`](wip/R1-final-report.md). Each series was checked here only to apply cleanly to
-its base. They are unreviewed and have not been run on this branch's tip; what the reports say they
-ran is the agents' claim.
+session paused; their commits are saved in one git bundle, `wip/wip.bundle`, as branches `wip/V1` and
+`wip/R1`, with each agent's own final report: [`wip/README.md`](wip/README.md) (how to fetch from it),
+[`V1-final-report.md`](wip/V1-final-report.md), [`R1-final-report.md`](wip/R1-final-report.md). The
+bundle was checked only by fetching it into a clone: the two tips equal the original branches' hashes.
+The work is unreviewed and has not been run on this branch's tip; what the reports say they ran is
+the agents' claim.
 
 - **V1 (validator report model).** Items 1 to 3 DONE per its report (party attribution with an
   opt-in `validate --party`; a note for requests unanswered at the end of a trace; one rule for the

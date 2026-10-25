@@ -241,19 +241,17 @@ fn overwrite(path: &Path, existing: &std::fs::Metadata) -> Result<File, String> 
 }
 
 /// Whether two metadata describe one file: by device and inode on Unix.
+#[cfg(unix)]
+fn same_file(checked: &std::fs::Metadata, opened: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt as _;
+    checked.dev() == opened.dev() && checked.ino() == opened.ino()
+}
+
 /// Elsewhere there is no stable identity to compare, so the check before the
 /// open is the whole defence there.
-fn same_file(checked: &std::fs::Metadata, opened: &std::fs::Metadata) -> bool {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt as _;
-        checked.dev() == opened.dev() && checked.ino() == opened.ino()
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = (checked, opened);
-        true
-    }
+#[cfg(not(unix))]
+const fn same_file(_checked: &std::fs::Metadata, _opened: &std::fs::Metadata) -> bool {
+    true
 }
 
 /// The line limit for `max_message`, saying so when the validator's default

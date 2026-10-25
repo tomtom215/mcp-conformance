@@ -184,8 +184,8 @@ async fn silent_upstream() -> (SocketAddr, tokio::sync::mpsc::UnboundedReceiver<
             let _ = reached.send(());
             // Held open, unanswered, for as long as the test runs.
             tokio::spawn(async move {
-                let _open = stream;
                 std::future::pending::<()>().await;
+                drop(stream);
             });
         }
     });

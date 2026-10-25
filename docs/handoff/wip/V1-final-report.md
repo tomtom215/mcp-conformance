@@ -4,10 +4,10 @@
 # V1 final report — validator report model
 
 The agent's own report, saved when the 2026-10-24 session paused. Its claims of what was run are
-the agent's; this session did not re-run them. The patch series is [`V1/`](V1); goldens are excluded
-from it (`cargo xtask bless` recreates them).
+the agent's; this session did not re-run them. The commits are branch `wip/V1` in [`wip.bundle`](wip.bundle)
+(see [`README.md`](README.md)).
 
-**Branch (lost with the container; patches are the record):** `worktree-agent-a05e997c5d0cdeb6a`, base `a64fa94`, tree clean, nothing pushed.
+**Original branch (lost with the container; `wip/V1` in the bundle is the record):** `worktree-agent-a05e997c5d0cdeb6a`, base `a64fa94`, tree clean, nothing pushed.
 
 **Commits, oldest first:**
 

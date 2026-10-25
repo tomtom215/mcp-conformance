@@ -4,10 +4,10 @@
 # R1 final report — 2025-11-25 ping, progress, cancellation entered
 
 The agent's own report, saved verbatim in substance when the 2026-10-24 session paused. Its claims of
-what was run are the agent's; this session did not re-run them. The patch series is
-[`R1/`](R1); goldens are excluded from it (`cargo xtask bless` recreates them).
+what was run are the agent's; this session did not re-run them. The commits are
+branch `wip/R1` in [`wip.bundle`](wip.bundle) (see [`README.md`](README.md)).
 
-**Branch (lost with the container; patches are the record):** `worktree-agent-a06259b185c3bcb34`, tree clean, nothing pushed.
+**Original branch (lost with the container; `wip/R1` in the bundle is the record):** `worktree-agent-a06259b185c3bcb34`, tree clean, nothing pushed.
 
 **Commits on top of `a64fa94`:**
 
