@@ -1,0 +1,141 @@
+{
+  "branch": "claude/focused-thompson-jx6akj",
+  "date": "2026-10-24 (updated 2026-10-25)",
+  "ci_green_commit": "f8f1ca0",
+  "local_tests_at_merged_tip": {
+    "passed": 2032,
+    "failed": 0,
+    "ignored": null,
+    "note": "--all-features at f8f1ca0 (the mutant-fix commit), 2026-10-25; the run without --all-features and the ignored count were not repeated at this commit"
+  },
+  "items": [
+    {
+      "id": "advisories",
+      "status": "done"
+    },
+    {
+      "id": "toolchain-1.99.1",
+      "status": "done"
+    },
+    {
+      "id": "rmcp-3.7.0",
+      "status": "done"
+    },
+    {
+      "id": "jsonschema-0.60.1",
+      "status": "done"
+    },
+    {
+      "id": "mutant-numbered-rs",
+      "status": "done"
+    },
+    {
+      "id": "sweep-16-shards",
+      "status": "done"
+    },
+    {
+      "id": "register-rows",
+      "status": "done"
+    },
+    {
+      "id": "skills-drift-SKILL-100",
+      "status": "done"
+    },
+    {
+      "id": "capture-hardening",
+      "status": "done",
+      "follow_up": [
+        "watch --no-preserve-host",
+        "403 hint",
+        "404 hint misfire on ping",
+        "connection cap"
+      ]
+    },
+    {
+      "id": "workbench-otlp-hardening",
+      "status": "done",
+      "follow_up": [
+        "cap gen_ai.tool.name",
+        "cookie redesign"
+      ]
+    },
+    {
+      "id": "V1-validator-report-model",
+      "status": "merged_2026-10-25",
+      "wip_reference": "docs/handoff/wip/V1",
+      "follow_up": [
+        "maintainer decision: is a legacy-era initialize inside a 2026-07-28 session held to that revision's _meta clauses (BASE-030, MRTR-002, TOOL-016, TRAN-071)"
+      ]
+    },
+    {
+      "id": "R1-2025-11-25-ping-progress-cancel",
+      "status": "merged_2026-10-25_with_PING-001_fix",
+      "wip_reference": "docs/handoff/wip/R1",
+      "follow_up": [
+        "maintainer decision: judge task-related MUSTs (PROG-014/015/016, CANC-020) at a revision where the tasks page is out of scope?",
+        "maintainer: report the mcpsnoop progress-after-completion defect upstream?"
+      ]
+    },
+    {
+      "id": "V2-baseline-filters",
+      "status": "finished_in_part_unmerged_saved_in_bundle",
+      "wip_reference": "docs/handoff/wip/wip-v2.bundle (wip/V2, tip 397b5c0)",
+      "not_done": [
+        "grouped repeats (undecided; draft lost)",
+        "docs (book pages, crate README)"
+      ],
+      "needs": [
+        "maintainer decision on ADR-0025 (Proposed)",
+        "merge after C1"
+      ]
+    },
+    {
+      "id": "C1-test-party-aware-and-watch-flags",
+      "status": "finished_unmerged_saved_in_bundle",
+      "needs": [
+        "review the diff",
+        "visual baselines from the CI artifact",
+        "CHANGELOG (behaviour change: sessions.verdict is party-scoped)",
+        "cargo xtask conformance on a quiet machine (wire-findings.json edited)"
+      ],
+      "wip_reference": "docs/handoff/wip/wip-c1.bundle (wip/C1, tip 19cb7ea)"
+    },
+    {
+      "id": "check-command-ADR-0024",
+      "status": "not_started",
+      "needs": [
+        "maintainer accepts ADR-0024",
+        "V1"
+      ]
+    },
+    {
+      "id": "I1-interop-refresh-ts-v2-leg",
+      "status": "merged_2026-10-25_week_old_pins",
+      "follow_up": [
+        "2026-10-30: TypeScript 1.32.2 and server 2.4.0 (node 2.1.2) become eligible under the seven-day rule",
+        "owner: close Dependabot #67 (its set is now in the pins)",
+        "xtask mcpsnoop PINNED 0.26.1 vs 0.28.0"
+      ]
+    },
+    {
+      "id": "stale-exclusion-rationales",
+      "status": "not_started"
+    },
+    {
+      "id": "prober",
+      "status": "blocked_on_maintainer_decision"
+    },
+    {
+      "id": "truth-pass-docs",
+      "status": "not_started"
+    }
+  ],
+  "run_first_next_session": [
+    "read PR 68: CI, reviews",
+    "dispatch Scheduled with only=claims; issue #50 closes only on green (not done)",
+    "review and merge C1 then V2 from docs/handoff/wip/*.bundle (see the handoff); releases are on hold",
+    "reconcile capture README memory table in release"
+  ],
+  "release_status": "on hold by the maintainer on 2026-10-25; do not bump versions, branch, rehearse, tag or publish until told",
+  "pull_request": "tomtom215/mcp-conformance#68"
+}

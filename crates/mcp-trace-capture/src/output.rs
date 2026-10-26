@@ -13,12 +13,12 @@
 //! session ([`Numbered`]): the stdio wrapper takes the next number each launch, and
 //! the HTTP proxy one per client session it carries.
 
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::numbered::{Numbered, PLACEHOLDER};
+use crate::numbered::{Numbered, PLACEHOLDER, private_file};
 use crate::recorder::{Observer, Sessions};
 use crate::traces::Traces;
 use crate::{Recorder, Summary};
@@ -39,9 +39,10 @@ pub enum Target {
 
 /// Refuses an output path before anything is started.
 ///
-/// Refused: `-` (which names a file, not stdout), an existing file without
-/// `--force`, a misplaced `{session}`, and a numbered path whose directory does
-/// not exist.
+/// Refused: `-` (which names a file, not stdout), a symbolic link (with or
+/// without `--force`: the trace is never written through one), an existing
+/// file without `--force`, a misplaced `{session}`, and a numbered path whose
+/// directory does not exist.
 ///
 /// # Errors
 ///
@@ -68,10 +69,24 @@ pub fn check(path: &Path, force: bool) -> Result<Target, String> {
     if let Some(warning) = stray_braces(path) {
         eprintln!("mcp-trace-capture: warning: {warning}");
     }
-    if !force && path.symlink_metadata().is_ok() {
+    let existing = path.symlink_metadata().ok();
+    if existing.as_ref().is_some_and(std::fs::Metadata::is_symlink) {
+        return Err(symbolic_link(path));
+    }
+    if !force && existing.is_some() {
         return Err(exists(path));
     }
     Ok(Target::File(path.to_path_buf()))
+}
+
+/// Why a symbolic link is refused: `--force` used to follow it and truncate
+/// whatever it pointed at, which is how a planted link redirects a trace.
+fn symbolic_link(path: &Path) -> String {
+    format!(
+        "{} is a symbolic link; a trace is not written through one, --force or not (give -o \
+         the file's own path, or remove the link)",
+        path.display()
+    )
 }
 
 /// A warning for a file name with a `{…}` in it that is not [`PLACEHOLDER`] —
@@ -159,21 +174,89 @@ pub fn traces(
     }
 }
 
+/// Creates the trace file at `path` — a new file, or under `force` what is
+/// there truncated — readable by its owner alone either way, and never through
+/// a symbolic link. [`check`] refuses a link before the run starts; this
+/// refuses one again at the moment of opening, since the run has started
+/// something (the stdio server) in between.
 fn create(path: &Path, force: bool) -> Result<File, String> {
-    let mut options = OpenOptions::new();
-    options.write(true);
-    if force {
-        options.create(true).truncate(true);
-    } else {
-        options.create_new(true);
+    if !force {
+        return create_new(path);
     }
-    options.open(path).map_err(|error| {
+    match path.symlink_metadata() {
+        // Nothing there to look at: `create_new` makes the file, or fails with
+        // the reason the path cannot be made.
+        Err(_) => create_new(path),
+        Ok(existing) if existing.is_symlink() => Err(symbolic_link(path)),
+        Ok(existing) => overwrite(path, &existing),
+    }
+}
+
+/// A file that did not exist, created: `create_new` never follows a link, so a
+/// link planted in the meantime is an "exists" refusal, not a file made at its
+/// target.
+fn create_new(path: &Path) -> Result<File, String> {
+    private_file().create_new(true).open(path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::AlreadyExists {
             exists(path)
         } else {
             format!("cannot create {}: {error}", path.display())
         }
     })
+}
+
+/// `--force` over what `existing` describes at `path`: opened without
+/// creating or truncating, then checked to be the file that was examined
+/// (`existing`), then — for a regular file — emptied and narrowed to its owner
+/// alone, as a file made by [`private_file`] is, since the old mode may have
+/// shown the new recording to everyone. A device or a pipe (`/dev/full`) is
+/// neither emptied nor re-moded: it is not a trace file being kept. The
+/// identity check closes the window between the check and the open, where a
+/// link swapped in would otherwise be followed into its target.
+fn overwrite(path: &Path, existing: &std::fs::Metadata) -> Result<File, String> {
+    let cannot = |error: std::io::Error| format!("cannot overwrite {}: {error}", path.display());
+    let file = private_file().open(path).map_err(cannot)?;
+    let opened = file.metadata().map_err(cannot)?;
+    if !same_file(existing, &opened) {
+        return Err(format!(
+            "{} changed while it was being opened; refusing to overwrite it",
+            path.display()
+        ));
+    }
+    if opened.is_file() {
+        file.set_len(0).map_err(cannot)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            file.set_permissions(std::fs::Permissions::from_mode(0o600))
+                .map_err(|error| {
+                    format!(
+                        "cannot make {} readable by its owner alone ({error}); delete it, or \
+                         choose another path",
+                        path.display()
+                    )
+                })?;
+        }
+    }
+    Ok(file)
+}
+
+/// Whether two metadata describe one file: by device and inode on Unix.
+/// Elsewhere there is no stable identity to compare, so the check before the
+/// open is the whole defence there. One function with the platform in its body,
+/// so that what the Unix build compiles is all that a Unix build mutates.
+#[cfg_attr(not(unix), allow(clippy::missing_const_for_fn))]
+fn same_file(checked: &std::fs::Metadata, opened: &std::fs::Metadata) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt as _;
+        checked.dev() == opened.dev() && checked.ino() == opened.ino()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (checked, opened);
+        true
+    }
 }
 
 /// The line limit for `max_message`, saying so when the validator's default
@@ -321,53 +404,4 @@ fn warn_about_sessions(sessions: &Sessions, hint: Hint) {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_suggested_path_is_one_shell_word() {
-        assert_eq!(shell_quoted("traces/s-001.jsonl"), "traces/s-001.jsonl");
-        assert_eq!(shell_quoted("C:/x_y,z@1%+=.jsonl"), "C:/x_y,z@1%+=.jsonl");
-        assert_eq!(
-            shell_quoted("dir with space/t.jsonl"),
-            "'dir with space/t.jsonl'"
-        );
-        assert_eq!(shell_quoted("it's;$x"), r"'it'\''s;$x'");
-        assert_eq!(shell_quoted("a*b"), "'a*b'");
-        assert_eq!(shell_quoted(""), "''");
-    }
-
-    #[test]
-    fn a_misspelt_placeholder_is_warned_about() {
-        let warning = stray_braces(Path::new("t/{sesion}.jsonl")).unwrap();
-        assert!(warning.starts_with("{sesion}.jsonl has a {…} that is not {session}"));
-        assert_eq!(stray_braces(Path::new("t/{x.jsonl")), None);
-        assert_eq!(stray_braces(Path::new("t/x}{.jsonl")), None);
-        assert_eq!(
-            stray_braces(Path::new("{x}/t.jsonl")),
-            None,
-            "only the file name"
-        );
-        assert_eq!(stray_braces(Path::new("t.jsonl")), None);
-    }
-
-    #[test]
-    fn an_existing_file_is_refused_for_what_it_is_and_others_say_why() {
-        let dir =
-            std::env::temp_dir().join(format!("mcp-trace-capture-output-{}", std::process::id()));
-        std::fs::remove_dir_all(&dir).ok();
-        std::fs::create_dir_all(&dir).unwrap();
-        let existing = dir.join("trace.jsonl");
-        std::fs::write(&existing, "keep\n").unwrap();
-        let error = create(&existing, false).unwrap_err();
-        assert!(error.contains("exists; appending"), "{error}");
-        assert_eq!(std::fs::read_to_string(&existing).unwrap(), "keep\n");
-        let missing = dir.join("absent").join("trace.jsonl");
-        let error = create(&missing, false).unwrap_err();
-        assert!(error.starts_with("cannot create "), "{error}");
-        assert!(create(&existing, true).is_ok());
-        assert_eq!(std::fs::read_to_string(&existing).unwrap(), "");
-        std::fs::remove_dir_all(&dir).ok();
-    }
-}
+mod tests;

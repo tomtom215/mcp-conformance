@@ -110,7 +110,7 @@ Explicitly out of scope, with the reasoning preserved in
 - **Not a gateway.** agentgateway (Linux Foundation) owns that space in Rust. The recording
   tap in `mcp-trace-capture` forwards bytes unchanged and does nothing else — no routing,
   filtering, rewriting or authentication ([ADR-0019](decisions/0019-a-recording-tap-is-not-a-gateway.md)).
-- **Not a security scanner.** Tool-poisoning and server-auditing scanners (mcp-scan, agentox)
+- **Not a security scanner.** Tool-poisoning and server-auditing scanners (snyk-agent-scan, formerly mcp-scan; agentox)
   are a different product; our security surface is protocol conformance and secure defaults.
 - **Not a hosted service.** Everything runs locally or in CI.
 

@@ -300,7 +300,10 @@ pub(crate) enum LibraryCommand {
         /// The entry's id.
         id: String,
         /// A header to redact, by name; repeatable. Without one,
-        /// Authorization, Cookie, Set-Cookie and Proxy-Authorization.
+        /// Authorization, Cookie, Set-Cookie, Proxy-Authorization and
+        /// Mcp-Session-Id. Headers are all the defaults touch: a payload
+        /// value (an argument, a result, `_meta`) is kept unless `--pointer`,
+        /// `--meta` or `--string` names it.
         #[arg(long = "header", value_name = "NAME")]
         headers: Vec<String>,
         /// A JSON pointer into each message payload; repeatable. A `*`

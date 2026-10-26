@@ -74,23 +74,25 @@ jobs:
         run: cargo audit
 
   full-mutants:
-    name: Mutants (full sweep, shard ${{ matrix.shard }}/8)
+    name: Mutants (full sweep, shard ${{ matrix.shard }}/16)
     # Skipped by a `claims`-scoped dispatch; see the `only` input above.
     if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     # Sharded because one job stopped fitting: the sweep took 3.4–4.4 h on the
     # 0.5.x tree (1726 mutants), and the first run on 0.6.0 (mcp-trace-capture
     # and SARIF added; ~374 more mutants) hit GitHub's 6-hour job cap on
-    # 2026-09-28 and was cancelled with no results. Eight shards put each at an
-    # estimated 35–45 minutes of mutants (scaled from those timings, not yet
-    # measured) plus its own baseline build; the timeout is a
-    # wedge-guard well under the cap, so a stuck shard fails visibly and the
-    # other seven still report.
+    # 2026-09-28 and was cancelled with no results. Eight shards then proved
+    # too few once the workbench landed: on run 39207994511 (2026-10-19) five of
+    # the eight ran into this timeout and were cancelled at 180 minutes, and the
+    # three that finished took 125, 175 and 175 (shard 3 had 756 mutants, about
+    # 14 s each). Sixteen put each near 380 mutants, about 90 minutes plus its own
+    # baseline build; the timeout is a wedge-guard well under the cap, so a
+    # stuck shard fails visibly and the others still report.
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -119,7 +121,7 @@ jobs:
         # coverage must include feature-gated code (see mutants.yml). The flags
         # are the PR gate's and `cargo xtask mutants`'s, plus `--shard`, which
         # partitions the one deterministic (`--no-shuffle`) mutant list so the
-        # eight shards together cover it exactly once.
+        # sixteen shards together cover it exactly once.
         # `ulimit -d` caps each process's data segment at 6 GiB: a mutant that
         # turns a loop endless while it allocates (`j += 1` → `j *= 1` in the
         # workbench diff's alignment did) then fails its own test with an
@@ -129,7 +131,7 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           ulimit -d 6291456
-          cargo mutants --workspace --no-shuffle --shard "${SHARD}/8" -- --all-features
+          cargo mutants --workspace --no-shuffle --shard "${SHARD}/16" -- --all-features
       - name: Upload this shard's outcomes
         # Missed, caught and timeout lists per shard: the evidence a red shard
         # is read from, and on a green run the record that it ran at all.

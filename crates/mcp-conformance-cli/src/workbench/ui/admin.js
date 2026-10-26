@@ -109,7 +109,7 @@ function lines(text) {
 /** Makes a redacted copy of a recording. */
 export function redactDialog(id) {
   const headers = h('textarea', { rows: '3', 'aria-label': 'Header names', spellcheck: 'false' });
-  headers.value = 'authorization\ncookie\nset-cookie\nproxy-authorization';
+  headers.value = 'authorization\ncookie\nset-cookie\nproxy-authorization\nmcp-session-id';
   const pointers = h('textarea', { rows: '3', 'aria-label': 'JSON pointers', spellcheck: 'false', placeholder: '/params/arguments/apiKey\n/result/content/*/text' });
   const meta = h('input', { type: 'checkbox', checked: true });
   const strings = h('textarea', { rows: '2', 'aria-label': 'Literal strings', spellcheck: 'false', placeholder: 'one secret per line' });

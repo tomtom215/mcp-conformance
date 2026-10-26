@@ -10,6 +10,8 @@
 
 #![allow(clippy::unwrap_used)]
 
+use mcp_conformance_core::requirement::Actor;
+
 use super::*;
 use crate::reader::{Limits, parse_trace};
 
@@ -110,6 +112,7 @@ fn differs_detects_a_non_adjacent_divergence() {
     let uniform = MultiRow {
         id: "X-001".to_owned(),
         level: "MUST".to_owned(),
+        actor: Some(Actor::Both),
         outcomes: vec![
             Some(Outcome::Pass),
             Some(Outcome::Pass),
@@ -186,7 +189,10 @@ fn findings_render_lists_only_rows_needing_attention_with_their_clause() {
     let failing = validate_revisions(&set(), &revs(), &events).unwrap();
     let quiet = failing.render_findings();
     assert!(quiet.contains("BASE-001"), "{quiet}");
-    assert!(quiet.contains("\n        2026-07-28 seq 0: "), "{quiet}");
+    assert!(
+        quiet.contains("\n        [client] 2026-07-28 seq 0: "),
+        "{quiet}"
+    );
     assert!(
         quiet.contains(
             "        spec: \"MUST jsonrpc 2.0\"\n        see:  \
@@ -337,8 +343,26 @@ fn each_revisions_findings_are_limited_on_their_own() {
     let events = parse_trace(&trace.join("\n"), &Limits::default()).unwrap();
     let report = validate_revisions(&set(), &revs(), &events).unwrap();
     // BASE-001 under both revisions, the clause each has alone, and the wire
-    // schema under each (`jsonrpc` is the schema's constant too).
-    assert_eq!(report.render_human().matches(" seq 2: ").count(), 6);
+    // schema under each (`jsonrpc` is the schema's constant too). BASE-001
+    // and the schema hold the sender, the client; LIFE-009 and DISC-001 bind
+    // the server in this fixture, and are tagged so.
+    let human = report.render_human();
+    for revision in ["2025-11-25", "2026-07-28"] {
+        assert_eq!(
+            human
+                .matches(&format!("[client] {revision} seq 2: "))
+                .count(),
+            2,
+            "{human}"
+        );
+        assert_eq!(
+            human
+                .matches(&format!("[server] {revision} seq 2: "))
+                .count(),
+            1,
+            "{human}"
+        );
+    }
 
     let limited = HumanOptions::default().all(false).max_findings(Some(2));
     let text = report.render_with(&limited);
@@ -346,7 +370,7 @@ fn each_revisions_findings_are_limited_on_their_own() {
     for revision in ["2025-11-25", "2026-07-28"] {
         assert!(
             text.contains(&format!(
-                "        {revision} seq 1: {}\n        {revision}: … and 1 more\n",
+                "        [client] {revision} seq 1: {}\n        {revision}: … and 1 more\n",
                 report.requirements[0].findings[0][1].detail
             )),
             "{text}"
@@ -378,3 +402,5 @@ fn a_summary_carries_its_revisions_extensions() {
         "{human}"
     );
 }
+
+mod party;

@@ -115,8 +115,10 @@ impl Traces {
     }
 
     /// Each session into the next numbered file `numbered` names, lines up to
-    /// `max_line` bytes. A file is opened only for the moment of each write, so
-    /// a long-lived proxy holds no descriptor per session.
+    /// `max_line` bytes. A session's file is held open from its creation, so
+    /// every write goes to the file that was created: its path is never looked
+    /// up again, and a symbolic link planted there later is not followed. A
+    /// long-lived proxy therefore holds one descriptor per session.
     #[must_use]
     pub fn per_session(numbered: Numbered, max_line: usize) -> Self {
         Self::new(Output::PerSession(numbered), max_line)
@@ -266,13 +268,16 @@ impl Traces {
         let (recorder, path) = match &self.output {
             Output::One(recorder) => (Arc::clone(recorder), None),
             Output::PerSession(numbered) => match numbered.create_next(state.next_number) {
-                Ok((number, path, _file)) => {
+                Ok((number, path, file)) => {
                     state.next_number = number + 1;
                     eprintln!(
                         "mcp-trace-capture: session {number} recording to {}",
                         path.display()
                     );
-                    let sink = Appender(path.clone());
+                    let sink = Appender {
+                        file,
+                        path: path.clone(),
+                    };
                     let recorder = Recorder::with_max_line(sink, self.max_line);
                     let recorder = match &self.observer {
                         Some(observer) => recorder.observed(Arc::clone(observer), number),
@@ -314,17 +319,46 @@ fn is_initialize(body: &[u8]) -> bool {
     }
 }
 
-/// Appends each write to a file it opens only for that write.
-struct Appender(PathBuf);
+/// Writes to the file a session's trace was created as, through the handle
+/// that created it. The path is kept for messages, never opened again: a write
+/// that looked it up could be sent elsewhere by a link planted there since.
+struct Appender {
+    file: std::fs::File,
+    path: PathBuf,
+}
+
+impl Appender {
+    /// Fails when the file has been removed from under the session: a write
+    /// would otherwise go on into a file nothing can read back, and the trace
+    /// would be reported complete. On Unix that is read off the handle itself
+    /// (no name links to the file any more); elsewhere, where a handle does
+    /// not say, off the path — which also refuses a link planted there.
+    fn still_there(&self) -> io::Result<()> {
+        #[cfg(unix)]
+        let gone = {
+            use std::os::unix::fs::MetadataExt as _;
+            self.file.metadata()?.nlink() == 0
+        };
+        #[cfg(not(unix))]
+        let gone = self.path.symlink_metadata()?.is_symlink();
+        if gone {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("{} was removed during the session", self.path.display()),
+            ));
+        }
+        Ok(())
+    }
+}
 
 impl Write for Appender {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        let mut file = std::fs::OpenOptions::new().append(true).open(&self.0)?;
-        file.write_all(bytes)?;
+        self.still_there()?;
+        self.file.write_all(bytes)?;
         Ok(bytes.len())
     }
     fn flush(&mut self) -> io::Result<()> {
-        Ok(())
+        self.file.flush()
     }
 }
 

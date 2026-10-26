@@ -65,7 +65,7 @@ jobs:
         # the MSRV (ADR-0008). `cargo xtask toolchain-pin` fails when the two
         # files disagree — the `matrix` context cannot read `env`, so the version
         # is written out here and checked rather than interpolated.
-        rust: ["1.99.0", "1.88"]
+        rust: ["1.99.1", "1.88"]
         os: [ubuntu-latest, macos-latest, windows-latest]
     # A directory override outranks `rustup default`, so naming the toolchain in
     # the environment is the only way a leg can override rust-toolchain.toml.
@@ -115,7 +115,7 @@ jobs:
       fail-fast: false
       matrix:
         # Same pair as the clippy matrix, and gated the same way.
-        rust: ["1.99.0", "1.88"]
+        rust: ["1.99.1", "1.88"]
         os: [ubuntu-latest, macos-latest, windows-latest]
     env:
       RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
@@ -709,13 +709,36 @@ jobs:
       # `./`, not the newer `$/` self-repository form zizmor suggests: the
       # pinned actionlint (1.7.12) rejects `$/`, and this job's point is to run
       # the action.yml of the commit under test, which `./` names exactly.
+      # `corpus/good/` is the 2025-11-25 corpus and is judged at that revision
+      # by name, as the golden tests judge it: one of its sessions answers
+      # `initialize` with 2024-11-05, which has no registry, so it is refused
+      # without one (the step after next). The 2026-07-28 corpus is judged at
+      # the revision each trace declares.
       - name: Passing traces
         id: pass
         uses: ./ # zizmor: ignore[self-repository]
         with:
-          traces: corpus/good/*.jsonl corpus/draft/good/*.jsonl
+          traces: corpus/draft/good/*.jsonl
           sarif-file: pass.sarif
           junit-file: pass.xml
+      - name: Passing traces, at the revision named
+        id: passrev
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          traces: corpus/good/*.jsonl
+          revision: "2025-11-25"
+          sarif-file: passrev.sarif
+          junit-file: passrev.xml
+      # The session that ran under a revision this build cannot describe is
+      # refused, not judged under the client's proposal (ADR-0018, amended).
+      - name: A session negotiating a revision with no registry
+        id: refused
+        continue-on-error: true
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          traces: corpus/good/stdio-server-negotiates-2024-11-05.jsonl
+          sarif-file: refused.sarif
+          junit-file: refused.xml
       - name: A violating trace
         id: fail
         continue-on-error: true
@@ -777,6 +800,9 @@ jobs:
         shell: bash
         env:
           PASS_CODE: ${{ steps.pass.outputs.exit-code }}
+          PASSREV_CODE: ${{ steps.passrev.outputs.exit-code }}
+          REFUSED_CODE: ${{ steps.refused.outputs.exit-code }}
+          REFUSED_OUTCOME: ${{ steps.refused.outcome }}
           FAIL_CODE: ${{ steps.fail.outputs.exit-code }}
           FAIL_OUTCOME: ${{ steps.fail.outcome }}
           NONE_CODE: ${{ steps.none.outputs.exit-code }}
@@ -789,12 +815,18 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$PASS_CODE" == 0 ]] || { echo "::error::passing traces exited ${PASS_CODE}"; exit 1; }
+          [[ "$PASSREV_CODE" == 0 ]] || { echo "::error::passing traces at a named revision exited ${PASSREV_CODE}"; exit 1; }
+          [[ "$REFUSED_CODE" == 2 ]] || { echo "::error::a session negotiating a revision with no registry exited ${REFUSED_CODE}, expected 2"; exit 1; }
+          [[ "$REFUSED_OUTCOME" == failure ]] || { echo "::error::the refused run's step did not fail"; exit 1; }
           [[ "$FAIL_CODE" == 1 ]] || { echo "::error::violating trace exited ${FAIL_CODE}, expected 1"; exit 1; }
           [[ "$FAIL_OUTCOME" == failure ]] || { echo "::error::the failing run's step did not fail"; exit 1; }
           [[ "$NONE_CODE" == 2 ]] || { echo "::error::an unmatched pattern exited ${NONE_CODE}, expected 2"; exit 1; }
           jq -e '.runs[0].invocations[0].executionSuccessful == false' none.sarif
           grep -q '<error message="no trace matches' none.xml
           jq -e '.runs[0].results | length == 0' pass.sarif
+          jq -e '.runs[0].results | length == 0' passrev.sarif
+          jq -e '.runs[0].invocations[0].executionSuccessful == false' refused.sarif
+          grep -q 'negotiated protocol revision 2024-11-05' refused.xml
           jq -e '.runs[0].results[0].ruleId == "BASE-003"' fail.sarif
           grep -q '<failure' fail.xml
           # Recorded sessions: one trace per leg, judged clean — no finding at
@@ -839,7 +871,17 @@ jobs:
           if docker run --rm mcp-conformance:ci sh -c true 2> /dev/null; then
             echo "::error::the image has a shell"; exit 1
           fi
-          run mcp-trace-validator validate --quiet corpus/good/*.jsonl corpus/draft/good/*.jsonl
+          # Every `good` session passes at the revision it declares, except the
+          # one whose server answers `initialize` with 2024-11-05, a revision
+          # with no registry: refused (exit 2) without `--revision`, passing
+          # when it is named. The glob is expanded here, on the host.
+          refused=stdio-server-negotiates-2024-11-05
+          shopt -s extglob
+          run mcp-trace-validator validate --quiet corpus/good/!($refused).jsonl corpus/draft/good/*.jsonl
+          run mcp-trace-validator validate --quiet --revision 2025-11-25 corpus/good/$refused.jsonl
+          status=0
+          run mcp-trace-validator validate --quiet corpus/good/$refused.jsonl 2> /dev/null || status=$?
+          [[ "$status" -eq 2 ]] || { echo "::error::a session negotiating a revision with no registry exited ${status}, expected 2"; exit 1; }
           # A violation trace must exit 1 (findings): 0 means it passed, and 2
           # means the binary could not judge it at all.
           status=0

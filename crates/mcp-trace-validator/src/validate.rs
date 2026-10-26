@@ -23,7 +23,7 @@ use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::TraceEvent;
 use mcp_trace_validator::declared::{self, RevisionSource};
 use mcp_trace_validator::multi::{self, MultiReport};
-use mcp_trace_validator::report::{HumanOptions, Report, Unjudged, Verdict};
+use mcp_trace_validator::report::{HumanOptions, Party, Report, Unjudged, Verdict};
 use mcp_trace_validator::{engine, html, junit, reader, sarif, sessions};
 
 use crate::emit::emit;
@@ -49,6 +49,9 @@ pub(crate) struct Output {
     pub(crate) strict: bool,
     /// Human output lists every clause, not only those needing attention.
     pub(crate) all: bool,
+    /// Only this party's findings (and findings held against nobody) count
+    /// toward the verdict and the exit status (`--party`).
+    pub(crate) party: Option<Party>,
 }
 
 /// Where the registries come from, resolved once for every trace in the run.
@@ -79,10 +82,11 @@ struct Judged {
 }
 
 impl Judged {
+    /// The verdict the exit status follows: the report's, as it is viewed.
     fn verdict(&self) -> Verdict {
         self.multi
             .as_ref()
-            .map_or_else(|| self.reports[0].verdict(), MultiReport::verdict)
+            .map_or_else(|| self.reports[0].effective_verdict(), MultiReport::verdict)
     }
 
     /// The human report: with `--all`, every clause and every finding;
@@ -130,7 +134,7 @@ pub(crate) fn run(
     let mut judged = Vec::new();
     let mut unjudged = Vec::new();
     for trace in traces {
-        match judge(trace, limits, &registries, many) {
+        match judge(trace, limits, &registries, many, output.party) {
             Ok(one) => judged.push(one),
             Err(refusal) => {
                 refusal.print();
@@ -185,12 +189,14 @@ fn resolve(sources: &Sources<'_>) -> Result<Registries, String> {
     Ok(Registries::Set { set, requested })
 }
 
-/// Reads and judges one trace, or says why it could not be.
+/// Reads and judges one trace, or says why it could not be; the reports are
+/// viewed for `party` when one was asked for.
 fn judge(
     trace: &str,
     limits: &reader::Limits,
     registries: &Registries,
     many: bool,
+    party: Option<Party>,
 ) -> Result<Judged, Refusal> {
     let prefix = if many {
         format!("{trace}: ")
@@ -202,10 +208,20 @@ fn judge(
         return Err(Refusal::from_diagnostic(&message, EXIT_USAGE));
     }
     judgeable::note_sessions(&prefix, sessions::recorded_sessions(&events));
-    let (reports, multi) = match registries {
+    let (mut reports, mut multi) = match registries {
         Registries::Custom(registry) => (vec![engine::validate(registry, &events)], None),
         Registries::Set { set, requested } => judge_in_set(set, requested, &events, &prefix)?,
     };
+    // The view is applied after judging, never during it: the rows and totals
+    // are the trace's facts, and only what counts toward the verdict changes.
+    if let Some(party) = party {
+        for report in &mut reports {
+            report.party_view = Some(party);
+        }
+        if let Some(multi) = &mut multi {
+            multi.view_party(party);
+        }
+    }
     let totals = multi
         .as_ref()
         .map_or(reports[0].totals, judgeable::combined);
@@ -229,9 +245,9 @@ fn judge_in_set(
     events: &[TraceEvent],
     prefix: &str,
 ) -> Result<(Vec<Report>, Option<MultiReport>), Refusal> {
-    let (chosen, source) = if requested.is_empty() {
+    let (chosen, source, proposed) = if requested.is_empty() {
         declared::select(set.revisions(), events)
-            .map(|selection| (selection.revisions, selection.source))
+            .map(|selection| (selection.revisions, selection.source, selection.proposed))
             .map_err(|error| Refusal {
                 error: format!("{prefix}{error}"),
                 hints: vec![
@@ -241,7 +257,7 @@ fn judge_in_set(
                 code: EXIT_USAGE,
             })?
     } else {
-        (requested.to_vec(), RevisionSource::Requested)
+        (requested.to_vec(), RevisionSource::Requested, None)
     };
     // A trace with no messages is refused as contentless right after this; a
     // note about the revision it did not declare would only bury that.
@@ -250,6 +266,16 @@ fn judge_in_set(
         eprintln!(
             "note: {prefix}the trace declares no protocol revision; judging it against {}, \
              the newest supported (use --revision to choose)",
+            chosen[0]
+        );
+    }
+    // The session ran under what the server negotiated, not what the client
+    // asked for; the reader deserves to know the report is not of the latter.
+    if let Some(proposed) = proposed {
+        eprintln!(
+            "note: {prefix}the client proposed protocol revision {proposed}; the server's \
+             initialize result negotiated {}, which the session then ran under, so it is \
+             judged there (pass --revision {proposed} to judge it under the proposal instead)",
             chosen[0]
         );
     }

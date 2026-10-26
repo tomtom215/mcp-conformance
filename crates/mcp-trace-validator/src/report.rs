@@ -10,11 +10,19 @@
 
 use core::fmt;
 
+use mcp_conformance_core::requirement::Actor;
 use serde::{Deserialize, Serialize};
 
 mod clause;
 mod human;
+mod party;
 mod serialize;
+mod unanswered;
+
+pub use party::{Party, PartyTally};
+pub use unanswered::{
+    LISTED_UNANSWERED, TraceEnding, UNANSWERED_WHY, UnansweredRequest, UnansweredRequests,
+};
 
 /// The JSON Schema (draft 2020-12) of `validate --format json` output.
 ///
@@ -36,6 +44,12 @@ pub struct Finding {
     /// The event `seq` the finding points at, when one event is identifiable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seq: Option<u64>,
+    /// The party the finding is held against: the clause's actor when it binds
+    /// one party; for a clause binding both, the sender of the message at
+    /// [`Self::seq`]. Absent when neither decides it — no `seq`, or an event
+    /// that is not a message — rather than guessed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub party: Option<Party>,
     /// What was observed and what was expected, in one actionable sentence.
     pub detail: String,
 }
@@ -172,6 +186,11 @@ pub struct RequirementReport {
     pub id: String,
     /// The requirement's RFC 2119 level, as registry text (`"MUST"`, …).
     pub level: String,
+    /// The party the clause binds, as the registry states it. Every row the
+    /// engine builds carries it; `None` only in a row built by hand or read
+    /// from a report written before the member existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actor: Option<Actor>,
     /// The evaluation outcome.
     pub outcome: Outcome,
     /// Findings, in event order. Empty unless `outcome` is `fail` or `warn`.
@@ -242,6 +261,14 @@ pub struct Report {
     /// directly, which is handed a registry and chooses nothing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revision_source: Option<crate::declared::RevisionSource>,
+    /// The party this report is viewed for (`validate --party`), when it is
+    /// one: only findings held against that party, and findings held against
+    /// nobody, count toward [`Self::effective_verdict`], which the JSON's
+    /// `verdict` member and the exit status then follow. The rows and
+    /// [`Self::totals`] are the trace's facts and do not change with the view.
+    /// Absent by default, when every finding counts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub party_view: Option<Party>,
     /// Aggregate counts.
     pub totals: Totals,
     /// Per-requirement outcomes, in registry order.
@@ -250,6 +277,11 @@ pub struct Report {
     /// vendors no schema for [`Self::revision`] (an external registry's).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wire_schema: Option<WireSchemaReport>,
+    /// The requests the trace ended without answering, when there are any: a
+    /// note, listed in every format and moving neither [`Self::totals`] nor
+    /// [`Self::verdict`] ([`crate::report::UnansweredRequests`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unanswered_requests: Option<UnansweredRequests>,
     /// The clauses of each extension the session exercised, judged and never
     /// scored: nothing here moves [`Self::totals`] or [`Self::verdict`]
     /// (ADR-0023). An extension appears once one of its clauses judged
@@ -333,7 +365,7 @@ impl Report {
         self.totals.unsupported > 0
     }
 
-    /// One-word verdict for the trailing summary line.
+    /// One-word verdict for the trailing summary line: every finding counts.
     #[must_use]
     pub const fn verdict(&self) -> Verdict {
         if self.totals.unsupported > 0 {
@@ -345,6 +377,15 @@ impl Report {
         } else {
             Verdict::Pass
         }
+    }
+
+    /// The verdict as the report is viewed: [`Self::verdict`], or
+    /// [`Self::verdict_for`] its [`Self::party_view`] when one is set. What the
+    /// JSON's `verdict` member carries and the exit status follows.
+    #[must_use]
+    pub fn effective_verdict(&self) -> Verdict {
+        self.party_view
+            .map_or_else(|| self.verdict(), |party| self.verdict_for(party))
     }
 }
 

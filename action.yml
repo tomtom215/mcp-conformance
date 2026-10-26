@@ -137,7 +137,6 @@ runs:
       env:
         VERSION: ${{ inputs.version }}
         CAPTURE: ${{ inputs.capture }}
-        GH_TOKEN: ${{ github.token }}
         REPOSITORY: tomtom215/mcp-conformance
       run: '"$GITHUB_ACTION_PATH/action/install.sh"'
     - name: Record the sessions

@@ -49,7 +49,7 @@ fn every_golden_report_is_valid() {
             let parsed: Report = serde_json::from_value(report.clone()).unwrap();
             assert_eq!(
                 report["verdict"],
-                json!(parsed.verdict()),
+                json!(parsed.effective_verdict()),
                 "{}",
                 path.display()
             );
@@ -94,7 +94,30 @@ fn both_shapes_the_cli_prints_are_valid() {
     );
     assert_eq!(several["verdict"], "fail", "the worst of fail and pass");
     assert_eq!(several["unjudged"], 0);
-    for report in [&single, &multi, &mismatched, &several] {
+    // Viewed for one party: the view member, and a verdict the rows explain.
+    let viewed = cli_json(trace, &["--party", "server"]);
+    assert_eq!(viewed["party_view"], "server", "{viewed}");
+    assert_eq!(viewed["verdict"], "pass", "MRTR-019 is the client's");
+    let viewed_multi = cli_json(
+        trace,
+        &[
+            "--party",
+            "client",
+            "--revision",
+            "2025-11-25",
+            "--revision",
+            "2026-07-28",
+        ],
+    );
+    assert_eq!(viewed_multi["party_view"], "client", "{viewed_multi}");
+    for report in [
+        &single,
+        &multi,
+        &mismatched,
+        &several,
+        &viewed,
+        &viewed_multi,
+    ] {
         let found = errors(&validator, report);
         assert!(found.is_empty(), "{found:#?}");
     }

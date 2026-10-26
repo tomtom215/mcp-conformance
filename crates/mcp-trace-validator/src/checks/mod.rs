@@ -21,6 +21,7 @@
 
 mod auth;
 mod base;
+mod basic_utilities;
 mod client_features;
 mod extensions;
 mod inventory;
@@ -36,6 +37,12 @@ mod utilities;
 
 use crate::context::TraceContext;
 use crate::report::Finding;
+
+/// Whether `text` is standard base64 (RFC 4648 §4) with its padding: the one
+/// definition the content checks and the wire schema's `byte` format share.
+pub(crate) fn is_base64(text: &str) -> bool {
+    support::is_base64(text)
+}
 
 /// A check function: examines the trace, pushes findings into the sink.
 type CheckFn = fn(&TraceContext<'_>, &mut FindingSink);
@@ -92,10 +99,15 @@ pub struct FindingSink {
 
 impl FindingSink {
     /// Records a finding at an event (`seq`) with an actionable detail sentence.
+    ///
+    /// The party the finding is held against is not the check's to say: the
+    /// engine settles it from the clause's actor and the event at `seq`
+    /// ([`crate::engine`]), the same way for every check.
     pub fn push(&mut self, seq: Option<u64>, detail: String) {
         self.findings.push(Finding {
             check: self.check.to_owned(),
             seq,
+            party: None,
             detail,
         });
     }

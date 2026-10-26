@@ -18,11 +18,28 @@ use std::path::Path;
 
 /// Each SDK's pin as its package manager's files must spell it: the file,
 /// the [`super::PINS`] key, and the text with the version spliced in.
-const SPELLINGS: [(&str, &str, &str); 6] = [
+const SPELLINGS: [(&str, &str, &str); 9] = [
     (
         "interop/package.json",
         "TS_SDK_VERSION",
         "\"@modelcontextprotocol/sdk\": \"{}\"",
+    ),
+    // The v2 server file is taken from one commit and imports its siblings by
+    // package name, so the three packages it names move together or not at all.
+    (
+        "interop/package.json",
+        "TS2_SDK_VERSION",
+        "\"@modelcontextprotocol/server\": \"{}\"",
+    ),
+    (
+        "interop/package.json",
+        "TS2_NODE_VERSION",
+        "\"@modelcontextprotocol/node\": \"{}\"",
+    ),
+    (
+        "interop/package.json",
+        "TS2_EXPRESS_VERSION",
+        "\"@modelcontextprotocol/express\": \"{}\"",
     ),
     ("interop/requirements.in", "PY_SDK_VERSION", "mcp=={}"),
     ("interop/requirements.txt", "PY_SDK_VERSION", "mcp=={} "),

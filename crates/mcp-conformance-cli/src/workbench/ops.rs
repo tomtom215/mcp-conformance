@@ -107,14 +107,64 @@ pub(crate) fn retention_select(wb: &Workbench, days: u32, now: &str) -> Vec<Stri
         .collect()
 }
 
-/// A tar archive of the entries `ids`: each trace as `<id>.jsonl` and its
-/// sidecar as `<id>.meta.json`, stamped with the trace's modification time.
-pub(crate) fn export_archive(wb: &Workbench, ids: &[&str]) -> Result<Vec<u8>, Failure> {
+/// The most entries one export holds.
+pub(crate) const EXPORT_MAX_ENTRIES: usize = 100;
+
+/// The most trace bytes one export holds, before the archive's framing and
+/// the sidecars: the import body's limit, by the same reasoning — a
+/// recording at the toolkit's message limit, with room — since the archive
+/// is built in memory before it is sent.
+pub(crate) const EXPORT_MAX_BYTES: u64 = 192 * 1024 * 1024;
+
+/// An export: the archive, and how many entries it holds.
+#[derive(Debug)]
+pub(crate) struct Export {
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) entries: usize,
+}
+
+/// `ids` each once, in the order first named.
+pub(crate) fn export_unique<'a>(ids: &[&'a str]) -> Vec<&'a str> {
+    let mut seen = std::collections::HashSet::new();
+    ids.iter().copied().filter(|id| seen.insert(*id)).collect()
+}
+
+/// A tar archive of the entries `ids` — each once, however often it is
+/// named — as `<id>.jsonl` and its sidecar `<id>.meta.json`, stamped with
+/// the trace's modification time. Refused before anything is read when more
+/// than [`EXPORT_MAX_ENTRIES`] entries are named or their traces hold more
+/// than [`EXPORT_MAX_BYTES`].
+pub(crate) fn export_archive(wb: &Workbench, ids: &[&str]) -> Result<Export, Failure> {
+    export_within(wb, ids, EXPORT_MAX_ENTRIES, EXPORT_MAX_BYTES)
+}
+
+fn export_within(
+    wb: &Workbench,
+    ids: &[&str],
+    max_entries: usize,
+    max_bytes: u64,
+) -> Result<Export, Failure> {
+    let ids = export_unique(ids);
     if ids.is_empty() {
         return Err(Failure::Invalid("name the entries to export".to_owned()));
     }
+    if ids.len() > max_entries {
+        return Err(Failure::Invalid(format!(
+            "an export holds at most {max_entries} entries; {} were named",
+            ids.len()
+        )));
+    }
+    let mut total = 0_u64;
+    for id in &ids {
+        total = total.saturating_add(wb.entry(id)?.size);
+    }
+    if total > max_bytes {
+        return Err(Failure::Invalid(format!(
+            "an export holds at most {max_bytes} bytes of traces; the entries named hold {total}"
+        )));
+    }
     let mut archive = Archive::default();
-    for id in ids {
+    for id in &ids {
         let entry = wb.entry(id)?;
         let mtime = entry
             .modified
@@ -132,7 +182,10 @@ pub(crate) fn export_archive(wb: &Workbench, ids: &[&str]) -> Result<Vec<u8>, Fa
             )
             .map_err(Failure::Invalid)?;
     }
-    Ok(archive.finish())
+    Ok(Export {
+        bytes: archive.finish(),
+        entries: ids.len(),
+    })
 }
 
 #[cfg(test)]
@@ -157,6 +210,59 @@ mod tests {
         .unwrap();
         let entry = import_document(&mut wb, "snoop.jsonl", &capture, Some("auto"), None).unwrap();
         assert_eq!(entry["source"]["kind"], "imported");
+    }
+
+    /// The byte bound is judged from the entries' sizes before any trace is
+    /// read, and an export at it goes through.
+    #[test]
+    fn an_export_is_refused_before_reading_when_its_traces_exceed_the_bound() {
+        let (wb, _dir) = fixture::workbench("export-bytes");
+        let ids = ["everything-http", "tool-005-name-length"];
+        let sizes: u64 = ids.iter().map(|id| wb.entry(id).unwrap().size).sum();
+        let refused = export_within(&wb, &ids, EXPORT_MAX_ENTRIES, sizes - 1).unwrap_err();
+        assert_eq!(
+            refused,
+            Failure::Invalid(format!(
+                "an export holds at most {} bytes of traces; the entries named hold {sizes}",
+                sizes - 1
+            ))
+        );
+        let export = export_within(&wb, &ids, EXPORT_MAX_ENTRIES, sizes).unwrap();
+        assert_eq!(export.entries, 2);
+        assert_eq!(crate::workbench::tar::tests::read(&export.bytes).len(), 4);
+        // The bounds themselves: named by the README, held by the API.
+        assert_eq!(EXPORT_MAX_ENTRIES, 100);
+        assert_eq!(EXPORT_MAX_BYTES, 192 * 1024 * 1024);
+        assert!(matches!(
+            export_archive(&wb, &[]),
+            Err(Failure::Invalid(why)) if why == "name the entries to export"
+        ));
+    }
+
+    /// The entry bound counts the entries named once each, and an export at
+    /// it goes through.
+    #[test]
+    fn an_export_at_the_entry_bound_goes_through_and_one_past_it_is_refused() {
+        let (wb, _dir) = fixture::workbench("export-entries");
+        let ids = ["everything-http", "tool-005-name-length"];
+        let refused = export_within(&wb, &ids, 1, EXPORT_MAX_BYTES).unwrap_err();
+        assert_eq!(
+            refused,
+            Failure::Invalid("an export holds at most 1 entries; 2 were named".to_owned())
+        );
+        assert_eq!(
+            export_within(&wb, &ids, 2, EXPORT_MAX_BYTES)
+                .unwrap()
+                .entries,
+            2
+        );
+        let twice = ["everything-http", "everything-http"];
+        assert_eq!(
+            export_within(&wb, &twice, 1, EXPORT_MAX_BYTES)
+                .unwrap()
+                .entries,
+            1
+        );
     }
 
     #[test]

@@ -30,8 +30,9 @@
 //!
 //! A mismatch is reported only when the session declared at least one revision
 //! and *none* of them is the registry's. A session that proposes one revision
-//! and negotiates another has touched both, so judging it against either is a
-//! question worth asking and draws no note.
+//! and negotiates another ran under the negotiated one, and [`select`] judges it
+//! there, saying so; but the client did state the proposal, so a caller who asks
+//! for that revision instead (`--revision`) draws no note either.
 //!
 //! A session that declares nothing at all — a message-level capture of a
 //! handshake that never happened — gets no note either: there is nothing to
@@ -52,14 +53,12 @@
 //! [`Report::revision_mismatch`]: crate::report::Report::revision_mismatch
 
 use std::collections::BTreeSet;
-use std::fmt;
 use std::str::FromStr as _;
 
 use mcp_conformance_core::canonical::to_canonical_string;
 use mcp_conformance_core::requirement::BUILTIN_REVISIONS;
 use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::{Direction, EventBody, TraceEvent, TransportKind};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// How `2026-07-28` states the revision on each request, having no handshake.
@@ -271,26 +270,35 @@ impl Responses {
     /// id: the first response from the other party with that id, after it, so
     /// a later request reusing the id cannot vouch for it.
     pub(crate) fn answered_by_result(&self, events: &[TraceEvent], index: usize) -> bool {
+        self.result_for(events, index).is_some()
+    }
+
+    /// The `result` that answers the request at `index`, by the rule of
+    /// [`Self::answered_by_result`]; `None` when nothing did, or an error did.
+    pub(crate) fn result_for<'e>(
+        &self,
+        events: &'e [TraceEvent],
+        index: usize,
+    ) -> Option<&'e Value> {
         let request = &events[index];
-        let Some(id) = request
+        let id = request
             .message_payload()
-            .and_then(|payload| payload.get("id"))
-        else {
-            return false;
-        };
+            .and_then(|payload| payload.get("id"))?;
         let responder_is_client = request.direction != Direction::ClientToServer;
-        self.by_id
-            .get(&(responder_is_client, to_canonical_string(id)))
-            .and_then(|responses| {
-                let after = responses.partition_point(|&(at, _)| at <= index);
-                responses[after..].iter().find(|&&(at, _)| {
-                    events[at]
-                        .message_payload()
-                        .and_then(|payload| payload.get("id"))
-                        == Some(id)
-                })
-            })
-            .is_some_and(|&(_, result)| result)
+        let responses = self
+            .by_id
+            .get(&(responder_is_client, to_canonical_string(id)))?;
+        let after = responses.partition_point(|&(at, _)| at <= index);
+        let &(at, is_result) = responses[after..].iter().find(|&&(at, _)| {
+            events[at]
+                .message_payload()
+                .and_then(|payload| payload.get("id"))
+                == Some(id)
+        })?;
+        if !is_result {
+            return None;
+        }
+        events[at].message_payload()?.get("result")
     }
 }
 
@@ -378,116 +386,9 @@ fn is_known(revision: ProtocolRevision) -> bool {
     BUILTIN_REVISIONS.contains(&revision)
 }
 
-/// How the revision a report judges against was chosen.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[non_exhaustive]
-pub enum RevisionSource {
-    /// The caller named it (`--revision`).
-    Requested,
-    /// The trace declared it: see [`declared_revisions`] for what counts.
-    Declared,
-    /// The trace declared nothing, so the newest supported revision was used.
-    Default,
-}
+mod selection;
 
-impl fmt::Display for RevisionSource {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::Requested => "requested",
-            Self::Declared => "declared by the trace",
-            Self::Default => "the trace declares none; newest supported",
-        })
-    }
-}
-
-/// The revisions to judge a trace against, and why those.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct Selection {
-    /// Ascending; never empty.
-    pub revisions: Vec<ProtocolRevision>,
-    /// How they were chosen.
-    pub source: RevisionSource,
-}
-
-/// The trace declares only revisions no available registry describes.
-///
-/// Judging it anyway would report every clause the revisions disagree about as a
-/// violation, against an implementation that may have violated nothing — so this
-/// is an error the caller must resolve (a newer build, or an explicit revision),
-/// never a silent fallback.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct UnjudgeableRevisions {
-    /// What the trace declared, ascending.
-    pub declared: Vec<ProtocolRevision>,
-    /// What the available registries describe, ascending.
-    pub supported: Vec<ProtocolRevision>,
-}
-
-impl fmt::Display for UnjudgeableRevisions {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let join = |revisions: &[ProtocolRevision]| {
-            revisions
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(", ")
-        };
-        write!(
-            f,
-            "the trace declares protocol revision(s) {}, which no available registry \
-             describes (supported: {}); judging it against another revision would \
-             report that revision's rules as violations",
-            join(&self.declared),
-            join(&self.supported)
-        )
-    }
-}
-
-impl std::error::Error for UnjudgeableRevisions {}
-
-/// Chooses the revisions to judge `events` against, from those `supported`.
-///
-/// 1. Declared revisions that are supported are judged — all of them, so a session
-///    that proposed one revision and negotiated another is judged under both.
-/// 2. A trace declaring only unsupported revisions is an error.
-/// 3. A trace declaring nothing is judged against the newest supported revision.
-///
-/// # Errors
-///
-/// [`UnjudgeableRevisions`] in case 2, or when `supported` is empty.
-pub fn select(
-    supported: &[ProtocolRevision],
-    events: &[TraceEvent],
-) -> Result<Selection, UnjudgeableRevisions> {
-    let declared = collect_all(events);
-    let mut supported_sorted = supported.to_vec();
-    supported_sorted.sort_unstable();
-    supported_sorted.dedup();
-    let judgeable: Vec<ProtocolRevision> = declared
-        .iter()
-        .copied()
-        .filter(|revision| supported_sorted.contains(revision))
-        .collect();
-    if !judgeable.is_empty() {
-        return Ok(Selection {
-            revisions: judgeable,
-            source: RevisionSource::Declared,
-        });
-    }
-    match (declared.is_empty(), supported_sorted.last()) {
-        (true, Some(&newest)) => Ok(Selection {
-            revisions: vec![newest],
-            source: RevisionSource::Default,
-        }),
-        _ => Err(UnjudgeableRevisions {
-            declared: declared.into_iter().collect(),
-            supported: supported_sorted,
-        }),
-    }
-}
+pub use selection::{RevisionSource, Selection, UnjudgeableRevisions, select};
 
 #[cfg(test)]
 mod tests;

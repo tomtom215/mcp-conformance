@@ -14,6 +14,9 @@
 //! | `excluded` / `unsupported` / `not-applicable` | `<skipped>` with the reason as its message |
 //! | an extension's clauses ([`Report::extensions`]) | a suite of their own per extension, named `… (revision, extension ID, not scored)`, whose `fail` and `warn` rows are passing test cases with the findings in `<system-out>` — an extension never fails a run (ADR-0023), so no `<failure>` is written for one, `--strict` or not |
 //! | a trace that could not be judged ([`render_run`]) | a suite of one test case with an `<error>` giving the reason |
+//! | the requests the trace ended without answering ([`Report::unanswered_requests`]) | a suite `<property>` named `unanswered-requests`, failing nothing |
+//! | who broke it | a `fail` or `warn` case carries `<properties>`: `actor`, the party the clause binds, and `party`, the parties its findings are held against; each finding's location names its party (`[check] at seq 3 (client)`) |
+//! | a party view ([`Report::party_view`]) | a `fail` or `warn` row whose every finding is the other party's is a passing case with the findings in `<system-out>`, headed `set aside`, and is not counted in `failures` — so the document agrees with the exit status the view gives |
 //!
 //! The output is deterministic (registry order, no timestamps, no hostnames) for the
 //! same reason every other report format is: reports are artifacts.
@@ -23,8 +26,12 @@ use core::fmt::Write as _;
 use crate::report::{Outcome, Report, Unjudged, WireSchemaReport};
 
 mod extension;
+mod text;
 
 use extension::{extension_counts, render_extension};
+use text::{
+    actor_token, clause_lines, counted, escape, location, properties, set_aside_line, skip_reason,
+};
 
 /// Renders the report as a single-suite `JUnit` XML document.
 ///
@@ -220,6 +227,15 @@ fn render_suite(out: &mut String, options: &Options, report: &Report, counts: (u
         escape(suite),
         escape(&report.revision)
     );
+    // A note on the suite, where `JUnit` keeps what is not a test case: the
+    // requests the trace ended without answering, failing nothing.
+    if let Some(unanswered) = &report.unanswered_requests {
+        let _ = writeln!(
+            out,
+            r#"    <properties><property name="unanswered-requests" value="{}"/></properties>"#,
+            escape(&unanswered.one_line())
+        );
+    }
     for row in &report.requirements {
         render_row(out, report, row, options);
     }
@@ -236,21 +252,35 @@ fn render_suite(out: &mut String, options: &Options, report: &Report, counts: (u
 /// `strict` renders them as such.
 ///
 /// The wire-schema case, when the report has one, counts like a row: a test,
-/// failed when a message was invalid and skipped when there were none.
-const fn counts(report: &Report, strict: bool) -> (u32, u32, u32) {
+/// failed when a message was invalid and skipped when there were none. Under a
+/// party view a row (or the schema) fails only through a finding the view
+/// counts, which is exactly when [`render_row`] writes a `<failure>`.
+fn counts(report: &Report, strict: bool) -> (u32, u32, u32) {
     let totals = report.totals;
     let mut skipped =
         totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
+    // The rows a view sets aside: failing (or, under strict, warning) rows
+    // none of whose findings count. None without a view, so the count is then
+    // the totals' own.
+    let set_aside = report
+        .requirements
+        .iter()
+        .filter(|row| {
+            matches!(row.outcome, Outcome::Fail) || (strict && matches!(row.outcome, Outcome::Warn))
+        })
+        .filter(|row| !counted(&row.findings, report.party_view))
+        .count();
     let mut failures = if strict {
         totals.fail + totals.warn
     } else {
         totals.fail
-    };
+    }
+    .saturating_sub(u32::try_from(set_aside).unwrap_or(u32::MAX));
     let mut tests = totals.pass + totals.fail + totals.warn + skipped;
     if let Some(wire_schema) = &report.wire_schema {
         tests += 1;
         match wire_schema.outcome {
-            Outcome::Fail => failures += 1,
+            Outcome::Fail if counted(&wire_schema.findings, report.party_view) => failures += 1,
             Outcome::NotObserved => skipped += 1,
             _ => {}
         }
@@ -286,10 +316,15 @@ fn render_row(
 ) {
     let name = escape(&format!("{} ({})", row.id, row.level));
     let attrs = case_attributes(report, options);
-    let outcome = if options.strict && row.outcome == Outcome::Warn {
-        Outcome::Fail
-    } else {
-        row.outcome
+    // A `fail` or `warn` row none of whose findings the view counts is a
+    // passing case that still shows them: the exit status set them aside, and
+    // so does the document.
+    let set_aside = matches!(row.outcome, Outcome::Fail | Outcome::Warn)
+        && !counted(&row.findings, report.party_view);
+    let outcome = match row.outcome {
+        Outcome::Warn if options.strict && !set_aside => Outcome::Fail,
+        Outcome::Fail if set_aside => Outcome::Warn,
+        other => other,
     };
     match outcome {
         Outcome::Pass => {
@@ -297,12 +332,13 @@ fn render_row(
         }
         Outcome::Fail => {
             let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
+            properties(out, actor_token(row), &row.findings);
             for finding in &row.findings {
                 let _ = writeln!(
                     out,
                     r#"      <failure message="{}">{}{}</failure>"#,
                     escape(&finding.detail),
-                    escape(&location(finding.seq, &finding.check)),
+                    escape(&location(finding)),
                     escape(&clause_lines(row)),
                 );
             }
@@ -310,12 +346,16 @@ fn render_row(
         }
         Outcome::Warn => {
             let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
+            properties(out, actor_token(row), &row.findings);
             out.push_str("      <system-out>");
+            if let Some(party) = report.party_view.filter(|_| set_aside) {
+                out.push_str(&escape(&set_aside_line(party)));
+            }
             for finding in &row.findings {
                 let _ = writeln!(
                     out,
                     "{}: {}",
-                    escape(&location(finding.seq, &finding.check)),
+                    escape(&location(finding)),
                     escape(&finding.detail)
                 );
             }
@@ -335,7 +375,8 @@ fn render_row(
     }
 }
 
-/// The wire-schema test case: one `<failure>` per invalid message.
+/// The wire-schema test case: one `<failure>` per invalid message — or, when
+/// a party view counts none of them, a passing case showing them, like a row.
 fn render_wire_schema(
     out: &mut String,
     report: &Report,
@@ -345,8 +386,9 @@ fn render_wire_schema(
     let attrs = case_attributes(report, options);
     let name = "wire schema";
     match wire_schema.outcome {
-        Outcome::Fail => {
+        Outcome::Fail if counted(&wire_schema.findings, report.party_view) => {
             let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
+            properties(out, None, &wire_schema.findings);
             let clause = format!(
                 "\nspec: \"{}\"\nsee: {}\nschema: {}",
                 wire_schema.source.quote, wire_schema.source.url, wire_schema.schema
@@ -356,11 +398,28 @@ fn render_wire_schema(
                     out,
                     r#"      <failure message="{}">{}{}</failure>"#,
                     escape(&finding.detail),
-                    escape(&location(finding.seq, &finding.check)),
+                    escape(&location(finding)),
                     escape(&clause),
                 );
             }
             out.push_str("    </testcase>\n");
+        }
+        Outcome::Fail => {
+            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
+            properties(out, None, &wire_schema.findings);
+            out.push_str("      <system-out>");
+            if let Some(party) = report.party_view {
+                out.push_str(&escape(&set_aside_line(party)));
+            }
+            for finding in &wire_schema.findings {
+                let _ = writeln!(
+                    out,
+                    "{}: {}",
+                    escape(&location(finding)),
+                    escape(&finding.detail)
+                );
+            }
+            out.push_str("</system-out>\n    </testcase>\n");
         }
         Outcome::NotObserved => {
             let _ = writeln!(
@@ -372,73 +431,6 @@ fn render_wire_schema(
             let _ = writeln!(out, r#"    <testcase {attrs} name="{name}"/>"#);
         }
     }
-}
-
-/// The `<skipped>` message for the four non-judged outcomes.
-fn skip_reason(row: &crate::report::RequirementReport) -> String {
-    match row.outcome {
-        Outcome::Excluded => row
-            .exclusion
-            .clone()
-            .unwrap_or_else(|| "excluded".to_owned()),
-        Outcome::NotObserved => {
-            "the session carried none of the traffic this clause binds to".to_owned()
-        }
-        Outcome::NotApplicable => format!(
-            "not applicable: capability {} was not declared in this session",
-            row.capability.as_deref().unwrap_or("(unknown)")
-        ),
-        _ => format!(
-            "registry references checks this build does not implement: {}",
-            row.missing_checks.join(", ")
-        ),
-    }
-}
-
-/// The violated clause as body text — `\nspec: "…"\nsee: <url>` — or nothing when
-/// the row carries no source. CI systems show a failure's body beside its message,
-/// so this is what puts the clause in front of the person reading the failure.
-fn clause_lines(row: &crate::report::RequirementReport) -> String {
-    row.source.as_ref().map_or_else(String::new, |source| {
-        format!("\nspec: \"{}\"\nsee: {}", source.quote, source.url)
-    })
-}
-
-fn location(seq: Option<u64>, check: &str) -> String {
-    seq.map_or_else(
-        || format!("[{check}]"),
-        |seq| format!("[{check}] at seq {seq}"),
-    )
-}
-
-/// XML escaping for text and attribute content (we always double-quote
-/// attributes, so escaping `"` but not `'` is sufficient).
-///
-/// Findings quote trace strings — method names, ids — that come from untrusted
-/// input and may carry characters XML 1.0 forbids entirely. C0 control
-/// characters other than tab/LF/CR cannot appear in an XML 1.0 document even as
-/// numeric references (XML 1.0 §2.2), so a trace whose method name contains,
-/// say, U+0001 would otherwise produce a document a strict CI parser rejects.
-/// Those characters are replaced with U+FFFD (the Unicode replacement
-/// character) so the output is always well-formed.
-fn escape(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    for ch in text.chars() {
-        match ch {
-            '&' => out.push_str("&amp;"),
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '"' => out.push_str("&quot;"),
-            '\t' | '\n' | '\r' => out.push(ch),
-            // C0 controls (except the three above), U+FFFE and U+FFFF are
-            // outside XML 1.0's `Char` production (§2.2) — the only Rust
-            // `char`s that are — so substitute rather than emit an invalid
-            // document.
-            c if (c as u32) < 0x20 || c == '\u{FFFE}' || c == '\u{FFFF}' => out.push('\u{FFFD}'),
-            _ => out.push(ch),
-        }
-    }
-    out
 }
 
 #[cfg(test)]

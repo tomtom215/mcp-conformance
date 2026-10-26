@@ -2,12 +2,37 @@
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
 #![allow(clippy::unwrap_used)]
+use mcp_conformance_core::requirement::Actor;
+
 use super::*;
+
+#[test]
+fn the_unanswered_note_counts_the_requests_it_does_not_list_in_text() {
+    let note = |count: u32, listed: usize| UnansweredRequests {
+        count,
+        ending: TraceEnding::Stopped,
+        requests: (0..listed)
+            .map(|n| UnansweredRequest {
+                method: "ping".to_owned(),
+                id: serde_json::json!(n),
+                seq: n as u64,
+                sender: Party::Client,
+            })
+            .collect(),
+    };
+    let mut text = String::new();
+    note(12, LISTED_UNANSWERED).write_human(&mut text);
+    assert!(text.ends_with("        … and 2 more\n"), "{text}");
+    let mut text = String::new();
+    note(10, LISTED_UNANSWERED).write_human(&mut text);
+    assert!(!text.contains("more"), "{text}");
+}
 
 fn row(id: &str, level: &str, outcome: Outcome) -> RequirementReport {
     RequirementReport {
         id: id.to_owned(),
         level: level.to_owned(),
+        actor: Some(Actor::Server),
         outcome,
         findings: vec![],
         exclusion: None,
@@ -25,6 +50,7 @@ fn sample() -> Report {
     failed.findings = vec![Finding {
         check: "lifecycle.first-interaction-initialize".to_owned(),
         seq: Some(3),
+        party: Some(Party::Client),
         detail: "first message is \"tools/list\", expected \"initialize\"".to_owned(),
     }];
     failed.source = Some(ClauseSource {
@@ -39,6 +65,7 @@ fn sample() -> Report {
     Report {
         revision_mismatch: None,
         revision_source: None,
+        party_view: None,
         revision: "2025-11-25".to_owned(),
         totals: Totals {
             pass: 1,
@@ -57,6 +84,7 @@ fn sample() -> Report {
             row("PAGE-002", "MUST", Outcome::NotObserved),
         ],
         wire_schema: None,
+        unanswered_requests: None,
         extensions: vec![],
     }
 }
@@ -79,7 +107,7 @@ fn verdict_priority_is_unsupported_fail_warn_pass() {
 fn human_rendering_shows_findings_and_totals() {
     let text = sample().render_human();
     assert!(text.contains("FAIL  LIFE-001 (MUST)"), "{text}");
-    assert!(text.contains("seq 3:"), "{text}");
+    assert!(text.contains("[client] seq 3:"), "{text}");
     // The clause follows the findings it explains, quoted, then its link — and
     // only on the row that has one.
     assert!(
@@ -289,12 +317,14 @@ fn with_findings(count: u64) -> Report {
         .map(|seq| Finding {
             check: "lifecycle.first-interaction-initialize".to_owned(),
             seq: Some(seq),
+            party: Some(Party::Client),
             detail: format!("defect {seq}"),
         })
         .collect();
     failed.findings.push(Finding {
         check: "lifecycle.first-interaction-initialize".to_owned(),
         seq: None,
+        party: None,
         detail: "defect without a seq".to_owned(),
     });
     report
@@ -315,7 +345,7 @@ fn findings_beyond_the_limit_are_counted_rather_than_listed() {
     let text = report.render_with(&limited);
     assert_eq!(text.matches("defect").count(), 20, "{text}");
     assert!(
-        text.contains("        seq 19: defect 19\n        … and 5 more\n        spec: "),
+        text.contains("        [client] seq 19: defect 19\n        … and 5 more\n        spec: "),
         "{text}"
     );
     // On the command line the line also says how to see them all.
@@ -413,6 +443,7 @@ fn an_extension_failure_leaves_the_verdict_alone() {
     assert!(human.trim_end().ends_with("verdict: pass"), "{human}");
 }
 
+mod party;
 mod schema;
 
 /// A report with no extension block serializes without the member.

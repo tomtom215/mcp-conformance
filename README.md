@@ -30,8 +30,13 @@ Pre-1.0: the API and the verdicts may change between minor releases, and the
 > - release binaries built with `cargo auditable`, for `cargo audit bin`;
 > - the `requirements <ID>` view, its `--area`/`--level`/`--checked`/`--excluded`
 >   filters, and the `completions` subcommand;
-> - the `2026-07-28` registry rows added since, so the example totals and the
->   coverage table below are `main`'s, not `0.6.0`'s;
+> - the registry rows added since at both revisions — `2026-07-28`'s, and
+>   `2025-11-25`'s ping, progress and cancellation pages — so the example totals
+>   and the coverage table below are `main`'s, not `0.6.0`'s;
+> - findings that say which party they are held against (`validate --party
+>   client|server` views a report for one), a note for the requests a trace ends
+>   without answering, and a session judged under the revision its server negotiated
+>   (a behaviour change; see the changelog's `Unreleased` section);
 > - the wire schema — every message validated against its revision's JSON Schema —
 >   and the five clauses it made judgeable;
 > - the container image (`ghcr.io/tomtom215/mcp-conformance`, first published by
@@ -144,28 +149,46 @@ two are independent requests under `2026-07-28` and must not share one:
 $ mcp-trace-validator validate session.jsonl
 MCP trace validation — revision 2026-07-28 (declared by the trace)
   FAIL  MRTR-019 (MUST)
-        seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
+        [client] seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
         spec: "The JSON-RPC `id` MUST be different between the initial request and the retry, as they are independent requests."
         see:  https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#client-requirements-basic-workflow
   FAIL  TOOL-023 (MUST)
-        seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
+        [client] seq 2: the retry reuses id 1 from the request at seq 0; the two are independent requests and must not share one
         spec: "Note that the JSON-RPC `id` MUST be different between the initial request and the retry."
         see:  https://modelcontextprotocol.io/specification/2026-07-28/server/tools#input-required-tool-results
+  NOTE  1 request had no response when the trace ended (the recording simply stopped).
+        JSON-RPC expects every request answered; no clause of this revision judges it, so the verdict is unchanged.
+        client "tools/call" id 1 at seq 2
 totals: 46 pass, 2 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 133 not observed
 wire schema: pass (3 messages valid)
 verdict: fail
 ```
 
-- **Every finding cites the clause it breaks** — the event (`seq`), what was wrong,
-  the clause verbatim, and a link to it in the published revision; JSON, JUnit and
-  SARIF output carry the same. The weekly spec-drift job re-verifies every quote against
-  the spec's source and every link's anchor against the published page.
+- **Every finding cites the clause it breaks** — the event (`seq`), the party it is
+  held against (`[client]`, `[server]`), what was wrong, the clause verbatim, and a
+  link to it in the published revision; JSON, JUnit and SARIF output carry the same.
+  `--party server` counts only the server's findings toward the verdict and exit
+  status — for a server the official suite's client drove, whose own slips (no
+  `notifications/initialized`, `logging/setLevel` without the capability) are not
+  the server author's to fix — and the verdict line says so. The weekly spec-drift
+  job re-verifies every quote against the spec's source and every link's anchor
+  against the published page.
+- **A request left unanswered is noted, never judged.** JSON-RPC expects every
+  request answered, but no judgeable clause of either revision says so (`BASE-012`
+  is excluded), so a server that exits with a request pending gets a `NOTE` — how
+  many, up to ten by method, id and `seq`, and whether the trace ended with a
+  transport close, an abort, or simply stopped — carried in every format, and the
+  verdict it would otherwise have earned.
 - **The revision is the one the session declares** — in `initialize`, in each
-  request's `_meta`, or in the `MCP-Protocol-Version` header. A trace declaring no
-  revision is judged against the newest one (and says so); a trace declaring only a
-  revision this build does not know is refused rather than judged against the wrong
-  rules. `--revision` overrides; naming two judges the session under both, clause by
-  clause.
+  request's `_meta`, or in the `MCP-Protocol-Version` header. A session that
+  completed a handshake ran under the revision the server's `initialize` result
+  names — that is what negotiation means — so it is judged under that one, with a
+  note on stderr when the client had proposed another; a negotiated revision this
+  build does not know is refused rather than judged under the proposal. A trace
+  declaring no revision is judged against the newest one (and says so); a trace
+  declaring only a revision this build does not know is refused rather than judged
+  against the wrong rules. `--revision` overrides; naming two judges the session
+  under both, clause by clause.
 - **Not observed is not a pass.** A clause the session never came near is reported
   *not observed*; one gated on a capability nobody negotiated is *not applicable*;
   one no trace can judge is *excluded*, with the reason. The not-observed rows above are clauses
@@ -173,9 +196,10 @@ verdict: fail
   a verdict.
 - **Every message is also held to the revision's own JSON Schema** — the
   specification's `schema.json`, vendored at a pinned commit and re-verified weekly —
-  so a missing required member, a wrong type or a value outside an enumeration fails
-  the report even where no sentence of the prose names it. It is reported beside the
-  clause rows as the wire schema, not counted in their totals
+  so a missing required member, a wrong type, a value outside an enumeration or image
+  `data` that is not base64 (the schema's `byte` format, the one format it asserts)
+  fails the report even where no sentence of the prose names it. It is reported beside
+  the clause rows as the wire schema, not counted in their totals
   ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md)).
 - **An empty recording is a bad invocation**, not a pass: the shape a broken capture
   step produces should fail the build.
@@ -270,10 +294,10 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | Extension | Requirements | Checked | Excluded |
 |-----------|-------------:|--------:|---------:|
 | `io.modelcontextprotocol/tasks` | 49 | 25 | 24 |
-| `io.modelcontextprotocol/skills` | 99 | 34 | 65 |
-| **Total** | **148** | **59** | **89** |
+| `io.modelcontextprotocol/skills` | 100 | 35 | 65 |
+| **Total** | **149** | **60** | **89** |
 
-148 extension requirements: 59 judged by 49 distinct trace checks, 89 carrying a documented exclusion. A report lists an extension's outcomes under its `extensions`, with a verdict of its own that the report's verdict and exit status never read.
+149 extension requirements: 60 judged by 50 distinct trace checks, 89 carrying a documented exclusion. A report lists an extension's outcomes under its `extensions`, with a verdict of its own that the report's verdict and exit status never read.
 
 **`2025-11-25`**
 
@@ -282,6 +306,9 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | BASE | 28 | 14 | 14 | 0 |
 | LIFE | 20 | 10 | 10 | 0 |
 | TRAN | 52 | 14 | 38 | 0 |
+| PING | 7 | 1 | 6 | 0 |
+| PROG | 11 | 8 | 3 | 0 |
+| CANC | 9 | 4 | 5 | 0 |
 | TOOL | 18 | 9 | 9 | 13 |
 | RES | 10 | 3 | 7 | 6 |
 | PROM | 10 | 5 | 5 | 7 |
@@ -292,9 +319,9 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | SAMP | 20 | 10 | 10 | 0 |
 | ROOT | 10 | 4 | 6 | 0 |
 | AUTH | 85 | 5 | 80 | 0 |
-| **Total** | **321** | **89** | **232** | **33** |
+| **Total** | **348** | **102** | **246** | **33** |
 
-321 requirements: 89 judged by 85 distinct trace checks, 232 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+348 requirements: 102 judged by 96 distinct trace checks, 246 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 Every check is falsified by a committed violation trace and examines a real subject on at least one conforming one. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
 <!-- coverage:end -->
@@ -327,10 +354,10 @@ event:
 
 ```text
   FAIL  BASE-003 (MUST NOT)
-        seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
+        [client] seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
-totals: 17 pass, 1 fail, 0 warn, 232 excluded, 0 unsupported, 6 not applicable, 65 not observed
+totals: 17 pass, 1 fail, 0 warn, 246 excluded, 0 unsupported, 6 not applicable, 78 not observed
 wire schema: pass (4 messages valid)
 verdict: fail
 ```

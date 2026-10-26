@@ -37,7 +37,7 @@ fn renders_well_formed_suite_with_failure_and_skips() {
     // warning's after its findings, closing the element.
     assert!(
             xml.contains(
-                "at seq 0\nspec: &quot;The initialization phase MUST be the first interaction \
+                "at seq 0 (client)\nspec: &quot;The initialization phase MUST be the first interaction \
                  between client and server.&quot;\nsee: \
                  https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization</failure>"
             ),
@@ -109,6 +109,7 @@ fn bare_row(id: &str, outcome: Outcome) -> crate::report::RequirementReport {
     crate::report::RequirementReport {
         id: id.to_owned(),
         level: "MUST".to_owned(),
+        actor: Some(mcp_conformance_core::requirement::Actor::Server),
         outcome,
         findings: vec![],
         exclusion: None,
@@ -129,6 +130,7 @@ fn every_skip_variant() -> Report {
     failed.findings = vec![Finding {
         check: "area.some-check".to_owned(),
         seq: Some(7),
+        party: None,
         detail: "it went wrong".to_owned(),
     }];
     let mut excluded_a = bare_row("AAAA-002", Outcome::Excluded);
@@ -142,6 +144,7 @@ fn every_skip_variant() -> Report {
     Report {
         revision_mismatch: None,
         revision_source: None,
+        party_view: None,
         revision: "2025-11-25".to_owned(),
         totals: Totals {
             pass: 0,
@@ -161,6 +164,7 @@ fn every_skip_variant() -> Report {
             bare_row("AAAA-006", Outcome::NotObserved),
         ],
         wire_schema: None,
+        unanswered_requests: None,
         extensions: vec![],
     }
 }
@@ -203,8 +207,22 @@ fn skip_accounting_and_location_text_are_exact() {
         xml.contains(">[area.some-check] at seq 7</failure>"),
         "{xml}"
     );
-    assert_eq!(location(None, "x.y"), "[x.y]");
-    assert_eq!(location(Some(3), "x.y"), "[x.y] at seq 3");
+    let finding = |seq: Option<u64>, party| crate::report::Finding {
+        check: "x.y".to_owned(),
+        seq,
+        party,
+        detail: String::new(),
+    };
+    assert_eq!(location(&finding(None, None)), "[x.y]");
+    assert_eq!(location(&finding(Some(3), None)), "[x.y] at seq 3");
+    assert_eq!(
+        location(&finding(Some(3), Some(crate::report::Party::Client))),
+        "[x.y] at seq 3 (client)"
+    );
+    assert_eq!(
+        location(&finding(None, Some(crate::report::Party::Server))),
+        "[x.y] (server)"
+    );
 }
 
 #[test]
@@ -312,6 +330,7 @@ fn with_schema(outcome: Outcome) -> Report {
         vec![Finding {
             check: "wire-schema".to_owned(),
             seq: Some(4),
+            party: Some(crate::report::Party::Server),
             detail: "bad message".to_owned(),
         }]
     } else {
@@ -338,11 +357,15 @@ fn a_wire_schema_case_counts_as_one_test_failed_or_skipped_by_its_outcome() {
         xml.contains(r#"<testsuites tests="8" failures="3" skipped="5">"#),
         "{xml}"
     );
-    assert!(xml.contains(
-        "    <testcase classname=\"mcp.2025-11-25\" name=\"wire schema\">\n      \
-         <failure message=\"bad message\">[wire-schema] at seq 4\nspec: &quot;q&quot;\nsee: u\n\
-         schema: s</failure>\n    </testcase>\n"
-    ));
+    assert!(
+        xml.contains(
+            "    <testcase classname=\"mcp.2025-11-25\" name=\"wire schema\">\n      \
+             <properties><property name=\"party\" value=\"server\"/></properties>\n      \
+             <failure message=\"bad message\">[wire-schema] at seq 4 (server)\nspec: \
+             &quot;q&quot;\nsee: u\nschema: s</failure>\n    </testcase>\n"
+        ),
+        "{xml}"
+    );
     let xml = render(&with_schema(Outcome::NotObserved));
     assert!(
         xml.contains(r#"<testsuites tests="8" failures="2" skipped="6">"#),
@@ -390,3 +413,5 @@ fn an_extension_suite_counts_every_clause_and_skips_the_unjudged() {
         r#"<testsuite name="mcp-trace-validator (2025-11-25, extension io.example/x, not scored)" tests="127" failures="0" skipped="120">"#
     ));
 }
+
+mod party;

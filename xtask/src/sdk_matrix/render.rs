@@ -172,13 +172,13 @@ mod tests {
         cells[1] = Some(failing);
         let rendered = block(&pins(), &cells);
         assert!(rendered.contains(
-            "| TypeScript | `@modelcontextprotocol/sdk` 1.0.0 | `2025-11-25` | not served |"
+            "| TypeScript v1 | `@modelcontextprotocol/sdk` 1.0.0 | `2025-11-25` | not served |"
         ));
         assert!(
             rendered.contains("| `2026-07-28` | **fail** | 3 | 1 | 0 | 2 | pass (7 messages) |")
         );
         assert!(rendered.contains(
-            "- **TypeScript, `2026-07-28`** — [`BASE-034`](reference/requirements-2026-07-28.md#base-034) (MUST NOT, fail, 2 findings): first"
+            "- **TypeScript v1, `2026-07-28`** — [`BASE-034`](reference/requirements-2026-07-28.md#base-034) (MUST NOT, fail, 2 findings): first"
         ));
         assert!(
             !rendered.contains("BASE-035"),

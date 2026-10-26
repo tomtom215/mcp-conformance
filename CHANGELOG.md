@@ -15,7 +15,7 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 records, and removes one deprecated module**, as pre-1.0 SemVer permits in a minor release
 ([STABILITY.md](STABILITY.md) says what counts as breaking). A session that
 passed under 0.6.0 can fail now with nothing in it changed: a `2025-11-25` report
-carries 179 more rows than under 0.6.0 (33 judged, 146 excluded with a reason) and a
+carries 206 more rows than under 0.6.0 (46 judged, 160 excluded with a reason) and a
 `2026-07-28` report 228 more (57 judged, 171 excluded), some clauses once excluded are judged, every message is now held to its revision's own JSON Schema, and
 several checks now catch what they missed. Other checks stop failing conforming sessions. Every change
 below is stated again in its entry, with the reasoning.
@@ -34,8 +34,8 @@ below is stated again in its entry, with the reasoning.
 | `validate` flags | `--max-events 0` and `--max-line-bytes 0` exit `2` (bad invocation), not `3` | Pass a limit of at least 1 |
 | `validate` human output | At most 20 findings under a clause, then a count of the rest | `--all`, or a machine format, for every finding |
 | Rust API | `context::draft` removed (deprecated in 0.6.0) | `context::stateless` holds the same items |
-| Rust API, `mcp-trace-capture` | `traces::Traces::respond` takes a third argument, `succeeded`; `http::Options` is no longer `UnwindSafe` or `RefUnwindSafe`; `framing::Line` is `#[non_exhaustive]` and gains `Unterminated`; `signals::Stop` gains `Quit`; `http::Unrecorded` gains `over_budget` and `refused_paths`, `stdio::Unrecorded` gains `unterminated`; `http::Options` gains `buffer_budget`, `header_read_timeout` and `connect_timeout` | Pass whether the response was a 2xx; wrap `Options` in `AssertUnwindSafe` to move it into `catch_unwind`; match `Line` with a wildcard arm (the structs are `#[non_exhaustive]`) |
-| `mcp-trace-capture http` | A request path with a `.` or `..` segment is answered `400` by the proxy; a request head not complete within 30 s, or an idle kept-alive connection, is closed; an upstream not connected within 10 s is a `502`; ids the server has not assigned share one trace until it accepts one | Send normalized paths; nothing to do for a conforming client |
+| Rust API, `mcp-trace-capture` | `traces::Traces::respond` takes a third argument, `succeeded`; `http::Options` is no longer `UnwindSafe` or `RefUnwindSafe`; `framing::Line` is `#[non_exhaustive]` and gains `Unterminated`; `signals::Stop` gains `Quit`; `http::Unrecorded` gains `over_budget`, `refused_paths`, `refused_connects` and `stalled_bodies`, `stdio::Unrecorded` gains `unterminated`; `http::Options` gains `buffer_budget`, `header_read_timeout`, `connect_timeout` and `body_read_timeout`, and `http::Options::new` sets `preserve_host` for a loopback upstream; `run::http` takes `impl Into<HostHeader>` (a `bool` still compiles: `false` now means "by the upstream's address"), and `http::is_loopback` and `run::HostHeader` are new | Pass whether the response was a 2xx; wrap `Options` in `AssertUnwindSafe` to move it into `catch_unwind`; match `Line` with a wildcard arm (the structs are `#[non_exhaustive]`) |
+| `mcp-trace-capture http` | A request path with a `.` or `..` segment is answered `400` by the proxy; `CONNECT` is answered `405`, and a path that is not UTF-8 once percent-decoded, or has a `.` or `..` segment once decoded and shorn of `;parameters`, `400`; a request head not complete within 30 s, or an idle kept-alive connection, is closed, and a request body that stalls for 60 s is answered `408`; an upstream not connected within 10 s is a `502`; ids the server has not assigned share one trace until it accepts one | Send normalized paths; nothing to do for a conforming client |
 | `2026-07-28` verdict, new rows | `CANC-003`/`CANC-011`: a server `notifications/cancelled` naming anything but a `subscriptions/listen` request fails | Servers end only subscriptions this way |
 | `2026-07-28` verdict, new rows | `PROG-001`/`002`/`003`, and on stdio `PROG-005`/`008`: a progress token that is not a string or integer, one shared by two unanswered requests, a `progress` value that does not increase, progress after the answer | Fix the sender |
 | `2026-07-28` verdict, new rows | Over Streamable HTTP, `TRAN-132`–`TRAN-136`: an `Mcp-Param-*` header for a `null` or absent parameter, a `HeaderMismatch` for a POST that omitted one correctly, a result for a POST missing the header its body requires | Clients omit the header when there is no value; servers reject a missing header and accept an omitted one |
@@ -51,13 +51,20 @@ below is stated again in its entry, with the reasoning.
 | SARIF | Findings against `TRAN-074` name a new check, so their fingerprints change | An open alert for one closes and reopens once |
 | `mcp-trace-capture` traces | A message whose parsed value would differ from its text (an integer past 64 bits, a repeated member name) is recorded as its raw line over stdio and left out over HTTP; SSE events whose type is not `message` are not recorded; a forced HTTP stop ends the trace with `transport-abort` | None for a conforming peer; the summary counts what was left out |
 | `mcp-trace-capture stdio` | A stop gives the server 1 s (was 3 s) before its process group is killed, inside the official SDKs' 2 s; on Windows the exit code is the server's whole code, not its low eight bits | A server needing longer to shut down should finish on stdin closing |
-| Report totals | Against 0.6.0, every change in this release together (the wire-schema row above included): a `2025-11-25` report has 321 rows (was 142) and `excluded` 232 (was 86); a `2026-07-28` report has 501 (was 273) and `excluded` 320 (was 149) | Re-baseline any comparison of totals across versions |
+| Report totals | Against 0.6.0, every change in this release together (the wire-schema row above included): a `2025-11-25` report has 348 rows (was 142) and `excluded` 246 (was 86); a `2026-07-28` report has 501 (was 273) and `excluded` 320 (was 149) | Re-baseline any comparison of totals across versions |
 | Verdict, new rows | `AUTH-045`/`AUTH-049`/`AUTH-124`/`AUTH-130`: a protected server's challenge with the wrong status for its declared error (`invalid_token` not 401, `insufficient_scope` not 403); with the others of the 12 judged `AUTH` rows, from the `WWW-Authenticate` header ([ADR-0022](docs/plan/decisions/0022-judge-the-challenge-not-the-flow.md)) | Answer each error with the status the authorization page names |
 | Rust API | `mcp_conformance_core::trace::RECORDED_HEADERS` and `mcp_everything_server::tap::RECORDED_HEADERS` are `[&str; 11]` (were `[&str; 10]`): `WWW-Authenticate` is recorded | Iterate the array or take it as a slice, not by its length |
 | JSON report | A report, and each summary of a multi-revision one, gains `extensions` when the session exercised an extension ([ADR-0023](docs/plan/decisions/0023-extensions-are-reported-never-scored.md)); `report.schema.json` describes it, and its `source.url` pattern also admits an extension's own publication | Accept the member; the verdict never reads it |
 | SARIF | Findings against an extension's clauses are results at level `note`, with `properties.extension` and `properties.scored: false` | A consumer treating every result as an error filters on the level or on `scored` |
 | JUnit | One more suite per exercised extension, named `… (revision, extension ID, not scored)`; its findings sit in passing cases' `<system-out>`, never a `<failure>` | None: those suites hold no failures |
 | Registry data | `TOOL-033` and `TRAN-080` quotes rewritten in the flattened-list form (`; ` between items), the clauses unchanged. `TOOL-034` and `TRAN-081` each bundled clauses binding different parties: both now name only the safe-integer bound (binding the client), and the reachability and client-rejection clauses are `TOOL-045`, `TOOL-046` and `TRAN-137` | Key on the requirement ID; gate on the new IDs for the clauses that moved |
+| Verdict | A session with a completed `initialize` handshake is judged under the revision the server's result negotiated, alone: one that proposes X and negotiates Y is no longer also judged at X, and one that negotiates a revision with no registry (such as `2025-03-26`) exits `2`, naming both, where it was judged at what else it declared ([ADR-0018](docs/plan/decisions/0018-judge-the-declared-revision.md) §Amendment) | `--revision X` judges the proposal; a trace with no completed handshake is judged as before |
+| Verdict, now failing | `data` of image and audio content and `blob` of binary resource contents that is not base64 also fails the report's `wire_schema`: the schema's `format: "byte"` is now asserted (`uri` and `uri-template` are not; [ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md) §Amendment) | Send base64; the clause checks for these fields already failed them |
+| JSON report | Every row gains `actor` (required by `report.schema.json`, so a report from an earlier version no longer validates against that schema; the Rust types still read one) and every finding `party`; a report gains `party_view` when `--party` was given and `unanswered_requests` when the trace ended with requests unanswered | Accept the members; validate old reports against the old schema |
+| JUnit, SARIF, HTML | Each carries the party a finding is held against, and the unanswered-requests note | None |
+| `validate --party` | New: `--party client\|server` counts only that party's findings (and those held against nobody, which the verdict line says it counted) toward the verdict and exit status | None; without it the verdict and exit status are unchanged |
+| Rust API | `report::{Party, PartyTally, TraceEnding, UnansweredRequest, UnansweredRequests}` are new; `Report` gains `party_view` and `unanswered_requests`, `RequirementReport` gains `actor`, `Finding` gains `party` (a report written before them still deserialises, with `None`); `declared::Selection` gains `proposed`, `UnjudgeableRevisions` gains `negotiated` and `proposed` (each is `#[non_exhaustive]`) | None for callers that read; construct through the crate's functions |
+| `2025-11-25` verdict, new rows | `PING-001`, `PROG-009`–`PROG-011`, `PROG-013`–`PROG-016`, `PROG-019` and `CANC-018`–`CANC-020` are judged, in both directions: a ping answered with content or with an error (unless the error rode an HTTP error status, which is the transport refusing the request, as the `400` an unsupported `MCP-Protocol-Version` requires), a progress token that is not a string or integer, shared by two unanswered requests of one party, or never issued in the session, progress that does not strictly increase or continues after completion (`PROG-019` on stdio only) or after a task's terminal status, a task whose progress token changes, a cancellation naming a request its sender never issued, a cancelled `initialize`, and a task cancelled by notification now fail; `CANC-021` warns (stdio only) on an answer to a cancelled request once the receiver demonstrably read the cancellation | Stop doing those; re-baseline totals (every `2025-11-25` report gains 27 rows: 13 for judged clauses, 14 excluded) |
 
 ### Removed
 
@@ -116,6 +123,14 @@ below is stated again in its entry, with the reasoning.
 - **`TRAN-068`** recognized only a lowercase `text/event-stream`; media types are
   case-insensitive (RFC 9110 §8.3.1), so a `Text/Event-Stream` response without
   `X-Accel-Buffering: no` now warns too.
+- **Base64 in image, audio and blob data** was held only by the clause checks on
+  prompts and resources: the schema's `format: "byte"` was an annotation the engine
+  ignored, so an image `data` in a tool result that was not base64 passed every check
+  (`corpus/violations/wire-schema-tool-image-data-not-base64.jsonl`). The engine now
+  asserts `byte` with the same predicate the clause checks use, and nothing else
+  ([ADR-0020](docs/plan/decisions/0020-wire-schema-validation.md) §Amendment). The
+  official runner registers `byte` as always valid (`addFormat("byte", true)` in the
+  `0.2.0-alpha.12` bundle), so a non-base64 value this fails, the runner passes.
 
 **Checks that failed conforming sessions**
 
@@ -177,6 +192,17 @@ below is stated again in its entry, with the reasoning.
   `"ttlMs": 60000.0` failed, though the schema's JSON Schema `integer` admits any
   number with a zero fractional part. It now accepts any non-negative number with
   no fractional part, and still fails a negative or fractional one.
+- **A session whose server negotiated another revision was judged at the client's
+  proposal.** The official suite's `sse-retry` scenario answers a `2025-11-25`
+  `initialize` with `2025-03-26`; the client then sends POSTs without
+  `MCP-Protocol-Version`, which `2025-03-26` does not define, and `LIFE-018` and
+  `TRAN-017` failed it against a correct client (recorded as `our-bug (revision
+  attribution)` in `conformance/wire-findings.json` until now). A completed handshake
+  is now judged under the revision the server's result names, alone; the client's
+  proposal, when it differs, is noted on stderr, and a negotiated revision with no
+  registry is refused (exit `2`) rather than approximated by the proposal
+  ([ADR-0018](docs/plan/decisions/0018-judge-the-declared-revision.md) §Amendment).
+  `mcp-conformance test` lists such a session as unjudged, with that reason.
 
 **Which clauses a check judges**
 
@@ -511,6 +537,26 @@ below is stated again in its entry, with the reasoning.
   to `2026-07-28` on purpose) warn on `BASE-037`; the Go and Python SDK servers pass
   it, and the everything server at `2026-07-28` does since it names itself on every
   result (see Fixed).
+- **Every finding says which party it is held against**, and `validate --party
+  client|server` views a report for one. `mcp-conformance test` drives a server with the
+  suite's client, which breaks clauses of its own (calling `logging/setLevel` on a server
+  that declared no `logging`, closing a session it never sent `notifications/initialized`
+  on); those findings are real and are not the server author's to fix. Each row names the
+  actor the registry binds (`actor`) and each finding the party it is held against
+  (`party`): the clause's actor when it names one, else the sender of the message at the
+  finding's `seq`. Under `--party` only that party's findings, and those held against
+  nobody (which the verdict line says it counted), reach the verdict and exit status; the
+  rows and totals stay the trace's facts. The default verdict and exit status are
+  unchanged. Human output prefixes a finding with `[client]` or `[server]`; JUnit and
+  SARIF carry the party as a property and HTML as a pill. `mcp-conformance test` does not
+  use the view yet.
+- **A report says which requests the trace ended without answering**
+  (`unanswered_requests`: the count, up to ten with method, id, `seq` and sender, and how
+  the trace ended: `transport-close`, `transport-abort` or stopped), in human, JSON, JUnit,
+  SARIF and HTML output. It is a note, not a finding: the verdict is unchanged. A request
+  answered later or out of order, answered over SSE, cancelled by its sender after it was
+  sent, or refused by the HTTP layer before the protocol saw it (`401`, `403`) is not
+  listed; a request a server met with `202` and nothing else is.
 
 **The registry**
 
@@ -608,6 +654,24 @@ below is stated again in its entry, with the reasoning.
   `not_scored: extension`. Tasks at `2025-11-25` stays out of scope (experimental
   there; SEP-1730 and the suite score none of it), and MCP Apps is deferred
   (`mcp-apps-extension`). `spec-drift` holds the extension pages and both censuses.
+- **The `2025-11-25` ping, progress and cancellation pages are entered** (`basic/utilities/ping`,
+  `progress`, `cancellation`), which the registry had left out as an "unclaimed surface".
+  Entered by the census method: 27 entries (`PING-001`–`007`, `PROG-009`–`019`,
+  `CANC-018`–`026`), 13 judged by 11 new checks and 14 carrying a documented exclusion
+  (for reasons such as a rate over time, a timeout, a configuration surface, logging, or
+  the absence of a reaction, which no message in a trace shows), so the revision has 348 entries, 102 judged by 96 checks and
+  246 excluded. No `2026-07-28` ID is reused: an unchanged sentence at a new revision gets a
+  new entry, as `BASE-043` does. The clauses bind both parties here (either issues requests),
+  where the `2026-07-28` pages bind one. The task-related clauses (`PROG-014`–`016`,
+  `CANC-020`) are judged although the tasks page is out of scope at this revision, because a
+  recording carries every element they need; the checks abstain on any task whose creation
+  the recording did not see. Fifteen corpus traces pin them: three good (`stdio-progress`,
+  `stdio-task-progress`, `stdio-cancellation`) and twelve violations, each failing its named
+  clause (the progress and task ones also fail the rows that share their check).
+  `PING-001` first failed a ping the server refused with HTTP `400` for an unsupported
+  `MCP-Protocol-Version` (`tran-018-declined-version-header-refused-400`), a refusal the
+  transport requires; an error that rode an HTTP error status is now not a ping answer.
+
 
 **Calibration and captures**
 
@@ -786,6 +850,21 @@ not yet published to crates.io)
   `--protocol-version`, the validator's spelling), and **`--listen`** on the server
   (an alias of `--bind`, the capture proxy's). The HTTP server prints its endpoint
   URL after its readiness line.
+- **The cross-SDK matrix has a TypeScript v2 row, and moves its pins to releases at least a
+  week old** (the cooldown in `.github/dependabot.yml`; the one exception is stated in
+  `interop/README.md`). `interop/` now records `@modelcontextprotocol/server` 2.3.1 (with
+  `node` 2.1.1 and `express` 2.0.2; the conformance server taken unmodified from tag
+  `v2.3.1`, hash-checked) at both `2025-11-25` and `2026-07-28`: it answers `server/discover`
+  with `supportedVersions ["2026-07-28"]` and judges `pass` at both. The TypeScript v1 pin
+  moves to 1.32.1 (with express 5.3.0 and zod 4.6.7, the set Dependabot #67 proposes) and the
+  Rust pin to rmcp 3.7.0, the one release inside the cooldown, because the workspace builds
+  against it (the 3.5.x it replaces is in the range of GHSA-4432-vg92-fqh6, fixed in 3.6.0).
+  Python (2.3.0) and Go (v1.8.0) are already the latest. No existing row's golden changed:
+  the corpus gains two captured sessions and their goldens, and `sdk-matrix --check` now holds
+  the three v2 packages to `sdk-pins.env`. TypeScript 1.32.2 and `server` 2.4.0 (published
+  2026-10-23) become eligible on 2026-10-30; 2.4.0's conformance server also declares the
+  skills extension, which 2.3.1's does not.
+
 
 **Releases, documentation and gates**
 
@@ -838,8 +917,8 @@ not yet published to crates.io)
   suite once per mutant, so the leftovers had filled CI runners' disks. Each
   mutation shard also frees unused toolchains first and runs under a 6 GiB
   data-segment cap, so a mutant that loops while allocating fails its own test.
-- **The PR mutation gate runs in sixteen shards**, as the scheduled sweep runs in
-  eight: `--shard k/16` over the same `--no-shuffle --in-diff` list, with a final
+- **The PR mutation gate runs in sixteen shards**, as the scheduled sweep now does
+  (below): `--shard k/16` over the same `--no-shuffle --in-diff` list, with a final
   `Mutants (PR diff)` job that passes only when every shard did, so the gate keeps
   its name. This release's diff holds 3,485 mutants at about 33 s each; one job, or
   eight shards of 436, could not finish it inside GitHub's job limits.
@@ -847,6 +926,57 @@ not yet published to crates.io)
   and `mcp-reference-host` allow rmcp's SEP-2577 deprecations (Roots, Sampling,
   Logging, which `2025-11-25` still requires) only on the items and statements that
   use them, not module-wide.
+- **`2026-07-28` extensions: the skills page's new clause** that a `resources/directory/read`
+  result carries `ttlMs` and `cacheScope` enters as `SKILL-100`, judged by
+  `skills.directory-cacheable` on `complete` results no retry produced (an error answer or
+  another result shape is no subject; `cacheScope` must be `public` or `private`); `SKILL-001`
+  quotes the page's reworded `_meta` sentence and stays excluded as `BASE-030`'s restatement.
+  The weekly `spec-drift` run had gone red on the page's edit of 2026-10-15.
+- **The scheduled full mutation sweep runs in sixteen shards, not eight.** On
+  2026-10-19 five of the eight ran into the job's 180-minute timeout and were
+  cancelled, and the three that finished took 125, 175 and 175 minutes; at about 14
+  seconds a mutant, the tree had outgrown eight.
+- **`mcp-trace-capture http` passes the client's `Host` to an upstream on this
+  machine** (`localhost`, `127.0.0.0/8`, `::1`) by default, so the server's own
+  `Host`-based DNS-rebinding check judges what the client sent. `0.6.0` sent the
+  server's own name for every upstream, which made that check pass for every request
+  the proxy forwarded, a browser's under a rebound name included. A remote upstream
+  still gets its own name; `--no-preserve-host` restores the rewrite for a local server
+  that routes on its name, and the startup lines say which `Host` is sent.
+  `mcp-conformance watch http` gets the same default, without the new flag yet. A local
+  server that accepts only its own `host:port` now answers `403` through the proxy
+  until it is run with `--no-preserve-host`.
+- **Trace files are owner-only and never written through a link.** Every trace is
+  created with mode `0600` on Unix (`--force` over an existing regular file narrows it
+  too); a symbolic link at `-o` is refused with or without `--force` (it used to
+  truncate its target); a `{session}` file is written through the handle that created
+  it and never reopened by path, so a link planted after creation no longer redirects
+  later events.
+- **Recording uses less memory for object-heavy messages**: the faithfulness scan runs
+  before the parse. Peak resident memory for one 16 MiB message of small objects, debug
+  builds, three runs each (`crates/mcp-trace-capture/tools/measure-memory.py`): through
+  the proxy 302 MiB before, 215 after; through the stdio wrapper 531 before, 420 after.
+  A message of one long string or of one-digit numbers is unchanged (73 and 298 MiB through
+  the proxy). The README states the cost by message shape and the method, and drops the
+  `0.6.0` sentence "about twice its size again", which was wrong by a factor of up to 26.
+- **`watch --otlp` exports less of a session.** `mcp.resource.uri` is the URI up to
+  its path (userinfo, query and fragment removed: a presigned URI keeps its credential
+  there); the `ERROR` status is described by the JSON-RPC code and a fixed name, never
+  the server's own message; a finding's `mcp_conformance.detail` is cut at 512
+  characters, marked. The README lists exactly what a span carries.
+- **The workbench's API and export are bounded.** `/api/…` answers only a request whose
+  `Sec-Fetch-Site` is absent, `same-origin` or `none`: a page on another port of
+  `127.0.0.1` is `same-site`, is sent the cookie, and could otherwise drive the API
+  with an `<img>`. An export names each recording once and holds at most 100 recordings
+  and 192 MiB (one 21 KB recording named 2,000 times was a 261 MB in-memory response);
+  `library export` shares both limits. The parsed events of the four recordings viewed
+  last are kept, so fifty views of one parse it once (72 ms to 1.2 ms).
+- **Redaction removes `Mcp-Session-Id` by default**, with `Authorization`, `Cookie`,
+  `Set-Cookie` and `Proxy-Authorization`, in the page's dialog, the API and
+  `library redact`; the command now prints each rule applied and says that payload
+  values (arguments, results, `_meta`) stay unless `--pointer`, `--meta` or `--string`
+  names them. The `serve` banner says that browsers scope the cookie to the host, not
+  the port, so another local server the browser visits is sent it.
 - **Each crate's crates.io page links its docs.rs documentation**
   (`documentation` in every manifest).
 - **Table-row quotes have a documented form.** `SourceRef::quote` states how a
@@ -858,13 +988,25 @@ not yet published to crates.io)
 
 ### Dependencies
 
-- **rmcp 3.5.1** (from 3.4.1) for `mcp-everything-server` and
+- **rmcp 3.7.0** (from 3.4.1) for `mcp-everything-server` and
   `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official suite's
-  `2026-07-28` scenarios now pass 42 of 42 against the server serving `2025-11-25`
-  too: rmcp 3.5.1 adds the cache hints `2026-07-28` peers need. The development
-  toolchain pin is Rust 1.99.0; the MSRV stays 1.88.
-- **Lockfile refresh within the declared ranges:** `schemars` 1.2.3 and `syn`
-  3.0.9.
+  `2026-07-28` scenarios pass 42 of 42 against the server serving `2025-11-25`
+  too (since 3.5.1, which adds the cache hints `2026-07-28` peers need). 3.6.0 fixes
+  GHSA-4432-vg92-fqh6, an unbounded cache of request-supplied tool names in the
+  streamable-HTTP server (3.5.1 had it; its advisory lists `>= 3.0.0, < 3.6.0`).
+  RustSec does not list it, so `cargo audit` could not have said so. The development toolchain pin is Rust
+  1.99.1; the MSRV stays 1.88.
+- **jsonschema 0.60.1** (from 0.58.6), the engine behind the wire-schema check. Every
+  committed golden report is byte-identical under it, and its verdicts on the official
+  suite's traffic still agree with the runner's (zero messages flagged on either side).
+- **Advisory fixes in the dependency tree.** `rustls` 0.23.46 (RUSTSEC-2026-0346
+  to -0349), `rustls-webpki` 0.103.16 (RUSTSEC-2026-0382: certificate paths through
+  distrusted intermediates, which the recorder's `https://` upstream check relies
+  on) and `tokio` 1.54.1 (RUSTSEC-2026-0386, `AsyncFd`, which this workspace does
+  not call). `mcp-trace-capture`'s `rustls` floor is now 0.23.46.
+- **Lockfile refresh within the declared ranges:** `schemars` 1.2.3, `syn` 3.0.9,
+  and twenty more packages (among them `cc`, `libc`, `smallvec`,
+  `rustls-native-certs` and the `icu_*` family).
 
 ## [0.6.0] - 2026-10-06
 

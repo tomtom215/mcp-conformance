@@ -76,32 +76,32 @@
     {
       "kind": "ours-only",
       "subject": "BASE-030",
-      "traces": ["draft/violations/vers-008-initialize-error-without-versions"],
+      "traces": ["draft/violations/vers-008-initialize-error-without-versions", "draft/violations/base-030-legacy-initialize-negotiated-2026-07-28"],
       "class": "spec-ambiguity",
       "right": "undecided",
       "quote": ["BASE-030", "VERS-008"],
-      "note": "A legacy client sends `initialize` naming `2025-11-25` to a server that speaks only `2026-07-28`. Judging the whole trace at `2026-07-28`, we report the `initialize` as a request missing the required `_meta` fields — deliberately: `checks/stateless/meta.rs` exempts this request from BASE-031, citing `basic/versioning`'s compatibility matrix (which says of exactly this request that it \"also lacks the required `_meta` fields\"), and states that the client's own defect is still reported, by BASE-030. mcpsnoop reads the request's own `protocolVersion` and judges it at `2025-11-25`, where it is conforming. Whether a `2026-07-28` clause binds a request that is itself speaking `2025-11-25` is not settled by the text: the matrix describes the request as lacking the fields without saying the legacy client is non-conformant for it, and nothing makes a `2025-11-25` client subject to `2026-07-28`. The same question sits under our TRAN-071 finding on the probe capture's legacy `initialize`.",
+      "note": "A legacy client sends `initialize` naming `2025-11-25`. In vers-008 the server speaks only `2026-07-28` and refuses; in base-030-legacy-initialize-negotiated-2026-07-28 it answers naming `2026-07-28` and the session goes on under it. Judging the whole trace at `2026-07-28` (the corpus's `draft/` assignment for the first; the server's `initialize` result, which is the session's revision, for the second), we report the `initialize` as a request missing the required `_meta` fields — deliberately: `checks/stateless/meta.rs` exempts this request from BASE-031, citing `basic/versioning`'s compatibility matrix (which says of exactly this request that it \"also lacks the required `_meta` fields\"), and states that the client's own defect is still reported, by BASE-030. mcpsnoop 0.26.1 draws nothing on either trace. Measured 2026-10-25 on edited copies of the second trace's converted capture: it applies `request-meta-missing` to a request only when that request's own `_meta` carries `io.modelcontextprotocol/protocolVersion` `2026-07-28` (an `initialize` whose `_meta` names it and lacks the other fields is flagged, so `initialize` is not exempt); a request with no `_meta`, an empty one, or one naming `2025-11-25` draws nothing, and setting the `initialize` params' `protocolVersion` to `2026-07-28` changes nothing. So its per-request revision is the one the request states in `_meta`, not `params.protocolVersion` and not the server's answer; an earlier version of this note said it reads the request's own `protocolVersion`, which that measurement does not support. Whether a `2026-07-28` clause binds a request that is itself speaking `2025-11-25` is not settled by the text: the matrix describes the request as lacking the fields without saying the legacy client is non-conformant for it, and nothing makes a `2025-11-25` client subject to `2026-07-28`. The same question sits under our TRAN-071 finding on the probe capture's legacy `initialize`.",
       "resolution": "open: decide whether a legacy-era request inside a 2026-07-28 trace is held to that revision's request-envelope clauses (BASE-030 and its restatements, TRAN-071); the current reading is recorded in `checks/stateless/meta.rs`"
     },
     {
       "kind": "ours-only",
       "subject": "MRTR-002",
-      "traces": ["draft/violations/vers-008-initialize-error-without-versions"],
+      "traces": ["draft/violations/vers-008-initialize-error-without-versions", "draft/violations/base-030-legacy-initialize-negotiated-2026-07-28"],
       "class": "spec-ambiguity",
       "right": "undecided",
       "quote": ["MRTR-002"],
-      "note": "The legacy `initialize` above, under MRTR-002's restatement of the same rule.",
-      "resolution": "open: the same decision as BASE-030 on this trace"
+      "note": "The legacy `initialize` of either trace above, under MRTR-002's restatement of the same rule.",
+      "resolution": "open: the same decision as BASE-030 on these traces"
     },
     {
       "kind": "ours-only",
       "subject": "TOOL-016",
-      "traces": ["draft/violations/vers-008-initialize-error-without-versions"],
+      "traces": ["draft/violations/vers-008-initialize-error-without-versions", "draft/violations/base-030-legacy-initialize-negotiated-2026-07-28"],
       "class": "spec-ambiguity",
       "right": "undecided",
       "quote": ["TOOL-016"],
-      "note": "The legacy `initialize` above, under TOOL-016's restatement of the same rule.",
-      "resolution": "open: the same decision as BASE-030 on this trace"
+      "note": "The legacy `initialize` of either trace above, under TOOL-016's restatement of the same rule.",
+      "resolution": "open: the same decision as BASE-030 on these traces"
     },
     {
       "kind": "ours-only",
@@ -132,6 +132,16 @@
       "quote": ["BASE-009", "BASE-052"],
       "note": "A POST carrying `Host` and `Origin` `evil.example.com` is refused with HTTP 403 and a JSON-RPC error that has no `id`; the session then proceeds from `localhost`. The transport's security warning, at both revisions, describes exactly that answer: \"If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`.\" The refusal happens before the request is read, so there is no id to echo, and BASE-009/BASE-052's id rule does not reach a body the transport clause permits to have none. mcpsnoop reports the id-less error as matching no request. We did the same, as BASE-009, until 2026-10-13 — on the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`) — and these two traces are the regression pair for that fix.",
       "resolution": "upstream: mcpsnoop-origin-refusal-unmatched"
+    },
+    {
+      "kind": "mcpsnoop-only",
+      "subject": "progress-after-completion",
+      "traces": ["good/stdio-task-progress"],
+      "class": "mcpsnoop-defect",
+      "right": "ours",
+      "quote": ["PROG-014", "PROG-016"],
+      "note": "A conforming `2025-11-25` task session: the server answers a task-augmented `tools/call` with a `CreateTaskResult` (seq 4) and sends progress under the request's token while the task is `working` (seq 5, and seq 10 after a `tasks/get` that still says `working`); the task is `completed` only at seq 12. The tasks page has the token \"continue to be used for progress notifications throughout the task's lifetime, even after the `CreateTaskResult` has been returned\" (PROG-014) and stops progress at the task's terminal status (PROG-016), which this session respects; our validator passes it. mcpsnoop 0.26.1 warns on both notifications as arriving \"after its request completed\", with the text \"2026-07-28 requires them to stop\": it takes the `CreateTaskResult` for the request's completion and applies that revision's rule to a `2025-11-25` session. The same rule fires, correctly, on prog-019 (progress after an ordinary response) and, for the earlier of its two notifications, wrongly on prog-016 for the same reason as here; both traces agree with us at the trace level.",
+      "resolution": "open: whether to report it upstream is the maintainer's call; the reproduction is `corpus/good/stdio-task-progress.jsonl`, whose task handling the `2025-11-25` tasks page defines (PROG-014)"
     }
   ],
   "recorded": [

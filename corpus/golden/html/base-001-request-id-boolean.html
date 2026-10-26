@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-K+QH8eGos92H7gyRSBNc4cpdOMZtDD5YIIuxlD4EoyY='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-TvCmbAR7RPfcK3ta5Tq++Bewv4/+i8XUb3gtJ1v0OiQ='; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -198,6 +198,9 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
   background: var(--warn-bg);
 }
 .note code { font-weight: 600; }
+.note .unanswered { margin: 0.45rem 0 0; padding-left: 1.2rem; }
+.note .unanswered a { font-family: var(--mono); font-weight: 600; }
+.note p { margin: 0.35rem 0 0; }
 
 /* Section links. */
 .contents {
@@ -278,6 +281,8 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 }
 .pill:is(.o-pass, .o-fail, .o-warn, .o-unsupported) { border-color: transparent; background: var(--tone-bg); color: var(--tone); }
 .pill.level, .pill.rev { font-family: var(--mono); }
+.pill.party { margin-right: 0.45rem; vertical-align: 0.1rem; }
+.pill.party.none { border-style: dashed; font-weight: 500; }
 .quote {
   margin: 0 0 0.45rem;
   padding: 0.7rem 0.95rem;
@@ -505,22 +510,23 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <div class="t-pass"><dt>pass</dt><dd>16</dd></div>
 <div class="t-fail"><dt>fail</dt><dd>1</dd></div>
 <div class="t-warn zero"><dt>warn</dt><dd>0</dd></div>
-<div class="t-excluded"><dt>excluded</dt><dd>232</dd></div>
+<div class="t-excluded"><dt>excluded</dt><dd>246</dd></div>
 <div class="t-unsupported zero"><dt>unsupported</dt><dd>0</dd></div>
 <div class="t-not-applicable"><dt>not applicable</dt><dd>14</dd></div>
-<div class="t-not-observed"><dt>not observed</dt><dd>58</dd></div>
+<div class="t-not-observed"><dt>not observed</dt><dd>71</dd></div>
 </dl>
 <p class="schema-line s-fail">Wire schema: fail (1 of 4 messages invalid)</p>
 </section>
+<aside class="note" role="note"><strong>1 request had no response when the trace ended (the recording simply stopped).</strong> JSON-RPC expects every request answered; no clause of this revision judges it, so the verdict is unchanged.<ul class="unanswered"><li><a href="#e3">seq 3</a> client <code>ping</code> id <code>true</code></li></ul></aside>
 <nav class="contents" aria-label="Sections"><a href="#findings">Clauses to act on <span class="count">2</span></a><a href="#timeline">Message timeline <span class="count">4</span></a><a href="#accounting">Accounting</a></nav>
 <section class="section" id="findings" aria-labelledby="findings-h">
 <h2 id="findings-h">Clauses to act on</h2>
 <article class="clause o-fail" id="BASE-001">
-<header class="clause-head"><h3 class="clause-id"><a href="#BASE-001">BASE-001</a></h3><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h3 class="clause-id"><a href="#BASE-001">BASE-001</a></h3><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds both</span></header>
 <blockquote class="quote"><p>Requests MUST include a string or integer ID.</p></blockquote>
 <p class="source"><span class="section-path">basic#requests</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2025-11-25/basic#requests" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="BASE-001-1"><a class="seq" href="#e3">seq 3</a><span class="detail">request &quot;ping&quot; carries a boolean as its id; the ID must be a string or an integer</span><span class="check">base.request-id-type</span></li>
+<li id="BASE-001-1"><a class="seq" href="#e3">seq 3</a><span class="detail"><span class="pill party">client</span>request &quot;ping&quot; carries a boolean as its id; the ID must be a string or an integer</span><span class="check">base.request-id-type</span></li>
 </ol>
 </article>
 <article class="clause o-fail" id="wire-schema">
@@ -529,7 +535,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <p class="source"><span class="section-path">basic#schema</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2025-11-25/basic#schema" rel="noreferrer">Read it in the specification</a></p>
 <p class="schema">1 of 4 messages are invalid against the revision's vendored schema: <a href="https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json" rel="noreferrer"><code>https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json</code></a></p>
 <ol class="findings">
-<li id="wire-schema-1"><a class="seq" href="#e3">seq 3</a><span class="detail">the client&#39;s message is not a valid PingRequest under the 2025-11-25 schema: /id: true is not of types &quot;integer&quot;, &quot;string&quot;</span><span class="check">wire-schema</span></li>
+<li id="wire-schema-1"><a class="seq" href="#e3">seq 3</a><span class="detail"><span class="pill party">client</span>the client&#39;s message is not a valid PingRequest under the 2025-11-25 schema: /id: true is not of types &quot;integer&quot;, &quot;string&quot;</span><span class="check">wire-schema</span></li>
 </ol>
 </article>
 </section>
@@ -575,8 +581,8 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev c2s flagged" id="e3"><div class="ev-line"><a class="ev-seq" href="#e3" aria-label="event 3">3</a><span class="ev-dir">client → server</span><span class="kind k-request">request</span><code class="method">ping</code><span class="id">id <code>true</code></span><span class="pair none">no answer recorded</span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#BASE-001-1">BASE-001</a><span class="detail">request &quot;ping&quot; carries a boolean as its id; the ID must be a string or an integer</span></li>
-<li class="o-fail"><a href="#wire-schema-1">wire schema</a><span class="detail">the client&#39;s message is not a valid PingRequest under the 2025-11-25 schema: /id: true is not of types &quot;integer&quot;, &quot;string&quot;</span></li>
+<li class="o-fail"><a href="#BASE-001-1">BASE-001</a><span class="pill party">client</span><span class="detail">request &quot;ping&quot; carries a boolean as its id; the ID must be a string or an integer</span></li>
+<li class="o-fail"><a href="#wire-schema-1">wire schema</a><span class="pill party">client</span><span class="detail">the client&#39;s message is not a valid PingRequest under the 2025-11-25 schema: /id: true is not of types &quot;integer&quot;, &quot;string&quot;</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: true,
@@ -610,7 +616,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="TRAN-005"><code class="rid">TRAN-005</code><span class="pill level">MUST NOT</span></li>
 </ul>
 </details>
-<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">58</span></summary>
+<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">71</span></summary>
 <p class="meaning">Every covering check ran and found nothing to judge: the session carried none of the traffic these clauses bind to. A session that exercises them may pass or fail them.</p>
 <ul class="rows">
 <li id="BASE-006"><code class="rid">BASE-006</code><span class="pill level">MUST</span></li>
@@ -634,6 +640,19 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="TRAN-039"><code class="rid">TRAN-039</code><span class="pill level">MUST</span></li>
 <li id="TRAN-040"><code class="rid">TRAN-040</code><span class="pill level">MUST</span></li>
 <li id="TRAN-049"><code class="rid">TRAN-049</code><span class="pill level">MUST</span></li>
+<li id="PING-001"><code class="rid">PING-001</code><span class="pill level">MUST</span></li>
+<li id="PROG-009"><code class="rid">PROG-009</code><span class="pill level">MUST</span></li>
+<li id="PROG-010"><code class="rid">PROG-010</code><span class="pill level">MUST</span></li>
+<li id="PROG-011"><code class="rid">PROG-011</code><span class="pill level">MUST</span></li>
+<li id="PROG-013"><code class="rid">PROG-013</code><span class="pill level">MUST</span></li>
+<li id="PROG-014"><code class="rid">PROG-014</code><span class="pill level">MUST</span></li>
+<li id="PROG-015"><code class="rid">PROG-015</code><span class="pill level">MUST</span></li>
+<li id="PROG-016"><code class="rid">PROG-016</code><span class="pill level">MUST</span></li>
+<li id="PROG-019"><code class="rid">PROG-019</code><span class="pill level">MUST</span></li>
+<li id="CANC-018"><code class="rid">CANC-018</code><span class="pill level">MUST</span></li>
+<li id="CANC-019"><code class="rid">CANC-019</code><span class="pill level">MUST NOT</span></li>
+<li id="CANC-020"><code class="rid">CANC-020</code><span class="pill level">MUST</span></li>
+<li id="CANC-021"><code class="rid">CANC-021</code><span class="pill level">SHOULD</span></li>
 <li id="TOOL-001"><code class="rid">TOOL-001</code><span class="pill level">MUST</span></li>
 <li id="RES-001"><code class="rid">RES-001</code><span class="pill level">MUST</span></li>
 <li id="PROM-001"><code class="rid">PROM-001</code><span class="pill level">MUST</span></li>
@@ -692,7 +711,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="PROM-008"><code class="rid">PROM-008</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
 </ul>
 </details>
-<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">232</span></summary>
+<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">246</span></summary>
 <p class="meaning">The registry does not judge these from a recording; each row says why.</p>
 <ul class="rows">
 <li id="BASE-011"><code class="rid">BASE-011</code><span class="pill level">MUST NOT</span><span class="reason">A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009.</span></li>
@@ -757,6 +776,20 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="TRAN-138"><code class="rid">TRAN-138</code><span class="pill level">SHOULD</span><span class="reason">The obligation arises when the server closes the connection without terminating the SSE stream, and that is connection- and SSE-frame-level conduct the capture consumes (TRAN-032&#39;s reason), so no trace shows when it arose. A later reconnecting `GET` is equally consistent with any other reason to open one, as for TRAN-046.</span></li>
 <li id="TRAN-139"><code class="rid">TRAN-139</code><span class="pill level">SHOULD</span><span class="reason">SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace. TRAN-032 is the same rule for streams a POST opened.</span></li>
 <li id="TRAN-140"><code class="rid">TRAN-140</code><span class="pill level">SHOULD</span><span class="reason">Binds a transport&#39;s documentation, not its messages: the artefact the clause asks for is a document, and no session can be evidence about whether one exists. Custom transports are outside the capture universe besides (TRAN-023).</span></li>
+<li id="PING-002"><code class="rid">PING-002</code><span class="pill level">SHOULD</span><span class="reason">&quot;Periodically&quot; is a rate over wall-clock time, and checks may not consult time — the limit LIFE-015 records. A recording would have to show the interval between pings against the length of the session, and it carries neither: a session with no ping and one with few are both what a conforming implementation produces over a short enough connection.</span></li>
+<li id="PING-003"><code class="rid">PING-003</code><span class="pill level">SHOULD</span><span class="reason">Binds the implementation&#39;s configuration surface — what its operator can set — which has no protocol representation (LIFE-019&#39;s boundary). A recording shows the pings one configuration produced, never whether another was available.</span></li>
+<li id="PING-004"><code class="rid">PING-004</code><span class="pill level">SHOULD</span><span class="reason">A timeout is a duration held inside the sender, and checks may not consult time (LIFE-015). A recording would have to carry the deadline the sender held a ping to and the network it was chosen for; it shows a ping answered or not, and nothing of either.</span></li>
+<li id="PING-005"><code class="rid">PING-005</code><span class="pill level">SHOULD</span><span class="reason">&quot;Excessive&quot; is a rate — pings per unit of time — and checks may not consult time (LIFE-015). No count of pings alone separates a flood from a long session checking its connection, the same limit PROG-018 records for rate limiting.</span></li>
+<li id="PING-006"><code class="rid">PING-006</code><span class="pill level">SHOULD</span><span class="reason">The antecedent, a ping timing out, is the sender&#39;s own deadline expiring, which no message records and checks may not compute from timestamps (LIFE-015). The consequence, treating the connection as failed, is at most a `transport-close` lifecycle event, which says that a transport ended and not why; a recording cannot tell a connection dropped for a timeout from one closed at the end of a session.</span></li>
+<li id="PING-007"><code class="rid">PING-007</code><span class="pill level">SHOULD</span><span class="reason">Logging is local diagnostics with no wire footprint (CANC-024&#39;s boundary): nothing an implementation writes to its own log is a protocol message, so no recording contains it.</span></li>
+<li id="PROG-012"><code class="rid">PROG-012</code><span class="pill level">SHOULD</span><span class="reason">Whether a message is relevant and human readable is a judgment about its meaning, not its shape; any string satisfies the schema, and no mechanical reading of one decides relevance. The same sentence is PROG-004 at 2026-07-28, excluded for the same reason.</span></li>
+<li id="PROG-017"><code class="rid">PROG-017</code><span class="pill level">SHOULD</span><span class="reason">Tracking is bookkeeping inside each party, and a recording carries no message that shows a token being tracked or forgotten. Its wire consequences are the MUST rows beside it, which are judged: a token reused while its request is active (PROG-010), a token no request provided and progress for a finished request (PROG-013, PROG-016, PROG-019).</span></li>
+<li id="PROG-018"><code class="rid">PROG-018</code><span class="pill level">SHOULD</span><span class="reason">A rate is messages per unit of time, and checks may not consult time — the limit LIFE-015 records. No count of notifications alone separates a flood from a long operation reporting often.</span></li>
+<li id="CANC-022"><code class="rid">CANC-022</code><span class="pill level">SHOULD</span><span class="reason">Ignoring a response is the absence of a reaction inside the sender. A recording would have to carry a message the sender sends because it acted on the late response, and the protocol defines none: nothing a party does with a response it received reaches the wire.</span></li>
+<li id="CANC-023"><code class="rid">CANC-023</code><span class="pill level">MUST</span><span class="reason">Graceful handling is internal; the race itself is what a recording shows, and the checks are built not to convict it — `cancellation.no-response-after-cancellation` reports an answer to a cancelled request only once the receiver has demonstrably read the cancellation, and the conforming `stdio-cancellation` trace pins the answer that crosses one. A recording would have to carry a message the specification defines as ungraceful handling, and it defines none; a party that failed to handle the race would show it through some other clause&#39;s violation, judged there.</span></li>
+<li id="CANC-024"><code class="rid">CANC-024</code><span class="pill level">SHOULD</span><span class="reason">Logging is local diagnostics with no wire footprint: nothing an implementation writes to its own log is a protocol message, so no recording contains it.</span></li>
+<li id="CANC-025"><code class="rid">CANC-025</code><span class="pill level">SHOULD</span><span class="reason">User-interface presentation, out by strategy rule 2: what an application shows its user is not a protocol message, so no recording carries it.</span></li>
+<li id="CANC-026"><code class="rid">CANC-026</code><span class="pill level">SHOULD</span><span class="reason">Ignoring a notification is the absence of a reaction, which a trace cannot tell apart from the notification never mattering: a recording would have to carry a message the receiver sends because it did not ignore the notification, and the protocol defines none (answering a notification is forbidden anyway, BASE-011). The party that sent the invalid notification is judged instead, where it can be: CANC-018 for a cancellation naming a request its sender never issued in the session, CANC-019 for one naming `initialize`.</span></li>
 <li id="TOOL-002"><code class="rid">TOOL-002</code><span class="pill level">SHOULD</span><span class="reason">The trigger condition — the tool list actually changing — is server-internal state a recorded trace cannot evidence, so absence of the notification is never proof of violation.</span></li>
 <li id="TOOL-004"><code class="rid">TOOL-004</code><span class="pill level">MUST</span><span class="reason">How a client weighs annotations is internal trust policy with no wire footprint.</span></li>
 <li id="TOOL-012"><code class="rid">TOOL-012</code><span class="pill level">MUST</span><span class="reason">Input validation, access control, rate limiting, and output sanitization are server-internal enforcement without a deterministic wire signature. Of the four duties, mcp-everything-server implements and tests input validation (tests/roundtrip.rs: tool_call_with_missing_required_argument_is_a_protocol_error and neighbors); access control beyond the transport-layer Host/Origin gate, rate limiting, and output sanitization are not in its scope — it serves fixed synthetic fixtures to a loopback-only harness.</span></li>

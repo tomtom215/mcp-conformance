@@ -211,8 +211,9 @@ scheduled alpha-tracking job (`MCP_SUITE_VERSION`), and both legs of
 is the revision the runner validates against whatever the server serves. The
 reconciliation is the `wire_schema` member of `agreement.json` (for the draft legs,
 `target/draft-readiness/<revision>/wire-schema-agreement.json`). Known sources of
-divergence that no run has yet exercised: the runner asserts JSON Schema `format`
-(through `ajv-formats`) and this validator does not; the runner applies none of this
+divergence that no run has yet exercised: the runner asserts the `ajv-formats` formats
+(`uri`, `uri-template`) and registers `byte` as always valid, while this validator asserts `byte`
+alone (ADR-0020, amended 2026-10-25); the runner applies none of this
 validator's errata (`ElicitResult.content`, `JSONValue`), only its own `NumberSchema`
 one, which our vendored copy already carries upstream; and its bundled `2026-07-28`
 copy predates ours, naming `SubscriptionsListenResultMeta` where ours (equal to

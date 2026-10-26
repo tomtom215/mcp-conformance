@@ -172,6 +172,12 @@ impl<'a> TraceContext<'a> {
     pub(crate) fn refused(&self, seq: u64) -> bool {
         self.refusals.contains(seq)
     }
+
+    /// The HTTP status the response message at `seq` rode, when the recording
+    /// says (never over stdio).
+    pub(crate) fn http_status(&self, seq: u64) -> Option<u16> {
+        self.framing.status_for(seq).map(|(_, status)| status)
+    }
 }
 
 /// The `seq` of every request message in `events` that a protected resource

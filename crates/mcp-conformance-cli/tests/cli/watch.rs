@@ -51,11 +51,6 @@ struct Replay {
 fn replay(name: &str) -> Replay {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let trace = std::fs::read_to_string(root.join(CORPUS)).unwrap();
-    let dir = scratch(name);
-    let groups = dir.join("groups");
-    std::fs::create_dir_all(&groups).unwrap();
-    let mut client = Vec::new();
-    let mut server: Vec<Vec<String>> = vec![Vec::new()];
     let mut messages: Vec<(String, String)> = trace
         .lines()
         .map(|line| {
@@ -68,6 +63,16 @@ fn replay(name: &str) -> Replay {
         .collect();
     messages.push(("client-to-server".to_owned(), AFTER[0].to_owned()));
     messages.push(("server-to-client".to_owned(), AFTER[1].to_owned()));
+    replay_of(name, messages)
+}
+
+/// A replay of `messages`, each a direction and a JSON-RPC payload.
+fn replay_of(name: &str, messages: Vec<(String, String)>) -> Replay {
+    let dir = scratch(name);
+    let groups = dir.join("groups");
+    std::fs::create_dir_all(&groups).unwrap();
+    let mut client = Vec::new();
+    let mut server: Vec<Vec<String>> = vec![Vec::new()];
     for (direction, payload) in messages {
         if direction == "client-to-server" {
             client.push(payload);
@@ -379,6 +384,125 @@ fn spans_reach_a_collector_with_the_conventions_names_and_the_finding() {
             ),
         "{event}"
     );
+    std::fs::remove_dir_all(&replay.dir).ok();
+}
+
+/// Every span in every request a collector received, in order.
+fn spans_of(requests: &[(String, String)]) -> Vec<serde_json::Value> {
+    requests
+        .iter()
+        .flat_map(|(_, body)| {
+            let request: serde_json::Value = serde_json::from_str(body).unwrap();
+            request["resourceSpans"][0]["scopeSpans"][0]["spans"]
+                .as_array()
+                .unwrap()
+                .clone()
+        })
+        .collect()
+}
+
+/// The string value of attribute `key` on a span or an event.
+fn string_attribute(carrier: &serde_json::Value, key: &str) -> Option<String> {
+    carrier["attributes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|attribute| attribute["key"] == key)
+        .map(|attribute| {
+            attribute["value"]["stringValue"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        })
+}
+
+/// A session with a marker in each place a payload value reaches a span: a
+/// presigned resource URI's query and fragment, a server's error message,
+/// and a tool name long enough that the finding quoting it must be cut.
+fn marked_session() -> Vec<(String, String)> {
+    let hostile = format!("bad name {}MARKER-TAIL", "x".repeat(600));
+    let client = |text: &str| ("client-to-server".to_owned(), text.to_owned());
+    let server = |text: &str| ("server-to-client".to_owned(), text.to_owned());
+    vec![
+        client(
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"0"}}}"#,
+        ),
+        server(
+            r#"{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{},"resources":{}},"serverInfo":{"name":"s","version":"0"}}}"#,
+        ),
+        client(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#),
+        client(
+            r#"{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"https://files.example/doc?X-Amz-Signature=MARKER-QUERY#MARKER-FRAGMENT"}}"#,
+        ),
+        server(
+            r#"{"jsonrpc":"2.0","id":2,"error":{"code":-32002,"message":"MARKER-MESSAGE: /home/me/doc"}}"#,
+        ),
+        client(r#"{"jsonrpc":"2.0","id":3,"method":"tools/list"}"#),
+        server(&format!(
+            r#"{{"jsonrpc":"2.0","id":3,"result":{{"tools":[{{"name":"{hostile}","inputSchema":{{"type":"object"}}}}]}}}}"#
+        )),
+    ]
+}
+
+/// What a collector is sent is the conventions' span fields and nothing of
+/// a payload beyond them: a presigned resource URI loses its query, a
+/// server's error message is not exported at all, and a finding's detail —
+/// which quotes the tool name it is about — is cut. No marker of
+/// [`marked_session`] may reach the collector.
+#[test]
+fn a_collector_is_sent_no_query_no_error_message_and_no_whole_hostile_name() {
+    let replay = replay_of("watch-otlp-markers", marked_session());
+    let (url, requests) = collector();
+    let mut running = start(&replay, &["--otlp", &url]);
+    play(&mut running, &replay);
+    let (code, stderr) = running.end();
+    assert_eq!(code, Some(0), "{stderr}");
+    assert!(stderr.contains("exported 4 span(s)"), "{stderr}");
+    let requests = requests.lock().unwrap().clone();
+    for marker in [
+        "MARKER-QUERY",
+        "MARKER-FRAGMENT",
+        "MARKER-MESSAGE",
+        "MARKER-TAIL",
+        "/home/me",
+    ] {
+        assert!(
+            !requests.iter().any(|(_, body)| body.contains(marker)),
+            "{marker} reached the collector: {requests:?}"
+        );
+    }
+    let spans = spans_of(&requests);
+    assert_eq!(spans.len(), 4, "{requests:?}");
+    let read = spans
+        .iter()
+        .find(|span| span["name"] == "resources/read")
+        .unwrap();
+    assert_eq!(
+        string_attribute(read, "mcp.resource.uri").as_deref(),
+        Some("https://files.example/doc")
+    );
+    assert_eq!(
+        string_attribute(read, "rpc.response.status_code").as_deref(),
+        Some("-32002")
+    );
+    assert_eq!(
+        read["status"]["message"],
+        "JSON-RPC error -32002 (resource not found)"
+    );
+    let list = spans
+        .iter()
+        .find(|span| span["name"] == "tools/list")
+        .unwrap();
+    let details: Vec<String> = list["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|event| string_attribute(event, "mcp_conformance.detail"))
+        .collect();
+    assert!(!details.is_empty(), "{list}");
+    for detail in &details {
+        assert!(detail.contains("[cut at 512 of "), "{detail}");
+    }
     std::fs::remove_dir_all(&replay.dir).ok();
 }
 

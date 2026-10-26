@@ -233,6 +233,94 @@ fn an_existing_trace_is_not_overwritten_without_force() {
     std::fs::remove_file(&trace).ok();
 }
 
+/// `--force` followed a symbolic link at the output path and truncated its
+/// target. A link there is refused, `--force` or not, before the server starts.
+#[cfg(unix)]
+#[test]
+fn force_does_not_follow_a_symbolic_link_at_the_output_path() {
+    let dir = std::env::temp_dir().join(format!(
+        "mcp-trace-capture-force-link-{}",
+        std::process::id()
+    ));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    let target = dir.join("target.jsonl");
+    std::fs::write(&target, "keep me\n").unwrap();
+    let link = dir.join("link.jsonl");
+    std::os::unix::fs::symlink(&target, &link).unwrap();
+    let marker = dir.join("marker");
+    let output = binary()
+        .args([
+            "--force",
+            "-o",
+            link.to_str().unwrap(),
+            "stdio",
+            "--",
+            "touch",
+        ])
+        .arg(&marker)
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("symbolic link"), "{stderr}");
+    assert_eq!(std::fs::read_to_string(&target).unwrap(), "keep me\n");
+    assert!(!marker.exists(), "the server was started");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// A trace holds whatever the session carried — credentials in payloads among
+/// it — so its file is created readable by its owner alone, the plain file and
+/// the numbered one alike (`stat`, under the process's umask).
+#[cfg(unix)]
+#[test]
+fn a_trace_file_is_created_readable_by_its_owner_alone() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let dir = std::env::temp_dir().join(format!("mcp-trace-capture-mode-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    for name in ["plain.jsonl", "{session}.jsonl"] {
+        let output = binary()
+            .args([
+                "-o",
+                dir.join(name).to_str().unwrap(),
+                "stdio",
+                "--",
+                "true",
+            ])
+            .stdin(Stdio::null())
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+    }
+    for written in ["plain.jsonl", "001.jsonl"] {
+        let mode = std::fs::metadata(dir.join(written))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o077, 0, "{written}: owner-only, not {mode:o}");
+    }
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// The server is started with the wrapper's whole environment — the README
+/// says so, since a secret in the wrapper's environment is the server's too.
+#[cfg(unix)]
+#[test]
+fn the_server_inherits_the_wrappers_environment() {
+    let trace = scratch("env");
+    let mut command = binary();
+    command
+        .args(["-o", trace.to_str().unwrap(), "stdio", "--", "sh", "-c"])
+        .arg("echo \"$MCP_TRACE_CAPTURE_TEST_ENV\"")
+        .env("MCP_TRACE_CAPTURE_TEST_ENV", "inherited");
+    let output = run_with_stdin(command, b"");
+    std::fs::remove_file(&trace).ok();
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "inherited\n");
+}
+
 #[test]
 fn a_server_that_cannot_start_is_a_usage_error() {
     let trace = scratch("missing");

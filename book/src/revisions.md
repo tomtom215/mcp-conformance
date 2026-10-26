@@ -19,9 +19,9 @@ changelog and becomes a measurement.
 
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Registry entries | 321 | 501 |
-| Judged by a named check | 89 | 181 |
-| Carrying a documented exclusion | 232 | 320 |
+| Registry entries | 348 | 501 |
+| Judged by a named check | 102 | 181 |
+| Carrying a documented exclusion | 246 | 320 |
 | Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -81,7 +81,7 @@ And the verdict splits:
 
 ```text
 per revision:
-  2025-11-25: 17 pass, 0 fail, 0 warn, 232 excluded, 0 unsupported, 14 not applicable, 58 not observed — verdict pass
+  2025-11-25: 17 pass, 0 fail, 0 warn, 246 excluded, 0 unsupported, 14 not applicable, 71 not observed — verdict pass
   2025-11-25: wire schema pass (3 messages valid)
   2026-07-28: 15 pass, 8 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 158 not observed — verdict fail
   2026-07-28: wire schema fail (1 of 3 messages invalid)
@@ -91,7 +91,7 @@ overall verdict: fail
 A conforming session today, and eight concrete failures tomorrow — nine, with
 the `2026-07-28` schema's own finding: the `initialize` result carries no
 `resultType`, which every result at that revision must. Both summary
-lines account for **every** clause in their revision — the counts add up to 321
+lines account for **every** clause in their revision — the counts add up to 348
 and 501 — because a line that quietly omits an outcome is a line that overstates
 what was measured.
 
@@ -105,10 +105,15 @@ A trace is not silent about which revision it belongs to — the handshake state
 it, a stateless session states it in every request's `_meta`, and the HTTP
 transport states it in a header. So by default the validator judges a trace
 against the revision it declares, and says so in the report's first line:
-`revision 2026-07-28 (declared by the trace)`. A trace declaring nothing is
-judged against the newest supported revision, with a note on stderr; a trace
-declaring only revisions this build cannot judge is refused (exit 2) rather
-than judged against the wrong rules.
+`revision 2026-07-28 (declared by the trace)`. Where there was a handshake, the
+server's `initialize` result is the authority: the session ran under the
+revision it names — that is what negotiation means — so it is judged under that
+one alone, and a note on stderr says when the client had proposed another
+(`--revision` judges the proposal instead). A negotiated revision this build
+cannot judge is refused (exit 2) rather than approximated by the proposal, and
+so is a trace declaring only revisions this build cannot judge. A trace
+declaring nothing is judged against the newest supported revision, with a note
+on stderr.
 
 Judging against the wrong rules is easy to do on purpose, with `--revision`.
 Force `2025-11-25` onto a `2026-07-28` recording and every clause the two
@@ -134,10 +139,11 @@ under the verdict:
 ```
 
 It is deliberately quiet. A session that proposed one revision and negotiated
-another has touched both, so judging it against either draws no note; a version
-a server *refused* states nothing, because the session never ran under it; and a
-recording that declares no revision at all gets no note, since there is nothing
-to disagree with.
+another is judged under the negotiated one by default, but the client did state
+the proposal, so asking for that revision with `--revision` draws no note; a
+version a server *refused* states nothing, because the session never ran under
+it; and a recording that declares no revision at all gets no note, since there
+is nothing to disagree with.
 
 ## The four ways a clause is not a pass
 

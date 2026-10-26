@@ -55,7 +55,8 @@ fn the_redacted_copy_holds_no_secret_byte() {
     assert_eq!(
         redacted.summary,
         [
-            "headers authorization, cookie, set-cookie, proxy-authorization: 7 values",
+            "headers authorization, cookie, set-cookie, proxy-authorization, mcp-session-id: \
+             10 values",
             "pointer /params/arguments/apiKey: 1 values",
             "_meta members: 2 values",
             "literal string 1: 1 occurrences",
@@ -63,7 +64,13 @@ fn the_redacted_copy_holds_no_secret_byte() {
     );
     // What no rule named is left as it was.
     assert!(redacted.text.contains("\"q\":\"weather\""));
-    assert!(redacted.text.contains("fixture-session-7"));
+    // The session id is a credential for the session, so the defaults take
+    // it too (its three occurrences: the server's assignment, two requests).
+    assert!(
+        !redacted.text.contains("fixture-session-7"),
+        "the session id survived the default headers"
+    );
+    assert!(DEFAULT_HEADERS.contains(&"mcp-session-id"));
 }
 
 fn line(value: &serde_json::Value) -> String {

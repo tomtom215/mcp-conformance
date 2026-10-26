@@ -83,6 +83,19 @@ fn launch(program: &str, args: &[&str]) -> Result<(), String> {
         })
 }
 
+/// The one thing the session cookie cannot defend against, said in the
+/// banner: browsers scope a cookie to the host, never to the port, so every
+/// other server on the bound address that the browser visits is sent it. It
+/// is `HttpOnly` (no page can read it), but that server receives it.
+fn cookie_scope_notice(address: SocketAddr) -> String {
+    format!(
+        "mcp-conformance serve: browsers scope the cookie to {} as a whole, not to port {}: any \
+         other server there that this browser visits is sent it",
+        address.ip(),
+        address.port()
+    )
+}
+
 /// The warning a workbench listening on `address` prints after its link,
 /// when `address` is not loopback.
 fn exposure_warning(address: SocketAddr) -> Option<String> {
@@ -140,6 +153,7 @@ pub(crate) async fn run_until(
     ));
     say(format!("mcp-conformance serve: open {url}"));
     say("mcp-conformance serve: the link works once; Ctrl-C stops the workbench".to_owned());
+    say(cookie_scope_notice(address));
     if let Some(warning) = exposure_warning(address) {
         eprintln!("mcp-conformance serve: {warning}");
     }
@@ -184,6 +198,16 @@ mod tests {
             );
             assert!(check_address(address, true).is_ok());
         }
+    }
+
+    #[test]
+    fn the_cookie_notice_names_the_host_and_the_port_it_does_not_cover() {
+        assert_eq!(
+            cookie_scope_notice("[::1]:4200".parse().unwrap()),
+            "mcp-conformance serve: browsers scope the cookie to ::1 as a whole, not to port \
+             4200: any other server there that this browser visits is sent it"
+        );
+        assert!(cookie_scope_notice("127.0.0.1:1".parse().unwrap()).contains("127.0.0.1 as"));
     }
 
     #[test]
@@ -247,13 +271,34 @@ mod tests {
             )
             .await
         });
-        let first = said.recv().await.unwrap();
+        // A banner line, or a failure naming the one that never came: the
+        // server says nothing more once started, so waiting would hang.
+        let mut next = async || {
+            tokio::time::timeout(std::time::Duration::from_secs(10), said.recv())
+                .await
+                .unwrap_or_else(|elapsed| panic!("no banner line within 10 s ({elapsed})"))
+                .unwrap()
+        };
+        let first = next().await;
         assert!(first.ends_with("(11 recordings)"), "{first}");
-        let link = said.recv().await.unwrap();
+        let link = next().await;
         let link = link
             .strip_prefix("mcp-conformance serve: open ")
             .unwrap()
             .to_owned();
+        let once = next().await;
+        assert!(once.contains("the link works once"), "{once}");
+        // The banner says the one thing the cookie cannot defend against:
+        // browsers scope cookies to the host, not the port, so every other
+        // server on 127.0.0.1 this browser visits is sent it.
+        let cookie = next().await;
+        assert!(
+            cookie.starts_with("mcp-conformance serve: ")
+                && cookie.contains("cookie")
+                && cookie.contains("port")
+                && cookie.contains("127.0.0.1"),
+            "{cookie}"
+        );
         let client = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .build()

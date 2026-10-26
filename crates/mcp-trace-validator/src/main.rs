@@ -64,6 +64,15 @@ enum Command {
         /// Treat SHOULD-level findings (warnings) as failures.
         #[arg(long)]
         strict: bool,
+        /// Count only this party's findings — and findings held against
+        /// nobody, which are labelled — toward the verdict and the exit
+        /// status. The report still lists every finding with the party it is
+        /// held against, and its totals still count them all; the verdict
+        /// line says the view it was reached under. For judging one side of
+        /// a session the other side drove, such as a server the official
+        /// suite's client tested.
+        #[arg(long, value_enum, value_name = "PARTY")]
+        party: Option<PartyArg>,
         /// Human output: list every clause with its outcome, every finding,
         /// and the reason for each exclusion. By default only failing, warning
         /// and unsupported clauses are listed, each with its first 20 findings
@@ -119,6 +128,24 @@ enum Command {
     },
 }
 
+/// The party `validate --party` views a report for.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum PartyArg {
+    /// The client's findings, and those held against nobody.
+    Client,
+    /// The server's findings, and those held against nobody.
+    Server,
+}
+
+impl PartyArg {
+    const fn party(self) -> mcp_trace_validator::report::Party {
+        match self {
+            Self::Client => mcp_trace_validator::report::Party::Client,
+            Self::Server => mcp_trace_validator::report::Party::Server,
+        }
+    }
+}
+
 /// `validate` output formats.
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Format {
@@ -145,6 +172,7 @@ fn main() -> ExitCode {
             traces,
             format,
             strict,
+            party,
             all,
             quiet: _,
             registry,
@@ -159,6 +187,7 @@ fn main() -> ExitCode {
                 format,
                 strict,
                 all,
+                party: party.map(PartyArg::party),
             },
             &validate::Sources {
                 registry: registry.as_deref(),

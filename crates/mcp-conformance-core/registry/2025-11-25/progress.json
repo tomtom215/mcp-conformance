@@ -1,0 +1,165 @@
+{
+  "revision": "2025-11-25",
+  "requirements": [
+    {
+      "id": "PROG-009",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/progress#progress-flow",
+        "quote": "Progress tokens MUST be a string or integer value"
+      },
+      "checks": [
+        "progress.token-string-or-integer"
+      ]
+    },
+    {
+      "id": "PROG-010",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/progress#progress-flow",
+        "quote": "Progress tokens can be chosen by the sender using any means, but MUST be unique across all active requests."
+      },
+      "checks": [
+        "progress.token-unique-among-active-requests"
+      ]
+    },
+    {
+      "id": "PROG-011",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/progress#progress-flow",
+        "quote": "The `progress` value MUST increase with each notification, even if the total is unknown."
+      },
+      "checks": [
+        "progress.value-strictly-increases"
+      ]
+    },
+    {
+      "id": "PROG-012",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/progress#progress-flow",
+        "quote": "The `message` field SHOULD provide relevant human readable progress information."
+      },
+      "exclusion": "Whether a message is relevant and human readable is a judgment about its meaning, not its shape; any string satisfies the schema, and no mechanical reading of one decides relevance. The same sentence is PROG-004 at 2026-07-28, excluded for the same reason."
+    },
+    {
+      "id": "PROG-013",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/progress#behavior-requirements",
+        "quote": "Progress notifications MUST only reference tokens that: Were provided in an active request; Are associated with an in-progress operation"
+      },
+      "checks": [
+        "progress.token-issued-in-session",
+        "progress.stops-after-completion"
+      ]
+    },
+    {
+      "id": "PROG-014",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/progress#behavior-requirements",
+        "quote": "For task-augmented requests, the `progressToken` provided in the original request MUST continue to be used for progress notifications throughout the task's lifetime, even after the `CreateTaskResult` has been returned."
+      },
+      "checks": [
+        "progress.task-token-unchanged"
+      ]
+    },
+    {
+      "id": "PROG-015",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/progress#behavior-requirements",
+        "quote": "Progress notifications for tasks MUST use the same `progressToken` that was provided in the initial task-augmented request"
+      },
+      "checks": [
+        "progress.task-token-unchanged"
+      ]
+    },
+    {
+      "id": "PROG-016",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/progress#behavior-requirements",
+        "quote": "Progress notifications for tasks MUST stop after the task reaches a terminal status (`completed`, `failed`, or `cancelled`)"
+      },
+      "checks": [
+        "progress.stops-after-completion"
+      ]
+    },
+    {
+      "id": "PROG-017",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/progress#implementation-notes",
+        "quote": "Senders and receivers SHOULD track active progress tokens"
+      },
+      "exclusion": "Tracking is bookkeeping inside each party, and a recording carries no message that shows a token being tracked or forgotten. Its wire consequences are the MUST rows beside it, which are judged: a token reused while its request is active (PROG-010), a token no request provided and progress for a finished request (PROG-013, PROG-016, PROG-019)."
+    },
+    {
+      "id": "PROG-018",
+      "level": "SHOULD",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/progress#implementation-notes",
+        "quote": "Both parties SHOULD implement rate limiting to prevent flooding"
+      },
+      "exclusion": "A rate is messages per unit of time, and checks may not consult time — the limit LIFE-015 records. No count of notifications alone separates a flood from a long operation reporting often."
+    },
+    {
+      "id": "PROG-019",
+      "level": "MUST",
+      "actor": "both",
+      "applies": {
+        "removed": "2026-07-28"
+      },
+      "source": {
+        "section": "basic/utilities/progress#implementation-notes",
+        "quote": "Progress notifications MUST stop after completion"
+      },
+      "checks": [
+        "progress.stops-after-completion"
+      ]
+    }
+  ]
+}

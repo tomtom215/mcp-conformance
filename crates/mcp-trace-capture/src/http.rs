@@ -10,9 +10,11 @@
 //! the method or status) and a `message` event per JSON-RPC payload.
 //!
 //! **What changes on the wire, and why.** Hop-by-hop headers (RFC 9110 §7.6.1) are the
-//! proxy's by definition. `Host` names the upstream, since that is where the request
-//! now goes — unless [`Options::preserve_host`] is set, in which case the server sees
-//! the `Host` the client sent.
+//! proxy's by definition. `Host` is the client's for an upstream on this machine
+//! ([`is_loopback`]), so a server's DNS-rebinding check judges what the client
+//! sent, and names the upstream for any other, since that is where the request
+//! now goes and a virtually hosted server routes on it — [`Options::preserve_host`]
+//! decides, and [`Options::new`] sets it so.
 //! `Accept-Encoding` is removed from requests, so the server answers
 //! uncompressed and the recording can read the body; everything else, `Origin` and
 //! credentials included, passes through as sent.
@@ -43,6 +45,7 @@ use tokio::sync::watch;
 use crate::recorder::Recorder;
 use crate::traces::Traces;
 
+mod answers;
 mod body;
 mod connect;
 mod listen;
@@ -80,6 +83,13 @@ pub fn client(endpoint: &Uri, connect_timeout: std::time::Duration) -> Result<Cl
 /// which takes effect only once a server sets a timer.
 pub const HEADER_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
+/// [`Options::body_read_timeout`]'s default.
+///
+/// Generous for a client, since a body that keeps coming is never cut, and
+/// short enough that a client holding connections open with half-sent bodies
+/// gives them back within a minute.
+pub const BODY_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
 /// [`Options::buffer_budget`]'s default, in messages of the largest size
 /// recorded.
 pub const BUFFER_BUDGET_MESSAGES: usize = 4;
@@ -111,8 +121,11 @@ pub struct Options {
     pub buffer_budget: usize,
     /// Forward the client's `Host` header instead of naming the upstream, so a
     /// server's own `Host` validation judges what the client sent rather than what
-    /// the proxy sent. Wrong for a virtually hosted remote server, which routes on
-    /// `Host`.
+    /// the proxy sent. [`Options::new`] sets it for an upstream on this machine
+    /// ([`is_loopback`]), where a server's DNS-rebinding check should see the
+    /// client's `Host` — a rewrite to the server's own name made that check
+    /// pass for every request the proxy forwarded — and clears it for any
+    /// other, since a virtually hosted remote server routes on `Host`.
     pub preserve_host: bool,
     /// How long open connections get to finish once [`serve`]'s `shutdown`
     /// resolves, before the proxy stops without them. A standalone event stream
@@ -127,6 +140,13 @@ pub struct Options {
     /// client that trickles header bytes (slowloris) cannot hold connections
     /// open, and an idle connection is closed after this long.
     pub header_read_timeout: std::time::Duration,
+    /// How long each byte of a client's request body may take to arrive after
+    /// the last — once the head is in, read whole or streamed past the message
+    /// limit alike — before the proxy answers the request `408` and closes
+    /// the connection. A body that keeps coming, however slowly, is never cut.
+    /// Only the client's request body is bounded by it: an upstream's response
+    /// is waited for as long as it takes.
+    pub body_read_timeout: std::time::Duration,
     /// How long connecting to the upstream may take — the TCP connection, and
     /// the TLS handshake for an `https` upstream — before the proxy gives up
     /// and answers the request `502` itself. Only connecting: once connected,
@@ -176,16 +196,33 @@ impl Options {
                 )
             })?;
         Ok(Self {
+            preserve_host: is_loopback(&upstream),
             upstream,
             max_message,
             buffer_budget: max_message.saturating_mul(BUFFER_BUDGET_MESSAGES),
-            preserve_host: false,
             grace: crate::STOP_GRACE,
             header_read_timeout: HEADER_READ_TIMEOUT,
+            body_read_timeout: BODY_READ_TIMEOUT,
             connect_timeout: CONNECT_TIMEOUT,
             connector,
         })
     }
+}
+
+/// Whether `upstream` names this machine: `localhost`, an address in
+/// `127.0.0.0/8`, or `::1`. [`Options::new`] passes the client's `Host`
+/// through to such an upstream ([`Options::preserve_host`]).
+#[must_use]
+pub fn is_loopback(upstream: &Uri) -> bool {
+    let host = upstream
+        .host()
+        .unwrap_or_default()
+        .trim_start_matches('[')
+        .trim_end_matches(']');
+    host.eq_ignore_ascii_case("localhost")
+        || host
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|ip| ip.is_loopback())
 }
 
 /// What the proxy forwarded without recording.
@@ -213,9 +250,18 @@ pub struct Unrecorded {
     pub not_2xx: u64,
     /// Of those, `404 Not Found`: usually a client pointed at the wrong path.
     pub not_found: u64,
-    /// Requests whose path had a `.` or `..` segment, which would leave the
-    /// upstream's path: answered 400 by the proxy, not forwarded, not recorded.
+    /// Requests whose path had a `.` or `..` segment (once percent-decoded,
+    /// any `;parameters` aside), which would leave the upstream's path, or
+    /// was not UTF-8 once decoded: answered 400 by the proxy, not forwarded,
+    /// not recorded.
     pub refused_paths: u64,
+    /// `CONNECT` requests, which ask for a tunnel the proxy does not open:
+    /// answered 405 by the proxy, not forwarded, not recorded.
+    pub refused_connects: u64,
+    /// Requests whose body sent no byte for [`Options::body_read_timeout`]:
+    /// answered 408 by the proxy, their connection closed, and recorded as
+    /// `transport-abort` after the request's `http` event.
+    pub stalled_bodies: u64,
 }
 
 #[derive(Debug, Default)]
@@ -230,6 +276,8 @@ struct Counters {
     not_2xx: AtomicU64,
     not_found: AtomicU64,
     refused_paths: AtomicU64,
+    refused_connects: AtomicU64,
+    stalled_bodies: AtomicU64,
 }
 
 impl Counters {
@@ -245,6 +293,8 @@ impl Counters {
             not_2xx: self.not_2xx.load(Ordering::Relaxed),
             not_found: self.not_found.load(Ordering::Relaxed),
             refused_paths: self.refused_paths.load(Ordering::Relaxed),
+            refused_connects: self.refused_connects.load(Ordering::Relaxed),
+            stalled_bodies: self.stalled_bodies.load(Ordering::Relaxed),
         }
     }
 }

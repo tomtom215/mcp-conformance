@@ -12,8 +12,11 @@
 //! | each finding on that row | a *result* at level `error` (MUST) or `warning` (SHOULD), located at the trace line holding the event it names |
 //! | a failed wire schema ([`Report::wire_schema`]) | the rule `wire-schema` (the specification's statement that the schema is normative, and the vendored schema's address), a result per invalid message, at level `error` |
 //! | a finding on an extension's `fail` / `warn` row ([`Report::extensions`]) | a result at level `note` under the clause's rule, its `properties` naming the extension and `scored: false` — an extension never fails a run (ADR-0023), `--strict` or not |
+//! | who broke it | each rule's `properties.actor` is the party the clause binds; each result's `properties.party` is the party its finding is held against, absent when the trace cannot say |
+//! | a party view ([`Report::party_view`]) | the run's `properties.party_view`; a result the view sets aside is at level `note` with `properties.counted: false`, every other result `counted: true` |
 //! | an `unsupported` row | an invocation notification, and `executionSuccessful: false` |
 //! | a trace that could not be judged ([`render_run`]) | an invocation notification located at the trace, and `executionSuccessful: false` |
+//! | the requests a trace ended without answering ([`Report::unanswered_requests`]) | an invocation notification at level `note`, located at the trace, with the requests in its `properties`; `executionSuccessful` is untouched |
 //! | pass / excluded / not-applicable / not-observed | nothing — SARIF records problems, not coverage |
 //!
 //! Every judged revision's findings are results of one run: code scanning
@@ -34,10 +37,12 @@ use serde_json::{Value, json};
 use crate::report::{Outcome, Report, RequirementReport, Unjudged};
 
 mod location;
+mod rule;
 
 use location::location;
 #[cfg(test)]
 use location::uri_reference;
+use rule::{fold_numbers, level, rule};
 
 /// Where the findings point.
 ///
@@ -170,7 +175,9 @@ pub fn render_run(
         results: Vec::new(),
         notifications: Vec::new(),
         strict: options.strict,
+        party_view: None,
         seen: BTreeMap::new(),
+        noted: std::collections::BTreeSet::new(),
     };
     for (artifact, reports) in traces {
         for report in *reports {
@@ -186,6 +193,16 @@ pub fn render_run(
             revisions.push(&report.revision);
         }
     }
+    // The view every report of the run was rendered under, when they agree
+    // (one `validate` invocation gives every report the same one).
+    let party_view = all_reports()
+        .map(|report| report.party_view)
+        .reduce(|first, next| if first == next { first } else { None })
+        .flatten();
+    let mut properties = json!({ "revisions": revisions });
+    if let Some(party) = party_view {
+        properties["party_view"] = json!(party);
+    }
     let log = json!({
         "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
         "version": "2.1.0",
@@ -199,13 +216,12 @@ pub fn render_run(
                 },
             },
             "invocations": [{
-                "executionSuccessful": log.notifications.is_empty(),
+                // A note is information, not a failed execution.
+                "executionSuccessful": !log.notifications.iter().any(|note| note["level"] == "error"),
                 "toolExecutionNotifications": log.notifications,
             }],
             "results": log.results,
-            "properties": {
-                "revisions": revisions,
-            },
+            "properties": properties,
         }],
     });
     let mut out = serde_json::to_string_pretty(&log).unwrap_or_default();
@@ -223,14 +239,23 @@ struct Log<'r> {
     notifications: Vec<Value>,
     /// Warnings are reported at level `error`.
     strict: bool,
+    /// The party the report being added is viewed for
+    /// ([`Report::party_view`]): a finding it sets aside is a `note`.
+    party_view: Option<crate::report::Party>,
     /// How many results so far share each fingerprint stem, per trace.
     seen: BTreeMap<(String, String), usize>,
+    /// The unanswered-requests notes already written, per trace.
+    noted: std::collections::BTreeSet<(String, String)>,
 }
 
 impl Log<'_> {
     /// Everything one report adds to the run: its rows' results and
     /// notifications, its failed wire schema, then its extensions'.
     fn report(&mut self, report: &Report, artifact: Artifact<'_>) {
+        self.party_view = report.party_view;
+        if let Some(unanswered) = &report.unanswered_requests {
+            self.unanswered(unanswered, artifact);
+        }
         for row in &report.requirements {
             match row.outcome {
                 Outcome::Fail | Outcome::Warn => self.findings(row, &report.revision, artifact),
@@ -306,7 +331,12 @@ impl Log<'_> {
                 .entry((artifact.uri.unwrap_or_default().to_owned(), stem.clone()))
                 .or_insert(0);
             *occurrence += 1;
-            let level = if extension.is_some() {
+            // A finding the party view sets aside is shown at level `note`,
+            // like an extension's: reported, and failing nothing.
+            let set_aside = self
+                .party_view
+                .is_some_and(|party| !finding.counts_for(party));
+            let level = if extension.is_some() || set_aside {
                 NOT_SCORED
             } else if self.strict && row.outcome == Outcome::Warn {
                 "error"
@@ -328,12 +358,44 @@ impl Log<'_> {
                     "seq": finding.seq,
                 },
             });
+            if let Some(party) = finding.party {
+                result["properties"]["party"] = json!(party);
+            }
+            if self.party_view.is_some() {
+                result["properties"]["counted"] = json!(!set_aside);
+            }
             if let Some(extension) = extension {
                 result["properties"]["extension"] = json!(extension);
                 result["properties"]["scored"] = json!(false);
             }
             self.results.push(result);
         }
+    }
+
+    /// The requests a trace ended without answering: a `note`-level
+    /// notification located at the trace, once per trace — the reports of one
+    /// trace judged under several revisions all carry the same note.
+    fn unanswered(
+        &mut self,
+        unanswered: &crate::report::UnansweredRequests,
+        artifact: Artifact<'_>,
+    ) {
+        let text = unanswered.one_line();
+        let key = (artifact.uri.unwrap_or_default().to_owned(), text.clone());
+        if !self.noted.insert(key) {
+            return;
+        }
+        self.notifications.push(json!({
+            "level": "note",
+            "message": { "text": text },
+            "locations": location(artifact, None),
+            "properties": {
+                "kind": "unanswered-requests",
+                "count": unanswered.count,
+                "ending": unanswered.ending,
+                "requests": unanswered.requests,
+            },
+        }));
     }
 
     /// A trace the run could not judge at all, located at the trace.
@@ -417,6 +479,9 @@ fn wire_schema_row(report: &Report) -> Option<RequirementReport> {
     Some(RequirementReport {
         id: WIRE_SCHEMA_RULE.to_owned(),
         level: "schema".to_owned(),
+        // The schema is no clause and binds no actor; each finding carries
+        // the sender it is held against.
+        actor: None,
         outcome: Outcome::Fail,
         findings: wire_schema.findings.clone(),
         exclusion: None,
@@ -428,73 +493,6 @@ fn wire_schema_row(report: &Report) -> Option<RequirementReport> {
 
 /// The level of an extension's results: shown, and failing nothing.
 const NOT_SCORED: &str = "note";
-
-fn rule(rule_id: &str, row: &RequirementReport, revision: &str, extension: Option<&str>) -> Value {
-    let mut rule = json!({
-        "id": rule_id,
-        "defaultConfiguration": { "level": extension.map_or_else(|| level(row.outcome), |_| NOT_SCORED) },
-        "properties": {
-            "tags": ["mcp", "conformance", row.level],
-            "precision": "very-high",
-            "revision": revision,
-        },
-    });
-    if let Some(extension) = extension {
-        rule["properties"]["extension"] = json!(extension);
-        rule["properties"]["scored"] = json!(false);
-    }
-    let (short, help) = row.source.as_ref().map_or_else(
-        || (format!("{} ({})", row.id, row.level), None),
-        |source| {
-            (
-                source.quote.clone(),
-                Some((
-                    json!({
-                        "text": format!("{} ({}): \"{}\" — {}", row.id, row.level, source.quote, source.url),
-                        "markdown": format!(
-                            "**{} ({})**\n\n> {}\n\n[{}]({})",
-                            row.id, row.level, source.quote, source.section, source.url
-                        ),
-                    }),
-                    source.url.clone(),
-                )),
-            )
-        },
-    );
-    rule["shortDescription"] = json!({ "text": short });
-    if let Some((help, url)) = help {
-        rule["fullDescription"] = json!({ "text": short });
-        rule["help"] = help;
-        rule["helpUri"] = json!(url);
-    }
-    rule
-}
-
-/// `text` with every run of ASCII digits replaced by `#`, so a finding's
-/// identity does not depend on the `seq` and ids a particular recording carries.
-fn fold_numbers(text: &str) -> String {
-    let mut folded = String::with_capacity(text.len());
-    let mut in_digits = false;
-    for character in text.chars() {
-        if character.is_ascii_digit() {
-            if !in_digits {
-                folded.push('#');
-            }
-            in_digits = true;
-        } else {
-            folded.push(character);
-            in_digits = false;
-        }
-    }
-    folded
-}
-
-const fn level(outcome: Outcome) -> &'static str {
-    match outcome {
-        Outcome::Fail => "error",
-        _ => "warning",
-    }
-}
 
 #[cfg(test)]
 mod tests;

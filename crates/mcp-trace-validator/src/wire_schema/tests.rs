@@ -12,6 +12,8 @@ use crate::context::TraceContext;
 use crate::reader::{Limits, parse_trace};
 use crate::report::{Outcome, WireSchemaReport};
 
+mod formats;
+
 /// One trace line per `(direction, payload)`, numbered from 0.
 fn trace(messages: &[(&str, Value)]) -> String {
     messages

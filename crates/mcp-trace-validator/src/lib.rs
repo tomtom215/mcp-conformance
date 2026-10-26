@@ -75,4 +75,5 @@ pub mod report;
 pub mod sarif;
 pub mod sessions;
 pub mod timeline;
+mod unanswered;
 pub mod wire_schema;

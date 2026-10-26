@@ -5,7 +5,11 @@
 
 Fixtures for the golden-corpus tests (`crates/mcp-trace-validator/tests/golden.rs`):
 
-- **`good/`** — sessions that must validate with verdict `pass`.
+- **`good/`** — sessions that must validate with verdict `pass`, at the revision each
+  declares: `validate` with no flags passes all of them but one, the session whose server
+  answers `initialize` with `2024-11-05` (`stdio-server-negotiates-2024-11-05`), which `validate`
+  refuses by default (exit 2) and passes with `--revision 2025-11-25`. The CI jobs that run
+  the shipped Action and image over this directory name that exception.
 - **`violations/`** — single-issue sessions, each falsifying at least one check;
   named after the requirement whose check they exist to kill.
 - **`draft/{good,violations}/`** — the same two kinds for revision `2026-07-28`,
@@ -49,9 +53,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 104 | 234 |
-| Excluded rows the ledger holds | 232 | 320 |
-| Distinct not-observed sets across them | 67 | 149 |
+| Goldens | 125 | 238 |
+| Excluded rows the ledger holds | 246 | 320 |
+| Distinct not-observed sets across them | 86 | 151 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -125,6 +129,13 @@ below: the implementations on both ends, the tool that recorded them, and when.
 | `stdio-client-features.jsonl` | Every client-feature page conformant in one session (added 2026-10-13, review item 2.5): a client declaring `elicitation` in both modes, `sampling.tools` and `roots`; a form elicitation accepted with `content` its `requestedSchema` admits; a URL mode elicitation carrying an `elicitationId` and an RFC 3986 URL, accepted, then completed by `notifications/elicitation/complete` naming that id; a two-round sampling tool loop — `toolChoice` `required` answered with a tool use, then the tool result sent back under `toolChoice` `none` and answered with text; `roots/list` answered with a `file://` root; and a `-32042` listing one URL mode elicitation, completed the same way |
 | `stdio-full-session.jsonl` | Handshake plus ping, tools/list, tools/call over stdio |
 | `stdio-minimal-init.jsonl` | Smallest conformant session: the three-message handshake |
+| `stdio-request-unanswered-at-close.jsonl` | A handshake, then a `tools/list` the server never answers before the transport closes (added 2026-10-24). No clause judges it — JSON-RPC expects every request answered, but `BASE-012` is excluded — so the verdict is `pass`; what the golden pins is the report's `unanswered_requests` note: one request, and that the trace ended with a `transport-close`. Until 2026-10-24 the report said nothing at all. |
+| `stdio-requests-partly-unanswered.jsonl` | The same handshake, then three requests of which the server answers one (`tools/list`) and leaves two (`ping`, `tools/call`) pending when the recording simply stops, with no close or abort (added 2026-10-24). The note counts two and says the trace stopped; the verdict is `pass`. |
+| `stdio-server-negotiates-2024-11-05.jsonl` | A `2025-11-25` client whose server answers `initialize` with `protocolVersion` `2024-11-05`, a revision this build has no registry for; the client goes on under it (`notifications/initialized`, `tools/list`) and closes (added 2026-10-24). The session ran under what the server named — that is what negotiation means — so `validate` refuses to judge it by default (exit 2, naming both revisions) rather than judging it under the proposal, which until 2026-10-24 it did silently, as a `pass`. This golden is that judgment asked for explicitly: `--revision 2025-11-25` judges the session under the proposal, and it passes, because nothing in it breaks a clause a `2025-11-25` registry can see. |
+| `stdio-tool-image-base64-padding.jsonl` | Two `tools/call` results carrying image and audio content whose `data` is well-formed base64 at every padding length — a PNG ending `==`, a WAV and a GIF ending `=`, a JPEG fragment with none — and one image whose `data` is the empty string, which encodes nothing and is well-formed under RFC 4648 §4 (the `format: byte` rule the schema marks `data` and `blob` with accepts it, as `ajv-formats` does; added 2026-10-24). The wire schema passes all five and no clause judges a tool result's encoding, so the verdict is `pass`; the trace exists so that asserting `byte` cannot drift into rejecting padding or emptiness. |
+| `stdio-progress.jsonl` | Progress done right over stdio, in both directions (added 2026-10-24, when `basic/utilities/progress` entered the registry): rising values (`0.25`, `0.5`, `1`) for one token, ending before the result; the token reused by a later request once the first was answered, its sequence starting again below where the last one ended; an integer token running concurrently with it; and a server `roots/list` opting into progress under a token of its own, which the client reports on before answering. The pass path of PROG-009/010/011/013/019 |
+| `stdio-task-progress.jsonl` | A task-augmented `tools/call` under a server declaring `tasks.requests.tools.call` (added 2026-10-24): answered with a `CreateTaskResult`, then progress under the request's token tagged `io.modelcontextprotocol/related-task`, both before and after a `tasks/get` that still says `working`; a second, ordinary call cancelled by notification while the task exists — CANC-020's pass path, a cancellation that names no task's request — and left unanswered by a server that answers the later `tasks/get`, so it has read the cancellation (CANC-021's pass path); then `tasks/get` reporting `completed`, `tasks/result`, and no progress after. The pass path of PROG-014/015/016 |
+| `stdio-cancellation.jsonl` | Cancellation done right over stdio, in both directions (added 2026-10-24, when `basic/utilities/cancellation` entered the registry): a `tools/call` cancelled by the client and left unanswered by a server that answers a later `tools/list`, so demonstrably read it; a second call whose answer crosses its cancellation on the wire — the race the page's Timing Considerations name, which nothing convicts; and a server `roots/list` the server withdraws by `notifications/cancelled`, then a server `ping` the client answers `{}` while leaving the withdrawn request unanswered. The pass path of CANC-018/019/021 and PING-001 from the client's side |
 | `http-origin-refused-without-id.jsonl` | A Streamable HTTP `initialize` carrying `Host`/`Origin` `evil.example.com`, refused `403` with a JSON-RPC error that has no `id`, then the same handshake from `localhost` completing. The transport's security warning permits exactly that body ("If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`"), so BASE-009 passes. Until 2026-10-13 the framing tied the error to the refused request, whose id was readable, and BASE-009 failed it — the shape of the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`). Added 2026-10-13 |
 | `http-authorization.jsonl` | A protected Streamable HTTP server, conformant (added 2026-10-13, review item 2.8): `initialize` refused `401` with a Bearer challenge carrying `resource_metadata` and `scope` (AUTH-014's pass path), then sent again **with the same id**, as the official SDKs' clients retry, and answered; a `ping` refused `403` `insufficient_scope` naming `scope` and `resource_metadata` (AUTH-049/050/051), retried and answered; another refused `401` `invalid_token` (AUTH-045/049) whose `application/json` body is the resource server's own `{"error":"invalid_token",…}` object, retried and answered. That body is the HTTP layer's, not a JSON-RPC message; read as one it failed BASE-006/008/009 and the wire schema. The retries are why a request refused at the HTTP layer is *not delivered* (`context/refusal.rs`): judged as two deliveries, each retry failed BASE-003 and the trace counted two sessions. No metadata fetch appears, because none would: see `checks/auth.rs` for what a recording carries for authorization |
 
@@ -163,13 +174,13 @@ example).
 | `page-002-cursor-never-issued.jsonl` | PAGE-002 |
 | `page-002-fabricated-cursor-rejected.jsonl` | PAGE-002, and with it PAGE-003's pass path: the client fabricates a cursor and the server answers `-32602` rather than honouring it. The two halves of one event belong to different parties, so the trace falsifies the client's clause and evidences the server's. |
 | `prom-001-capability-undeclared.jsonl` | PROM-001 |
-| `prom-003-image-data-invalid.jsonl` | PROM-003 |
-| `prom-004-audio-data-invalid.jsonl` | PROM-004 |
+| `prom-003-image-data-invalid.jsonl` | PROM-003 (and, since 2026-10-24, the wire schema's `byte` format on the same message) |
+| `prom-004-audio-data-invalid.jsonl` | PROM-004 (and, since 2026-10-24, the wire schema's `byte` format on the same message) |
 | `prom-005-embedded-resource-malformed.jsonl` | PROM-005 |
 | `prom-008-required-argument-unvalidated.jsonl` | PROM-008 |
 | `res-001-capability-undeclared.jsonl` | RES-001 |
 | `res-004-uri-bad-scheme.jsonl` | RES-004 |
-| `res-006-blob-not-base64.jsonl` | RES-006 |
+| `res-006-blob-not-base64.jsonl` | RES-006 (and, since 2026-10-24, the wire schema's `byte` format on the same message) |
 | `tool-001-capability-undeclared.jsonl` | TOOL-001 |
 | `tool-003-input-schema-null.jsonl` | TOOL-003 |
 | `tool-005-name-length.jsonl` | TOOL-005 |
@@ -201,6 +212,7 @@ example).
 | `wire-schema-resource-missing-uri.jsonl` | Wire schema: a `resources/list` result whose resource has no `uri`, which `Resource` requires |
 | `wire-schema-log-level-not-in-enum.jsonl` | Wire schema: a `notifications/message` at level `chatty`, outside `LoggingLevel` |
 | `wire-schema-content-block-unknown-type.jsonl` | Wire schema: a `tools/call` result whose content block has `type: "txt"`, matching no `ContentBlock` member |
+| `wire-schema-tool-image-data-not-base64.jsonl` | Wire schema: a `tools/call` result whose image `data` is `not base64!`. `ImageContent.data` carries `format: byte` in the specification's schema, which the validator asserts since 2026-10-24; no clause of this revision judges a tool result's encoding (the prompt-content and resource-blob checks read their own members), so until then this message passed the wire schema and drew nothing at all. The official suite does not catch it either: it loads `ajv-formats` and then registers `byte` as always valid (`addFormat("byte", true)`). |
 | `elic-004-answered-without-capability.jsonl` | ELIC-004: a client declaring only `sampling` answers a form elicitation with a result. Also LIFE-009 and ELIC-006 for the server's request — a client can only show support it never declared by answering something it should not have been sent |
 | `elic-006-url-mode-undeclared.jsonl` | ELIC-006: a URL mode elicitation sent to a client declaring `elicitation: {}`, which is form mode only (LIFE-009 reads the same sub-capability). The client refuses with `-32602` — ELIC-021's pass path |
 | `elic-007-request-without-message.jsonl` | ELIC-007: a form elicitation with no `message`. The wire schema rejects the same request |
@@ -230,6 +242,18 @@ example).
 | `auth-049-insufficient-scope-answered-401.jsonl` | AUTH-049: `error="insufficient_scope"` sent with `401` rather than the table's `403`. AUTH-050 warns too: its list begins with the `403` |
 | `auth-050-insufficient-scope-without-resource-metadata.jsonl` | AUTH-050, a warning: a `403` `insufficient_scope` challenge naming its scopes but no `resource_metadata` |
 | `auth-051-insufficient-scope-names-no-scope.jsonl` | AUTH-051, a warning: a `403` `insufficient_scope` challenge with no `scope`. AUTH-050 warns too: `scope` is one of the parameters its list requires |
+| `ping-001-ping-answered-with-content.jsonl` | PING-001: a `ping` answered with `{"pong":true,"uptime":4212}` rather than an empty result. Added 2026-10-24, when `basic/utilities/{ping,progress,cancellation}` entered the registry; the rows below to `canc-021` came with it |
+| `prog-009-progress-token-float.jsonl` | PROG-009: a request opting into progress with `progressToken: 1.5`, a number but not an integer. The wire schema fails the request and the notification that echoes the token too |
+| `prog-010-progress-token-reused-in-flight.jsonl` | PROG-010: two `tools/call` requests in flight at once under the same progress token, so a notification could not say which it reports on. Reuse after an answer is legal, and `good/stdio-progress.jsonl` does it |
+| `prog-011-progress-value-decreases.jsonl` | PROG-011: progress `50` then `10` for one token |
+| `prog-013-progress-token-never-issued.jsonl` | PROG-013: a progress notification for the token `"ghost"`, which no request in the session provided — the session begins with `initialize` in the recording, so every request it issued is there, and none carried it. The shape the dogfood of 2026-10-24 found judged clean at this revision |
+| `prog-019-progress-after-completion.jsonl` | PROG-019: a progress notification for a stdio request after its result (PROG-013 — the token no longer names an in-progress operation — and PROG-016 share the check) |
+| `prog-015-task-progress-token-differs.jsonl` | PROG-015: a task created for a request carrying `progressToken: "deploy-1"` reports progress tagged with the task's id under `"task-1-progress"` (PROG-014 states the same rule and shares the check). PROG-013 fails too: that token was never provided by any request |
+| `prog-016-task-progress-after-terminal-status.jsonl` | PROG-016: progress for a task after a `tasks/get` reported it `completed` (PROG-013 and PROG-019 share the check: the task is the request's operation, and it is over) |
+| `canc-018-cancellation-of-unknown-request.jsonl` | CANC-018: the client cancels request `99`, which it never issued in a session whose `initialize` the recording holds. The shape the dogfood of 2026-10-24 found judged clean at this revision |
+| `canc-019-initialize-cancelled.jsonl` | CANC-019: the client cancels its own `initialize` request before the server answers it |
+| `canc-020-task-cancelled-by-notification.jsonl` | CANC-020: `notifications/cancelled` naming the `tools/call` a `CreateTaskResult` answered; a task is cancelled with `tasks/cancel` |
+| `canc-021-response-after-cancellation-read.jsonl` | CANC-021, a warning: the server answers a request the client cancelled by notification — *after* answering a `tools/list` the client sent later than the cancellation, which on stdio's ordered stream proves it had read the cancellation. The answer that merely crosses a cancellation is the race `good/stdio-cancellation.jsonl` carries, and is not reported |
 
 ### `2026-07-28` captured (`corpus/draft/captured/`)
 
@@ -569,9 +593,10 @@ read as a specimen instead.
 | `sdk-go-2026-07-28` | 83 | 78 | 4 | 1 | 98 |
 | `sdk-python-2026-07-28` | 65 | 65 | 0 | 0 | 116 |
 | `sdk-rust-2026-07-28` | 74 | 73 | 0 | 1 | 107 |
+| `sdk-typescript-v2-2026-07-28` | 72 | 72 | 0 | 0 | 109 |
 | **Union** | **148** | | | | **33** |
 
-Across all 8 captures, **148 of the 181 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 9 captures, **148 of the 181 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
 The 33 clauses no capture reaches: `AUTH-097`, `AUTH-124`, `AUTH-129`, `AUTH-130`, `AUTH-131`, `AUTH-132`, `AUTH-133`, `CANC-003`, `CANC-011`, `DISC-002`, `ELIC-064`, `ELIC-065`, `MRTR-024`, `ROOT-013`, `ROOT-014`, `ROOT-018`, `SAMP-026`, `SAMP-029`, `SAMP-030`, `SAMP-031`, `SAMP-032`, `SAMP-033`, `SAMP-042`, `TOOL-035`, `TOOL-046`, `TRAN-061`, `TRAN-070`, `TRAN-083`, `TRAN-084`, `TRAN-096`, `TRAN-128`, `TRAN-132`, `TRAN-133`.
 <!-- draft-coverage:end -->
@@ -678,9 +703,9 @@ judge about a session that had carried dozens of them.
 
 ### The official SDKs' conformance servers (`captured/`, `draft/captured/`)
 
-Seven recordings of **each Tier 1 SDK's own conformance server** — the server
-its maintainers run the official suite against — driven over Streamable HTTP
-by an official SDK client. Neither end is ours: this repository supplies only
+Nine recordings of **the Tier 1 SDKs' own conformance servers** (the TypeScript
+SDK's two lines are two servers) — the server its maintainers run the official
+suite against — driven over Streamable HTTP by an official SDK client. Neither end is ours: this repository supplies only
 the recorder and the judge. They are the evidence behind the book's
 [cross-SDK matrix](https://github.com/tomtom215/mcp-conformance/blob/main/book/src/sdk-matrix.md), which `cargo xtask sdk-matrix`
 generates from their goldens; the verdicts and counts live there, once, and
@@ -688,17 +713,19 @@ are not restated here.
 
 | Field | Value |
 |---|---|
-| Servers | TypeScript: `test/conformance/src/everythingServer.ts` at SDK tag `1.32.0`, its `../../../src/` imports rewritten to the published `@modelcontextprotocol/sdk` 1.32.0 and nothing else. Python: `examples/servers/everything-server` at tag `v2.3.0`, on `mcp` 2.3.0. Go: `conformance/everything-server` from the `go-sdk` v1.8.0 module, stateful at `2025-11-25` and stateless at `2026-07-28`, as the Go SDK's own conformance workflow runs it. Rust: `conformance/src/bin/server.rs` at tag `rmcp-v3.5.1`, compiled against `rmcp` 3.5.1 from crates.io with upstream's feature set. Every pin, commit and file hash is in [`interop/sdk-pins.env`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/sdk-pins.env) |
-| Clients | `2025-11-25`: the TypeScript SDK 1.32.0 client ([`ts-client.mjs`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/ts-client.mjs)). `2026-07-28`: the Python SDK 2.3.0 client ([`py-client.py`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/py-client.py)). One client per revision for every server, so two rows of a revision differ by the server alone |
-| Recorded by | `mcp-trace-capture http`, in front of each server on fixed loopback ports, by [`interop/matrix.sh`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/matrix.sh), 2026-10-13 |
+| Servers | TypeScript v1: `test/conformance/src/everythingServer.ts` at SDK tag `1.32.1`, its `../../../src/` imports rewritten to the published `@modelcontextprotocol/sdk` 1.32.1 and nothing else. TypeScript v2: the same path at tag `v2.3.1`, unmodified, on the published `@modelcontextprotocol/server` 2.3.1 with `node` 2.1.1 and `express` 2.0.2 (one process serves both revisions: the `initialize` handshake for `2025-11-25`, `server/discover` for `2026-07-28`). Python: `examples/servers/everything-server` at tag `v2.3.0`, on `mcp` 2.3.0. Go: `conformance/everything-server` from the `go-sdk` v1.8.0 module, stateful at `2025-11-25` and stateless at `2026-07-28`, as the Go SDK's own conformance workflow runs it. Rust: `conformance/src/bin/server.rs` at tag `rmcp-v3.7.0`, compiled against `rmcp` 3.7.0 from crates.io with upstream's feature set. Every pin, commit and file hash is in [`interop/sdk-pins.env`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/sdk-pins.env) |
+| Clients | `2025-11-25`: the TypeScript SDK (v1) 1.32.1 client ([`ts-client.mjs`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/ts-client.mjs)). `2026-07-28`: the Python SDK 2.3.0 client ([`py-client.py`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/py-client.py)). One client per revision for every server, so two rows of a revision differ by the server alone |
+| Recorded by | `mcp-trace-capture http`, in front of each server on fixed loopback ports, by [`interop/matrix.sh`](https://github.com/tomtom215/mcp-conformance/blob/main/interop/matrix.sh), 2026-10-25 (every cell re-recorded that day; the three `2026-07-28` traces that existed before are byte-identical to the 2026-10-13 ones, because a stateless session carries no value that changes between runs) |
 | Re-verified | Weekly: the scheduled `sdk-matrix` job re-records every session with the same pins and runs `cargo xtask sdk-matrix --recaptured`, which fails if any re-judged report differs from its golden |
 
 | Trace | Session |
 |-------|---------|
-| `sdk-typescript-2025-11-25.jsonl` | The TypeScript server at `2025-11-25`: handshake, the standalone `GET` stream, tools, resources, prompts, `logging/setLevel`, an unknown tool, and the `DELETE` teardown. The TypeScript SDK's 1.x line does not serve `2026-07-28`; the Python client's discovery falls back to `initialize` against it, so there is no `2026-07-28` trace for it |
+| `sdk-typescript-2025-11-25.jsonl` | The TypeScript v1 server at `2025-11-25`: handshake, the standalone `GET` stream, tools, resources, prompts, `logging/setLevel`, an unknown tool, and the `DELETE` teardown. The TypeScript SDK's 1.x line does not serve `2026-07-28`; the Python client's discovery falls back to `initialize` against it, so there is no `2026-07-28` trace for it |
+| `sdk-typescript-v2-2025-11-25.jsonl` | The TypeScript v2 server, the same session, answered through its legacy (handshake) path |
 | `sdk-python-2025-11-25.jsonl` | The Python server, the same session |
 | `sdk-go-2025-11-25.jsonl` | The Go server, the same session. Its first prompt is an MRTR fixture, which it answers to this `2025-11-25` client with a JSON-RPC error |
 | `sdk-rust-2025-11-25.jsonl` | The Rust server, the same session |
+| `sdk-typescript-v2-2026-07-28.jsonl` | The TypeScript v2 server at `2026-07-28`, the same session as the Python server's: `server/discover` (answered with `supportedVersions` `["2026-07-28"]`), then tools, resources and prompts with the per-request `_meta` envelope |
 | `sdk-python-2026-07-28.jsonl` | The Python server at `2026-07-28`: `server/discover`, then tools, resources and prompts with the per-request `_meta` envelope |
 | `sdk-go-2026-07-28.jsonl` | The Go server, the same session. Its first prompt answers with an `input_required` result asking for `elicitation/create` from a client that declared no `elicitation` capability — the findings the matrix reports against it |
 | `sdk-rust-2026-07-28.jsonl` | The Rust server, the same session |
@@ -780,6 +807,7 @@ outcome moved.
 | `base-030-unsupported-version-refused-as-invalid-params.jsonl` | Over stdio, a `tools/list` whose `_meta` omits `clientCapabilities` *and* names `2099-01-01`, which the server's `server/discover` result omits; the server answers `-32602` (BASE-030, with MRTR-002, COMP-006, PAGE-006, TOOL-016, RES-011 and PROM-011 — the same envelope rule restated per feature, sharing its check). Both `-32602` and `-32022` are defined for this request and one answer carries one code, so the golden pins VERS-001 *passing*; until 2026-10-12 it and TRAN-074 failed it. TRAN-074, the Streamable HTTP statement of the rule, is *not observed* on this stdio trace. |
 | `input-required-id-reused.jsonl` | A `tools/call` declaring `elicitation` draws an `input_required` asking for `elicitation/create`, is retried and served under id 2, and then id 1 — answered, so free again (BASE-045) — is reused for an unrelated call declaring no capabilities. Until 2026-10-12 capabilities were looked up by request id across the whole trace, so the `input_required` was held against the *last* request with id 1, and this conforming session failed BASE-034, MRTR-012 and MRTR-013. |
 | `base-030-malformed-request-refused-without-id.jsonl` | The same malformed `tools/list` over Streamable HTTP, rejected `400` with a `-32602` whose id is null, then retried well-formed under id 1 and served (BASE-030 for the client's envelope; BASE-052 for the null id, since the framing names a request whose id could be read). The golden pins BASE-031, BASE-032 and BASE-045 *passing*: until 2026-10-12 the null-id rejection answered nothing, the malformed request stayed open, and the retry's result was held against it. |
+| `base-030-legacy-initialize-negotiated-2026-07-28.jsonl` | A `2025-11-25` client's `initialize`, answered by a server whose result names `protocolVersion` `2026-07-28` (and carries `resultType`); the client then continues under it with a well-formed modern `tools/list` (added 2026-10-24). The session ran under the revision the server negotiated, so `validate` judges it under `2026-07-28` alone — one report, with a note on stderr naming the proposal — where the legacy `initialize` is a client request without its required `_meta` fields (BASE-030; MRTR-002, COMP-006, PAGE-006, TOOL-016, RES-011 and PROM-011 restate that one envelope rule per feature page and share the check) sent by a dual-era client that skipped the `server/discover` probe (DISC-002 and TRAN-128, warnings, one check). Until 2026-10-24 the same trace was judged side by side under both revisions, with a `2025-11-25` `LIFE-003` failure for an `initialized` notification a `2026-07-28` session never owed. |
 | `base-031-malformed-meta-answered-with-result.jsonl` | Server answers a `_meta`-incomplete request with a result instead of `-32602` (BASE-031) |
 | `base-031-reused-id-malformed-answered.jsonl` | The reverse order: a well-formed `tools/list` id 1 is served, then a `_meta`-incomplete request reusing id 1 is *also* served (BASE-031; BASE-030 for the client's envelope). Exactly one BASE-031 finding, on the second answer — keyed by id alone, the first, legitimate answer was reported too, for a request sent after it. |
 | `base-032-invalid-params-not-http-400.jsonl` | `-32602` returned with HTTP 200 rather than 400 (BASE-032) |
@@ -912,6 +940,7 @@ outcome moved.
 | `wire-schema-resource-missing-uri.jsonl` | Wire schema: a `resources/list` result whose resource has no `uri`, which `Resource` requires; the result carries both caching hints so the trace isolates the schema defect |
 | `wire-schema-cache-scope-not-in-enum.jsonl` | Wire schema: `cacheScope: "shared"`, which is neither `public` nor `private` |
 | `wire-schema-content-block-unknown-type.jsonl` | Wire schema: a `tools/call` result whose content block has `type: "txt"`, matching no `ContentBlock` member |
+| `wire-schema-tool-image-data-not-base64.jsonl` | Wire schema: the same image whose `data` is `not base64!`, in a `2026-07-28` `tools/call` result (added 2026-10-24); this revision's schema marks `ImageContent.data` with `format: byte` as `2025-11-25`'s does, and both are compiled with the same assertion |
 | `vers-008-initialize-error-without-versions.jsonl` | A modern-only server refuses a legacy `initialize` with a bare `Method not found`, naming none of the versions it does speak (VERS-008). Necessarily also falsifies BASE-030: a legacy handshake carries no `_meta` envelope — that is what makes it legacy — so the antecedent of this clause is a client that cannot satisfy BASE-030. BASE-031 is *not* also reported, and this trace is why the check was narrowed: `basic/versioning`'s compatibility matrix makes the rejection code implementation-defined for exactly this exchange. |
 | `elic-057-answered-without-capability.jsonl` | ELIC-057: the call declares `elicitation`, but its retry — the request carrying the accepted form — declares only `sampling`; the page asks for the declaration "on each request" |
 | `elic-059-url-mode-undeclared.jsonl` | ELIC-059: URL mode asked of a request declaring form mode only. BASE-034, MRTR-012 and MRTR-013 make the same observation through `meta.no-undeclared-capability-reliance` |
@@ -974,7 +1003,7 @@ the extension block.
 | `task-042-failed-without-error.jsonl` | TASK-042: a `failed` task without `error`. TASK-015 (its fifth item) and TASK-045 state the same rule |
 | `task-043-tool-error-reported-failed.jsonl` | TASK-043: a tool result with `isError: true` carried by a `failed` task. TASK-008 and TASK-044 state the same rule |
 | `task-046-completed-without-result.jsonl` | TASK-046: a `completed` task without `result`. TASK-015 (its third item) and TASK-044 state the same rule |
-| `skills-session.jsonl` | Conformant skills session over **stdio**: `server/discover` declaring the extension with `directoryRead: true` and the `resources` capability; a two-page `skills/list` (`pdf-processing` with a manifest of its `SKILL.md` and `templates/invoice.md`, then the nested-prefix `acme/billing/refunds` as `"dynamic"`); `skills/get` of the second, and of an unknown skill refused `-32602`; `resources/list` describing the `SKILL.md` as `text/markdown` with its frontmatter's name and description; `resources/read` of the `SKILL.md`, whose SHA-256 is the manifest's digest and whose frontmatter is the entry's; `resources/directory/read` of the skill root and of `templates/`, and of the `SKILL.md` itself refused `-32602`. The pass path of every skills check |
+| `skills-session.jsonl` | Conformant skills session over **stdio**: `server/discover` declaring the extension with `directoryRead: true` and the `resources` capability; a two-page `skills/list` (`pdf-processing` with a manifest of its `SKILL.md` and `templates/invoice.md`, then the nested-prefix `acme/billing/refunds` as `"dynamic"`); `skills/get` of the second, and of an unknown skill refused `-32602`; `resources/list` describing the `SKILL.md` as `text/markdown` with its frontmatter's name and description; `resources/read` of the `SKILL.md`, whose SHA-256 is the manifest's digest and whose frontmatter is the entry's; `resources/directory/read` of the skill root and of `templates/`, each listing carrying its `ttlMs` and `cacheScope`, and of the `SKILL.md` itself refused `-32602`. The pass path of every skills check |
 | `skill-003-directory-read-not-implemented.jsonl` | SKILL-003: `directoryRead: true` declared, `resources/directory/read` answered `-32601` |
 | `skill-004-directory-read-undeclared.jsonl` | SKILL-004: the client calls `resources/directory/read` on a server that declared no `directoryRead` |
 | `skill-005-skills-without-resources.jsonl` | SKILL-005: the extension declared without the `resources` capability |
@@ -1006,3 +1035,4 @@ the extension block.
 | `skill-065-directory-result-type-not-complete.jsonl` | SKILL-065: a `resources/directory/read` result marked `resultType: "partial"` |
 | `skill-066-directory-read-of-a-file-answered.jsonl` | SKILL-066: `resources/directory/read` of a file the manifest lists, answered with an empty listing. SKILL-071 shares the check |
 | `skill-067-skill-directory-refused.jsonl` | SKILL-067: `resources/directory/read` of `templates/`, a directory the manifest puts a file under, refused |
+| `skill-100-directory-result-without-cache-fields.jsonl` | SKILL-100: a `resources/directory/read` result without `ttlMs` and `cacheScope` |

@@ -28,12 +28,11 @@ use std::sync::OnceLock;
 use jsonschema::error::ValidationErrorKind;
 use jsonschema::{Draft, ValidationError, Validator, ValidatorMap};
 use mcp_conformance_core::revision::ProtocolRevision;
-use mcp_conformance_core::trace::Direction;
 use mcp_conformance_core::wire_schema::{self, WIRE_SCHEMAS, WireSchema};
 use serde_json::Value;
 
 use crate::context::TraceContext;
-use crate::report::{ClauseSource, Finding, Outcome, WireSchemaReport};
+use crate::report::{ClauseSource, Finding, Outcome, Party, WireSchemaReport};
 
 /// The `check` every wire-schema finding names.
 pub const CHECK: &str = "wire-schema";
@@ -226,10 +225,19 @@ fn compile(schema: &WireSchema) -> Compiled {
     }
     let validators = jsonschema::options()
         .with_draft(Draft::Draft202012)
-        // Format assertion is off by default in 2020-12, and the schema's
-        // formats (`uri`, `uri-template`, `byte`) are annotations there; the
-        // suite asserts them, which this deliberately does not (ADR-0020).
-        .should_validate_formats(false)
+        // In 2020-12 `format` is an annotation unless asserted, and the schema
+        // uses three. `byte` is asserted: the prose says the same thing of
+        // every such member ("base64-encoded"), the alphabet has one
+        // definition, and no clause judges a tool result's encoding, so this
+        // is the only place a malformed image could be caught. `uri` and
+        // `uri-template` stay annotations (ADR-0020): asserting RFC 3986 would
+        // fail URIs the prose permits. The official suite does the opposite —
+        // `ajv-formats` asserts both URI formats and `addFormat("byte", true)`
+        // accepts any string — which the agreement check records.
+        .should_validate_formats(true)
+        .with_format("byte", crate::checks::is_base64)
+        .with_format("uri", |_: &str| true)
+        .with_format("uri-template", |_: &str| true)
         .build_map(&document)
         .expect("the vendored schema compiles");
     let mut compiled = Compiled {
@@ -321,10 +329,9 @@ pub(crate) fn check(
         if errors.is_empty() {
             continue;
         }
-        let party = match event.direction {
-            Direction::ClientToServer => "client",
-            Direction::ServerToClient => "server",
-        };
+        // The schema binds whoever sent the message, so the sender is the
+        // party held to it.
+        let party = Party::sender(event.direction);
         let detail = format!(
             "the {party}'s message is not a valid {definition} under the {revision} schema: {}",
             summarize(&errors)
@@ -332,6 +339,7 @@ pub(crate) fn check(
         findings.push(Finding {
             check: CHECK.to_owned(),
             seq: Some(event.seq),
+            party: Some(party),
             detail,
         });
     }

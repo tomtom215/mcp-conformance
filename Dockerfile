@@ -42,7 +42,7 @@
 # builds and the release publishes); its default target is native, so no
 # cross-compilation is involved.
 
-FROM docker.io/library/rust:1.99.0-slim-trixie@sha256:2752b332db73fdbb7dc576f06c82ed1f312005784ef913d7e04a28f5f55dc581 AS build
+FROM docker.io/library/rust:1.99.1-slim-trixie@sha256:aab42391a986424e22d6a3ec14f37bc6dd3dacff4d457ca7cccd781e02297cc6 AS build
 WORKDIR /src
 # Installed before the source is copied, so a source change does not rebuild
 # it. Pinned and built --locked: it wraps the build of a shipped artifact.

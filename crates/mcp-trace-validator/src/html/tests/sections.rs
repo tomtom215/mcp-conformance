@@ -5,10 +5,13 @@
 //! extension section's empty state, the wire-schema line, and the timeline's
 //! switch and truncation note.
 
+use std::fmt::Write as _;
+
 use super::{SESSION, judged, page};
 use crate::fixtures::UNDECLARED_TASK;
 use crate::html::{Trace, render, render_run};
 use crate::judge::{self, Options};
+use crate::report::LISTED_UNANSWERED;
 
 #[test]
 fn a_run_of_several_revision_traces_nests_its_headings_one_level_deeper() {
@@ -92,6 +95,30 @@ fn a_wire_schema_with_no_message_is_not_observed() {
     assert!(page.contains("<p class=\"schema-line s-pass\">Wire schema: "));
 }
 
+/// [`SESSION`] and then `extra` `ping` requests nobody answers.
+fn session_then_unanswered(extra: usize) -> String {
+    let mut document = SESSION.to_owned();
+    for n in 0..extra {
+        let _ = writeln!(
+            document,
+            "{{\"seq\":{},\"direction\":\"client-to-server\",\"transport\":\"stdio\",\"kind\":\"message\",\"payload\":{{\"jsonrpc\":\"2.0\",\"id\":{},\"method\":\"ping\"}}}}",
+            5 + n,
+            100 + n
+        );
+    }
+    document
+}
+
+#[test]
+fn the_unanswered_note_counts_the_requests_it_does_not_list() {
+    let page = page_of(&session_then_unanswered(LISTED_UNANSWERED + 2));
+    assert!(page.contains("<p>… and 2 more.</p>"), "{page}");
+    // Exactly the listed number: the note, and nothing left over.
+    let page = page_of(&session_then_unanswered(LISTED_UNANSWERED));
+    assert!(page.contains("<ul class=\"unanswered\">"), "{page}");
+    assert!(!page.contains(" more.</p>"), "{page}");
+}
+
 fn page_of(document: &str) -> String {
     let (reports, events) = judged(document);
     render(
@@ -126,5 +153,74 @@ fn a_long_payload_is_cut_and_says_how_much_more_there_is() {
         page.matches("more bytes; the trace line holds the whole message.")
             .count(),
         1
+    );
+}
+
+#[test]
+fn each_clause_says_whom_it_binds_and_each_finding_whom_it_is_held_against() {
+    let page = page(SESSION);
+    assert!(
+        page.contains(
+            "<span class=\"pill level\">MUST NOT</span><span class=\"pill actor\">binds both</span>"
+        ),
+        "{page}"
+    );
+    // In the clause card and at the event on the timeline.
+    assert!(
+        page.contains("<span class=\"detail\"><span class=\"pill party\">client</span>request"),
+        "{page}"
+    );
+    assert!(
+        page.contains(
+            "<a href=\"#BASE-003-1\">BASE-003</a><span class=\"pill party\">client</span>"
+        ),
+        "{page}"
+    );
+    assert!(!page.contains("unattributed"), "{page}");
+}
+
+#[test]
+fn a_party_view_changes_the_badge_and_says_why() {
+    let (mut reports, events) = judged(SESSION);
+    reports[0].party_view = Some(crate::report::Party::Server);
+    let page = render(
+        &reports,
+        Trace {
+            name: Some("session.jsonl"),
+            events: &events,
+        },
+    );
+    assert!(
+        page.contains("<span class=\"badge v-pass\">Pass</span>"),
+        "{page}"
+    );
+    assert!(
+        page.contains("1 clause failed; server findings only (1 client finding set aside)"),
+        "{page}"
+    );
+    assert!(
+        page.contains("<title>Pass — session.jsonl — MCP trace validation</title>"),
+        "{page}"
+    );
+    // A finding held against nobody is labelled under the view.
+    reports[0].requirements[0]
+        .findings
+        .push(crate::report::Finding {
+            check: "x".to_owned(),
+            seq: None,
+            party: None,
+            detail: "nobody's".to_owned(),
+        });
+    reports[0].requirements[0].outcome = crate::report::Outcome::Fail;
+    let page = render(
+        &reports,
+        Trace {
+            name: Some("session.jsonl"),
+            events: &events,
+        },
+    );
+    assert!(
+        page.contains("<span class=\"pill party none\">unattributed</span>nobody&#39;s"),
+        "{page}"
     );
 }

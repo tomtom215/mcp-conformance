@@ -15,7 +15,7 @@
 //! | `GET /api/sessions/<id>/report.html` | the validator's HTML report, as a download |
 //! | `GET /api/diff?a=&b=` | two sessions compared |
 //! | `GET /api/stats` | the dashboards' numbers — `library stats --format json` |
-//! | `GET /api/export?ids=` | a tar of entries and their sidecars |
+//! | `GET /api/export?ids=` | a tar of entries and their sidecars (each once; at most [`ops::EXPORT_MAX_ENTRIES`] entries and [`ops::EXPORT_MAX_BYTES`] of traces) |
 //! | `POST /api/import`, `/api/sessions/<id>/tags`, `/redact`, `/delete`, `/api/retention` | [`admin`] |
 //!
 //! Nothing here makes an outbound request; the server only answers.
@@ -34,7 +34,7 @@ use super::search;
 use super::state::{Failure, Workbench};
 use super::stats;
 use super::view;
-use super::{diff, library};
+use super::{diff, library, ops};
 
 mod admin;
 
@@ -74,6 +74,11 @@ pub(crate) async fn handle(shared: Arc<Shared>, request: Request<Body>) -> Respo
 
 async fn route(shared: Arc<Shared>, parts: &Parts, body: Body) -> Response {
     if let Err((status, why)) = shared.keys.check_origin(&parts.method, &parts.headers) {
+        return plain(status, why);
+    }
+    if parts.uri.path().starts_with("/api/")
+        && let Err((status, why)) = Keys::check_api_fetch_site(&parts.headers)
+    {
         return plain(status, why);
     }
     let authenticated = shared.keys.authenticated(&parts.headers);
@@ -336,14 +341,16 @@ async fn export(shared: Arc<Shared>, ids: String) -> Response {
         for id in &ids {
             checked_id(id)?;
         }
-        super::ops::export_archive(wb, &ids)
+        ops::export_archive(wb, &ids)
     })
     .await;
     match archive {
-        Ok(bytes) => download(bytes, "application/x-tar", "mcp-library-export.tar"),
+        Ok(export) => download(export.bytes, "application/x-tar", "mcp-library-export.tar"),
         Err(error) => failure(&error),
     }
 }
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_hardening;

@@ -32,6 +32,9 @@ pinned() {
   fi
 }
 pinned package.json "\"@modelcontextprotocol/sdk\": \"$TS_SDK_VERSION\""
+pinned package.json "\"@modelcontextprotocol/server\": \"$TS2_SDK_VERSION\""
+pinned package.json "\"@modelcontextprotocol/node\": \"$TS2_NODE_VERSION\""
+pinned package.json "\"@modelcontextprotocol/express\": \"$TS2_EXPRESS_VERSION\""
 pinned requirements.in "mcp==$PY_SDK_VERSION"
 pinned requirements.txt "mcp==$PY_SDK_VERSION "
 pinned go/go.mod "github.com/modelcontextprotocol/go-sdk $GO_SDK_VERSION"
@@ -53,7 +56,7 @@ from_upstream() {
   fi
 }
 
-# TypeScript: the SDK and the server's other imports, from the lockfile.
+# TypeScript: both SDK lines and the servers' other imports, from the lockfile.
 npm ci --no-audit --no-fund
 from_upstream "$TS_SDK_REPO" "$TS_SDK_COMMIT" "$TS_SERVER_PATH" "$TS_SERVER_SHA256" upstream/everythingServer.ts
 # The server imports the SDK by its path inside the SDK's own repository
@@ -62,6 +65,13 @@ from_upstream "$TS_SDK_REPO" "$TS_SDK_COMMIT" "$TS_SERVER_PATH" "$TS_SERVER_SHA2
 sed "s#'\.\./\.\./\.\./src/#'@modelcontextprotocol/sdk/#" upstream/everythingServer.ts > upstream/ts-everything-server.ts
 if grep -q "\.\./\.\./\.\./src/" upstream/ts-everything-server.ts; then
   echo "setup: the TypeScript server still imports from the SDK's source tree" >&2
+  exit 1
+fi
+# The v2 line's server needs no rewrite: it imports the published packages by
+# name, and nothing else (no relative import at all).
+from_upstream "$TS2_SDK_REPO" "$TS2_SDK_COMMIT" "$TS2_SERVER_PATH" "$TS2_SERVER_SHA256" upstream/ts2-everything-server.ts
+if grep -q "from '\.\.\?/" upstream/ts2-everything-server.ts; then
+  echo "setup: the TypeScript v2 server imports a file of the SDK's repository" >&2
   exit 1
 fi
 
@@ -78,4 +88,4 @@ from_upstream "$RUST_SDK_REPO" "$RUST_SDK_COMMIT" "$RUST_SERVER_PATH" "$RUST_SER
 cargo build --quiet --locked --manifest-path rust/Cargo.toml
 cp "${CARGO_TARGET_DIR:-rust/target}/debug/conformance-server" upstream/bin/rust-conformance-server
 
-echo "setup: TypeScript $TS_SDK_VERSION, Python $PY_SDK_VERSION, Go $GO_SDK_VERSION, Rust $RUST_SDK_VERSION ready"
+echo "setup: TypeScript v1 $TS_SDK_VERSION, TypeScript v2 $TS2_SDK_VERSION, Python $PY_SDK_VERSION, Go $GO_SDK_VERSION, Rust $RUST_SDK_VERSION ready"

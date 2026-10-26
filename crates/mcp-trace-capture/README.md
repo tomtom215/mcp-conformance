@@ -33,9 +33,17 @@ cargo install mcp-trace-capture mcp-trace-validator
 > - `SIGQUIT` relayed as a stop; a last stdio line without its newline recorded as a
 >   string;
 > - over HTTP: one buffer budget for all exchanges, a 30-second request-head timeout,
->   a 10-second upstream connect timeout, `Content-Length` kept, dot-segment paths
->   refused, redirects pointed at the proxy's own address, and unseen session ids
->   sharing one trace until the server accepts one.
+>   a 60-second bound between the bytes of a request body (`408` past it), a
+>   10-second upstream connect timeout, `Content-Length` kept, dot-segment paths
+>   refused however they are spelled (`;parameters` and overlong encodings
+>   included), `CONNECT` refused, redirects pointed at the proxy's own address, and
+>   unseen session ids sharing one trace until the server accepts one;
+> - the client's `Host` passed through to an upstream on this machine by default
+>   (`--no-preserve-host` to send the server's own name instead), with the startup
+>   lines saying which;
+> - every trace file created readable by its owner alone (`0600` on Unix), a
+>   symbolic link at `-o` refused even with `--force`, and a `{session}` file
+>   written through the handle that created it rather than by its path.
 > - in the library, `stdio::relay` (the stdio wrapper with the client on streams the
 >   caller supplies) and `Signals::requested` (stops a program asks for, not the
 >   operating system) — what `mcp-conformance test` runs a stdio server with;
@@ -58,8 +66,11 @@ mcp-trace-capture -o session.jsonl stdio -- python my_server.py --its-flags
 
 `-o` names the trace (without it, `mcp-trace.jsonl` in the working directory) and
 may come before or after the mode. The client and the server see each other's bytes
-unchanged; the server's stderr is passed through untouched. When the session ends, the server's exit code is the
-wrapper's exit code. Then:
+unchanged; the server's stderr is passed through untouched. The server is started
+with the wrapper's whole environment, as the client would have started it: every
+variable the client sets for the server — an API key among them — reaches it, and
+so does everything else in the wrapper's environment. When the session ends, the
+server's exit code is the wrapper's exit code. Then:
 
 ```text
 mcp-trace-validator validate session.jsonl
@@ -161,9 +172,15 @@ mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000/mcp --l
 The proxy's root path is the `--upstream` URL itself, and any other request path is
 appended to the upstream's: above, `/` reaches `/mcp` and `/x` reaches `/mcp/x`
 (with `--upstream http://localhost:3000`, point the client at
-`http://127.0.0.1:8080/mcp`). A path with a `.` or `..` segment (`/../x`, or
-`/%2e%2e/x`) would leave the upstream's path once the server resolved it, so the
-proxy answers it `400` itself: not forwarded, not recorded, counted at exit. The
+`http://127.0.0.1:8080/mcp`). A path with a `.` or `..` segment would leave the
+upstream's path once the server resolved it, so the proxy answers it `400` itself:
+not forwarded, not recorded, counted at exit. The segment is looked for once the
+path is percent-decoded (`/%2e%2e/x`), between `/` and `\` alike, and with any
+`;parameters` set aside (`/..;/x`), since servers resolve all of those; a path that
+is not UTF-8 once decoded (`/%c0%ae%c0%ae/x`, an overlong spelling some decoders
+read as `..`) is answered `400` too. A `CONNECT` request, which asks a proxy for a
+tunnel to whatever host it names, is answered `405`: this proxy forwards to its
+one upstream and opens no tunnel. The
 proxy prints the client URL when it starts. At exit
 it says how many responses had a status outside 2xx, and, when the server answered
 404, asks whether the endpoint path is right — a client at `http://127.0.0.1:8080/mcp`
@@ -190,25 +207,45 @@ SSE streams are relayed as they arrive, event by event.
 A client gets 30 seconds to send each request's head, counted from when the proxy
 starts waiting for it, so one that opens connections and trickles header bytes into
 them cannot hold them open. The same bound closes a kept-alive connection left idle
-that long, as servers commonly do; clients open a new one.
+that long, as servers commonly do; clients open a new one. Once the head is in, each
+byte of the request's body must follow the last within 60 seconds, whether the
+body is being read whole or streamed on past `--max-message-bytes`; a request whose
+body stalls that long is answered `408` and its connection closed, counted at exit,
+and its exchange recorded as `transport-abort`. A body that keeps coming, however
+slowly, is never cut. Only the client's request body is bounded this way: the
+upstream's response is waited for as long as it takes (below), since an event stream
+or a long tool call is open-ended by design. (In the library, the bound is
+`Options::body_read_timeout`; the command line has no flag for it.)
 
 ### `Host`, and DNS rebinding
 
-By default the proxy sends the upstream's own name in `Host`, as a reverse proxy must
-for a virtually hosted server, which routes on it; the trace records the `Host` the
-client sent. The cost: a server that defends against DNS rebinding by checking
-`Host` — the MCP specification's transport security advice — sees its own name on
-every request the proxy forwards, so its check passes for all of them, including one
-a web page has a browser send to the proxy's loopback address under a rebound domain
-name. The proxy checks no `Host` itself. (`Origin` is forwarded unchanged, so a
-server that checks `Origin` still sees the page's.)
+What the server sees as `Host` depends on where it is, and the proxy says which it
+is doing in its startup lines.
 
-When that matters — you are testing the server's `Host` check, or a browser you do
-not trust can reach the proxy — run with `--preserve-host`: the server then sees, and
-judges, the `Host` the client sent. Not in front of a virtually hosted remote server,
-which needs its own name. This repository's CI runs the official conformance suite
-through the proxy with `--preserve-host` (`xtask/src/conformance/capture.rs`), so the
-suite's `dns-rebinding-protection` scenario exercises the server's own check.
+For an upstream on this machine — `localhost`, an address in `127.0.0.0/8`, or
+`::1` — the proxy passes the client's `Host` through by default. A server that
+defends against DNS rebinding by checking `Host` — the MCP specification's transport
+security advice — then judges what the client sent, including a request a web page
+has a browser send to the proxy's loopback address under a rebound domain name.
+(`0.6.0` rewrote `Host` to the server's own name for every upstream, so that check
+passed for every request the proxy forwarded.) `--no-preserve-host` turns this off,
+for a local server that routes on its own name.
+
+For any other upstream the proxy sends the upstream's own name in `Host`, as a
+reverse proxy must for a virtually hosted server, which routes on it. The cost is the
+one above: such a server's `Host` check sees its own name on every request the proxy
+forwards. `--preserve-host` passes the client's `Host` through there too — right when
+you are testing the server's `Host` check, wrong in front of a virtually hosted
+remote server, which needs its own name.
+
+Either way the trace records the `Host` the client sent, and the proxy checks no
+`Host` itself: a client may send any `Host`, and it reaches the server (or is
+replaced) as above, since a recording tap forwards and does not filter. `Origin` is
+forwarded unchanged, so a server that checks `Origin` sees the page's. This
+repository's CI runs the official conformance suite through the proxy with
+`--preserve-host` (`xtask/src/conformance/capture.rs`), so the suite's
+`dns-rebinding-protection` scenario exercises the server's own check whatever the
+server's address.
 
 ## Windows
 
@@ -236,8 +273,9 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 - **Transparent.** Bytes are forwarded unchanged. Over HTTP, the only changes are the
   ones a proxy must make: hop-by-hop headers (RFC 9110 §7.6.1, and the
   non-standard `Proxy-Connection`), a request's `Expect` (the proxy answers
-  `100-continue` itself), `Host` (names the
-  upstream — `--preserve-host` keeps the client's instead), `Accept-Encoding`
+  `100-continue` itself), `Host` (the client's for an upstream on this machine, the
+  upstream's own name for any other; `--preserve-host` and `--no-preserve-host`
+  decide it outright), `Accept-Encoding`
   (removed, so the server answers uncompressed and the body can be recorded), and a
   redirect's `Location` that points into the upstream (pointed back at the proxy, at
   the address the client's connection reached — not at the client's `Host` header,
@@ -282,16 +320,25 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   default, is exactly the longest line `mcp-trace-validator` accepts by default. With
   a larger `--max-message-bytes`, the capture prints the `--max-line-bytes` value to
   validate with.
-- **No credentials in the trace.** Only an allowlist of headers is recorded — the same
-  list every capture in this project uses (`RECORDED_HEADERS` in
+- **No credential headers in the trace — but treat a trace as sensitive.** Only an
+  allowlist of headers is recorded — the same list every capture in this project
+  uses (`RECORDED_HEADERS` and `RECORDED_HEADER_PREFIXES` in
   `mcp-conformance-core`). `Authorization` and cookies are forwarded, never written.
   A server's `WWW-Authenticate` challenge is on the list (since 2026-10-13): it asks
-  for a credential and carries none, and the authorization checks read it. The
-  proxy records every path it relays but not the path itself, so a request to a
-  well-known metadata URI cannot be told from an MCP one in the trace.
+  for a credential and carries none, and the authorization checks read it. Every
+  `Mcp-Param-*` request header is on the list by design — `2026-07-28` mirrors
+  request parameters into them, and the checks compare the two — so a client that
+  puts a secret in one records it. The proxy records every path it relays but not
+  the path itself, so a request to a well-known metadata URI cannot be told from
+  an MCP one in the trace.
   **Message content is recorded in full** — as parsed JSON, so whitespace, member
   order (written sorted) and number spelling (`1E2` as `100.0`) are not kept, but
-  every value is: review a trace before sharing it. JSON whose parsed value would
+  every value is. Tool arguments, `_meta`, results and resource contents are
+  values like any other, and sessions put secrets in them (a token in an argument,
+  a file's contents in a result): treat a trace file as you would the credentials
+  it may hold. It is created readable by its owner alone (mode `0600` on Unix; a
+  file `--force` overwrites is narrowed to the same), and the output path is never
+  a symbolic link; review a trace before sharing it. JSON whose parsed value would
   differ from what was sent — a number a double cannot hold exactly (an id past 64
   bits, which would come back as a non-integer), or a member name repeated in one
   object (only the last would remain) — is never recorded as parsed JSON: the
@@ -335,9 +382,23 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   flight, not `--max-message-bytes` for each of them. A body or event that arrives
   while the budget is spent is not held up: it is streamed on as one over the limit
   is, left out of the trace, and counted in the summary. Ordinary MCP traffic, whose
-  messages are small, never comes near it. (Writing a message to the trace takes
-  about twice its size again for a moment, for its parsed value and its line; that
-  is outside the budget.)
+  messages are small, never comes near it.
+- **Writing a message costs far more than its size, for a moment.** Outside the
+  budget, recording a message holds its parsed value — 32 bytes per array element
+  or object member, however short their text — and its written line, beside the
+  bytes being relayed. Measured as the process's peak resident set (`VmHWM`) for
+  one 16 MiB message, release build, loopback: a message that is mostly one string
+  peaks at 69 MiB (×4.3 its size); an array of one-digit numbers at 293 MiB
+  (×18) through the proxy and 308 MiB through the stdio wrapper; an object of
+  short members at 210 MiB through the proxy (×13) and 400 MiB through the stdio
+  wrapper (×25 — the wrapper parses the two directions on two threads, whose
+  allocator arenas do not hand each other their freed memory). So at the default
+  `--max-message-bytes` of 64 MiB, one message can cost more than 1 GiB for a
+  moment. Where the client or the server is not trusted and memory is, lower
+  `--max-message-bytes`: a larger message is forwarded intact and left out of the
+  trace, and `mcp-trace-validator` reads such a trace with its defaults. The
+  figures come from `tools/measure-memory.py` in this crate's directory (Linux),
+  which says how it measures.
 - **An SSE event's data, and nothing else.** Only the `data` of events of type
   `message` is recorded; `id` and `retry` fields are forwarded but not recorded, so a
   trace does not show which event a client could resume from (the `Last-Event-ID`

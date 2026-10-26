@@ -1,0 +1,19 @@
+{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{"roots":{}},"clientInfo":{"name":"corpus-client","version":"0.1.0"}}}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"corpus-server","version":"0.1.0"}}}}
+{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}
+{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"export","arguments":{},"_meta":{"progressToken":"job-1"}}}}
+{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"job-1","progress":0.25,"total":1,"message":"Exporting rows"}}}
+{"seq":5,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"job-1","progress":0.5,"total":1}}}
+{"seq":6,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"job-1","progress":1,"total":1}}}
+{"seq":7,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"exported"}]}}}
+{"seq":8,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"export","arguments":{},"_meta":{"progressToken":"job-1"}}}}
+{"seq":9,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"job-1","progress":1}}}
+{"seq":10,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"export","arguments":{},"_meta":{"progressToken":7}}}}
+{"seq":11,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":7,"progress":10}}}
+{"seq":12,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"job-1","progress":2}}}
+{"seq":13,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"exported"}]}}}
+{"seq":14,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":7,"progress":20}}}
+{"seq":15,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"exported"}]}}}
+{"seq":16,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":"s1","method":"roots/list","params":{"_meta":{"progressToken":"roots-1"}}}}
+{"seq":17,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"roots-1","progress":1,"total":1,"message":"Collecting workspace roots"}}}
+{"seq":18,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":"s1","result":{"roots":[{"uri":"file:///home/user/project","name":"project"}]}}}

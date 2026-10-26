@@ -3,12 +3,14 @@
 
 #![allow(clippy::unwrap_used)]
 
-use super::body::{End, read_prefix};
-use super::target::{has_dot_segment, is_event_stream, location, target};
+use super::body::{End, idle_bounded, is_stall, read_prefix};
+use super::target::{is_event_stream, is_refused_path, location, target};
 use super::*;
 use axum::body::Bytes;
 use axum::http::uri::PathAndQuery;
 use axum::http::{HeaderMap, header};
+use futures::StreamExt as _;
+use std::time::Duration;
 
 /// A buffer budget no test here reaches.
 fn unlimited() -> Arc<tokio::sync::Semaphore> {
@@ -38,6 +40,21 @@ fn a_body_that_fails_keeps_what_was_read() {
     assert_eq!(prefix.bytes, b"{\"a\":");
     assert!(matches!(prefix.end, End::Failed("cut")));
     drop(prefix);
+}
+
+#[tokio::test]
+async fn a_body_that_stalls_ends_with_an_error_saying_how_long_it_waited() {
+    let mut stream = idle_bounded(
+        futures::stream::pending::<Result<Bytes, axum::Error>>(),
+        Duration::from_millis(250),
+    );
+    let error = stream.next().await.unwrap().unwrap_err();
+    assert!(is_stall(&error));
+    assert_eq!(
+        error.to_string(),
+        "no byte of the request body arrived for 0.25s"
+    );
+    assert!(stream.next().await.is_none());
 }
 
 #[test]
@@ -144,6 +161,39 @@ fn a_redirect_into_the_upstream_comes_back_through_the_proxy() {
     assert_eq!(back("/mcp"), None);
 }
 
+/// The client's `Host` goes through to an upstream on this machine, whose
+/// DNS-rebinding check should judge it; any other upstream gets its own name.
+#[test]
+fn the_clients_host_is_kept_for_a_loopback_upstream_by_default() {
+    let uri = |text: &str| text.parse::<Uri>().unwrap();
+    for loopback in [
+        "http://localhost:1",
+        "http://LOCALHOST/mcp",
+        "http://127.0.0.1:2",
+        "http://127.8.0.1",
+        "http://[::1]:3/mcp",
+    ] {
+        assert!(is_loopback(&uri(loopback)), "{loopback}");
+        assert!(
+            Options::new(uri(loopback), 1).unwrap().preserve_host,
+            "{loopback}"
+        );
+    }
+    for elsewhere in [
+        "http://example.com",
+        "http://10.0.0.1",
+        "http://[::2]",
+        "http://localhost.example",
+        "http://127.0.0.1.example",
+    ] {
+        assert!(!is_loopback(&uri(elsewhere)), "{elsewhere}");
+        assert!(
+            !Options::new(uri(elsewhere), 1).unwrap().preserve_host,
+            "{elsewhere}"
+        );
+    }
+}
+
 #[test]
 fn only_absolute_http_upstreams_are_accepted() {
     let uri = |text: &str| text.parse::<Uri>().unwrap();
@@ -192,6 +242,9 @@ fn an_upstream_with_credentials_is_refused_without_repeating_them() {
     assert!(Options::new(uri("http://user@example.com"), 1).is_err());
 }
 
+/// A dot segment is refused however it is spelled, and so is a path that is
+/// not UTF-8 once decoded; a dot inside a name, an encoded character a path
+/// may hold, and a parameter on a name are forwarded.
 #[test]
 fn dot_segments_are_found_however_they_are_spelled() {
     for path in [
@@ -207,20 +260,50 @@ fn dot_segments_are_found_however_they_are_spelled() {
         "/a\\..\\b",
         "/a/..%5cb",
         "/%2e",
+        // With `;parameters`, which some servers strip before resolving.
+        "/..;/secret",
+        "/a/.;v=1/b",
+        "/%2e%2e;x/secret",
+        "/..%3b/x",
+        // Not UTF-8 once decoded: an overlong `..`, a lone continuation byte.
+        "/%c0%ae%c0%ae/secret",
+        "/a%ff/b",
+        "/%80",
     ] {
-        assert!(has_dot_segment(path), "{path}");
+        assert!(is_refused_path(path), "{path}");
     }
     for path in [
         "/",
         "/mcp",
+        "/mcp/",
         "/a/..b",
         "/.well-known/x",
         "/a/b..",
         "/a/%2e%2e%2e",
         "/a.b/c",
+        "/a%20b",
+        "/mcp;v=1",
+        "/;",
+        "/%e2%9c%93",
+        // A `%` that encodes nothing is a literal; a doubly encoded dot is
+        // the name `%2e`, which the proxy forwards as any other.
+        "/a%zz/b%2",
+        "/%252e%252e/x",
     ] {
-        assert!(!has_dot_segment(path), "{path}");
+        assert!(!is_refused_path(path), "{path}");
     }
+}
+
+/// The decoder reads `%XX` in either case and leaves a `%` that encodes
+/// nothing — a non-hex digit, or too few of them — as the byte it is.
+#[test]
+fn percent_decoding_reads_each_escape_once_and_keeps_what_is_not_one() {
+    use super::target::percent_decoded;
+    assert_eq!(percent_decoded(b"/a%20b%2Fc%2fd"), b"/a b/c/d");
+    assert_eq!(percent_decoded(b"%c0%AE"), [0xC0, 0xAE]);
+    assert_eq!(percent_decoded(b"%zz%2%"), b"%zz%2%");
+    assert_eq!(percent_decoded(b"%252e"), b"%2e");
+    assert_eq!(percent_decoded(b""), b"");
 }
 
 /// A body that would take more of the buffer budget than is left stops being

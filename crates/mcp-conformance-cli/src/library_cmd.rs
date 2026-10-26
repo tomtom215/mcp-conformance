@@ -107,7 +107,25 @@ pub(crate) fn execute(wb: &mut Workbench, command: LibraryCommand) -> Result<Str
                 strings,
             };
             let copy = ops::redact_document(wb, &id, &rules)?;
-            format!("redacted copy {}\n", id_of(&copy))
+            let mut out = format!("redacted copy {}\n", id_of(&copy));
+            for rule in copy["source"]["redactions"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(serde_json::Value::as_str)
+            {
+                let _ = writeln!(out, "  {rule}");
+            }
+            // The defaults touch headers only; a secret inside a message is
+            // removed only by a rule that names it.
+            let _ = writeln!(
+                out,
+                "  payload values are kept unless a rule names them — arguments, results, _meta: \
+                 --pointer /params/arguments/<name> (a JSON pointer; `*` matches every member), \
+                 --meta (every _meta value), --string <text> (a literal, wherever it occurs); \
+                 read the copy before sharing it"
+            );
+            out
         }
         LibraryCommand::Prune { retain_days, apply } => {
             let selected = ops::retention_select(wb, retain_days, &clock::now());
@@ -144,12 +162,12 @@ pub(crate) fn execute(wb: &mut Workbench, command: LibraryCommand) -> Result<Str
         }
         LibraryCommand::Export { ids, output } => {
             let names: Vec<&str> = ids.iter().map(String::as_str).collect();
-            let bytes = ops::export_archive(wb, &names)?;
-            std::fs::write(&output, bytes)
+            let export = ops::export_archive(wb, &names)?;
+            std::fs::write(&output, export.bytes)
                 .map_err(|error| Failure::Io(format!("{}: {error}", output.display())))?;
             format!(
                 "exported {} recordings to {}\n",
-                ids.len(),
+                export.entries,
                 output.display()
             )
         }
@@ -158,6 +176,8 @@ pub(crate) fn execute(wb: &mut Workbench, command: LibraryCommand) -> Result<Str
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use super::*;
     use crate::args::LibraryDir;
 
@@ -186,5 +206,54 @@ mod tests {
             transport: None,
         };
         assert_eq!(run(args(dir.to_path_buf(), import)), EXIT_USAGE);
+    }
+
+    /// A redaction's summary says what each rule replaced and, plainly, what
+    /// no default removes: payload values stay unless a rule names them, and
+    /// the options that do are named.
+    #[test]
+    fn a_redaction_summary_names_the_rules_and_what_is_kept() {
+        let (mut wb, dir) = crate::workbench::fixture::workbench("library-redact");
+        let redact = |headers: Vec<String>, meta: bool| LibraryCommand::Redact {
+            id: "leaky-session".to_owned(),
+            headers,
+            pointers: Vec::new(),
+            meta,
+            strings: Vec::new(),
+        };
+        let output = execute(&mut wb, redact(Vec::new(), false)).unwrap();
+        assert!(
+            output.starts_with("redacted copy leaky-session.redacted\n"),
+            "{output}"
+        );
+        assert!(
+            output.contains(
+                "  headers authorization, cookie, set-cookie, proxy-authorization, \
+                 mcp-session-id: 10 values\n"
+            ),
+            "{output}"
+        );
+        assert!(
+            output.contains("payload values are kept"),
+            "it says plainly what is not removed: {output}"
+        );
+        for option in ["--pointer", "--meta", "--string"] {
+            assert!(output.contains(option), "{option} is named: {output}");
+        }
+        assert!(
+            !output.contains("fixture-"),
+            "the summary names no value: {output}"
+        );
+        let copy = std::fs::read_to_string(dir.join("leaky-session.redacted.jsonl")).unwrap();
+        assert!(
+            !copy.contains("fixture-session-7"),
+            "the session id is a default"
+        );
+        assert!(copy.contains("fixture-api-key-3"), "a payload value is not");
+        // Named headers replace the defaults; the note about payloads stays.
+        let output = execute(&mut wb, redact(vec!["X-Key".to_owned()], true)).unwrap();
+        assert!(output.contains("  headers X-Key: 0 values\n"), "{output}");
+        assert!(output.contains("  _meta members: 2 values\n"), "{output}");
+        assert!(output.contains("payload values are kept"), "{output}");
     }
 }

@@ -4,8 +4,8 @@
 # The Rust SDK's own conformance server, built against the published rmcp.
 #
 # rust-sdk keeps it in its repository (`conformance/src/bin/server.rs`,
-# package `mcp-conformance`, `publish = false`), so no crate ships it. fetch.sh
-# copies that one file from the tag `sdk-pins.env` names, checks its SHA-256,
+# package `mcp-conformance`, `publish = false`), so no crate ships it. ../setup.sh
+# copies that one file from the commit `sdk-pins.env` names, checks its SHA-256,
 # and this package compiles it against rmcp from crates.io at the same version,
 # with the feature set upstream's `conformance/Cargo.toml` gives it. The
 # dependencies the client binary alone needs are left out. Cargo.lock beside
@@ -28,7 +28,7 @@ name = "conformance-server"
 path = "upstream/server.rs"
 
 [dependencies]
-rmcp = { version = "=3.5.1", features = [
+rmcp = { version = "=3.7.0", features = [
     "server",
     "client",
     "elicitation",

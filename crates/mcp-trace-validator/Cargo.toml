@@ -53,7 +53,7 @@ serde_json = { workspace = true }
 # revision's own JSON Schema, vendored in mcp-conformance-core. No default
 # features: no remote `$ref` resolution, so no network and no HTTP stack. The
 # 0.58 floor is the version the vendored schemas were verified with.
-jsonschema = { version = ">=0.58.6, <0.59", default-features = false }
+jsonschema = { version = ">=0.60.1, <0.61", default-features = false }
 clap = { workspace = true, optional = true }
 clap_complete = { workspace = true, optional = true }
 

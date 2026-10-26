@@ -2,22 +2,22 @@
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
 //! One request through the proxy: recorded, forwarded, and its response recorded
-//! and relayed.
+//! and relayed. What the proxy answers on its own — a refusal, a stalled
+//! body, an upstream it could not reach — is in [`super::answers`].
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use axum::body::{Body, Bytes};
 use axum::extract::Request;
-use axum::http::uri::{Authority, Uri};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse as _, Response};
 use futures::{Stream, TryStreamExt as _};
 use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TransportKind};
 
 use super::Proxy;
-use super::body::{self, End, Held, cut_at_stop, read_prefix, then_rest};
-use super::target::{has_dot_segment, is_event_stream, location, target};
+use super::body::{self, End, Held, cut_at_stop, idle_bounded, is_stall, read_prefix, then_rest};
+use super::target::{is_event_stream, is_refused_path, location, target};
 use crate::framing::{Parsed, SseParser, parse_message};
 use crate::headers;
 use crate::recorder::{NotRecorded, Recorder};
@@ -31,7 +31,10 @@ pub(super) async fn forward(
     request: Request,
 ) -> Response {
     let (parts, body) = request.into_parts();
-    if has_dot_segment(parts.uri.path()) {
+    if parts.method == axum::http::Method::CONNECT {
+        return proxy.refuse_connect();
+    }
+    if is_refused_path(parts.uri.path()) {
         return proxy.refuse_path();
     }
     // An event stream answering a GET is the standalone stream a client holds
@@ -44,9 +47,11 @@ pub(super) async fn forward(
         .flatten()
         .map(str::to_owned);
     let (route, upstream_body) = proxy.record_request(&parts, body).await;
-    let Some(upstream_body) = upstream_body else {
+    let upstream_body = match upstream_body {
+        Ok(body) => body,
         // The client went away mid-body; there is nothing left to answer.
-        return StatusCode::BAD_REQUEST.into_response();
+        Err(Cut::Gone) => return StatusCode::BAD_REQUEST.into_response(),
+        Err(Cut::Stalled) => return proxy.body_stalled(route.recorder()),
     };
     let mut upstream_request = axum::http::Request::new(upstream_body);
     *upstream_request.method_mut() = parts.method;
@@ -74,14 +79,26 @@ pub(super) async fn forward(
                 .relay_response(upstream, route, host.as_deref(), standalone)
                 .await
         }
+        // A body streamed past the message limit stalled while hyper was
+        // sending it: the client's doing, not the upstream's.
+        Err(error) if is_stall(&error) => proxy.body_stalled(route.recorder()),
         Err(error) => proxy.upstream_failed(route.recorder(), &uri, &error),
     }
 }
 
+/// Why a client's request body was not read whole.
+enum Cut {
+    /// The client went away, or its body failed, mid-body.
+    Gone,
+    /// No byte of it arrived within [`Options::body_read_timeout`](super::Options::body_read_timeout).
+    Stalled,
+}
+
 impl Proxy {
     /// Records a request's `http` event and body in its session's trace, and
-    /// returns that trace's route and the body to send upstream — `None` when the
-    /// client's body could not be read, which is recorded as `transport-abort`.
+    /// returns that trace's route and the body to send upstream — or why the
+    /// client's body could not be read. A client gone mid-body is recorded as
+    /// `transport-abort` here; a stalled one by [`Proxy::body_stalled`].
     ///
     /// The body is read (up to the message limit) before anything is recorded,
     /// and the `http` event and the message are then written together: the
@@ -91,7 +108,7 @@ impl Proxy {
         &self,
         parts: &axum::http::request::Parts,
         body: Body,
-    ) -> (Route, Option<Body>) {
+    ) -> (Route, Result<Body, Cut>) {
         // Metadata events cannot be refused for length (the line limit is at least
         // 1 MiB, and HTTP header blocks are bounded far below it), and a sink
         // failure is reported once, by `Recorder::finish`.
@@ -100,7 +117,9 @@ impl Proxy {
             status: None,
             headers: headers::recorded(&parts.headers),
         };
-        let mut stream = body.into_data_stream();
+        // Bounded before it is read, so the bound also holds for whatever of
+        // it streams on past the message limit.
+        let mut stream = idle_bounded(body.into_data_stream(), self.options.body_read_timeout);
         let prefix = read_prefix(&mut stream, self.options.max_message, &self.budget).await;
         let session_id = parts
             .headers
@@ -111,16 +130,17 @@ impl Proxy {
         let (message, forward) = match prefix.end {
             End::Complete => (
                 self.message_of(&prefix.bytes),
-                Some(body::whole(prefix.bytes, prefix.held)),
+                Ok(body::whole(prefix.bytes, prefix.held)),
             ),
             End::Over | End::OverBudget => {
                 self.count_unread(&prefix.end);
-                (None, Some(then_rest(prefix.bytes, prefix.held, stream)))
+                (None, Ok(then_rest(prefix.bytes, prefix.held, stream)))
             }
-            End::Failed(_) => (None, None),
+            End::Failed(error) if is_stall(&error) => (None, Err(Cut::Stalled)),
+            End::Failed(_) => (None, Err(Cut::Gone)),
         };
         self.record_together(route.recorder(), Direction::ClientToServer, http, message);
-        if forward.is_none() {
+        if matches!(forward, Err(Cut::Gone)) {
             // The client's body failed (it went away mid-body): the request is
             // recorded but never sent, and the trace says the exchange was cut
             // off, as it does when the upstream's side fails.
@@ -348,84 +368,4 @@ impl Proxy {
                 (oversized_seen, other_seen) = (oversized, other);
             })
     }
-
-    /// A request whose path would leave the upstream's once the server resolves
-    /// its `.` or `..` segments: answered 400 by the proxy, never forwarded, so
-    /// not recorded — no server saw it.
-    fn refuse_path(&self) -> Response {
-        let message = "mcp-trace-capture: the request path has a `.` or `..` segment, which \
-                       would leave the upstream's path; refused, not forwarded";
-        eprintln!("{message}");
-        self.counters.refused_paths.fetch_add(1, Ordering::Relaxed);
-        (StatusCode::BAD_REQUEST, message).into_response()
-    }
-
-    /// The upstream failed mid-response, after its status and headers were
-    /// relayed: the client sees the truncation; the trace records the transport as
-    /// aborted.
-    fn upstream_cut(&self, recorder: &Recorder, error: &dyn std::error::Error) {
-        eprintln!(
-            "mcp-trace-capture: the upstream's response was cut off ({}); the truncation \
-             is relayed to the client",
-            causes(error)
-        );
-        self.counters.upstream_cut.fetch_add(1, Ordering::Relaxed);
-        let _ = recorder.record(
-            Direction::ServerToClient,
-            TransportKind::StreamableHttp,
-            EventBody::Lifecycle {
-                event: LifecycleEvent::TransportAbort,
-            },
-        );
-    }
-
-    /// The upstream could not be reached, so there is no response to relay. The
-    /// 502 is the proxy's, not the server's, so it is recorded as an aborted
-    /// transport rather than as a response; its body names the upstream (without
-    /// the query, which can carry credentials) and the cause.
-    fn upstream_failed(
-        &self,
-        recorder: &Recorder,
-        uri: &Uri,
-        error: &dyn std::error::Error,
-    ) -> Response {
-        let upstream = format!(
-            "{}://{}{}",
-            uri.scheme_str().unwrap_or("http"),
-            uri.authority().map_or("", Authority::as_str),
-            uri.path()
-        );
-        let message = format!(
-            "mcp-trace-capture: cannot reach the upstream {upstream}: {}",
-            causes(error)
-        );
-        eprintln!("{message}");
-        self.counters
-            .upstream_failures
-            .fetch_add(1, Ordering::Relaxed);
-        let _ = recorder.record(
-            Direction::ServerToClient,
-            TransportKind::StreamableHttp,
-            EventBody::Lifecycle {
-                event: LifecycleEvent::TransportAbort,
-            },
-        );
-        (StatusCode::BAD_GATEWAY, message).into_response()
-    }
-}
-
-/// `error` and the errors behind it, each once: an HTTP client's own message
-/// ("client error (Connect)") says little without its sources.
-fn causes(error: &dyn std::error::Error) -> String {
-    let mut text = error.to_string();
-    let mut source = error.source();
-    while let Some(cause) = source {
-        let cause_text = cause.to_string();
-        if !text.contains(&cause_text) {
-            text.push_str(": ");
-            text.push_str(&cause_text);
-        }
-        source = cause.source();
-    }
-    text
 }

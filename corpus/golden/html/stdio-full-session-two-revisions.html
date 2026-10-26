@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-K+QH8eGos92H7gyRSBNc4cpdOMZtDD5YIIuxlD4EoyY='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-TvCmbAR7RPfcK3ta5Tq++Bewv4/+i8XUb3gtJ1v0OiQ='; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -198,6 +198,9 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
   background: var(--warn-bg);
 }
 .note code { font-weight: 600; }
+.note .unanswered { margin: 0.45rem 0 0; padding-left: 1.2rem; }
+.note .unanswered a { font-family: var(--mono); font-weight: 600; }
+.note p { margin: 0.35rem 0 0; }
 
 /* Section links. */
 .contents {
@@ -278,6 +281,8 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 }
 .pill:is(.o-pass, .o-fail, .o-warn, .o-unsupported) { border-color: transparent; background: var(--tone-bg); color: var(--tone); }
 .pill.level, .pill.rev { font-family: var(--mono); }
+.pill.party { margin-right: 0.45rem; vertical-align: 0.1rem; }
+.pill.party.none { border-style: dashed; font-weight: 500; }
 .quote {
   margin: 0 0 0.45rem;
   padding: 0.7rem 0.95rem;
@@ -504,15 +509,15 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <div class="revisions">
 <section class="revision v-pass" aria-label="Revision 2025-11-25">
 <p class="revision-line"><span class="revision-name">2025-11-25</span><span class="badge v-pass">Pass</span></p>
-<p class="verdict-why">no clause failed or warned; 26 clauses passed</p>
+<p class="verdict-why">no clause failed or warned; 27 clauses passed</p>
 <dl class="tally">
-<div class="t-pass"><dt>pass</dt><dd>26</dd></div>
+<div class="t-pass"><dt>pass</dt><dd>27</dd></div>
 <div class="t-fail zero"><dt>fail</dt><dd>0</dd></div>
 <div class="t-warn zero"><dt>warn</dt><dd>0</dd></div>
-<div class="t-excluded"><dt>excluded</dt><dd>232</dd></div>
+<div class="t-excluded"><dt>excluded</dt><dd>246</dd></div>
 <div class="t-unsupported zero"><dt>unsupported</dt><dd>0</dd></div>
 <div class="t-not-applicable"><dt>not applicable</dt><dd>6</dd></div>
-<div class="t-not-observed"><dt>not observed</dt><dd>57</dd></div>
+<div class="t-not-observed"><dt>not observed</dt><dd>69</dd></div>
 </dl>
 <p class="schema-line s-pass">Wire schema: pass (9 messages valid)</p>
 </section>
@@ -540,129 +545,129 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <p class="empty">No clause failed, warned or went unjudged at 2025-11-25.</p>
 <h3 class="revision-heading">At revision 2026-07-28</h3>
 <article class="clause o-fail" id="2026-07-28-BASE-048">
-<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-BASE-048">BASE-048</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-BASE-048">BASE-048</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds both</span></header>
 <blockquote class="quote"><p>The `result` MUST include a `resultType` field to indicate the type of the result.</p></blockquote>
 <p class="source"><span class="section-path">basic/index#result-responses</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/basic#result-responses" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2026-07-28-BASE-048-1"><a class="seq" href="#e2">seq 2</a><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span><span class="check">base.result-type-present</span></li>
-<li id="2026-07-28-BASE-048-2"><a class="seq" href="#e5">seq 5</a><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span><span class="check">base.result-type-present</span></li>
-<li id="2026-07-28-BASE-048-3"><a class="seq" href="#e7">seq 7</a><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span><span class="check">base.result-type-present</span></li>
-<li id="2026-07-28-BASE-048-4"><a class="seq" href="#e9">seq 9</a><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span><span class="check">base.result-type-present</span></li>
+<li id="2026-07-28-BASE-048-1"><a class="seq" href="#e2">seq 2</a><span class="detail"><span class="pill party">server</span>result has no `resultType`; 2026-07-28 requires it on every result</span><span class="check">base.result-type-present</span></li>
+<li id="2026-07-28-BASE-048-2"><a class="seq" href="#e5">seq 5</a><span class="detail"><span class="pill party">server</span>result has no `resultType`; 2026-07-28 requires it on every result</span><span class="check">base.result-type-present</span></li>
+<li id="2026-07-28-BASE-048-3"><a class="seq" href="#e7">seq 7</a><span class="detail"><span class="pill party">server</span>result has no `resultType`; 2026-07-28 requires it on every result</span><span class="check">base.result-type-present</span></li>
+<li id="2026-07-28-BASE-048-4"><a class="seq" href="#e9">seq 9</a><span class="detail"><span class="pill party">server</span>result has no `resultType`; 2026-07-28 requires it on every result</span><span class="check">base.result-type-present</span></li>
 </ol>
 </article>
 <article class="clause o-fail" id="2026-07-28-BASE-030">
-<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-BASE-030">BASE-030</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-BASE-030">BASE-030</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds client</span></header>
 <blockquote class="quote"><p>Client requests carry the following `io.modelcontextprotocol/*` fields in `meta`; fields marked as required MUST be included on every request.</p></blockquote>
 <p class="source"><span class="section-path">basic/index#_meta</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2026-07-28-BASE-030-1"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-BASE-030-2"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-BASE-030-3"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-BASE-030-4"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-BASE-030-5"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-BASE-030-6"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-BASE-030-7"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-BASE-030-8"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-BASE-030-1"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-BASE-030-2"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-BASE-030-3"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-BASE-030-4"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-BASE-030-5"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-BASE-030-6"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-BASE-030-7"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-BASE-030-8"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
 </ol>
 </article>
 <article class="clause o-fail" id="2026-07-28-BASE-031">
-<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-BASE-031">BASE-031</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-BASE-031">BASE-031</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds server</span></header>
 <blockquote class="quote"><p>A request missing any required field is malformed; the server MUST reject it with JSON-RPC error code `-32602` (Invalid params).</p></blockquote>
 <p class="source"><span class="section-path">basic/index#_meta</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2026-07-28-BASE-031-1"><a class="seq" href="#e5">seq 5</a><span class="detail">request at seq 4 was missing a required `_meta` field; the server answered with a result rather than error -32602</span><span class="check">meta.missing-required-field-rejected</span></li>
-<li id="2026-07-28-BASE-031-2"><a class="seq" href="#e7">seq 7</a><span class="detail">request at seq 6 was missing a required `_meta` field; the server answered with a result rather than error -32602</span><span class="check">meta.missing-required-field-rejected</span></li>
-<li id="2026-07-28-BASE-031-3"><a class="seq" href="#e9">seq 9</a><span class="detail">request at seq 8 was missing a required `_meta` field; the server answered with a result rather than error -32602</span><span class="check">meta.missing-required-field-rejected</span></li>
+<li id="2026-07-28-BASE-031-1"><a class="seq" href="#e5">seq 5</a><span class="detail"><span class="pill party">server</span>request at seq 4 was missing a required `_meta` field; the server answered with a result rather than error -32602</span><span class="check">meta.missing-required-field-rejected</span></li>
+<li id="2026-07-28-BASE-031-2"><a class="seq" href="#e7">seq 7</a><span class="detail"><span class="pill party">server</span>request at seq 6 was missing a required `_meta` field; the server answered with a result rather than error -32602</span><span class="check">meta.missing-required-field-rejected</span></li>
+<li id="2026-07-28-BASE-031-3"><a class="seq" href="#e9">seq 9</a><span class="detail"><span class="pill party">server</span>request at seq 8 was missing a required `_meta` field; the server answered with a result rather than error -32602</span><span class="check">meta.missing-required-field-rejected</span></li>
 </ol>
 </article>
 <article class="clause o-fail" id="2026-07-28-MRTR-002">
-<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-MRTR-002">MRTR-002</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-MRTR-002">MRTR-002</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds client</span></header>
 <blockquote class="quote"><p>Every request MUST include the required `meta` fields; see `meta`.</p></blockquote>
 <p class="source"><span class="section-path">basic/patterns/mrtr</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2026-07-28-MRTR-002-1"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-MRTR-002-2"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-MRTR-002-3"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-MRTR-002-4"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-MRTR-002-5"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-MRTR-002-6"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-MRTR-002-7"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-MRTR-002-8"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-MRTR-002-1"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-MRTR-002-2"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-MRTR-002-3"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-MRTR-002-4"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-MRTR-002-5"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-MRTR-002-6"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-MRTR-002-7"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-MRTR-002-8"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
 </ol>
 </article>
 <article class="clause o-fail" id="2026-07-28-COMP-006">
-<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-COMP-006">COMP-006</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-COMP-006">COMP-006</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds client</span></header>
 <blockquote class="quote"><p>Every request MUST include the required `meta` fields; see `meta`.</p></blockquote>
 <p class="source"><span class="section-path">server/utilities/completion</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/completion" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2026-07-28-COMP-006-1"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-COMP-006-2"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-COMP-006-3"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-COMP-006-4"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-COMP-006-5"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-COMP-006-6"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-COMP-006-7"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-COMP-006-8"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-COMP-006-1"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-COMP-006-2"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-COMP-006-3"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-COMP-006-4"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-COMP-006-5"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-COMP-006-6"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-COMP-006-7"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-COMP-006-8"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
 </ol>
 </article>
 <article class="clause o-fail" id="2026-07-28-PAGE-006">
-<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-PAGE-006">PAGE-006</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-PAGE-006">PAGE-006</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds client</span></header>
 <blockquote class="quote"><p>Every request MUST include the required `meta` fields; see `meta`.</p></blockquote>
 <p class="source"><span class="section-path">server/utilities/pagination</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2026-07-28-PAGE-006-1"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PAGE-006-2"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PAGE-006-3"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PAGE-006-4"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PAGE-006-5"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PAGE-006-6"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PAGE-006-7"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PAGE-006-8"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PAGE-006-1"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PAGE-006-2"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PAGE-006-3"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PAGE-006-4"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PAGE-006-5"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PAGE-006-6"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PAGE-006-7"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PAGE-006-8"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
 </ol>
 </article>
 <article class="clause o-fail" id="2026-07-28-TOOL-016">
-<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-TOOL-016">TOOL-016</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-TOOL-016">TOOL-016</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds client</span></header>
 <blockquote class="quote"><p>Every request MUST include the required `meta` fields; see `meta`.</p></blockquote>
 <p class="source"><span class="section-path">server/tools</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/server/tools" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2026-07-28-TOOL-016-1"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-TOOL-016-2"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-TOOL-016-3"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-TOOL-016-4"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-TOOL-016-5"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-TOOL-016-6"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-TOOL-016-7"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-TOOL-016-8"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-TOOL-016-1"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-TOOL-016-2"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-TOOL-016-3"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-TOOL-016-4"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-TOOL-016-5"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-TOOL-016-6"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-TOOL-016-7"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-TOOL-016-8"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
 </ol>
 </article>
 <article class="clause o-fail" id="2026-07-28-RES-011">
-<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-RES-011">RES-011</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-RES-011">RES-011</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds client</span></header>
 <blockquote class="quote"><p>Every request MUST include the required `meta` fields; see `meta`.</p></blockquote>
 <p class="source"><span class="section-path">server/resources</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/server/resources" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2026-07-28-RES-011-1"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-RES-011-2"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-RES-011-3"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-RES-011-4"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-RES-011-5"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-RES-011-6"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-RES-011-7"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-RES-011-8"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-RES-011-1"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-RES-011-2"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-RES-011-3"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-RES-011-4"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-RES-011-5"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-RES-011-6"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-RES-011-7"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-RES-011-8"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
 </ol>
 </article>
 <article class="clause o-fail" id="2026-07-28-PROM-011">
-<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-PROM-011">PROM-011</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span></header>
+<header class="clause-head"><h4 class="clause-id"><a href="#2026-07-28-PROM-011">PROM-011</a></h4><span class="pill o-fail">fail</span><span class="pill level">MUST</span><span class="pill actor">binds client</span></header>
 <blockquote class="quote"><p>Every request MUST include the required `meta` fields; see `meta`.</p></blockquote>
 <p class="source"><span class="section-path">server/prompts</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/server/prompts" rel="noreferrer">Read it in the specification</a></p>
 <ol class="findings">
-<li id="2026-07-28-PROM-011-1"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PROM-011-2"><a class="seq" href="#e1">seq 1</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PROM-011-3"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PROM-011-4"><a class="seq" href="#e4">seq 4</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PROM-011-5"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PROM-011-6"><a class="seq" href="#e6">seq 6</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PROM-011-7"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
-<li id="2026-07-28-PROM-011-8"><a class="seq" href="#e8">seq 8</a><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PROM-011-1"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PROM-011-2"><a class="seq" href="#e1">seq 1</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PROM-011-3"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PROM-011-4"><a class="seq" href="#e4">seq 4</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PROM-011-5"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PROM-011-6"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PROM-011-7"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span><span class="check">meta.required-request-fields</span></li>
+<li id="2026-07-28-PROM-011-8"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span><span class="check">meta.required-request-fields</span></li>
 </ol>
 </article>
 <article class="clause o-fail" id="2026-07-28-wire-schema">
@@ -671,12 +676,12 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <p class="source"><span class="section-path">basic/index#schema</span><a class="spec-link" href="https://modelcontextprotocol.io/specification/2026-07-28/basic#schema" rel="noreferrer">Read it in the specification</a></p>
 <p class="schema">6 of 9 messages are invalid against the revision's vendored schema: <a href="https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json" rel="noreferrer"><code>https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json</code></a></p>
 <ol class="findings">
-<li id="2026-07-28-wire-schema-1"><a class="seq" href="#e2">seq 2</a><span class="detail">the server&#39;s message is not a valid JSONRPCResultResponse under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span><span class="check">wire-schema</span></li>
-<li id="2026-07-28-wire-schema-2"><a class="seq" href="#e5">seq 5</a><span class="detail">the server&#39;s message is not a valid JSONRPCResultResponse under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span><span class="check">wire-schema</span></li>
-<li id="2026-07-28-wire-schema-3"><a class="seq" href="#e6">seq 6</a><span class="detail">the client&#39;s message is not a valid ListToolsRequest under the 2026-07-28 schema: &quot;params&quot; is a required property</span><span class="check">wire-schema</span></li>
-<li id="2026-07-28-wire-schema-4"><a class="seq" href="#e7">seq 7</a><span class="detail">the server&#39;s message is not a valid ListToolsResult under the 2026-07-28 schema: /result: &quot;cacheScope&quot; is a required property; /result: &quot;resultType&quot; is a required property; /result: &quot;ttlMs&quot; is a required property</span><span class="check">wire-schema</span></li>
-<li id="2026-07-28-wire-schema-5"><a class="seq" href="#e8">seq 8</a><span class="detail">the client&#39;s message is not a valid CallToolRequest under the 2026-07-28 schema: /params: &quot;_meta&quot; is a required property</span><span class="check">wire-schema</span></li>
-<li id="2026-07-28-wire-schema-6"><a class="seq" href="#e9">seq 9</a><span class="detail">the server&#39;s message is not a valid CallToolResult under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span><span class="check">wire-schema</span></li>
+<li id="2026-07-28-wire-schema-1"><a class="seq" href="#e2">seq 2</a><span class="detail"><span class="pill party">server</span>the server&#39;s message is not a valid JSONRPCResultResponse under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span><span class="check">wire-schema</span></li>
+<li id="2026-07-28-wire-schema-2"><a class="seq" href="#e5">seq 5</a><span class="detail"><span class="pill party">server</span>the server&#39;s message is not a valid JSONRPCResultResponse under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span><span class="check">wire-schema</span></li>
+<li id="2026-07-28-wire-schema-3"><a class="seq" href="#e6">seq 6</a><span class="detail"><span class="pill party">client</span>the client&#39;s message is not a valid ListToolsRequest under the 2026-07-28 schema: &quot;params&quot; is a required property</span><span class="check">wire-schema</span></li>
+<li id="2026-07-28-wire-schema-4"><a class="seq" href="#e7">seq 7</a><span class="detail"><span class="pill party">server</span>the server&#39;s message is not a valid ListToolsResult under the 2026-07-28 schema: /result: &quot;cacheScope&quot; is a required property; /result: &quot;resultType&quot; is a required property; /result: &quot;ttlMs&quot; is a required property</span><span class="check">wire-schema</span></li>
+<li id="2026-07-28-wire-schema-5"><a class="seq" href="#e8">seq 8</a><span class="detail"><span class="pill party">client</span>the client&#39;s message is not a valid CallToolRequest under the 2026-07-28 schema: /params: &quot;_meta&quot; is a required property</span><span class="check">wire-schema</span></li>
+<li id="2026-07-28-wire-schema-6"><a class="seq" href="#e9">seq 9</a><span class="detail"><span class="pill party">server</span>the server&#39;s message is not a valid CallToolResult under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span><span class="check">wire-schema</span></li>
 </ol>
 </article>
 </section>
@@ -689,20 +694,20 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev c2s flagged" id="e1"><div class="ev-line"><a class="ev-seq" href="#e1" aria-label="event 1">1</a><span class="ev-dir">client → server</span><span class="kind k-request">request</span><code class="method">initialize</code><span class="id">id <code>1</code></span><span class="pair">answered at <a href="#e2">seq 2</a></span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#2026-07-28-BASE-030-1">BASE-030</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-BASE-030-2">BASE-030</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-MRTR-002-1">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-MRTR-002-2">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-COMP-006-1">COMP-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-COMP-006-2">COMP-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PAGE-006-1">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PAGE-006-2">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-TOOL-016-1">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-TOOL-016-2">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-RES-011-1">RES-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-RES-011-2">RES-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PROM-011-1">PROM-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PROM-011-2">PROM-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-030-1">BASE-030</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-030-2">BASE-030</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-MRTR-002-1">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-MRTR-002-2">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-COMP-006-1">COMP-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-COMP-006-2">COMP-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PAGE-006-1">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PAGE-006-2">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-TOOL-016-1">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-TOOL-016-2">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-RES-011-1">RES-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-RES-011-2">RES-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PROM-011-1">PROM-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PROM-011-2">PROM-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: 1,
@@ -724,8 +729,8 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev s2c flagged" id="e2"><div class="ev-line"><a class="ev-seq" href="#e2" aria-label="event 2">2</a><span class="ev-dir">server → client</span><span class="kind k-result">result</span><code class="method">initialize</code><span class="id">id <code>1</code></span><span class="pair">answers <a href="#e1">seq 1</a></span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#2026-07-28-BASE-048-1">BASE-048</a><span class="pill rev">2026-07-28</span><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span></li>
-<li class="o-fail"><a href="#2026-07-28-wire-schema-1">wire schema</a><span class="pill rev">2026-07-28</span><span class="detail">the server&#39;s message is not a valid JSONRPCResultResponse under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-048-1">BASE-048</a><span class="pill rev">2026-07-28</span><span class="pill party">server</span><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span></li>
+<li class="o-fail"><a href="#2026-07-28-wire-schema-1">wire schema</a><span class="pill rev">2026-07-28</span><span class="pill party">server</span><span class="detail">the server&#39;s message is not a valid JSONRPCResultResponse under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: 1,
@@ -752,20 +757,20 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev c2s flagged" id="e4"><div class="ev-line"><a class="ev-seq" href="#e4" aria-label="event 4">4</a><span class="ev-dir">client → server</span><span class="kind k-request">request</span><code class="method">ping</code><span class="id">id <code>2</code></span><span class="pair">answered at <a href="#e5">seq 5</a></span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#2026-07-28-BASE-030-3">BASE-030</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-BASE-030-4">BASE-030</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-MRTR-002-3">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-MRTR-002-4">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-COMP-006-3">COMP-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-COMP-006-4">COMP-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PAGE-006-3">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PAGE-006-4">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-TOOL-016-3">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-TOOL-016-4">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-RES-011-3">RES-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-RES-011-4">RES-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PROM-011-3">PROM-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PROM-011-4">PROM-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-030-3">BASE-030</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-030-4">BASE-030</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-MRTR-002-3">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-MRTR-002-4">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-COMP-006-3">COMP-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-COMP-006-4">COMP-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PAGE-006-3">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PAGE-006-4">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-TOOL-016-3">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-TOOL-016-4">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-RES-011-3">RES-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-RES-011-4">RES-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PROM-011-3">PROM-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PROM-011-4">PROM-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: 2,
@@ -775,9 +780,9 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev s2c flagged" id="e5"><div class="ev-line"><a class="ev-seq" href="#e5" aria-label="event 5">5</a><span class="ev-dir">server → client</span><span class="kind k-result">result</span><code class="method">ping</code><span class="id">id <code>2</code></span><span class="pair">answers <a href="#e4">seq 4</a></span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#2026-07-28-BASE-048-2">BASE-048</a><span class="pill rev">2026-07-28</span><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span></li>
-<li class="o-fail"><a href="#2026-07-28-BASE-031-1">BASE-031</a><span class="pill rev">2026-07-28</span><span class="detail">request at seq 4 was missing a required `_meta` field; the server answered with a result rather than error -32602</span></li>
-<li class="o-fail"><a href="#2026-07-28-wire-schema-2">wire schema</a><span class="pill rev">2026-07-28</span><span class="detail">the server&#39;s message is not a valid JSONRPCResultResponse under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-048-2">BASE-048</a><span class="pill rev">2026-07-28</span><span class="pill party">server</span><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-031-1">BASE-031</a><span class="pill rev">2026-07-28</span><span class="pill party">server</span><span class="detail">request at seq 4 was missing a required `_meta` field; the server answered with a result rather than error -32602</span></li>
+<li class="o-fail"><a href="#2026-07-28-wire-schema-2">wire schema</a><span class="pill rev">2026-07-28</span><span class="pill party">server</span><span class="detail">the server&#39;s message is not a valid JSONRPCResultResponse under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: 2,
@@ -787,21 +792,21 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev c2s flagged" id="e6"><div class="ev-line"><a class="ev-seq" href="#e6" aria-label="event 6">6</a><span class="ev-dir">client → server</span><span class="kind k-request">request</span><code class="method">tools/list</code><span class="id">id <code>3</code></span><span class="pair">answered at <a href="#e7">seq 7</a></span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#2026-07-28-BASE-030-5">BASE-030</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-BASE-030-6">BASE-030</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-MRTR-002-5">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-MRTR-002-6">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-COMP-006-5">COMP-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-COMP-006-6">COMP-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PAGE-006-5">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PAGE-006-6">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-TOOL-016-5">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-TOOL-016-6">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-RES-011-5">RES-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-RES-011-6">RES-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PROM-011-5">PROM-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PROM-011-6">PROM-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-wire-schema-3">wire schema</a><span class="pill rev">2026-07-28</span><span class="detail">the client&#39;s message is not a valid ListToolsRequest under the 2026-07-28 schema: &quot;params&quot; is a required property</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-030-5">BASE-030</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-030-6">BASE-030</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-MRTR-002-5">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-MRTR-002-6">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-COMP-006-5">COMP-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-COMP-006-6">COMP-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PAGE-006-5">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PAGE-006-6">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-TOOL-016-5">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-TOOL-016-6">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-RES-011-5">RES-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-RES-011-6">RES-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PROM-011-5">PROM-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PROM-011-6">PROM-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-wire-schema-3">wire schema</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">the client&#39;s message is not a valid ListToolsRequest under the 2026-07-28 schema: &quot;params&quot; is a required property</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: 3,
@@ -811,9 +816,9 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev s2c flagged" id="e7"><div class="ev-line"><a class="ev-seq" href="#e7" aria-label="event 7">7</a><span class="ev-dir">server → client</span><span class="kind k-result">result</span><code class="method">tools/list</code><span class="id">id <code>3</code></span><span class="pair">answers <a href="#e6">seq 6</a></span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#2026-07-28-BASE-048-3">BASE-048</a><span class="pill rev">2026-07-28</span><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span></li>
-<li class="o-fail"><a href="#2026-07-28-BASE-031-2">BASE-031</a><span class="pill rev">2026-07-28</span><span class="detail">request at seq 6 was missing a required `_meta` field; the server answered with a result rather than error -32602</span></li>
-<li class="o-fail"><a href="#2026-07-28-wire-schema-4">wire schema</a><span class="pill rev">2026-07-28</span><span class="detail">the server&#39;s message is not a valid ListToolsResult under the 2026-07-28 schema: /result: &quot;cacheScope&quot; is a required property; /result: &quot;resultType&quot; is a required property; /result: &quot;ttlMs&quot; is a required property</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-048-3">BASE-048</a><span class="pill rev">2026-07-28</span><span class="pill party">server</span><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-031-2">BASE-031</a><span class="pill rev">2026-07-28</span><span class="pill party">server</span><span class="detail">request at seq 6 was missing a required `_meta` field; the server answered with a result rather than error -32602</span></li>
+<li class="o-fail"><a href="#2026-07-28-wire-schema-4">wire schema</a><span class="pill rev">2026-07-28</span><span class="pill party">server</span><span class="detail">the server&#39;s message is not a valid ListToolsResult under the 2026-07-28 schema: /result: &quot;cacheScope&quot; is a required property; /result: &quot;resultType&quot; is a required property; /result: &quot;ttlMs&quot; is a required property</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: 3,
@@ -841,21 +846,21 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev c2s flagged" id="e8"><div class="ev-line"><a class="ev-seq" href="#e8" aria-label="event 8">8</a><span class="ev-dir">client → server</span><span class="kind k-request">request</span><code class="method">tools/call</code><span class="id">id <code>4</code></span><span class="pair">answered at <a href="#e9">seq 9</a></span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#2026-07-28-BASE-030-7">BASE-030</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-BASE-030-8">BASE-030</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-MRTR-002-7">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-MRTR-002-8">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-COMP-006-7">COMP-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-COMP-006-8">COMP-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PAGE-006-7">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PAGE-006-8">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-TOOL-016-7">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-TOOL-016-8">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-RES-011-7">RES-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-RES-011-8">RES-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PROM-011-7">PROM-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
-<li class="o-fail"><a href="#2026-07-28-PROM-011-8">PROM-011</a><span class="pill rev">2026-07-28</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
-<li class="o-fail"><a href="#2026-07-28-wire-schema-5">wire schema</a><span class="pill rev">2026-07-28</span><span class="detail">the client&#39;s message is not a valid CallToolRequest under the 2026-07-28 schema: /params: &quot;_meta&quot; is a required property</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-030-7">BASE-030</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-030-8">BASE-030</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-MRTR-002-7">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-MRTR-002-8">MRTR-002</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-COMP-006-7">COMP-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-COMP-006-8">COMP-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PAGE-006-7">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PAGE-006-8">PAGE-006</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-TOOL-016-7">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-TOOL-016-8">TOOL-016</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-RES-011-7">RES-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-RES-011-8">RES-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PROM-011-7">PROM-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/protocolVersion`</span></li>
+<li class="o-fail"><a href="#2026-07-28-PROM-011-8">PROM-011</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">request `_meta` is missing required field `io.modelcontextprotocol/clientCapabilities`</span></li>
+<li class="o-fail"><a href="#2026-07-28-wire-schema-5">wire schema</a><span class="pill rev">2026-07-28</span><span class="pill party">client</span><span class="detail">the client&#39;s message is not a valid CallToolRequest under the 2026-07-28 schema: /params: &quot;_meta&quot; is a required property</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: 4,
@@ -871,9 +876,9 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 </li>
 <li class="ev s2c flagged" id="e9"><div class="ev-line"><a class="ev-seq" href="#e9" aria-label="event 9">9</a><span class="ev-dir">server → client</span><span class="kind k-result">result</span><code class="method">tools/call</code><span class="id">id <code>4</code></span><span class="pair">answers <a href="#e8">seq 8</a></span></div>
 <ul class="marks">
-<li class="o-fail"><a href="#2026-07-28-BASE-048-4">BASE-048</a><span class="pill rev">2026-07-28</span><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span></li>
-<li class="o-fail"><a href="#2026-07-28-BASE-031-3">BASE-031</a><span class="pill rev">2026-07-28</span><span class="detail">request at seq 8 was missing a required `_meta` field; the server answered with a result rather than error -32602</span></li>
-<li class="o-fail"><a href="#2026-07-28-wire-schema-6">wire schema</a><span class="pill rev">2026-07-28</span><span class="detail">the server&#39;s message is not a valid CallToolResult under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-048-4">BASE-048</a><span class="pill rev">2026-07-28</span><span class="pill party">server</span><span class="detail">result has no `resultType`; 2026-07-28 requires it on every result</span></li>
+<li class="o-fail"><a href="#2026-07-28-BASE-031-3">BASE-031</a><span class="pill rev">2026-07-28</span><span class="pill party">server</span><span class="detail">request at seq 8 was missing a required `_meta` field; the server answered with a result rather than error -32602</span></li>
+<li class="o-fail"><a href="#2026-07-28-wire-schema-6">wire schema</a><span class="pill rev">2026-07-28</span><span class="pill party">server</span><span class="detail">the server&#39;s message is not a valid CallToolResult under the 2026-07-28 schema: /result: &quot;resultType&quot; is a required property</span></li>
 </ul>
 <details class="payload" open><summary>Payload</summary><pre><code>{
   &quot;id&quot;: 4,
@@ -896,7 +901,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <h2 id="accounting-h">Accounting</h2>
 <p class="lede">Every clause of the revision is counted above. These are the ones with nothing to act on, and why.</p>
 <h3 class="revision-heading">At revision 2025-11-25</h3>
-<details class="group g-pass"><summary><span class="group-name">Passed</span><span class="count">26</span></summary>
+<details class="group g-pass"><summary><span class="group-name">Passed</span><span class="count">27</span></summary>
 <p class="meaning">Every covering check ran over traffic the clause binds to and found nothing wrong.</p>
 <ul class="rows">
 <li id="2025-11-25-BASE-001"><code class="rid">BASE-001</code><span class="pill level">MUST</span></li>
@@ -919,6 +924,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2025-11-25-LIFE-010"><code class="rid">LIFE-010</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-004"><code class="rid">TRAN-004</code><span class="pill level">MUST NOT</span></li>
 <li id="2025-11-25-TRAN-005"><code class="rid">TRAN-005</code><span class="pill level">MUST NOT</span></li>
+<li id="2025-11-25-PING-001"><code class="rid">PING-001</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TOOL-001"><code class="rid">TOOL-001</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TOOL-003"><code class="rid">TOOL-003</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TOOL-005"><code class="rid">TOOL-005</code><span class="pill level">SHOULD</span></li>
@@ -927,7 +933,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2025-11-25-TOOL-008"><code class="rid">TOOL-008</code><span class="pill level">SHOULD</span></li>
 </ul>
 </details>
-<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">57</span></summary>
+<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">69</span></summary>
 <p class="meaning">Every covering check ran and found nothing to judge: the session carried none of the traffic these clauses bind to. A session that exercises them may pass or fail them.</p>
 <ul class="rows">
 <li id="2025-11-25-BASE-006"><code class="rid">BASE-006</code><span class="pill level">MUST</span></li>
@@ -948,6 +954,18 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2025-11-25-TRAN-039"><code class="rid">TRAN-039</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-040"><code class="rid">TRAN-040</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-049"><code class="rid">TRAN-049</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-PROG-009"><code class="rid">PROG-009</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-PROG-010"><code class="rid">PROG-010</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-PROG-011"><code class="rid">PROG-011</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-PROG-013"><code class="rid">PROG-013</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-PROG-014"><code class="rid">PROG-014</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-PROG-015"><code class="rid">PROG-015</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-PROG-016"><code class="rid">PROG-016</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-PROG-019"><code class="rid">PROG-019</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-CANC-018"><code class="rid">CANC-018</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-CANC-019"><code class="rid">CANC-019</code><span class="pill level">MUST NOT</span></li>
+<li id="2025-11-25-CANC-020"><code class="rid">CANC-020</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-CANC-021"><code class="rid">CANC-021</code><span class="pill level">SHOULD</span></li>
 <li id="2025-11-25-TOOL-009"><code class="rid">TOOL-009</code><span class="pill level">SHOULD</span></li>
 <li id="2025-11-25-TOOL-010"><code class="rid">TOOL-010</code><span class="pill level">SHOULD</span></li>
 <li id="2025-11-25-TOOL-011"><code class="rid">TOOL-011</code><span class="pill level">MUST</span></li>
@@ -1000,7 +1018,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2025-11-25-PROM-008"><code class="rid">PROM-008</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
 </ul>
 </details>
-<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">232</span></summary>
+<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">246</span></summary>
 <p class="meaning">The registry does not judge these from a recording; each row says why.</p>
 <ul class="rows">
 <li id="2025-11-25-BASE-011"><code class="rid">BASE-011</code><span class="pill level">MUST NOT</span><span class="reason">A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009.</span></li>
@@ -1065,6 +1083,20 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="2025-11-25-TRAN-138"><code class="rid">TRAN-138</code><span class="pill level">SHOULD</span><span class="reason">The obligation arises when the server closes the connection without terminating the SSE stream, and that is connection- and SSE-frame-level conduct the capture consumes (TRAN-032&#39;s reason), so no trace shows when it arose. A later reconnecting `GET` is equally consistent with any other reason to open one, as for TRAN-046.</span></li>
 <li id="2025-11-25-TRAN-139"><code class="rid">TRAN-139</code><span class="pill level">SHOULD</span><span class="reason">SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace. TRAN-032 is the same rule for streams a POST opened.</span></li>
 <li id="2025-11-25-TRAN-140"><code class="rid">TRAN-140</code><span class="pill level">SHOULD</span><span class="reason">Binds a transport&#39;s documentation, not its messages: the artefact the clause asks for is a document, and no session can be evidence about whether one exists. Custom transports are outside the capture universe besides (TRAN-023).</span></li>
+<li id="2025-11-25-PING-002"><code class="rid">PING-002</code><span class="pill level">SHOULD</span><span class="reason">&quot;Periodically&quot; is a rate over wall-clock time, and checks may not consult time — the limit LIFE-015 records. A recording would have to show the interval between pings against the length of the session, and it carries neither: a session with no ping and one with few are both what a conforming implementation produces over a short enough connection.</span></li>
+<li id="2025-11-25-PING-003"><code class="rid">PING-003</code><span class="pill level">SHOULD</span><span class="reason">Binds the implementation&#39;s configuration surface — what its operator can set — which has no protocol representation (LIFE-019&#39;s boundary). A recording shows the pings one configuration produced, never whether another was available.</span></li>
+<li id="2025-11-25-PING-004"><code class="rid">PING-004</code><span class="pill level">SHOULD</span><span class="reason">A timeout is a duration held inside the sender, and checks may not consult time (LIFE-015). A recording would have to carry the deadline the sender held a ping to and the network it was chosen for; it shows a ping answered or not, and nothing of either.</span></li>
+<li id="2025-11-25-PING-005"><code class="rid">PING-005</code><span class="pill level">SHOULD</span><span class="reason">&quot;Excessive&quot; is a rate — pings per unit of time — and checks may not consult time (LIFE-015). No count of pings alone separates a flood from a long session checking its connection, the same limit PROG-018 records for rate limiting.</span></li>
+<li id="2025-11-25-PING-006"><code class="rid">PING-006</code><span class="pill level">SHOULD</span><span class="reason">The antecedent, a ping timing out, is the sender&#39;s own deadline expiring, which no message records and checks may not compute from timestamps (LIFE-015). The consequence, treating the connection as failed, is at most a `transport-close` lifecycle event, which says that a transport ended and not why; a recording cannot tell a connection dropped for a timeout from one closed at the end of a session.</span></li>
+<li id="2025-11-25-PING-007"><code class="rid">PING-007</code><span class="pill level">SHOULD</span><span class="reason">Logging is local diagnostics with no wire footprint (CANC-024&#39;s boundary): nothing an implementation writes to its own log is a protocol message, so no recording contains it.</span></li>
+<li id="2025-11-25-PROG-012"><code class="rid">PROG-012</code><span class="pill level">SHOULD</span><span class="reason">Whether a message is relevant and human readable is a judgment about its meaning, not its shape; any string satisfies the schema, and no mechanical reading of one decides relevance. The same sentence is PROG-004 at 2026-07-28, excluded for the same reason.</span></li>
+<li id="2025-11-25-PROG-017"><code class="rid">PROG-017</code><span class="pill level">SHOULD</span><span class="reason">Tracking is bookkeeping inside each party, and a recording carries no message that shows a token being tracked or forgotten. Its wire consequences are the MUST rows beside it, which are judged: a token reused while its request is active (PROG-010), a token no request provided and progress for a finished request (PROG-013, PROG-016, PROG-019).</span></li>
+<li id="2025-11-25-PROG-018"><code class="rid">PROG-018</code><span class="pill level">SHOULD</span><span class="reason">A rate is messages per unit of time, and checks may not consult time — the limit LIFE-015 records. No count of notifications alone separates a flood from a long operation reporting often.</span></li>
+<li id="2025-11-25-CANC-022"><code class="rid">CANC-022</code><span class="pill level">SHOULD</span><span class="reason">Ignoring a response is the absence of a reaction inside the sender. A recording would have to carry a message the sender sends because it acted on the late response, and the protocol defines none: nothing a party does with a response it received reaches the wire.</span></li>
+<li id="2025-11-25-CANC-023"><code class="rid">CANC-023</code><span class="pill level">MUST</span><span class="reason">Graceful handling is internal; the race itself is what a recording shows, and the checks are built not to convict it — `cancellation.no-response-after-cancellation` reports an answer to a cancelled request only once the receiver has demonstrably read the cancellation, and the conforming `stdio-cancellation` trace pins the answer that crosses one. A recording would have to carry a message the specification defines as ungraceful handling, and it defines none; a party that failed to handle the race would show it through some other clause&#39;s violation, judged there.</span></li>
+<li id="2025-11-25-CANC-024"><code class="rid">CANC-024</code><span class="pill level">SHOULD</span><span class="reason">Logging is local diagnostics with no wire footprint: nothing an implementation writes to its own log is a protocol message, so no recording contains it.</span></li>
+<li id="2025-11-25-CANC-025"><code class="rid">CANC-025</code><span class="pill level">SHOULD</span><span class="reason">User-interface presentation, out by strategy rule 2: what an application shows its user is not a protocol message, so no recording carries it.</span></li>
+<li id="2025-11-25-CANC-026"><code class="rid">CANC-026</code><span class="pill level">SHOULD</span><span class="reason">Ignoring a notification is the absence of a reaction, which a trace cannot tell apart from the notification never mattering: a recording would have to carry a message the receiver sends because it did not ignore the notification, and the protocol defines none (answering a notification is forbidden anyway, BASE-011). The party that sent the invalid notification is judged instead, where it can be: CANC-018 for a cancellation naming a request its sender never issued in the session, CANC-019 for one naming `initialize`.</span></li>
 <li id="2025-11-25-TOOL-002"><code class="rid">TOOL-002</code><span class="pill level">SHOULD</span><span class="reason">The trigger condition — the tool list actually changing — is server-internal state a recorded trace cannot evidence, so absence of the notification is never proof of violation.</span></li>
 <li id="2025-11-25-TOOL-004"><code class="rid">TOOL-004</code><span class="pill level">MUST</span><span class="reason">How a client weighs annotations is internal trust policy with no wire footprint.</span></li>
 <li id="2025-11-25-TOOL-012"><code class="rid">TOOL-012</code><span class="pill level">MUST</span><span class="reason">Input validation, access control, rate limiting, and output sanitization are server-internal enforcement without a deterministic wire signature. Of the four duties, mcp-everything-server implements and tests input validation (tests/roundtrip.rs: tool_call_with_missing_required_argument_is_a_protocol_error and neighbors); access control beyond the transport-layer Host/Origin gate, rate limiting, and output sanitization are not in its scope — it serves fixed synthetic fixtures to a loopback-only harness.</span></li>

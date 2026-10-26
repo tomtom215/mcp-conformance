@@ -227,15 +227,28 @@ fn an_unjudged_trace_is_a_failed_invocation_located_at_the_trace() {
     .unwrap();
     let invocation = &log["runs"][0]["invocations"][0];
     assert_eq!(invocation["executionSuccessful"], false);
+    // The judged trace's `ping` was never answered, which is a note before
+    // it; the unjudged trace is the error after it.
+    let notifications = invocation["toolExecutionNotifications"].as_array().unwrap();
+    assert_eq!(notifications.len(), 2, "{notifications:#?}");
+    assert_eq!(notifications[0]["level"], "note");
     assert_eq!(
-        invocation["toolExecutionNotifications"],
-        json!([{
+        notifications[0]["properties"]["kind"],
+        "unanswered-requests"
+    );
+    assert_eq!(
+        notifications[0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"],
+        "a.jsonl"
+    );
+    assert_eq!(
+        notifications[1],
+        json!({
             "level": "error",
             "message": { "text": "malformed trace: line 2" },
             "locations": [{
                 "physicalLocation": { "artifactLocation": { "uri": "traces/b%20c.jsonl" } }
             }],
-        }])
+        })
     );
     // The judged trace's results are all still there.
     assert_eq!(log["runs"][0]["results"], judged["runs"][0]["results"]);
@@ -303,4 +316,131 @@ fn an_unsupported_extension_clause_is_a_notification() {
              future.check"
         )]
     );
+}
+
+/// A session whose client reuses id 1 (BASE-003, the client's) and whose
+/// server answers `initialize` without `serverInfo` (LIFE-010, the server's).
+const TWO_PARTIES: &str = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"0"}}}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{}}}}
+{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}
+{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"ping"}}
+{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{}}}"#;
+
+/// The clause a request before `initialize` breaks binds the client.
+#[test]
+fn a_rule_the_client_binds_names_the_client() {
+    let registry = Registry::builtin_2025_11_25().unwrap();
+    let early = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}}"#;
+    let early_events = parse_trace(early, &Limits::default()).unwrap();
+    let early_report = crate::engine::validate(&registry, &early_events);
+    let early_log = log(
+        core::slice::from_ref(&early_report),
+        Some("t.jsonl"),
+        &early_events,
+    );
+    let early_rules = early_log["runs"][0]["tool"]["driver"]["rules"]
+        .as_array()
+        .unwrap();
+    let early_rule = early_rules
+        .iter()
+        .find(|rule| rule["id"] == "LIFE-001")
+        .unwrap();
+    assert_eq!(early_rule["properties"]["actor"], "client");
+}
+
+#[test]
+fn rules_name_their_actor_and_results_their_party() {
+    let registry = Registry::builtin_2025_11_25().unwrap();
+    let events = parse_trace(TWO_PARTIES, &Limits::default()).unwrap();
+    let mut report = crate::engine::validate(&registry, &events);
+    let plain = log(core::slice::from_ref(&report), Some("t.jsonl"), &events);
+    let rules = plain["runs"][0]["tool"]["driver"]["rules"]
+        .as_array()
+        .unwrap();
+    let rule = |id: &str| rules.iter().find(|rule| rule["id"] == id).unwrap();
+    assert_eq!(rule("BASE-003")["properties"]["actor"], "both");
+    assert_eq!(rule("LIFE-010")["properties"]["actor"], "server");
+    // The schema is no clause and binds no actor.
+    assert!(rule("wire-schema")["properties"].get("actor").is_none());
+    let results = plain["runs"][0]["results"].as_array().unwrap();
+    let result = |id: &str| {
+        results
+            .iter()
+            .find(|result| result["ruleId"] == id)
+            .unwrap()
+    };
+    assert_eq!(result("BASE-003")["properties"]["party"], "client");
+    assert_eq!(result("BASE-003")["level"], "error");
+    assert_eq!(result("LIFE-010")["properties"]["party"], "server");
+    assert!(result("BASE-003")["properties"].get("counted").is_none());
+    assert!(plain["runs"][0]["properties"].get("party_view").is_none());
+
+    // Viewed for the server: the client's result is a note that did not count.
+    report.party_view = Some(crate::report::Party::Server);
+    let viewed = log(core::slice::from_ref(&report), Some("t.jsonl"), &events);
+    assert_eq!(viewed["runs"][0]["properties"]["party_view"], "server");
+    let results = viewed["runs"][0]["results"].as_array().unwrap();
+    let result = |id: &str| {
+        results
+            .iter()
+            .find(|result| result["ruleId"] == id)
+            .unwrap()
+    };
+    assert_eq!(result("BASE-003")["level"], "note");
+    assert_eq!(result("BASE-003")["properties"]["counted"], false);
+    assert_eq!(result("LIFE-010")["level"], "error");
+    assert_eq!(result("LIFE-010")["properties"]["counted"], true);
+    // Strict does not promote a set-aside finding.
+    let strict: Value = serde_json::from_str(&render_with(
+        core::slice::from_ref(&report),
+        Artifact {
+            uri: None,
+            events: &events,
+        },
+        &Options::default().strict(true),
+    ))
+    .unwrap();
+    let results = strict["runs"][0]["results"].as_array().unwrap();
+    let result = |id: &str| {
+        results
+            .iter()
+            .find(|result| result["ruleId"] == id)
+            .unwrap()
+    };
+    assert_eq!(result("BASE-003")["level"], "note");
+}
+
+#[test]
+fn a_run_of_reports_under_different_views_names_no_view() {
+    let registry = Registry::builtin_2025_11_25().unwrap();
+    let events = parse_trace(TWO_PARTIES, &Limits::default()).unwrap();
+    let server = {
+        let mut report = crate::engine::validate(&registry, &events);
+        report.party_view = Some(crate::report::Party::Server);
+        report
+    };
+    let plain = crate::engine::validate(&registry, &events);
+    let artifact = Artifact {
+        uri: Some("t.jsonl"),
+        events: &events,
+    };
+    let mixed: Value = serde_json::from_str(&render_traces(
+        &[
+            (artifact, core::slice::from_ref(&server)),
+            (artifact, core::slice::from_ref(&plain)),
+        ],
+        &Options::default(),
+    ))
+    .unwrap();
+    assert!(mixed["runs"][0]["properties"].get("party_view").is_none());
+    let same: Value = serde_json::from_str(&render_traces(
+        &[
+            (artifact, core::slice::from_ref(&server)),
+            (artifact, core::slice::from_ref(&server)),
+        ],
+        &Options::default(),
+    ))
+    .unwrap();
+    assert_eq!(same["runs"][0]["properties"]["party_view"], "server");
 }

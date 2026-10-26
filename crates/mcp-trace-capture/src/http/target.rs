@@ -89,21 +89,58 @@ fn proxy_path<'a>(upstream: &str, path: &'a str) -> Option<&'a str> {
     (rest.starts_with('/') && rest != "/").then_some(rest)
 }
 
-/// Whether `path` has a `.` or `..` segment — spelled out, or with its dots
-/// percent-encoded (`%2e`), or between encoded separators (`%2f`, and `\` or
-/// `%5c`, which some servers also split on). Appended to the upstream's path,
-/// such a segment would leave it once the server resolves it: `/../secret`
-/// against `http://h/mcp` is `/mcp/../secret`, which is `/secret`.
-pub(super) fn has_dot_segment(path: &str) -> bool {
-    let mut decoded = path.to_owned();
-    for (encoded, plain) in [("%2e", "."), ("%2f", "/"), ("%5c", "\\")] {
-        for spelling in [encoded.to_owned(), encoded.to_ascii_uppercase()] {
-            decoded = decoded.replace(&spelling, plain);
+/// Whether the proxy refuses to forward `path`: once percent-decoded as bytes
+/// it is not UTF-8, or a segment of it — between `/` or `\`, which some
+/// servers also split on, and shorn of any `;parameters`, which some strip
+/// before resolving — is `.` or `..`. Appended to the upstream's path, such a
+/// segment would leave it once the server resolves it: `/../secret` against
+/// `http://h/mcp` is `/mcp/../secret`, which is `/secret`. A path that is not
+/// UTF-8 once decoded is refused because what a server makes of it is the
+/// server's — some make a dot of an overlong `%c0%ae` — and no MCP endpoint
+/// is named that way. A `%` that encodes nothing stays a literal `%`, and a
+/// doubly encoded dot (`%252e`) decodes to the name `%2e`, which is forwarded
+/// as any other name: the proxy decodes once, as the server will.
+pub(super) fn is_refused_path(path: &str) -> bool {
+    let Ok(decoded) = String::from_utf8(percent_decoded(path.as_bytes())) else {
+        return true;
+    };
+    decoded.split(['/', '\\']).any(|segment| {
+        let name = segment.split(';').next().unwrap_or_default();
+        name == "." || name == ".."
+    })
+}
+
+/// `bytes` with every `%XX` (hex digits of either case) replaced by its byte.
+pub(super) fn percent_decoded(bytes: &[u8]) -> Vec<u8> {
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut rest = bytes;
+    while let Some((&byte, after)) = rest.split_first() {
+        if byte == b'%'
+            && let Some(value) = after.get(..2).and_then(hex_pair)
+        {
+            decoded.push(value);
+            rest = &after[2..];
+        } else {
+            decoded.push(byte);
+            rest = after;
         }
     }
     decoded
-        .split(['/', '\\'])
-        .any(|segment| segment == "." || segment == "..")
+}
+
+/// The byte two hex digits spell.
+fn hex_pair(digits: &[u8]) -> Option<u8> {
+    let &[high, low] = digits else { return None };
+    Some((hex(high)? << 4) | hex(low)?)
+}
+
+const fn hex(digit: u8) -> Option<u8> {
+    match digit {
+        b'0'..=b'9' => Some(digit - b'0'),
+        b'a'..=b'f' => Some(digit - b'a' + 10),
+        b'A'..=b'F' => Some(digit - b'A' + 10),
+        _ => None,
+    }
 }
 
 pub(super) fn is_event_stream(headers: &HeaderMap) -> bool {

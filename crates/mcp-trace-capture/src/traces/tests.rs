@@ -310,6 +310,75 @@ fn closing_writes_the_close_event_to_every_trace() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+/// A session's events are written through the handle that created its file,
+/// never by looking its path up again: a symbolic link planted at that path
+/// after the first event is not followed. (Each write used to reopen the path
+/// for appending, so a link planted between two events sent the rest of the
+/// trace wherever it pointed.) The file itself, renamed aside, gets the event.
+#[test]
+fn a_link_planted_at_a_sessions_path_is_not_followed() {
+    use std::io::Read as _;
+    let dir = scratch("planted-link");
+    let traces = per_session(&dir);
+    let route = traces.route(None, Some(INITIALIZE));
+    record(&route);
+    let path = dir.join("001.jsonl");
+    let aside = dir.join("aside.jsonl");
+    let decoy = dir.join("decoy");
+    std::fs::write(&decoy, "decoy\n").unwrap();
+    // A second handle on the file the session created: the same inode, whatever
+    // its name becomes.
+    let mut created = std::fs::File::open(&path).unwrap();
+    std::fs::rename(&path, &aside).unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&decoy, &path).unwrap();
+    #[cfg(not(unix))]
+    std::fs::write(&path, "planted\n").unwrap();
+    record(&route);
+    assert_eq!(
+        std::fs::read_to_string(&decoy).unwrap(),
+        "decoy\n",
+        "the decoy is untouched"
+    );
+    #[cfg(not(unix))]
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "planted\n");
+    let mut through_handle = String::new();
+    created.read_to_string(&mut through_handle).unwrap();
+    assert_eq!(
+        through_handle.lines().count(),
+        2,
+        "both events went to the inode the session created: {through_handle}"
+    );
+    assert_eq!(seqs(&aside), [0, 1]);
+    let finished = traces.finish();
+    assert!(finished[0].summary.is_complete());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// A session's file removed during the session fails its next write, and the
+/// trace is reported incomplete — rather than written on into a file nothing
+/// can read back.
+#[test]
+fn a_sessions_file_removed_during_the_session_fails_its_next_write() {
+    let dir = scratch("removed");
+    let traces = per_session(&dir);
+    let route = traces.route(None, Some(INITIALIZE));
+    record(&route);
+    std::fs::remove_file(dir.join("001.jsonl")).unwrap();
+    let refused = route.recorder().record(
+        Direction::ClientToServer,
+        TransportKind::StreamableHttp,
+        EventBody::Lifecycle {
+            event: LifecycleEvent::TransportOpen,
+        },
+    );
+    assert_eq!(refused, Err(crate::NotRecorded::SinkFailed));
+    let finished = traces.finish();
+    let error = finished[0].summary.error.as_ref().unwrap();
+    assert_eq!(error.kind(), io::ErrorKind::NotFound, "{error}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 #[test]
 fn a_file_that_cannot_be_created_makes_that_trace_incomplete_not_the_proxy_fail() {
     let dir = scratch("uncreatable");

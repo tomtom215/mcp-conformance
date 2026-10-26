@@ -17,20 +17,25 @@ use serde_json::{Value, json};
 use super::*;
 use crate::live::{Ending, Exchange, LiveFinding};
 
-const TRACE: [u8; 16] = [
+pub(super) const TRACE: [u8; 16] = [
     0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36,
 ];
-const SPAN: [u8; 8] = [0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7];
+pub(super) const SPAN: [u8; 8] = [0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7];
 
-fn at(millis: u64) -> SystemTime {
+pub(super) fn at(millis: u64) -> SystemTime {
     UNIX_EPOCH + Duration::from_millis(1_700_000_000_000 + millis)
 }
 
-fn exchange(method: &str, id: Option<&str>) -> Exchange {
+pub(super) fn exchange(method: &str, id: Option<&str>) -> Exchange {
+    exchange_with(method, id, r#"{"name":"echo","uri":"file:///r"}"#)
+}
+
+/// An exchange whose request carries `params` (JSON text).
+pub(super) fn exchange_with(method: &str, id: Option<&str>, params: &str) -> Exchange {
     let mut live = crate::live::Live::new().unwrap();
     let id_member = id.map_or_else(String::new, |id| format!(r#","id":{id}"#));
     let request = format!(
-        r#"{{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{{"jsonrpc":"2.0"{id_member},"method":"{method}","params":{{"name":"echo","uri":"file:///r"}}}}}}"#
+        r#"{{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{{"jsonrpc":"2.0"{id_member},"method":"{method}","params":{params}}}}}"#
     );
     let pushed = live.push(request.as_bytes(), at(0));
     if id.is_none() {
@@ -46,12 +51,12 @@ fn exchange(method: &str, id: Option<&str>) -> Exchange {
         .unwrap()
 }
 
-fn encoded(span: &Span) -> Value {
+pub(super) fn encoded(span: &Span) -> Value {
     serde_json::to_value(span).unwrap()
 }
 
 /// The attribute `key`'s `AnyValue`, which must appear once.
-fn attribute(span: &Value, key: &str) -> Option<Value> {
+pub(super) fn attribute(span: &Value, key: &str) -> Option<Value> {
     let matching: Vec<&Value> = span["attributes"]
         .as_array()
         .unwrap()
@@ -195,7 +200,8 @@ fn errors_set_the_error_attributes_and_an_error_status() {
     );
     assert_eq!(
         span["status"],
-        json!({"code": 2, "message": "Unknown tool"})
+        json!({"code": 2, "message": "JSON-RPC error -32602 (invalid params)"}),
+        "the code and a fixed description, never the server's text"
     );
 
     failed.ending = Ending::Answered {
@@ -208,7 +214,10 @@ fn errors_set_the_error_attributes_and_an_error_status() {
         Some(json!({"stringValue": "_OTHER"}))
     );
     assert_eq!(attribute(&span, "rpc.response.status_code"), None);
-    assert_eq!(span["status"], json!({"code": 2}));
+    assert_eq!(
+        span["status"],
+        json!({"code": 2, "message": "JSON-RPC error without a code"})
+    );
 
     failed.ending = Ending::Answered {
         error: None,
@@ -284,7 +293,7 @@ fn an_http_exchange_names_its_transport_and_for_a_client_request_its_server() {
     );
 }
 
-fn finding(seq: Option<u64>) -> LiveFinding {
+pub(super) fn finding(seq: Option<u64>) -> LiveFinding {
     let mut live = crate::live::Live::new().unwrap();
     // A tool name outside the allowed characters: TOOL-006, at seq 4.
     for line in [

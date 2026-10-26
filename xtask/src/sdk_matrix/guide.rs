@@ -8,9 +8,9 @@
 //! the script the scheduled job runs. Inclusion keeps the two from drifting
 //! only while both ends still point at each other, so this holds the links:
 //! every anchor the guide includes exists in the script, the guide includes
-//! the TypeScript and Python sections (roadmap item 1.7 is those two guides),
-//! and the scheduled workflow still runs `setup.sh`, `matrix.sh` and the
-//! comparison.
+//! the TypeScript (both lines) and Python sections (roadmap item 1.7 is those
+//! guides), and the scheduled workflow still runs `setup.sh`, `matrix.sh` and
+//! the comparison.
 
 use std::fs;
 use std::path::Path;
@@ -24,9 +24,9 @@ const SCRIPT: &str = "interop/matrix.sh";
 /// The workflow carrying the scheduled job.
 const WORKFLOW: &str = ".github/workflows/scheduled.yml";
 
-/// The anchors the guide must include: the recording function and the two
-/// SDKs the worked guides cover.
-const REQUIRED: [&str; 3] = ["record", "typescript", "python"];
+/// The anchors the guide must include: the recording function and the SDKs
+/// the worked guides cover (the TypeScript SDK's two lines, and Python).
+const REQUIRED: [&str; 4] = ["record", "typescript", "typescript-v2", "python"];
 
 /// What the scheduled job must run, verbatim.
 const JOB_RUNS: [&str; 3] = [
@@ -89,6 +89,7 @@ mod tests {
 
     const SCRIPT_TEXT: &str = "# ANCHOR: record\nx\n# ANCHOR_END: record\n\
         # ANCHOR: typescript\ny\n# ANCHOR_END: typescript\n\
+        # ANCHOR: typescript-v2\nw\n# ANCHOR_END: typescript-v2\n\
         # ANCHOR: python\nz\n# ANCHOR_END: python\n";
     const WORKFLOW_TEXT: &str =
         "./setup.sh\n./matrix.sh\ncargo xtask sdk-matrix --recaptured interop/out-matrix\n";
@@ -105,7 +106,7 @@ mod tests {
 
     #[test]
     fn agreeing_files_raise_nothing() {
-        let guide = guide(&["record", "typescript", "python"]);
+        let guide = guide(&["record", "typescript", "typescript-v2", "python"]);
         assert_eq!(
             problems(&guide, SCRIPT_TEXT, WORKFLOW_TEXT),
             Vec::<String>::new()
@@ -118,6 +119,11 @@ mod tests {
         let found = problems(&guide, SCRIPT_TEXT, "./setup.sh\n");
         assert!(found.iter().any(|problem| problem.contains("`kotlin`")));
         assert!(found.iter().any(|problem| problem.contains("`python`")));
+        assert!(
+            found
+                .iter()
+                .any(|problem| problem.contains("`typescript-v2`"))
+        );
         assert!(found.iter().any(|problem| problem.contains("./matrix.sh")));
     }
 

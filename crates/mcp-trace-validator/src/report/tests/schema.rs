@@ -13,6 +13,7 @@ fn schema(outcome: Outcome) -> WireSchemaReport {
         vec![Finding {
             check: "wire-schema".to_owned(),
             seq: Some(4),
+            party: Some(Party::Client),
             detail: "not a valid JSONRPCRequest".to_owned(),
         }]
     } else {
@@ -37,7 +38,7 @@ fn schema(outcome: Outcome) -> WireSchemaReport {
 
 fn row_of(outcome: Outcome, all: bool) -> String {
     let mut out = String::new();
-    schema(outcome).write_human(&mut out, &HumanOptions::default().all(all), None);
+    schema(outcome).write_human(&mut out, &HumanOptions::default().all(all), None, None);
     out
 }
 
@@ -57,7 +58,7 @@ fn each_schema_outcome_has_its_own_summary() {
 #[test]
 fn a_failed_schema_row_names_its_finding_clause_and_schema() {
     let expected = "  FAIL  wire schema — fail (1 of 3 messages invalid)\n        \
-                    seq 4: not a valid JSONRPCRequest\n        \
+                    [client] seq 4: not a valid JSONRPCRequest\n        \
                     spec: \"the source of truth\"\n        \
                     see:  https://example.test/basic#schema\n        \
                     schema: https://example.test/schema.json\n";

@@ -92,6 +92,27 @@
       }
     },
     {
+      "trace": "good/stdio-cancellation",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 1,
+          "deprecated": 1,
+          "duplicate": 1,
+          "late-result": 1
+        }
+      }
+    },
+    {
       "trace": "good/stdio-client-features",
       "revision": "2025-11-25",
       "transport": "stdio",
@@ -152,6 +173,121 @@
       "revision": "2025-11-25",
       "transport": "stdio",
       "frames": 4,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "good/stdio-progress",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 20,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "good/stdio-request-unanswered-at-close",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 1
+        }
+      }
+    },
+    {
+      "trace": "good/stdio-requests-partly-unanswered",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "pending": 2
+        }
+      }
+    },
+    {
+      "trace": "good/stdio-server-negotiates-2024-11-05",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "good/stdio-task-progress",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 16,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "progress notification for token \"deploy-1\" arrived after its request completed, and 2026-07-28 requires them to stop"
+          },
+          {
+            "signal": "warn",
+            "seq": 10,
+            "framed": true,
+            "message": "progress notification for token \"deploy-1\" arrived after its request completed, and 2026-07-28 requires them to stop"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "good/stdio-tool-image-base64-padding",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
       "unframed": 0,
       "ours": {
         "verdict": "pass",
@@ -352,7 +488,8 @@
       "ours": {
         "verdict": "fail",
         "flagged": [
-          "BASE-004"
+          "BASE-004",
+          "PING-001"
         ]
       },
       "mcpsnoop": {
@@ -607,6 +744,83 @@
         "other": {
           "annotations": 1,
           "schema": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/canc-018-cancellation-of-unknown-request",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CANC-018"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/canc-019-initialize-cancelled",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CANC-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "late-result": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/canc-020-task-cancelled-by-notification",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "CANC-020"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/canc-021-response-after-cancellation-read",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "CANC-021"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 1,
+          "late-result": 1
         }
       }
     },
@@ -1078,6 +1292,184 @@
       }
     },
     {
+      "trace": "violations/ping-001-ping-answered-with-content",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PING-001"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-009-progress-token-float",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-009",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-010-progress-token-reused-in-flight",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-010"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-011-progress-value-decreases",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "progress for token \"job-1\" went from 50 to 10, and 2026-07-28 requires it to increase with each notification"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-013-progress-token-never-issued",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-013"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-015-task-progress-token-differs",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-013",
+          "PROG-014",
+          "PROG-015"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-016-task-progress-after-terminal-status",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 10,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-013",
+          "PROG-016",
+          "PROG-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "progress notification for token \"deploy-1\" arrived after its request completed, and 2026-07-28 requires them to stop"
+          },
+          {
+            "signal": "warn",
+            "seq": 8,
+            "framed": true,
+            "message": "progress notification for token \"deploy-1\" arrived after its request completed, and 2026-07-28 requires them to stop"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
+      "trace": "violations/prog-019-progress-after-completion",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PROG-013",
+          "PROG-016",
+          "PROG-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 6,
+            "framed": true,
+            "message": "progress notification for token \"t1\" arrived after its request completed, and 2026-07-28 requires them to stop"
+          }
+        ],
+        "other": {}
+      }
+    },
+    {
       "trace": "violations/prom-001-capability-undeclared",
       "revision": "2025-11-25",
       "transport": "stdio",
@@ -1105,7 +1497,8 @@
       "ours": {
         "verdict": "fail",
         "flagged": [
-          "PROM-003"
+          "PROM-003",
+          "wire-schema"
         ]
       },
       "mcpsnoop": {
@@ -1123,7 +1516,8 @@
       "ours": {
         "verdict": "fail",
         "flagged": [
-          "PROM-004"
+          "PROM-004",
+          "wire-schema"
         ]
       },
       "mcpsnoop": {
@@ -1215,7 +1609,8 @@
       "ours": {
         "verdict": "fail",
         "flagged": [
-          "RES-006"
+          "RES-006",
+          "wire-schema"
         ]
       },
       "mcpsnoop": {
@@ -2092,6 +2487,24 @@
       }
     },
     {
+      "trace": "violations/wire-schema-tool-image-data-not-base64",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
       "trace": "draft/good/caching-ttl-written-as-float",
       "revision": "2026-07-28",
       "transport": "stdio",
@@ -2746,6 +3159,32 @@
         "other": {
           "error": 3
         }
+      }
+    },
+    {
+      "trace": "draft/violations/base-030-legacy-initialize-negotiated-2026-07-28",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-030",
+          "COMP-006",
+          "DISC-002",
+          "MRTR-002",
+          "PAGE-006",
+          "PROM-011",
+          "RES-011",
+          "TOOL-016",
+          "TRAN-128"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
       }
     },
     {
@@ -5177,6 +5616,24 @@
       }
     },
     {
+      "trace": "draft/violations/skill-100-directory-result-without-cache-fields",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": [
+          "SKILL-100"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
       "trace": "draft/violations/subs-001-cancelled-for-another-request",
       "revision": "2026-07-28",
       "transport": "stdio",
@@ -7442,6 +7899,24 @@
       }
     },
     {
+      "trace": "draft/violations/wire-schema-tool-image-data-not-base64",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
       "trace": "draft/captured/official-suite-2026-07-28-scenarios",
       "revision": "2026-07-28",
       "transport": "http",
@@ -7675,6 +8150,26 @@
           "annotations": 35,
           "error": 1,
           "schema": 4
+        }
+      }
+    },
+    {
+      "trace": "draft/captured/sdk-typescript-v2-2026-07-28",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 15,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "annotations": 28,
+          "error": 1,
+          "schema": 3
         }
       }
     }

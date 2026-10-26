@@ -172,11 +172,11 @@ pub(super) fn verdict(out: &mut String, scope: &Scope<'_>) {
                 out,
                 "<section class=\"revision v-{}\" aria-label=\"Revision {}\">\n<p class=\"revision-line\">\
                  <span class=\"revision-name\">{}</span>",
-                verdict_class(report.verdict()),
+                verdict_class(report.effective_verdict()),
                 Text(&report.revision),
                 Text(&report.revision)
             );
-            badge(out, report.verdict());
+            badge(out, report.effective_verdict());
             let _ = writeln!(out, "</p>\n<p class=\"verdict-why\">{}</p>", why(report));
             tally(out, &report.totals);
             schema_line(out, report);
@@ -187,8 +187,22 @@ pub(super) fn verdict(out: &mut String, scope: &Scope<'_>) {
     out.push_str("</section>\n");
 }
 
-/// Why the report reached its verdict, in a sentence.
+/// Why the report reached its verdict, in a sentence — and, under a party
+/// view, what the view set aside or counted unattributed.
 fn why(report: &Report) -> String {
+    let mut sentence = causes(report);
+    if let Some(party) = report.party_view {
+        let _ = write!(sentence, "; {party} findings only");
+        let what = report.party_tally(party).describe(party);
+        if !what.is_empty() {
+            let _ = write!(sentence, " ({what})");
+        }
+    }
+    sentence
+}
+
+/// What the rows and the schema say: the counts behind the trace's verdict.
+fn causes(report: &Report) -> String {
     let totals = report.totals;
     let mut parts = Vec::new();
     if totals.fail > 0 {
@@ -285,6 +299,41 @@ pub(super) fn mismatch_notes(out: &mut String, scope: &Scope<'_>) {
             Text(suggestion)
         );
     }
+}
+
+/// The note for the requests the trace ended without answering: once, since
+/// every revision's report of one trace carries the same one.
+pub(super) fn unanswered_note(out: &mut String, scope: &Scope<'_>) {
+    let Some(unanswered) = scope
+        .reports
+        .iter()
+        .find_map(|report| report.unanswered_requests.as_ref())
+    else {
+        return;
+    };
+    let _ = write!(
+        out,
+        "<aside class=\"note\" role=\"note\"><strong>{}.</strong> {}<ul class=\"unanswered\">",
+        Text(&unanswered.summary()),
+        Text(crate::report::UNANSWERED_WHY)
+    );
+    for request in &unanswered.requests {
+        let _ = write!(
+            out,
+            "<li><a href=\"#{}\">seq {}</a> {} <code>{}</code> id <code>{}</code></li>",
+            scope.event(request.seq),
+            request.seq,
+            request.sender,
+            Text(&request.method),
+            Text(&serde_json::to_string(&request.id).unwrap_or_default())
+        );
+    }
+    out.push_str("</ul>");
+    let rest = unanswered.unlisted();
+    if rest > 0 {
+        let _ = write!(out, "<p>… and {rest} more.</p>");
+    }
+    out.push_str("</aside>\n");
 }
 
 /// The section links under the verdict.

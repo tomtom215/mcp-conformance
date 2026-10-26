@@ -11,7 +11,7 @@
       "extension": "io.modelcontextprotocol/skills",
       "source": {
         "section": "specification/stable/skills.mdx",
-        "quote": "For brevity, request examples omit `_meta`. Every request MUST include the required request metadata."
+        "quote": "Every request MUST include the required request metadata in `params._meta`."
       },
       "exclusion": "Restates the core rule the revision's own registry judges on every request (BASE-030, `meta.required-request-fields`). Judged there once, it is not judged again here, where a request missing its metadata would read as a skills defect in a session that never touched the extension."
     },
