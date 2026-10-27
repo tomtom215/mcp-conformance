@@ -80,7 +80,7 @@ jobs:
         # "$RUSTUP_TOOLCHAIN" as an (empty) PowerShell variable.
         shell: bash
         run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component clippy --no-self-update
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Clippy (default features)
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Clippy (no default features)
@@ -102,7 +102,7 @@ jobs:
           persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Install cargo-hack
         run: cargo install cargo-hack --version 0.6.45 --locked
       - name: Check every crate with each feature on its own
@@ -127,7 +127,7 @@ jobs:
         # bash on every OS, for the reason given in the clippy job.
         shell: bash
         run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Test (default features)
         run: cargo test --workspace
       - name: Test (no default features)
@@ -148,7 +148,7 @@ jobs:
           persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Fetch the SARIF 2.1.0 schema (pinned by hash)
         run: |
           curl -sSfL --retry 3 -o "$RUNNER_TEMP/sarif-schema-2.1.0.json" \
@@ -166,7 +166,7 @@ jobs:
           persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Build docs (zero warnings)
         run: cargo doc --workspace --no-deps
       # Feature-gated modules (the everything-server's `tap`) carry rustdoc the
@@ -199,7 +199,7 @@ jobs:
           fetch-tags: true
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Install mdBook
         # Built from source under --locked rather than via a third-party setup
         # action: one fewer supply-chain dependency, the same discipline as the
@@ -234,7 +234,7 @@ jobs:
           persist-credentials: false
       - name: Install toolchain
         run: rustup toolchain install nightly --profile minimal --no-self-update
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: fuzz
       - name: Install cargo-fuzz
@@ -284,7 +284,7 @@ jobs:
           persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       # `--workspace` resolves path+version deps against sibling crates rather than
       # crates.io, which is what pre-publish validation needs. xtask is publish=false
       # but `cargo package --workspace` still packages it (v0.1.0 shipped a stray
@@ -332,7 +332,7 @@ jobs:
           persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Install cargo-semver-checks
         # The version release.yml installs, so a PR and its release are judged
         # by the same tool.
@@ -359,7 +359,7 @@ jobs:
         run: |
           rustup show active-toolchain
           rustup component add llvm-tools
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov --version 0.9.1 --locked
       - name: Run the tests under coverage
@@ -404,7 +404,7 @@ jobs:
         # a directory override and outranks the default, so a job that wants a
         # different toolchain has to say so in the environment.
         run: rustup toolchain install nightly --profile minimal --no-self-update
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Test (all features, nightly)
         run: cargo test --workspace --all-features
 
@@ -427,7 +427,7 @@ jobs:
           # rust-toolchain.toml installs; `cargo +nightly` overrides it where the
           # unstable flag is needed.
           rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Resolve minimal versions
         run: cargo +nightly generate-lockfile -Zminimal-versions
       - name: Test against minimum dependency versions
@@ -469,7 +469,7 @@ jobs:
           persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Runner prerequisites (Node is preinstalled on the runner image)
         run: node --version && npx --version
       - name: Official suite vs everything-server
@@ -513,7 +513,7 @@ jobs:
           fc-match "DejaVu Sans" && fc-match "DejaVu Sans Mono"
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Build the workbench the specs serve
         run: cargo build --locked -p mcp-conformance-cli
       - name: Install the pinned Playwright and its Chromium (Node is preinstalled on the runner image)
@@ -555,7 +555,7 @@ jobs:
           persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Build the recorder and the validator
         run: cargo build --locked -p mcp-trace-capture -p mcp-trace-validator
       - name: Install the pinned SDKs (Node and Python are preinstalled on the runner image)
@@ -601,7 +601,7 @@ jobs:
           persist-credentials: false
       - name: Show the pinned toolchain (installs it from rust-toolchain.toml)
         run: rustup show active-toolchain
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Build the replay test first, so the collector waits for nothing
         run: cargo test --locked -p mcp-conformance-cli --test cli --no-run
       - name: Start the pinned collector
@@ -705,7 +705,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       # `./`, not the newer `$/` self-repository form zizmor suggests: the
       # pinned actionlint (1.7.12) rejects `$/`, and this job's point is to run
       # the action.yml of the commit under test, which `./` names exactly.
@@ -924,7 +924,7 @@ jobs:
       - name: Install the musl C toolchain (ring compiles C)
         if: contains(matrix.target, 'musl')
         run: sudo apt-get update && sudo apt-get install -y musl-tools
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           key: ${{ matrix.target }}
       - name: Build the three CLIs as release.yml does
