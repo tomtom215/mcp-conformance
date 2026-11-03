@@ -66,7 +66,7 @@ tokio = { workspace = true, features = ["time"] }
 # resolve until this bound moves with it — loudly, not silently. Still
 # needed at rust-sdk 3.7.0, which declares the macro crate with a caret.
 # Upstream: register row 3.13.
-rmcp-macros = ">=3.7.0, <3.8.0"
+rmcp-macros = ">=3.7.0, <3.9.0"
 
 # Minimal-versions floor shims: direct declarations whose only job is to
 # repair under-specified floors in third-party manifests so
