@@ -93,7 +93,7 @@ jobs:
       # push access that could edit this workflow outright. The jobs whose
       # output is signed or published (`package`, `binaries`, `publish`) do
       # not restore a cache at all.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 # zizmor: ignore[cache-poisoning]
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.2 # zizmor: ignore[cache-poisoning]
       - name: Tag, workspace version, and changelog agree
         id: meta
         shell: bash
@@ -212,7 +212,7 @@ jobs:
         run: |
           rustup show active-toolchain
       # Cached for the reason given in `verify`: gates only, no artifact.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 # zizmor: ignore[cache-poisoning]
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.2 # zizmor: ignore[cache-poisoning]
       - name: Test (all features)
         run: cargo test --workspace --all-features
 
@@ -723,7 +723,7 @@ jobs:
         # This 30-minute OIDC-minted token is the only credential this workflow
         # can publish with — there is no token fallback (ADR-0007 §Correction).
         id: oidc
-        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+        uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
       - name: Publish in dependency order (idempotent, resumable)
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.oidc.outputs.token }}
@@ -999,7 +999,7 @@ jobs:
           count="$(find dist -name '*.whl' | wc -l)"
           [[ "$count" -eq 5 ]] || { echo "::error::${count} wheels, expected 5"; exit 1; }
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           packages-dir: dist/
           skip-existing: true
