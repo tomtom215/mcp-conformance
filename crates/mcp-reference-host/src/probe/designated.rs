@@ -34,6 +34,13 @@ const LISTING: &str = "TRAN-136 (setup)";
 /// The probe's own fault, in the run record.
 const FAULT: &str = "a designated argument sent without its Mcp-Param header";
 
+/// The most of one response body the probe reads. What it looks for is a
+/// JSON-RPC message or a short error page; a server that keeps sending is not
+/// answering the probe, and reading it to the end would let that server choose
+/// how much memory the host uses (the request's own 10-second timeout bounds
+/// time, not bytes: measured, a loopback server fills a gigabyte in a second).
+const MAX_BODY: usize = 1024 * 1024;
+
 /// Lists the server's tools, then calls one with a designated header omitted.
 pub(super) async fn run(client: &reqwest::Client, url: &str) -> Vec<ProbeOutcome> {
     let mut outcomes = Vec::new();
@@ -198,8 +205,29 @@ async fn post(
         Err(error) => return (Err(error.to_string()), None),
     };
     let status = response.status().as_u16();
-    let text = response.text().await.unwrap_or_default();
+    let text = read_capped(response, MAX_BODY).await;
     (Ok(status), message_in(&text))
+}
+
+/// Up to `max` bytes of `response`'s body as text, then stops reading: what
+/// arrives past `max` is never buffered. A body that fails partway yields what
+/// had arrived, as the probe only looks for a message in it.
+async fn read_capped(mut response: reqwest::Response, max: usize) -> String {
+    let mut body = Vec::new();
+    while let Ok(Some(chunk)) = response.chunk().await {
+        if fill(&mut body, &chunk, max) {
+            break;
+        }
+    }
+    String::from_utf8_lossy(&body).into_owned()
+}
+
+/// Appends as much of `chunk` to `body` as fits under `max` bytes, and says
+/// whether `body` is now full (so no further chunk is wanted).
+fn fill(body: &mut Vec<u8>, chunk: &[u8], max: usize) -> bool {
+    let room = max.saturating_sub(body.len());
+    body.extend_from_slice(&chunk[..chunk.len().min(room)]);
+    body.len() >= max
 }
 
 /// The JSON-RPC message in a response body: the `data:` line of a one-event
@@ -218,6 +246,51 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    /// A response holding `body`, without a network.
+    fn response(body: &[u8]) -> reqwest::Response {
+        reqwest::Response::from(http::Response::new(body.to_vec()))
+    }
+
+    #[test]
+    fn a_chunk_that_fits_is_taken_whole_and_the_body_is_not_yet_full() {
+        let mut body = b"ab".to_vec();
+        assert!(!fill(&mut body, b"cd", 5));
+        assert_eq!(body, b"abcd");
+    }
+
+    #[test]
+    fn a_chunk_that_exactly_fills_the_cap_says_so() {
+        let mut body = b"ab".to_vec();
+        assert!(fill(&mut body, b"cde", 5));
+        assert_eq!(body, b"abcde");
+    }
+
+    #[test]
+    fn a_chunk_past_the_cap_is_cut_at_it_and_the_rest_is_dropped() {
+        let mut body = b"ab".to_vec();
+        assert!(fill(&mut body, b"cdefghij", 5));
+        assert_eq!(body, b"abcde");
+        // Already full: nothing more is taken, and it still says full.
+        assert!(fill(&mut body, b"zz", 5));
+        assert_eq!(body, b"abcde");
+    }
+
+    #[tokio::test]
+    async fn a_body_over_the_cap_is_read_only_up_to_it() {
+        let text = read_capped(response(&[b'x'; 4096]), 1024).await;
+        assert_eq!(text.len(), 1024);
+    }
+
+    #[tokio::test]
+    async fn a_message_under_the_cap_is_read_whole_and_found() {
+        let body = br#"{"jsonrpc":"2.0","id":1,"result":{}}"#;
+        let text = read_capped(response(body), 1024).await;
+        assert_eq!(
+            message_in(&text),
+            Some(json!({"jsonrpc": "2.0", "id": 1, "result": {}}))
+        );
+    }
 
     #[test]
     fn the_first_required_designation_is_the_one_left_out() {

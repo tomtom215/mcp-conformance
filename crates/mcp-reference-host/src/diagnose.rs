@@ -18,11 +18,13 @@
 //! declaring it a source, so the chain stops at them; those two are downcast
 //! by their concrete type and unwrapped by hand.
 //!
-//! One fact is only available as text: an HTTP status. rmcp reports a
-//! non-success response as a string — `HTTP 404 Not Found: <body>` — so
+//! One fact is partly available only as text: an HTTP status. rmcp reports
+//! most non-success responses as a string — `HTTP 404 Not Found: <body>` — so
 //! [`http_status_in`] reads the status back out of it. That is parsing a value
 //! rmcp formatted from `http::StatusCode`, in the one shape it uses, and it
-//! degrades to the original text when the shape changes.
+//! degrades to the original text when the shape changes. A 429 or a 5xx is the
+//! exception since rmcp 3.8: it arrives as a typed, body-free
+//! `HttpStatusError`, whose code is read directly.
 
 use std::error::Error;
 use std::fmt;
@@ -185,12 +187,27 @@ fn http_cause(link: &(dyn Error + 'static)) -> Option<Cause> {
             StreamableHttpError::UnexpectedServerResponse(text) => {
                 http_status_in(text).map(|(code, status)| Cause::Status(code, status))
             }
+            // rmcp 3.8 reports a 429 or a 5xx by status alone, with no body.
+            StreamableHttpError::HttpStatus(status) => Some(status_cause(status.status)),
             // Everything else either declares its source (`Io` among them),
             // which the generic walk then finds, or has none to find.
             _ => None,
         };
     }
     link.downcast_ref::<reqwest::Error>().map(request_cause)
+}
+
+/// A status code as a cause, named the way `http::StatusCode` displays it
+/// (`503 Service Unavailable`), or by its number when `http` has no name.
+#[cfg(feature = "http")]
+fn status_cause(code: u16) -> Cause {
+    // Not `StatusCode`'s `Display`: for an unregistered code it appends
+    // "<unknown status code>", which is no help to an operator.
+    let status = reqwest::StatusCode::from_u16(code)
+        .ok()
+        .and_then(|status| status.canonical_reason())
+        .map_or_else(|| code.to_string(), |reason| format!("{code} {reason}"));
+    Cause::Status(code, status)
 }
 
 /// The cause of an HTTP request that got no response.

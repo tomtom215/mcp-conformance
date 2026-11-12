@@ -21,6 +21,13 @@
       "why": "Review item 2.6 named tasks and skills, the two extensions the official suite and SEP-1730 single out; Apps is the third official extension and was not read for this change. Most of it binds the view-to-host bridge, which runs over postMessage inside the host and never reaches an MCP recording, but its server half — `ui://` resources and the tool metadata that points at them — does cross the MCP connection, so it cannot be excluded wholesale without reading its clauses, and an unread page is not an exclusion",
       "meanwhile": "`extensions/apps/overview` and `extensions/apps/build` sit in `site_out_of_scope` of registry/2026-07-28/extensions/sources.json naming this row, so the weekly spec-drift run keeps them decided rather than silent; the official suite runs no Apps scenario either (0.2.0-alpha.12, read 2026-10-13)",
       "review_by": "2027-01-31"
+    },
+    {
+      "id": "interop-rust-rmcp-3-7-0",
+      "what": "The cross-SDK matrix's Rust row stays on rmcp 3.7.0 (`interop/rust/Cargo.toml` `=3.7.0`, `interop/sdk-pins.env`) although 3.9.0 patches RUSTSEC-2026-0462, which this workspace's own manifest now requires. Done when the Rust leg moves to the current rmcp, with its upstream conformance server file re-pinned and the Rust rows of the matrix re-recorded",
+      "why": "The interop crate builds the Rust SDK's own conformance server file as the system under test, and the pinned file is the 3.7.0 tag's. The 3.9.0 tag's file is a different file (SHA-256 993178a4... against the pinned 145b79b3...), so moving the pin re-records `corpus/golden/sdk-rust-*` and the book's matrix, which needs the whole interop toolchain (Node, Python, Go, Rust) and is its own reviewable change, not part of a security bump",
+      "meanwhile": "The interop lockfile's other advisories are fixed (tokio 1.54.1, ctutils 0.4.8). The pinned server file names no HTTP client (zero occurrences of reqwest, StreamableHttpClient, ClientHandler, serve_client in it, grepped 2026-11-12), the server binds loopback only and runs only as the system under test in `interop/run.sh` and `matrix.sh`, and the weekly audit (`scheduled.yml`) excepts exactly RUSTSEC-2026-0462, for exactly that one lockfile, naming this row",
+      "review_by": "2026-12-10"
     }
   ]
 }

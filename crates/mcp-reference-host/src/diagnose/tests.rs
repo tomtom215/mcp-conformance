@@ -170,6 +170,60 @@ fn a_404_says_so_and_asks_about_the_path() {
     );
 }
 
+/// Since rmcp 3.8 a 429 or a 5xx reaches the caller as a typed, body-free
+/// `HttpStatusError`, not as `UnexpectedServerResponse` text; the operator's
+/// sentence must not depend on which of the two rmcp chose.
+#[cfg(feature = "http")]
+#[test]
+fn a_429_or_5xx_reported_by_status_alone_still_names_the_status() {
+    use rmcp::transport::streamable_http_client::{HttpStatusError, StreamableHttpError};
+    for (code, status) in [
+        (429, "429 Too Many Requests"),
+        (500, "500 Internal Server Error"),
+        (503, "503 Service Unavailable"),
+    ] {
+        let error = transport_error(Box::new(StreamableHttpError::<reqwest::Error>::HttpStatus(
+            HttpStatusError::new(code, None),
+        )));
+        assert_eq!(cause_of(&error), Cause::Status(code, status.to_owned()));
+        assert_eq!(
+            message(&url(), &error),
+            format!("http://127.0.0.1:1/mcp: the server answered {status}")
+        );
+    }
+}
+
+/// A status code rmcp reports that `http` has no name for still reads as a
+/// status, not as a dump.
+#[cfg(feature = "http")]
+#[test]
+fn an_unregistered_status_code_is_reported_with_its_number() {
+    use rmcp::transport::streamable_http_client::{HttpStatusError, StreamableHttpError};
+    let error = transport_error(Box::new(StreamableHttpError::<reqwest::Error>::HttpStatus(
+        HttpStatusError::new(599, None),
+    )));
+    assert_eq!(cause_of(&error), Cause::Status(599, "599".to_owned()));
+}
+
+/// The client's own limit on a response body (rmcp 3.9: 16 MiB of JSON, 64 KiB
+/// of error text) is said in its own words, not hidden behind a generic
+/// "the connection closed".
+#[cfg(feature = "http")]
+#[test]
+fn a_body_over_the_clients_limit_says_so() {
+    use rmcp::transport::streamable_http_client::StreamableHttpError;
+    let error = transport_error(Box::new(
+        StreamableHttpError::<reqwest::Error>::ResponseBodyTooLarge {
+            max_size: 16 * 1024 * 1024,
+        },
+    ));
+    assert_eq!(
+        message(&url(), &error),
+        "cannot start a session with http://127.0.0.1:1/mcp: HTTP response body exceeded \
+         the maximum size of 16777216 bytes"
+    );
+}
+
 #[test]
 fn a_refused_stateless_discover_reads_the_same_as_a_404() {
     // At 2026-07-28 rmcp reports the same 404 as a JSON-RPC error instead.

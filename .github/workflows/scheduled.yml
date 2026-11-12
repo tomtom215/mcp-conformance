@@ -70,8 +70,36 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install cargo-audit
         run: cargo install cargo-audit --version 0.22.2 --locked
-      - name: Audit dependencies
-        run: cargo audit
+      - name: Audit every Cargo.lock
+        # One audit per lockfile. A bare `cargo audit` reads only the root
+        # `Cargo.lock`, so for months the standalone workspaces' locks
+        # (`fuzz/`, `interop/rust/`) were never scanned, and the audit's
+        # coverage was a property of where the command ran, not of the repo.
+        # Each lock found here is audited; the two that are not audited
+        # plainly are named, with their reason, and nothing else is excepted.
+        run: |
+          status=0
+          for lock in $(git ls-files '*Cargo.lock'); do
+            ignore=""
+            case "$lock" in
+              docs/reports/pmcp-harness/Cargo.lock)
+                # A frozen measurement harness behind a dated report: no
+                # workflow builds it, nothing ships from it, and updating it
+                # would change what the report measured.
+                echo "skipped $lock (frozen measurement harness; not built, not shipped)"
+                continue ;;
+              interop/rust/Cargo.lock)
+                # The Rust SDK's own conformance server, held at rmcp 3.7.0 as
+                # the system under test: deferral ledger row
+                # `interop-rust-rmcp-3-7-0` (docs/plan/deferrals.json), whose
+                # review_by date the weekly `deferrals --check` enforces.
+                ignore="--ignore RUSTSEC-2026-0462" ;;
+            esac
+            echo "::group::cargo audit --file $lock $ignore"
+            cargo audit --file "$lock" $ignore || status=1
+            echo "::endgroup::"
+          done
+          exit "$status"
 
   full-mutants:
     name: Mutants (full sweep, shard ${{ matrix.shard }}/16)

@@ -65,10 +65,18 @@ matrix have to move with it:
 
 A release is pinned once it has been public for a week, as the `cooldown` in
 [`.github/dependabot.yml`](../.github/dependabot.yml) has it, and that goes for
-the transitive packages a lockfile resolves too. The one exception is the Rust
-leg: `rmcp` 3.7.0 (published 2026-10-22) is what this workspace builds against,
-and the 3.5.x it replaces is inside the range of GHSA-4432-vg92-fqh6, fixed in
-3.6.0 (register row 3.1).
+the transitive packages a lockfile resolves too. The one exception is `rmcp`
+3.9.0 (published 2026-11-05), which this workspace's own manifest requires
+before it is a week old, for the security fix (RUSTSEC-2026-0462, register row
+4.9). The Rust leg here is a different thing: it builds the Rust SDK's own
+conformance server as the system under test, and stays on `rmcp` 3.7.0
+(published 2026-10-22), the release its pinned server file belongs to. That is
+a deliberate hold one release behind the workspace, recorded in the deferral
+ledger as `interop-rust-rmcp-3-7-0` with a review date: the file names no HTTP
+client, the server binds loopback only, the other advisories in its lockfile
+are fixed, and the weekly audit excepts that one advisory for that one lockfile
+and nothing else. The 3.5.x it replaced was inside the range of
+GHSA-4432-vg92-fqh6, fixed in 3.6.0 (register row 3.1).
 
 ## Running it
 

@@ -424,6 +424,26 @@ below is stated again in its entry, with the reasoning.
 
 **The everything server and the reference host**
 
+- **The reference host no longer reads a server's response without a size bound**
+  (RUSTSEC-2026-0462, GHSA-c9f9-cp8h-jcj5; **security**). Its HTTP client read a
+  non-streaming JSON or error body to the end however large, so a malicious or
+  compromised server could exhaust its memory: measured against 3.7.0, a loopback
+  server that sent 3,000 MiB of chunked JSON took the host to 3,041 MiB resident in
+  under three seconds (the 25-second `--deadline-secs` bounds time, not memory).
+  rmcp 3.9.0 caps a JSON response at 16 MiB and an error body at 64 KiB and
+  refuses a `Content-Length` over the cap before reading; the workspace now
+  requires it (see Dependencies). `--probe` sends its own raw requests and had the
+  same hole: it now reads at most 1 MiB of any response. SSE streams were never
+  affected. `mcp-trace-capture` and `mcp-trace-validator` do not use this client.
+  `crates/mcp-reference-host/tests/hostile_bodies.rs` runs the real executable
+  against endless JSON, an endless error body, a 3 GiB declared length, a length
+  smaller than the body, a body that trickles, the `sse-retry` scenario and the
+  probe, and asserts how many bytes the server managed to write before the host
+  hung up. Against rmcp 3.7.0 five of its seven cases fail; against 3.9.0 the
+  rmcp cases pass, and the probe's passes with its own cap.
+- **The reference host still names a 429 or a 5xx.** rmcp 3.8 reports those by
+  status alone, so the host printed `HTTP 503` where it had printed `the server
+  answered 503 Service Unavailable`; it reads the status from the typed error.
 - **The everything server names itself on every `2026-07-28` result** (`BASE-037`):
   `io.modelcontextprotocol/serverInfo` is in the `_meta` of every result, not only
   `server/discover` and `subscriptions/listen`, from one seam each handler returns
@@ -484,6 +504,17 @@ below is stated again in its entry, with the reasoning.
 
 **Gates and tests**
 
+- **The weekly `cargo audit` read only the root `Cargo.lock`.** A bare `cargo audit`
+  scans the lockfile in the directory it runs in, so the standalone workspaces'
+  locks (`fuzz/`, `interop/rust/`) were never scanned, and the job's coverage was a
+  property of where the command ran. It now audits every tracked lockfile, one
+  `cargo audit --file` each. Two are not audited plainly, both named in the
+  workflow with a reason: `docs/reports/pmcp-harness/Cargo.lock`, a frozen
+  measurement harness no workflow builds (it holds seven advisories, on `h2`,
+  `rustls`, `rustls-webpki` and `tokio`), and `interop/rust/Cargo.lock`, which
+  excepts RUSTSEC-2026-0462 alone, tied to the deferral-ledger row
+  `interop-rust-rmcp-3-7-0` and its review date. Without that one exception the
+  interop lock fails the job.
 - **The register-currency and deferral gates accepted dates no calendar has**: a
   day of 1–31 whatever the month, so a `Verified` or review-by date of `2026-02-30`
   passed (found by `falsify-gates`), and a sign read as a digit (`2026-+8-15`). Both
@@ -988,13 +1019,15 @@ not yet published to crates.io)
 
 ### Dependencies
 
-- **rmcp 3.7.0** (from 3.4.1) for `mcp-everything-server` and
-  `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official suite's
+- **rmcp 3.9.0** (from 3.4.1) for `mcp-everything-server` and
+  `mcp-reference-host`, with `rmcp-macros` moved in lockstep. 3.9.0 fixes
+  RUSTSEC-2026-0462 (see Fixed); it makes `sha2` 0.11, and the RustCrypto crates
+  that brings, a dependency, and it reports a 429 or a 5xx as a typed status. The official suite's
   `2026-07-28` scenarios pass 42 of 42 against the server serving `2025-11-25`
   too (since 3.5.1, which adds the cache hints `2026-07-28` peers need). 3.6.0 fixes
   GHSA-4432-vg92-fqh6, an unbounded cache of request-supplied tool names in the
   streamable-HTTP server (3.5.1 had it; its advisory lists `>= 3.0.0, < 3.6.0`).
-  RustSec does not list it, so `cargo audit` could not have said so. The development toolchain pin is Rust
+  RustSec did not list it then (it lists it as RUSTSEC-2026-0461 now), so `cargo audit` could not have said so. The development toolchain pin is Rust
   1.99.1; the MSRV stays 1.88.
 - **jsonschema 0.60.1** (from 0.58.6), the engine behind the wire-schema check. Every
   committed golden report is byte-identical under it, and its verdicts on the official
@@ -1003,7 +1036,11 @@ not yet published to crates.io)
   to -0349), `rustls-webpki` 0.103.16 (RUSTSEC-2026-0382: certificate paths through
   distrusted intermediates, which the recorder's `https://` upstream check relies
   on) and `tokio` 1.54.1 (RUSTSEC-2026-0386, `AsyncFd`, which this workspace does
-  not call). `mcp-trace-capture`'s `rustls` floor is now 0.23.46.
+  not call). `mcp-trace-capture`'s `rustls` floor is now 0.23.46. `rustix` 1.1.6
+  (RUSTSEC-2026-0486), reached only through development dependencies (`proptest`,
+  `tempfile`). The standalone interop lock (`interop/rust/`) moves `tokio` to
+  1.54.1 and `ctutils` to 0.4.8 (RUSTSEC-2026-0386, -0385); its `rmcp` stays 3.7.0
+  as the system under test, an excepted advisory with a deferral-ledger row.
 - **Lockfile refresh within the declared ranges:** `schemars` 1.2.3, `syn` 3.0.9,
   and twenty more packages (among them `cc`, `libc`, `smallvec`,
   `rustls-native-certs` and the `icu_*` family).

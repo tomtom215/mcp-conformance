@@ -150,3 +150,34 @@ With the dance in place, all four protocol scenarios pass at the pin:
 `initialize`, `tools_call` (1/1), `elicitation-sep1034-client-defaults`
 (5/5), `sse-retry` (3/3 — timing inside the −50/+200 ms window,
 `Last-Event-ID` offered).
+
+## Amendment (2026-11-12): the host's response bound is rmcp's, and the probe's own
+
+The first amendment says where rmcp's client ends and the host's orchestration
+begins. One property sat on rmcp's side without being named: **how much of a
+response the host will buffer.** The host sets no size limit of its own, so the
+bound it has is the one rmcp's client applies, and until rmcp 3.9.0 that was
+none for a non-streaming response ([RUSTSEC-2026-0462](https://rustsec.org/advisories/RUSTSEC-2026-0462.html),
+register row 4.9): a server could answer an `initialize` with a JSON body that
+never ended, and the host buffered it until the 25-second deadline, which bounds
+time and not memory (measured against 3.7.0: 3,000 MiB sent, 3,041 MiB resident
+in under three seconds). Being "an rmcp client, not a protocol reimplementation"
+meant inheriting this as it meant inheriting the rest.
+
+The decision stands, and its price is stated: **the host takes rmcp's bounds
+rather than writing its own.** The workspace requires rmcp 3.9.0 or later
+(16 MiB of JSON, 64 KiB of error body, an oversized `Content-Length` refused before
+reading), and `crates/mcp-reference-host/tests/hostile_bodies.rs` pins that from
+outside, against the real executable, so a future rmcp that loosens it fails a
+test here rather than reaching an operator. A host-level wrapper that capped the
+transport itself was the alternative; it would have departed from "the host is
+rmcp's own client", and it would have been a second copy of a limit rmcp now owns.
+
+What rmcp's bound does not reach is `--probe`: its requests are raw HTTP through
+`reqwest`, deliberately, because rmcp's client will not emit a malformed one. That
+path reads at most 1 MiB of any response (`probe/designated.rs`, `MAX_BODY`),
+enough for a JSON-RPC error or a short error page.
+
+rmcp 3.8 also changed how a 429 or a 5xx reaches the caller (a typed, body-free
+`HttpStatusError` instead of text), which `diagnose.rs` reads directly; the status
+read back out of text remains for every other non-success response.
