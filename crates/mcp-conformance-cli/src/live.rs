@@ -43,6 +43,8 @@
 use std::collections::HashSet;
 use std::time::SystemTime;
 
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+
 use mcp_conformance_core::requirement::Registry;
 use mcp_conformance_core::requirement::{RegistryError, RegistrySet};
 use mcp_conformance_core::revision::ProtocolRevision;
@@ -133,11 +135,56 @@ pub struct Final {
     pub judgment: Result<Judgment, JudgeError>,
 }
 
+/// The built-in registries, built once for the process and shared by every
+/// session. `watch http` makes a `Live` per session, and each used to rebuild
+/// the whole set and copy its revisions' registries: most of what an ended
+/// session cost while the run went on.
+#[derive(Debug)]
+struct Shared {
+    set: RegistrySet,
+    /// Each revision's registry, copied out of `set` the first time it is used.
+    registries: Mutex<Vec<Arc<Registry>>>,
+}
+
+impl Shared {
+    /// The built-in registries.
+    ///
+    /// # Errors
+    ///
+    /// A built-in registry failed to load (a build defect).
+    fn get() -> Result<&'static Self, RegistryError> {
+        static SHARED: OnceLock<Shared> = OnceLock::new();
+        if let Some(shared) = SHARED.get() {
+            return Ok(shared);
+        }
+        let built = Self {
+            set: RegistrySet::builtin()?,
+            registries: Mutex::new(Vec::new()),
+        };
+        Ok(SHARED.get_or_init(|| built))
+    }
+
+    /// `revision`'s registry, shared.
+    fn registry(&self, revision: ProtocolRevision) -> Option<Arc<Registry>> {
+        let mut known = self
+            .registries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(found) = known.iter().find(|known| known.revision() == revision) {
+            return Some(Arc::clone(found));
+        }
+        let built = Arc::new(self.set.registry(revision)?);
+        known.push(Arc::clone(&built));
+        drop(known);
+        Some(built)
+    }
+}
+
 /// One session's live judge.
 #[derive(Debug)]
 pub struct Live {
-    set: RegistrySet,
-    registries: Vec<Registry>,
+    shared: &'static Shared,
+    registries: Vec<Arc<Registry>>,
     document: String,
     events: Vec<TraceEvent>,
     pairing: exchange::Pairing,
@@ -154,7 +201,7 @@ impl Live {
     /// A built-in registry failed to load (a build defect).
     pub fn new() -> Result<Self, RegistryError> {
         Ok(Self {
-            set: RegistrySet::builtin()?,
+            shared: Shared::get()?,
             registries: Vec::new(),
             document: String::new(),
             events: Vec::new(),
@@ -204,7 +251,7 @@ impl Live {
     /// A prefix the validator could not judge yet — one declaring only
     /// revisions this build lacks — finds nothing.
     pub fn judge(&mut self) -> Pass {
-        let Ok(selection) = declared::select(self.set.revisions(), &self.events) else {
+        let Ok(selection) = declared::select(self.shared.set.revisions(), &self.events) else {
             return Pass::default();
         };
         let mut reports = Vec::new();
@@ -232,13 +279,13 @@ impl Live {
 
     /// The index of `revision`'s registry, loaded once.
     fn registry(&mut self, revision: ProtocolRevision) -> Option<usize> {
-        let known = |registries: &[Registry]| {
+        let known = |registries: &[Arc<Registry>]| {
             registries
                 .iter()
                 .position(|known| known.revision() == revision)
         };
         if known(&self.registries).is_none() {
-            self.registries.push(self.set.registry(revision)?);
+            self.registries.push(self.shared.registry(revision)?);
         }
         known(&self.registries)
     }

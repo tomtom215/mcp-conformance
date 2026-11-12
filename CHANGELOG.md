@@ -518,6 +518,29 @@ below is stated again in its entry, with the reasoning.
 - **`watch`'s tally names the clauses its findings are:** `findings so far: 0 fail, 14 warn
   in 1 clause(s)`, beside a report whose totals count clauses.
 
+**Resource bounds for continuous operation** (the 2026-11-11 audit's A12, decision D4)
+
+- **`watch`'s queue to the judge is bounded, and loses loudly.** The channel between the
+  recorder and the judging thread was unbounded (ADR-0019's price of "never waits"): a judge
+  that fell behind held every line a long session sent. It holds at most 64 MiB of lines; one
+  that arrives past that is dropped and counted, never waited for, the run says how many, and
+  the final report judges the trace file instead of the judge's own copy, which has holes.
+  The wait for the final judgment is bounded at 60 s (it had no deadline, while the export
+  had one); past it `watch` exits and says to judge the trace file.
+- **The built-in registries are built once per process.** Every `Live::new()` rebuilt the
+  registry set and each session copied its revisions' registries again, most of the
+  0.83 MiB per ended session a long `watch http` run held (measured at 100 to 600 short
+  sessions, debug build, 123 to 539 MiB in all; the split was not isolated by experiment).
+- **The workbench reads no trace over 256 MiB.** `fs::read` held a whole file before any line
+  limit could refuse it (a 150 MiB non-JSON line: 165 MiB resident, where `validate` stopped at
+  75). A bigger trace is listed as not judged, with its size and the limit, fingerprinted by
+  streaming, and never held.
+- **The workbench's lock is not held across a reload.** After a recorder appended to a
+  followed trace, an unrelated request waited for the whole trace to be judged again (0.6 to
+  7.7 s at 10k to 100k events, measured); the scan and the apply hold the lock, and the
+  read and the judging do not. Not done: the validator's bounded reader is still private to its
+  binary, and the workbench's memory per event is unchanged.
+
 **The Action**
 
 - **The Action's reports exist and parse whatever the paths** (the 2026-11-11 audit,

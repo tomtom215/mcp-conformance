@@ -286,3 +286,74 @@ fn events_are_parsed_once_per_bytes_and_the_cache_is_small_and_recent() {
     );
     assert!(workbench.events.len() <= EVENTS_CACHED);
 }
+
+/// The audit's A12: `fs::read` held a whole file before any limit could
+/// refuse it (a 150 MiB line cost 165 MiB, where the validator stopped at 75).
+/// A trace over the workbench's limit is listed, fingerprinted by streaming it,
+/// and never read into memory or judged here.
+#[test]
+fn a_trace_over_the_limit_is_listed_unjudged_and_never_read() {
+    let (mut workbench, _dir) = fixture::workbench("too-large");
+    workbench.max_trace_bytes = 4096;
+    let trace: Vec<u8> = std::iter::repeat_n(b'x', 10_000).chain(*b"\n").collect();
+    let id = workbench
+        .add("huge.jsonl", &trace, &Meta::new("imported"))
+        .unwrap();
+    let entry = workbench.entry(&id).unwrap();
+    assert_eq!(entry.size, 10_001);
+    assert_eq!(
+        entry.sha256,
+        entry::sha256(&trace),
+        "fingerprinted by streaming, the same digest"
+    );
+    let why = entry.unjudged.as_deref().unwrap();
+    assert!(
+        why.contains("10001 bytes") && why.contains("4096"),
+        "says how big it is and what the limit is: {why}"
+    );
+    assert_eq!(entry.reports.len(), 0);
+    assert_eq!(entry.facts.events, 0);
+    assert!(
+        matches!(workbench.text(&id), Err(Failure::Invalid(_))),
+        "its text is not served"
+    );
+    assert_eq!(workbench.events(&id).unwrap().len(), 0);
+
+    // The others in the library are judged as before.
+    assert_eq!(
+        workbench.entry("everything-stdio").unwrap().verdict(),
+        "pass"
+    );
+}
+
+/// A refresh is a cheap scan, a load that holds none of the workbench, and an
+/// apply: what the request handler runs with the library's lock released for
+/// the slow middle.
+#[test]
+fn a_refresh_scans_loads_off_the_workbench_and_applies() {
+    let (mut workbench, dir) = fixture::workbench("split");
+    assert!(
+        workbench.scan().unwrap().ids.is_empty(),
+        "an unchanged library has nothing to load"
+    );
+    let path = dir.join("everything-stdio.jsonl");
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .open(&path)
+        .unwrap();
+    file.write_all(b"\n").unwrap();
+    file.flush().unwrap();
+    let reload = workbench.scan().unwrap();
+    let ids: Vec<&str> = reload.ids.iter().map(|(id, _)| id.as_str()).collect();
+    assert_eq!(ids, ["everything-stdio"]);
+    // The slow half takes the list, not the workbench.
+    let loaded = Workbench::load_all(&reload, workbench.max_trace_bytes).unwrap();
+    assert_eq!(loaded.len(), 1);
+    assert_eq!(loaded[0].0, "everything-stdio");
+    workbench.apply(loaded);
+    assert!(
+        workbench.scan().unwrap().ids.is_empty(),
+        "applied: the entry is current"
+    );
+    assert!(workbench.entry("everything-stdio").is_ok());
+}

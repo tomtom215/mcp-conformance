@@ -71,7 +71,7 @@ fn a_slow_judge_never_slows_the_relay() {
         live.judge()
     });
     let (tap, thread) = judging::start(setup(&out, slow));
-    let notes = tap.0.clone();
+    let notes = tap.notes.clone();
     let recorder = Recorder::new(std::io::sink()).observed(Arc::new(tap), 1);
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_time()
@@ -144,7 +144,7 @@ fn findings_are_printed_with_the_tally_and_the_report_at_the_end() {
         assert!(Instant::now() < deadline, "no live finding");
         std::thread::sleep(Duration::from_millis(5));
     }
-    tap.0.send(Note::End).unwrap();
+    tap.notes.send(Note::End).unwrap();
     let judged = thread.join().unwrap();
     let written = String::from_utf8(out.0.lock().unwrap().clone()).unwrap();
     let live = written
@@ -249,5 +249,38 @@ fn the_export_summary_names_only_what_went_wrong() {
         "mcp-conformance watch: exported 3 span(s) to http://c:4318/v1/traces; 1 not accepted \
          (the collector answered 503); 1 dropped, the queue being full; 1 finding(s) came \
          before any exchange and are in no span"
+    );
+}
+
+/// The audit's A12: the run waited for the judge with `thread.join()` and no
+/// deadline, while the export had one, so a final judgment of a very long
+/// session held the exit for as long as it took. The wait is bounded; the
+/// recording is whole in the trace file either way.
+#[test]
+fn the_wait_for_the_judge_is_bounded() {
+    let started = Instant::now();
+    let slow = std::thread::spawn(|| {
+        std::thread::sleep(Duration::from_secs(5));
+        judging::Judged::default()
+    });
+    assert_eq!(join_within(slow, Duration::from_millis(100)), None);
+    assert!(
+        started.elapsed() < Duration::from_secs(3),
+        "gave up at the deadline, not when the judge ended: {:?}",
+        started.elapsed()
+    );
+
+    let quick = std::thread::spawn(|| judging::Judged {
+        lines: 7,
+        ..judging::Judged::default()
+    });
+    let judged = join_within(quick, Duration::from_secs(10)).unwrap();
+    assert_eq!(judged.lines, 7, "what a judge that finished counted");
+
+    let panicked = std::thread::spawn(|| -> judging::Judged { panic!("a judge that failed") });
+    assert_eq!(
+        join_within(panicked, Duration::from_secs(10)),
+        None,
+        "a judge that failed is no result"
     );
 }

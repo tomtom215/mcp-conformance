@@ -464,3 +464,23 @@ fn only_a_jsonrpc_member_other_than_2_0_is_kept() {
         Some("2")
     );
 }
+
+/// The audit's A12: every `Live::new()` rebuilt the built-in registry set, and
+/// each session then copied its revisions' registries again, which is most of
+/// what a long `watch http` run cost per session it had ended. They are built
+/// once for the process and shared.
+#[test]
+fn every_session_shares_the_one_set_of_registries() {
+    let (mut a, mut b) = (Live::new().unwrap(), Live::new().unwrap());
+    assert!(std::ptr::eq(a.shared, b.shared), "one set, built once");
+    let revision = a.shared.set.revisions()[0];
+    let (first, second) = (a.registry(revision).unwrap(), b.registry(revision).unwrap());
+    assert!(
+        std::sync::Arc::ptr_eq(&a.registries[first], &b.registries[second]),
+        "one registry per revision, however many sessions"
+    );
+    // Asking again is the same registry, not another copy.
+    let again = a.registry(revision).unwrap();
+    assert_eq!(again, first);
+    assert_eq!(a.registries.len(), 1);
+}

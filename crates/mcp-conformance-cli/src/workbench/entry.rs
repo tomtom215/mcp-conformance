@@ -33,6 +33,20 @@ pub(crate) fn sha256(bytes: &[u8]) -> String {
     hex(digest::digest(&digest::SHA256, bytes).as_ref())
 }
 
+/// The SHA-256 of what `input` yields, read in chunks: a file the workbench
+/// will not read whole is still fingerprinted, without being held.
+pub(crate) fn sha256_of(mut input: impl std::io::Read) -> std::io::Result<String> {
+    let mut context = digest::Context::new(&digest::SHA256);
+    let mut chunk = vec![0_u8; 64 * 1024];
+    loop {
+        let read = input.read(&mut chunk)?;
+        if read == 0 {
+            return Ok(hex(context.finish().as_ref()));
+        }
+        context.update(&chunk[..read]);
+    }
+}
+
 /// The part of `text` a recorder has finished writing, and whether an
 /// unfinished last line was left out.
 ///
@@ -235,6 +249,40 @@ impl Entry {
         };
         entry.reindex(&events);
         (entry, rewrite)
+    }
+
+    /// The entry for a trace of `size` bytes, over the `limit` the workbench
+    /// reads: listed with why it is not judged, and with the `sha256` its
+    /// bytes were streamed to, but never held. Judge it with
+    /// `mcp-trace-validator validate`, which reads a trace no further than its
+    /// own limits.
+    pub(crate) fn too_large(
+        id: &str,
+        size: u64,
+        limit: u64,
+        sha256: String,
+        meta: Meta,
+        meta_problem: Option<String>,
+        modified: Option<SystemTime>,
+    ) -> Self {
+        let mut entry = Self {
+            id: id.to_owned(),
+            meta,
+            meta_problem,
+            sha256,
+            size,
+            modified,
+            reports: Vec::new(),
+            unjudged: Some(format!(
+                "the file is {size} bytes, over the {limit} the workbench reads; judge it with \
+                 `mcp-trace-validator validate`"
+            )),
+            provisional: None,
+            facts: Facts::default(),
+            doc: Doc::default(),
+        };
+        entry.reindex(&[]);
+        entry
     }
 
     /// Rebuilds the search index (after a tag changes, say).

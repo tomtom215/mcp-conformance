@@ -191,8 +191,16 @@ pub(crate) async fn blocking<T: Send + 'static>(
     work: impl FnOnce(&mut Workbench) -> Result<T, Failure> + Send + 'static,
 ) -> Result<T, Failure> {
     tokio::task::spawn_blocking(move || {
+        // Only the scan and the apply hold the lock: the slow middle, reading
+        // and judging the traces that changed, holds none of the workbench, so
+        // an unrelated request does not wait for it.
+        let (reload, max_trace_bytes) = {
+            let mut workbench = shared.lock();
+            (workbench.scan()?, workbench.max_trace_bytes)
+        };
+        let loaded = Workbench::load_all(&reload, max_trace_bytes)?;
         let mut workbench = shared.lock();
-        workbench.refresh()?;
+        workbench.apply(loaded);
         let answer = work(&mut workbench);
         drop(workbench);
         answer
@@ -354,3 +362,5 @@ async fn export(shared: Arc<Shared>, ids: String) -> Response {
 mod tests;
 #[cfg(test)]
 mod tests_hardening;
+#[cfg(test)]
+mod tests_reload;

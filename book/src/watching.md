@@ -132,6 +132,13 @@ channel and goes on; judging happens on a thread of its own. If judging falls be
 findings lag and the session does not — a test holds this, with a judge that sleeps 50 ms
 a pass behind a server sending 200 notifications 2 ms apart.
 
+The channel is bounded, in bytes: it holds at most 64 MiB of lines. A line that arrives
+while it is full is dropped and counted — never waited for — and the run says so
+(`the judge fell behind: N line(s) were not judged live`). The trace file has every line
+either way, so a run that lost lines judges the trace file at the end instead of the
+judge's own copy, which has holes. If the final judgment itself takes more than 60 seconds
+after the recording ends, `watch` exits and leaves it to `mcp-trace-validator validate`.
+
 Each pass re-judges the whole trace so far. Measured in release builds (4 vCPU Intel Xeon
 @ 2.10 GHz, `cargo bench -p mcp-conformance-cli --bench live`), a pass takes about
 0.17 ms on the largest committed capture (41 events) and about 80 ms on a synthetic

@@ -16,7 +16,7 @@ use std::fmt::Write as _;
 use std::io::IsTerminal as _;
 use std::process::ExitCode;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use mcp_conformance_cli::live::Live;
 use mcp_conformance_cli::otlp::Peer;
@@ -34,6 +34,28 @@ mod print;
 
 /// How long the end of a run waits for the last spans to reach the collector.
 const EXPORT_DEADLINE: Duration = Duration::from_secs(10);
+
+/// How long the run waits for the judge to finish its final judgment once the
+/// recording is over. The judgment re-parses the whole trace, so it grows with
+/// the session (about 12 s at 200,000 events, in a debug build); past this the
+/// run exits and leaves the judging to `mcp-trace-validator validate`.
+const JUDGE_DEADLINE: Duration = Duration::from_secs(60);
+
+/// `thread`'s result, or `None` when it has not finished within `wait` or
+/// panicked. A judge that is still running is left to the exit.
+fn join_within(
+    thread: std::thread::JoinHandle<judging::Judged>,
+    wait: Duration,
+) -> Option<judging::Judged> {
+    let deadline = Instant::now() + wait;
+    while !thread.is_finished() {
+        if Instant::now() >= deadline {
+            return None;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    thread.join().ok()
+}
 
 /// Runs `watch`; the exit code is the recorder's.
 pub(crate) fn main(runtime: &Runtime, args: &WatchArgs) -> ExitCode {
@@ -77,14 +99,22 @@ pub(crate) fn main(runtime: &Runtime, args: &WatchArgs) -> ExitCode {
         peer,
         judge: Box::new(Live::judge),
     });
-    let notes = tap.0.clone();
+    let notes = tap.notes.clone();
     let mut recording = Recording::new(&target);
     recording.force = args.force;
     recording.max_message = args.max_message_bytes;
     recording.observer = Some(Arc::new(tap));
     let code = record(runtime, recording, &args.mode);
     let _ = notes.send(judging::Note::End);
-    let judged = thread.join().unwrap_or_default();
+    let judged = join_within(thread, JUDGE_DEADLINE).unwrap_or_else(|| {
+        eprintln!(
+            "{} the judge did not finish within {}s of the end of the recording; the trace \
+             file holds the whole recording, and `mcp-trace-validator validate` judges it",
+            print::PREFIX,
+            JUDGE_DEADLINE.as_secs()
+        );
+        judging::Judged::default()
+    });
     if let (Some(task), Some(endpoint)) = (exporting, &endpoint) {
         exported(runtime, task, endpoint, judged.unattached);
     }

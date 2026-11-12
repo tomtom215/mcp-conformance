@@ -34,6 +34,12 @@ use super::meta::Meta;
 /// How many traces' parsed events are kept, most recently viewed first.
 pub(crate) const EVENTS_CACHED: usize = 4;
 
+/// The largest trace file the workbench reads into memory, in bytes: the
+/// import's own limit (192 MiB) with room to spare. A bigger one is listed,
+/// fingerprinted by streaming, and not judged here, because reading it whole
+/// held it before any line limit could refuse it.
+pub(crate) const MAX_TRACE_BYTES: u64 = 256 * 1024 * 1024;
+
 /// The library and its entries.
 #[derive(Debug)]
 pub(crate) struct Workbench {
@@ -42,7 +48,21 @@ pub(crate) struct Workbench {
     pub(crate) skipped: Vec<Skipped>,
     /// Parsed events by the SHA-256 of their bytes, most recently used first.
     events: VecDeque<(String, Arc<Vec<TraceEvent>>)>,
+    /// The largest trace read whole ([`MAX_TRACE_BYTES`]).
+    pub(crate) max_trace_bytes: u64,
 }
+
+/// What a refresh decided to (re)load, from a scan of the directory.
+#[derive(Debug)]
+pub(crate) struct Reload {
+    library: Library,
+    /// Each entry to load, with its trace's modification time.
+    pub(crate) ids: Vec<(String, Option<std::time::SystemTime>)>,
+}
+
+/// An entry loaded off the workbench, and whether its sidecar is to be
+/// written back (see [`Entry::load`]).
+type Loaded = (String, Entry, bool);
 
 /// A request about an entry that cannot be answered.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,16 +89,30 @@ impl Workbench {
             entries: BTreeMap::new(),
             skipped: Vec::new(),
             events: VecDeque::new(),
+            max_trace_bytes: MAX_TRACE_BYTES,
         };
         workbench.refresh()?;
         Ok(workbench)
     }
 
-    /// Brings the entries in step with the directory.
+    /// Brings the entries in step with the directory, all at once: a scan, a
+    /// load and an apply. The server runs them apart, so that the slow middle
+    /// holds none of the workbench ([`Workbench::scan`]).
     pub(crate) fn refresh(&mut self) -> io::Result<()> {
+        let reload = self.scan()?;
+        let loaded = Self::load_all(&reload, self.max_trace_bytes)?;
+        self.apply(loaded);
+        Ok(())
+    }
+
+    /// The cheap half of a refresh: rescans the directory, drops what is gone,
+    /// and lists what must be (re)loaded because its size or modification time
+    /// moved. It reads no trace.
+    pub(crate) fn scan(&mut self) -> io::Result<Reload> {
         let (ids, skipped) = self.library.scan()?;
         self.skipped = skipped;
         self.entries.retain(|id, _| ids.binary_search(id).is_ok());
+        let mut changed = Vec::new();
         for id in ids {
             let path = self.library.trace_path(&id);
             let Ok(stat) = fs::metadata(&path) else {
@@ -91,25 +125,45 @@ impl Workbench {
                 .get(&id)
                 .is_some_and(|entry| entry.size == stat.len() && entry.modified == modified);
             if !unchanged {
-                self.load(&id, modified)?;
+                changed.push((id, modified));
             }
         }
-        Ok(())
+        Ok(Reload {
+            library: self.library.clone(),
+            ids: changed,
+        })
     }
 
-    /// (Re)loads one entry from disk, judging it from its bytes, and writes its
-    /// sidecar back without a legacy verdict cache unless the sidecar was
-    /// unreadable.
-    fn load(&mut self, id: &str, modified: Option<std::time::SystemTime>) -> io::Result<()> {
-        let bytes = fs::read(self.library.trace_path(id))?;
-        let read = self.library.read_meta(id);
-        let problem = read.problem.clone();
-        let (entry, rewrite) = Entry::load(id, &bytes, read.meta, read.problem, modified);
-        if rewrite && problem.is_none() {
-            // A read-only library still works; the old cache stays until it is writable.
-            let _ = self.library.write_meta(id, &entry.meta);
+    /// The slow half: reads and judges each listed trace. It takes the list,
+    /// not the workbench, so a caller holds no lock while it runs. A trace over
+    /// `max_trace_bytes` is not read.
+    pub(crate) fn load_all(reload: &Reload, max_trace_bytes: u64) -> io::Result<Vec<Loaded>> {
+        reload
+            .ids
+            .iter()
+            .map(|(id, modified)| {
+                load_entry(&reload.library, id, *modified, max_trace_bytes)
+                    .map(|(entry, rewrite)| (id.clone(), entry, rewrite))
+            })
+            .collect()
+    }
+
+    /// Takes in what [`Workbench::load_all`] loaded, writing each sidecar back
+    /// without a legacy verdict cache unless it was unreadable.
+    pub(crate) fn apply(&mut self, loaded: Vec<Loaded>) {
+        for (id, entry, rewrite) in loaded {
+            if rewrite && entry.meta_problem.is_none() {
+                // A read-only library still works; the old cache stays until it is writable.
+                let _ = self.library.write_meta(&id, &entry.meta);
+            }
+            self.entries.insert(id, entry);
         }
-        self.entries.insert(id.to_owned(), entry);
+    }
+
+    /// (Re)loads one entry from disk, judging it from its bytes.
+    fn load(&mut self, id: &str, modified: Option<std::time::SystemTime>) -> io::Result<()> {
+        let loaded = load_entry(&self.library, id, modified, self.max_trace_bytes)?;
+        self.apply(vec![(id.to_owned(), loaded.0, loaded.1)]);
         Ok(())
     }
 
@@ -122,7 +176,13 @@ impl Workbench {
 
     /// Entry `id`'s trace text.
     pub(crate) fn text(&self, id: &str) -> Result<String, Failure> {
-        self.entry(id)?;
+        let entry = self.entry(id)?;
+        if entry.size > self.max_trace_bytes {
+            return Err(Failure::Invalid(format!(
+                "{id} is {} bytes, over the {} the workbench opens",
+                entry.size, self.max_trace_bytes
+            )));
+        }
         let bytes = fs::read(self.library.trace_path(id))?;
         Ok(String::from_utf8_lossy(&bytes).into_owned())
     }
@@ -131,7 +191,11 @@ impl Workbench {
     /// holds the events of the bytes the entry was loaded from, else parsed
     /// from the file and cached under the hash of the bytes actually read.
     pub(crate) fn events(&mut self, id: &str) -> Result<Arc<Vec<TraceEvent>>, Failure> {
-        let sha256 = self.entry(id)?.sha256.clone();
+        let entry = self.entry(id)?;
+        if entry.size > self.max_trace_bytes {
+            return Ok(Arc::new(Vec::new()));
+        }
+        let sha256 = entry.sha256.clone();
         if let Some(at) = self.events.iter().position(|(key, _)| *key == sha256)
             && let Some(hit) = self.events.remove(at)
         {
@@ -197,6 +261,35 @@ impl Workbench {
         self.entries.remove(id);
         Ok(())
     }
+}
+
+/// Entry `id` as its trace and sidecar say, read from `library`; the second
+/// value is whether the sidecar carried something to drop. A trace over
+/// `max_trace_bytes` is streamed to its digest and not read.
+fn load_entry(
+    library: &Library,
+    id: &str,
+    modified: Option<std::time::SystemTime>,
+    max_trace_bytes: u64,
+) -> io::Result<(Entry, bool)> {
+    let path = library.trace_path(id);
+    let size = fs::metadata(&path)?.len();
+    let read = library.read_meta(id);
+    if size > max_trace_bytes {
+        let sha256 = entry::sha256_of(fs::File::open(&path)?)?;
+        let entry = Entry::too_large(
+            id,
+            size,
+            max_trace_bytes,
+            sha256,
+            read.meta,
+            read.problem,
+            modified,
+        );
+        return Ok((entry, false));
+    }
+    let bytes = fs::read(&path)?;
+    Ok(Entry::load(id, &bytes, read.meta, read.problem, modified))
 }
 
 #[cfg(test)]
