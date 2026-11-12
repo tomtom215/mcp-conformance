@@ -95,6 +95,25 @@ async fn upstream(request: Uri, _headers: HeaderMap) -> Response {
         )
             .into_response(),
         "/big" => (StatusCode::OK, json, big).into_response(),
+        // Events arriving over time, one to a chunk: what the parser counts it
+        // adds up across chunks, which one body in one chunk never exercises.
+        "/sse-chunked" => {
+            let chunks = vec![
+                format!("data: {big}\n\n"),
+                "event: ping\ndata: 1\n\n".to_owned(),
+                format!("data: {big}\n\n"),
+                "event: ping\ndata: 2\n\n".to_owned(),
+                format!("data: {big}\n\n"),
+            ];
+            let stream = futures::StreamExt::then(futures::stream::iter(chunks), |chunk| async {
+                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                Ok::<_, std::convert::Infallible>(chunk)
+            });
+            Response::builder()
+                .header(header::CONTENT_TYPE, "text/event-stream")
+                .body(axum::body::Body::from_stream(stream))
+                .unwrap()
+        }
         _ => StatusCode::NOT_FOUND.into_response(),
     }
 }
@@ -348,6 +367,23 @@ async fn a_message_past_the_buffer_budget_is_counted_in_the_closing_event() {
         assert!(
             counted.contains(&("over_budget".to_owned(), unrecorded.over_budget)),
             "{counted:?} against {unrecorded:?}"
+        );
+    })
+    .await;
+}
+
+/// What the parser has counted only grows, and the note adds what each chunk
+/// contributed: three oversized events and two of another type, spread over
+/// five chunks, are three and two, not a sum of running totals.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn losses_arriving_over_time_are_counted_once_each() {
+    bounded(async {
+        let (address, sink, stop) = start(|_| {}).await;
+        post(address, "/sse-chunked", PING).await;
+        stop().await.unwrap().unwrap();
+        assert_eq!(
+            left_out(&sink.events()),
+            [("other_events".to_owned(), 2), ("oversized".to_owned(), 3)]
         );
     })
     .await;

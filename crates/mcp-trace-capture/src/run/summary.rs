@@ -368,6 +368,32 @@ mod tests {
         assert_eq!(http_gaps(&reported_elsewhere), Vec::<String>::new());
     }
 
+    /// What the proxy refused on its own is in no session's trace, so only the
+    /// flag turns it into an exit code, and either kind of refusal does.
+    #[test]
+    fn a_refused_request_fails_the_run_only_with_the_flag() {
+        let none = http::Unrecorded::default();
+        for refused in [
+            http::Unrecorded {
+                refused_paths: 1,
+                ..none
+            },
+            http::Unrecorded {
+                refused_connects: 1,
+                ..none
+            },
+            http::Unrecorded {
+                refused_paths: 2,
+                refused_connects: 3,
+                ..none
+            },
+        ] {
+            assert_eq!(refused_requests_code(&refused, true), EXIT_INCOMPLETE);
+            assert_eq!(refused_requests_code(&refused, false), 0);
+        }
+        assert_eq!(refused_requests_code(&none, true), 0);
+    }
+
     #[test]
     fn messages_left_out_are_counted() {
         assert_eq!(
