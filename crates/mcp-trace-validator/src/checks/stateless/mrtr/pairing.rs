@@ -13,20 +13,31 @@
 //! A retry is now paired by the evidence it carries, strongest first:
 //!
 //! 1. **The echoed `requestState`.** The server minted it for one round and the
-//!    client must echo it exactly, so an equal value names that round; the latest
-//!    round issuing it wins, since a server may repeat a state across rounds of
-//!    one request.
+//!    client must echo it exactly, so an equal value names that round. The value
+//!    is opaque and the server's own, and the specification requires no
+//!    uniqueness of it, so two unrelated rounds may carry the same one: among
+//!    the rounds that issued it, those for the request the retry repeats (its
+//!    method and target) are the candidates. A server may also repeat a state
+//!    across the rounds of *one* request, so the latest unanswered candidate
+//!    wins. When no round that issued the state was for this request, the state
+//!    is being used on another request: the retry is paired with the latest
+//!    round that issued it, which is what the clause on scoping then reports.
 //! 2. **The original request.** A retry repeats its request's method and target
 //!    (`params.name`, or `params.uri` for `resources/read`), so the unanswered
-//!    rounds of that method and target are the candidates. One candidate is a
-//!    pairing. Several are a pairing only when they asked for the same inputs and
-//!    issued the same state — then every candidate yields the same verdict, so
-//!    the choice cannot change a finding; otherwise the retry is
-//!    [`Pairing::Ambiguous`] and judged by nothing, because convicting a client
-//!    on a guessed pairing is the defect this module exists to remove.
+//!    rounds of that method and target are the candidates.
+//!
+//! Either way, one candidate is a pairing. Several are a pairing only when they
+//! asked for the same inputs and issued the same state: then every candidate
+//! yields the same verdict, so the choice cannot change a finding. Otherwise the
+//! retry is [`Pairing::Ambiguous`] and judged by nothing, because convicting a
+//! client on a guessed pairing is the defect this module exists to remove.
 //!
 //! Step 2 is what still judges a client that altered or dropped the state: its
 //! retry no longer matches by state, but it still names its request.
+//!
+//! Only rounds already seen are candidates: a retry is paired with what had been
+//! said when it was sent, so appending a later exchange never changes how an
+//! earlier retry is judged.
 
 use mcp_conformance_core::trace::Direction;
 use serde_json::{Map, Value};
@@ -178,27 +189,59 @@ pub(in crate::checks) fn retries_with_rounds<'a>(
     out
 }
 
+/// Whether `round` was drawn by the request `retry` repeats: the same method
+/// and the same target.
+fn repeats(retry: &Retry<'_>, round: &Round<'_>) -> bool {
+    round.origin.2 == retry.method && round.target == retry.target
+}
+
 /// Pairs one retry against the rounds seen so far, marking the one it answers.
 fn pair<'a>(retry: &Retry<'a>, seen: &mut [(Round<'a>, bool)]) -> Pairing<'a> {
-    if let Some(state) = retry.state
-        && let Some(index) = seen
-            .iter()
-            .rposition(|(round, _)| round.state == Some(state))
-    {
-        seen[index].1 = true;
-        return Pairing::Round(seen[index].0);
+    if let Some(state) = retry.state {
+        let issued: Vec<usize> = (0..seen.len())
+            .filter(|&index| seen[index].0.state == Some(state))
+            .collect();
+        if let Some(&latest) = issued.last() {
+            let own: Vec<usize> = issued
+                .iter()
+                .copied()
+                .filter(|&index| repeats(retry, &seen[index].0))
+                .collect();
+            if own.is_empty() {
+                // The state was issued, but for another request: reused, so
+                // paired with the round that issued it.
+                seen[latest].1 = true;
+                return Pairing::Round(seen[latest].0);
+            }
+            // The unanswered rounds of this request first; when a server has
+            // repeated the state across one request's rounds and each is
+            // answered, the latest of them.
+            let open: Vec<usize> = own
+                .iter()
+                .copied()
+                .filter(|&index| !seen[index].1)
+                .collect();
+            return choose(retry, seen, if open.is_empty() { &own } else { &open });
+        }
     }
-    let candidates: Vec<usize> = seen
-        .iter()
-        .enumerate()
-        .filter(|(_, (round, answered))| {
-            !answered && round.origin.2 == retry.method && round.target == retry.target
-        })
-        .map(|(index, _)| index)
+    let candidates: Vec<usize> = (0..seen.len())
+        .filter(|&index| !seen[index].1 && repeats(retry, &seen[index].0))
         .collect();
-    let Some(&latest) = candidates.last() else {
+    if candidates.is_empty() {
         return Pairing::Unseen;
-    };
+    }
+    choose(retry, seen, &candidates)
+}
+
+/// The pairing among `candidates` (indexes into `seen`, in trace order, not
+/// empty): the latest when every candidate would be judged alike, else
+/// ambiguous.
+fn choose<'a>(
+    retry: &Retry<'a>,
+    seen: &mut [(Round<'a>, bool)],
+    candidates: &[usize],
+) -> Pairing<'a> {
+    let latest = candidates[candidates.len() - 1];
     let same_verdict = candidates
         .iter()
         .all(|&index| interchangeable(retry, &seen[index].0, &seen[latest].0));

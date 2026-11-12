@@ -17,8 +17,8 @@ use serde_json::Value;
 use super::super::super::FindingSink;
 use super::framing::Framing;
 use super::{
-    META_PROTOCOL_VERSION, Match, Post, compare, designations_by_tool, header_safe, mirrors, posts,
-    posts_by_message, sentinel_payload,
+    Designations, META_PROTOCOL_VERSION, Match, Post, compare, designations_by_tool, header_safe,
+    mirrors, posts, posts_by_message, sentinel_payload,
 };
 use crate::context::TraceContext;
 use competing::{Faults, declared_versions, listed_versions};
@@ -120,7 +120,7 @@ fn rejected_for(
     sink: &mut FindingSink,
     fault: impl Fn(&Post<'_>, &BTreeSet<String>) -> Option<String>,
 ) {
-    let recognized = recognized_param_headers(context);
+    let designations = designations_by_tool(context);
     let declared = declared_versions(context);
     let by_message = posts_by_message(context);
     for exchange in context.exchanges() {
@@ -128,6 +128,7 @@ fn rejected_for(
         let Some(post) = by_message.get(&request_seq) else {
             continue;
         };
+        let recognized = recognized_param_headers(&designations, post.seq);
         let Some(reason) = fault(post, &recognized) else {
             continue;
         };
@@ -156,10 +157,12 @@ fn rejected_for(
     }
 }
 
-/// The `Mcp-Param-*` headers the trace shows a tool declaring — the ones a
-/// server demonstrably *recognizes*, which is what TRAN-096 is scoped to.
-fn recognized_param_headers(context: &TraceContext<'_>) -> BTreeSet<String> {
-    designations_by_tool(context)
+/// The `Mcp-Param-*` headers the trace shows a tool declaring by the time of
+/// `seq` — the ones a server demonstrably *recognizes*, which is what TRAN-096
+/// is scoped to.
+fn recognized_param_headers(designations: &Designations, seq: u64) -> BTreeSet<String> {
+    designations
+        .at(seq)
         .values()
         .flatten()
         .map(|designation| designation.header.clone())
@@ -207,7 +210,7 @@ pub(in crate::checks) fn header_body_match_validated(
         if exchange.result.is_none() {
             continue; // rejected; whether it was rejected *correctly* is TRAN-098's
         }
-        for mirror in mirrors(post, &designated) {
+        for mirror in mirrors(post, designated.at(post.seq)) {
             let Some(sent) = post.headers.get(&mirror.header) else {
                 continue;
             };
@@ -406,7 +409,7 @@ fn unsupported_version_answer(
         return;
     };
     let by_message = posts_by_message(context);
-    let recognized = recognized_param_headers(context);
+    let designations = designations_by_tool(context);
     for exchange in context.exchanges() {
         if only.is_some_and(|transport| exchange.request.transport != transport) {
             continue;
@@ -427,6 +430,7 @@ fn unsupported_version_answer(
             continue;
         }
         let code = answer_code(exchange.response);
+        let recognized = recognized_param_headers(&designations, exchange.request.seq);
         let faults = Faults::of(
             exchange.params,
             by_message.get(&exchange.request.seq),

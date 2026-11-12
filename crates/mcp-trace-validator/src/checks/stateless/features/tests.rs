@@ -206,3 +206,35 @@ fn a_read_that_errored_has_no_contents_to_judge() {
     ]);
     assert_eq!(findings_for(CONTENTS, &session), Vec::<String>::new());
 }
+
+/// `read(contents)` followed by a later read of the same URI that the server
+/// answered with `code`.
+fn error_after_read(code: i64, contents: &str) -> String {
+    let mut lines: Vec<String> = read(contents).lines().map(str::to_owned).collect();
+    lines.push(client(
+        2,
+        r#"{"jsonrpc":"2.0","id":7,"method":"resources/read","params":{"uri":"file:///a","_meta":{}}}"#,
+    ));
+    lines.push(server(
+        3,
+        &format!(
+            r#"{{"jsonrpc":"2.0","id":7,"error":{{"code":{code},"message":"no such resource"}}}}"#
+        ),
+    ));
+    trace(&lines)
+}
+
+#[test]
+fn an_empty_read_is_not_judged_by_a_not_found_answer_that_came_after_it() {
+    // The resource was readable (and empty) when it was read, and gone later: a
+    // resource can be deleted. Nothing had said it was missing when the empty
+    // answer was given, so a later not-found cannot make that answer a violation;
+    // appending an unrelated later exchange must not change what was found before.
+    for code in [-32602, -32002] {
+        assert_eq!(
+            findings_for(CONTENTS, &error_after_read(code, "[]")),
+            Vec::<String>::new(),
+            "{code}"
+        );
+    }
+}

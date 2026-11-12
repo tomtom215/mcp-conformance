@@ -244,24 +244,75 @@ fn collect_designations(schema: &Value, path: &mut Vec<String>, out: &mut Vec<De
     }
 }
 
-/// The designations declared per tool name, across every tool list in the trace.
+/// The designations in force over a trace, kept in the order the tool lists
+/// declared them.
+///
+/// A tool's designations are whatever the most recent `tools/list` result before
+/// a call said (a tool listed again with none designates nothing from then on).
+/// One table for the whole trace, the last listing winning, judged a call against
+/// a listing that had not been sent yet: a server that redefined a header
+/// mid-session convicted every earlier, correct call, and the verdict changed
+/// when a later listing was appended. [`Designations::at`] is the table a call
+/// sent at `seq` was held to; a call before any listing has none.
+#[derive(Debug, Default)]
+pub(in crate::checks::stateless) struct Designations {
+    /// `(seq of a tool list result, the table after it)`, in trace order.
+    steps: Vec<(u64, BTreeMap<String, Vec<Designation>>)>,
+    /// What a call sent before any listing is held to: nothing.
+    none: BTreeMap<String, Vec<Designation>>,
+}
+
+impl Designations {
+    /// The designations per tool name in force for a message sent at `seq`.
+    pub(in crate::checks::stateless) fn at(&self, seq: u64) -> &BTreeMap<String, Vec<Designation>> {
+        self.steps
+            .iter()
+            .rev()
+            .find(|(listed, _)| *listed < seq)
+            .map_or(&self.none, |(_, table)| table)
+    }
+
+    /// Whether no tool list in the trace designated anything.
+    pub(in crate::checks::stateless) fn is_empty(&self) -> bool {
+        self.steps.iter().all(|(_, table)| table.is_empty())
+    }
+}
+
+/// The designations declared per tool name by every tool list in the trace, as
+/// they stood after each one.
 pub(in crate::checks::stateless) fn designations_by_tool(
     context: &TraceContext<'_>,
-) -> BTreeMap<String, Vec<Designation>> {
-    let mut out = BTreeMap::new();
-    for (_, tool) in tool_definitions(context) {
+) -> Designations {
+    let mut steps: Vec<(u64, BTreeMap<String, Vec<Designation>>)> = Vec::new();
+    let mut current: BTreeMap<String, Vec<Designation>> = BTreeMap::new();
+    let mut last_listed = None;
+    for (seq, tool) in tool_definitions(context) {
         let Some(name) = tool.get("name").and_then(Value::as_str) else {
             continue;
         };
         let Some(schema) = tool.get("inputSchema") else {
             continue;
         };
+        // Each result is one step; every tool in it is applied before the next
+        // result's, so a page's tools all take effect at that page's seq.
+        if last_listed.is_some_and(|listed| listed != seq) {
+            steps.push((last_listed.unwrap_or(seq), current.clone()));
+        }
+        last_listed = Some(seq);
         let declared = designations(schema);
-        if !declared.is_empty() {
-            out.insert(name.to_owned(), declared);
+        if declared.is_empty() {
+            current.remove(name);
+        } else {
+            current.insert(name.to_owned(), declared);
         }
     }
-    out
+    if let Some(listed) = last_listed {
+        steps.push((listed, current));
+    }
+    Designations {
+        steps,
+        none: BTreeMap::new(),
+    }
 }
 
 /// The instance value at a designation's exact property path, when present.

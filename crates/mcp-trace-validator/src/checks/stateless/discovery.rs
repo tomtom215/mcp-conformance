@@ -12,8 +12,6 @@
 //! the only thing they need beyond it is the request's `_meta`, which is a
 //! payload lookup by design.
 
-use std::collections::BTreeMap;
-
 use mcp_conformance_core::message::MessageKind;
 use mcp_conformance_core::trace::{Direction, TransportKind};
 
@@ -50,42 +48,20 @@ const METHOD_NOT_FOUND: i64 = -32601;
 /// `2026-07-28`, and a server answering `-32601` is not one — the *client's*
 /// conduct in that same exchange is DISC-002's business, separately.
 pub(in crate::checks) fn implemented(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    let probes: BTreeMap<String, u64> = context
-        .messages()
-        .filter_map(|(event, kind, _)| match kind {
-            MessageKind::Request { method, id }
-                if *method == DISCOVER && event.direction == Direction::ClientToServer =>
-            {
-                Some((id.to_string(), event.seq))
-            }
-            _ => None,
-        })
-        .collect();
-    if probes.is_empty() {
-        return;
-    }
-    for (event, kind, _) in context.messages() {
-        if event.direction != Direction::ServerToClient {
-            continue;
-        }
-        // The subject is an *answered* probe, whichever way it was answered: a
-        // result proves the method is implemented just as an error may disprove
-        // it, and a session whose probe went unanswered settles nothing.
-        let (id, error) = match kind {
-            MessageKind::Result { id: Some(id) } => (*id, None),
-            MessageKind::Error {
-                id: Some(id),
-                error,
-            } => (*id, Some(*error)),
-            _ => continue,
-        };
-        if !probes.contains_key(&id.to_string()) {
-            continue;
-        }
+    // The subject is an *answered* probe, whichever way it was answered: a
+    // result proves the method is implemented just as an error may disprove it,
+    // and a session whose probe went unanswered settles nothing. The answer is
+    // the one that closed the probe's own request, so an id the client reuses
+    // for a later request cannot lend that request's answer to this one.
+    for exchange in context.exchanges_for(DISCOVER) {
         sink.examined();
-        if error.and_then(|error| error.get("code")?.as_i64()) == Some(METHOD_NOT_FOUND) {
+        let code = exchange
+            .response
+            .message_payload()
+            .and_then(|payload| payload.get("error")?.get("code")?.as_i64());
+        if code == Some(METHOD_NOT_FOUND) {
             sink.push(
-                Some(event.seq),
+                Some(exchange.response.seq),
                 "`server/discover` was answered with -32601 (method not found); \
                  2026-07-28 servers must implement it"
                     .to_owned(),

@@ -47,6 +47,8 @@ below is stated again in its entry, with the reasoning.
 | Verdict, now failing | `LOG-009`: an untagged log sent while no request but a `subscriptions/listen` is in flight; `SUBS-002`: a reopened subscription's missing acknowledgment | Send logs on a request's stream; acknowledge every opening |
 | Verdict, now failing or warning | `TOOL-034`: a header-mirrored integer of 2^63 or more, or written as a float (`9007199254740992.0`); `BASE-040`: `traceparent` version `ff`; `TRAN-068`: an SSE response whose media type is not lowercase, without `X-Accel-Buffering: no` | Fix the sender |
 | Verdict, no longer failing | `LIFE-001`/`LIFE-004` at `2025-11-25` (a dual-era client's refused modern attempt over Streamable HTTP before `initialize`), `SUBS-001` (reused subscription ids), `MRTR-018` (a round before the recording), `TRAN-124` (a reused cancelled id), `CACH-008` (`ttlMs` written as `60000.0`), `BASE-040` (a higher `traceparent` version with extra fields), `TRAN-070` (a stream close after another response), `TRAN-073`/`TRAN-074`/`VERS-001`/`TRAN-096` (another defined rejection; a discover probe answered with its result), `BASE-031`/`BASE-045`/`TRAN-097`/`TRAN-100` (a retry after a null-id refusal), `BASE-034`/`MRTR-012`/`MRTR-013` (a reused request id) | None: these failed conforming sessions |
+| Verdict, no longer failing | `MRTR-020`, and the pairing behind `MRTR-003`/`015`/`016`/`017`/`019`/`024`: a retry is judged against the rounds that had issued its `requestState` when it was sent, matched by the request it repeats (method and target), so a later unrelated round that mints the same opaque value no longer convicts an earlier retry and two in-flight rounds sharing a value are told apart. `CACH-015`/`CACH-016`: a cursor two lists both hand out is no longer assigned to the wrong list. `MRTR-024`: a server that rejects a retry for a state it altered or dropped, or an id it reused, is no longer warned. `DISC-001`/`VERS-003`: a later request that reuses a probe's id no longer lends its `-32601` to the earlier, conforming probe. `RES-022`: an empty `resources/read` is no longer failed by a not-found answer that came after it. `TRAN-079`/`TRAN-130`/`TRAN-136`, `TOOL-034` and the other `x-mcp-header` clauses: a call is held to the designations listed before it, so a later `tools/list` that redefines a header no longer fails every earlier correct call (and a call before any listing, held to nothing, is no longer judged by one that came after) | None; a session that failed one of these on those grounds now passes |
+| Verdict, now failing | `MRTR-020`: a `requestState` drawn for one target of a method (`tools/call` of `a`) presented on another target of the same method (`tools/call` of `b`); before, only a different method was reported | Present a state only on the request that drew it |
 | Verdict, now not observed | `TRAN-074` on stdio (an HTTP clause; `VERS-001` judges stdio); `DISC-002`/`TRAN-128` over Streamable HTTP (stdio rules) | None; `VERS-001` still judges the unsupported-version rule on stdio |
 | SARIF | Findings against `TRAN-074` name a new check, so their fingerprints change | An open alert for one closes and reopens once |
 | `mcp-trace-capture` traces | A message whose parsed value would differ from its text (an integer past 64 bits, a repeated member name) is recorded as its raw line over stdio and left out over HTTP; SSE events whose type is not `message` are not recorded; a forced HTTP stop ends the trace with `transport-abort` | None for a conforming peer; the summary counts what was left out |
@@ -134,6 +136,47 @@ below is stated again in its entry, with the reasoning.
 
 **Checks that failed conforming sessions**
 
+- **A retry is judged against what had been said when it was sent, matched by the
+  request it repeats** (the 2026-11-11 audit, A04, A06, A07). `MRTR-020` read a map of
+  every state any round in the trace issued, last one winning, so a later unrelated
+  round that happened to mint the same opaque value (the page requires uniqueness only
+  of `inputRequests` keys, not of the state) overwrote an earlier one and an earlier,
+  correct retry failed at its own seq on the strength of an exchange that had not
+  happened yet; appending an exchange to a passing trace could fail it, or remove a
+  real finding. Pairing a retry with its round gave the echoed state priority over the
+  request, so two rounds in flight for different tools sharing one state sent a retry
+  to the other tool's round and failed `MRTR-015` and the clauses that read it. A state
+  is now matched against the rounds that issued it *before* the retry, those for the
+  method and target it repeats; one that fits no such round is genuine reuse and is
+  still paired with the round that issued it and reported; rounds of one target that
+  share a state and ask differently leave the retry unjudged, as the pairing already
+  did without a state. This also catches what a method-only comparison missed: a state
+  drawn for `tools/call` of `a` presented on `tools/call` of `b`. `CACH-015`/`CACH-016`
+  kept one pending chain per method and cursor, so two lists handing out the same
+  cursor overwrote each other and the verdict depended on the order the continuations
+  were sent in; every chain that handed a cursor out is now a candidate, and a
+  continuation fails only when it keeps none of their scopes. `MRTR-024` warned a
+  server for answering an error to a retry that omitted input, whatever else the retry
+  did; a retry that altered or dropped the `requestState` it was given, or reused the
+  first request's id, gives the server a reason of its own to reject it (the page
+  requires a state that fails verification to be rejected), so the clause is left
+  unjudged then. Three conforming traces are added to `corpus/draft/good/`
+  (`mrtr-state-reused-by-a-later-exchange`, `mrtr-parallel-rounds-sharing-a-state`,
+  `caching-cursor-shared-by-two-lists`); each failed before this fix.
+- **Three more checks read the whole trace for what was true when a message was
+  sent**, the same defect: each now judges a message only by what had been said
+  before it. `DISC-001`/`VERS-003` matched an answer to a `server/discover` probe by
+  id alone, so a later request that reused the id lent its `-32601` to the earlier,
+  conforming probe; it now takes the answer that closed the probe's own request.
+  `RES-022` failed an empty `resources/read` because the session answered the URI as
+  not found *later* (a resource can be deleted between two reads); only a not-found
+  that came first now makes an empty read a violation. The `x-mcp-header` clauses
+  (`TRAN-079`/`TRAN-130`/`TRAN-136`, `TOOL-034`'s integer range and `TRAN-096`'s
+  recognised headers) held every call to one table of designations built from every
+  `tools/list` in the trace, the last winning, so a server that redefined a header
+  mid-session failed every earlier call that had carried the old one; a call is now
+  held to the table in force when it was sent. A call sent before any `tools/list`
+  is held to no designation, where it had been held to a later listing's.
 - **`SUBS-001` accepts `notifications/tasks` requested through the tasks extension's
   `taskIds` filter**, and **`TOOL-040` judges a task-augmented call's completed result**
   (from `tasks/get`) against the tool's `outputSchema`, not the `CreateTaskResult`

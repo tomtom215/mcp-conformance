@@ -32,6 +32,8 @@ use serde_json::{Map, Value};
 use super::super::FindingSink;
 use crate::context::TraceContext;
 
+#[cfg(test)]
+mod correlation_tests;
 pub(in crate::checks) mod pairing;
 #[cfg(test)]
 mod tests;
@@ -248,37 +250,77 @@ pub(in crate::checks) fn retry_id_differs(context: &TraceContext<'_>, sink: &mut
 
 /// `MRTR-020`: a round's state is used for its own retry and nothing else.
 ///
-/// Judged by method: a `requestState` presented on a request of a different
-/// method than the one that drew it is being used for some other request, which
-/// is what the clause forbids. Two retries of the *same* method are not reported
-/// — the specification explicitly allows a server to open a further round on a
-/// repeated attempt (`#server-requirements-basic-workflow`, item 8).
+/// Judged by the request a retry repeats (its method and target) against the
+/// rounds that had issued the state *when the retry was sent*. A state presented
+/// on a request other than the one that drew it is being used for some other
+/// request, which is what the clause forbids. Two retries of the same request
+/// are not reported: the specification explicitly allows a server to open a
+/// further round on a repeated attempt (`#server-requirements-basic-workflow`,
+/// item 8), and nothing requires a server to mint a different opaque value for
+/// an unrelated request, so any one round that issued the state for this
+/// request is enough. A state nothing had yet issued is not judged here (the
+/// clause on unsolicited state is the one for that), and a round issued later
+/// says nothing about what an earlier retry used.
 pub(in crate::checks) fn request_state_scoped_to_retry(
     context: &TraceContext<'_>,
     sink: &mut FindingSink,
 ) {
-    // Every state a round issued, and the method of the request that drew it.
-    let issued: BTreeMap<String, &str> = rounds(context)
-        .iter()
-        .filter_map(|round| round.state.map(|state| (state.to_string(), round.origin.2)))
-        .collect();
+    let rounds = rounds(context);
     for retry in retries(context) {
         let Some(state) = retry.state else { continue };
-        let Some(&origin_method) = issued.get(&state.to_string()) else {
+        let Some(latest) = rounds
+            .iter()
+            .filter(|round| round.seq < retry.seq && round.state == Some(state))
+            .max_by_key(|round| round.seq)
+        else {
             continue;
         };
         sink.examined();
-        if retry.method != origin_method {
-            sink.push(
-                Some(retry.seq),
-                format!(
-                    "`{}` carries the `requestState` issued for a `{origin_method}` request; \
-                     it affects only that request's retry",
-                    retry.method
-                ),
-            );
+        let own = rounds.iter().any(|round| {
+            round.seq < retry.seq
+                && round.state == Some(state)
+                && round.origin.2 == retry.method
+                && round.target == retry.target
+        });
+        if own {
+            continue;
         }
+        let issued_for = latest.origin.2;
+        let detail = if issued_for == retry.method {
+            // Same method, so the request differs by what it addresses.
+            format!(
+                "`{}` of {} carries the `requestState` issued for a `{issued_for}` request of {}; \
+                 it affects only that request's retry",
+                retry.method,
+                addressed(retry.target),
+                addressed(latest.target),
+            )
+        } else {
+            format!(
+                "`{}` carries the `requestState` issued for a `{issued_for}` request; \
+                 it affects only that request's retry",
+                retry.method
+            )
+        };
+        sink.push(Some(retry.seq), detail);
     }
+}
+
+/// What a request addresses, for a message.
+fn addressed(target: Option<&serde_json::Value>) -> String {
+    target.map_or_else(|| "nothing named".to_owned(), ToString::to_string)
+}
+
+/// Whether `retry` carries a fault a server may reject it for whatever input was
+/// missing: a `requestState` that is not the one the round issued (altered, or
+/// dropped), or the id of the request it repeats.
+fn has_fault_of_its_own(round: &Round<'_>, retry: &Retry<'_>) -> bool {
+    let state = match (round.state, retry.state) {
+        (Some(issued), Some(presented)) => issued != presented,
+        (Some(_), None) => true,
+        (None, _) => false,
+    };
+    state || retry.id == round.origin.1
 }
 
 /// `MRTR-024`: a shortfall draws another `input_required`, not an error.
@@ -290,6 +332,12 @@ pub(in crate::checks) fn request_state_scoped_to_retry(
 /// observable; a server that could proceed without it would have completed the
 /// request rather than failing it, which is why the error is treated as
 /// evidence that it could not.
+///
+/// That inference holds only when the shortfall is the retry's one fault. A
+/// retry that also altered or dropped the `requestState` it was given, or reused
+/// the first request's id, gives the server a reason of its own to refuse it
+/// (the page requires a state that fails verification to be rejected), so the
+/// error is no evidence about the missing input and the clause is left unjudged.
 pub(in crate::checks) fn missing_input_reasked(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let paired: BTreeMap<u64, (Retry<'_>, Option<Round<'_>>)> = retries_with_rounds(context)
         .into_iter()
@@ -302,6 +350,9 @@ pub(in crate::checks) fn missing_input_reasked(context: &TraceContext<'_>, sink:
         let missing = missing_keys(&round, &retry);
         if missing.is_empty() {
             continue; // Nothing was omitted, so no shortfall to answer.
+        }
+        if has_fault_of_its_own(&round, &retry) {
+            continue;
         }
         // The subject is an *answered* retry that fell short: the clause is
         // about which of the two answers the server chose.

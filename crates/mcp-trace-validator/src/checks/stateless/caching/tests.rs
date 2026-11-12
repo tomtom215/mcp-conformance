@@ -213,3 +213,62 @@ fn a_cursor_from_another_method_does_not_join_the_chain() {
     ]);
     assert_eq!(findings_for(SCOPE, &session), Vec::<String>::new());
 }
+
+/// Two list calls whose first pages hand out the *same* cursor string (a
+/// deterministic cursor such as `next`), then two continuations of it.
+/// Nothing on the wire says which chain a continuation extends.
+fn two_roots_sharing_a_cursor(first: &str, second: &str) -> String {
+    let page = |scope: &str| format!(r#","ttlMs":1000,"cacheScope":"{scope}""#);
+    trace(&[
+        request(0, 1, "tools/list", ""),
+        complete(1, 1, &format!(r#"{},"nextCursor":"next""#, page("private"))),
+        request(2, 2, "tools/list", ""),
+        complete(3, 2, &format!(r#"{},"nextCursor":"next""#, page("public"))),
+        request(4, 3, "tools/list", r#","cursor":"next""#),
+        complete(5, 3, &page(first)),
+        request(6, 4, "tools/list", r#","cursor":"next""#),
+        complete(7, 4, &page(second)),
+    ])
+}
+
+#[test]
+fn continuations_of_chains_sharing_a_cursor_are_judged_whichever_comes_first() {
+    // Each continuation stays in the scope of one of the two roots, so each
+    // interpretation of which chain it extends but one is conforming. The
+    // verdict must not depend on the order they were sent in: before, the
+    // second root overwrote the first and the order decided it.
+    for (first, second) in [("private", "public"), ("public", "private")] {
+        assert_eq!(
+            findings_for(SCOPE, &two_roots_sharing_a_cursor(first, second)),
+            Vec::<String>::new(),
+            "{first} then {second}"
+        );
+    }
+}
+
+#[test]
+fn a_continuation_that_fits_no_chain_sharing_its_cursor_is_still_reported() {
+    // A page with no `cacheScope` matches neither root (a dropped field is not
+    // "the same scope"), so every reading of it violates the clause. The other
+    // continuation then extends the chain that is left, and is consistent.
+    let session = trace(&[
+        request(0, 1, "tools/list", ""),
+        complete(
+            1,
+            1,
+            r#","ttlMs":1000,"cacheScope":"private","nextCursor":"next""#,
+        ),
+        request(2, 2, "tools/list", ""),
+        complete(
+            3,
+            2,
+            r#","ttlMs":1000,"cacheScope":"public","nextCursor":"next""#,
+        ),
+        request(4, 3, "tools/list", r#","cursor":"next""#),
+        complete(5, 3, r#","ttlMs":1000"#),
+        request(6, 4, "tools/list", r#","cursor":"next""#),
+        complete(7, 4, r#","ttlMs":1000,"cacheScope":"private""#),
+    ]);
+    let findings = findings_for(SCOPE, &session);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+}

@@ -109,7 +109,7 @@ fn header_omitted(context: &TraceContext<'_>, sink: &mut FindingSink, scenario: 
         return;
     }
     for post in posts(context) {
-        for designation in without_value(&post, &designated, scenario) {
+        for designation in without_value(&post, designated.at(post.seq), scenario) {
             // The subject is a designated parameter the call left without a
             // value; a call supplying every one never meets this rule.
             sink.examined();
@@ -191,11 +191,11 @@ fn header_not_expected(context: &TraceContext<'_>, sink: &mut FindingSink, scena
         let Some(post) = by_message.get(&exchange.request.seq) else {
             continue;
         };
-        let omitted: Vec<_> = without_value(post, &designated, scenario)
+        let omitted: Vec<_> = without_value(post, designated.at(post.seq), scenario)
             .into_iter()
             .filter(|designation| !post.headers.contains_key(&designation.header))
             .collect();
-        if omitted.is_empty() || !nothing_else_to_reject(post, &designated) {
+        if omitted.is_empty() || !nothing_else_to_reject(post, designated.at(post.seq)) {
             continue;
         }
         sink.examined();
@@ -242,7 +242,7 @@ pub(in crate::checks) fn missing_param_header_rejected(
         let Some(post) = by_message.get(&exchange.request.seq) else {
             continue;
         };
-        for mirror in mirrors(post, &designated) {
+        for mirror in mirrors(post, designated.at(post.seq)) {
             if !mirror.header.starts_with("mcp-param-") || post.headers.contains_key(&mirror.header)
             {
                 continue; // standard headers are TRAN-058's; present ones TRAN-097's

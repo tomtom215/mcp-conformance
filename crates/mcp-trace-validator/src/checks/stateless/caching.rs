@@ -140,9 +140,19 @@ pub(in crate::checks) fn ttl_non_negative(context: &TraceContext<'_>, sink: &mut
 /// Grouping by method instead would merge two independent `tools/list` calls,
 /// which the clause does not bind together — a server may legitimately answer
 /// them with different scopes.
+///
+/// A cursor is opaque, and a server may hand out the same one for unrelated
+/// lists (a deterministic `next`), and the recording keeps no credential or
+/// connection that would say which caller presented it. Which chain such a
+/// continuation extends is then not on the wire, so every chain that handed the
+/// cursor out stays a candidate, and the continuation extends one whose scope it
+/// keeps. It violates the clause only when it keeps none: every reading of it is
+/// then a change of scope. A cursor only one chain handed out is followed
+/// exactly, as before.
 pub(in crate::checks) fn page_scope_consistent(context: &TraceContext<'_>, sink: &mut FindingSink) {
-    // (method, cursor a continuation would present) → the chain it continues.
-    let mut awaiting: HashMap<(&str, String), usize> = HashMap::new();
+    // (method, cursor a continuation would present) → the chains that handed it
+    // out and are still waiting for it, oldest first.
+    let mut awaiting: HashMap<(&str, String), Vec<usize>> = HashMap::new();
     // Chain → the scope its first page declared, and where.
     let mut scopes: Vec<(Option<String>, u64)> = Vec::new();
     for exchange in context.exchanges() {
@@ -157,18 +167,24 @@ pub(in crate::checks) fn page_scope_consistent(context: &TraceContext<'_>, sink:
         // Only a continuation page can disagree with the page before it: a
         // first page is the one that *sets* the scope, so a session with no
         // multi-page listing leaves this clause untested.
-        let chain = cursor
-            .and_then(|cursor| awaiting.remove(&(exchange.method, cursor)))
-            .map_or_else(
-                || {
-                    scopes.push((scope.clone(), exchange.response.seq));
-                    scopes.len() - 1
-                },
-                |chain| {
-                    sink.examined();
-                    chain
-                },
-            );
+        let continued = cursor.and_then(|cursor| {
+            let candidates = awaiting.get_mut(&(exchange.method, cursor))?;
+            let at = candidates
+                .iter()
+                .rposition(|&chain| scopes[chain].0 == scope)
+                .or_else(|| candidates.len().checked_sub(1))?;
+            Some(candidates.remove(at))
+        });
+        let chain = continued.map_or_else(
+            || {
+                scopes.push((scope.clone(), exchange.response.seq));
+                scopes.len() - 1
+            },
+            |chain| {
+                sink.examined();
+                chain
+            },
+        );
         let (first, first_seq) = &scopes[chain];
         if *first != scope {
             sink.push(
@@ -183,7 +199,10 @@ pub(in crate::checks) fn page_scope_consistent(context: &TraceContext<'_>, sink:
             );
         }
         if let Some(next) = result.get("nextCursor") {
-            awaiting.insert((exchange.method, next.to_string()), chain);
+            awaiting
+                .entry((exchange.method, next.to_string()))
+                .or_default()
+                .push(chain);
         }
     }
 }

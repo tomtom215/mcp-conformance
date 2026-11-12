@@ -11,21 +11,21 @@
 
 use crate::checks::stateless::testkit::{client, findings_for, server, trace};
 
-const SUPPORTED_METHODS: &str = "mrtr.input-required-supported-methods";
-const REQUEST_METHODS: &str = "mrtr.input-request-methods";
-const HAS_CONTENT: &str = "mrtr.input-required-has-content";
-const CARRIES_RESPONSES: &str = "mrtr.retry-carries-input-responses";
-const ECHOED: &str = "mrtr.request-state-echoed";
-const UNSOLICITED: &str = "mrtr.no-unsolicited-request-state";
-const ID_DIFFERS: &str = "mrtr.retry-id-differs";
-const SCOPED: &str = "mrtr.request-state-scoped-to-retry";
-const REASKED: &str = "mrtr.missing-input-reasked";
+pub(super) const SUPPORTED_METHODS: &str = "mrtr.input-required-supported-methods";
+pub(super) const REQUEST_METHODS: &str = "mrtr.input-request-methods";
+pub(super) const HAS_CONTENT: &str = "mrtr.input-required-has-content";
+pub(super) const CARRIES_RESPONSES: &str = "mrtr.retry-carries-input-responses";
+pub(super) const ECHOED: &str = "mrtr.request-state-echoed";
+pub(super) const UNSOLICITED: &str = "mrtr.no-unsolicited-request-state";
+pub(super) const ID_DIFFERS: &str = "mrtr.retry-id-differs";
+pub(super) const SCOPED: &str = "mrtr.request-state-scoped-to-retry";
+pub(super) const REASKED: &str = "mrtr.missing-input-reasked";
 
 /// One elicitation input request.
-const ELICIT: &str = r#""inputRequests":{"login":{"method":"elicitation/create","params":{"mode":"form","message":"?"}}}"#;
+pub(super) const ELICIT: &str = r#""inputRequests":{"login":{"method":"elicitation/create","params":{"mode":"form","message":"?"}}}"#;
 
 /// A client request `id` for `method`, whose `params` also carry `extra`.
-fn request(seq: u64, id: u64, method: &str, extra: &str) -> String {
+pub(super) fn request(seq: u64, id: u64, method: &str, extra: &str) -> String {
     client(
         seq,
         &format!(
@@ -35,7 +35,7 @@ fn request(seq: u64, id: u64, method: &str, extra: &str) -> String {
 }
 
 /// A server `input_required` result for `id`, carrying `body`.
-fn input_required(seq: u64, id: u64, body: &str) -> String {
+pub(super) fn input_required(seq: u64, id: u64, body: &str) -> String {
     server(
         seq,
         &format!(
@@ -45,7 +45,7 @@ fn input_required(seq: u64, id: u64, body: &str) -> String {
 }
 
 /// A `tools/call` round asking for `login`, with state `state`, then `retry_extra`.
-fn round_then(state: &str, retry_extra: &str) -> String {
+pub(super) fn round_then(state: &str, retry_extra: &str) -> String {
     trace(&[
         request(0, 1, "tools/call", ""),
         input_required(1, 1, &format!(",{ELICIT}{state}")),
@@ -340,7 +340,7 @@ fn a_shortfall_should_draw_another_round_not_an_error() {
 }
 
 /// A request `id` for `tools/call` of tool `name`, whose `params` also carry `extra`.
-fn call(seq: u64, id: u64, name: &str, extra: &str) -> String {
+pub(super) fn call(seq: u64, id: u64, name: &str, extra: &str) -> String {
     client(
         seq,
         &format!(

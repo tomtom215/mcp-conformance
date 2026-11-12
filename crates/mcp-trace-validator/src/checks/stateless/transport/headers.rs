@@ -98,7 +98,7 @@ pub(in crate::checks) fn request_metadata_headers(
         if !post.is_request() {
             continue;
         }
-        for mirror in mirrors(&post, &designated) {
+        for mirror in mirrors(&post, designated.at(post.seq)) {
             if mirror.header.starts_with("mcp-param-") {
                 continue; // custom headers are TRAN-079's
             }
@@ -204,7 +204,7 @@ pub(in crate::checks) fn sentinel_pattern_encoded(
         if !post.is_request() {
             continue;
         }
-        for mirror in mirrors(&post, &designated) {
+        for mirror in mirrors(&post, designated.at(post.seq)) {
             if !mirror.encodable {
                 continue;
             }
@@ -241,7 +241,7 @@ pub(in crate::checks) fn x_mcp_header_mirrored(context: &TraceContext<'_>, sink:
         if !post.is_request() {
             continue;
         }
-        for mirror in mirrors(&post, &designated) {
+        for mirror in mirrors(&post, designated.at(post.seq)) {
             if !mirror.header.starts_with("mcp-param-") {
                 continue; // The standard headers are TRAN-058's.
             }
@@ -286,7 +286,7 @@ pub(in crate::checks) fn x_mcp_header_value_mirrored(
         if !post.is_request() {
             continue;
         }
-        for mirror in mirrors(&post, &designated) {
+        for mirror in mirrors(&post, designated.at(post.seq)) {
             if !mirror.header.starts_with("mcp-param-") {
                 continue; // The standard headers are TRAN-058's.
             }

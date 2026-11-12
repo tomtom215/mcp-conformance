@@ -108,7 +108,7 @@ pub(in crate::checks) fn x_mcp_header_integer_range(
         let Some(name) = params.get("name").and_then(Value::as_str) else {
             continue;
         };
-        let Some(paths) = designations.get(name) else {
+        let Some(paths) = designations.at(event.seq).get(name) else {
             continue;
         };
         for designation in paths {
@@ -168,24 +168,30 @@ pub(in crate::checks) fn read_contents_non_empty(
             .and_then(Value::as_str)
             .map(str::to_owned)
     };
-    let missing: BTreeSet<String> = context
-        .exchanges_for("resources/read")
-        .filter(|exchange| {
-            let code = exchange
-                .response
-                .message_payload()
-                .and_then(|payload| payload.get("error")?.get("code")?.as_i64());
-            matches!(code, Some(-32602 | -32002))
-        })
-        .filter_map(|exchange| uri_of(&exchange))
-        .collect();
+    // The URIs the server has already answered as not found, as the trace goes:
+    // an empty answer is judged only by what had been said when it was given. A
+    // resource can be created or deleted between two reads, so a not-found that
+    // comes *after* an empty read says nothing about whether that read was right.
+    let mut missing: BTreeSet<String> = BTreeSet::new();
     for exchange in context.exchanges_for("resources/read") {
-        let Some(uri) = uri_of(&exchange).filter(|uri| missing.contains(uri)) else {
+        let Some(uri) = uri_of(&exchange) else {
             continue;
         };
+        let code = exchange
+            .response
+            .message_payload()
+            .and_then(|payload| payload.get("error")?.get("code")?.as_i64());
+        let not_found = matches!(code, Some(-32602 | -32002));
         // The subject is every answer about a resource the server has said is
         // missing — the not-found error itself being the conforming one.
+        if !not_found && !missing.contains(&uri) {
+            continue;
+        }
         sink.examined();
+        if not_found {
+            missing.insert(uri);
+            continue;
+        }
         let empty = exchange
             .result
             .and_then(|result| result.get("contents"))

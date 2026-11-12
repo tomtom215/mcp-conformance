@@ -183,3 +183,70 @@ fn a_mirrored_header_must_carry_the_designated_value() {
     ]);
     assert_eq!(findings_for(check, &undesignated), Vec::<String>::new());
 }
+
+/// A `tools/list` result at `seq` declaring tool `t`'s `region` argument as the
+/// header `header`.
+fn listing(seq: u64, id: u64, header: &str) -> String {
+    server(
+        seq,
+        &format!(
+            r#"{{"jsonrpc":"2.0","id":{id},"result":{{"tools":[{{"name":"t","inputSchema":{{"type":"object","properties":{{"region":{{"type":"string","x-mcp-header":"{header}"}}}}}}}}]}}}}"#
+        ),
+    )
+}
+
+/// A `tools/call` of `t` with `region` set, as a POST carrying `headers`, at
+/// `seq` and `seq + 1`.
+fn region_call(seq: u64, id: u64, headers: &str) -> Vec<String> {
+    vec![
+        post(seq, headers),
+        client(
+            seq + 1,
+            &format!(
+                r#"{{"jsonrpc":"2.0","id":{id},"method":"tools/call","params":{{"name":"t","arguments":{{"region":"eu"}},{META}}}}}"#
+            ),
+        ),
+    ]
+}
+
+#[test]
+fn a_call_is_judged_against_the_designations_listed_before_it() {
+    // The tool designates `region` for `Mcp-Param-Region`; the call carries it.
+    // Later the server lists the tool again, now designating `Mcp-Param-Zone`.
+    // Judged against one map for the whole trace (the last listing winning), the
+    // earlier, correct call was reported for omitting a header nobody had yet
+    // asked for.
+    let check = "transport.x-mcp-header-mirrored";
+    let carried = r#"{"mcp-method":"tools/call","mcp-name":"t","mcp-param-region":"eu"}"#;
+    let mut lines = vec![listing(0, 1, "Region")];
+    lines.extend(region_call(1, 2, carried));
+    assert_eq!(
+        findings_for(check, &trace(&lines)),
+        Vec::<String>::new(),
+        "the prefix is conforming"
+    );
+
+    lines.push(listing(3, 3, "Zone"));
+    assert_eq!(
+        findings_for(check, &trace(&lines)),
+        Vec::<String>::new(),
+        "a later listing must not change what was found before it"
+    );
+
+    // A call sent after the second listing is held to it.
+    lines.extend(region_call(4, 4, carried));
+    let findings = findings_for(check, &trace(&lines));
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].contains("Mcp-Param-Zone"), "{findings:?}");
+}
+
+#[test]
+fn a_call_before_any_listing_has_no_designation_to_be_held_to() {
+    // The designations arrive after the call: nothing had designated the header
+    // when it was sent, so it is not judged against what was listed later.
+    let check = "transport.x-mcp-header-mirrored";
+    let bare = r#"{"mcp-method":"tools/call","mcp-name":"t"}"#;
+    let mut lines = region_call(0, 1, bare);
+    lines.push(listing(2, 2, "Region"));
+    assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
+}

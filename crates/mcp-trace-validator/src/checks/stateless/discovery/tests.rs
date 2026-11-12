@@ -234,3 +234,23 @@ fn a_session_with_no_client_requests_is_not_judged() {
     assert_eq!(findings_for(PROBE_FIRST, &quiet), Vec::<String>::new());
     assert_eq!(findings_for(IMPLEMENTED, &quiet), Vec::<String>::new());
 }
+
+#[test]
+fn an_id_reused_later_for_another_request_does_not_make_its_answer_a_discover_answer() {
+    // The probe (id 1) is answered normally. The client later reuses id 1 for a
+    // different request, and that request draws `-32601`. Matched to probes by
+    // id alone over the whole trace, that answer was held against the earlier,
+    // conforming `server/discover` exchange.
+    let reused = trace(&[
+        probe(0),
+        server(1, r#"{"jsonrpc":"2.0","id":1,"result":{}}"#),
+        request(2, 1, "tools/list", true),
+        error(3, "1", -32601),
+    ]);
+    assert_eq!(findings_for(IMPLEMENTED, &reused), Vec::<String>::new());
+
+    // The clause's own case still fires: the probe itself is the request that
+    // `-32601` answers.
+    let missing = trace(&[probe(0), error(1, "1", -32601)]);
+    assert_eq!(findings_for(IMPLEMENTED, &missing).len(), 1);
+}
