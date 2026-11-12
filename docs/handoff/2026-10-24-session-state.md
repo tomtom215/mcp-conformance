@@ -13,7 +13,7 @@ that says "pushed" is on that branch at `origin`.
 
 **Updated 2026-10-25.** V1, R1 and the interop refresh (I1) are merged on the branch, which is PR 68
 (`tomtom215/mcp-conformance#68`, opened that day; nothing else is merged to `main`). Two more agents' work,
-C1 and V2, is finished but **not merged**: it is saved in git bundles under `wip/` with their reports. The
+C1 and V2, was finished but **not merged**: it is saved in git bundles under `wip/` with their reports (**C1 was merged on 2026-11-12**, see [the audit response](2026-11-12-audit-response.md); V2 is not). The
 sections "CI on the branch", "Verified on the V1-merged tip", "Verified on the R1-merged tip", "Interop
 matrix (I1)", "Finished by agents" and "Next, in order" were rewritten in place; the rest is as of
 2026-10-24.
@@ -190,7 +190,7 @@ pause; their commits are saved in one git bundle, `wip/wip.bundle`, as branches 
   revision, a **behavior change**; `format: byte` asserted in the wire schema, which the official
   runner does not do). The merge was reviewed and re-verified (above); ADR-0018 and ADR-0020 carry
   amendments, the strategy doc's calibration paragraph and the CHANGELOG are updated. The CLI's use of
-  the party view is C1, below (finished, not merged).
+  the party view is C1, below (finished; merged 2026-11-12).
 - **R1 (2025-11-25 ping, progress, cancellation): merged 2026-10-25.** 27 entries (13 judged by 11
   checks, 14 excluded), IDs PING-001..007, PROG-009..019, CANC-018..026 (no 2026-07-28 ID reused),
   15 corpus traces; the revision is at 348 entries / 102 judged / 246 excluded (the README's registry

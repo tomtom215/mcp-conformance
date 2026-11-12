@@ -34,7 +34,9 @@ re-run `cargo xtask bless` and review the whole diff by class. Run the whole gat
 configurations, `cargo xtask gates` **after `git add`**, `coverage --check`, `draft-coverage
 --check`, `spec-drift`, `falsify-gates`) before trusting either.
 
-## Second set (2026-10-25): C1 and V2, finished and **not merged**
+## Second set (2026-10-25): C1 and V2, finished; **C1 merged 2026-11-12, V2 not**
+
+**C1 was merged on 2026-11-12** (the response to the 2026-11-11 audit's A09): its six commits were cherry-picked onto `claude/loving-cerf-icrjxf` with one conflict (in `mcp-trace-capture`'s HTTP code, resolved by keeping both sides), and the claims in its report were re-run on the result (workspace tests in three feature sets, clippy in three, `xtask gates`, `conformance`), not taken from it. **V2 is still unmerged**, and its ADR-0025 collides with the repository's ADR 0025 (written 2026-11-12), so it needs the next free number when it lands.
 
 Two more agents' branches, saved when the 2026-10-25 session wrapped up, one bundle each. Both sit on
 `cec63bb` (a commit of PR 68's branch), so fetch them into a checkout that has it. Neither has been
@@ -45,7 +47,7 @@ is in any diff or commit.
 
 | Branch | Bundle | Tip, size | What | Report |
 |---|---|---|---|---|
-| `wip/C1` | [`wip-c1.bundle`](wip-c1.bundle) | `19cb7ea`, 6 commits, 38 files | `mcp-conformance test` holds its subject to its own party's findings; a note when a server lacks the suite's fixtures; `watch http` Host flags; proxy hints; `serverInfo` from `_meta` in the library; one printing of the report; the `watch` tally | [`C1-final-report.md`](C1-final-report.md) |
+| `wip/C1` (merged 2026-11-12) | [`wip-c1.bundle`](wip-c1.bundle) | `19cb7ea`, 6 commits, 38 files | `mcp-conformance test` holds its subject to its own party's findings; a note when a server lacks the suite's fixtures; `watch http` Host flags; proxy hints; `serverInfo` from `_meta` in the library; one printing of the report; the `watch` tally | [`C1-final-report.md`](C1-final-report.md) |
 | `wip/V2` | [`wip-v2.bundle`](wip-v2.bundle) | `397b5c0`, 5 commits, 67 files | `validate --baseline` / `--write-baseline` / `--allow-stale-baseline`, `--area` / `--level`, and ADR-0025 (**Proposed**); grouped repeats and docs **not done** | [`V2-final-report.md`](V2-final-report.md) |
 
 ```text
