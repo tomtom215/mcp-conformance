@@ -14,11 +14,19 @@
 # or a JUnit `<error>` naming the problem — the shapes the validator itself
 # gives a trace it could not judge — so a following `upload-sarif` or
 # test-report step (usually `if: always()`) reads a valid file rather than
-# failing on a missing or empty one. The exit-code output stays the run's own.
+# failing on a missing or empty one. The exit-code output stays the run's own,
+# except that a report that cannot be written is exit 2 ("output not written"),
+# said as an `::error::`: the Action promises the files, so a run that leaves one
+# missing is never a pass.
 set -uo pipefail
 shopt -s globstar nullglob
+# bash 5.2 reads an unescaped `&` in a ${text//pattern/replacement} replacement
+# as the matched text, which turned `<` into `<lt;` below; the escapes here are
+# literal.
+shopt -u patsub_replacement 2> /dev/null || true
 
-# $1 with the characters JSON strings escape replaced.
+# $1 with the characters JSON strings escape replaced. Any other control
+# character, which a JSON string may not hold raw, becomes `?`.
 json_escape() {
   local text=$1
   text=${text//\\/\\\\}
@@ -26,10 +34,12 @@ json_escape() {
   text=${text//$'\n'/\\n}
   text=${text//$'\r'/\\r}
   text=${text//$'\t'/\\t}
+  text=${text//[[:cntrl:]]/?}
   printf '%s' "$text"
 }
 
-# $1 with the characters XML attributes escape replaced.
+# $1 with the characters XML attributes escape replaced. A control character
+# XML 1.0 cannot hold at all becomes `?`.
 xml_escape() {
   local text=$1
   text=${text//&/&amp;}
@@ -37,8 +47,48 @@ xml_escape() {
   text=${text//>/&gt;}
   text=${text//\"/&quot;}
   text=${text//$'\n'/&#10;}
+  text=${text//$'\r'/&#13;}
+  text=${text//$'\t'/&#9;}
+  text=${text//[[:cntrl:]]/?}
   printf '%s' "$text"
 }
+
+# Whether a configured report could not be written, said once and kept.
+output_failed=0
+
+# Makes the directory report $1 is written into: a path under a directory that
+# does not exist yet used to fail every redirect below with nothing said.
+prepare_output() {
+  local file=$1 dir
+  [[ -n "$file" ]] || return 0
+  dir=$(dirname -- "$file")
+  if ! mkdir -p -- "$dir" 2> /dev/null; then
+    echo "::error::cannot write ${file}: ${dir} cannot be created"
+    output_failed=1
+  fi
+}
+
+# Says so when report $1, configured, is missing or empty after the run.
+verify_output() {
+  local file=$1
+  [[ -n "$file" ]] || return 0
+  if [[ ! -s "$file" ]]; then
+    echo "::error::${file} was not written"
+    output_failed=1
+  fi
+}
+
+# Writes the `exit-code` output: $1, or 2 when a report was not written.
+emit_exit_code() {
+  local code=$1
+  verify_output "${SARIF_FILE:-}"
+  verify_output "${JUNIT_FILE:-}"
+  if [[ $output_failed -ne 0 && $code -lt 2 ]]; then code=2; fi
+  echo "exit-code=${code}" >> "$GITHUB_OUTPUT"
+}
+
+prepare_output "${SARIF_FILE:-}"
+prepare_output "${JUNIT_FILE:-}"
 
 # Writes the SARIF log $1 for a run that judged nothing because of problem $2.
 write_unjudged_sarif() {
@@ -103,7 +153,7 @@ set +f
 if [[ ${#patterns[@]} -eq 0 ]]; then
   echo "::error::nothing to validate: set \`traces\`, or \`capture\` to record a session"
   write_unjudged_reports "nothing to validate: no traces given and nothing captured"
-  echo "exit-code=2" >> "$GITHUB_OUTPUT"
+  emit_exit_code 2
   exit 0
 fi
 traces=()
@@ -113,7 +163,7 @@ for pattern in "${patterns[@]}"; do
   if [[ ${#matches[@]} -eq 0 ]]; then
     echo "::error::no trace matches ${pattern}"
     write_unjudged_reports "no trace matches ${pattern}"
-    echo "exit-code=2" >> "$GITHUB_OUTPUT"
+    emit_exit_code 2
     exit 0
   fi
   traces+=( "${matches[@]}" )
@@ -152,4 +202,4 @@ problem=${problem#error: }
 problem=${problem:-mcp-trace-validator exited ${status} without a report}
 if [[ -n "${SARIF_FILE:-}" && ! -s "$SARIF_FILE" ]]; then write_unjudged_sarif "$SARIF_FILE" "$problem"; fi
 if [[ -n "${JUNIT_FILE:-}" && ! -s "$JUNIT_FILE" ]]; then write_unjudged_junit "$JUNIT_FILE" "$problem"; fi
-echo "exit-code=${status}" >> "$GITHUB_OUTPUT"
+emit_exit_code "$status"

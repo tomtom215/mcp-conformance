@@ -71,6 +71,12 @@ in the repository's code scanning view, each on the trace line that holds the ev
 The inputs — `revision`, `strict`, `fail-on-findings`, the output paths — are listed in
 [`action.yml`](https://github.com/tomtom215/mcp-conformance/blob/main/action.yml).
 
+Both report files exist whatever the run decided: a path under a directory that does not
+exist yet gets the directory made, a trace that could not be judged leaves a report that
+says so, and a report that cannot be written at all (the directory cannot be made) is
+`exit-code` `2` with an `::error::`, never a `0` over a missing file. A CI job
+(`action/test-validate.sh`) checks that, over paths and trace names that need escaping.
+
 ### Recording with the action
 
 The action can also take the recording: set `capture`, give it the `server` and the

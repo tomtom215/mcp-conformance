@@ -757,6 +757,14 @@ jobs:
           sarif-file: none.sarif
           junit-file: none.xml
           fail-on-findings: "false"
+      # The Action's promise that each configured report exists and parses,
+      # under paths and trace names a user can write: a report directory that
+      # does not exist yet, one that cannot be made, and a trace named with
+      # characters JSON and XML must escape.
+      - name: The Action's output contract under hostile paths
+        run: |
+          cargo build --locked -p mcp-trace-validator
+          PATH="$CARGO_TARGET_DIR/debug:$PATH" bash action/test-validate.sh
       - name: Build the server and the client the recorded sessions run
         run: cargo build --locked -p mcp-everything-server -p mcp-reference-host
       - name: A stdio session, recorded and judged
