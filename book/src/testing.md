@@ -74,7 +74,14 @@ The human report has three parts:
   `mcp-trace-validator validate` prints it ([Reading a report](reading-a-report.md)),
   viewed for your end of the session ([below](#whose-finding-it-is)). A session that
   holds nothing to judge (a request the server refused before any message was exchanged,
-  say) is listed as not judged, with the reason.
+  say) is listed as not judged (`informational`), with the reason, and the run loses
+  nothing. One the run recorded and could not judge is listed as an `error`: a trace that
+  is malformed or unreadable, or a session whose server negotiated a revision this build
+  has no registry for. That makes the run's verdict `incomplete` and its exit code `2`,
+  whatever the suite and the sessions it did judge say, unless you name the session with
+  `--expected-unjudged` (its name under the trace directory, or a directory's; naming one
+  that did not go unjudged for that reason is an error too, so an expectation cannot
+  outlive its cause).
 - **Agreement** — every failing clause held against your end is a divergence from the
   suite's verdict unless a divergence baseline explains it, and every baseline entry that
   explained nothing is stale. Agreement holds when there is neither.
@@ -149,7 +156,8 @@ mcp-conformance test --command "python my_server.py" --format sarif -o conforman
 
 The exit code is `0` when the suite passed and the two agree, `1` for findings — a suite
 check that failed or warned, or a disagreement — and `2` when the run could not be made
-or judged. The suite's results and every trace are kept in the work directory, printed at
+or judged, including a recorded session it could not judge ([above](#reading-the-result)).
+The report's top-level `verdict` is `pass`, `fail` or `incomplete` to match. The suite's results and every trace are kept in the work directory, printed at
 the end (`--work-dir` chooses it): judge a trace again, or attach it to a bug report.
 
 ## This repository's own subjects

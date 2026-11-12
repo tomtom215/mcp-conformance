@@ -4,6 +4,7 @@
 #![allow(clippy::unwrap_used)]
 
 use super::*;
+use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TransportKind};
 
 /// A fresh directory of this test's own.
 fn scratch(name: &str) -> PathBuf {
@@ -154,4 +155,112 @@ fn a_trace_file_is_readable_by_its_owner_alone() {
     assert_eq!(std::fs::read_to_string(&wide).unwrap(), "");
     assert_eq!(mode(&wide) & 0o077, 0, "{:o}", mode(&wide));
     std::fs::remove_dir_all(&dir).ok();
+}
+
+/// A recorder over a sink of its own, holding one message.
+fn recorder_with_a_message() -> Recorder {
+    let recorder = Recorder::new(Vec::<u8>::new());
+    recorder
+        .record(
+            Direction::ClientToServer,
+            TransportKind::Stdio,
+            EventBody::Message {
+                payload: serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": "ping"}),
+            },
+        )
+        .unwrap();
+    recorder
+}
+
+/// What the exit code of a stdio run is, for a recorder as the test leaves it.
+fn stdio_code(recorder: &Recorder, code: i32, fail_on_unrecorded: bool) -> i32 {
+    finish_with(
+        recorder,
+        Path::new("t.jsonl"),
+        code,
+        None,
+        fail_on_unrecorded,
+    )
+}
+
+#[test]
+fn a_run_exits_with_its_own_code_unless_asked_to_fail_on_what_was_left_out() {
+    use crate::recorder::Loss;
+    // Nothing left out: the code is the run's, flag or not.
+    assert_eq!(stdio_code(&recorder_with_a_message(), 0, true), 0);
+    assert_eq!(stdio_code(&recorder_with_a_message(), 7, true), 7);
+
+    // Something left out: only with the flag, and only in place of a 0.
+    let lossy = || {
+        let recorder = recorder_with_a_message();
+        recorder.note_unrecorded(Loss::OverBudget, 2);
+        recorder
+    };
+    assert_eq!(stdio_code(&lossy(), 0, false), 0, "default exit codes");
+    assert_eq!(stdio_code(&lossy(), 0, true), EXIT_INCOMPLETE);
+    assert_eq!(stdio_code(&lossy(), 7, true), 7, "a server's own failure");
+
+    // What came after the close is left out too; a close with nothing after
+    // it is not.
+    let closed = || {
+        let recorder = recorder_with_a_message();
+        recorder
+            .close(
+                Direction::ServerToClient,
+                TransportKind::Stdio,
+                LifecycleEvent::TransportClose,
+            )
+            .unwrap();
+        recorder
+    };
+    assert_eq!(stdio_code(&closed(), 0, true), 0);
+    let after = closed();
+    let _ = after.record(
+        Direction::ClientToServer,
+        TransportKind::Stdio,
+        EventBody::Message {
+            payload: serde_json::json!({}),
+        },
+    );
+    assert_eq!(stdio_code(&after, 0, false), 0);
+    let after = closed();
+    let _ = after.record(
+        Direction::ClientToServer,
+        TransportKind::Stdio,
+        EventBody::Message {
+            payload: serde_json::json!({}),
+        },
+    );
+    assert_eq!(stdio_code(&after, 0, true), EXIT_INCOMPLETE);
+}
+
+/// The library's own entry points, which take no flag, pass the code through
+/// as they always did.
+#[test]
+fn the_flagless_entry_points_pass_the_code_through() {
+    use crate::recorder::Loss;
+    let recorder = recorder_with_a_message();
+    recorder.note_unrecorded(Loss::Oversized, 1);
+    assert_eq!(finish(&recorder, Path::new("t.jsonl"), 7, None), 7);
+    let recorder = recorder_with_a_message();
+    recorder.note_unrecorded(Loss::Oversized, 1);
+    assert_eq!(
+        finish(&recorder, Path::new("t.jsonl"), 0, None),
+        0,
+        "what was left out is only reported unless asked for"
+    );
+
+    let traces = || {
+        let recorder = recorder_with_a_message();
+        recorder.note_unrecorded(Loss::Oversized, 1);
+        Traces::one(Arc::new(recorder))
+    };
+    assert_eq!(finish_traces(&traces(), None, 7), 7);
+    assert_eq!(finish_traces(&traces(), None, 0), 0);
+    assert_eq!(finish_traces_with(&traces(), None, 0, false), 0);
+    assert_eq!(
+        finish_traces_with(&traces(), None, 0, true),
+        EXIT_INCOMPLETE
+    );
+    assert_eq!(finish_traces_with(&traces(), None, 7, true), 7);
 }

@@ -3,12 +3,18 @@
 
 //! Every recorded session, judged as `mcp-trace-validator validate` judges it:
 //! at the revision it declares ([`judge::judge`]), with a session that cannot
-//! be judged — the server never answered, nothing judgeable — kept, with its
-//! reason, rather than dropped.
+//! be judged kept, with its reason and its [`Class`], rather than dropped.
 //!
-//! A refused session is not by itself a failure of the run: the suite's
-//! `dns-rebinding-protection` scenario, for one, sends requests a correct
-//! server refuses, and their recording holds nothing to judge.
+//! A session that cannot be judged is one of two things. **Informational**: the
+//! server never answered, or nothing was judged — the suite's
+//! `dns-rebinding-protection` scenario sends requests a correct server refuses,
+//! and their recording holds nothing to judge — so the run has lost nothing.
+//! **An error**: a trace that is malformed or unreadable, a build that cannot
+//! load its registry, or a session that ran under a revision this build has no
+//! registry for, which the run recorded and could not judge. The last is an
+//! error unless the caller names the session as expected
+//! (`--expected-unjudged`), because a pass over a session nobody judged is the
+//! failure this separates from a pass.
 //!
 //! **Viewed for the subject.** The suite's own client (or, for a client under
 //! test, its own server) breaks clauses of its own, so every report is viewed
@@ -21,8 +27,9 @@ use std::path::{Path, PathBuf};
 
 use mcp_conformance_cli::agreement::{self, Totals, ValidatorFailure};
 use mcp_conformance_core::trace::TraceEvent;
-use mcp_trace_validator::judge;
+use mcp_trace_validator::judge::{self, JudgeError};
 use mcp_trace_validator::report::{Party, PartyTally, Report, Unjudged, Verdict};
+use serde::Serialize;
 
 /// One judged session.
 #[derive(Debug)]
@@ -46,15 +53,61 @@ impl Judged {
     }
 }
 
+/// What a session that could not be judged means for the run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum Class {
+    /// Nothing to judge was recorded: the run has lost nothing.
+    Informational,
+    /// The run recorded a session and could not judge it: its verdict is
+    /// incomplete.
+    Error,
+}
+
+/// A session that could not be judged: why, and what that means.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct UnjudgedSession {
+    /// Its path and the reason, as every format lists it.
+    #[serde(flatten)]
+    pub(crate) record: Unjudged,
+    /// Its name under the trace directory (`initialize/001.jsonl`), which
+    /// `--expected-unjudged` matches.
+    pub(crate) name: String,
+    pub(crate) class: Class,
+}
+
 /// Every session of a run.
 #[derive(Debug, Default)]
 pub(crate) struct Judging {
     pub(crate) judged: Vec<Judged>,
-    /// Sessions that could not be judged, by path, with why.
-    pub(crate) unjudged: Vec<Unjudged>,
+    /// Sessions that could not be judged, with why and what it means.
+    pub(crate) unjudged: Vec<UnjudgedSession>,
+    /// Names given as expected to go unjudged for their revision that did not:
+    /// the session was judged, went unjudged for another reason, or is absent.
+    pub(crate) stale_expected: Vec<String>,
 }
 
 impl Judging {
+    /// Whether the run recorded a session it could not judge, or was told to
+    /// expect one that did not occur: its verdict is incomplete.
+    pub(crate) fn has_errors(&self) -> bool {
+        !self.stale_expected.is_empty()
+            || self
+                .unjudged
+                .iter()
+                .any(|session| session.class == Class::Error)
+    }
+
+    /// The sessions that could not be judged and are an error, as the
+    /// machine formats list them.
+    pub(crate) fn errors(&self) -> Vec<Unjudged> {
+        self.unjudged
+            .iter()
+            .filter(|session| session.class == Class::Error)
+            .map(|session| session.record.clone())
+            .collect()
+    }
+
     /// The most severe verdict across the judged sessions, each as its
     /// reports are viewed.
     pub(crate) fn verdict(&self) -> Verdict {
@@ -97,20 +150,39 @@ impl Judging {
     }
 }
 
+/// Whether `expected` names the session `name`: exactly, or as the directory it
+/// is in.
+fn names(expected: &str, name: &str) -> bool {
+    name == expected
+        || name
+            .strip_prefix(expected)
+            .is_some_and(|rest| rest.starts_with('/'))
+}
+
 /// Judges every `*.jsonl` in `dir` and the directories directly under it, in
-/// name order, each report viewed for `subject`.
+/// name order, each report viewed for `subject`. A session in `expected` that
+/// goes unjudged for its revision is informational rather than an error.
 ///
 /// # Errors
 ///
 /// A directory cannot be listed.
-pub(crate) fn judge_dir(dir: &Path, subject: Party) -> Result<Judging, String> {
+pub(crate) fn judge_dir(
+    dir: &Path,
+    subject: Party,
+    expected: &[String],
+) -> Result<Judging, String> {
     let mut judging = Judging::default();
+    let mut matched = vec![false; expected.len()];
     for (name, path) in traces(dir)? {
+        let unjudged = |class, error: String| UnjudgedSession {
+            record: Unjudged::new(path.display().to_string(), error),
+            name: name.clone(),
+            class,
+        };
         match std::fs::read_to_string(&path) {
-            Err(error) => judging.unjudged.push(Unjudged::new(
-                path.display().to_string(),
-                format!("cannot read: {error}"),
-            )),
+            Err(error) => judging
+                .unjudged
+                .push(unjudged(Class::Error, format!("cannot read: {error}"))),
             Ok(document) => match judge::judge(&document) {
                 Ok(judgment) => judging.judged.push(Judged {
                     name,
@@ -124,13 +196,39 @@ pub(crate) fn judge_dir(dir: &Path, subject: Party) -> Result<Judging, String> {
                         .map(|report| viewed_for(report, subject))
                         .collect(),
                 }),
-                Err(error) => judging
-                    .unjudged
-                    .push(Unjudged::new(path.display().to_string(), error.to_string())),
+                Err(error) => {
+                    let named: Vec<usize> = (0..expected.len())
+                        .filter(|&index| names(&expected[index], &name))
+                        .collect();
+                    let unsupported = matches!(error, JudgeError::UnsupportedRevision(_));
+                    if unsupported {
+                        for &index in &named {
+                            matched[index] = true;
+                        }
+                    }
+                    let class = class_of(&error, unsupported && !named.is_empty());
+                    judging.unjudged.push(unjudged(class, error.to_string()));
+                }
             },
         }
     }
+    judging.stale_expected = expected
+        .iter()
+        .zip(matched)
+        .filter(|&(_, matched)| !matched)
+        .map(|(name, _)| name.clone())
+        .collect();
     Ok(judging)
+}
+
+/// What `error` means for the run. A reason this build does not know is an
+/// error, so a new way to go unjudged fails the run until it is classified.
+const fn class_of(error: &JudgeError, expected_revision: bool) -> Class {
+    match error {
+        JudgeError::NeverAnswered(_) | JudgeError::NothingJudged => Class::Informational,
+        JudgeError::UnsupportedRevision(_) if expected_revision => Class::Informational,
+        _ => Class::Error,
+    }
 }
 
 /// `report`, viewed for `party` (`validate --party`).
@@ -215,7 +313,7 @@ mod tests {
 
         // BASE-003 is the client's finding, so it is a client under test whose
         // verdict it moves.
-        let judging = judge_dir(&dir, Party::Client).unwrap();
+        let judging = judge_dir(&dir, Party::Client, &[]).unwrap();
         let names: Vec<&str> = judging.judged.iter().map(|one| one.name.as_str()).collect();
         assert_eq!(names, ["001.jsonl", "002.jsonl"]);
         assert_eq!(judging.judged[0].verdict(), Verdict::Pass);
@@ -230,9 +328,12 @@ mod tests {
             "every report is viewed for the subject"
         );
         assert_eq!(judging.unjudged.len(), 1);
-        assert!(judging.unjudged[0].trace.ends_with("001.jsonl"));
+        assert!(judging.unjudged[0].record.trace.ends_with("001.jsonl"));
         assert!(
-            judging.unjudged[0].error.contains("judged no requirement"),
+            judging.unjudged[0]
+                .record
+                .error
+                .contains("judged no requirement"),
             "{:?}",
             judging.unjudged
         );
@@ -250,7 +351,7 @@ mod tests {
 
         // The same traces for a server under test: the clause row is still
         // the trace's fact, and the verdict is not moved by the client's id.
-        let server = judge_dir(&dir, Party::Server).unwrap();
+        let server = judge_dir(&dir, Party::Server, &[]).unwrap();
         assert_eq!(server.judged[1].verdict(), Verdict::Pass);
         assert_eq!(server.verdict(), Verdict::Pass);
         assert_eq!(server.judged[1].reports[0].totals.fail, 1);
@@ -261,7 +362,7 @@ mod tests {
         assert_eq!((tally.counted, tally.set_aside), (1, 0), "{tally:?}");
         std::fs::remove_dir_all(&dir).unwrap();
         assert!(
-            judge_dir(&dir, Party::Server)
+            judge_dir(&dir, Party::Server, &[])
                 .unwrap_err()
                 .starts_with("cannot read ")
         );
@@ -272,5 +373,121 @@ mod tests {
         // The run decides what an empty judging means; the verdict alone is pass.
         assert_eq!(Judging::default().verdict(), Verdict::Pass);
         assert_eq!(Judging::default().failures().len(), 0);
+    }
+
+    /// The client leg's own session: the server negotiated 2025-03-26, which no
+    /// registry here describes.
+    fn negotiated_unsupported() -> String {
+        CLEAN.replace(
+            r#""result":{"protocolVersion":"2025-11-25""#,
+            r#""result":{"protocolVersion":"2025-03-26""#,
+        )
+    }
+
+    /// A directory holding one session per kind of way a session goes unjudged.
+    fn unjudged_kinds(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "mcp-conformance-judging-{name}-{}",
+            std::process::id()
+        ));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(dir.join("unsupported")).unwrap();
+        std::fs::write(dir.join("clean.jsonl"), CLEAN).unwrap();
+        std::fs::write(dir.join("empty.jsonl"), "").unwrap();
+        std::fs::write(
+            dir.join("silent.jsonl"),
+            CLEAN.lines().next().unwrap().to_owned() + "\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("malformed.jsonl"), "this is not a trace\n").unwrap();
+        std::fs::write(dir.join("unreadable.jsonl"), [0xff_u8, 0xfe, 0x00]).unwrap();
+        std::fs::write(dir.join("unsupported/001.jsonl"), negotiated_unsupported()).unwrap();
+        dir
+    }
+
+    fn classes(judging: &Judging) -> Vec<(&str, Class)> {
+        judging
+            .unjudged
+            .iter()
+            .map(|session| (session.name.as_str(), session.class))
+            .collect()
+    }
+
+    /// A session nothing could be judged from — the server never answered, or
+    /// the trace holds nothing to judge — is informational. A trace that is
+    /// malformed or unreadable, and a session under a revision this build has
+    /// no registry for, is an error: the run could not judge what it recorded.
+    #[test]
+    fn an_unjudged_session_is_informational_or_an_error_by_why() {
+        let dir = unjudged_kinds("classes");
+        let judging = judge_dir(&dir, Party::Server, &[]).unwrap();
+        assert_eq!(
+            classes(&judging),
+            [
+                ("empty.jsonl", Class::Informational),
+                ("malformed.jsonl", Class::Error),
+                ("silent.jsonl", Class::Informational),
+                ("unreadable.jsonl", Class::Error),
+                ("unsupported/001.jsonl", Class::Error),
+            ]
+        );
+        assert!(judging.has_errors());
+        assert_eq!(judging.judged.len(), 1);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A session named as expected to go unjudged for its revision is
+    /// informational, by exact name or as a directory's; naming one that did
+    /// not go unjudged that way is stale, and says so.
+    #[test]
+    fn an_unsupported_revision_is_informational_only_when_named_as_expected() {
+        let dir = unjudged_kinds("expected");
+        for expected in ["unsupported/001.jsonl", "unsupported"] {
+            let judging = judge_dir(&dir, Party::Server, &[expected.to_owned()]).unwrap();
+            let unsupported = judging
+                .unjudged
+                .iter()
+                .find(|session| session.name == "unsupported/001.jsonl")
+                .unwrap();
+            assert_eq!(unsupported.class, Class::Informational, "{expected}");
+            assert!(judging.stale_expected.is_empty(), "{expected}");
+        }
+        // A name is not a prefix of a longer name, and naming a session that
+        // was judged, malformed, or absent expects nothing that happened.
+        let judging = judge_dir(
+            &dir,
+            Party::Server,
+            &[
+                "unsup".to_owned(),
+                "clean.jsonl".to_owned(),
+                "malformed.jsonl".to_owned(),
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            judging.stale_expected,
+            ["unsup", "clean.jsonl", "malformed.jsonl"]
+        );
+        assert_eq!(
+            judging
+                .unjudged
+                .iter()
+                .find(|session| session.name == "malformed.jsonl")
+                .unwrap()
+                .class,
+            Class::Error,
+            "only an unsupported revision can be expected"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_run_with_only_informational_sessions_has_no_errors() {
+        let dir = unjudged_kinds("clean");
+        std::fs::remove_file(dir.join("malformed.jsonl")).unwrap();
+        std::fs::remove_file(dir.join("unreadable.jsonl")).unwrap();
+        let judging = judge_dir(&dir, Party::Server, &["unsupported".to_owned()]).unwrap();
+        assert!(!judging.has_errors(), "{:?}", classes(&judging));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

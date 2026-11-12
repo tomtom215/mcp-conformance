@@ -124,7 +124,7 @@ note: 18 of the suite's 28 scenario(s) failed. In 21 of the 28 recorded sessions
 |-----------|---------|
 | `0` | The suite passed, and the validator agrees: no failing clause the baseline leaves unexplained, no stale baseline entry |
 | `1` | Findings: a suite check failed or warned, or the two verdicts disagree |
-| `2` | The run could not be made or judged: bad arguments, Node.js or npx missing, the suite did not run or reported another version, no recorded session judgeable, the report not written |
+| `2` | The run could not be made or judged: bad arguments, Node.js or npx missing, the suite did not run or reported another version, no recorded session judgeable, the report not written, or a recorded session it could not judge that is an error (a malformed or unreadable trace, or a revision this build has no registry for, unless named with `--expected-unjudged`); the report's `verdict` is then `incomplete` |
 
 ## Watching a session
 

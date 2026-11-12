@@ -2,7 +2,7 @@
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
 use super::*;
-use crate::judging::Judged;
+use crate::judging::{Class, Judged, UnjudgedSession};
 
 /// No failures, as a typed value to compare a list against.
 fn no_failures() -> Vec<mcp_conformance_cli::agreement::ValidatorFailure> {
@@ -83,10 +83,16 @@ pub(crate) fn outcome_for(
 ) -> Outcome {
     let judging = Judging {
         judged,
-        unjudged: vec![mcp_trace_validator::report::Unjudged::new(
-            "/w/traces/002.jsonl",
-            "the server sent no message",
-        )],
+        // The recording of a request the server refused: nothing to judge.
+        unjudged: vec![UnjudgedSession {
+            record: mcp_trace_validator::report::Unjudged::new(
+                "/w/traces/002.jsonl",
+                "the server sent no message",
+            ),
+            name: "002.jsonl".to_owned(),
+            class: Class::Informational,
+        }],
+        stale_expected: vec![],
     };
     let reconciliation = agreement::reconcile_for(baseline, &judging.failures(), party);
     Outcome {
@@ -145,6 +151,39 @@ fn the_exit_code_is_the_suite_and_the_agreement() {
         unsupported.exit_code(),
         EXIT_USAGE,
         "a build that cannot judge"
+    );
+}
+
+/// The audit's A08: a session the run recorded and could not judge was a
+/// `pass` with exit 0. One that holds nothing to judge (the server never
+/// answered) still is; one that is an error, or an expectation of one that did
+/// not occur, is a run that could not be judged, whatever the suite said.
+#[test]
+fn a_session_the_run_could_not_judge_makes_it_incomplete_not_a_pass() {
+    let none = Baseline::default();
+    let mut run = outcome(true, vec![judged(false)], &none);
+    assert_eq!(run.exit_code(), EXIT_OK, "informational: nothing was lost");
+    assert!(!run.judging.has_errors());
+
+    run.judging.unjudged[0].class = Class::Error;
+    assert!(run.judging.has_errors());
+    assert_eq!(run.exit_code(), EXIT_USAGE);
+
+    let mut failing = outcome(false, vec![judged(true)], &none);
+    failing.judging.unjudged[0].class = Class::Error;
+    assert_eq!(
+        failing.exit_code(),
+        EXIT_USAGE,
+        "an incomplete judgment is not reported as findings"
+    );
+
+    let mut stale = outcome(true, vec![judged(false)], &none);
+    stale.judging.stale_expected = vec!["sse-retry".to_owned()];
+    assert!(stale.judging.has_errors());
+    assert_eq!(
+        stale.exit_code(),
+        EXIT_USAGE,
+        "an expected session that did not occur"
     );
 }
 

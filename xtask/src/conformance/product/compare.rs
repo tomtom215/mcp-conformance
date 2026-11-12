@@ -78,6 +78,13 @@ pub(crate) struct Report {
     not_run: Vec<String>,
     /// `(trace, requirement)` for every failing clause.
     failures: Vec<(String, String)>,
+    /// `(trace, requirement)` for every finding `test` set aside as held
+    /// against the suite's own end.
+    set_aside: Vec<(String, String)>,
+    /// The name of every session `test` could not judge.
+    unjudged: Vec<String>,
+    /// `test`'s own verdict for the run.
+    verdict: String,
 }
 
 impl Report {
@@ -113,21 +120,56 @@ impl Report {
             .chain(list(&divergences["unexplained"]).iter())
             .map(|failure| (text(&failure["trace"]), text(&failure["requirement"])))
             .collect();
+        let set_aside = list(&divergences["set_aside"])
+            .iter()
+            .map(|failure| (text(&failure["trace"]), text(&failure["requirement"])))
+            .collect();
+        let unjudged = list(&report["sessions"]["unjudged"])
+            .iter()
+            .map(|session| text(&session["name"]))
+            .collect();
         Self {
             scenarios,
             not_run,
             failures,
+            set_aside,
+            unjudged,
+            verdict: text(&report["verdict"]),
         }
     }
 }
 
-/// The committed findings only a wire-level recording shows.
+/// The committed findings only a wire-level recording shows, the findings
+/// `test` sets aside as the suite's own, and the sessions it is expected to be
+/// unable to judge: each list gates a leg both ways, failing on what is not
+/// listed and on an entry that no longer occurs.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct WireFindings {
     #[allow(dead_code)]
     policy: String,
     findings: Vec<WireFinding>,
+    /// Findings `test` sets aside in a run (held against the suite's own end),
+    /// in the same shape as `findings`.
+    #[serde(default)]
+    set_aside: Vec<WireFinding>,
+    /// Sessions `test` is expected to be unable to judge, passed to it as
+    /// `--expected-unjudged`.
+    #[serde(default)]
+    unjudged: Vec<ExpectedUnjudged>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExpectedUnjudged {
+    leg: String,
+    /// The session's name under the trace directory.
+    name: String,
+    /// Why it cannot be judged; for reviewers.
+    #[allow(dead_code)]
+    why: String,
+    #[serde(skip)]
+    observed: Cell<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -150,15 +192,20 @@ impl WireFindings {
             .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
         let findings: Self = serde_json::from_str(&text)
             .map_err(|error| format!("{} is not valid: {error}", path.display()))?;
-        if let Some(bad) = findings
+        let legs = findings
             .findings
             .iter()
-            .find(|finding| !["http", "stdio", "client"].contains(&finding.leg.as_str()))
+            .chain(&findings.set_aside)
+            .map(|finding| &finding.leg)
+            .chain(findings.unjudged.iter().map(|session| &session.leg));
+        if let Some(bad) = legs
+            .into_iter()
+            .find(|leg| !["http", "stdio", "client"].contains(&leg.as_str()))
         {
             return Err(format!(
                 "{}: leg {:?} is not http, stdio or client",
                 path.display(),
-                bad.leg
+                bad
             ));
         }
         Ok(findings)
@@ -166,8 +213,38 @@ impl WireFindings {
 
     /// Marks and returns whether an entry explains `requirement` on `trace`.
     fn explains(&self, leg: Leg, trace: &str, requirement: &str) -> bool {
+        Self::mark(&self.findings, leg, trace, requirement)
+    }
+
+    /// Marks and returns whether a set-aside entry lists `requirement` on `trace`.
+    fn lists_set_aside(&self, leg: Leg, trace: &str, requirement: &str) -> bool {
+        Self::mark(&self.set_aside, leg, trace, requirement)
+    }
+
+    /// Marks and returns whether the leg is expected to leave `name` unjudged.
+    fn expects_unjudged(&self, leg: Leg, name: &str) -> bool {
+        let mut expected = false;
+        for session in &self.unjudged {
+            if session.leg == leg.name() && session.name == name {
+                session.observed.set(true);
+                expected = true;
+            }
+        }
+        expected
+    }
+
+    /// The sessions `leg` is expected to leave unjudged, as `test` is told.
+    pub(crate) fn expected_unjudged(&self, leg: &str) -> Vec<&str> {
+        self.unjudged
+            .iter()
+            .filter(|session| session.leg == leg)
+            .map(|session| session.name.as_str())
+            .collect()
+    }
+
+    fn mark(list: &[WireFinding], leg: Leg, trace: &str, requirement: &str) -> bool {
         let mut explained = false;
-        for finding in &self.findings {
+        for finding in list {
             if finding.leg == leg.name()
                 && finding.requirement == requirement
                 && finding
@@ -184,12 +261,19 @@ impl WireFindings {
 
     /// Every entry explained something in this run.
     pub(crate) fn all_observed(&self) -> Result<(), String> {
-        let stale: Vec<String> = self
+        let mut stale: Vec<String> = self
             .findings
             .iter()
+            .chain(&self.set_aside)
             .filter(|finding| !finding.observed.get())
             .map(|finding| format!("  {} {}", finding.leg, finding.requirement))
             .collect();
+        stale.extend(
+            self.unjudged
+                .iter()
+                .filter(|session| !session.observed.get())
+                .map(|session| format!("  {} {} (unjudged)", session.leg, session.name)),
+        );
         if stale.is_empty() {
             Ok(())
         } else {
@@ -247,16 +331,62 @@ pub(crate) fn check(
         .filter(|(trace, requirement)| !wire.explains(leg, trace, requirement))
         .map(|(trace, requirement)| format!("  {requirement} on {trace}"))
         .collect();
-    if unexplained.is_empty() {
-        Ok(())
-    } else {
-        Err(format!(
+    if !unexplained.is_empty() {
+        return Err(format!(
             "{}: test fails clauses the gate's recordings do not, and {} does not list:\n{}",
             leg.name(),
             super::WIRE_FINDINGS,
             unexplained.join("\n")
-        ))
+        ));
     }
+    held_to_the_committed_lists(leg, report, wire)
+}
+
+/// What `test` set aside, what it could not judge, and the verdict it reached
+/// are held to the committed lists: an exit 0 or 1 is not a green leg, because
+/// the report behind it can name a finding nobody triaged or a session nobody
+/// judged.
+fn held_to_the_committed_lists(
+    leg: Leg,
+    report: &Report,
+    wire: &WireFindings,
+) -> Result<(), String> {
+    let unlisted: Vec<String> = report
+        .set_aside
+        .iter()
+        .filter(|(trace, requirement)| !wire.lists_set_aside(leg, trace, requirement))
+        .map(|(trace, requirement)| format!("  {requirement} on {trace}"))
+        .collect();
+    if !unlisted.is_empty() {
+        return Err(format!(
+            "{}: test sets aside findings as the suite's own, and {} does not list them:\n{}",
+            leg.name(),
+            super::WIRE_FINDINGS,
+            unlisted.join("\n")
+        ));
+    }
+    let unexpected: Vec<String> = report
+        .unjudged
+        .iter()
+        .filter(|name| !wire.expects_unjudged(leg, name))
+        .map(|name| format!("  {name}"))
+        .collect();
+    if !unexpected.is_empty() {
+        return Err(format!(
+            "{}: test could not judge sessions {} does not expect:\n{}",
+            leg.name(),
+            super::WIRE_FINDINGS,
+            unexpected.join("\n")
+        ));
+    }
+    if report.verdict != "pass" {
+        return Err(format!(
+            "{}: test's verdict is {:?}, and a green leg is a pass",
+            leg.name(),
+            report.verdict
+        ));
+    }
+    Ok(())
 }
 
 /// The pending list `test --command` subtracts is exactly what the suite's

@@ -80,7 +80,7 @@ fn the_human_report_has_all_three_parts() {
         "PING-001",
         "        [server] seq 4: ",
         "verdict (server findings only): fail\n",
-        "==> /w/traces/002.jsonl <==\nnot judged: the server sent no message",
+        "==> /w/traces/002.jsonl <==\nnot judged (informational): the server sent no message",
         "2 sessions: 0 pass, 0 pass-with-warnings, 1 fail, 1 not judged; clause verdict (server \
          findings only): fail",
         "== Agreement ==",
@@ -308,6 +308,8 @@ fn the_json_report_carries_every_part() {
         report["sessions"]["unjudged"][0]["trace"],
         "/w/traces/002.jsonl"
     );
+    assert_eq!(report["sessions"]["unjudged"][0]["name"], "002.jsonl");
+    assert_eq!(report["sessions"]["unjudged"][0]["class"], "informational");
     assert!(report["sessions"]["totals"]["fail"].as_u64().unwrap() >= 1);
     assert_eq!(report["agreement"]["baseline"], serde_json::Value::Null);
     assert_eq!(report["agreement"]["holds"], false);
@@ -326,11 +328,25 @@ fn junit_and_sarif_are_the_validators_renderings_of_the_sessions() {
         xml.contains(r#"<testsuite name="/w/traces/001.jsonl (2025-11-25)""#),
         "{xml}"
     );
+    // A session that held nothing to judge is no error in a CI report.
     assert!(
-        xml.contains(r#"errors="1""#),
-        "the unjudged session is listed: {xml}"
+        !xml.contains("errors=") && !xml.contains("002.jsonl"),
+        "{xml}"
     );
     let log: serde_json::Value = serde_json::from_str(&sarif_report(&outcome)).unwrap();
+    assert_eq!(
+        log["runs"][0]["invocations"][0]["executionSuccessful"], true,
+        "informational: the run judged everything it could"
+    );
+    // One the run could not judge is.
+    let mut broken = run_outcome(true);
+    broken.judging.unjudged[0].class = crate::judging::Class::Error;
+    let xml = junit_report(&broken);
+    assert!(
+        xml.contains(r#"errors="1""#) && xml.contains("002.jsonl"),
+        "the unjudged session is listed: {xml}"
+    );
+    let log: serde_json::Value = serde_json::from_str(&sarif_report(&broken)).unwrap();
     let results = log["runs"][0]["results"].as_array().unwrap();
     assert!(
         results.iter().any(|result| result["ruleId"] == "PING-001"),
@@ -340,6 +356,50 @@ fn junit_and_sarif_are_the_validators_renderings_of_the_sessions() {
         log["runs"][0]["invocations"][0]["executionSuccessful"], false,
         "the unjudged session is reported"
     );
+}
+
+/// The run's verdict is `pass` (exit 0), `fail` (exit 1: findings) or
+/// `incomplete` (exit 2: it could not judge what it recorded), and the report
+/// says which sessions, and why, in every form a person or a pipeline reads.
+#[test]
+fn a_run_that_could_not_judge_a_session_reads_incomplete_and_says_which() {
+    let mut run = run_outcome(false);
+    run.suite_passed = true;
+    let json = |run: &Outcome| -> serde_json::Value {
+        serde_json::from_str(&json_report(run).unwrap()).unwrap()
+    };
+    assert_eq!(json(&run)["verdict"], "pass");
+    let text = human(&run, false);
+    assert!(
+        text.contains("not judged (informational): the server sent no message"),
+        "{text}"
+    );
+    assert!(text.contains("1 not judged"), "{text}");
+
+    run.judging.unjudged[0].class = crate::judging::Class::Error;
+    let report = json(&run);
+    assert_eq!(report["verdict"], "incomplete");
+    assert_eq!(report["sessions"]["unjudged"][0]["class"], "error");
+    let text = human(&run, false);
+    assert!(
+        text.contains("not judged (error): the server sent no message"),
+        "{text}"
+    );
+    assert!(text.contains("1 not judged (1 error)"), "{text}");
+    assert!(text.ends_with("verdict: incomplete\n"), "{text}");
+
+    let mut stale = run_outcome(false);
+    stale.judging.stale_expected = vec!["sse-retry".to_owned()];
+    let text = human(&stale, false);
+    assert!(
+        text.contains("expected to go unjudged for its revision, and did not: sse-retry"),
+        "{text}"
+    );
+    assert_eq!(
+        json(&stale)["sessions"]["stale_expected"],
+        serde_json::json!(["sse-retry"])
+    );
+    assert_eq!(json(&stale)["verdict"], "incomplete");
 }
 
 #[test]

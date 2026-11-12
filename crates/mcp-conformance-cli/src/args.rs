@@ -181,6 +181,14 @@ pub(crate) struct TestArgs {
     /// clause is an unexplained divergence.
     #[arg(long, value_name = "JSON")]
     pub(crate) divergences: Option<PathBuf>,
+    /// A recorded session expected to go unjudged because its server negotiated
+    /// a protocol revision this build has no registry for: its name under the
+    /// trace directory (`sse-retry/001.jsonl`) or a directory's (`sse-retry`);
+    /// repeatable. Such a session is otherwise an error, since the run recorded
+    /// it and could not judge it; naming one that did not go unjudged for that
+    /// reason is an error too, so an expectation cannot outlive its cause.
+    #[arg(long = "expected-unjudged", value_name = "NAME")]
+    pub(crate) expected_unjudged: Vec<String>,
     /// Where the suite's results and the recorded traces are kept: a directory
     /// that does not exist yet, or is empty. By default, a new one under the
     /// system's temporary directory; either way its path is printed.

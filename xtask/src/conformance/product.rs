@@ -100,12 +100,13 @@ fn legs(root: &Path) -> Result<(), String> {
         &root.join("target/conformance/client/agreement.json"),
     )?;
 
-    let http = http_leg(root, &dir)?;
+    let http = http_leg(root, &dir, &wire)?;
     compare::check(Leg::Http, &gate_server, &http, &wire)?;
     let stdio = test(
         root,
         &dir,
         "stdio",
+        &wire,
         &[
             "--command".to_owned(),
             format!(
@@ -120,6 +121,7 @@ fn legs(root: &Path) -> Result<(), String> {
         root,
         &dir,
         "client",
+        &wire,
         &[
             "--client-command".to_owned(),
             binary(root, "mcp-reference-host").display().to_string(),
@@ -132,7 +134,7 @@ fn legs(root: &Path) -> Result<(), String> {
 }
 
 /// `test --url` against a freshly started everything server.
-fn http_leg(root: &Path, dir: &Path) -> Result<Report, String> {
+fn http_leg(root: &Path, dir: &Path, wire: &compare::WireFindings) -> Result<Report, String> {
     let Some((mut server, address)) = start_server(root, &dir.join("tap"), suite::SPEC_VERSION)
     else {
         return Err("the everything server did not start".to_owned());
@@ -141,6 +143,7 @@ fn http_leg(root: &Path, dir: &Path) -> Result<Report, String> {
         root,
         dir,
         "http",
+        wire,
         &[
             "--url".to_owned(),
             format!("http://{address}/mcp"),
@@ -153,15 +156,28 @@ fn http_leg(root: &Path, dir: &Path) -> Result<Report, String> {
     report
 }
 
-/// Runs `mcp-conformance test` with `subject` and reads its JSON report. Exit
-/// 0 and 1 are verdicts, compared afterwards; 2 is a run that failed.
-fn test(root: &Path, dir: &Path, name: &str, subject: &[String]) -> Result<Report, String> {
+/// Runs `mcp-conformance test` with `subject` and reads its JSON report, telling
+/// it which sessions the committed list expects it to leave unjudged. Exit 0
+/// and 1 are verdicts, compared afterwards (and a verdict that is not a pass
+/// fails the leg); 2 is a run that failed.
+fn test(
+    root: &Path,
+    dir: &Path,
+    name: &str,
+    wire: &compare::WireFindings,
+    subject: &[String],
+) -> Result<Report, String> {
     let work = dir.join(name);
     let report = dir.join(format!("{name}.json"));
     eprintln!("xtask: product — mcp-conformance test ({name})");
     let status = Command::new(binary(root, "mcp-conformance"))
         .arg("test")
         .args(subject)
+        .args(
+            wire.expected_unjudged(name)
+                .into_iter()
+                .flat_map(|session| ["--expected-unjudged", session]),
+        )
         .arg("--expected-failures")
         .arg(root.join(EXPECTED_FAILURES))
         .arg("--work-dir")

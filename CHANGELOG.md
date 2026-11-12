@@ -468,6 +468,66 @@ below is stated again in its entry, with the reasoning.
   refused). `validate --require-complete-capture` and `mcp-trace-capture
   --fail-on-unrecorded` are the opt-in exit-status gates; `mcp-trace-capture`'s README
   exit table no longer says `http` stops "with a complete trace".
+**`mcp-conformance test`, `watch` and the library**
+
+- **`test` judges the subject, not the suite's own end (behaviour change; the 2026-11-11
+  audit's A09).** A server (`--url`, `--command`) is held to the findings the validator holds
+  against the server, a client (`--client-command`) to those held against the client. The
+  suite's own client breaks clauses too (it calls `logging/setLevel` on a server that
+  never declared `logging`, it closes a session without `notifications/initialized`) and
+  its test server answers a notification with HTTP 200; these are listed as held against
+  the suite's own end, labelled, and set aside rather than counted. Findings held against
+  nobody count, tagged `[unattributed]`. A conforming FastMCP server no longer fails the
+  agreement, and the reference host as a client no longer needs `wire-findings.json`
+  entries for the suite's test server. The JSON report gains `agreement.party`,
+  `agreement.divergences.set_aside`, `sessions.party` and `sessions.findings`, and
+  `sessions.verdict` is the verdict for the subject's party; a divergence baseline
+  explains a failure of either end. `cargo xtask conformance` now lists what is set aside
+  and requires `test`'s verdict to be `pass` (it accepted exit 0 or 1 and never read the
+  verdict). Merged from the unmerged `wip/C1` branch of the 2026-10-25 handoff, with its
+  claims re-run here, not taken from its report.
+- **A session the run recorded and could not judge is no longer a `pass` (behaviour
+  change; the audit's A08).** `test` exited 0 with `verdict: pass` while a recorded
+  session sat in `sessions.unjudged`, whatever the reason; JUnit and SARIF said an error
+  and the exit code said success. An unjudged session is now `informational` (the server
+  never answered, nothing to judge: the run lost nothing) or an `error` (a malformed or
+  unreadable trace, a build problem, or a session under a revision with no registry, unless
+  named with the new `--expected-unjudged`); an error makes the verdict `incomplete` and the
+  exit code `2`, and `sessions.unjudged[]` gains `name` and `class` and `sessions` gains
+  `stale_expected`. An expectation that names a session that did not go unjudged for its
+  revision is an error too. JUnit and SARIF list the errors only. A run that exited 0 over
+  such a session now exits 2; `cargo xtask conformance` pins the client leg's `sse-retry`
+  session (the suite's server negotiates 2025-03-26) in `conformance/wire-findings.json`.
+- **`test` says when the suite asked a server for names it does not list.** When scenarios
+  fail and the recorded traffic holds `tools/call`, `prompts/get` or `resources/read`
+  requests for names none of the server's own list answers include, the report says so
+  after the suite's verdict and the JSON report carries `suite.fixtures`. It claims what
+  the requests show, not which failure follows from a missing name.
+- **`test` no longer prints its report twice.** With a human or JSON report on stdout,
+  stderr carries only the verdicts; a report in a file, or `junit`/`sarif`, still gets the
+  suite's checks and the agreement whole on stderr.
+- **`watch http` takes `--no-preserve-host`.** `watch http` and `mcp-trace-capture http`
+  share one mapping of `--preserve-host`/`--no-preserve-host` and the same defaults.
+- **The recorder's exit remarks are more accurate.** A `404` that carries a JSON-RPC message
+  no longer asks "is the endpoint path right?"; a `403` to a request whose passed-through
+  `Host` named another host than the server's now suggests `--no-preserve-host`.
+- **The library names a 2026-07-28 session's server and client** from
+  `io.modelcontextprotocol/serverInfo` and `clientInfo` in `_meta` when a session has no
+  `initialize`; an empty version no longer leaves a trailing space.
+- **`watch`'s tally names the clauses its findings are:** `findings so far: 0 fail, 14 warn
+  in 1 clause(s)`, beside a report whose totals count clauses.
+
+**The Action**
+
+- **The Action's reports exist and parse whatever the paths** (the 2026-11-11 audit,
+  A10). A `sarif-file` or `junit-file` under a directory that did not exist yet made
+  every redirect fail with nothing said, no file written, `exit-code=0`; the directory is
+  now made, and a report that still cannot be written is `exit-code=2` with an
+  `::error::`. A trace named with `<`, `&` or `"` produced a JUnit file that was not XML
+  under bash 5.2 (an unescaped `&` in a `${text//pattern/replacement}` replacement
+  means the matched text; the option is switched off), and a control character in a
+  name broke both fallback reports (now `?`). `action/test-validate.sh` pins all of it
+  and runs in the `action` CI job.
 - **`{session}` numbers continue after the highest one present**, so files sort in
   session order (the lowest free number filled a deleted trace's gap), and a stray
   file numbered past the search bound is ignored (a hand-named `s-9999999.jsonl`

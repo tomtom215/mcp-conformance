@@ -32,12 +32,39 @@ fn report(scenarios: &[(&str, &[&str])], not_run: &[&str], failures: &[(&str, &s
         "agreement": {"divergences": {
             "explained": [],
             "unexplained": failures.iter().map(|(trace, requirement)| json!({"trace": trace, "requirement": requirement})).collect::<Vec<_>>(),
+            "set_aside": [],
         }},
+        "sessions": {"unjudged": []},
+        "verdict": "pass",
     }))
+}
+
+/// `base`, with `change` applied to its JSON before it is read.
+fn amended(base: &serde_json::Value, change: impl FnOnce(&mut serde_json::Value)) -> Report {
+    let mut json = base.clone();
+    change(&mut json);
+    Report::from_json(&json)
+}
+
+fn quiet() -> serde_json::Value {
+    json!({
+        "suite": {"scenarios": [], "not_run": []},
+        "agreement": {"divergences": {"explained": [], "unexplained": [], "set_aside": []}},
+        "sessions": {"unjudged": []},
+        "verdict": "pass",
+    })
 }
 
 fn wire(findings: &str) -> WireFindings {
     serde_json::from_str(&format!(r#"{{"policy": "p", "findings": {findings}}}"#)).unwrap()
+}
+
+/// A committed file with all three lists.
+fn wire_all(set_aside: &str, unjudged: &str) -> WireFindings {
+    serde_json::from_str(&format!(
+        r#"{{"policy": "p", "findings": [], "set_aside": {set_aside}, "unjudged": {unjudged}}}"#
+    ))
+    .unwrap()
 }
 
 #[test]
@@ -130,4 +157,90 @@ fn report_with(extra: &[&str]) -> Report {
 #[test]
 fn the_committed_wire_findings_load() {
     WireFindings::load(&crate::workspace_root().join(super::super::WIRE_FINDINGS)).unwrap();
+}
+
+/// The audit's A09: `test` exited 0 or 1 and this leg accepted both, never
+/// reading what verdict the product reported. Every leg is a green run, so the
+/// product's verdict is `pass`, and anything else is the leg failing.
+#[test]
+fn a_run_whose_verdict_is_not_a_pass_disagrees() {
+    let gate = gate(&[], &[]);
+    for verdict in ["fail", "incomplete"] {
+        let run = amended(&quiet(), |json| json["verdict"] = json!(verdict));
+        let error = check(Leg::Http, &gate, &run, &wire("[]")).unwrap_err();
+        assert!(
+            error.contains("verdict") && error.contains(verdict),
+            "{error}"
+        );
+    }
+    check(Leg::Http, &gate, &amended(&quiet(), |_| {}), &wire("[]")).unwrap();
+}
+
+/// What `test` sets aside as held against the suite's own end is committed, so
+/// a new one is noticed, and one that stops occurring is removed: the
+/// staleness gate the wire findings had.
+#[test]
+fn a_finding_set_aside_must_be_listed_and_a_listed_one_must_occur() {
+    let gate = gate(&[], &[]);
+    let run = amended(&quiet(), |json| {
+        json["agreement"]["divergences"]["set_aside"] =
+            json!([{"trace": "initialize/001.jsonl", "requirement": "BASE-004"}]);
+    });
+    let error = check(Leg::Client, &gate, &run, &wire_all("[]", "[]")).unwrap_err();
+    assert!(
+        error.contains("sets aside") && error.contains("BASE-004 on initialize/001.jsonl"),
+        "{error}"
+    );
+
+    let entry = r#"[{"leg": "client", "requirement": "BASE-004", "trace_contains": "initialize/", "why": "w"}]"#;
+    let listed = wire_all(entry, "[]");
+    check(Leg::Client, &gate, &run, &listed).unwrap();
+    listed.all_observed().unwrap();
+
+    // The entry belongs to its leg and to its requirement.
+    let other_leg = wire_all(
+        r#"[{"leg": "http", "requirement": "BASE-004", "why": "w"}]"#,
+        "[]",
+    );
+    assert!(check(Leg::Client, &gate, &run, &other_leg).is_err());
+
+    // Nothing is set aside any more: the entry is stale.
+    let listed = wire_all(entry, "[]");
+    check(Leg::Client, &gate, &amended(&quiet(), |_| {}), &listed).unwrap();
+    let stale = listed.all_observed().unwrap_err();
+    assert!(
+        stale.contains("no longer occur") && stale.contains("BASE-004"),
+        "{stale}"
+    );
+}
+
+/// A session `test` could not judge is expected, by name and leg, or the leg
+/// fails; an expected one that goes unjudged no longer is stale.
+#[test]
+fn an_unjudged_session_must_be_listed_and_a_listed_one_must_occur() {
+    let gate = gate(&[], &[]);
+    let run = amended(&quiet(), |json| {
+        json["sessions"]["unjudged"] = json!([{"trace": "/w/sse-retry/001.jsonl", "name": "sse-retry/001.jsonl", "class": "informational", "error": "e"}]);
+    });
+    let error = check(Leg::Client, &gate, &run, &wire_all("[]", "[]")).unwrap_err();
+    assert!(
+        error.contains("could not judge") && error.contains("sse-retry/001.jsonl"),
+        "{error}"
+    );
+
+    let entry = r#"[{"leg": "client", "name": "sse-retry/001.jsonl", "why": "w"}]"#;
+    let listed = wire_all("[]", entry);
+    check(Leg::Client, &gate, &run, &listed).unwrap();
+    listed.all_observed().unwrap();
+    assert_eq!(listed.expected_unjudged("client"), ["sse-retry/001.jsonl"]);
+    assert_eq!(listed.expected_unjudged("http"), Vec::<&str>::new());
+    assert!(
+        check(Leg::Http, &gate, &run, &listed).is_err(),
+        "listed for the client leg only"
+    );
+
+    let listed = wire_all("[]", entry);
+    check(Leg::Client, &gate, &amended(&quiet(), |_| {}), &listed).unwrap();
+    let stale = listed.all_observed().unwrap_err();
+    assert!(stale.contains("sse-retry/001.jsonl"), "{stale}");
 }

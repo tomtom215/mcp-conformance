@@ -75,12 +75,13 @@ fn emit_to(out: &mut impl std::io::Write, text: &str) -> bool {
     }
 }
 
-/// The run's verdict: `pass` exactly when it exits 0.
+/// The run's verdict, from its exit code: `pass` (0), `fail` (1, findings) or
+/// `incomplete` (2, a run that could not judge what it recorded).
 fn verdict(outcome: &Outcome) -> &'static str {
-    if outcome.exit_code() == 0 {
-        "pass"
-    } else {
-        "fail"
+    match outcome.exit_code() {
+        crate::EXIT_OK => "pass",
+        crate::EXIT_FINDINGS => "fail",
+        _ => "incomplete",
     }
 }
 
@@ -235,11 +236,22 @@ pub(crate) fn human(outcome: &Outcome, all: bool) -> String {
         }
         text.push('\n');
     }
-    for trace in &judging.unjudged {
+    for session in &judging.unjudged {
         let _ = writeln!(
             text,
-            "==> {} <==\nnot judged: {}\n",
-            trace.trace, trace.error
+            "==> {} <==\nnot judged ({}): {}\n",
+            session.record.trace,
+            class_word(session.class),
+            session.record.error
+        );
+    }
+    if !judging.stale_expected.is_empty() {
+        let _ = writeln!(
+            text,
+            "--expected-unjudged names a session that was not recorded, was judged, or went \
+             unjudged for another reason — expected to go unjudged for its revision, and did \
+             not: {}\n",
+            judging.stale_expected.join(", ")
         );
     }
     sessions_line(&mut text, outcome);
@@ -247,6 +259,28 @@ pub(crate) fn human(outcome: &Outcome, all: bool) -> String {
     agreement_part(&mut text, outcome);
     let _ = writeln!(text, "\nverdict: {}", verdict(outcome));
     text
+}
+
+/// What a class of unjudged session is called in the report.
+const fn class_word(class: crate::judging::Class) -> &'static str {
+    match class {
+        crate::judging::Class::Informational => "informational",
+        crate::judging::Class::Error => "error",
+    }
+}
+
+/// ` (1 error)` when sessions the run could not judge are errors, else nothing.
+fn errors_note(judging: &crate::judging::Judging) -> String {
+    let errors = judging
+        .unjudged
+        .iter()
+        .filter(|session| session.class == crate::judging::Class::Error)
+        .count();
+    match errors {
+        0 => String::new(),
+        1 => " (1 error)".to_owned(),
+        many => format!(" ({many} errors)"),
+    }
 }
 
 /// ` — 6 client findings set aside`, or nothing when the view set none aside
@@ -273,13 +307,14 @@ fn sessions_line(text: &mut String, outcome: &Outcome) {
     };
     let _ = writeln!(
         text,
-        "{} sessions: {} pass, {} pass-with-warnings, {} fail, {} not judged; clause verdict \
+        "{} sessions: {} pass, {} pass-with-warnings, {} fail, {} not judged{}; clause verdict \
          ({} findings only): {}{}",
         judging.judged.len() + judging.unjudged.len(),
         count(Verdict::Pass),
         count(Verdict::PassWithWarnings),
         count(Verdict::Fail),
         judging.unjudged.len(),
+        errors_note(judging),
         outcome.party,
         judging.verdict(),
         what_the_view_did(outcome)
@@ -337,6 +372,7 @@ pub(crate) fn json_report(outcome: &Outcome) -> serde_json::Result<String> {
             "totals": outcome.judging.totals(),
             "traces": traces,
             "unjudged": outcome.judging.unjudged,
+            "stale_expected": outcome.judging.stale_expected,
         },
         "agreement": {
             "baseline": outcome.baseline.as_deref().map(|path| path.display().to_string()),
@@ -366,7 +402,7 @@ fn junit_report(outcome: &Outcome) -> String {
             )
         })
         .collect();
-    junit::render_run(&suites, &outcome.judging.unjudged)
+    junit::render_run(&suites, &outcome.judging.errors())
 }
 
 fn sarif_report(outcome: &Outcome) -> String {
@@ -387,7 +423,7 @@ fn sarif_report(outcome: &Outcome) -> String {
         .collect();
     sarif::render_run(
         &traces,
-        &outcome.judging.unjudged,
+        &outcome.judging.errors(),
         &sarif::Options::default(),
     )
 }

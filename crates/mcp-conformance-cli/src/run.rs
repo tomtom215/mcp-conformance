@@ -55,11 +55,13 @@ pub(crate) struct Outcome {
 }
 
 impl Outcome {
-    /// The exit code: 0 when the suite passed and the two agree.
+    /// The exit code: 0 when the suite passed and the two agree; 2 when the run
+    /// could not judge what it recorded.
     pub(crate) fn exit_code(&self) -> u8 {
-        if self.judging.verdict() == Verdict::Unsupported {
-            // A registry this build cannot judge with: a build problem, as the
-            // validator reports it.
+        if self.judging.verdict() == Verdict::Unsupported || self.judging.has_errors() {
+            // A registry this build cannot judge with, or a session it
+            // recorded and could not judge: the run is incomplete, whatever the
+            // suite and the sessions it did judge say.
             EXIT_USAGE
         } else if self.suite_passed && self.reconciliation.holds() {
             EXIT_OK
@@ -124,7 +126,8 @@ async fn outcome(args: TestArgs) -> Result<Outcome, String> {
         ));
     }
     let party = subject_party(&args.subject);
-    let (judging, reconciliation) = judge_and_reconcile(&traces, &baseline, party)?;
+    let (judging, reconciliation) =
+        judge_and_reconcile(&traces, &baseline, party, &args.expected_unjudged)?;
     let fixtures = missing_fixtures(party, &scenarios, &judging);
     Ok(Outcome {
         subject,
@@ -147,8 +150,9 @@ fn judge_and_reconcile(
     traces: &Path,
     baseline: &Baseline,
     party: Party,
+    expected_unjudged: &[String],
 ) -> Result<(Judging, Reconciliation), String> {
-    let judging = judging::judge_dir(traces, party)?;
+    let judging = judging::judge_dir(traces, party, expected_unjudged)?;
     if judging.judged.is_empty() {
         return Err(format!(
             "no recorded session under {} could be judged ({} recorded); the recording \
