@@ -50,6 +50,26 @@ impl Shared {
     }
 }
 
+/// Events arriving over time, one to a chunk: what the parser counts adds up
+/// across chunks, which one body in one chunk never exercises.
+fn sse_chunked(big: &str) -> Response {
+    let chunks = vec![
+        format!("data: {big}\n\n"),
+        "event: ping\ndata: 1\n\n".to_owned(),
+        format!("data: {big}\n\n"),
+        "event: ping\ndata: 2\n\n".to_owned(),
+        format!("data: {big}\n\n"),
+    ];
+    let stream = futures::StreamExt::then(futures::stream::iter(chunks), |chunk| async {
+        tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+        Ok::<_, std::convert::Infallible>(chunk)
+    });
+    Response::builder()
+        .header(header::CONTENT_TYPE, "text/event-stream")
+        .body(axum::body::Body::from_stream(stream))
+        .unwrap()
+}
+
 /// An upstream whose answer is chosen by the request path.
 async fn upstream(request: Uri, _headers: HeaderMap) -> Response {
     let json = [(header::CONTENT_TYPE, "application/json")];
@@ -95,25 +115,7 @@ async fn upstream(request: Uri, _headers: HeaderMap) -> Response {
         )
             .into_response(),
         "/big" => (StatusCode::OK, json, big).into_response(),
-        // Events arriving over time, one to a chunk: what the parser counts it
-        // adds up across chunks, which one body in one chunk never exercises.
-        "/sse-chunked" => {
-            let chunks = vec![
-                format!("data: {big}\n\n"),
-                "event: ping\ndata: 1\n\n".to_owned(),
-                format!("data: {big}\n\n"),
-                "event: ping\ndata: 2\n\n".to_owned(),
-                format!("data: {big}\n\n"),
-            ];
-            let stream = futures::StreamExt::then(futures::stream::iter(chunks), |chunk| async {
-                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
-                Ok::<_, std::convert::Infallible>(chunk)
-            });
-            Response::builder()
-                .header(header::CONTENT_TYPE, "text/event-stream")
-                .body(axum::body::Body::from_stream(stream))
-                .unwrap()
-        }
+        "/sse-chunked" => sse_chunked(&big),
         _ => StatusCode::NOT_FOUND.into_response(),
     }
 }

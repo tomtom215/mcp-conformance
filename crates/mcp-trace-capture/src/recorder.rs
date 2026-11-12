@@ -61,9 +61,10 @@ pub enum NotRecorded {
     Closed,
 }
 
-/// Something a session carried that the trace does not hold, as a recorder is
-/// told of it ([`Recorder::note_unrecorded`]) and reports it in the closing
-/// event's `capture` note ([`Recorder::close_with_note`]).
+/// Something a session carried that the trace does not hold.
+///
+/// A recorder is told of it ([`Recorder::note_unrecorded`]) and reports it in
+/// the closing event's `capture` note ([`Recorder::close_with_note`]).
 ///
 /// What the recorder refuses for length is counted by the recorder itself.
 /// What it is never handed — a body streamed past the message limit, an event
