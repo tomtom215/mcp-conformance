@@ -65,7 +65,7 @@ pub(crate) fn execute(wb: &mut Workbench, command: LibraryCommand) -> Result<Str
             }
         }
         LibraryCommand::List => wb.entries.values().fold(String::new(), |mut out, entry| {
-            let _ = writeln!(
+            let _ = write!(
                 out,
                 "{}\t{}\t{}\t{}",
                 entry.id,
@@ -73,6 +73,12 @@ pub(crate) fn execute(wb: &mut Workbench, command: LibraryCommand) -> Result<Str
                 entry.day().unwrap_or_else(|| "undated".to_owned()),
                 stats::visible(entry.facts.server.as_deref().unwrap_or("-"))
             );
+            // A verdict that covers only part of the file says so, in a column
+            // of its own on that row alone.
+            if let Some(why) = &entry.provisional {
+                let _ = write!(out, "\tprovisional: {why}");
+            }
+            out.push('\n');
             out
         }),
         LibraryCommand::Import {

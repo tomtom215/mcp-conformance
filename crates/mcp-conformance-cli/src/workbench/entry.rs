@@ -4,10 +4,12 @@
 //! One library entry in memory: its sidecar, its verdict, the facts the
 //! library list shows, and its search index.
 //!
-//! The verdict comes from the sidecar's cache when the cache was computed from
-//! these bytes by this build, and from [`mcp_trace_validator::judge`]
-//! otherwise — the rules `mcp-trace-validator validate` applies, so the
-//! workbench and the command line cannot disagree about a recording.
+//! The verdict is computed from the trace's bytes by [`mcp_trace_validator::judge`]
+//! — the rules `mcp-trace-validator validate` applies — every time an entry is
+//! loaded, and is never read from the sidecar ([`super::meta`] says why). The
+//! one place it differs from the command line is deliberate and marked: a trace
+//! still being written has its unfinished last line left out of the judgment,
+//! and the entry says so (`Entry::provisional`).
 
 use std::time::SystemTime;
 
@@ -20,7 +22,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use super::clock;
-use super::meta::{Cache, Meta, tool_version};
+use super::meta::Meta;
 use super::search::{self, Doc};
 
 /// The verdict word of an entry that could not be judged.
@@ -31,18 +33,50 @@ pub(crate) fn sha256(bytes: &[u8]) -> String {
     hex(digest::digest(&digest::SHA256, bytes).as_ref())
 }
 
-/// The part of `text` a recorder has finished writing: all of it, unless
-/// the last line has no newline yet and is not yet a whole JSON value — a
-/// trace still being written — in which case everything before that line.
-pub(crate) fn complete(text: &str) -> &str {
-    // An empty text, or one ending in a newline, has an empty last line,
-    // which is not a JSON value: everything before it — all of it — is kept.
+/// The part of `text` a recorder has finished writing, and whether an
+/// unfinished last line was left out.
+///
+/// All of it, unless the last line has no newline yet and is not yet a whole
+/// JSON value — a trace still being written, or one that was cut off — in which
+/// case everything before that line, and `true`. The exception is a recording
+/// that has already ended: when the last complete line is its `transport-close`
+/// or `transport-abort`, an unfinished line after it cannot be a write in
+/// progress, so it is damage and the text is judged whole (the validator then
+/// calls it malformed). A trace cut off at its own closing line cannot be told
+/// from one still being written, and is reported as the second.
+pub(crate) fn split_unfinished(text: &str) -> (&str, bool) {
     let start = text.rfind('\n').map_or(0, |at| at + 1);
-    if serde_json::from_str::<Value>(&text[start..]).is_ok() {
-        text
-    } else {
-        &text[..start]
+    let tail = &text[start..];
+    // An empty text, or one ending in a newline, has an empty last line, which
+    // is not a JSON value: everything before it — all of it — is kept.
+    if tail.is_empty()
+        || serde_json::from_str::<Value>(tail).is_ok()
+        || ends_the_recording(&text[..start])
+    {
+        return (text, false);
     }
+    (&text[..start], true)
+}
+
+/// Whether the last complete line of `lines` is a recording's closing event.
+fn ends_the_recording(lines: &str) -> bool {
+    lines
+        .lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .and_then(|line| serde_json::from_str::<Value>(line).ok())
+        .is_some_and(|event| {
+            event.get("kind").and_then(Value::as_str) == Some("lifecycle")
+                && matches!(
+                    event.get("event").and_then(Value::as_str),
+                    Some("transport-close" | "transport-abort")
+                )
+        })
+}
+
+/// [`split_unfinished`]'s text alone.
+pub(crate) fn complete(text: &str) -> &str {
+    split_unfinished(text).0
 }
 
 /// `bytes` as lowercase hex.
@@ -69,6 +103,9 @@ pub(crate) struct Entry {
     pub(crate) modified: Option<SystemTime>,
     pub(crate) reports: Vec<Report>,
     pub(crate) unjudged: Option<String>,
+    /// Why the verdict covers only part of the file, when it does: the last
+    /// line was unfinished and was left out of the judgment.
+    pub(crate) provisional: Option<String>,
     pub(crate) facts: Facts,
     pub(crate) doc: Doc,
 }
@@ -145,8 +182,8 @@ pub(crate) fn judge_text(text: &str) -> (Vec<Report>, Option<String>) {
 
 impl Entry {
     /// The entry for `id`, from its trace's bytes and its sidecar; the
-    /// second value is `true` when the sidecar's cache was recomputed and
-    /// should be written back.
+    /// second value is `true` when the sidecar carried something to drop (a
+    /// verdict an earlier build wrote) and should be written back without it.
     pub(crate) fn load(
         id: &str,
         bytes: &[u8],
@@ -156,32 +193,11 @@ impl Entry {
     ) -> (Self, bool) {
         let sha256 = sha256(bytes);
         let whole = String::from_utf8_lossy(bytes);
-        let text = complete(&whole);
+        let (text, cut) = split_unfinished(&whole);
         let events = reader::parse_trace(text, &Limits::default()).unwrap_or_default();
         let mut meta = meta;
-        let cached = meta.fresh_cache(&sha256).and_then(|cache| {
-            let reports: Result<Vec<Report>, _> = cache
-                .reports
-                .iter()
-                .map(|report| serde_json::from_value(report.clone()))
-                .collect();
-            reports
-                .ok()
-                .map(|reports| (reports, cache.unjudged.clone()))
-        });
-        let stale = cached.is_none();
-        let (reports, unjudged) = cached.unwrap_or_else(|| judge_text(text));
-        if stale {
-            meta.verdict_cache = Some(Cache {
-                sha256: sha256.clone(),
-                tool_version: tool_version().to_owned(),
-                reports: reports
-                    .iter()
-                    .filter_map(|report| serde_json::to_value(report).ok())
-                    .collect(),
-                unjudged: unjudged.clone(),
-            });
-        }
+        let rewrite = meta.drop_legacy_cache();
+        let (reports, unjudged) = judge_text(text);
         let mut entry = Self {
             id: id.to_owned(),
             meta,
@@ -191,11 +207,16 @@ impl Entry {
             modified,
             reports,
             unjudged,
+            provisional: cut.then(|| {
+                "the last line is incomplete (a trace still being written, or one cut off) \
+                 and is not judged"
+                    .to_owned()
+            }),
             facts: facts(&events),
             doc: Doc::default(),
         };
         entry.reindex(&events);
-        (entry, stale)
+        (entry, rewrite)
     }
 
     /// Rebuilds the search index (after a tag changes, say).
@@ -217,8 +238,11 @@ impl Entry {
         if self.unjudged.is_some() {
             return UNJUDGED.to_owned();
         }
-        let verdict =
-            Verdict::most_severe(self.reports.iter().map(Report::verdict)).unwrap_or(Verdict::Pass);
+        // Nothing judged and no reason given is not a pass: a verdict is claimed
+        // only for something that was judged.
+        let Some(verdict) = Verdict::most_severe(self.reports.iter().map(Report::verdict)) else {
+            return UNJUDGED.to_owned();
+        };
         serde_json::to_value(verdict)
             .ok()
             .and_then(|value| value.as_str().map(ToOwned::to_owned))
@@ -270,6 +294,7 @@ impl Entry {
             "id": self.id,
             "verdict": self.verdict(),
             "unjudged": self.unjudged,
+            "provisional": self.provisional,
             "revisions": self.reports.iter().map(|report| report.revision.as_str()).collect::<Vec<_>>(),
             "findings": self.findings(),
             "tags": self.meta.tags,

@@ -97,15 +97,16 @@ impl Workbench {
         Ok(())
     }
 
-    /// (Re)loads one entry from disk, writing a recomputed verdict cache
-    /// back to its sidecar unless the sidecar was unreadable.
+    /// (Re)loads one entry from disk, judging it from its bytes, and writes its
+    /// sidecar back without a legacy verdict cache unless the sidecar was
+    /// unreadable.
     fn load(&mut self, id: &str, modified: Option<std::time::SystemTime>) -> io::Result<()> {
         let bytes = fs::read(self.library.trace_path(id))?;
         let read = self.library.read_meta(id);
         let problem = read.problem.clone();
-        let (entry, stale) = Entry::load(id, &bytes, read.meta, read.problem, modified);
-        if stale && problem.is_none() {
-            // A read-only library still works; it only judges again next time.
+        let (entry, rewrite) = Entry::load(id, &bytes, read.meta, read.problem, modified);
+        if rewrite && problem.is_none() {
+            // A read-only library still works; the old cache stays until it is writable.
             let _ = self.library.write_meta(id, &entry.meta);
         }
         self.entries.insert(id.to_owned(), entry);

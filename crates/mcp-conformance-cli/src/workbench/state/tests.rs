@@ -10,18 +10,18 @@ use crate::workbench::entry::complete;
 use crate::workbench::fixture;
 
 #[test]
-fn opening_judges_every_entry_and_writes_its_cache() {
+fn opening_judges_every_entry_and_writes_no_verdict_to_a_sidecar() {
     let (workbench, dir) = fixture::workbench("open");
     assert_eq!(workbench.entries.len(), 11);
     assert_eq!(workbench.skipped.len(), 0);
     for id in workbench.entries.keys() {
-        let meta = workbench.library.read_meta(id).meta;
+        let sidecar = std::fs::read_to_string(workbench.library.meta_path(id)).unwrap_or_default();
         assert!(
-            meta.verdict_cache.is_some(),
-            "{id}: the cache is written back"
+            !sidecar.contains("verdict_cache"),
+            "{id}: a verdict is computed from the bytes, never stored"
         );
     }
-    // Reopening reads the caches: the same verdicts.
+    // Reopening judges again: the same verdicts.
     let again = Workbench::open(&dir).unwrap();
     for (id, entry) in &workbench.entries {
         assert_eq!(again.entry(id).unwrap().verdict(), entry.verdict(), "{id}");
@@ -119,8 +119,11 @@ fn an_entry_is_reloaded_when_its_size_or_time_changes_and_only_then() {
     assert_eq!(tagged(&workbench), ["again"]);
 }
 
+/// Opening a library judges every trace from its bytes and writes nothing: a
+/// bare trace gets no sidecar until something about it is changed. (The sidecar
+/// used to be written on open, to cache the verdict, and quoted payload values.)
 #[test]
-fn a_sidecar_written_for_a_bare_trace_is_of_the_current_format() {
+fn opening_a_bare_trace_writes_nothing() {
     let dir = fixture::scratch("bare");
     std::fs::copy(
         fixture::fixtures().join("everything-stdio.jsonl"),
@@ -128,9 +131,26 @@ fn a_sidecar_written_for_a_bare_trace_is_of_the_current_format() {
     )
     .unwrap();
     let workbench = Workbench::open(&dir).unwrap();
+    assert!(workbench.entry("bare").is_ok());
+    assert!(!workbench.library.meta_path("bare").exists());
+    let files: Vec<_> = std::fs::read_dir(&dir).unwrap().collect();
+    assert_eq!(files.len(), 1, "only the trace itself is there");
+}
+
+#[test]
+fn a_sidecar_written_by_a_change_is_of_the_current_format() {
+    let dir = fixture::scratch("bare-tagged");
+    std::fs::copy(
+        fixture::fixtures().join("everything-stdio.jsonl"),
+        dir.join("bare.jsonl"),
+    )
+    .unwrap();
+    let mut workbench = Workbench::open(&dir).unwrap();
+    workbench.set_tags("bare", &["seen".to_owned()]).unwrap();
     let text = std::fs::read_to_string(workbench.library.meta_path("bare")).unwrap();
     let written: serde_json::Value = serde_json::from_str(&text).unwrap();
     assert_eq!(written["format"], crate::workbench::meta::FORMAT);
+    assert_eq!(written["tags"], serde_json::json!(["seen"]));
 }
 
 #[test]

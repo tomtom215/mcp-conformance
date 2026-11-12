@@ -5,10 +5,15 @@
 //!
 //! It holds what the trace cannot: the tags people gave it, where it came
 //! from (recorded, imported from another tool — with what that tool did not
-//! record — or a redacted copy of another entry), when it was added and
-//! recorded, and a cache of its verdict. The cache is keyed by the trace's
-//! SHA-256 *and* the tool's version, so editing the trace or upgrading the
-//! validator each make it stale, and a stale cache is recomputed, never read.
+//! record — or a redacted copy of another entry), and when it was added and
+//! recorded. **It holds no verdict.** A verdict is computed from the trace's
+//! bytes each time the library is opened and is never read from here: a
+//! sidecar is a file anyone who can write the library can edit, or hand over
+//! in an export, and its digest says only which bytes it was written for, not
+//! that its contents were computed from them. An earlier build cached the
+//! verdict in a `verdict_cache` member, which is dropped when such a sidecar
+//! is loaded ([`Meta::drop_legacy_cache`]); its findings quoted payload values
+//! too, so it is better gone.
 //!
 //! Members this build does not know are kept and written back unchanged, so
 //! a newer workbench's sidecar survives an older one opening the library.
@@ -38,9 +43,6 @@ pub(crate) struct Meta {
     /// When it was recorded (RFC 3339), when known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) recorded_at: Option<String>,
-    /// The last verdict computed for it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) verdict_cache: Option<Cache>,
     /// Members this build does not know, kept as they were.
     #[serde(flatten)]
     pub(crate) unknown: Map<String, Value>,
@@ -55,7 +57,6 @@ impl Default for Meta {
             source: Source::default(),
             added_at: None,
             recorded_at: None,
-            verdict_cache: None,
             unknown: Map::new(),
         }
     }
@@ -84,6 +85,13 @@ pub(crate) struct Source {
     /// What the redaction replaced, one line per rule.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) redactions: Vec<String>,
+    /// The verdict word the original entry had when this copy was made.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) original_verdict: Option<String>,
+    /// The verdict word of this copy: a redacted trace is not automatically
+    /// equivalent evidence, and the two are recorded so a difference shows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) redacted_verdict: Option<String>,
 }
 
 fn recorded() -> String {
@@ -99,24 +107,10 @@ impl Default for Source {
             not_recorded: Vec::new(),
             redacted_from: None,
             redactions: Vec::new(),
+            original_verdict: None,
+            redacted_verdict: None,
         }
     }
-}
-
-/// A verdict, and what it was computed from.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub(crate) struct Cache {
-    /// The trace's SHA-256, lowercase hex.
-    pub(crate) sha256: String,
-    /// The tool version that computed it.
-    pub(crate) tool_version: String,
-    /// The validator's reports (its JSON report format), one per judged
-    /// revision; empty when the trace could not be judged.
-    #[serde(default)]
-    pub(crate) reports: Vec<Value>,
-    /// Why the trace could not be judged, when it could not.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) unjudged: Option<String>,
 }
 
 impl Meta {
@@ -152,11 +146,11 @@ impl Meta {
         self.tags = tags;
     }
 
-    /// The cache, when it was computed from this trace by this build.
-    pub(crate) fn fresh_cache(&self, sha256: &str) -> Option<&Cache> {
-        self.verdict_cache
-            .as_ref()
-            .filter(|cache| cache.sha256 == sha256 && cache.tool_version == tool_version())
+    /// Drops the `verdict_cache` an earlier build wrote, which is kept in
+    /// [`Meta::unknown`] now that nothing reads it; true when there was one,
+    /// so the caller can write the sidecar back without it.
+    pub(crate) fn drop_legacy_cache(&mut self) -> bool {
+        self.unknown.remove("verdict_cache").is_some()
     }
 }
 
@@ -204,37 +198,15 @@ mod tests {
     }
 
     #[test]
-    fn a_cache_is_fresh_only_for_the_same_trace_and_build() {
-        let mut meta = Meta::default();
-        assert!(meta.fresh_cache("abc").is_none());
-        meta.verdict_cache = Some(Cache {
-            sha256: "abc".into(),
-            tool_version: tool_version().into(),
-            reports: Vec::new(),
-            unjudged: None,
-        });
-        assert!(meta.fresh_cache("abc").is_some());
-        assert!(meta.fresh_cache("abd").is_none());
-        if let Some(cache) = &mut meta.verdict_cache {
-            cache.tool_version = "0.0.0-other".into();
-        }
-        assert!(meta.fresh_cache("abc").is_none());
-    }
-
-    #[test]
-    fn a_cache_from_a_build_that_named_another_version_or_none_is_stale() {
-        for other in ["", "xyzzy"] {
-            let meta = Meta {
-                verdict_cache: Some(Cache {
-                    sha256: "abc".into(),
-                    tool_version: other.into(),
-                    reports: Vec::new(),
-                    unjudged: None,
-                }),
-                ..Meta::default()
-            };
-            assert!(meta.fresh_cache("abc").is_none(), "{other:?}");
-        }
+    fn the_legacy_verdict_cache_is_dropped_once_and_only_once() {
+        let mut meta: Meta = serde_json::from_str(
+            r#"{"tags":["t"],"verdict_cache":{"sha256":"abc","tool_version":"0.6.0","reports":[]}}"#,
+        )
+        .unwrap();
+        assert!(meta.drop_legacy_cache());
+        assert!(!meta.to_text().contains("verdict_cache"));
+        assert_eq!(meta.tags, ["t"]);
+        assert!(!meta.drop_legacy_cache());
         assert_eq!(tool_version(), env!("CARGO_PKG_VERSION"));
     }
 }

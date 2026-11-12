@@ -123,11 +123,18 @@ Each action is a button in the page and a `library` subcommand:
 | Export (tar of traces and sidecars; each recording once, at most 100 recordings and 192 MiB) | **Export** | `library export ID… -o FILE` |
 | Redact | **Redact…** | `library redact ID [--header H…] [--pointer P…] [--meta] [--string S…]` |
 
-**Redaction** makes a new recording and leaves the original alone. It replaces with
-`"[redacted]"` the values of headers named (by default `Authorization`, `Cookie`, `Set-Cookie`,
-`Proxy-Authorization` and `Mcp-Session-Id`), of JSON pointers into every message (`/params/arguments/apiKey`; `*`
-matches every member, as in `/result/content/*/text`), of every `_meta` member, and every
-occurrence of a literal string anywhere. A line that is not JSON stops the redaction rather
+**Redaction** makes a new recording and leaves the original alone. It replaces the values of
+headers named (by default `Authorization`, `Cookie`, `Set-Cookie`, `Proxy-Authorization` and
+`Mcp-Session-Id`) and of every `_meta` member with numbered stand-ins, `[redacted:1]`,
+`[redacted:2]`, one number per distinct value: equal values stay equal and different ones stay
+different, so the validator judges the copy as it judged the original (it checks, for instance,
+that a client echoed the session id the server assigned, and with one string for every id a real
+mismatch would disappear). A stand-in is a counter, not a hash. It replaces with `"[redacted]"`
+the values of JSON pointers into every message (`/params/arguments/apiKey`; `*` matches every
+member, as in `/result/content/*/text`) and every occurrence of a literal string anywhere. A
+progress token redacted with `--meta` is the same stand-in in the progress notifications that
+carry it. The copy's sidecar records the verdict of the original and of the copy and says when
+redaction changed it: a redacted copy is not automatically equivalent evidence. A line that is not JSON stops the redaction rather
 than being copied. Member order within a line is not kept. Read the copy before sharing it:
 redaction removes what you name, and a recording holds whatever the session sent.
 

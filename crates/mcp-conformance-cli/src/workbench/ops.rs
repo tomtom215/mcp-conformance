@@ -75,6 +75,7 @@ pub(crate) fn redact_document(
     let text = wb.text(id)?;
     let redacted = redact::redact(&text, rules).map_err(|error| Failure::Invalid(error.0))?;
     let original = wb.entry(id)?;
+    let original_verdict = original.verdict();
     let mut meta = Meta::new("redacted");
     meta.tags.clone_from(&original.meta.tags);
     meta.source
@@ -88,6 +89,21 @@ pub(crate) fn redact_document(
     meta.added_at = Some(clock::now());
     meta.recorded_at = original.when();
     let copy = wb.add(&format!("{id}.redacted"), redacted.text.as_bytes(), &meta)?;
+    // A copy is not automatically equivalent evidence: record what the
+    // validator concluded of each, and say so when redaction changed it.
+    let verdict = wb.entry(&copy)?.verdict();
+    if let Some(entry) = wb.entries.get_mut(&copy) {
+        if verdict != original_verdict {
+            entry.meta.source.redactions.push(format!(
+                "verdict changed: {original_verdict} for the original, {verdict} for this copy; \
+                 the copy is not equivalent evidence of the original's verdict"
+            ));
+        }
+        entry.meta.source.original_verdict = Some(original_verdict);
+        entry.meta.source.redacted_verdict = Some(verdict);
+        // A sidecar that cannot be written leaves the copy as it was added.
+        let _ = wb.library.write_meta(&copy, &entry.meta);
+    }
     Ok(wb.entry(&copy)?.summary())
 }
 
@@ -263,6 +279,50 @@ mod tests {
                 .entries,
             1
         );
+    }
+
+    /// A redacted copy is not automatically equivalent evidence (the audit's
+    /// A13): its sidecar records the verdict of the original and of the copy,
+    /// and says so when redaction changed the validator's conclusion.
+    #[test]
+    fn a_copy_records_both_verdicts_and_says_when_redaction_changed_it() {
+        let progress = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../corpus/good/stdio-task-progress.jsonl"),
+        )
+        .unwrap();
+        let (mut wb, _dir) = fixture::workbench("redact-verdicts");
+        let original = wb
+            .add("progress.jsonl", &progress, &Meta::new("imported"))
+            .unwrap();
+        let before = wb.entry(&original).unwrap().verdict();
+
+        // `--meta` keeps a progress token matching its notifications: no change.
+        let rules = Rules {
+            meta: true,
+            ..Rules::default()
+        };
+        let summary = redact_document(&mut wb, &original, &rules).unwrap();
+        assert_eq!(summary["source"]["original_verdict"], before);
+        assert_eq!(summary["source"]["redacted_verdict"], before);
+        let lines = summary["source"]["redactions"].to_string();
+        assert!(!lines.contains("verdict changed"), "{lines}");
+
+        // One occurrence of the token redacted by pointer and its notifications
+        // left as they were is a change the user chose, and the copy says so.
+        let pointer = Rules {
+            pointers: vec!["/params/_meta/progressToken".to_owned()],
+            ..Rules::default()
+        };
+        let changed = redact_document(&mut wb, &original, &pointer).unwrap();
+        assert_eq!(changed["source"]["original_verdict"], before);
+        assert_ne!(changed["source"]["redacted_verdict"], before);
+        let lines = changed["source"]["redactions"].to_string();
+        assert!(lines.contains("verdict changed"), "{lines}");
+        // The same record is what the sidecar on disk holds.
+        let id = changed["id"].as_str().unwrap();
+        let sidecar = std::fs::read_to_string(wb.library.meta_path(id)).unwrap();
+        assert!(sidecar.contains("original_verdict"), "{sidecar}");
     }
 
     #[test]

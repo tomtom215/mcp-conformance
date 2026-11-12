@@ -60,6 +60,8 @@ fn the_redacted_copy_holds_no_secret_byte() {
             "pointer /params/arguments/apiKey: 1 values",
             "_meta members: 2 values",
             "literal string 1: 1 occurrences",
+            "numbered stand-ins ([redacted:N]) keep equal values equal and different values \
+             different: 6 distinct",
         ]
     );
     // What no rule named is left as it was.
@@ -221,4 +223,134 @@ fn bad_rules_and_unreadable_lines_are_refused_whole() {
     )
     .unwrap_err();
     assert!(broken.0.starts_with("line 2 is not JSON"), "{}", broken.0);
+}
+
+/// The verdict word the workbench would show for `text`.
+fn verdict_of(text: &str) -> String {
+    crate::workbench::entry::Entry::load(
+        "t",
+        text.as_bytes(),
+        crate::workbench::meta::Meta::default(),
+        None,
+        None,
+    )
+    .0
+    .verdict()
+}
+
+/// A session whose client presents a session id (`zzz999`) other than the one
+/// the server assigned (`abc123`): TRAN-013 fails.
+const SESSION_MISMATCH: &str = concat!(
+    r#"{"seq":0,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"accept":"application/json, text/event-stream","content-type":"application/json"}}"#,
+    "\n",
+    r#"{"seq":1,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"corpus-client","version":"0.1.0"}}}}"#,
+    "\n",
+    r#"{"seq":2,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":200,"headers":{"content-type":"application/json","mcp-session-id":"abc123"}}"#,
+    "\n",
+    r#"{"seq":3,"direction":"server-to-client","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"corpus-server","version":"0.1.0"}}}}"#,
+    "\n",
+    r#"{"seq":4,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"POST","headers":{"accept":"application/json, text/event-stream","mcp-protocol-version":"2025-11-25","mcp-session-id":"zzz999"}}"#,
+    "\n",
+    r#"{"seq":5,"direction":"client-to-server","transport":"streamable-http","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}"#,
+    "\n",
+    r#"{"seq":6,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":202}"#,
+    "\n",
+);
+
+/// The values of header `name` in `text`'s http events, in order.
+fn header_values(text: &str, name: &str) -> Vec<String> {
+    text.lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter_map(|event| event["headers"][name].as_str().map(ToOwned::to_owned))
+        .collect()
+}
+
+/// A session id is a bearer credential, so it cannot be hashed (a hash of a
+/// guessable value is a guess away), but "the client echoed the id the server
+/// assigned" is a property the validator judges. A numbered stand-in per
+/// distinct value keeps equality and inequality and reveals nothing else.
+#[test]
+fn distinct_session_ids_keep_distinct_stand_ins_and_equal_ones_stay_equal() {
+    let redacted = redact(
+        SESSION_MISMATCH,
+        &Rules {
+            headers: defaults(),
+            ..Rules::default()
+        },
+    )
+    .unwrap();
+    let ids = header_values(&redacted.text, "mcp-session-id");
+    assert_eq!(ids, ["[redacted:1]", "[redacted:2]"]);
+    assert!(!redacted.text.contains("abc123") && !redacted.text.contains("zzz999"));
+
+    // The same id twice stays the same stand-in, everywhere it occurs.
+    let echoed = SESSION_MISMATCH.replace("zzz999", "abc123");
+    let redacted = redact(
+        &echoed,
+        &Rules {
+            headers: defaults(),
+            ..Rules::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        header_values(&redacted.text, "mcp-session-id"),
+        ["[redacted:1]", "[redacted:1]"]
+    );
+}
+
+/// The audit's A13: redaction mapped every session id to one string, so a
+/// session with a genuine mismatch (TRAN-013) failed before redaction and
+/// passed after it.
+#[test]
+fn redacting_the_session_ids_does_not_change_a_mismatch_the_validator_finds() {
+    assert_eq!(verdict_of(SESSION_MISMATCH), "fail");
+    let redacted = redact(
+        SESSION_MISMATCH,
+        &Rules {
+            headers: defaults(),
+            ..Rules::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(verdict_of(&redacted.text), "fail");
+}
+
+/// `--meta` replaced `params._meta.progressToken` and left the same token in
+/// the `notifications/progress` it correlates with, so the copy failed a clause
+/// the original passed. A token is now one stand-in wherever it occurs.
+#[test]
+fn a_progress_token_redacted_with_meta_still_matches_its_notifications() {
+    let original = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../corpus/good/stdio-task-progress.jsonl"),
+    )
+    .unwrap();
+    let before = verdict_of(&original);
+    assert_ne!(before, "fail", "the corpus trace conforms");
+    let redacted = redact(
+        &original,
+        &Rules {
+            meta: true,
+            ..Rules::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(verdict_of(&redacted.text), before);
+
+    let tokens: std::collections::BTreeSet<String> = redacted
+        .text
+        .lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .flat_map(|event| {
+            let params = event["payload"]["params"].clone();
+            [
+                params["progressToken"].clone(),
+                params["_meta"]["progressToken"].clone(),
+            ]
+        })
+        .filter_map(|token| token.as_str().map(ToOwned::to_owned))
+        .collect();
+    assert_eq!(tokens.len(), 1, "one token, one stand-in: {tokens:?}");
+    assert!(!redacted.text.contains("deploy-1"));
 }

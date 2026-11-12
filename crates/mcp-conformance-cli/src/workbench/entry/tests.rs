@@ -22,40 +22,90 @@ fn the_digest_is_sha256() {
 }
 
 #[test]
-fn an_entry_is_judged_as_the_validator_judges_it_and_cached() {
+fn an_entry_is_judged_as_the_validator_judges_it() {
     let bytes = read("base-001-request-id-boolean.jsonl");
-    let (entry, stale) = Entry::load("b", &bytes, Meta::default(), None, None);
-    assert!(stale, "a sidecar without a cache is recomputed");
+    let (entry, _) = Entry::load("b", &bytes, Meta::default(), None, None);
     assert_eq!(entry.verdict(), "fail");
-    let text = String::from_utf8(bytes.clone()).unwrap();
+    let text = String::from_utf8(bytes).unwrap();
     let direct = judge::judge(&text).unwrap();
     assert_eq!(entry.reports, direct.reports);
     assert_eq!(entry.findings(), 2);
-    let cache = entry.meta.verdict_cache.clone().unwrap();
-    assert_eq!(cache.sha256, sha256(&bytes));
-    assert_eq!(cache.tool_version, tool_version());
-
-    // The cache is read back instead of judging again …
-    let (again, stale) = Entry::load("b", &bytes, entry.meta.clone(), None, None);
-    assert!(!stale);
-    assert_eq!(again.reports, entry.reports);
-    // … and a cache of other bytes is not.
-    let mut tampered = entry.meta.clone();
-    if let Some(cache) = &mut tampered.verdict_cache {
-        cache.reports.clear();
-    }
-    let (from_cache, _) = Entry::load("b", &bytes, tampered.clone(), None, None);
     assert!(
-        from_cache.reports.is_empty(),
-        "a fresh cache is trusted as written"
+        !entry.meta.to_text().contains("verdict_cache"),
+        "no verdict is written to the sidecar"
     );
-    let mut other = tampered;
-    if let Some(cache) = &mut other.verdict_cache {
-        cache.sha256 = "0".repeat(64);
-    }
-    let (rejudged, stale) = Entry::load("b", &bytes, other, None, None);
-    assert!(stale);
-    assert_eq!(rejudged.reports, entry.reports);
+}
+
+/// A sidecar is a file anyone who can write the library can edit, or hand over
+/// in an export; its digest only says which bytes it was written for, not that
+/// the verdict in it was computed from them. So a verdict is never read from
+/// one: a forged cache, empty or not, with the right digest, changes nothing.
+#[test]
+fn a_verdict_is_never_read_from_a_sidecar() {
+    let failing = read("base-001-request-id-boolean.jsonl");
+    let passing = read("everything-stdio.jsonl");
+    let forged = |digest: &str, reports: &str| -> Meta {
+        serde_json::from_str(&format!(
+            r#"{{"verdict_cache":{{"sha256":"{digest}","tool_version":"{}","reports":{reports}}}}}"#,
+            env!("CARGO_PKG_VERSION")
+        ))
+        .unwrap()
+    };
+
+    // An empty report vector, the right digest and this build's version.
+    let (entry, _) = Entry::load("f", &failing, forged(&sha256(&failing), "[]"), None, None);
+    assert_eq!(entry.verdict(), "fail");
+    assert_eq!(
+        entry.reports.len(),
+        1,
+        "the report of the bytes, not the forged empty one"
+    );
+
+    // A well-formed report transplanted from a passing trace.
+    let (donor, _) = Entry::load("p", &passing, Meta::default(), None, None);
+    let transplanted = serde_json::to_string(&donor.reports).unwrap();
+    let (entry, _) = Entry::load(
+        "f",
+        &failing,
+        forged(&sha256(&failing), &transplanted),
+        None,
+        None,
+    );
+    assert_eq!(entry.verdict(), "fail");
+
+    // A file that is not a trace stays unjudged, whatever its sidecar claims.
+    let junk = b"this is not a trace\n";
+    let (entry, _) = Entry::load("j", junk, forged(&sha256(junk), "[]"), None, None);
+    assert_eq!(entry.verdict(), "unjudged");
+    assert!(entry.unjudged.is_some());
+}
+
+/// A sidecar an earlier build wrote carries the old `verdict_cache`, whose
+/// findings quote payload values. Loading drops it and says the sidecar should
+/// be written back, so it does not linger on disk.
+#[test]
+fn a_legacy_cache_is_dropped_and_the_sidecar_marked_for_rewriting() {
+    let bytes = read("everything-stdio.jsonl");
+    let legacy: Meta = serde_json::from_str(
+        r#"{"tags":["keep"],"verdict_cache":{"sha256":"x","tool_version":"0.6.0","reports":[]}}"#,
+    )
+    .unwrap();
+    let (entry, rewrite) = Entry::load("l", &bytes, legacy, None, None);
+    assert!(rewrite);
+    assert_eq!(entry.meta.tags, ["keep"]);
+    assert!(!entry.meta.to_text().contains("verdict_cache"));
+    let (_, rewrite_again) = Entry::load("l", &bytes, entry.meta, None, None);
+    assert!(!rewrite_again, "nothing to drop the second time");
+}
+
+/// With neither reports nor a reason, an entry is not a pass: a verdict is
+/// claimed only for something that was judged.
+#[test]
+fn an_entry_with_nothing_judged_and_no_reason_is_unjudged_not_a_pass() {
+    let (mut entry, _) = Entry::load("e", b"", Meta::default(), None, None);
+    entry.unjudged = None;
+    entry.reports.clear();
+    assert_eq!(entry.verdict(), "unjudged");
 }
 
 #[test]
@@ -163,4 +213,66 @@ fn the_first_events_timestamp_is_a_fact() {
         None,
     );
     assert_eq!(untimed.facts.first_ts, None);
+}
+
+/// The last `n` bytes of `text` cut off, leaving an unfinished last line.
+fn cut(text: &[u8], n: usize) -> Vec<u8> {
+    text[..text.len() - n].to_vec()
+}
+
+/// A trace whose last line is unfinished may still be being written, so its
+/// complete lines are judged and the entry says it is provisional: a verdict
+/// that covers only what had been written must not read as a plain pass.
+#[test]
+fn a_trace_cut_off_mid_line_is_judged_as_far_as_it_goes_and_marked_provisional() {
+    let whole = read("everything-stdio.jsonl");
+    let (finished, _) = Entry::load("w", &whole, Meta::default(), None, None);
+    assert!(finished.provisional.is_none());
+
+    let cut_off = cut(&whole, 15);
+    let (entry, _) = Entry::load("c", &cut_off, Meta::default(), None, None);
+    assert_ne!(
+        entry.verdict(),
+        "unjudged",
+        "the complete lines were judged"
+    );
+    let reason = entry.provisional.as_deref().unwrap();
+    assert!(reason.contains("incomplete"), "{reason}");
+    assert_eq!(entry.summary()["provisional"], reason);
+    assert_eq!(finished.summary()["provisional"], serde_json::Value::Null);
+}
+
+/// A recording that has a closing event is finished, so an unfinished line
+/// after it is damage, not a write in progress: it is judged whole, and a trace
+/// the validator cannot read is unjudged, as `mcp-trace-validator` exits 3 on it.
+#[test]
+fn an_unfinished_line_after_a_closing_event_is_damage_not_a_write_in_progress() {
+    let mut closed = read("everything-http.jsonl");
+    closed.extend_from_slice(b"\n{\"seq\":999,\"direction\":\"clie");
+    let (entry, _) = Entry::load("d", &closed, Meta::default(), None, None);
+    assert_eq!(entry.verdict(), "unjudged");
+    assert!(entry.unjudged.is_some());
+    assert!(entry.provisional.is_none());
+
+    // Without the closing event the same tail is taken as a write in progress.
+    let whole = read("everything-http.jsonl");
+    let lines: Vec<&str> = std::str::from_utf8(&whole).unwrap().lines().collect();
+    let mut open = lines[..lines.len() - 1].join("\n").into_bytes();
+    open.extend_from_slice(b"\n{\"seq\":999,\"direction\":\"clie");
+    let (entry, _) = Entry::load("o", &open, Meta::default(), None, None);
+    assert!(entry.provisional.is_some());
+    assert_ne!(entry.verdict(), "unjudged");
+}
+
+#[test]
+fn a_finished_trace_is_not_provisional_with_or_without_its_final_newline() {
+    let bytes = read("everything-stdio.jsonl");
+    let mut with_newline = bytes.clone();
+    if !with_newline.ends_with(b"\n") {
+        with_newline.push(b'\n');
+    }
+    for text in [bytes, with_newline] {
+        let (entry, _) = Entry::load("f", &text, Meta::default(), None, None);
+        assert!(entry.provisional.is_none());
+    }
 }

@@ -465,6 +465,38 @@ below is stated again in its entry, with the reasoning.
   one trace; and the exit codes it left out (`stdio` 1 when waiting for the server
   fails, `http` 2 when serving fails).
 
+**The workbench's verdicts and copies (security)**
+
+- **A verdict is never read from a sidecar** (the 2026-11-11 audit, A03). The workbench
+  cached each verdict in the recording's `.meta.json`, keyed by the trace's SHA-256 and the
+  tool's version, and believed it. A digest says which bytes a sidecar was written for, not
+  that its contents were computed from them, so anyone who could write the library (or hand
+  over a `library export`, which carries sidecars verbatim) could make a failing recording
+  read `pass`, or a file that is not a trace read `pass`; the security model said the cache
+  was "never for a verdict", which was not so. A verdict is now computed from the bytes each
+  time an entry is loaded; a `verdict_cache` an earlier build wrote is dropped when its sidecar
+  is loaded (its findings quoted payload values too); and an entry with nothing judged and no
+  reason is `unjudged` where it fell through to `pass`. Opening a library no longer writes a
+  sidecar for a bare trace: the cache was the reason it did. The sidecar's `verdict_cache` is
+  gone; sidecar members are not a stability surface ([STABILITY.md](STABILITY.md)).
+- **A verdict that covers only part of a file says so** (A02, the workbench half). A trace
+  whose last line is unfinished was judged without it and read as a plain `pass`, whether it was
+  still being written or had been cut off. It is now marked provisional (a `provisional` column
+  in `library list` for that row, and a `provisional` member of the entry's JSON); a trace that
+  had already ended, with an unfinished line after its `transport-close` or `transport-abort`, is
+  judged whole and is `unjudged`, as `mcp-trace-validator` exits 3 on it.
+- **A redacted copy no longer erases the equality the validator checks** (A13).
+  `library redact` replaced every session id with one string, so a session whose client
+  presented an id other than the one the server assigned failed `TRAN-013` before redaction and
+  passed after it. A header value or a `_meta` member now becomes a numbered stand-in
+  (`[redacted:1]`), one per distinct value, a counter and not a hash (a session id is a bearer
+  credential). `--meta` redacted `params._meta.progressToken` and left the same token in the
+  `notifications/progress` it correlates with, so a conforming recording failed `PROG-013`
+  after redaction; the token is now one stand-in in both places. The copy's sidecar records the
+  verdict of the original and of the copy and says when redaction changed it. Pointer and
+  literal-string rules still write `[redacted]`: they blank what you name, and a verdict that
+  changes because of them is now said.
+
 **The workbench's files (security)**
 
 - **What the workbench writes is for its owner alone, as the recorder's traces are.**

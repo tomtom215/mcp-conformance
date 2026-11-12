@@ -7,9 +7,17 @@
 //! and cookies, and any recording holds payloads in full. A redaction is a
 //! set of [`Rules`]; applying them yields a new trace, which the library adds
 //! as a new entry beside the original — **never in place** — with a sidecar
-//! saying what was replaced and from which entry. Every replaced value
-//! becomes the string [`REDACTED`], so the copy is still a trace the
-//! validator reads.
+//! saying what was replaced, from which entry, and whether the validator's
+//! verdict survived. A replaced value becomes a string, so the copy is still a
+//! trace the validator reads: [`REDACTED`] for a pointer or a literal string,
+//! and for a header value or a `_meta` member a numbered stand-in
+//! (`[redacted:1]`), one number per distinct value. Several clauses judge
+//! whether two values are the *same* (the session id a client echoes, a
+//! progress token and the notifications that carry it), and one string for
+//! every value erased that: a session with a real mismatch passed after
+//! redaction. A stand-in keeps equality and inequality and nothing else. It is
+//! a counter, not a hash: a session id is a bearer credential, and a hash of a
+//! guessable value is a guess away.
 //!
 //! The rules work on each line as JSON, so a member this build does not know
 //! is carried over (and its strings are still scrubbed of literal secrets).
@@ -18,14 +26,40 @@
 
 use serde_json::{Map, Value};
 
-/// What a replaced value becomes.
+/// What a value a pointer or a literal string replaces becomes.
 pub(crate) const REDACTED: &str = "[redacted]";
+
+/// The numbered stand-ins issued so far: one per distinct value of a header
+/// name or a `_meta` member name, counted from 1 in the order first met.
+#[derive(Debug, Default)]
+struct StandIns {
+    numbers: std::collections::BTreeMap<(String, String), usize>,
+    issued: std::collections::BTreeMap<String, usize>,
+}
+
+impl StandIns {
+    /// The stand-in for `value` of the field `field` (a header name or a
+    /// `_meta` member name, compared without regard to ASCII case).
+    fn of(&mut self, field: &str, value: &Value) -> String {
+        let field = field.to_ascii_lowercase();
+        let key = (field.clone(), value.to_string());
+        if let Some(number) = self.numbers.get(&key) {
+            return format!("[redacted:{number}]");
+        }
+        let next = self.issued.entry(field).or_insert(0);
+        *next += 1;
+        let number = *next;
+        self.numbers.insert(key, number);
+        format!("[redacted:{number}]")
+    }
+}
 
 /// The headers redacted unless the request names others: the ones that
 /// carry credentials, and the session id, which is one for the session —
-/// whoever presents it to the server is that session. Every occurrence
-/// becomes the same [`REDACTED`], so a check that the client echoed the id
-/// the server assigned still holds on the copy.
+/// whoever presents it to the server is that session. Each distinct value
+/// becomes its own numbered stand-in, the same wherever it occurs, so a check
+/// that the client echoed the id the server assigned judges the copy as it
+/// judged the original: equal ids stay equal and different ids stay different.
 pub(crate) const DEFAULT_HEADERS: [&str; 5] = [
     "authorization",
     "cookie",
@@ -63,7 +97,11 @@ struct Counts {
     headers: usize,
     pointers: Vec<usize>,
     meta: usize,
+    /// `params.progressToken` of a progress notification, replaced to match
+    /// the `_meta.progressToken` it correlates with.
+    tokens: usize,
     strings: Vec<usize>,
+    stand_ins: StandIns,
 }
 
 /// Why rules cannot be applied.
@@ -133,8 +171,8 @@ fn at_pointer(value: &mut Value, path: &[String]) -> usize {
     }
 }
 
-/// Replaces every `_meta` member's value under `value`.
-fn meta_values(value: &mut Value) -> usize {
+/// Replaces every `_meta` member's value under `value` with its stand-in.
+fn meta_values(value: &mut Value, stand_ins: &mut StandIns) -> usize {
     match value {
         Value::Object(members) => {
             let mut count = 0;
@@ -142,17 +180,46 @@ fn meta_values(value: &mut Value) -> usize {
                 if name == "_meta"
                     && let Value::Object(meta) = child
                 {
-                    for inner in meta.values_mut() {
-                        *inner = Value::String(REDACTED.to_owned());
+                    for (member, inner) in meta.iter_mut() {
+                        *inner = Value::String(stand_ins.of(member, inner));
                         count += 1;
                     }
                 } else {
-                    count += meta_values(child);
+                    count += meta_values(child, stand_ins);
                 }
             }
             count
         }
-        Value::Array(items) => items.iter_mut().map(meta_values).sum(),
+        Value::Array(items) => items
+            .iter_mut()
+            .map(|item| meta_values(item, stand_ins))
+            .sum(),
+        _ => 0,
+    }
+}
+
+/// Replaces `params.progressToken` of a `notifications/progress` with the
+/// stand-in the same token has as a `_meta` member, so the notification still
+/// names the request it reports on. Returns how many.
+fn progress_tokens(value: &mut Value, stand_ins: &mut StandIns) -> usize {
+    match value {
+        Value::Array(parts) => parts
+            .iter_mut()
+            .map(|part| progress_tokens(part, stand_ins))
+            .sum(),
+        Value::Object(message) => {
+            if message.get("method").and_then(Value::as_str) != Some("notifications/progress") {
+                return 0;
+            }
+            let Some(token) = message
+                .get_mut("params")
+                .and_then(|params| params.get_mut("progressToken"))
+            else {
+                return 0;
+            };
+            *token = Value::String(stand_ins.of("progressToken", token));
+            1
+        }
         _ => 0,
     }
 }
@@ -201,7 +268,7 @@ fn redact_line(line: &mut Value, rules: &Rules, pointers: &[Vec<String>], counts
                 .iter()
                 .any(|header| header.eq_ignore_ascii_case(name))
             {
-                *value = Value::String(REDACTED.to_owned());
+                *value = Value::String(counts.stand_ins.of(name, value));
                 counts.headers += 1;
             }
         }
@@ -216,7 +283,8 @@ fn redact_line(line: &mut Value, rules: &Rules, pointers: &[Vec<String>], counts
             };
         }
         if rules.meta {
-            counts.meta += meta_values(payload);
+            counts.meta += meta_values(payload, &mut counts.stand_ins);
+            counts.tokens += progress_tokens(payload, &mut counts.stand_ins);
         }
     }
     for (index, needle) in rules.strings.iter().enumerate() {
@@ -259,10 +327,23 @@ pub(crate) fn redact(text: &str, rules: &Rules) -> Result<Redacted, RedactError>
     }
     if rules.meta {
         summary.push(format!("_meta members: {} values", counts.meta));
+        if counts.tokens > 0 {
+            summary.push(format!(
+                "progress tokens matching a redacted _meta.progressToken: {} values",
+                counts.tokens
+            ));
+        }
     }
     for (index, count) in counts.strings.iter().enumerate() {
         // The string itself is the secret: the summary names it by position.
         summary.push(format!("literal string {}: {count} occurrences", index + 1));
+    }
+    if !counts.stand_ins.numbers.is_empty() {
+        summary.push(format!(
+            "numbered stand-ins ([redacted:N]) keep equal values equal and different values \
+             different: {} distinct",
+            counts.stand_ins.numbers.len()
+        ));
     }
     Ok(Redacted { text: out, summary })
 }
