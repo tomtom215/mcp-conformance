@@ -223,3 +223,42 @@ fn an_export_is_owner_only_and_an_existing_file_keeps_its_mode() {
     export(&archive);
     assert_eq!(mode(&archive), 0o640);
 }
+
+/// A library that already holds recordings other users can read is said so, once,
+/// with the command that fixes it, and nothing is changed; one whose files are
+/// already private is not nagged.
+#[cfg(unix)]
+#[test]
+fn a_library_holding_readable_files_is_said_so_once_and_left_alone() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+    let dir = fixture_library("readable-warning");
+    let sample = dir.join("leaky-session.jsonl");
+    std::fs::set_permissions(&sample, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+    let said = library(&dir, &["list"]);
+    assert!(said.status.success(), "{}", stderr(&said));
+    let text = stderr(&said);
+    assert_eq!(
+        text.matches("can be read by other users").count(),
+        1,
+        "{text}"
+    );
+    assert!(
+        text.contains(&format!("chmod -R go-rwx {}", dir.display())),
+        "{text}"
+    );
+    assert_eq!(mode(&sample), 0o644, "it must not change a mode");
+
+    // Made private, as the message says, it is not said again.
+    for entry in std::fs::read_dir(&dir).unwrap() {
+        let path = entry.unwrap().path();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    let quiet = library(&dir, &["list"]);
+    assert!(
+        !stderr(&quiet).contains("can be read by other users"),
+        "{}",
+        stderr(&quiet)
+    );
+}

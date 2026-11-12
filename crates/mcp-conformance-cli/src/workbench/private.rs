@@ -65,33 +65,35 @@ pub(crate) fn write(path: &Path, bytes: &[u8]) -> io::Result<()> {
 
 /// The recordings and sidecars directly in `dir` that group or other can
 /// read, sorted. Empty off Unix, which has no such bits to read.
-#[cfg(unix)]
 #[must_use]
 pub(crate) fn shared_files(dir: &Path) -> Vec<PathBuf> {
-    use std::os::unix::fs::PermissionsExt as _;
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return Vec::new();
-    };
-    let mut shared: Vec<PathBuf> = entries
-        .filter_map(Result::ok)
-        .filter(|entry| {
-            let name = entry.file_name();
-            let name = name.to_string_lossy();
-            name.ends_with(".jsonl") || name.ends_with(".meta.json")
-        })
-        .filter_map(|entry| Some((entry.path(), entry.metadata().ok()?)))
-        .filter(|(_, metadata)| metadata.is_file() && metadata.permissions().mode() & 0o044 != 0)
-        .map(|(path, _)| path)
-        .collect();
-    shared.sort();
-    shared
-}
-
-/// See the Unix version.
-#[cfg(not(unix))]
-#[must_use]
-pub(crate) fn shared_files(_dir: &Path) -> Vec<PathBuf> {
-    Vec::new()
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return Vec::new();
+        };
+        let mut shared: Vec<PathBuf> = entries
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                name.ends_with(".jsonl") || name.ends_with(".meta.json")
+            })
+            .filter_map(|entry| Some((entry.path(), entry.metadata().ok()?)))
+            .filter(|(_, metadata)| {
+                metadata.is_file() && metadata.permissions().mode() & 0o044 != 0
+            })
+            .map(|(path, _)| path)
+            .collect();
+        shared.sort();
+        shared
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = dir;
+        Vec::new()
+    }
 }
 
 /// Says once per process, on stderr, that `dir` holds recordings or sidecars
