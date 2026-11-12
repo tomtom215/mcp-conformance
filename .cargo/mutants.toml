@@ -51,6 +51,14 @@ exclude_re = [
     # against a retry's (client request) seq.
     "replace < with <= in mark_read",
     "replace < with <= in retries_with_rounds",
+    # request_state_scoped_to_retry is the same comparison, twice: a round's
+    # (server result) seq against the seq of the retry (client request) it is
+    # judged for, in the filter that finds the rounds issued before the retry
+    # and in the one that finds the round that issued the state for this request.
+    "replace < with <= in request_state_scoped_to_retry",
+    # Designations::at: a tool list result's (server) seq against the seq of the
+    # client POST a designation is looked up for, which every caller passes.
+    "replace < with <= in Designations::at",
     # Equivalent mutant, the same argument again: is_cancelled compares the seq
     # of a `notifications/cancelled` with the seq of the request it names. They
     # are different events (a notification is never a request), so equality

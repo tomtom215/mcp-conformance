@@ -250,3 +250,21 @@ fn a_call_before_any_listing_has_no_designation_to_be_held_to() {
     lines.push(listing(2, 2, "Region"));
     assert_eq!(findings_for(check, &trace(&lines)), Vec::<String>::new());
 }
+
+#[test]
+fn an_earlier_violation_is_still_found_when_the_tool_is_listed_again_later() {
+    // The call omits the header the first listing designated. A second listing,
+    // sent after it, designates another header; it must neither hide the
+    // violation (judged against the table in force when the call was sent) nor
+    // change what is said about it.
+    let check = "transport.x-mcp-header-mirrored";
+    let bare = r#"{"mcp-method":"tools/call","mcp-name":"t"}"#;
+    let mut lines = vec![listing(0, 1, "Region")];
+    lines.extend(region_call(1, 2, bare));
+    let before = findings_for(check, &trace(&lines));
+    assert_eq!(before.len(), 1, "{before:?}");
+    assert!(before[0].contains("Mcp-Param-Region"), "{before:?}");
+
+    lines.push(listing(3, 3, "Zone"));
+    assert_eq!(findings_for(check, &trace(&lines)), before);
+}

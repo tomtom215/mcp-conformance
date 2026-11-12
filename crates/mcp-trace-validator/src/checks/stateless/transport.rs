@@ -271,11 +271,6 @@ impl Designations {
             .find(|(listed, _)| *listed < seq)
             .map_or(&self.none, |(_, table)| table)
     }
-
-    /// Whether no tool list in the trace designated anything.
-    pub(in crate::checks::stateless) fn is_empty(&self) -> bool {
-        self.steps.iter().all(|(_, table)| table.is_empty())
-    }
 }
 
 /// The designations declared per tool name by every tool list in the trace, as

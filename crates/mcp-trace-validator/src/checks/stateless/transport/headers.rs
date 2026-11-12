@@ -234,9 +234,6 @@ pub(in crate::checks) fn sentinel_pattern_encoded(
 /// list that declared it.
 pub(in crate::checks) fn x_mcp_header_mirrored(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let designated = designations_by_tool(context);
-    if designated.is_empty() {
-        return;
-    }
     for post in posts(context) {
         if !post.is_request() {
             continue;
@@ -279,9 +276,6 @@ pub(in crate::checks) fn x_mcp_header_value_mirrored(
     sink: &mut FindingSink,
 ) {
     let designated = designations_by_tool(context);
-    if designated.is_empty() {
-        return;
-    }
     for post in posts(context) {
         if !post.is_request() {
             continue;

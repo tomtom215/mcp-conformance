@@ -225,3 +225,62 @@ fn a_server_rejecting_a_retry_for_a_fault_of_its_own_is_not_blamed_for_not_askin
     let clean = rejected(request(2, 2, "tools/call", r#","requestState":"S""#));
     assert_eq!(findings_for(REASKED, &clean).len(), 1);
 }
+
+#[test]
+fn a_state_repeated_across_one_requests_rounds_pairs_each_retry_with_its_own_open_round() {
+    // A server may open a further round on a repeated attempt and reuse the
+    // opaque state while it does (`#server-requirements-basic-workflow`, item
+    // 8). The second retry answers the second round, which asked for `llm`;
+    // the first round was answered by the first retry. Paired with the round
+    // that was already answered, the second retry would be judged for a
+    // `login` it was never asked for, and convicted of leaving it out.
+    let session = trace(&[
+        request(0, 1, "tools/call", ""),
+        input_required(1, 1, &format!(r#",{ELICIT},"requestState":"S""#)),
+        request(
+            2,
+            2,
+            "tools/call",
+            r#","requestState":"S","inputResponses":{"login":{}}"#,
+        ),
+        input_required(3, 2, &format!(r#"{SAMPLE},"requestState":"S""#)),
+        request(
+            4,
+            3,
+            "tools/call",
+            r#","requestState":"S","inputResponses":{"llm":{}}"#,
+        ),
+        complete(5, 3),
+    ]);
+    for check in CLIENT_SIDE {
+        assert_eq!(
+            findings_for(check, &session),
+            Vec::<String>::new(),
+            "{check}"
+        );
+    }
+
+    // Control: the second retry answers the first round's question instead of
+    // the second's, and is convicted of leaving out what the second asked.
+    let wrong = trace(&[
+        request(0, 1, "tools/call", ""),
+        input_required(1, 1, &format!(r#",{ELICIT},"requestState":"S""#)),
+        request(
+            2,
+            2,
+            "tools/call",
+            r#","requestState":"S","inputResponses":{"login":{}}"#,
+        ),
+        input_required(3, 2, &format!(r#"{SAMPLE},"requestState":"S""#)),
+        request(
+            4,
+            3,
+            "tools/call",
+            r#","requestState":"S","inputResponses":{"login":{}}"#,
+        ),
+        complete(5, 3),
+    ]);
+    let findings = findings_for(CARRIES_RESPONSES, &wrong);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].contains("inputResponses[llm]"), "{findings:?}");
+}

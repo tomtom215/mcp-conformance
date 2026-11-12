@@ -105,9 +105,6 @@ pub(in crate::checks) fn x_mcp_header_absent_omitted(
 /// The shared body of TRAN-132 and TRAN-134.
 fn header_omitted(context: &TraceContext<'_>, sink: &mut FindingSink, scenario: NoValue) {
     let designated = designations_by_tool(context);
-    if designated.is_empty() {
-        return;
-    }
     for post in posts(context) {
         for designation in without_value(&post, designated.at(post.seq), scenario) {
             // The subject is a designated parameter the call left without a
@@ -183,9 +180,6 @@ pub(in crate::checks) fn absent_param_header_not_expected(
 /// say which omission the server objected to.
 fn header_not_expected(context: &TraceContext<'_>, sink: &mut FindingSink, scenario: NoValue) {
     let designated = designations_by_tool(context);
-    if designated.is_empty() {
-        return;
-    }
     let by_message = posts_by_message(context);
     for exchange in context.exchanges() {
         let Some(post) = by_message.get(&exchange.request.seq) else {
@@ -234,9 +228,6 @@ pub(in crate::checks) fn missing_param_header_rejected(
     sink: &mut FindingSink,
 ) {
     let designated = designations_by_tool(context);
-    if designated.is_empty() {
-        return;
-    }
     let by_message = posts_by_message(context);
     for exchange in context.exchanges() {
         let Some(post) = by_message.get(&exchange.request.seq) else {
