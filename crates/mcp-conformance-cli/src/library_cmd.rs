@@ -163,7 +163,7 @@ pub(crate) fn execute(wb: &mut Workbench, command: LibraryCommand) -> Result<Str
         LibraryCommand::Export { ids, output } => {
             let names: Vec<&str> = ids.iter().map(String::as_str).collect();
             let export = ops::export_archive(wb, &names)?;
-            std::fs::write(&output, export.bytes)
+            crate::workbench::private::write(&output, &export.bytes)
                 .map_err(|error| Failure::Io(format!("{}: {error}", output.display())))?;
             format!(
                 "exported {} recordings to {}\n",

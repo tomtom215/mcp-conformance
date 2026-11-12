@@ -118,7 +118,17 @@ impl<T> RecordingTransport<T> {
     ///
     /// Returns the I/O error when the trace file cannot be created.
     pub fn create(inner: T, transport: CaptureTransport, path: &Path) -> std::io::Result<Self> {
-        let file = std::fs::File::create(path)?;
+        // A recording holds whatever the session carried, so it is for its
+        // owner alone (`0600` when created, less the umask), as the
+        // recorder's traces are.
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create(true).truncate(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt as _;
+            options.mode(0o600);
+        }
+        let file = options.open(path)?;
         Ok(Self {
             inner,
             recorder: Arc::new(Mutex::new(Recorder {
@@ -224,6 +234,26 @@ mod tests {
             self.closed.store(true, std::sync::atomic::Ordering::SeqCst);
             Ok(())
         }
+    }
+
+    /// A recording holds whatever the session carried, so it is for its owner
+    /// alone, as the recorder's traces are (mode `0600` less the umask, which
+    /// can only narrow it).
+    #[cfg(unix)]
+    #[test]
+    fn a_capture_file_is_for_its_owner_alone() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = std::env::temp_dir().join(format!("host-capture-mode-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("session.jsonl");
+        let inner = EchoTransport {
+            queue: std::collections::VecDeque::new(),
+            closed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        };
+        let _transport = RecordingTransport::create(inner, CaptureTransport::Stdio, &path).unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode & 0o077, 0, "the capture file is open to others");
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[tokio::test]

@@ -38,7 +38,9 @@ impl Archive {
         }
         let mut header = [0_u8; BLOCK];
         header[..name.len()].copy_from_slice(name.as_bytes());
-        octal(&mut header[100..108], 0o644);
+        // Owner-only, as the library's own files are: whoever extracts an export
+        // gets files only they can read, and shares them deliberately.
+        octal(&mut header[100..108], 0o600);
         octal(&mut header[108..116], 0);
         octal(&mut header[116..124], 0);
         octal(&mut header[124..136], contents.len() as u64);
@@ -130,6 +132,16 @@ pub(crate) mod tests {
         assert!(archive.add(&"a".repeat(101), b"", 0).is_err());
         assert!(archive.add("é", b"", 0).is_err());
         assert!(archive.add(&"a".repeat(100), b"", 0).is_ok());
+    }
+
+    /// Whoever extracts the archive gets files readable by themselves alone, as
+    /// the library's own files are: a member's mode is `0600`, not `0644`.
+    #[test]
+    fn members_are_owner_only_when_extracted() {
+        let mut archive = Archive::default();
+        archive.add("a.jsonl", b"{}\n", 0).unwrap();
+        let bytes = archive.finish();
+        assert_eq!(&bytes[100..108], b"0000600\0");
     }
 
     #[test]

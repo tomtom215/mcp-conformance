@@ -199,3 +199,27 @@ fn the_library_is_administered_from_the_command_line() {
     );
     assert_eq!(bad.status.code(), Some(2));
 }
+
+/// An export is written for its owner alone, as a recording is; a file that is
+/// already there keeps the mode its owner gave it, since the tool never changes
+/// the mode of what it replaces.
+#[cfg(unix)]
+#[test]
+fn an_export_is_owner_only_and_an_existing_file_keeps_its_mode() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+    let dir = fixture_library("export-mode");
+    let archive = dir.parent().unwrap().join("out.tar");
+    let export = |archive: &Path| {
+        let output = library(
+            &dir,
+            &["export", "leaky-session", "-o", archive.to_str().unwrap()],
+        );
+        assert!(output.status.success(), "{}", stderr(&output));
+    };
+    export(&archive);
+    assert_eq!(mode(&archive) & 0o077, 0, "a new export is open to others");
+    std::fs::set_permissions(&archive, std::fs::Permissions::from_mode(0o640)).unwrap();
+    export(&archive);
+    assert_eq!(mode(&archive), 0o640);
+}

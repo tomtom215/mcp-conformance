@@ -261,7 +261,16 @@ fn recording<T>(
     kind: CaptureTransport,
     dir: &std::path::Path,
 ) -> Result<RecordingTransport<T>, ExitCode> {
-    if let Err(error) = std::fs::create_dir_all(dir) {
+    // A directory made here is for its owner alone (`0700` less the umask),
+    // like the traces in it; one that exists is left as it is.
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt as _;
+        builder.mode(0o700);
+    }
+    if let Err(error) = builder.create(dir) {
         eprintln!(
             "mcp-reference-host: cannot create trace dir {}: {error}",
             dir.display()

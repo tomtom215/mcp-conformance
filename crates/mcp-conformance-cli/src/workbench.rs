@@ -22,6 +22,7 @@ pub(crate) mod guard;
 pub(crate) mod library;
 pub(crate) mod meta;
 pub(crate) mod ops;
+pub(crate) mod private;
 pub(crate) mod query;
 pub(crate) mod redact;
 pub(crate) mod search;

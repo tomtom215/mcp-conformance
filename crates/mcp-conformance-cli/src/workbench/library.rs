@@ -16,12 +16,17 @@
 //! a `.jsonl` file whose stem is not such an id is listed as skipped and never
 //! opened. Nothing here edits a trace in place: importing and redacting add
 //! new entries, deleting removes both files.
+//!
+//! What the library creates is private to its owner ([`private`]): a recording
+//! can hold credentials, and a sidecar quotes payload values.
 
 use std::fs;
 use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::meta::Meta;
+use super::private;
 
 /// The longest id, in bytes: room for a `.meta.json` suffix inside the
 /// 100-byte name field of the tar format an export writes.
@@ -89,7 +94,8 @@ pub(crate) fn id_from_name(name: &str) -> String {
 impl Library {
     /// The library at `root`, created when it does not exist.
     pub(crate) fn open(root: &Path) -> io::Result<Self> {
-        fs::create_dir_all(root)?;
+        private::create_dir_all(root)?;
+        private::warn_once_if_shared(root);
         Ok(Self {
             root: root.to_path_buf(),
         })
@@ -168,11 +174,32 @@ impl Library {
     }
 
     /// Writes entry `id`'s sidecar, whole or not at all: a temporary file in
-    /// the library, then renamed over the old one.
+    /// the library, then renamed over the old one. The temporary is created
+    /// new under a name of its own (so a link planted at a guessable name is
+    /// never followed, and two writers never share one) and private; a sidecar
+    /// that is being replaced keeps the mode it had.
     pub(crate) fn write_meta(&self, id: &str, meta: &Meta) -> io::Result<()> {
-        let temporary = self.root.join(format!(".{id}.meta.json.tmp"));
-        fs::write(&temporary, meta.to_text())?;
-        fs::rename(&temporary, self.meta_path(id))
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let temporary = self.root.join(format!(
+            ".{id}.meta.json.{}-{}.tmp",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let target = self.meta_path(id);
+        let written = private::file()
+            .create_new(true)
+            .open(&temporary)
+            .and_then(|mut file| {
+                file.write_all(meta.to_text().as_bytes())?;
+                if let Ok(existing) = fs::metadata(&target) {
+                    fs::set_permissions(&temporary, existing.permissions())?;
+                }
+                fs::rename(&temporary, &target)
+            });
+        if written.is_err() {
+            fs::remove_file(&temporary).ok();
+        }
+        written
     }
 
     /// Adds a recording under an id made from `name` (made unique with a
@@ -189,11 +216,7 @@ impl Library {
             if self.meta_path(&id).exists() {
                 continue;
             }
-            match fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(self.trace_path(&id))
-            {
+            match private::file().create_new(true).open(self.trace_path(&id)) {
                 Ok(mut file) => {
                     file.write_all(trace)?;
                     file.sync_all()?;
@@ -367,5 +390,76 @@ mod tests {
         meta.set_tags(["t"]);
         library.write_meta("y", &meta).unwrap();
         assert_eq!(library.read_meta("y").meta.tags, ["t"]);
+    }
+
+    /// The permission bits of `path`.
+    #[cfg(unix)]
+    fn mode_of(path: &Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt as _;
+        fs::metadata(path).unwrap().permissions().mode() & 0o777
+    }
+
+    /// What the workbench writes is as private as the recorder's own output
+    /// (mode `0600`): an import, a redacted copy and a sidecar would otherwise
+    /// be left at the umask's `0644` beside a `0600` trace, and a sidecar
+    /// quotes payload values. Holds for any umask, as a mode of `0600` less
+    /// the umask never gives group or other a bit.
+    #[cfg(unix)]
+    #[test]
+    fn a_new_library_and_what_is_added_to_it_are_owner_only() {
+        let root = scratch("private");
+        let nested = root.join("made").join("library");
+        let library = Library::open(&nested).unwrap();
+        for dir in [&nested, &root.join("made")] {
+            assert_eq!(mode_of(dir) & 0o077, 0, "{dir:?} is open to others");
+        }
+        let id = library
+            .add("s.jsonl", b"{}\n", &Meta::new("imported"))
+            .unwrap();
+        for path in [library.trace_path(&id), library.meta_path(&id)] {
+            assert_eq!(mode_of(&path) & 0o077, 0, "{path:?} is open to others");
+        }
+    }
+
+    /// A library its owner deliberately shares with a group keeps working: the
+    /// tool never changes the mode of a file it replaces.
+    #[cfg(unix)]
+    #[test]
+    fn replacing_a_sidecar_keeps_the_mode_its_owner_gave_it() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = scratch("keep-mode");
+        let library = Library::open(&dir).unwrap();
+        fs::write(library.meta_path("g"), "{}").unwrap();
+        fs::set_permissions(library.meta_path("g"), fs::Permissions::from_mode(0o640)).unwrap();
+        let mut meta = Meta::default();
+        meta.set_tags(["shared"]);
+        library.write_meta("g", &meta).unwrap();
+        assert_eq!(mode_of(&library.meta_path("g")), 0o640);
+        assert_eq!(library.read_meta("g").meta.tags, ["shared"]);
+    }
+
+    /// The sidecar is written through a temporary file whose name is its own:
+    /// a link planted at the old fixed name is not followed, and no temporary
+    /// is left behind.
+    #[cfg(unix)]
+    #[test]
+    fn a_planted_temporary_name_is_not_followed_and_none_is_left() {
+        let dir = scratch("temp-name");
+        let library = Library::open(&dir).unwrap();
+        let target = dir.join("elsewhere.txt");
+        fs::write(&target, "not the sidecar").unwrap();
+        std::os::unix::fs::symlink(&target, dir.join(".y.meta.json.tmp")).unwrap();
+        library.write_meta("y", &Meta::default()).unwrap();
+        assert_eq!(fs::read_to_string(&target).unwrap(), "not the sidecar");
+        assert!(library.meta_path("y").exists());
+        let left: Vec<String> = fs::read_dir(&dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|name| {
+                Path::new(name).extension().is_some_and(|ext| ext == "tmp")
+                    && name != ".y.meta.json.tmp"
+            })
+            .collect();
+        assert!(left.is_empty(), "{left:?}");
     }
 }

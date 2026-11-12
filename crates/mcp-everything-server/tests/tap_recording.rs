@@ -769,3 +769,26 @@ async fn concurrent_sessions_record_isolated_contiguous_traces() {
 
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// A tap trace holds whatever the session carried, so it is for its owner
+/// alone, as the recorder's traces are: mode `0600` for the file and `0700` for
+/// the directory the tap made (less the umask, which can only narrow them, so
+/// this holds whatever the umask is).
+#[cfg(unix)]
+#[tokio::test]
+async fn trace_files_and_the_directory_the_tap_made_are_owner_only() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+    let (app, dir) = tapped_app("owner-only");
+    let _session = initialized_session(&app, &dir).await;
+    assert_eq!(mode(&dir) & 0o077, 0, "the tap directory is open to others");
+    let traces: Vec<PathBuf> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "jsonl"))
+        .collect();
+    assert!(!traces.is_empty(), "the session wrote a trace");
+    for trace in traces {
+        assert_eq!(mode(&trace) & 0o077, 0, "{trace:?} is open to others");
+    }
+}

@@ -45,6 +45,21 @@ struct FileState {
     waiting: VecDeque<Slot>,
 }
 
+/// Creates the trace directory, and any parent it has to make, for its owner
+/// alone (`0700` less the umask): a trace holds whatever the session carried,
+/// so the directory is private as its files are (`0600`, below). One that
+/// already exists is left as it is.
+pub(super) fn create_private_dir(dir: &std::path::Path) -> std::io::Result<()> {
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt as _;
+        builder.mode(0o700);
+    }
+    builder.create(dir)
+}
+
 /// The writer task: sequences each record's events per file (the schema's
 /// strictly-increasing rule holds by construction), appends them as adjacent
 /// JSON lines in one write, and flushes before accepting the next record —
@@ -148,11 +163,12 @@ async fn append(
         dir.join(format!("{named:03}-{}.jsonl", file.label))
     });
     let write = async {
-        let mut handle = tokio::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)
-            .await?;
+        // `0600` when created (less the umask): the trace is for its owner.
+        let mut options = tokio::fs::OpenOptions::new();
+        options.create(true).append(true);
+        #[cfg(unix)]
+        options.mode(0o600);
+        let mut handle = options.open(&path).await?;
         handle.write_all(&lines).await?;
         handle.flush().await
     };

@@ -422,6 +422,26 @@ below is stated again in its entry, with the reasoning.
   one trace; and the exit codes it left out (`stdio` 1 when waiting for the server
   fails, `http` 2 when serving fails).
 
+**The workbench's files (security)**
+
+- **What the workbench writes is for its owner alone, as the recorder's traces are.**
+  An import, a redacted copy, a sidecar and an export were created at the umask's
+  usual `0644` (and a library directory `0755`) beside a `0600` trace, and an export's
+  tar members were `0644`. A sidecar's cached verdict quotes payload values in its
+  findings, so merely running `library list` or `serve` over a directory of the
+  recorder's `0600` traces wrote a world-readable `.meta.json` carrying a tool name
+  or URI from the recording. Files the workbench creates are now `0600`, directories
+  `0700` and tar members `0600` (less the umask, which can only narrow them); a file it
+  replaces keeps the mode its owner gave it, so a library shared with a group on purpose
+  keeps working. A library that already holds readable recordings or sidecars is said so
+  once on stderr, with the `chmod -R go-rwx` that fixes it; nothing is changed silently.
+  The sidecar's temporary file is created new under a name of its own, so a link planted
+  at the old fixed name (`.<id>.meta.json.tmp`) is no longer followed. The everything
+  server's `--tap-dir` traces (and the directory it makes) and the reference host's
+  `--trace-dir` captures are `0600` and `0700` too; they were `0644` and `0755`. Unix
+  only: Windows access control is not set here. File modes are not a listed stability
+  surface ([STABILITY.md](STABILITY.md)), so nothing here is a breaking change.
+
 **The everything server and the reference host**
 
 - **The reference host no longer reads a server's response without a size bound**

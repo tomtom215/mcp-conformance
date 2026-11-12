@@ -162,6 +162,15 @@ connection elsewhere; and puts every string from a recording on the page as text
 control and bidirectional characters shown as `\u{…}`. The
 [security model](../../docs/plan/05-security-model.md) lists the threats and the tests.
 
+What the workbench writes is for its owner alone, as the recorder's traces are: an import, a
+redacted copy, a sidecar and an export are created mode `0600` (a new library directory `0700`),
+less the umask, which can only narrow them. A sidecar's cached verdict quotes values from the
+recording, so it is as sensitive as the trace beside it. A file the workbench replaces keeps the
+mode you gave it, so a library you share with a group on purpose keeps working, and it never
+changes a mode silently. If a library already holds recordings or sidecars other users can read,
+the workbench says so once and prints the command: `chmod -R go-rwx <library>`. This is Unix
+only; on Windows the files get the directory's access control.
+
 The page and its API are for people, not a stable interface
 ([STABILITY.md](../../STABILITY.md)); `library stats --format json` is the way to read the
 numbers from a script.

@@ -195,7 +195,7 @@ impl Tap {
     ///
     /// Returns the I/O error when the trace directory cannot be created.
     pub fn new(dir: PathBuf) -> std::io::Result<Arc<Self>> {
-        std::fs::create_dir_all(&dir)?;
+        writer::create_private_dir(&dir)?;
         let (sender, receiver) = tokio::sync::mpsc::channel(CHANNEL_CAPACITY);
         tokio::spawn(write_loop(dir.clone(), receiver));
         Ok(Arc::new(Self {
